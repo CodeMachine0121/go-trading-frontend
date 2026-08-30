@@ -59,7 +59,8 @@
 | `FormField` | Molecule | 標籤 + 控制項 + 說明／錯誤訊息的組合 | `AppInput` | 條件不合法時標在欄位旁 |
 | `KCandleQueryForm` | Molecule | 查詢條件的輸入與送出，欄位錯誤由外部傳入呈現 | `FormField`、`AppButton` | 條件輸入、載入中不可重複送出 |
 | `KCandleTable` | Organism | 把結果 DTO 攤成表格：筆數、逐根數字、漲跌標籤、空狀態 | `AppBadge` | 多根／單根／空結果、漲跌 |
-| `pages/k-candles/index.vue` | Page (Controller) | 綁定：預設區間 → 送出 → 依錯誤型別決定顯示欄位錯誤／整塊錯誤 | `KCandleApplication` | 全部 |
+| `KCandleSearchPanel` | Organism | 查詢這一整塊的互動：預設區間 → 送出 → 依錯誤型別決定標在欄位旁或整塊呈現。Application 由頁面注入 | `KCandleApplication`、`KCandleQueryForm`、`KCandleTable` | 全部 |
+| `pages/k-candles/index.vue` | Page (Controller) | 只做接線：從組裝根取得 Application 往下傳 | `KCandleSearchPanel` | — |
 
 > 介面深度檢查：`KCandleApplication.searchKCandles(queryDto)` 一次呼叫完成一個完整業務動作——
 > 呼叫端不需要自己驗證、自己排序、自己算漲跌、自己數筆數。沒有任何「先呼叫 A 再呼叫 B」的序列。
@@ -80,9 +81,10 @@
 
 ```mermaid
 flowchart TD
-    Page["pages/k-candles/index.vue"] --> App["KCandleApplication"]
-    Page --> Form["KCandleQueryForm"]
-    Page --> Table["KCandleTable"]
+    Page["pages/k-candles/index.vue"] --> Panel["KCandleSearchPanel"]
+    Panel --> App["KCandleApplication"]
+    Panel --> Form["KCandleQueryForm"]
+    Panel --> Table["KCandleTable"]
     App --> Svc["KCandleService"]
     Svc --> QueryDomain["KCandleQueryDomain（建構即驗證）"]
     Svc --> IProxy["IKCandleProxy"]
@@ -135,12 +137,12 @@ flowchart TD
 | 交易標的只填了空白字元 | 同上（去空白後判斷） |
 | 結束時間早於開始時間 | `KCandleQueryDomain` → `KCandleQueryValidationError('endTime')` |
 | 開始時間與結束時間相同 | `KCandleQueryDomain`（相等為合法） |
-| 查詢區間過大被系統拒絕 | `BackendApiProxy` → `BackendRequestRejectedError`（帶後端說明）→ 頁面整塊呈現 |
-| 後端沒有啟動 | `BackendApiProxy` → `BackendUnreachableError` → 頁面整塊呈現 + 重試 |
-| 失敗後再次查詢成功 | 頁面在每次送出前清空錯誤與結果 |
-| 查詢進行中 / 查詢結束 | 頁面的載入狀態 → `KCandleQueryForm` 的送出按鈕停用 |
+| 查詢區間過大被系統拒絕 | `BackendApiProxy` → `BackendRequestRejectedError`（帶後端說明）→ `KCandleSearchPanel` 整塊呈現 |
+| 後端沒有啟動 | `BackendApiProxy` → `BackendUnreachableError` → `KCandleSearchPanel` 整塊呈現 + 重試 |
+| 失敗後再次查詢成功 | `KCandleSearchPanel` 在每次送出前清空錯誤與結果 |
+| 查詢進行中 / 查詢結束 | `KCandleSearchPanel` 的載入狀態 → `KCandleQueryForm` 的送出按鈕停用 |
 | 進入畫面時的預設區間 | `KCandleService.buildDefaultQuery()`（以目前時間往前二十四小時） |
-| 使用者改過的區間不被預設值覆蓋 | 頁面只在進入畫面時取一次預設值 |
+| 使用者改過的區間不被預設值覆蓋 | `KCandleSearchPanel` 只在進入畫面時取一次預設值 |
 
 ---
 
@@ -153,3 +155,14 @@ flowchart TD
     瀏覽器不會提示這件事，因此畫面必須自己標示，否則使用者會誤讀。
 - **Open decisions (for implementation):**
   - 表格欄位很多（九欄），窄螢幕如何處理——先以整塊水平捲動處理，不做欄位隱藏。
+
+### 實作階段對本設計的一項調整
+
+原設計把查詢的互動狀態放在頁面（`pages/k-candles/index.vue`）。實作時發現
+**Nuxt 的測試執行環境在本專案的版本組合下起不來**（`@nuxt/test-utils` 的 runtime 於初始化時
+`nuxtApp.deferHydration is not a function`），意即任何需要 `useNuxtApp` 的頁面都無法被測試覆蓋。
+
+因此互動狀態下放到 organism `KCandleSearchPanel`，由頁面把 Application 以 prop 注入；
+頁面因此退化成純接線、沒有任何值得測試的邏輯（覆蓋率設定已將 `app/pages/**` 排除並註明原因）。
+換來的是本切片每一條驗收情境都能在不啟動 Nuxt 的情況下被元件測試涵蓋。
+往後的切片沿用同一個做法：**頁面只接線，互動住在 organism**。
