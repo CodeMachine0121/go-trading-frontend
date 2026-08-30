@@ -9,9 +9,12 @@
 | 框架 | **Nuxt 3**（3.21.x）+ Vue 3 |
 | 語言 | **TypeScript**（`strict`） |
 | 數值處理 | **decimal.js**（金額 / 價格 / 停損，禁用 `number`） |
+| 樣式 | **SCSS**（`sass-embedded`）＋ CSS custom property token，中央控管於 `app/assets/styles/` |
+| 元件設計 | **Atomic Design**（atoms / molecules / organisms / templates） |
 | 打包 | **Vite**（Nuxt 內建） |
 | 單元測試 | **Vitest** + `@vue/test-utils` + `happy-dom` |
 | Lint | **ESLint 10**（`@nuxt/eslint` + `typescript-eslint`，含 stylistic 排版規則） |
+| 樣式 Lint | **Stylelint 17**（`stylelint-config-standard-scss` + `stylelint-config-recommended-vue`） |
 | 型別檢查 | `vue-tsc`（`bun run typecheck`） |
 | Git hooks | **Husky** + lint-staged |
 | 套件管理 / script runner | **Bun**（1.3.x） |
@@ -32,8 +35,13 @@
 
 ```
 app/
+├── assets/styles/          SCSS 中央層：token / mixin / 全域入口
 ├── pages/                  Controller：路由層 .vue
-├── components/             Controller：畫面元件 .vue
+├── components/             Controller：畫面元件 .vue（原子化設計四層）
+│   ├── atoms/              不可再拆的通用 UI（AppButton…），不認識領域概念
+│   ├── molecules/          原子組成的功能單位（BackendHealthCard…）
+│   ├── organisms/          畫面上可獨立存在的整塊區域
+│   └── templates/          只有版面骨架與插槽
 ├── application/            XxxApplication（純 TS，不認識 Vue）
 ├── domain/
 │   ├── models/
@@ -63,6 +71,37 @@ tests/                      鏡射 app/ 的目錄結構，檔名 {受測檔名}.
 - `.vue` 元件 import entity / domain model / service / proxy → 擋
 - `$fetch` / `useFetch` / `localStorage` 出現在 Proxy 以外的地方 → 擋
 - `any` / `@ts-ignore` → 擋
+- `.vue` 直接放在 `app/components/` 底下（沒進 atoms/molecules/…）→ 擋
+- atom import domain / application、下層元件 import 上層元件 → 擋
+- `<style>` 沒有 `lang="scss"` / 沒有 `scoped` → 擋
+
+Stylelint（[stylelint.config.mjs](stylelint.config.mjs)）則把樣式的中央控管轉成規則：
+
+- 元件內寫色碼、具名顏色、`rgb()` → 擋（一律用 `color('token')`）
+- class 不是 BEM → 擋
+- `!important` → 擋
+- 白名單只有 `app/assets/styles/**`——字面值只該住在 token 定義裡
+
+## 樣式
+
+樣式規範見 [.claude/rules/component-design.md](.claude/rules/component-design.md)。重點：
+
+```
+app/assets/styles/
+├── abstracts/            只有變數 / 函式 / mixin，不產生任何 CSS（由 Vite 自動注入每個 SCSS 檔）
+│   ├── _tokens.scss      ★ 全站唯一寫字面值的地方
+│   ├── _functions.scss   color() / spacing() / font-size() / radius() / shadow() …
+│   ├── _breakpoints.scss respond-to() mixin
+│   └── _mixins.scss      focus-ring / surface 等共用片段
+├── base/                 :root 的 CSS custom property、reset、排版底色調
+└── main.scss             唯一的全域入口（nuxt.config.ts 的 `css`）
+```
+
+- 元件一律 `<style scoped lang="scss">`，且**不必自己 `@use` abstracts**——已由
+  `nuxt.config.ts` 的 `vite.css.preprocessorOptions.scss.additionalData` 注入
+  （`vitest.config.ts` 有等價設定，兩邊要一起改）。
+- 值一律走 token 函式：`color('danger')`、`spacing('md')`；打錯 token 名字會讓建置直接失敗。
+- 需要新的顏色 / 間距，先加進 `abstracts/_tokens.scss` 的 map，`base/_tokens.scss` 會自動展開成 CSS 變數。
 
 ## Commands
 
@@ -75,11 +114,13 @@ bun run generate      # 靜態產出
 
 bun run lint          # ESLint
 bun run lint:fix      # ESLint 自動修
+bun run lint:style    # Stylelint（.scss 與 .vue 的 <style>）
+bun run lint:style:fix # Stylelint 自動修
 bun run typecheck     # vue-tsc 型別檢查
 bun run test          # Vitest 跑一次
 bun run test:watch    # Vitest watch 模式
 bun run test:coverage # 覆蓋率報告
-bun run verify        # lint + typecheck + test（等同 pre-push 的檢查）
+bun run verify        # lint + lint:style + typecheck + test（等同 pre-push 的檢查）
 ```
 
 > ⚠️ **一定要 `bun run test`，不要 `bun test`。** `bun test` 會跑 bun 內建的測試 runner
@@ -94,8 +135,8 @@ Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然
 
 | Hook | 動作 |
 | :--- | :--- |
-| `pre-commit` | 對 staged 檔案跑 `eslint --fix`，再跑全專案 `bun run typecheck` |
-| `pre-push` | `bun run lint` + `bun run typecheck` + `bun run test` |
+| `pre-commit` | 對 staged 檔案跑 `eslint --fix` 與 `stylelint --fix`，再跑全專案 `bun run typecheck` |
+| `pre-push` | `bun run lint` + `bun run lint:style` + `bun run typecheck` + `bun run test` |
 
 緊急情況要跳過：`git commit --no-verify`（請盡量不要）。
 
