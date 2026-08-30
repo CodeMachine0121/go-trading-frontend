@@ -22,6 +22,12 @@ defineProps<{ title: string }>()
         >
           K 線瀏覽
         </NuxtLink>
+        <NuxtLink
+          to="/indicator-calculations"
+          class="console-layout__link"
+        >
+          指標計算
+        </NuxtLink>
       </nav>
     </header>
 

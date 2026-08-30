@@ -1,0 +1,195 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
+import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
+import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+
+// 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
+const SCRIPT = 'package main\nfunc Calculate() {}'
+
+function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
+  return {
+    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, [])),
+    ...overrides,
+  }
+}
+
+function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
+  return mount(IndicatorCalculationPanel, {
+    props: {
+      indicatorCalculationApplication: new IndicatorCalculationApplication(
+        new IndicatorCalculationService(indicatorCalculationProxy)),
+    },
+  })
+}
+
+async function fillAndSubmit(
+  wrapper: ReturnType<typeof mountPanel>,
+  values: { symbol?: string, candleCount?: string, script?: string } = {},
+) {
+  await wrapper.get('[data-testid="symbol-input"]').setValue(values.symbol ?? 'BTCUSDT')
+  await wrapper.get('[data-testid="candle-count-input"]').setValue(values.candleCount ?? '3')
+  await wrapper.get('[data-testid="script-input"]').setValue(values.script ?? SCRIPT)
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+}
+
+describe('IndicatorCalculationPanel', () => {
+  it('一進畫面就說明計算會排除最新一根', () => {
+    const wrapper = mountPanel(buildProxy())
+
+    expect(wrapper.get('[data-testid="calculation-notice"]').text()).toContain('排除最新一根')
+  })
+
+  it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, [
+        new IndicatorValueVo('最高', 120),
+        new IndicatorValueVo('均價', 110),
+      ])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toBe('實際採用 3 根')
+    const rows = wrapper.findAll('[data-testid="indicator-row"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.text()).toContain('均價')
+    expect(rows[0]?.text()).toContain('110')
+    expect(rows[1]?.text()).toContain('最高')
+  })
+
+  it('一個指標都沒算出來時說明清楚，且不呈現為錯誤', async () => {
+    const wrapper = mountPanel(buildProxy())
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="empty-result"]').text()).toContain('沒有算出任何指標')
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+  })
+
+  it.each([
+    { description: '未指定交易標的', values: { symbol: '' }, expectedMessage: '請指定交易標的' },
+    { description: '根數為零', values: { candleCount: '0' }, expectedMessage: '計算根數必須大於零' },
+    { description: '根數為負', values: { candleCount: '-3' }, expectedMessage: '計算根數必須大於零' },
+    { description: '根數不是整數', values: { candleCount: '2.5' }, expectedMessage: '計算根數必須是整數' },
+    { description: '根數留空', values: { candleCount: '' }, expectedMessage: '請填寫計算根數' },
+    { description: '算式留空', values: { script: '' }, expectedMessage: '請填寫指標算式' },
+  ])('$description 時標在欄位旁且完全不執行', async ({ values, expectedMessage }) => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, values)
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe(expectedMessage)
+    expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
+  })
+
+  it('根數為一時照常執行', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, { candleCount: '1' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
+  it('算式跑不起來時，明確說是算式的問題', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(
+        new IndicatorScriptFailedError('算式必須提供 Calculate 進入點')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="script-failed-alert"]')
+    expect(alert.text()).toContain('要改的是算式')
+    expect(alert.text()).toContain('算式必須提供 Calculate 進入點')
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
+  })
+
+  it('K 線不足時，說是請求的問題', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(
+        new BackendRequestRejectedError('K 線不足，排除最新一根後目前可用 9 根，但要求 30 根')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="request-rejected-alert"]')
+    expect(alert.text()).toContain('請求的問題')
+    expect(alert.text()).toContain('目前可用 9 根')
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+  })
+
+  it('連不上後端時告知並提供重試', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new BackendUnreachableError('/indicator-calculations')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="unreachable-alert"]').text()).toContain('連不上後端')
+  })
+
+  it('未預期的錯誤也整塊告知', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new Error('boom')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="request-rejected-alert"]').text()).toContain('未預期的錯誤')
+  })
+
+  it('先前失敗的訊息在下一次成功計算後消失', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn()
+        .mockRejectedValueOnce(new IndicatorScriptFailedError('算式無法解讀'))
+        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', 3, [
+          new IndicatorValueVo('均價', 110),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper)
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(true)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+  })
+
+  it('計算進行中呈現狀態且執行按鈕不可再觸發', async () => {
+    const pendingCalculation = new Promise<IndicatorCalculation>(() => {})
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockReturnValue(pendingCalculation),
+    }))
+
+    await wrapper.get('[data-testid="script-input"]').setValue(SCRIPT)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="calculating-alert"]').text()).toContain('計算中')
+    expect(wrapper.get('[data-testid="calculate-button"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('按下帶入範例算式會填入一段可直接執行的算式', async () => {
+    const wrapper = mountPanel(buildProxy())
+
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+
+    const scriptValue = wrapper.get<HTMLTextAreaElement>('[data-testid="script-input"]').element.value
+    expect(scriptValue).toContain('func Calculate(data []indicator.KCandle) map[string]float64')
+    expect(scriptValue).toContain('均價')
+  })
+})
