@@ -12,8 +12,11 @@ export const K_CANDLE_INTERVAL_MINUTES = 5
 /**
  * 使用者可能貼上任何東西，只有長得像十進位數字的才拿去解讀。
  * 先比對格式再建立精確小數，解讀就不會失敗，也不必用例外當控制流程。
+ *
+ * 指數表示法必須接受：精確小數型別本身在數字夠小或夠大時就是以 `1e-8` 這種形式呈現，
+ * 修改既有 K 線時表單帶入的就是它——不接受的話，使用者會連自己沒動過的值都存不回去。
  */
-const DECIMAL_PATTERN = /^-?(\d+(\.\d*)?|\.\d+)$/
+const DECIMAL_PATTERN = /^-?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i
 
 /** 欄位在畫面上的說法。訊息由它組出來，加欄位時只要多一列。 */
 const FIELD_LABELS: Record<KCandleWriteField, string> = {

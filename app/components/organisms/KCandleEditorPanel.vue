@@ -13,12 +13,14 @@ import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-
 
 // 有機體：一次 K 線維護的互動。
 // editingKCandle 為 null 代表新增，否則代表修改那一根（身分唯讀）。
-const { kCandleApplication, editingKCandle = null } = defineProps<{
+const { kCandleApplication, editingKCandle = null, defaultSymbol = '' } = defineProps<{
   kCandleApplication: KCandleApplication
   editingKCandle?: KCandleDto | null
+  /** 新增時預先帶入的交易標的——沿用使用者正在瀏覽的那一個，才不必在兩處之間抄。 */
+  defaultSymbol?: string
 }>()
 
-const emit = defineEmits<{ changed: [], cancel: [] }>()
+const emit = defineEmits<{ changed: [], cancel: [], busyChange: [boolean] }>()
 
 const symbol = ref('')
 const openTime = ref('')
@@ -37,12 +39,14 @@ const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
 const successMessage = ref<string | null>(null)
 const confirmingDelete = ref(false)
+// 刪除成功後這根 K 線就不存在了，表單不能再留著讓人按下儲存。
+const deleted = ref(false)
 
 const editing = computed(() => editingKCandle !== null)
 
 onMounted(() => {
   if (editingKCandle === null) {
-    const draft = kCandleApplication.buildNewKCandleDraft('BTCUSDT')
+    const draft = kCandleApplication.buildNewKCandleDraft(defaultSymbol)
     symbol.value = draft.symbol
     openTime.value = formatUtcMinuteInput(draft.openTime)
     return
@@ -98,6 +102,7 @@ async function deleteKCandle() {
   try {
     await kCandleApplication.deleteKCandle(new KCandleIdentityDto(
       symbol.value, parseUtcMinuteInput(openTime.value)))
+    deleted.value = true
     finishRequest('已刪除這根 K 線')
   }
   catch (error: unknown) {
@@ -107,6 +112,8 @@ async function deleteKCandle() {
 
 function startRequest() {
   submitting.value = true
+  confirmingDelete.value = false
+  emit('busyChange', true)
   fieldError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
@@ -116,12 +123,14 @@ function startRequest() {
 function finishRequest(message: string) {
   submitting.value = false
   successMessage.value = message
+  emit('busyChange', false)
   emit('changed')
 }
 
 // 哨兵錯誤分流：使用者可自行修正的標在欄位旁，其餘整塊呈現。
 function reportFailure(error: unknown) {
   submitting.value = false
+  emit('busyChange', false)
 
   if (error instanceof KCandleFieldError) {
     fieldError.value = { field: error.field, message: error.message }
@@ -145,6 +154,7 @@ function reportFailure(error: unknown) {
     </h2>
 
     <KCandleForm
+      v-if="!deleted"
       v-model:symbol="symbol"
       v-model:open-time="openTime"
       v-model:open="open"
@@ -190,6 +200,7 @@ function reportFailure(error: unknown) {
             variant="danger"
             size="small"
             data-testid="delete-confirm-yes"
+            :disabled="submitting"
             @click="deleteKCandle"
           >
             確定刪除
@@ -197,6 +208,7 @@ function reportFailure(error: unknown) {
           <AppButton
             variant="secondary"
             size="small"
+            :disabled="submitting"
             data-testid="delete-confirm-no"
             @click="confirmingDelete = false"
           >
@@ -212,6 +224,19 @@ function reportFailure(error: unknown) {
       data-testid="editor-success"
     >
       {{ successMessage }}
+      <template
+        v-if="deleted"
+        #action
+      >
+        <AppButton
+          variant="secondary"
+          size="small"
+          data-testid="editor-close"
+          @click="emit('cancel')"
+        >
+          關閉
+        </AppButton>
+      </template>
     </AppAlert>
 
     <AppAlert

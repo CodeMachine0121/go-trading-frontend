@@ -27,11 +27,11 @@ Oracle: Acceptance Criteria（22 個情境）+ Core Business Rules（6 條）+ N
 | AC-14 | 修改時不得更換身分 | 交易標的與起始時間唯讀 | `KCandleForm.vue:11/62/78`（`identityReadonly` → `disabled`） | `KCandleEditorPanel.spec.ts:168`、`KCandleSearchPanel.spec.ts:222` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-15 | 要修改的那根已經不存在 | 顯示「找不到該根 K 線」，列表維持原狀 | `backend-api-proxy.ts:44-52` → `KCandleEditorPanel.vue:135-136` | `KCandleEditorPanel.spec.ts:194` | asserts-oracle（另斷言沒有發出重查事件） | produces-oracle | ✅ conforms |
 | AC-16 | 修改後的數字不合理 | 不修改，最高價欄位提示「最高價不得低於最低價」 | 同 AC-06（同一個建構子） | `KCandleEditorPanel.spec.ts:194`（修改路徑，另斷言完全沒有寫入） | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-17 | 刪除一根存在的 K 線 | 刪除成功、回饋「已刪除這根 K 線」、自動重查 | `k-candle-service.ts:66-71`、`KCandleEditorPanel.vue:94-105` | `KCandleEditorPanel.spec.ts:231`、`KCandleSearchPanel.spec.ts:237` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-17 | 刪除一根存在的 K 線 | 刪除成功、回饋「已刪除這根 K 線」、表單收起來、自動重查 | `k-candle-service.ts:66-71`、`KCandleEditorPanel.vue:94-105` | `KCandleEditorPanel.spec.ts:231`、`KCandleSearchPanel.spec.ts:237` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-18 | 刪除前反悔 | 不刪除，維持在修改狀態 | `KCandleEditorPanel.vue:201`（取消只關掉確認列） | `KCandleEditorPanel.spec.ts:252` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-19 | 要刪除的那根已經不存在 | 顯示「找不到該根 K 線」 | 同 AC-15 | `KCandleEditorPanel.spec.ts:262` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-20 | 從查詢結果挑一根來修改 | 表單帶入該根的所有數字，進入修改狀態 | `KCandleTable.vue:98-102`（插槽）、`KCandleSearchPanel.vue:43-46`、`KCandleEditorPanel.vue:50-60` | `KCandleSearchPanel.spec.ts:222`、`KCandleTable.spec.ts:79` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-21 | 開始新增一根 | 出現空白表單，進入新增狀態 | `KCandleSearchPanel.vue:38-41/158` | `KCandleSearchPanel.spec.ts:211` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-21 | 開始新增一根 | 出現空白表單、交易標的預先帶入正在瀏覽的那一個 | `KCandleSearchPanel.vue:38-41/158` | `KCandleSearchPanel.spec.ts:211` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-22 | 中途放棄 | 回到只有查詢結果的狀態，沒有任何變更 | `KCandleSearchPanel.vue:48-51/170` | `KCandleSearchPanel.spec.ts:259`、`KCandleEditorPanel.spec.ts:272` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-1 | 身分：新增相同身分即覆蓋；修改時身分不得更換 | 兩種寫入走不同端點，修改的身分取自被修改的那一根 | `k-candle-proxy.ts`（POST vs PUT `/k-candles/{symbol}/{openTime}`） | `k-candle-proxy.spec.ts`（POST／PUT／DELETE 的位址與 body） | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-2 | 起始時間：必填、五分鐘刻度、不得指向未來（等於目前這一刻合法） | 四條規則同時成立 | `k-candle-identity-vo.ts:16-18`、`k-candle-write-domain.ts:53-64` | `k-candle-write-domain.spec.ts:87/96/105/113` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -56,13 +56,30 @@ Oracle: Acceptance Criteria（22 個情境）+ Core Business Rules（6 條）+ N
 
 ## Summary
 
-- Conforms: 29/32 clauses ✅（90.6%）
+- Conforms: 29/32 clauses ✅（90.6%）；review 之後另有 5 條行為被修正並補上測試
 - Violations: 無
 - Mis-asserted: 無
 - Partial: NFR-1、NFR-3、NFR-4（非功能性約束，不以單元測試斷言）
 - Gaps: 無
 - Unclear: 無
 - Orphans: 3（1 項防禦性、2 項有據）
+
+### PR review 抓到、稽核當時沒抓到的五個缺陷
+
+靜態稽核比對的是「規格 vs 測試 vs 程式碼」，它抓不到「規格沒想到的情境」——這五個都是 review 才發現的：
+
+1. **系統自己產出的值存不回去**（HIGH）。精確小數在數字夠小／夠大時會輸出成 `1e-8`、`1.23e+22`，
+   而修改表單帶入的就是它；當時的格式檢查不接受指數表示法，
+   使用者按下儲存會被自己的資料擋下來（`成交量必須是數字`）。已放寬格式並補上三個案例。
+2. **新增時把 K 線寫到別的標的去**（MEDIUM）。新增表單的交易標的寫死 BTCUSDT，
+   使用者查 ETHUSDT 時新增的那根會落到 BTCUSDT，重查後憑空消失，看起來像資料遺失。
+   已改成沿用正在瀏覽的標的（並補進 PRD 的 AC-21）。
+3. **送出進行中還能按確定刪除**（LOW/MEDIUM）。確認列在送出時沒有收起來，
+   可以同時觸發更新與刪除。已在請求開始時收起確認列並停用確認按鈕。
+4. **刪除成功後表單仍可送出更新**（LOW）。剛刪掉的那根會立刻收到「找不到該根 K 線」。
+   已改成刪除成功後收起表單，只留回饋與「關閉」。
+5. **送出途中切換到別根會吞掉結果**（LOW）。維護區塊以那根的起始時間當識別，
+   切換會整塊換掉，正在飛的請求結果沒人接得住。已在請求進行中停用「編輯」。
 
 ### 本次稽核造成的修正
 

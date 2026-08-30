@@ -149,6 +149,17 @@ describe('KCandleWriteDomain', () => {
     expect(fieldError.message).toBe('收盤價必須是數字')
   })
 
+  it.each([
+    { description: '很小的數字', volume: '1e-8' },
+    { description: '很大的數字', volume: '1.23e+22' },
+    { description: '大寫的指數符號', volume: '1E-8' },
+  ])('成交量是$description（指數表示法）時視為合法', ({ volume }) => {
+    // 精確小數型別本身就會把這種值輸出成指數形式，修改既有 K 線時表單帶入的就是它。
+    const kCandleWriteDomain = new KCandleWriteDomain(buildWriteDto({ volume }))
+
+    expect(kCandleWriteDomain.volume.isNegative()).toBe(false)
+  })
+
   it('價量為負時拒絕並指名該欄位', () => {
     const fieldError = fieldErrorOf(() => new KCandleWriteDomain(buildWriteDto({ volume: '-1' })))
 

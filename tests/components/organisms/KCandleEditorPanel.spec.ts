@@ -42,11 +42,16 @@ function buildEditingKCandleDto(): KCandleDto {
   )
 }
 
-async function mountPanel(kCandleProxy: IKCandleProxy, editingKCandle: KCandleDto | null = null) {
+async function mountPanel(
+  kCandleProxy: IKCandleProxy,
+  editingKCandle: KCandleDto | null = null,
+  defaultSymbol = 'BTCUSDT',
+) {
   const wrapper = mount(KCandleEditorPanel, {
     props: {
       kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)),
       editingKCandle,
+      defaultSymbol,
     },
   })
   await wrapper.vm.$nextTick()
@@ -80,6 +85,12 @@ describe('KCandleEditorPanel', () => {
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
         .toBe('2026-08-30T12:05')
       expect(wrapper.get('[data-testid="overwrite-notice"]').text()).toContain('覆蓋')
+    })
+
+    it('交易標的預先帶入外面正在瀏覽的那一個', async () => {
+      const wrapper = await mountPanel(buildProxy(), null, 'ETHUSDT')
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-symbol"]').element.value).toBe('ETHUSDT')
     })
 
     it('填妥送出後新增成功並回饋，且通知外面重查', async () => {
@@ -241,6 +252,36 @@ describe('KCandleEditorPanel', () => {
       expect(wrapper.emitted('changed')).toHaveLength(1)
     })
 
+    it('刪除成功後表單就收起來，不可能再送出一次更新', async () => {
+      const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto())
+
+      await wrapper.get('[data-testid="delete-button"]').trigger('click')
+      await wrapper.get('[data-testid="delete-confirm-yes"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="editor-success"]').text()).toContain('已刪除這根 K 線')
+      expect(wrapper.find('[data-testid="form-symbol"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="form-submit"]').exists()).toBe(false)
+
+      await wrapper.get('[data-testid="editor-close"]').trigger('click')
+      expect(wrapper.emitted('cancel')).toHaveLength(1)
+    })
+
+    it('送出進行中時，刪除的確認列會收起來且不可觸發', async () => {
+      const pendingUpdate = new Promise(() => {})
+      const kCandleProxy = buildProxy({ updateKCandle: vi.fn().mockReturnValue(pendingUpdate) })
+      const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
+
+      await wrapper.get('[data-testid="delete-button"]').trigger('click')
+      expect(wrapper.find('[data-testid="delete-confirm"]').exists()).toBe(true)
+
+      await wrapper.get('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('[data-testid="delete-confirm"]').exists()).toBe(false)
+      expect(kCandleProxy.deleteKCandle).not.toHaveBeenCalled()
+    })
+
     it('在確認時反悔就不刪', async () => {
       const kCandleProxy = buildProxy()
       const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
@@ -264,6 +305,31 @@ describe('KCandleEditorPanel', () => {
 
       expect(wrapper.get('[data-testid="editor-rejected"]').text()).toContain('找不到該根 K 線')
     })
+  })
+
+  it('請求進行中與結束時把忙碌狀態往外送', async () => {
+    const kCandleProxy = buildProxy()
+    const wrapper = await mountPanel(kCandleProxy)
+
+    await fillFigures(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('busyChange')?.at(0)).toEqual([true])
+
+    await flushPromises()
+    expect(wrapper.emitted('busyChange')?.at(-1)).toEqual([false])
+  })
+
+  it('請求失敗時也要把忙碌狀態解除', async () => {
+    const kCandleProxy = buildProxy({
+      updateKCandle: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles')),
+    })
+    const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('busyChange')?.at(-1)).toEqual([false])
   })
 
   it('按取消時把放棄這件事往上送', async () => {

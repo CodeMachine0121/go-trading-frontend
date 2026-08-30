@@ -34,6 +34,8 @@ const backendUnreachable = ref(false)
 // 維護狀態：null 代表沒在維護；editingKCandle 為 null 但 editorOpen 為真代表正在新增。
 const editorOpen = ref(false)
 const editingKCandle = ref<KCandleDto | null>(null)
+// 維護請求進行中時不得切換到別根——切換會把面板換掉，正在飛的那次結果就沒人接得住。
+const editorBusy = ref(false)
 
 function startCreating() {
   editingKCandle.value = null
@@ -48,6 +50,7 @@ function startEditing(kCandle: KCandleDto) {
 function closeEditor() {
   editorOpen.value = false
   editingKCandle.value = null
+  editorBusy.value = false
 }
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
@@ -166,8 +169,10 @@ async function searchKCandles() {
       :key="editingKCandle ? editingKCandle.openTime.toISOString() : 'new'"
       :k-candle-application="kCandleApplication"
       :editing-k-candle="editingKCandle"
+      :default-symbol="symbol"
       @changed="searchKCandles"
       @cancel="closeEditor"
+      @busy-change="editorBusy = $event"
     />
 
     <KCandleTable
@@ -178,6 +183,7 @@ async function searchKCandles() {
         <AppButton
           variant="ghost"
           size="small"
+          :disabled="editorBusy"
           data-testid="edit-button"
           @click="startEditing(kCandle)"
         >

@@ -224,6 +224,38 @@ describe('KCandleSearchPanel', () => {
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-close"]').element.value).toBe('')
     })
 
+    it('新增時預先帶入目前正在瀏覽的交易標的', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+      await wrapper.get('[data-testid="create-button"]').trigger('click')
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-symbol"]').element.value).toBe('ETHUSDT')
+    })
+
+    it('維護請求進行中時不得切換到別根', async () => {
+      const pendingUpdate = new Promise(() => {})
+      const kCandleProxy = buildProxy({
+        findKCandlesInRange: vi.fn().mockResolvedValue([
+          buildKCandle('2026-08-30T10:00:00.000Z'),
+          buildKCandle('2026-08-30T10:05:00.000Z'),
+        ]),
+        updateKCandle: vi.fn().mockReturnValue(pendingUpdate),
+      })
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      await wrapper.findAll('[data-testid="edit-button"]')[0]?.trigger('click')
+      await flushPromises()
+      // 畫面上有兩張表單：查詢在前、維護在後。
+      await wrapper.findAll('form')[1]?.trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      const editButtons = wrapper.findAll('[data-testid="edit-button"]')
+      expect(editButtons[1]?.attributes('disabled')).toBeDefined()
+    })
+
     it('對某一列按「編輯」會帶入那一根的資料', async () => {
       const wrapper = await mountPanel(buildProxy({
         findKCandlesInRange: vi.fn().mockResolvedValue([buildKCandle('2026-08-30T10:00:00.000Z')]),
