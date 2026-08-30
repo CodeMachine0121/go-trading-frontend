@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
+import { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
+import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
+import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -126,5 +129,84 @@ describe('KCandleProxy', () => {
 
     await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
       .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+
+  describe('寫入', () => {
+    const OPEN_TIME = new Date('2026-08-30T10:00:00.000Z')
+
+    function buildWriteDomain(): KCandleWriteDomain {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-08-30T12:00:00.000Z'))
+      const kCandleWriteDomain = new KCandleWriteDomain(new KCandleWriteDto(
+        'BTCUSDT', OPEN_TIME, '100.5', '120', '90', '110', '11', '1200.25', '5', '600'))
+      vi.useRealTimers()
+
+      return kCandleWriteDomain
+    }
+
+    it('新增時把整根 K 線送到 K 線端點', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      await new KCandleProxy(BASE_URL).saveKCandle(buildWriteDomain())
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles', {
+        method: 'POST',
+        body: {
+          symbol: 'BTCUSDT',
+          openTime: '2026-08-30T10:00:00.000Z',
+          open: '100.5',
+          high: '120',
+          low: '90',
+          close: '110',
+          volume: '11',
+          quoteVolume: '1200.25',
+          takerBuyBaseVolume: '5',
+          takerBuyQuoteVolume: '600',
+        },
+      })
+    })
+
+    it('修改時以交易標的與起始時間指名那一根', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      await new KCandleProxy(BASE_URL).updateKCandle(buildWriteDomain())
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8080/k-candles/BTCUSDT/2026-08-30T10%3A00%3A00.000Z',
+        expect.objectContaining({ method: 'PUT' }),
+      )
+    })
+
+    it('刪除時以交易標的與起始時間指名那一根', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(null)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      await new KCandleProxy(BASE_URL).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME))
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:8080/k-candles/BTCUSDT/2026-08-30T10%3A00%3A00.000Z',
+        { method: 'DELETE' },
+      )
+    })
+
+    it('寫入回來的資料一樣正規化成 K 線', async () => {
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(K_CANDLE_WIRE))
+
+      const savedKCandle = await new KCandleProxy(BASE_URL).saveKCandle(buildWriteDomain())
+
+      expect(savedKCandle.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
+      expect(savedKCandle.open.toString()).toBe('100.5')
+    })
+
+    it('被後端拒絕時一樣包成可轉達的錯誤', async () => {
+      vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+        buildFetchError({ status: 404, statusText: 'Not Found', message: '找不到該根 K 線' }),
+      ))
+
+      await expect(new KCandleProxy(BASE_URL).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)))
+        .rejects.toThrow('找不到該根 K 線')
+    })
   })
 })

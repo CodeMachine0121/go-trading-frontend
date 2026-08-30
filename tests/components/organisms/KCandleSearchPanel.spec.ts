@@ -27,6 +27,16 @@ function buildKCandle(openTime: string): KCandle {
   )
 }
 
+function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
+  return {
+    findKCandlesInRange: vi.fn().mockResolvedValue([]),
+    saveKCandle: vi.fn(),
+    updateKCandle: vi.fn(),
+    deleteKCandle: vi.fn(),
+    ...overrides,
+  }
+}
+
 async function mountPanel(kCandleProxy: IKCandleProxy) {
   const wrapper = mount(KCandleSearchPanel, {
     props: { kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)) },
@@ -47,7 +57,7 @@ afterEach(() => {
 
 describe('KCandleSearchPanel', () => {
   it('進入畫面時帶入最近二十四小時的預設區間', async () => {
-    const wrapper = await mountPanel({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
+    const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }))
 
     expect(wrapper.get<HTMLInputElement>('[data-testid="symbol-input"]').element.value).toBe('BTCUSDT')
     expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
@@ -57,12 +67,12 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('以使用者輸入的區間查詢，並列出查到的 K 線', async () => {
-    const kCandleProxy = {
+    const kCandleProxy = buildProxy({
       findKCandlesInRange: vi.fn().mockResolvedValue([
         buildKCandle('2026-08-30T10:05:00.000Z'),
         buildKCandle('2026-08-30T10:00:00.000Z'),
       ]),
-    }
+    })
     const wrapper = await mountPanel(kCandleProxy)
 
     await wrapper.get('[data-testid="end-time-input"]').setValue('2026-08-30T18:30')
@@ -79,7 +89,7 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('查無資料時顯示查無 K 線而不是錯誤', async () => {
-    const wrapper = await mountPanel({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
+    const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }))
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -95,7 +105,7 @@ describe('KCandleSearchPanel', () => {
     { description: '開始時間被清空', input: '[data-testid="start-time-input"]', value: '', expectedMessage: '請填寫開始時間' },
     { description: '結束時間被清空', input: '[data-testid="end-time-input"]', value: '', expectedMessage: '請填寫結束時間' },
   ])('$description 時標在欄位旁且完全不去查詢', async ({ input, value, expectedMessage }) => {
-    const kCandleProxy = { findKCandlesInRange: vi.fn().mockResolvedValue([]) }
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
 
     await wrapper.get(input).setValue(value)
@@ -109,7 +119,7 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('開始時間與結束時間相同時照常查詢', async () => {
-    const kCandleProxy = { findKCandlesInRange: vi.fn().mockResolvedValue([]) }
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
 
     await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T12:00')
@@ -121,7 +131,7 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('查詢區間可以是不對齊五分鐘刻度的時間', async () => {
-    const kCandleProxy = { findKCandlesInRange: vi.fn().mockResolvedValue([]) }
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
 
     await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T10:07')
@@ -137,11 +147,11 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('被後端以業務規則拒絕時整塊轉達原因，且不顯示任何 K 線', async () => {
-    const wrapper = await mountPanel({
+    const wrapper = await mountPanel(buildProxy({
       findKCandlesInRange: vi.fn().mockRejectedValue(
         new BackendRequestRejectedError('時間區間過大，請縮小區間（單次最多 1000 根）'),
       ),
-    })
+    }))
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -153,9 +163,9 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('連不上後端時告知並提供重試', async () => {
-    const wrapper = await mountPanel({
+    const wrapper = await mountPanel(buildProxy({
       findKCandlesInRange: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles')),
-    })
+    }))
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -165,9 +175,9 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('未預期的錯誤也整塊告知', async () => {
-    const wrapper = await mountPanel({
+    const wrapper = await mountPanel(buildProxy({
       findKCandlesInRange: vi.fn().mockRejectedValue(new Error('boom')),
-    })
+    }))
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -176,11 +186,11 @@ describe('KCandleSearchPanel', () => {
   })
 
   it('先前失敗的訊息在下一次成功查詢後消失', async () => {
-    const wrapper = await mountPanel({
+    const wrapper = await mountPanel(buildProxy({
       findKCandlesInRange: vi.fn()
         .mockRejectedValueOnce(new BackendUnreachableError('/k-candles'))
         .mockResolvedValueOnce([buildKCandle('2026-08-30T10:00:00.000Z')]),
-    })
+    }))
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -195,12 +205,99 @@ describe('KCandleSearchPanel', () => {
 
   it('查詢進行中呈現載入狀態且送出按鈕不可再觸發', async () => {
     const pendingSearch = new Promise<KCandle[]>(() => {})
-    const wrapper = await mountPanel({ findKCandlesInRange: vi.fn().mockReturnValue(pendingSearch) })
+    const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockReturnValue(pendingSearch) }))
 
     await wrapper.get('form').trigger('submit')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('[data-testid="loading-alert"]').text()).toContain('查詢中')
     expect(wrapper.get('[data-testid="submit-button"]').attributes('disabled')).toBeDefined()
+  })
+
+  describe('維護入口', () => {
+    it('按「新增 K 線」會打開空白的維護表單', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      await wrapper.get('[data-testid="create-button"]').trigger('click')
+
+      expect(wrapper.find('[data-testid="overwrite-notice"]').exists()).toBe(true)
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-close"]').element.value).toBe('')
+    })
+
+    it('新增時預先帶入目前正在瀏覽的交易標的', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+      await wrapper.get('[data-testid="create-button"]').trigger('click')
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-symbol"]').element.value).toBe('ETHUSDT')
+    })
+
+    it('維護請求進行中時不得切換到別根', async () => {
+      const pendingUpdate = new Promise(() => {})
+      const kCandleProxy = buildProxy({
+        findKCandlesInRange: vi.fn().mockResolvedValue([
+          buildKCandle('2026-08-30T10:00:00.000Z'),
+          buildKCandle('2026-08-30T10:05:00.000Z'),
+        ]),
+        updateKCandle: vi.fn().mockReturnValue(pendingUpdate),
+      })
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      await wrapper.findAll('[data-testid="edit-button"]')[0]?.trigger('click')
+      await flushPromises()
+      // 畫面上有兩張表單：查詢在前、維護在後。
+      await wrapper.findAll('form')[1]?.trigger('submit')
+      await wrapper.vm.$nextTick()
+
+      const editButtons = wrapper.findAll('[data-testid="edit-button"]')
+      expect(editButtons[1]?.attributes('disabled')).toBeDefined()
+    })
+
+    it('對某一列按「編輯」會帶入那一根的資料', async () => {
+      const wrapper = await mountPanel(buildProxy({
+        findKCandlesInRange: vi.fn().mockResolvedValue([buildKCandle('2026-08-30T10:00:00.000Z')]),
+      }))
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      await wrapper.get('[data-testid="edit-button"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
+        .toBe('2026-08-30T10:00')
+      expect(wrapper.get('[data-testid="form-symbol"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('維護成功後自動重查一次', async () => {
+      const kCandleProxy = buildProxy({
+        findKCandlesInRange: vi.fn().mockResolvedValue([buildKCandle('2026-08-30T10:00:00.000Z')]),
+      })
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledTimes(1)
+
+      await wrapper.get('[data-testid="edit-button"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="delete-button"]').trigger('click')
+      await wrapper.get('[data-testid="delete-confirm-yes"]').trigger('click')
+      await flushPromises()
+
+      expect(kCandleProxy.deleteKCandle).toHaveBeenCalledTimes(1)
+      expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledTimes(2)
+    })
+
+    it('在維護中按取消會回到只有查詢結果的畫面', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      await wrapper.get('[data-testid="create-button"]').trigger('click')
+      await wrapper.get('[data-testid="form-cancel"]').trigger('click')
+
+      expect(wrapper.find('[data-testid="form-symbol"]').exists()).toBe(false)
+    })
   })
 })

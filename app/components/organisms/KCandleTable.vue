@@ -67,6 +67,12 @@ defineProps<{ result: KCandleSearchResultDto }>()
             <th scope="col">
               主動買入額
             </th>
+            <th
+              v-if="$slots['row-actions']"
+              scope="col"
+            >
+              操作
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -89,6 +95,12 @@ defineProps<{ result: KCandleSearchResultDto }>()
             <td>{{ kCandle.quoteVolume.toString() }}</td>
             <td>{{ kCandle.takerBuyBaseVolume.toString() }}</td>
             <td>{{ kCandle.takerBuyQuoteVolume.toString() }}</td>
+            <td v-if="$slots['row-actions']">
+              <slot
+                name="row-actions"
+                :k-candle="kCandle"
+              />
+            </td>
           </tr>
         </tbody>
       </table>
