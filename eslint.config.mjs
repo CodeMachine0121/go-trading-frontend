@@ -89,6 +89,75 @@ export default withNuxt(
   },
 
   {
+    // component-design.md：SFC 一律 <script setup lang="ts"> 與 <style scoped lang="scss">
+    name: 'go-trading-frontend/component-block-lang',
+    files: ['app/**/*.vue'],
+    rules: {
+      'vue/block-lang': ['error', {
+        script: { lang: 'ts' },
+        style: { lang: 'scss' },
+      }],
+      'vue/component-api-style': ['error', ['script-setup']],
+      'vue/enforce-style-attribute': ['error', { allow: ['scoped'] }],
+    },
+  },
+
+  {
+    // component-design.md：元件一律住在原子化設計的層級資料夾內
+    name: 'go-trading-frontend/atomic-design-placement',
+    files: ['app/components/*.vue'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: 'Program',
+        message: '元件不得直接放在 app/components/ 底下；請依原子化設計放進 atoms/、molecules/、organisms/ 或 templates/。',
+      }],
+    },
+  },
+
+  {
+    // component-design.md：原子是純展示元件，不認識任何領域概念
+    name: 'go-trading-frontend/atom-purity',
+    files: ['app/components/atoms/**/*.vue'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['~/domain/**', '~/application/**', '~/infrastructure/**', '~/plugins/**'], message: '原子不得認識領域概念（連 DTO 也不行）；領域資料由 molecules 以上的層級接。' },
+          { group: ['~/components/molecules/**', '~/components/organisms/**', '~/components/templates/**', '~/pages/**'], message: '原子不得依賴更上層的元件（依賴方向只能由外而內）。' },
+        ],
+      }],
+    },
+  },
+
+  {
+    // component-design.md：組合方向只能由上層往下層
+    name: 'go-trading-frontend/atomic-design-composition',
+    files: ['app/components/molecules/**/*.vue'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['~/infrastructure/**'], message: '元件不得認識 Proxy 實作；請透過 Application 取用。' },
+          { group: ['~/domain/service/**', '~/domain/interface/**', '~/domain/models/entities/**', '~/domain/models/domains/**'], message: '元件只看得到 DTO 與哨兵錯誤。' },
+          { group: ['~/components/organisms/**', '~/components/templates/**', '~/pages/**'], message: '分子只能組合原子，不得反過來依賴更上層的元件。' },
+        ],
+      }],
+    },
+  },
+
+  {
+    name: 'go-trading-frontend/organism-composition',
+    files: ['app/components/organisms/**/*.vue'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['~/infrastructure/**'], message: '元件不得認識 Proxy 實作；請透過 Application 取用。' },
+          { group: ['~/domain/service/**', '~/domain/interface/**', '~/domain/models/entities/**', '~/domain/models/domains/**'], message: '元件只看得到 DTO 與哨兵錯誤。' },
+          { group: ['~/components/templates/**', '~/pages/**'], message: '有機體只能組合原子與分子，不得反過來依賴更上層。' },
+        ],
+      }],
+    },
+  },
+
+  {
     name: 'go-trading-frontend/tests',
     files: ['tests/**/*.ts'],
     rules: {
