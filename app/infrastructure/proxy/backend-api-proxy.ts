@@ -1,4 +1,5 @@
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 /**
@@ -9,6 +10,9 @@ type BackendFailure = {
   response?: { status: number }
   data?: { message?: string }
 }
+
+/** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
+const SERVER_ERROR_STATUS_FLOOR = 500
 
 type BackendRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -44,9 +48,16 @@ export abstract class BackendApiProxy {
       if (error instanceof Error) {
         const backendFailure = error as BackendFailure
         if (backendFailure.response !== undefined) {
+          const message = backendFailure.data?.message ?? error.message
+
+          // 後端自己壞掉時，使用者改什麼都沒用——不能說成「你的請求有問題」。
+          if (backendFailure.response.status >= SERVER_ERROR_STATUS_FLOOR) {
+            throw new BackendServerError(message, { cause: error })
+          }
+
           throw new BackendRequestRejectedError(
-            backendFailure.data?.message ?? error.message,
-            { cause: error },
+            message,
+            { cause: error, status: backendFailure.response.status },
           )
         }
       }

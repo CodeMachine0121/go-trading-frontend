@@ -9,6 +9,7 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -201,6 +202,21 @@ describe('KCandleEditorPanel', () => {
 
       expect(wrapper.get('[data-testid="editor-rejected"]').text()).toContain('找不到該根 K 線')
       expect(wrapper.emitted('changed')).toBeUndefined()
+    })
+
+    it('後端自己出錯時，說清楚不是填的內容有問題', async () => {
+      const kCandleProxy = buildProxy({
+        updateKCandle: vi.fn().mockRejectedValue(new BackendServerError('寫入 K 線失敗')),
+      })
+      const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      const alert = wrapper.get('[data-testid="editor-server-error"]')
+      expect(alert.text()).toContain('不是你填的內容有問題')
+      expect(alert.text()).toContain('寫入 K 線失敗')
+      expect(wrapper.find('[data-testid="editor-rejected"]').exists()).toBe(false)
     })
 
     it('連不上後端時分開告知', async () => {

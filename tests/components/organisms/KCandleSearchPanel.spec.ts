@@ -7,6 +7,7 @@ import { KCandleService } from '~/domain/service/k-candle-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -160,6 +161,20 @@ describe('KCandleSearchPanel', () => {
       .toContain('時間區間過大，請縮小區間（單次最多 1000 根）')
     expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(0)
     expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
+  })
+
+  it('後端自己出錯時，說清楚不是查詢條件有問題', async () => {
+    const wrapper = await mountPanel(buildProxy({
+      findKCandlesInRange: vi.fn().mockRejectedValue(new BackendServerError('讀取 K 線失敗')),
+    }))
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const alert = wrapper.get('[data-testid="server-error-alert"]')
+    expect(alert.text()).toContain('不是你的查詢條件有問題')
+    expect(alert.text()).toContain('讀取 K 線失敗')
+    expect(wrapper.find('[data-testid="rejected-alert"]').exists()).toBe(false)
   })
 
   it('連不上後端時告知並提供重試', async () => {

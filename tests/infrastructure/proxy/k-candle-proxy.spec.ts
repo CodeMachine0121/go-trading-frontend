@@ -8,6 +8,7 @@ import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 
 const BASE_URL = 'http://localhost:8080'
 const QUERY = new KCandleQueryDomain(new KCandleQueryDto(
@@ -104,11 +105,22 @@ describe('KCandleProxy', () => {
   })
 
   it('後端有回應但沒有說明原因時，退而使用原始錯誤訊息', async () => {
-    const rejection = buildFetchError({ status: 500, statusText: 'Internal Server Error' })
+    const rejection = buildFetchError({ status: 400, statusText: 'Bad Request' })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
     await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
-      .rejects.toThrow('500 Internal Server Error')
+      .rejects.toThrow('400 Bad Request')
+  })
+
+  it('後端自己壞掉時，是「後端出錯」而不是請求被拒絕', async () => {
+    const rejection = buildFetchError({ status: 502, statusText: 'Bad Gateway', message: '讀取 K 線失敗' })
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
+
+    const findKCandles = new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY)
+
+    await expect(findKCandles).rejects.toBeInstanceOf(BackendServerError)
+    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+      .rejects.not.toBeInstanceOf(BackendRequestRejectedError)
   })
 
   it('後端連回應都沒有時，視為連不上', async () => {

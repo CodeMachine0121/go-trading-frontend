@@ -5,8 +5,16 @@
  * 這個錯誤要如實轉達後端給的原因，讓使用者調整輸入；那個錯誤要請使用者去把後端啟動起來。
  */
 export class BackendRequestRejectedError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+  /**
+   * 後端回應的狀態碼。它只在 infrastructure 層被解讀——
+   * proxy 據以把某些拒絕翻譯成更精確的領域錯誤（例如「算式的問題」）。
+   * 領域與畫面一律只認錯誤型別，不認狀態碼。
+   */
+  readonly status: number | undefined
+
+  constructor(message: string, options?: { cause?: unknown, status?: number }) {
+    super(message, { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
+    this.status = options?.status
   }
 }
