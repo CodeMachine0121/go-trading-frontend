@@ -1,7 +1,12 @@
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
+import { K_CANDLE_INTERVAL_MINUTES, KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
+import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
+import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
+import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
+import type { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
 
 /** 進入畫面時預設查詢的區間長度：最近二十四小時。這是唯一寫下這個長度的地方。 */
 const DEFAULT_QUERY_RANGE_MILLISECONDS = 24 * 60 * 60 * 1000
@@ -36,5 +41,46 @@ export class KCandleService {
     const startTime = new Date(endTime.getTime() - DEFAULT_QUERY_RANGE_MILLISECONDS)
 
     return new KCandleQueryDto(symbol, startTime, endTime)
+  }
+
+  /**
+   * 存下一根 K 線。所有寫入規則在建構 KCandleWriteDomain 時就檢查完，
+   * 不合法就不會有任何請求送出去。同一個身分已存在時，後端會覆蓋既有的那一根。
+   */
+  async saveKCandle(kCandleWriteDto: KCandleWriteDto): Promise<KCandleDto> {
+    const kCandleWriteDomain = new KCandleWriteDomain(kCandleWriteDto)
+    const savedKCandle = await this.kCandleProxy.saveKCandle(kCandleWriteDomain)
+
+    return savedKCandle.toDomain().toDto()
+  }
+
+  /** 更新一根既有的 K 線；身分不得更換，因此它一律取自被更新的那一根。 */
+  async updateKCandle(kCandleWriteDto: KCandleWriteDto): Promise<KCandleDto> {
+    const kCandleWriteDomain = new KCandleWriteDomain(kCandleWriteDto)
+    const updatedKCandle = await this.kCandleProxy.updateKCandle(kCandleWriteDomain)
+
+    return updatedKCandle.toDomain().toDto()
+  }
+
+  /** 刪除指名的那一根 K 線。 */
+  async deleteKCandle(kCandleIdentityDto: KCandleIdentityDto): Promise<void> {
+    const kCandleIdentityVo = new KCandleIdentityVo(
+      kCandleIdentityDto.symbol, kCandleIdentityDto.openTime)
+
+    await this.kCandleProxy.deleteKCandle(kCandleIdentityVo)
+  }
+
+  /**
+   * 新增表單的起點：起始時間預設對齊到最近的五分鐘刻度（因此必定合法、也必定不指向未來），
+   * 價量欄位留空等使用者填。
+   */
+  buildNewKCandleDraft(symbol: string): KCandleWriteDto {
+    const currentTime = new Date()
+    const alignedOpenTime = new Date(currentTime)
+    alignedOpenTime.setUTCSeconds(0, 0)
+    alignedOpenTime.setUTCMinutes(
+      currentTime.getUTCMinutes() - (currentTime.getUTCMinutes() % K_CANDLE_INTERVAL_MINUTES))
+
+    return new KCandleWriteDto(symbol, alignedOpenTime, '', '', '', '', '', '', '', '')
   }
 }

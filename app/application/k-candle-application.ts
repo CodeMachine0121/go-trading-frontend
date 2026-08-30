@@ -1,6 +1,9 @@
 import type { KCandleService } from '~/domain/service/k-candle-service'
 import type { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
+import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
+import type { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
+import type { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
 
 /**
  * Application：K 線的用例編排，全程只碰 DTO。
@@ -15,5 +18,21 @@ export class KCandleApplication {
 
   buildDefaultQuery(symbol: string): KCandleQueryDto {
     return this.kCandleService.buildDefaultQuery(symbol)
+  }
+
+  async saveKCandle(kCandleWriteDto: KCandleWriteDto): Promise<KCandleDto> {
+    return this.kCandleService.saveKCandle(kCandleWriteDto)
+  }
+
+  async updateKCandle(kCandleWriteDto: KCandleWriteDto): Promise<KCandleDto> {
+    return this.kCandleService.updateKCandle(kCandleWriteDto)
+  }
+
+  async deleteKCandle(kCandleIdentityDto: KCandleIdentityDto): Promise<void> {
+    return this.kCandleService.deleteKCandle(kCandleIdentityDto)
+  }
+
+  buildNewKCandleDraft(symbol: string): KCandleWriteDto {
+    return this.kCandleService.buildNewKCandleDraft(symbol)
   }
 }
