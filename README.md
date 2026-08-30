@@ -1,6 +1,7 @@
 # go-trading-frontend
 
-[go-stock](../go-trading-backend) 台股資訊聚合與 AI 分析 REST API 的前端介面。
+[go-trading](../go-trading) 交易服務後端 REST API 的前端介面。
+後端提供 K 線（KCandle）的讀寫與自訂指標計算，本專案是它的操作介面。
 
 ## Tech Stack
 
@@ -146,4 +147,4 @@ Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然
 
 | 變數 | 預設值 | 用途 |
 | :--- | :--- | :--- |
-| `NUXT_PUBLIC_BACKEND_BASE_URL` | `http://localhost:8080` | 後端 go-stock REST API base URL |
+| `NUXT_PUBLIC_BACKEND_BASE_URL` | `http://localhost:8080` | 後端 go-trading REST API base URL |

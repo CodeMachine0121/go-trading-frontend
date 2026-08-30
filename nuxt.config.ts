@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   css: ['~/assets/styles/main.scss'],
   runtimeConfig: {
     public: {
-      // 後端 go-stock REST API base URL；以 NUXT_PUBLIC_BACKEND_BASE_URL 覆寫
+      // 後端 go-trading REST API base URL；以 NUXT_PUBLIC_BACKEND_BASE_URL 覆寫
       backendBaseUrl: 'http://localhost:8080',
     },
   },

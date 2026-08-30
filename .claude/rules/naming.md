@@ -132,4 +132,4 @@ Application 的抽象維度是**用例**，不是實作手段。Application 目�
 
 ## 業務詞彙
 
-**不得自創同義詞。** 前端的領域詞彙一律沿用後端 `.sdd/UL-MAP.md` 的通用語言（`finalVerdict`、`signalType`、`pipelineRunId`…），不在前端另取名字。後端叫什麼，前端的 entity / DTO 欄位就叫什麼。
+**不得自創同義詞。** 前端的領域詞彙一律沿用後端 `.sdd/UL-MAP.md` 的通用語言（`KCandle`、`Open` / `High` / `Low` / `Close`、`Volume`…），不在前端另取名字。後端叫什麼，前端的 entity / DTO 欄位就叫什麼。
