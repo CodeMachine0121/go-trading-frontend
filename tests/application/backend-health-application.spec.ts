@@ -19,8 +19,8 @@ function buildApplication(rawStatus: string): BackendHealthApplication {
 
 describe('BackendHealthApplication', () => {
   it.each([
-    { rawStatus: 'ok', expectedHealthy: true, expectedStatus: 'ok' },
-    { rawStatus: 'OK ', expectedHealthy: true, expectedStatus: 'ok' },
+    { rawStatus: 'Healthy', expectedHealthy: true, expectedStatus: 'healthy' },
+    { rawStatus: 'healthy ', expectedHealthy: true, expectedStatus: 'healthy' },
     { rawStatus: 'unavailable', expectedHealthy: false, expectedStatus: 'unavailable' },
   ])('checkBackendHealth 回傳 DTO（status=$rawStatus）', async ({ rawStatus, expectedHealthy, expectedStatus }) => {
     const dto = await buildApplication(rawStatus).checkBackendHealth()
