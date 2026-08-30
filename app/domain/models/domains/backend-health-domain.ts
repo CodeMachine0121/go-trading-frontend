@@ -1,7 +1,8 @@
 import type { BackendHealth } from '~/domain/models/entities/backend-health'
 import { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 
-const HEALTHY_STATUS = 'ok'
+/** go-trading 的健康檢查在一切正常時回傳的狀態值（大小寫與前後空白由建構子正規化）。 */
+const HEALTHY_STATUS = 'healthy'
 const UNKNOWN_STATUS = 'unknown'
 
 /**

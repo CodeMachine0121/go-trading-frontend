@@ -14,7 +14,7 @@ function buildBackendHealthProxyMock(backendHealth: BackendHealth): IBackendHeal
 
 describe('BackendHealthService', () => {
   it.each([
-    { rawStatus: 'ok', expectedHealthy: true },
+    { rawStatus: 'Healthy', expectedHealthy: true },
     { rawStatus: 'down', expectedHealthy: false },
   ])('把 proxy 回傳的 entity 轉成 DTO（status=$rawStatus）', async ({ rawStatus, expectedHealthy }) => {
     const backendHealthProxy = buildBackendHealthProxyMock(new BackendHealth(rawStatus, CHECKED_AT))

@@ -5,9 +5,10 @@ const CHECKED_AT = new Date('2026-08-30T00:00:00.000Z')
 
 describe('BackendHealthDomain', () => {
   it.each([
-    { rawStatus: 'ok', expectedHealthy: true, expectedStatus: 'ok' },
-    { rawStatus: 'OK', expectedHealthy: true, expectedStatus: 'ok' },
-    { rawStatus: '  ok  ', expectedHealthy: true, expectedStatus: 'ok' },
+    { rawStatus: 'Healthy', expectedHealthy: true, expectedStatus: 'healthy' },
+    { rawStatus: 'healthy', expectedHealthy: true, expectedStatus: 'healthy' },
+    { rawStatus: '  Healthy  ', expectedHealthy: true, expectedStatus: 'healthy' },
+    { rawStatus: 'ok', expectedHealthy: false, expectedStatus: 'ok' },
     { rawStatus: 'degraded', expectedHealthy: false, expectedStatus: 'degraded' },
     { rawStatus: '', expectedHealthy: false, expectedStatus: 'unknown' },
     { rawStatus: '   ', expectedHealthy: false, expectedStatus: 'unknown' },
