@@ -166,6 +166,19 @@ describe('KCandleEditorPanel', () => {
       expect(wrapper.emitted('changed')).toHaveLength(1)
     })
 
+    it('改出不合理的數字時標在欄位旁且完全不寫入', async () => {
+      const kCandleProxy = buildProxy()
+      const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
+
+      await wrapper.get('[data-testid="form-high"]').setValue('90')
+      await wrapper.get('[data-testid="form-low"]').setValue('100')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('最高價不得低於最低價')
+      expect(kCandleProxy.updateKCandle).not.toHaveBeenCalled()
+    })
+
     it('那一根已經不存在時，整塊轉達後端說的原因', async () => {
       const kCandleProxy = buildProxy({
         updateKCandle: vi.fn().mockRejectedValue(new BackendRequestRejectedError('找不到該根 K 線')),
