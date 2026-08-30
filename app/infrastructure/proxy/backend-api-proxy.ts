@@ -46,7 +46,7 @@ export abstract class BackendApiProxy {
         if (backendFailure.response !== undefined) {
           throw new BackendRequestRejectedError(
             backendFailure.data?.message ?? error.message,
-            { cause: error },
+            { cause: error, status: backendFailure.response.status },
           )
         }
       }
