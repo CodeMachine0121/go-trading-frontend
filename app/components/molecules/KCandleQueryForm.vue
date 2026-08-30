@@ -5,9 +5,10 @@ import FormField from '~/components/molecules/FormField.vue'
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
-const { loading = false, symbolError = null, endTimeError = null } = defineProps<{
+const { loading = false, symbolError = null, startTimeError = null, endTimeError = null } = defineProps<{
   loading?: boolean
   symbolError?: string | null
+  startTimeError?: string | null
   endTimeError?: string | null
 }>()
 
@@ -53,11 +54,13 @@ const SUGGESTED_SYMBOLS = ['BTCUSDT', 'ETHUSDT']
     <FormField
       label="開始時間"
       hint="世界標準時間（UTC）"
+      :error-message="startTimeError"
       class="k-candle-query-form__field"
     >
       <AppInput
         v-model="startTime"
         type="datetime-local"
+        :invalid="Boolean(startTimeError)"
         data-testid="start-time-input"
       />
     </FormField>

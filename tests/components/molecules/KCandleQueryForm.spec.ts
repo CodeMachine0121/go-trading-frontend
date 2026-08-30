@@ -40,6 +40,7 @@ describe('KCandleQueryForm', () => {
 
   it.each([
     { field: 'symbolError', message: '請指定交易標的' },
+    { field: 'startTimeError', message: '請填寫開始時間' },
     { field: 'endTimeError', message: '結束時間不得早於開始時間' },
   ])('把 $field 的訊息標在對應欄位旁', ({ field, message }) => {
     const wrapper = mountForm({ [field]: message })

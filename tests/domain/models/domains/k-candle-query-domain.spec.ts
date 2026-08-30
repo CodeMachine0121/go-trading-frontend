@@ -38,6 +38,21 @@ describe('KCandleQueryDomain', () => {
     }
   })
 
+  it.each([
+    { description: '開始時間', startTime: new Date(''), endTime: START_TIME, expectedField: 'startTime', expectedMessage: '請填寫開始時間' },
+    { description: '結束時間', startTime: START_TIME, endTime: new Date(''), expectedField: 'endTime', expectedMessage: '請填寫結束時間' },
+  ])('$description 被清空時拒絕建立查詢條件', ({ startTime, endTime, expectedField, expectedMessage }) => {
+    const buildQuery = () => new KCandleQueryDomain(new KCandleQueryDto('BTCUSDT', startTime, endTime))
+
+    expect(buildQuery).toThrow(expectedMessage)
+    try {
+      buildQuery()
+    }
+    catch (error: unknown) {
+      expect((error as KCandleQueryValidationError).field).toBe(expectedField)
+    }
+  })
+
   it('開始時間與結束時間相同視為合法', () => {
     const kCandleQueryDomain = new KCandleQueryDomain(
       new KCandleQueryDto('BTCUSDT', START_TIME, START_TIME),

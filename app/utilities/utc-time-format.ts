@@ -7,8 +7,23 @@
  * 沒有任何領域物件擁有這個行為——時間的業務規則（五分鐘刻度、不得指向未來）住在 domain。
  */
 
-/** 把分鐘精度時間輸入的值（`2026-08-30T12:00`）視為世界標準時間解讀。 */
+/**
+ * 分鐘精度時間輸入唯一合法的值：`2026-08-30T12:00`。
+ * 欄位被清空或只填一半時值不會長這樣，必須擋下來——
+ * 直接把不完整的值拼成時間字串會得到一個**看似有效卻完全不對**的時間
+ * （例如空字串會被解讀成西元 2000 年一月一日），那比拿到無效值危險得多。
+ */
+const UTC_MINUTE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
+
+/**
+ * 把分鐘精度時間輸入的值（`2026-08-30T12:00`）視為世界標準時間解讀。
+ * 值不完整時回傳一個無效的時間值，由 domain 決定要怎麼告訴使用者。
+ */
 export function parseUtcMinuteInput(inputValue: string): Date {
+  if (!UTC_MINUTE_INPUT_PATTERN.test(inputValue)) {
+    return new Date(Number.NaN)
+  }
+
   return new Date(`${inputValue}:00Z`)
 }
 

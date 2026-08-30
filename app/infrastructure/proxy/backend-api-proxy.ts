@@ -37,13 +37,18 @@ export abstract class BackendApiProxy {
     }
     catch (error: unknown) {
       // 後端有回應（不論幾百）代表它活著，只是拒絕了這次請求；連回應都沒有才是連不上。
-      const hasResponded = error instanceof Error && 'response' in error
-      if (hasResponded) {
+      //
+      // 注意：底層的 FetchError **一律**帶著 response 這個屬性（連不上時它的值是 undefined），
+      // 因此這裡必須判斷「有沒有回應物件」，不能判斷「有沒有這個屬性」——
+      // 後者恆為真，會把「後端沒啟動」誤判成「後端拒絕」。
+      if (error instanceof Error) {
         const backendFailure = error as BackendFailure
-        throw new BackendRequestRejectedError(
-          backendFailure.data?.message ?? error.message,
-          { cause: error },
-        )
+        if (backendFailure.response !== undefined) {
+          throw new BackendRequestRejectedError(
+            backendFailure.data?.message ?? error.message,
+            { cause: error },
+          )
+        }
       }
 
       throw new BackendUnreachableError(endpoint, { cause: error })

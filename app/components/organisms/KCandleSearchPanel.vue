@@ -24,6 +24,7 @@ const endTime = ref('')
 const loading = ref(false)
 const result = ref<KCandleSearchResultDto | null>(null)
 const symbolError = ref<string | null>(null)
+const startTimeError = ref<string | null>(null)
 const endTimeError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
@@ -39,6 +40,7 @@ onMounted(() => {
 async function searchKCandles() {
   loading.value = true
   symbolError.value = null
+  startTimeError.value = null
   endTimeError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
@@ -56,6 +58,9 @@ async function searchKCandles() {
     if (error instanceof KCandleQueryValidationError) {
       if (error.field === 'symbol') {
         symbolError.value = error.message
+      }
+      else if (error.field === 'startTime') {
+        startTimeError.value = error.message
       }
       else {
         endTimeError.value = error.message
@@ -85,6 +90,7 @@ async function searchKCandles() {
       v-model:end-time="endTime"
       :loading="loading"
       :symbol-error="symbolError"
+      :start-time-error="startTimeError"
       :end-time-error="endTimeError"
       @submit="searchKCandles"
     />

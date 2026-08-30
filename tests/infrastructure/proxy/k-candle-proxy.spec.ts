@@ -1,3 +1,4 @@
+import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
@@ -23,6 +24,33 @@ const K_CANDLE_WIRE = {
   quoteVolume: '1200.25',
   takerBuyBaseVolume: '5',
   takerBuyQuoteVolume: '600',
+}
+
+/**
+ * 用真正的 FetchError 當替身：它與自己 new 出來的 Error 形狀不同——
+ * **連不上時它照樣有 response 這個屬性，只是值為 undefined**，
+ * 這正是錯誤翻譯必須分辨的差別。
+ * createFetchError 要的是一份完整的請求脈絡，測試只需要其中會影響行為的欄位，
+ * 因此在這裡（也只有這裡）收斂成一次轉型。
+ */
+function buildFetchError(failure: {
+  status?: number
+  statusText?: string
+  message?: string
+}) {
+  const context = failure.status === undefined
+    ? { request: 'http://localhost:8080/k-candles', options: {}, error: new Error('fetch failed') }
+    : {
+        request: 'http://localhost:8080/k-candles',
+        options: {},
+        response: {
+          status: failure.status,
+          statusText: failure.statusText,
+          _data: failure.message === undefined ? undefined : { message: failure.message },
+        },
+      }
+
+  return createFetchError(context as unknown as FetchContext)
 }
 
 afterEach(() => {
@@ -59,9 +87,10 @@ describe('KCandleProxy', () => {
   })
 
   it('後端有回應但拒絕時，把後端說的原因包成可轉達的錯誤', async () => {
-    const rejection = Object.assign(new Error('Bad Request'), {
-      response: { status: 400 },
-      data: { message: '時間區間過大，請縮小區間（單次最多 1000 根）' },
+    const rejection = buildFetchError({
+      status: 400,
+      statusText: 'Bad Request',
+      message: '時間區間過大，請縮小區間（單次最多 1000 根）',
     })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
@@ -72,17 +101,28 @@ describe('KCandleProxy', () => {
   })
 
   it('後端有回應但沒有說明原因時，退而使用原始錯誤訊息', async () => {
-    const rejection = Object.assign(new Error('Internal Server Error'), {
-      response: { status: 500 },
-    })
+    const rejection = buildFetchError({ status: 500, statusText: 'Internal Server Error' })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
     await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
-      .rejects.toThrow('Internal Server Error')
+      .rejects.toThrow('500 Internal Server Error')
   })
 
   it('後端連回應都沒有時，視為連不上', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(new Error('fetch failed')))
+    // 這正是後端沒啟動時實際會拿到的錯誤：它帶著 response 屬性，但值是 undefined。
+    const noResponse = buildFetchError({})
+    expect('response' in noResponse).toBe(true)
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(noResponse))
+
+    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+      .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+
+  it.each([
+    { description: '一般的錯誤物件', rejection: new Error('fetch failed') },
+    { description: '根本不是錯誤物件的東西', rejection: 'fetch failed' },
+  ])('$description 也一樣視為連不上', async ({ rejection }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
     await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
       .rejects.toBeInstanceOf(BackendUnreachableError)

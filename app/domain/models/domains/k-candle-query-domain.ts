@@ -18,6 +18,16 @@ export class KCandleQueryDomain {
       throw new KCandleQueryValidationError('symbol', '請指定交易標的')
     }
 
+    // 時間欄位被清空或只填一半時會得到一個無效的時間值，它與任何時間比較都不成立，
+    // 因此必須先擋下來，否則會一路帶到後端才以看不懂的方式失敗。
+    if (Number.isNaN(kCandleQueryDto.startTime.getTime())) {
+      throw new KCandleQueryValidationError('startTime', '請填寫開始時間')
+    }
+
+    if (Number.isNaN(kCandleQueryDto.endTime.getTime())) {
+      throw new KCandleQueryValidationError('endTime', '請填寫結束時間')
+    }
+
     if (kCandleQueryDto.endTime.getTime() < kCandleQueryDto.startTime.getTime()) {
       throw new KCandleQueryValidationError('endTime', '結束時間不得早於開始時間')
     }
