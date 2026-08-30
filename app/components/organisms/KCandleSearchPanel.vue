@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
 import KCandleTable from '~/components/organisms/KCandleTable.vue'
+import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
+import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -28,6 +30,25 @@ const startTimeError = ref<string | null>(null)
 const endTimeError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
+
+// 維護狀態：null 代表沒在維護；editingKCandle 為 null 但 editorOpen 為真代表正在新增。
+const editorOpen = ref(false)
+const editingKCandle = ref<KCandleDto | null>(null)
+
+function startCreating() {
+  editingKCandle.value = null
+  editorOpen.value = true
+}
+
+function startEditing(kCandle: KCandleDto) {
+  editingKCandle.value = kCandle
+  editorOpen.value = true
+}
+
+function closeEditor() {
+  editorOpen.value = false
+  editingKCandle.value = null
+}
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(() => {
@@ -129,10 +150,41 @@ async function searchKCandles() {
       查詢中…
     </AppAlert>
 
+    <div class="k-candle-search-panel__maintenance">
+      <AppButton
+        variant="secondary"
+        :disabled="editorOpen"
+        data-testid="create-button"
+        @click="startCreating"
+      >
+        新增 K 線
+      </AppButton>
+    </div>
+
+    <KCandleEditorPanel
+      v-if="editorOpen"
+      :key="editingKCandle ? editingKCandle.openTime.toISOString() : 'new'"
+      :k-candle-application="kCandleApplication"
+      :editing-k-candle="editingKCandle"
+      @changed="searchKCandles"
+      @cancel="closeEditor"
+    />
+
     <KCandleTable
       v-if="result"
       :result="result"
-    />
+    >
+      <template #row-actions="{ kCandle }">
+        <AppButton
+          variant="ghost"
+          size="small"
+          data-testid="edit-button"
+          @click="startEditing(kCandle)"
+        >
+          編輯
+        </AppButton>
+      </template>
+    </KCandleTable>
   </section>
 </template>
 
@@ -141,5 +193,10 @@ async function searchKCandles() {
   display: flex;
   flex-direction: column;
   gap: spacing('lg');
+
+  &__maintenance {
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 </style>

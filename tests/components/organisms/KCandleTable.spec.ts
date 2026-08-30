@@ -78,4 +78,31 @@ describe('KCandleTable', () => {
 
     expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 10:05')
   })
+
+  it('沒有給操作插槽時不多出操作欄', () => {
+    const wrapper = mount(KCandleTable, {
+      props: { result: new KCandleSearchResultDto([buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND)]) },
+    })
+
+    expect(wrapper.text()).not.toContain('操作')
+  })
+
+  it('給了操作插槽時，每一列都拿得到那一根的資料', () => {
+    const wrapper = mount(KCandleTable, {
+      props: {
+        result: new KCandleSearchResultDto([
+          buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND),
+          buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
+        ]),
+      },
+      slots: {
+        'row-actions': '<button data-testid="row-action">{{ params.kCandle.trend.label }}</button>',
+      },
+    })
+
+    const rowActions = wrapper.findAll('[data-testid="row-action"]')
+    expect(rowActions).toHaveLength(2)
+    expect(rowActions[0]?.text()).toBe('上漲')
+    expect(rowActions[1]?.text()).toBe('下跌')
+  })
 })
