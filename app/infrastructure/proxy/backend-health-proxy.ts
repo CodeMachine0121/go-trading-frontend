@@ -1,6 +1,6 @@
 import type { IBackendHealthProxy } from '~/domain/interface/i-backend-health-proxy'
 import { BackendHealth } from '~/domain/models/entities/backend-health'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const HEALTH_ENDPOINT = '/health'
 
@@ -9,21 +9,10 @@ type BackendHealthWire = {
   status: string
 }
 
-/**
- * Proxy：唯一允許出現 $fetch 的地方。
- * 負責把 wire 格式正規化成 entity，並把底層錯誤包成哨兵錯誤。
- */
-export class BackendHealthProxy implements IBackendHealthProxy {
-  constructor(private readonly baseUrl: string) {}
-
+/** Proxy：唯一允許出現 $fetch 的地方（實際請求與錯誤翻譯由 BackendApiProxy 負責）。 */
+export class BackendHealthProxy extends BackendApiProxy implements IBackendHealthProxy {
   async fetchBackendHealth(): Promise<BackendHealth> {
-    const endpoint = `${this.baseUrl}${HEALTH_ENDPOINT}`
-    try {
-      const wire = await $fetch<BackendHealthWire>(endpoint)
-      return new BackendHealth(wire.status, new Date())
-    }
-    catch (error: unknown) {
-      throw new BackendUnreachableError(endpoint, { cause: error })
-    }
+    const wire = await this.requestBackend<BackendHealthWire>(HEALTH_ENDPOINT)
+    return new BackendHealth(wire.status, new Date())
   }
 }

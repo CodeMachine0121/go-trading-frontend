@@ -8,16 +8,16 @@ const scssAbstractsPath = fileURLToPath(new URL('./app/assets/styles/abstracts/_
 
 export default defineVitestConfig({
   test: {
-    // domain / application 測試是純 TypeScript，不需要 Nuxt 環境。
-    // 需要 Nuxt runtime 的測試（useNuxtApp、auto-import）在檔頭加上
-    // `// @vitest-environment nuxt` 個別開啟。
+    // 所有測試都是純 TypeScript 或單一 SFC 的掛載，不需要 Nuxt runtime。
+    // 頁面（app/pages/）刻意只做接線：取得 Application 後往下傳，互動邏輯一律住在
+    // organism，元件測試因此不必啟動 Nuxt（見 .claude/rules/testing.md）。
     environment: 'happy-dom',
     include: ['tests/**/*.spec.ts'],
     globals: true,
     coverage: {
       provider: 'v8',
       include: ['app/**/*.ts', 'app/**/*.vue'],
-      exclude: ['app/plugins/**', 'app/**/*.d.ts'],
+      exclude: ['app/plugins/**', 'app/pages/**', 'app/**/*.d.ts'],
     },
   },
   css: {

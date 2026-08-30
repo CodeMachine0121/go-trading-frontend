@@ -1,0 +1,81 @@
+import Decimal from 'decimal.js'
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import KCandleTable from '~/components/organisms/KCandleTable.vue'
+import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
+import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
+import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
+
+function buildKCandleDto(openTime: string, trend: KCandleTrendVo): KCandleDto {
+  return new KCandleDto(
+    'BTCUSDT',
+    new Date(openTime),
+    new Decimal('100'),
+    new Decimal('120'),
+    new Decimal('90'),
+    new Decimal('110'),
+    new Decimal('11'),
+    new Decimal('1200'),
+    new Decimal('5'),
+    new Decimal('600'),
+    trend,
+  )
+}
+
+const UP_TREND = new KCandleTrendVo('up', '上漲', 'success')
+const DOWN_TREND = new KCandleTrendVo('down', '下跌', 'danger')
+
+describe('KCandleTable', () => {
+  it.each([
+    { candleCount: 1, expectedCountText: '共 1 根' },
+    { candleCount: 3, expectedCountText: '共 3 根' },
+  ])('$candleCount 根時逐根列出並顯示筆數', ({ candleCount, expectedCountText }) => {
+    const kCandleDtos = Array.from({ length: candleCount }, (_unused, index) =>
+      buildKCandleDto(`2026-08-30T10:0${index}:00.000Z`, UP_TREND))
+
+    const wrapper = mount(KCandleTable, {
+      props: { result: new KCandleSearchResultDto(kCandleDtos) },
+    })
+
+    expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(candleCount)
+    expect(wrapper.get('[data-testid="result-count"]').text()).toBe(expectedCountText)
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+  })
+
+  it('一根都沒有時顯示查無 K 線而不是空白表格', () => {
+    const wrapper = mount(KCandleTable, {
+      props: { result: new KCandleSearchResultDto([]) },
+    })
+
+    expect(wrapper.get('[data-testid="empty-result"]').text()).toContain('查無 K 線')
+    expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="result-count"]').text()).toBe('共 0 根')
+  })
+
+  it('每根的漲跌以 domain 算好的標籤呈現', () => {
+    const wrapper = mount(KCandleTable, {
+      props: {
+        result: new KCandleSearchResultDto([
+          buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND),
+          buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
+        ]),
+      },
+    })
+
+    const rows = wrapper.findAll('[data-testid="k-candle-row"]')
+    expect(rows[0]?.text()).toContain('上漲')
+    expect(rows[1]?.text()).toContain('下跌')
+  })
+
+  it('起始時間以世界標準時間呈現', () => {
+    const wrapper = mount(KCandleTable, {
+      props: {
+        result: new KCandleSearchResultDto([
+          buildKCandleDto('2026-08-30T10:05:00.000Z', UP_TREND),
+        ]),
+      },
+    })
+
+    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 10:05')
+  })
+})

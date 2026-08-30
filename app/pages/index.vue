@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -31,28 +32,12 @@ onMounted(checkBackendHealth)
 </script>
 
 <template>
-  <main class="home">
-    <h1>go-trading-frontend</h1>
+  <ConsoleLayout title="連線狀態">
     <BackendHealthCard
       :health="health"
       :loading="loading"
       :error-message="errorMessage"
       @refresh="checkBackendHealth"
     />
-  </main>
+  </ConsoleLayout>
 </template>
-
-<style scoped lang="scss">
-.home {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('lg');
-  margin: 0 auto;
-  max-width: 640px;
-  padding: spacing('xl') spacing('md');
-
-  @include respond-to('md') {
-    padding: spacing('2xl') spacing('lg');
-  }
-}
-</style>
