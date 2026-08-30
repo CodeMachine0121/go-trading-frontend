@@ -118,6 +118,22 @@ describe('KCandleSearchPanel', () => {
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 
+  it('查詢區間可以是不對齊五分鐘刻度的時間', async () => {
+    const kCandleProxy = { findKCandlesInRange: vi.fn().mockResolvedValue([]) }
+    const wrapper = await mountPanel(kCandleProxy)
+
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T10:07')
+    await wrapper.get('[data-testid="end-time-input"]').setValue('2026-08-30T11:23')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledWith(expect.objectContaining({
+      startTime: new Date('2026-08-30T10:07:00.000Z'),
+      endTime: new Date('2026-08-30T11:23:00.000Z'),
+    }))
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
   it('被後端以業務規則拒絕時整塊轉達原因，且不顯示任何 K 線', async () => {
     const wrapper = await mountPanel({
       findKCandlesInRange: vi.fn().mockRejectedValue(
