@@ -1,9 +1,12 @@
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
+import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
+import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
 import { KCandleApplication } from '~/application/k-candle-application'
+import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -22,10 +25,15 @@ export default defineNuxtPlugin(() => {
     new KCandleService(new KCandleProxy(backendBaseUrl)),
   )
 
+  const indicatorCalculationApplication = new IndicatorCalculationApplication(
+    new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl)),
+  )
+
   return {
     provide: {
       backendHealthApplication,
       kCandleApplication,
+      indicatorCalculationApplication,
     },
   }
 })
