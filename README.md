@@ -1,7 +1,34 @@
 # go-trading-frontend
 
 [go-trading](../go-trading) 交易服務後端 REST API 的前端介面。
-後端提供 K 線（KCandle）的讀寫與自訂指標計算，本專案是它的操作介面。
+後端提供 K 線（KCandle）的讀寫與自訂指標計算，本專案是它的操作介面——
+後端每一條路由都能從畫面操作，不必再開 Postman。
+
+## 畫面
+
+| 路徑 | 做什麼 | 重點 |
+| :--- | :--- | :--- |
+| `/` | **連線狀態** | 後端是否可用；連不上時明確告知而非留白 |
+| `/k-candles` | **K 線瀏覽與維護** | 指定標的與區間查詢，結果由早到晚列出並標示漲跌；每一列可編輯，另可新增與刪除（刪除需二次確認），任何一次成功的維護都會自動重查 |
+| `/indicator-calculations` | **指標計算** | 多行編輯自己的 Go 算式，指定根數後執行，列出每個指標名稱與數值；附一鍵帶入的範例算式 |
+
+四種狀態（載入中／查無資料／被拒絕／連不上）與四類失敗（欄位填錯、請求的問題、
+後端出錯、連不上）在每個畫面上的呈現方式一致，使用者一眼知道下一步該做什麼。
+
+## 開發流程（SDD）
+
+每個功能切片都走 **clarify → prd → architecture → implement (code-first) → contract**，
+文件放在 `.sdd/{日期}-{切片名}/`：
+
+| 切片 | 文件 |
+| :--- | :--- |
+| K 線瀏覽 | [`.sdd/2026-08-30-k-candle-browsing/`](.sdd/2026-08-30-k-candle-browsing/) |
+| K 線維護 | [`.sdd/2026-08-30-k-candle-management/`](.sdd/2026-08-30-k-candle-management/) |
+| 指標計算 | [`.sdd/2026-08-30-indicator-calculation/`](.sdd/2026-08-30-indicator-calculation/) |
+
+共用的詞彙與專案前提在 [`.sdd/UL-MAP.md`](.sdd/UL-MAP.md) 與 [`.sdd/PROJECT.md`](.sdd/PROJECT.md)。
+每個切片的 `CONTRACT.md` 是驗收情境與程式碼的符合性稽核矩陣——它記錄的是
+「測試有沒有斷言規格要求的結果」與「程式碼有沒有真的產出那個結果」，兩者都成立才算數。
 
 ## Tech Stack
 
@@ -60,8 +87,16 @@ app/
 tests/                      鏡射 app/ 的目錄結構，檔名 {受測檔名}.spec.ts
 ```
 
-現有的 `backend-health` 切片是這條呼叫鏈的完整範例，可照著它長新功能：
-`BackendHealthProxy` → `BackendHealthService` → `BackendHealthApplication` → `pages/index.vue`。
+`k-candle` 切片是這條呼叫鏈的完整範例，可照著它長新功能：
+`KCandleProxy` → `KCandleService` → `KCandleApplication` → `KCandleSearchPanel` → `pages/k-candles/index.vue`。
+
+**頁面只做接線**：從組裝根取得 Application 往下傳，互動狀態一律住在 organism。
+這讓每條驗收情境都能用元件測試涵蓋，不必啟動 Nuxt runtime
+（`@nuxt/test-utils` 的 runtime 在本專案的版本組合下無法初始化）。
+
+**業務規則住在 domain**：查詢條件、K 線寫入、指標請求都是「建構即驗證」的 domain model——
+不合法的東西在系統裡根本不存在，proxy 拿到的必定送得出去。
+錯誤帶著欄位名，畫面因此不必比對訊息內容來決定訊息標在哪一欄。
 
 ### 分層由 ESLint 把關
 
