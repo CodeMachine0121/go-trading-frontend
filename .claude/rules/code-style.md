@@ -68,7 +68,7 @@ const total = calculate()
 - 非金額的權重、比例、分數（如 `sourceWeight`、信心指數）可用 `number`。
 - 只在最後要渲染時才 `.toString()` / 格式化成字串。
 
-> 目前專案尚未安裝 `decimal.js`——**第一個金額欄位出現時再裝**，不要先用 `number` 頂著。
+> `decimal.js` 已安裝並列為 runtime dependency，直接 `import Decimal from 'decimal.js'` 即可，不必再猶豫要不要先用 `number` 頂著。
 
 ## Vue 元件
 

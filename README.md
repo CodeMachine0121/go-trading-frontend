@@ -8,6 +8,7 @@
 | :--- | :--- |
 | 框架 | **Nuxt 3**（3.21.x）+ Vue 3 |
 | 語言 | **TypeScript**（`strict`） |
+| 數值處理 | **decimal.js**（金額 / 價格 / 停損，禁用 `number`） |
 | 打包 | **Vite**（Nuxt 內建） |
 | 單元測試 | **Vitest** + `@vue/test-utils` + `happy-dom` |
 | Lint | **ESLint 10**（`@nuxt/eslint` + `typescript-eslint`，含 stylistic 排版規則） |
