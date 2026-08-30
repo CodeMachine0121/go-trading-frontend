@@ -27,9 +27,12 @@ export class IndicatorCalculationRequestDomain {
     }
 
     if (!POSITIVE_INTEGER_PATTERN.test(rawCandleCount)) {
+      // 訊息要依「解讀出來的值」決定，而不是依「看起來像不像整數」：
+      // `20.0` 解讀出來是整數 20，但它不是我們接受的寫法，該說的是「必須是整數」而不是「必須大於零」。
+      const parsedCandleCount = Number(rawCandleCount)
       throw new IndicatorCalculationFieldError(
         'candleCount',
-        Number.isInteger(Number(rawCandleCount))
+        Number.isFinite(parsedCandleCount) && parsedCandleCount <= 0
           ? '計算根數必須大於零'
           : '計算根數必須是整數')
     }

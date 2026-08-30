@@ -59,7 +59,11 @@ describe('IndicatorCalculationRequestDomain', () => {
   it.each([
     { description: '小數', candleCount: '2.5' },
     { description: '不是數字', candleCount: '三根' },
-  ])('計算根數是$description 時拒絕', ({ candleCount }) => {
+    { description: '寫成帶小數點的整數', candleCount: '20.0' },
+    { description: '帶正號', candleCount: '+20' },
+    { description: '指數寫法', candleCount: '1e3' },
+    { description: '十六進位寫法', candleCount: '0x10' },
+  ])('計算根數是$description 時拒絕，並說是整數的問題', ({ candleCount }) => {
     const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(buildRequest({ candleCount })))
 
     expect(fieldError.field).toBe('candleCount')

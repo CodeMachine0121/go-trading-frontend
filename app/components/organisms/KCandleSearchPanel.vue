@@ -10,6 +10,7 @@ import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-format'
 
@@ -30,6 +31,7 @@ const startTimeError = ref<string | null>(null)
 const endTimeError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
+const serverErrorMessage = ref<string | null>(null)
 
 // 維護狀態：null 代表沒在維護；editingKCandle 為 null 但 editorOpen 為真代表正在新增。
 const editorOpen = ref(false)
@@ -68,6 +70,7 @@ async function searchKCandles() {
   endTimeError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
+  serverErrorMessage.value = null
   result.value = null
 
   try {
@@ -89,6 +92,9 @@ async function searchKCandles() {
       else {
         endTimeError.value = error.message
       }
+    }
+    else if (error instanceof BackendServerError) {
+      serverErrorMessage.value = error.message
     }
     else if (error instanceof BackendRequestRejectedError) {
       rejectedMessage.value = error.message
@@ -125,6 +131,24 @@ async function searchKCandles() {
       data-testid="rejected-alert"
     >
       {{ rejectedMessage }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="serverErrorMessage"
+      tone="danger"
+      data-testid="server-error-alert"
+    >
+      後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="loading"
+          @click="searchKCandles"
+        >
+          重試
+        </AppButton>
+      </template>
     </AppAlert>
 
     <AppAlert

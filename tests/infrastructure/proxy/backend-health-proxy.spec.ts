@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -34,11 +35,26 @@ describe('BackendHealthProxy', () => {
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 
-  it('後端有回應但拒絕時包成可轉達的錯誤', async () => {
+  it('後端自己壞掉時包成「後端出錯」，而不是說請求有問題', async () => {
     const rejection = createFetchError({
       request: 'http://localhost:8080/health',
       options: {},
       response: { status: 503, statusText: 'Service Unavailable', _data: { message: '資料庫連線失敗' } },
+    } as unknown as FetchContext)
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
+
+    const fetchBackendHealth = new BackendHealthProxy(BASE_URL).fetchBackendHealth()
+
+    await expect(fetchBackendHealth).rejects.toBeInstanceOf(BackendServerError)
+    await expect(new BackendHealthProxy(BASE_URL).fetchBackendHealth())
+      .rejects.toThrow('資料庫連線失敗')
+  })
+
+  it('後端以業務規則拒絕時才包成可轉達的拒絕', async () => {
+    const rejection = createFetchError({
+      request: 'http://localhost:8080/health',
+      options: {},
+      response: { status: 400, statusText: 'Bad Request', _data: { message: '參數不正確' } },
     } as unknown as FetchContext)
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 

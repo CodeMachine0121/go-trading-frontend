@@ -13,6 +13,7 @@ import {
 } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
@@ -30,6 +31,7 @@ const fieldError = ref<{ field: IndicatorCalculationField, message: string } | n
 const requestRejectedMessage = ref<string | null>(null)
 const scriptFailedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
+const serverErrorMessage = ref<string | null>(null)
 
 function messageFor(field: IndicatorCalculationField): string | null {
   return fieldError.value?.field === field ? fieldError.value.message : null
@@ -45,6 +47,7 @@ async function calculateIndicator() {
   requestRejectedMessage.value = null
   scriptFailedMessage.value = null
   backendUnreachable.value = false
+  serverErrorMessage.value = null
   result.value = null
 
   try {
@@ -58,6 +61,9 @@ async function calculateIndicator() {
     }
     else if (error instanceof IndicatorScriptFailedError) {
       scriptFailedMessage.value = error.message
+    }
+    else if (error instanceof BackendServerError) {
+      serverErrorMessage.value = error.message
     }
     else if (error instanceof BackendRequestRejectedError) {
       requestRejectedMessage.value = error.message
@@ -162,6 +168,24 @@ async function calculateIndicator() {
       data-testid="request-rejected-alert"
     >
       請求的問題：{{ requestRejectedMessage }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="serverErrorMessage"
+      tone="danger"
+      data-testid="server-error-alert"
+    >
+      後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="calculating"
+          @click="calculateIndicator"
+        >
+          重試
+        </AppButton>
+      </template>
     </AppAlert>
 
     <AppAlert

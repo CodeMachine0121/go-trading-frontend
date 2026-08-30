@@ -8,6 +8,7 @@ import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
 import { KCandleFieldError, type KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-format'
 
@@ -37,6 +38,7 @@ const submitting = ref(false)
 const fieldError = ref<{ field: KCandleWriteField, message: string } | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
+const serverErrorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 const confirmingDelete = ref(false)
 // 刪除成功後這根 K 線就不存在了，表單不能再留著讓人按下儲存。
@@ -117,6 +119,7 @@ function startRequest() {
   fieldError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
+  serverErrorMessage.value = null
   successMessage.value = null
 }
 
@@ -134,6 +137,9 @@ function reportFailure(error: unknown) {
 
   if (error instanceof KCandleFieldError) {
     fieldError.value = { field: error.field, message: error.message }
+  }
+  else if (error instanceof BackendServerError) {
+    serverErrorMessage.value = error.message
   }
   else if (error instanceof BackendRequestRejectedError) {
     rejectedMessage.value = error.message
@@ -245,6 +251,14 @@ function reportFailure(error: unknown) {
       data-testid="editor-rejected"
     >
       {{ rejectedMessage }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="serverErrorMessage"
+      tone="danger"
+      data-testid="editor-server-error"
+    >
+      後端出錯了（不是你填的內容有問題），請稍後再送出一次：{{ serverErrorMessage }}
     </AppAlert>
 
     <AppAlert

@@ -14,6 +14,15 @@ describe('IndicatorCalculationDomain', () => {
       .toEqual(['均價', '最低', '最高'])
   })
 
+  it('同名的指標不會被排序打亂', () => {
+    const resultDto = new IndicatorCalculation('BTCUSDT', 3, [
+      new IndicatorValueVo('均價', 110),
+      new IndicatorValueVo('均價', 120),
+    ]).toDomain().toDto()
+
+    expect(resultDto.indicatorValues.map(indicatorValue => indicatorValue.value)).toEqual([110, 120])
+  })
+
   it('帶著實際採用的根數與每個指標的數值', () => {
     const resultDto = new IndicatorCalculation('BTCUSDT', 3, [
       new IndicatorValueVo('均價', 110),

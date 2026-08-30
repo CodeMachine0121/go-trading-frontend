@@ -15,7 +15,13 @@ export class IndicatorCalculationDomain {
     // 刻意不用依語系而變的比較方式：那會讓同一組結果在不同瀏覽器上排出不同順序，
     // 正好違背這條規則想保證的事。碼位比較在哪裡跑都一樣。
     return [...this.indicatorCalculation.indicatorValues]
-      .sort((former, latter) => (former.name < latter.name ? -1 : 1))
+      .sort((former, latter) => {
+        if (former.name === latter.name) {
+          return 0
+        }
+
+        return former.name < latter.name ? -1 : 1
+      })
   }
 
   toDto(): IndicatorCalculationResultDto {
