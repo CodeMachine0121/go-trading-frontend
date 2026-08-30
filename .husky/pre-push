@@ -1,0 +1,4 @@
+# push 前完整驗一次：lint + type check + 單元測試
+pnpm lint
+pnpm typecheck
+pnpm test

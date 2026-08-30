@@ -1,0 +1,6 @@
+{
+  // 編譯選項、include / exclude 全由 `nuxt prepare` 產生在 .nuxt/tsconfig.json，
+  // 其 include 已涵蓋整個專案（含 app/ 與 tests/）與所有 auto-import 型別宣告。
+  // 這裡只做繼承，不覆寫 include——覆寫會讓 auto-import 的全域型別失效。
+  "extends": "./.nuxt/tsconfig.json"
+}
