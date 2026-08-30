@@ -12,6 +12,10 @@
 - [.claude/rules/architecture.md](.claude/rules/architecture.md) — 東西該放哪一層、哪個資料夾
 - [.claude/rules/naming.md](.claude/rules/naming.md) — 東西該叫什麼名字
 
+寫 `.vue` 元件或任何樣式之前，再加讀這一份：
+
+- [.claude/rules/component-design.md](.claude/rules/component-design.md) — 元件怎麼切、樣式寫在哪
+
 ## 分層速記
 
 ```
@@ -40,6 +44,10 @@
 | Application / Service 要收一組參數 | [naming.md](.claude/rules/naming.md)（封裝成 DTO，不抽介面、不用行內物件型別） |
 | 想寫 `any`、`as any`、`@ts-ignore` | [code-style.md](.claude/rules/code-style.md)（禁止） |
 | 想開 `XxxHelper` / `utils.ts` 雜物模組 | [code-style.md](.claude/rules/code-style.md)（原則禁止；不得已才放 `app/utilities/`） |
+| 新增一個 `.vue` 元件 / 決定它是 atom 還是 molecule | [component-design.md](.claude/rules/component-design.md)（原子化設計四層資料夾） |
+| 想新增 `PrimaryButton` / `DangerButton` 之類的變體元件 | [component-design.md](.claude/rules/component-design.md)（禁止；一個 UI 概念只留一個元件，長相由使用端決定） |
+| 要寫任何 CSS / 調整顏色、間距 | [component-design.md](.claude/rules/component-design.md)（一律 `<style scoped lang="scss">`，值一律用 token 函式） |
+| 需要一個目前沒有的顏色 / 間距 / 字級 | [component-design.md](.claude/rules/component-design.md)（先補進 `app/assets/styles/abstracts/_tokens.scss`） |
 | 幫任何類別 / 介面 / 檔案命名 | [naming.md](.claude/rules/naming.md) |
 | 定義介面（interface） | [naming.md](.claude/rules/naming.md)（`I` 前綴、一介面一檔、以能力命名） |
 | 處理金額 / 價格 / 停損 | [code-style.md](.claude/rules/code-style.md)（`decimal.js`，禁用 `number`） |
@@ -64,3 +72,5 @@
 9. **介面以「能力」命名，不以「供應商」命名。**
 10. **禁止 `any`、`as any`、`@ts-ignore`。**
 11. **測試只驗業務行為**，mock 只用 Vitest 對介面產生，禁手寫 Fake。
+12. **一個 UI 概念只有一個元件**——按鈕只有 `AppButton`，不同長相是 variant，不是新元件。
+13. **樣式一律 `<style scoped lang="scss">`，值一律走 token 函式**；字面值只准出現在 `app/assets/styles/`。

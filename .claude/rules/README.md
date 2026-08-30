@@ -17,6 +17,7 @@
 | :--- | :--- |
 | [architecture.md](architecture.md) | Clean / Onion 分層、依賴方向、呼叫鏈、`app/` 目錄結構、**`.vue` 元件即 Controller**、**Entity 乾淨 + 行為放 Domain Model**、**Domain Model 不是介面抽象**、**model 內禁 static（含 `fromXxx` 轉換）**、禁 private static |
 | [naming.md](naming.md) | 命名規範：角色後綴、entity / `Domain` / `Dto` / `Vo` / `Request` 四種 model 後綴、**介面只抽象行為不抽象資料（TS 特別容易破功）**、介面以**能力抽象**命名（`I` 前綴）、外部資源一律 `Proxy` 結尾、檔名對齊主型別、禁 barrel `index.ts` |
+| [component-design.md](component-design.md) | **原子化設計**（atoms / molecules / organisms / templates）、**一個 UI 概念只留一個元件**（長相由使用端以 variant / slot / class 決定）、依賴方向只能由上往下、atoms 不認識領域概念、**SCSS 中央控管**（token 單一來源、abstracts 自動注入、BEM、禁字面值與 `!important`） |
 | [code-style.md](code-style.md) | **禁 `any` / `as any` / `@ts-ignore`**、資料用 `class` 不用 `interface`、`const` 宣告即賦值、行為掛物件、**禁 helper class 與 `utils.ts` 雜物模組**、金額用 `decimal.js`、`<script setup lang="ts">` |
 | [data-access.md](data-access.md) | **前端沒有資料庫**：`$fetch` / `useFetch` / `localStorage` 只准出現在 Proxy 內、一資源一 Proxy、wire 格式在 Proxy 收乾淨、前端狀態不是持久化 |
 | [testing.md](testing.md) | **只測業務行為**、**只用 Vitest mock 介面（禁手寫 Fake）**、測試力度放大、`tests/` 鏡射 `app/` |

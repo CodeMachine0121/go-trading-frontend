@@ -26,8 +26,13 @@
 
 ```
 app/
+├── assets/styles/          SCSS 中央層：token / mixin / 全域入口（見 component-design.md）
 ├── pages/                  Controller：路由層 .vue
-├── components/             Controller：畫面元件 .vue
+├── components/             Controller：畫面元件 .vue，依原子化設計分四層
+│   ├── atoms/              不可再拆的通用 UI（不認識領域概念）
+│   ├── molecules/          原子組成的功能單位
+│   ├── organisms/          畫面上可獨立存在的整塊區域
+│   └── templates/          只有版面骨架與插槽
 ├── application/            XxxApplication（純 TS class）
 ├── domain/
 │   ├── models/
@@ -44,6 +49,8 @@ app/
 │   └── dependencies.ts     組裝根：手動 DI
 └── utilities/              不得已的純技術性工具（預設應為空）
 ```
+
+元件內部怎麼切、樣式怎麼寫，見 [component-design.md](component-design.md)。
 
 `app/composables/`、`app/utils/` 是 Nuxt 的自動 import 目錄——**不要拿它們裝業務邏輯**。需要跨元件共用的畫面狀態才寫 composable，且 composable 只能呼叫 Application，不得跨層。
 
