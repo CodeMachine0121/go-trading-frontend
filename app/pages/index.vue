@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -41,11 +42,17 @@ onMounted(checkBackendHealth)
   </main>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .home {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('lg');
   margin: 0 auto;
   max-width: 640px;
-  padding: 2rem 1rem;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  padding: spacing('xl') spacing('md');
+
+  @include respond-to('md') {
+    padding: spacing('2xl') spacing('lg');
+  }
 }
 </style>

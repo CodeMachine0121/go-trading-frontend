@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import AppButton from '~/components/atoms/AppButton.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 
+// 分子：由原子（AppButton）與文字組成的一個完整功能區塊。
 // 元件（Controller）只認識 DTO 與 Application，不認識 entity / domain model / proxy。
 defineProps<{
   health: BackendHealthDto | null
@@ -17,13 +19,14 @@ defineEmits<{
   <section class="backend-health-card">
     <header class="backend-health-card__header">
       <h2>後端連線狀態</h2>
-      <button
-        type="button"
+      <AppButton
+        variant="secondary"
+        size="small"
         :disabled="loading"
         @click="$emit('refresh')"
       >
         {{ loading ? '檢查中…' : '重新檢查' }}
-      </button>
+      </AppButton>
     </header>
 
     <p
@@ -44,6 +47,7 @@ defineEmits<{
 
     <p
       v-else
+      class="backend-health-card__idle"
       data-testid="idle"
     >
       尚未檢查
@@ -51,21 +55,23 @@ defineEmits<{
   </section>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .backend-health-card {
-  border: 1px solid #d4d4d8;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-}
+  @include surface('md');
 
-.backend-health-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
+  &__header {
+    display: flex;
+    gap: spacing('md');
+    align-items: center;
+    justify-content: space-between;
+  }
 
-.backend-health-card__error {
-  color: #b91c1c;
+  &__error {
+    color: color('danger');
+  }
+
+  &__idle {
+    color: color('text-muted');
+  }
 }
 </style>

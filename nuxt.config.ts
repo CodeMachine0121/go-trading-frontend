@@ -8,6 +8,9 @@ const scssAbstractsPath = fileURLToPath(new URL('./app/assets/styles/abstracts/_
 
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
+  // 原子化設計的資料夾（atoms/molecules/organisms/templates）只表示層級，不進元件名字：
+  // components/atoms/AppButton.vue 的元件名就是 AppButton，不是 AtomsAppButton。
+  components: [{ path: '~/components', pathPrefix: false }],
   devtools: { enabled: true },
   // 全域樣式只有這一支入口（token + reset + 排版底色調），其餘一律是元件自己的 scoped 樣式
   css: ['~/assets/styles/main.scss'],

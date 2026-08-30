@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import BackendHealthCard from '~/components/BackendHealthCard.vue'
+import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
 import { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 
 const CHECKED_AT = new Date('2026-08-30T00:00:00.000Z')
