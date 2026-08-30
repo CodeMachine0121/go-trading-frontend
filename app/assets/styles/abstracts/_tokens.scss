@@ -1,0 +1,80 @@
+// 設計 token 的單一真實來源。
+//
+// 全站所有顏色 / 間距 / 字級 / 圓角 / 陰影的字面值「只」寫在這個檔案裡。
+// 這些 map 會由 base/_tokens.scss 逐一展開成 CSS custom property（--color-text、--spacing-md…），
+// 元件一律透過 abstracts/_functions.scss 的存取函式取用，不直接讀這裡的 SCSS 變數，
+// 也不得在元件內寫死任何字面值（見 .claude/rules/component-design.md）。
+//
+// 之所以最終落地成 CSS custom property 而不是編譯期常數：token 因此在執行期仍可被覆寫，
+// 未來要加深色主題 / 多品牌換色，只需要覆寫 :root 的變數，不必重新編譯每個元件。
+
+$colors: (
+  'background': #f6f7f9,
+  'surface': #fff,
+  'surface-muted': #f1f3f5,
+  'border': #d4d4d8,
+  'border-strong': #a1a1aa,
+  'text': #18181b,
+  'text-muted': #52525b,
+  'text-inverse': #fafafa,
+  'primary': #2563eb,
+  'primary-strong': #1d4ed8,
+  'primary-soft': #dbeafe,
+  'success': #15803d,
+  'danger': #b91c1c,
+  'warning': #b45309,
+  'info': #0369a1,
+  'disabled': #d4d4d8,
+);
+
+$spacings: (
+  '2xs': 0.25rem,
+  'xs': 0.5rem,
+  'sm': 0.75rem,
+  'md': 1rem,
+  'lg': 1.5rem,
+  'xl': 2rem,
+  '2xl': 3rem,
+);
+
+$font-sizes: (
+  'xs': 0.75rem,
+  'sm': 0.875rem,
+  'md': 1rem,
+  'lg': 1.25rem,
+  'xl': 1.5rem,
+  '2xl': 2rem,
+);
+
+$font-weights: (
+  'regular': 400,
+  'medium': 500,
+  'bold': 700,
+);
+
+$line-heights: (
+  'tight': 1.25,
+  'normal': 1.5,
+);
+
+$radii: (
+  'sm': 0.25rem,
+  'md': 0.5rem,
+  'lg': 0.75rem,
+  'pill': 9999px,
+);
+
+$shadows: (
+  'sm': 0 1px 2px rgb(24 24 27 / 8%),
+  'md': 0 4px 12px rgb(24 24 27 / 10%),
+);
+
+$durations: (
+  'fast': 120ms,
+  'normal': 240ms,
+);
+
+$font-families: (
+  'base': (system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif),
+  'mono': (ui-monospace, 'SF Mono', 'Cascadia Mono', monospace),
+);

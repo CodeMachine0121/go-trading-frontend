@@ -1,0 +1,8 @@
+// abstracts 只含變數 / 函式 / mixin，不產生任何 CSS 輸出，
+// 因此可以被 nuxt.config.ts 的 additionalData 注入到每一個 .scss 與 <style lang="scss"> 內，
+// 不會造成重複的樣式。元件因此可以直接用 color()、spacing()、respond-to()，不必自己 @use。
+
+@forward 'tokens';
+@forward 'functions';
+@forward 'breakpoints';
+@forward 'mixins';

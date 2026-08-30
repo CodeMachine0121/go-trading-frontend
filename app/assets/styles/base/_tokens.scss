@@ -1,0 +1,43 @@
+@use 'sass:map';
+@use '../abstracts/tokens' as *;
+
+// 把 abstracts/_tokens.scss 的 map 逐一展開成 CSS custom property。
+// 這是全站唯一產出 token 值的地方；新增 token 只要改 map，這裡不必動。
+
+:root {
+  @each $name, $value in $colors {
+    --color-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $spacings {
+    --spacing-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $font-sizes {
+    --font-size-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $font-weights {
+    --font-weight-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $line-heights {
+    --line-height-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $radii {
+    --radius-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $shadows {
+    --shadow-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $durations {
+    --duration-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $font-families {
+    --font-family-#{$name}: #{$value};
+  }
+}

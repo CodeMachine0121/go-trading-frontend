@@ -1,0 +1,52 @@
+@use 'sass:map';
+@use 'tokens';
+
+// token 存取函式：元件唯一被允許取得樣式值的管道。
+//
+// 回傳的是 CSS custom property 參照（var(--color-text)），所以執行期仍可換主題；
+// 同時在編譯期檢查 token 是否存在——打錯名字會直接讓建置失敗，
+// 而不是安靜地產出一個沒有值的 var()。
+
+@function assert-token($map, $name, $group) {
+  @if not map.has-key($map, $name) {
+    @error '未定義的 #{$group} token：「#{$name}」。請先加進 abstracts/_tokens.scss，不要在元件內寫死字面值。';
+  }
+
+  @return $name;
+}
+
+@function color($name) {
+  @return var(--color-#{assert-token(tokens.$colors, $name, 'color')});
+}
+
+@function spacing($name) {
+  @return var(--spacing-#{assert-token(tokens.$spacings, $name, 'spacing')});
+}
+
+@function font-size($name) {
+  @return var(--font-size-#{assert-token(tokens.$font-sizes, $name, 'font-size')});
+}
+
+@function font-weight($name) {
+  @return var(--font-weight-#{assert-token(tokens.$font-weights, $name, 'font-weight')});
+}
+
+@function line-height($name) {
+  @return var(--line-height-#{assert-token(tokens.$line-heights, $name, 'line-height')});
+}
+
+@function radius($name) {
+  @return var(--radius-#{assert-token(tokens.$radii, $name, 'radius')});
+}
+
+@function shadow($name) {
+  @return var(--shadow-#{assert-token(tokens.$shadows, $name, 'shadow')});
+}
+
+@function duration($name) {
+  @return var(--duration-#{assert-token(tokens.$durations, $name, 'duration')});
+}
+
+@function font-family($name) {
+  @return var(--font-family-#{assert-token(tokens.$font-families, $name, 'font-family')});
+}

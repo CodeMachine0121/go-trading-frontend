@@ -1,0 +1,30 @@
+@use '../abstracts' as *;
+
+// 全站的文字底色調。元件只覆寫自己需要的部分，不在元件內重設字體。
+
+body {
+  background-color: color('background');
+  color: color('text');
+  font-family: font-family('base');
+  font-size: font-size('md');
+  line-height: line-height('normal');
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: font-size('xl');
+  line-height: line-height('tight');
+}
+
+h2 {
+  font-size: font-size('lg');
+  line-height: line-height('tight');
+}
+
+a {
+  color: color('primary');
+
+  &:hover {
+    color: color('primary-strong');
+  }
+}

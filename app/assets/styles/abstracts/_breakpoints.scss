@@ -1,0 +1,21 @@
+@use 'sass:map';
+
+// 斷點是唯一「只活在編譯期」的 token——media query 的條件不能用 CSS custom property，
+// 所以它不進 :root，只由 respond-to() mixin 使用。元件不得自己寫死 px 斷點。
+
+$breakpoints: (
+  'sm': 480px,
+  'md': 768px,
+  'lg': 1024px,
+  'xl': 1280px,
+);
+
+@mixin respond-to($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error '未定義的斷點：「#{$name}」。可用的斷點：#{map.keys($breakpoints)}。';
+  }
+
+  @media (width >= #{map.get($breakpoints, $name)}) {
+    @content;
+  }
+}

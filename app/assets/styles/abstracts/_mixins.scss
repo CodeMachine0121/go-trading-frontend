@@ -1,0 +1,25 @@
+@use 'functions' as *;
+
+// 跨元件重複出現的樣式片段集中在這裡，元件用 @include 取用，不各自複製一份。
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid color('primary');
+    outline-offset: 2px;
+  }
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+}
+
+@mixin surface($padding: 'md') {
+  border: 1px solid color('border');
+  border-radius: radius('md');
+  background-color: color('surface');
+  padding: spacing($padding);
+}

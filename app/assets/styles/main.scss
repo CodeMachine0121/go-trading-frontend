@@ -1,0 +1,7 @@
+// 全站唯一的全域樣式入口，於 nuxt.config.ts 的 `css` 註冊。
+// 這裡只放 token 宣告與 base（reset / 排版底色調），
+// 任何元件外觀一律寫在該元件自己的 <style scoped lang="scss"> 內。
+
+@use 'base/tokens';
+@use 'base/reset';
+@use 'base/typography';
