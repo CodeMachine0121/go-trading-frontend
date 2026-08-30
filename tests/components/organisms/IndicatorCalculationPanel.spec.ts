@@ -117,17 +117,19 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
   })
 
-  it('K 線不足時，說是請求的問題', async () => {
+  it.each([
+    { description: 'K 線不足', message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' },
+    { description: '超過單次上限', message: '超過單次可用的最大根數（最多 1000 根）' },
+  ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
     const wrapper = mountPanel(buildProxy({
-      calculateIndicator: vi.fn().mockRejectedValue(
-        new BackendRequestRejectedError('K 線不足，排除最新一根後目前可用 9 根，但要求 30 根')),
+      calculateIndicator: vi.fn().mockRejectedValue(new BackendRequestRejectedError(message)),
     }))
 
     await fillAndSubmit(wrapper)
 
     const alert = wrapper.get('[data-testid="request-rejected-alert"]')
     expect(alert.text()).toContain('請求的問題')
-    expect(alert.text()).toContain('目前可用 9 根')
+    expect(alert.text()).toContain(message)
     expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
   })
 
