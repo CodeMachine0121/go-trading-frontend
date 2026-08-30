@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-08-30',
   typescript: {
     strict: true,
-    typeCheck: false, // 型別檢查走 `pnpm typecheck`（含 husky hook），不拖慢 dev server
+    typeCheck: false, // 型別檢查走 `bun run typecheck`（含 husky hook），不拖慢 dev server
   },
   eslint: {
     config: {

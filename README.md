@@ -12,9 +12,9 @@
 | 打包 | **Vite**（Nuxt 內建） |
 | 單元測試 | **Vitest** + `@vue/test-utils` + `happy-dom` |
 | Lint | **ESLint 10**（`@nuxt/eslint` + `typescript-eslint`，含 stylistic 排版規則） |
-| 型別檢查 | `vue-tsc`（`pnpm typecheck`） |
+| 型別檢查 | `vue-tsc`（`bun run typecheck`） |
 | Git hooks | **Husky** + lint-staged |
-| 套件管理 | **pnpm** |
+| 套件管理 / script runner | **Bun**（1.3.x） |
 
 > TSLint 已於 2019 年停止維護並併入 typescript-eslint，因此 TypeScript 的 lint 由 ESLint 的
 > `typescript-eslint` 規則集負責（已隨 `@nuxt/eslint` 啟用），不另外安裝 TSLint。
@@ -67,27 +67,35 @@ tests/                      鏡射 app/ 的目錄結構，檔名 {受測檔名}.
 ## Commands
 
 ```bash
-pnpm install          # 安裝依賴（會自動跑 nuxt prepare 與 husky install）
-pnpm dev              # 開發 server（預設 http://localhost:3000）
-pnpm build            # 產出 .output/
-pnpm preview          # 預覽 production build
-pnpm generate         # 靜態產出
+bun install           # 安裝依賴（會自動跑 nuxt prepare 與 husky install）
+bun run dev           # 開發 server（預設 http://localhost:3000）
+bun run build         # 產出 .output/
+bun run preview       # 預覽 production build
+bun run generate      # 靜態產出
 
-pnpm lint             # ESLint
-pnpm lint:fix         # ESLint 自動修
-pnpm typecheck        # vue-tsc 型別檢查
-pnpm test             # Vitest 跑一次
-pnpm test:watch       # Vitest watch 模式
-pnpm test:coverage    # 覆蓋率報告
-pnpm verify           # lint + typecheck + test（等同 pre-push 的檢查）
+bun run lint          # ESLint
+bun run lint:fix      # ESLint 自動修
+bun run typecheck     # vue-tsc 型別檢查
+bun run test          # Vitest 跑一次
+bun run test:watch    # Vitest watch 模式
+bun run test:coverage # 覆蓋率報告
+bun run verify        # lint + typecheck + test（等同 pre-push 的檢查）
 ```
+
+> ⚠️ **一定要 `bun run test`，不要 `bun test`。** `bun test` 會跑 bun 內建的測試 runner
+> 而不是 package.json 裡的 `test` script，我們的 Vitest 測試會整批被略過而看起來「沒事」。
+> 其他 script 名稱沒有這個衝突，但統一都加 `run` 最安全。
+
+Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然是 Nuxt 內建的 Vite**，
+測試仍然是 Vitest。依賴的 postinstall script 由 package.json 的 `trustedDependencies`
+明確授權（`esbuild`、`unrs-resolver`），這是 bun 的安全預設。
 
 ## Git Hooks
 
 | Hook | 動作 |
 | :--- | :--- |
-| `pre-commit` | 對 staged 檔案跑 `eslint --fix`，再跑全專案 `pnpm typecheck` |
-| `pre-push` | `pnpm lint` + `pnpm typecheck` + `pnpm test` |
+| `pre-commit` | 對 staged 檔案跑 `eslint --fix`，再跑全專案 `bun run typecheck` |
+| `pre-push` | `bun run lint` + `bun run typecheck` + `bun run test` |
 
 緊急情況要跳過：`git commit --no-verify`（請盡量不要）。
 

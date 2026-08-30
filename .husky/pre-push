@@ -1,4 +1,5 @@
 # push 前完整驗一次：lint + type check + 單元測試
-pnpm lint
-pnpm typecheck
-pnpm test
+# 注意：一定要 `bun run test`——`bun test` 會改跑 bun 內建的測試 runner，不是 Vitest
+bun run lint
+bun run typecheck
+bun run test
