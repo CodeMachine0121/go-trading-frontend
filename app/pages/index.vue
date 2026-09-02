@@ -32,7 +32,10 @@ onMounted(checkBackendHealth)
 </script>
 
 <template>
-  <ConsoleLayout title="連線狀態">
+  <ConsoleLayout
+    title="連線狀態"
+    subtitle="這個操作台的每一個功能都以後端 go-trading 可用為前提。"
+  >
     <BackendHealthCard
       :health="health"
       :loading="loading"

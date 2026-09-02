@@ -7,7 +7,11 @@ const { $kCandleApplication } = useNuxtApp()
 </script>
 
 <template>
-  <ConsoleLayout title="K 線瀏覽">
+  <ConsoleLayout
+    title="K 線瀏覽"
+    subtitle="指定交易標的與時間區間查詢，結果由新到舊列出；時間一律為世界標準時間。"
+    width="wide"
+  >
     <KCandleSearchPanel :k-candle-application="$kCandleApplication" />
   </ConsoleLayout>
 </template>

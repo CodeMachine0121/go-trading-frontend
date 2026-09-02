@@ -30,31 +30,43 @@ const { tone = 'info' } = defineProps<{ tone?: AlertTone }>()
   align-items: center;
   justify-content: space-between;
   border: 1px solid color('border');
-  border-left-width: 4px;
+  border-left-width: 3px;
   border-radius: radius('sm');
   background-color: color('surface');
   padding: spacing('sm') spacing('md');
   font-size: font-size('sm');
+  line-height: line-height('normal');
 
   &__message {
     margin: 0;
   }
 
+  // 深色底上光靠一條左邊框太弱，整塊帶一層語氣的底色才看得出這是哪一類訊息
   &--info {
+    border-color: color('info-soft');
     border-left-color: color('info');
+    background-color: color('info-soft');
   }
 
   &--danger {
+    border-color: color('danger-soft');
     border-left-color: color('danger');
+    background-color: color('danger-soft');
     color: color('danger');
   }
 
   &--warning {
+    border-color: color('warning-soft');
     border-left-color: color('warning');
+    background-color: color('warning-soft');
+    color: color('warning');
   }
 
   &--success {
+    border-color: color('success-soft');
     border-left-color: color('success');
+    background-color: color('success-soft');
+    color: color('success');
   }
 }
 </style>

@@ -7,12 +7,12 @@ const CHECKED_AT = new Date('2026-08-30T00:00:00.000Z')
 
 describe('BackendHealthCard', () => {
   it.each([
-    { healthy: true, status: 'healthy', expectedText: '正常' },
-    { healthy: false, status: 'down', expectedText: '異常' },
-  ])('依 DTO 渲染狀態（healthy=$healthy）', ({ healthy, status, expectedText }) => {
+    { healthy: true, status: 'healthy', label: '正常', tone: 'success' as const, expectedText: '正常' },
+    { healthy: false, status: 'down', label: '異常', tone: 'danger' as const, expectedText: '異常' },
+  ])('依 DTO 渲染狀態（healthy=$healthy）', ({ healthy, status, label, tone, expectedText }) => {
     const wrapper = mount(BackendHealthCard, {
       props: {
-        health: new BackendHealthDto(healthy, status, CHECKED_AT),
+        health: new BackendHealthDto(healthy, status, CHECKED_AT, label, tone),
         loading: false,
         errorMessage: null,
       },
@@ -24,7 +24,7 @@ describe('BackendHealthCard', () => {
   it('有錯誤訊息時只顯示錯誤，不顯示狀態', () => {
     const wrapper = mount(BackendHealthCard, {
       props: {
-        health: new BackendHealthDto(true, 'healthy', CHECKED_AT),
+        health: new BackendHealthDto(true, 'healthy', CHECKED_AT, '正常', 'success'),
         loading: false,
         errorMessage: '連不上後端',
       },

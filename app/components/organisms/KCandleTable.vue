@@ -133,9 +133,9 @@ defineProps<{ result: KCandleSearchResultDto }>()
 
   &__empty {
     margin: 0;
-    border: 1px dashed color('border');
+    border: 1px dashed color('border-strong');
     border-radius: radius('md');
-    padding: spacing('lg');
+    padding: spacing('xl');
     color: color('text-muted');
     text-align: center;
   }
@@ -160,14 +160,35 @@ defineProps<{ result: KCandleSearchResultDto }>()
       white-space: nowrap;
     }
 
+    // 一整欄的價量數字要能上下對齊著讀，等寬與定寬數字是為了這件事
+    td {
+      color: color('text-strong');
+      font-variant-numeric: tabular-nums;
+      font-family: font-family('mono');
+    }
+
     th:first-child,
     td:first-child {
       text-align: left;
     }
 
+    td:first-child {
+      color: color('text-muted');
+    }
+
     th {
+      position: sticky;
+      top: 0;
       background-color: color('surface-muted');
+      color: color('text-muted');
       font-weight: font-weight('medium');
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: font-size('xs');
+    }
+
+    tbody tr:hover td {
+      background-color: color('surface-muted');
     }
 
     tbody tr:last-child td {

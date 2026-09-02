@@ -19,19 +19,20 @@ export class KCandleService {
   constructor(private readonly kCandleProxy: IKCandleProxy) {}
 
   /**
-   * 查詢一段區間的 K 線：驗證條件（不合法就沒有查詢）→ 取回 → 由早到晚排序 → 轉 DTO。
+   * 查詢一段區間的 K 線：驗證條件（不合法就沒有查詢）→ 取回 → 由新到舊排序 → 轉 DTO。
    * 呼叫端拿到的清單順序、筆數、漲跌都已經算好。
    */
   async searchKCandles(kCandleQueryDto: KCandleQueryDto): Promise<KCandleSearchResultDto> {
     const kCandleQueryDomain = new KCandleQueryDomain(kCandleQueryDto)
     const kCandles = await this.kCandleProxy.findKCandlesInRange(kCandleQueryDomain)
 
-    const earliestFirstKCandles = [...kCandles].sort(
-      (former, latter) => former.openTime.getTime() - latter.openTime.getTime(),
+    // 由新到舊：看行情第一眼要看的是「現在怎麼樣」，最新那一根就該在最上面。
+    const newestFirstKCandles = [...kCandles].sort(
+      (former, latter) => latter.openTime.getTime() - former.openTime.getTime(),
     )
 
     return new KCandleSearchResultDto(
-      earliestFirstKCandles.map(kCandle => kCandle.toDomain().toDto()),
+      newestFirstKCandles.map(kCandle => kCandle.toDomain().toDto()),
     )
   }
 

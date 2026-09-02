@@ -8,9 +8,14 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 const BASE_URL = 'http://localhost:8080'
-const SCRIPT = 'package main\nfunc Calculate() {}'
+const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 const REQUEST = new IndicatorCalculationRequestDomain(
-  new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT))
+  new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, 'float'))
+
+function requestOf(resultType: string): IndicatorCalculationRequestDomain {
+  return new IndicatorCalculationRequestDomain(
+    new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, resultType))
+}
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
 function buildFetchError(failure: { status?: number, message?: string }) {
@@ -34,31 +39,77 @@ afterEach(() => {
 })
 
 describe('IndicatorCalculationProxy', () => {
-  it('把交易標的、根數與算式送到指標計算端點', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', usedCandleCount: 3, values: {} })
+  it('把交易標的、根數、指標值種類與組好的算式送到指標計算端點', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
+    })
     vi.stubGlobal('$fetch', fetchMock)
 
     await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/indicator-calculations', {
       method: 'POST',
-      body: { symbol: 'BTCUSDT', candleCount: 3, script: SCRIPT },
+      body: {
+        symbol: 'BTCUSDT',
+        candleCount: 3,
+        resultType: 'float',
+        script: REQUEST.script,
+      },
     })
   })
 
-  it('把回來的指標攤成一組名稱與數值', async () => {
+  it('送出的指標值種類就是這次挑的那一種', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'boolList', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(requestOf('boolList'))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/indicator-calculations',
+      expect.objectContaining({ body: expect.objectContaining({ resultType: 'boolList' }) }))
+  })
+
+  it('把回來的指標攤成一組名稱與值', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       symbol: 'BTCUSDT',
       usedCandleCount: 4,
+      resultType: 'float',
       values: { 均價: 110, 最高: 120 },
     }))
 
     const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
 
     expect(indicatorCalculation.usedCandleCount).toBe(4)
+    expect(indicatorCalculation.resultType).toBe('float')
     expect(indicatorCalculation.indicatorValues).toHaveLength(2)
     expect(indicatorCalculation.indicatorValues.map(indicatorValue => indicatorValue.name).sort())
       .toEqual(['均價', '最高'])
+  })
+
+  it.each([
+    { description: '一個數字', resultType: 'float', wireValue: 110, expectedItems: [110] },
+    {
+      description: '一串數字', resultType: 'floatList',
+      wireValue: [100, 105, 110], expectedItems: [100, 105, 110],
+    },
+    { description: '一個是非', resultType: 'bool', wireValue: true, expectedItems: [true] },
+    {
+      description: '一串是非', resultType: 'boolList',
+      wireValue: [true, false], expectedItems: [true, false],
+    },
+    { description: '空的一串', resultType: 'floatList', wireValue: [], expectedItems: [] },
+  ])('$description 的值都收成同一種形狀', async ({ resultType, wireValue, expectedItems }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType, values: { 指標: wireValue },
+    }))
+
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL)
+      .calculateIndicator(requestOf(resultType))
+
+    expect(indicatorCalculation.resultType).toBe(resultType)
+    expect(indicatorCalculation.indicatorValues[0]?.items).toEqual(expectedItems)
   })
 
   it.each([
@@ -66,7 +117,7 @@ describe('IndicatorCalculationProxy', () => {
     { description: '整個沒有指標這一段', values: null },
   ])('$description 時仍是一次成功的計算', async ({ values }) => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
-      symbol: 'BTCUSDT', usedCandleCount: 3, values,
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values,
     }))
 
     const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)

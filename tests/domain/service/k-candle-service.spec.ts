@@ -38,7 +38,7 @@ function buildProxy(kCandles: KCandle[]): IKCandleProxy {
 
 describe('KCandleService', () => {
   describe('searchKCandles', () => {
-    it('把取回的 K 線由早到晚排好，並算出筆數', async () => {
+    it('把取回的 K 線由新到舊排好，並算出筆數', async () => {
       const kCandleService = new KCandleService(buildProxy([
         buildKCandle('2026-08-30T10:10:00.000Z'),
         buildKCandle('2026-08-30T10:00:00.000Z'),
@@ -50,9 +50,9 @@ describe('KCandleService', () => {
       )
 
       expect(result.kCandles.map(kCandle => kCandle.openTime.toISOString())).toEqual([
-        '2026-08-30T10:00:00.000Z',
-        '2026-08-30T10:05:00.000Z',
         '2026-08-30T10:10:00.000Z',
+        '2026-08-30T10:05:00.000Z',
+        '2026-08-30T10:00:00.000Z',
       ])
       expect(result.count).toBe(3)
       expect(result.isEmpty).toBe(false)

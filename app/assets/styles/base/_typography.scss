@@ -2,6 +2,12 @@
 
 // 全站的文字底色調。元件只覆寫自己需要的部分，不在元件內重設字體。
 
+:root {
+  // 讓捲軸、原生下拉、日期選擇器等瀏覽器自己畫的東西也跟著走暗色，
+  // 少了這一行，深色版面上會冒出幾塊白色的原生元件。
+  color-scheme: dark;
+}
+
 body {
   background-color: color('background');
   color: color('text');
@@ -12,11 +18,13 @@ body {
 }
 
 h1 {
+  color: color('text-strong');
   font-size: font-size('xl');
   line-height: line-height('tight');
 }
 
 h2 {
+  color: color('text-strong');
   font-size: font-size('lg');
   line-height: line-height('tight');
 }
@@ -27,4 +35,9 @@ a {
   &:hover {
     color: color('primary-strong');
   }
+}
+
+::selection {
+  background-color: color('primary-soft');
+  color: color('text-strong');
 }

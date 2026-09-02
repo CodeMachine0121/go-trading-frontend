@@ -47,7 +47,7 @@ function buildApplication(kCandleProxy: IKCandleProxy): KCandleApplication {
 }
 
 describe('KCandleApplication', () => {
-  it('查詢成功時回傳由早到晚、帶漲跌的結果', async () => {
+  it('查詢成功時回傳由新到舊、帶漲跌的結果', async () => {
     const kCandleApplication = buildApplication(buildProxy({
       findKCandlesInRange: vi.fn().mockResolvedValue([
         buildKCandle('2026-08-30T10:05:00.000Z', '100', '90'),
@@ -60,9 +60,9 @@ describe('KCandleApplication', () => {
     )
 
     expect(result.count).toBe(2)
-    expect(result.kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
-    expect(result.kCandles[0]?.trend.value).toBe('up')
-    expect(result.kCandles[1]?.trend.value).toBe('down')
+    expect(result.kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:05:00.000Z')
+    expect(result.kCandles[0]?.trend.value).toBe('down')
+    expect(result.kCandles[1]?.trend.value).toBe('up')
   })
 
   it('查無資料時回傳空結果', async () => {

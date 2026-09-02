@@ -15,9 +15,11 @@ export default {
     'scss/comment-no-empty': null,
     // token map 之間留空行是刻意的可讀性排版
     'scss/dollar-variable-empty-line-before': null,
-    // BEM：block / block__element / block--modifier（含巢狀 & 解析後的結果）
+    // BEM：block / block__element / block--modifier（含巢狀 & 解析後的結果）。
+    // `cm-` 開頭是 CodeMirror 在執行期自己畫上去的 class，不是我們命名的東西——
+    // 要覆寫它的長相只能照它的名字寫，因此放行（且僅限這個前綴）。
     'selector-class-pattern': [
-      '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:__[a-z0-9]+(?:-[a-z0-9]+)*)?(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?$',
+      '^(?:cm-[A-Za-z0-9-]+|[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:__[a-z0-9]+(?:-[a-z0-9]+)*)?(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?)$',
       {
         resolveNestedSelectors: true,
         message: 'class 命名一律 BEM：block、block__element、block--modifier（全小寫 kebab-case）。',

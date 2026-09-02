@@ -114,16 +114,18 @@ async function searchKCandles() {
 
 <template>
   <section class="k-candle-search-panel">
-    <KCandleQueryForm
-      v-model:symbol="symbol"
-      v-model:start-time="startTime"
-      v-model:end-time="endTime"
-      :loading="loading"
-      :symbol-error="symbolError"
-      :start-time-error="startTimeError"
-      :end-time-error="endTimeError"
-      @submit="searchKCandles"
-    />
+    <div class="k-candle-search-panel__query">
+      <KCandleQueryForm
+        v-model:symbol="symbol"
+        v-model:start-time="startTime"
+        v-model:end-time="endTime"
+        :loading="loading"
+        :symbol-error="symbolError"
+        :start-time-error="startTimeError"
+        :end-time-error="endTimeError"
+        @submit="searchKCandles"
+      />
+    </div>
 
     <AppAlert
       v-if="rejectedMessage"
@@ -178,6 +180,7 @@ async function searchKCandles() {
     </AppAlert>
 
     <div class="k-candle-search-panel__maintenance">
+      <span class="k-candle-search-panel__maintenance-label">手動維護 K 線</span>
       <AppButton
         variant="secondary"
         :disabled="editorOpen"
@@ -224,9 +227,23 @@ async function searchKCandles() {
   flex-direction: column;
   gap: spacing('lg');
 
+  // 查詢條件收成一張卡，才不會一整排欄位懸在頁面底色上
+  &__query {
+    @include surface('md');
+  }
+
   &__maintenance {
     display: flex;
-    justify-content: flex-end;
+    gap: spacing('md');
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid color('border');
+    padding-top: spacing('md');
+  }
+
+  &__maintenance-label {
+    color: color('text-muted');
+    font-size: font-size('sm');
   }
 }
 </style>
