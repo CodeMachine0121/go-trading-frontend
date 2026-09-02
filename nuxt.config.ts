@@ -8,6 +8,21 @@ const scssAbstractsPath = fileURLToPath(new URL('./app/assets/styles/abstracts/_
 
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
+  // 只在 dev 關掉 app manifest。它預設會把 `#app-manifest` 這個 alias 指向
+  // .nuxt/manifest/meta/{buildId}.json，而那個檔案要等 nitro 建完才寫出來；
+  // dev 冷啟動時 Vite 會先 pre-transform nuxt 的 manifest composable，於是撞上
+  // 「Failed to resolve import "#app-manifest" ... Does the file exist?」。
+  // 這是 race，`nuxt build` 清掉 .nuxt 之後的第一次 dev 最容易踩到。
+  // 關掉後 alias 改指向 node_modules 裡恆存在的空模組，錯誤結構上就不會發生。
+  //
+  // 這個 race 只發生在 dev，所以用 `$development` 圈住：build 與 generate 維持開啟，
+  // 「部署了新版本就重載」與靜態產出的 _payload.json 都不受影響。
+  // 詳見 README「Dev server 有兩個『別讓它自己發現』的設定」。
+  $development: {
+    experimental: {
+      appManifest: false,
+    },
+  },
   // 原子化設計的資料夾（atoms/molecules/organisms/templates）只表示層級，不進元件名字：
   // components/atoms/AppButton.vue 的元件名就是 AppButton，不是 AtomsAppButton。
   components: [{ path: '~/components', pathPrefix: false }],
@@ -27,18 +42,6 @@ export default defineNuxtConfig({
   // CORS_ALLOWED_ORIGINS 名單內的來源（預設 http://localhost:3000）。這裡換 port，
   // 後端那個環境變數要一起換，否則瀏覽器會擋掉每一次呼叫。
   devServer: { port: 3000 },
-  experimental: {
-    // 關掉 app manifest。它預設會把 `#app-manifest` 這個 alias 指向
-    // .nuxt/manifest/meta/{buildId}.json，而那個檔案要等 nitro 建完才寫出來；
-    // dev 冷啟動時 Vite 會先 pre-transform nuxt 的 manifest composable，於是撞上
-    // 「Failed to resolve import "#app-manifest" ... Does the file exist?」。
-    // 這是 race，`nuxt build` 清掉 .nuxt 之後的第一次 dev 最容易踩到。
-    // 關掉後 alias 改指向 node_modules 裡恆存在的空模組，錯誤結構上就不會發生。
-    // 代價只有兩件（route rules 與 chunk 重載都不經過 manifest，照舊）：不再偵測
-    // 「部署了新版本」，以及 `nuxt generate` 產出的 _payload.json 不會被載入。
-    // 詳見 README「Dev server 有兩個『別讓它自己發現』的設定」。
-    appManifest: false,
-  },
   compatibilityDate: '2026-08-30',
   vite: {
     // CodeMirror 只在 AppCodeEditor 掛載後才動態 import（它碰得到 document，伺服器端沒有），

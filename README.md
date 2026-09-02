@@ -198,9 +198,9 @@ Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然
 兩者都只在**冷啟動**（剛 clone、`bun install` 之後、或 `nuxt build` 清掉 `.nuxt` 之後的
 第一次 `bun run dev`）才現形，所以很容易被誤判成偶發雜訊而刪掉。
 
-#### `experimental.appManifest: false`
+#### `$development.experimental.appManifest: false`
 
-關掉 Nuxt 的 app manifest。開著的話 `#app-manifest` 這個 alias 會指向
+只在 dev 關掉 Nuxt 的 app manifest。開著的話 `#app-manifest` 這個 alias 會指向
 `.nuxt/manifest/meta/{buildId}.json`，而那個檔案要等 nitro 建完才寫出來；dev 冷啟動時 Vite
 會先 pre-transform nuxt 的 manifest composable，比 nitro 快一步就會噴：
 
@@ -212,20 +212,18 @@ ERROR  Pre-transform error: Failed to resolve import "#app-manifest" ... Does th
 畫面其實還是正常的，但每次冷啟動都刷一排紅字。關掉之後 alias 改指向 node_modules 裡恆存在的
 空模組，錯誤就結構上不會發生。
 
-關掉之後**確實**少掉的只有兩件事（其餘照舊——client 端 route rules 走的是建置期產生的
-`#build/route-rules.mjs`，不經過 manifest；chunk 載入失敗自動重載也不經過）：
+**這個 race 只發生在 dev，所以用 Nuxt 的 `$development` 圈住，不要寫成全域的
+`experimental.appManifest: false`。** manifest 在正式環境是有用的，全域關掉等於為了一個
+dev-only 的錯誤去降級 production：
 
-| 少了什麼 | 影響 |
+| 全域關掉會少了什麼 | 影響 |
 | :--- | :--- |
 | `check-outdated-build.client` 這個 plugin 不再註冊 | 不會再定期輪詢 `builds/latest.json`，所以「部署了新版本，開著的頁籤自動重載」偵測不到 |
 | 靜態產出的 `_payload.json` 不會再被載入 | `bun run generate` 之後，client 端換頁改成重新取資料，而不是讀預渲染好的 payload |
 
-第二點是實測的：同一份 `bun run generate` 產出，開著 manifest 時換頁會抓
-`/k-candles/_payload.json`，關掉之後一個都不抓（頁面本身正常）。這個操作台目前沒有任何
-畫面在載入時就取資料——連線狀態要按「重新檢查」，K 線與指標計算都是使用者觸發——
-所以現在沒有差別。
-
-**哪天要真的部署（尤其是 `bun run generate` 靜態部署），要重新評估這個開關。**
+第二點是實測的：同一份 `bun run generate` 產出，manifest 開著時換頁會抓
+`/k-candles/_payload.json` 並預抓另一頁的，全域關掉則一個都不抓。圈成 `$development` 之後
+`build` 與 `generate` 都維持開啟，上面兩件事都不受影響——實測換頁照樣抓 payload。
 
 #### `vite.optimizeDeps.include` 點名 CodeMirror
 
