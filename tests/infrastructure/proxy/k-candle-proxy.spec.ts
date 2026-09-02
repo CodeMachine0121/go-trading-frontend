@@ -36,6 +36,8 @@ const LOAD_PLAN = new KCandleChartLoadPlanVo(
   true,
   'BTCUSDT',
   new AggregationIntervalVo('1h', '一小時', 60),
+  new Date('2026-08-30T03:00:00.000Z'),
+  new Date('2026-08-30T09:00:00.000Z'),
   new Date('2026-08-30T00:00:00.000Z'),
   new Date('2026-08-30T12:00:00.000Z'),
 )
@@ -116,18 +118,16 @@ describe('KCandleProxy', () => {
     })
   })
 
-  it('把彙總回覆正規化成一段 K 線，連同後端回報的彙總刻度', async () => {
+  it('把彙總回覆正規化成那幾根 K 線', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       symbol: 'BTCUSDT', interval: '1h', kCandles: [K_CANDLE_WIRE],
     }))
 
-    const kCandleSeries = await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+    const kCandles = await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
 
-    expect(kCandleSeries.symbol).toBe('BTCUSDT')
-    expect(kCandleSeries.interval).toBe('1h')
-    expect(kCandleSeries.kCandles).toHaveLength(1)
-    expect(kCandleSeries.kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
-    expect(kCandleSeries.kCandles[0]?.open.toString()).toBe('100.5')
+    expect(kCandles).toHaveLength(1)
+    expect(kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
+    expect(kCandles[0]?.open.toString()).toBe('100.5')
   })
 
   it('彙總查詢被拒絕時，一樣把後端說的原因包成可轉達的錯誤', async () => {

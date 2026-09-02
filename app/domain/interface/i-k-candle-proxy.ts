@@ -1,5 +1,4 @@
 import type { KCandle } from '~/domain/models/entities/k-candle'
-import type { KCandleSeries } from '~/domain/models/entities/k-candle-series'
 import type { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import type { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
 import type { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
@@ -14,8 +13,11 @@ import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-l
 export interface IKCandleProxy {
   findKCandlesInRange(kCandleQueryDomain: KCandleQueryDomain): Promise<KCandle[]>
 
-  /** 取一段依彙總刻度合併過的 K 線；要取哪一段、哪一種刻度都在取回計畫裡。 */
-  findKCandleSeries(kCandleChartLoadPlanVo: KCandleChartLoadPlanVo): Promise<KCandleSeries>
+  /**
+   * 取一段依彙總刻度合併過的 K 線；要取哪一段、哪一種刻度都在取回計畫裡。
+   * 回的就是那幾根——交易標的與刻度是發問的人自己知道的事，不必再從回覆裡讀一次。
+   */
+  findKCandleSeries(kCandleChartLoadPlanVo: KCandleChartLoadPlanVo): Promise<KCandle[]>
 
   /** 存下一根 K 線；同一個身分已存在時覆蓋它。 */
   saveKCandle(kCandleWriteDomain: KCandleWriteDomain): Promise<KCandle>
