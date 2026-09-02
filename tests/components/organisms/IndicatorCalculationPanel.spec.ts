@@ -112,10 +112,7 @@ describe('IndicatorCalculationPanel', () => {
 
     await fillAndSubmit(wrapper, values)
 
-    const fieldError = wrapper.find('[data-testid="field-error"]').exists()
-      ? wrapper.get('[data-testid="field-error"]')
-      : wrapper.get('[data-testid="script-body-error"]')
-    expect(fieldError.text()).toBe(expectedMessage)
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe(expectedMessage)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
 

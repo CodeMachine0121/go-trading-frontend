@@ -4,6 +4,35 @@
 //
 // 編輯器在掛載後才動態載入，理由有兩個：它碰得到 document（伺服器端沒有），
 // 以及不讓它的體積擋在畫面第一次顯示的路上。載入完成前先呈現一個空的容器。
+// 常用片段：走訪每一根 K 線、收集收盤價、加總平均、找極值。
+// 都是「怎麼寫程式」的協助，不是任何一段算式的外框——外框由領域產生，這裡一個字也不碰。
+const SNIPPETS = [
+  {
+    label: 'forcandle',
+    detail: '走訪每一根 K 線',
+    template: 'for _, candle := range data {\n\t${}\n}',
+  },
+  {
+    label: 'closes',
+    detail: '收集每一根的收盤價',
+    template: 'closePrices := []float64{}\n'
+      + 'for _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n${}',
+  },
+  {
+    label: 'average',
+    detail: '加總後取平均',
+    template: 'sum := 0.0\nfor _, candle := range data {\n\tsum += candle.${Close}\n}\n'
+      + 'average := sum / float64(len(data))\n${}',
+  },
+  {
+    label: 'extremes',
+    detail: '找出最高與最低',
+    template: 'highest := data[0].High\nlowest := data[0].Low\n'
+      + 'for _, candle := range data {\n\thighest = math.Max(highest, candle.High)\n'
+      + '\tlowest = math.Min(lowest, candle.Low)\n}\n${}',
+  },
+]
+
 const { invalid = false, minHeight = '16rem' } = defineProps<{
   invalid?: boolean
   minHeight?: string
@@ -30,22 +59,8 @@ onMounted(async () => {
     return
   }
 
-  // 常用片段：走訪每一根 K 線、取收盤價、加總平均、找極值。都是「怎麼寫」的協助，
-  // 不是算式的外框——外框由領域產生，這裡一個字也不碰。
-  const indicatorSnippets = [
-    snippetCompletion('for _, candle := range data {\n\t${}\n}', {
-      label: 'forcandle', detail: '走訪每一根 K 線',
-    }),
-    snippetCompletion('closePrices := []float64{}\nfor _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n${}', {
-      label: 'closes', detail: '收集每一根的收盤價',
-    }),
-    snippetCompletion('sum := 0.0\nfor _, candle := range data {\n\tsum += candle.${Close}\n}\naverage := sum / float64(len(data))\n${}', {
-      label: 'average', detail: '加總後取平均',
-    }),
-    snippetCompletion('highest := data[0].High\nlowest := data[0].Low\nfor _, candle := range data {\n\thighest = math.Max(highest, candle.High)\n\tlowest = math.Min(lowest, candle.Low)\n}\n${}', {
-      label: 'extremes', detail: '找出最高與最低',
-    }),
-  ]
+  const indicatorSnippets = SNIPPETS.map(
+    snippet => snippetCompletion(snippet.template, { label: snippet.label, detail: snippet.detail }))
 
   const view = new EditorView({
     parent: editorHost.value,

@@ -49,12 +49,12 @@ describe('IndicatorScriptEditor', () => {
   it('內容出錯時把訊息標在算式旁邊', async () => {
     const wrapper = await mountEditor({ errorMessage: '請填寫算式內容' })
 
-    expect(wrapper.get('[data-testid="script-body-error"]').text()).toBe('請填寫算式內容')
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請填寫算式內容')
   })
 
   it('沒有錯誤時不擺錯誤訊息', async () => {
     const wrapper = await mountEditor()
 
-    expect(wrapper.find('[data-testid="script-body-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 })
