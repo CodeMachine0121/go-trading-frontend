@@ -24,6 +24,8 @@ export class BackendHealthDomain {
   }
 
   toDto(): BackendHealthDto {
-    return new BackendHealthDto(this.isHealthy(), this.status, this.checkedAt)
+    return this.isHealthy()
+      ? new BackendHealthDto(true, this.status, this.checkedAt, '正常', 'success')
+      : new BackendHealthDto(false, this.status, this.checkedAt, '異常', 'danger')
   }
 }

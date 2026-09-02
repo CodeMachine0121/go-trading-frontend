@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 
@@ -42,7 +43,10 @@ defineEmits<{
       class="backend-health-card__status"
       data-testid="status"
     >
-      {{ health.healthy ? '正常' : '異常' }}（{{ health.status }}）
+      <AppBadge :variant="health.tone">
+        {{ health.label }}
+      </AppBadge>
+      <span class="backend-health-card__status-value">{{ health.status }}</span>
     </p>
 
     <p
@@ -57,7 +61,11 @@ defineEmits<{
 
 <style scoped lang="scss">
 .backend-health-card {
-  @include surface('md');
+  display: flex;
+  flex-direction: column;
+  gap: spacing('sm');
+
+  @include surface('lg');
 
   &__header {
     display: flex;
@@ -67,11 +75,27 @@ defineEmits<{
   }
 
   &__error {
+    margin: 0;
     color: color('danger');
   }
 
   &__idle {
+    margin: 0;
     color: color('text-muted');
+  }
+
+  // 這一頁只回答一個問題：後端活著嗎。答案就該是整頁最大的那一行。
+  &__status {
+    display: flex;
+    gap: spacing('sm');
+    align-items: center;
+    margin: 0;
+  }
+
+  &__status-value {
+    color: color('text-strong');
+    font-size: font-size('lg');
+    font-family: font-family('mono');
   }
 }
 </style>
