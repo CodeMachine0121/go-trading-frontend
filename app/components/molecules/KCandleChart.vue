@@ -107,6 +107,10 @@ onMounted(async () => {
     layout: {
       background: { color: readColor(host, '--color-surface') },
       textColor: readColor(host, '--color-text-muted'),
+      // 圖上不擺繪圖函式庫的商標。它的授權要求的是保留 NOTICE 與一個連結，
+      // 而這個操作台只在本機跑、沒有對外的頁面可以放那個連結；
+      // 函式庫本身也為此留了這個開關（預設為開）。
+      attributionLogo: false,
     },
     grid: {
       vertLines: { color: borderColor },

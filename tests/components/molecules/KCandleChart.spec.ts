@@ -110,6 +110,17 @@ describe('KCandleChart', () => {
       .toEqual(['--color-success', '--color-danger', '--color-text-muted'])
   })
 
+  it('圖上不擺繪圖函式庫的商標', async () => {
+    await mountChart(chartDto([]))
+
+    expect(chartLibrary.createChart).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        layout: expect.objectContaining({ attributionLogo: false }),
+      }),
+    )
+  })
+
   it('沒有資料時畫的是空的一批', async () => {
     await mountChart(null)
 
