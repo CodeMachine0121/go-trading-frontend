@@ -64,7 +64,7 @@ Oracle: Acceptance Criteria (27 scenarios) ＋ Core Business Rules (10) ＋ Non-
 
 - Conforms: 37/41 clauses ✅ (90%)
 - Violations: 無
-- Mis-asserted: NFR-1（動態載入只被間接證明；直接驗「編輯器不在首屏」需要打包產物層級的檢查，超出單元測試能回答的範圍）
+- Mis-asserted: NFR-1（動態載入只被間接證明；直接驗「編輯器不在首屏」需要打包產物層級的檢查，超出單元測試能回答的範圍。**已於本次以實際打包產物人工確認**：編輯器落在獨立的動態載入 chunk（約 200 KB），不在進入點 chunk 內）
 - Partial: AC-17、AC-18、AC-19（著色、自動縮排、片段補齊）、NFR-3
 - Gaps: 無
 - Unclear: 無
