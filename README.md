@@ -208,3 +208,20 @@ Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然
 | 變數 | 預設值 | 用途 |
 | :--- | :--- | :--- |
 | `NUXT_PUBLIC_BACKEND_BASE_URL` | `http://localhost:8080` | 後端 go-trading REST API base URL |
+
+### 跨來源（CORS）
+
+前端與後端是兩個 origin（開發時 `http://localhost:3000` 對 `http://localhost:8080`），
+所以每一次呼叫都要後端點頭瀏覽器才讀得到回應。後端 go-trading 只對它的
+`CORS_ALLOWED_ORIGINS`（預設 `http://localhost:3000`）名單內的來源回授權標頭。
+
+因此這兩個值是一組的，要改就一起改：
+
+| 這裡改了 | 後端要跟著改 |
+| :--- | :--- |
+| `nuxt.config.ts` 的 `devServer.port` | `CORS_ALLOWED_ORIGINS` |
+| 部署到某個網域 | `CORS_ALLOWED_ORIGINS` 加上該網域 |
+
+> 被 CORS 擋掉時，瀏覽器不會把後端的回應交給我們——`fetch` 拿到的東西跟「後端根本沒啟動」
+> 一模一樣。因此畫面上的「連不上後端」同時涵蓋這兩種情況，錯誤文案兩個都提。
+> 真正的原因看瀏覽器 console，那裡才會明說是 CORS。

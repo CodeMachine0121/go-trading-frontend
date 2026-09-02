@@ -158,7 +158,7 @@ async function searchKCandles() {
       tone="danger"
       data-testid="unreachable-alert"
     >
-      連不上後端 go-trading API，請確認它已啟動。
+      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
       <template #action>
         <AppButton
           variant="secondary"

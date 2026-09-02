@@ -19,7 +19,7 @@ async function checkBackendHealth() {
   catch (error: unknown) {
     // 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼
     errorMessage.value = error instanceof BackendUnreachableError
-      ? '連不上後端 go-trading API，請確認它已啟動。'
+      ? '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
       : '檢查後端狀態時發生未預期的錯誤。'
     health.value = null
   }
