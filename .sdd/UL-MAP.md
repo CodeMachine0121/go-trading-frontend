@@ -48,7 +48,7 @@
 
 | Business Action | Technical Method | Trigger | Business Impact | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| 查詢 K 線 | `KCandleApplication.searchKCandles` | 使用者指定交易標的與查詢區間後送出 | 畫面列出該區間內的 K 線，依起始時間**由早到晚** | 區間內無資料呈現「查無 K 線」而非錯誤；未指定交易標的、結束時間早於開始時間、區間過大一律不送出或呈現後端說明的原因 |
+| 查詢 K 線 | `KCandleApplication.searchKCandles` | 使用者指定交易標的與查詢區間後送出 | 畫面列出該區間內的 K 線，依起始時間**由新到舊**（最新那一根在最上面） | 區間內無資料呈現「查無 K 線」而非錯誤；未指定交易標的、結束時間早於開始時間、區間過大一律不送出或呈現後端說明的原因 |
 | 新增 K 線 | `KCandleApplication.createKCandle` | 使用者填妥一根 K 線的資料後送出 | 建立該根 K 線；同交易標的同起始時間已存在時**覆蓋**舊的 | 起始時間不在五分鐘刻度、最高價低於最低價、任一數字為負一律拒絕並說明原因 |
 | 修改 K 線 | `KCandleApplication.updateKCandle` | 使用者在既有 K 線上改動價量數字後送出 | 更新該根 K 線的價格與成交數字 | **不得更換交易標的與起始時間**，畫面上這兩欄唯讀 |
 | 刪除 K 線 | `KCandleApplication.deleteKCandle` | 使用者指名一根 K 線並確認刪除 | 移除該根 K 線 | 需二次確認；刪除後列表不再出現該根 |
