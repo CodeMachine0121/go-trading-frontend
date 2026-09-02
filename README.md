@@ -10,6 +10,7 @@
 | :--- | :--- | :--- |
 | `/` | **連線狀態** | 後端是否可用；連不上時明確告知而非留白 |
 | `/k-candles` | **K 線瀏覽與維護** | 指定標的與區間查詢，結果**由新到舊**列出並標示漲跌；每一列可編輯，另可新增與刪除（刪除需二次確認），任何一次成功的維護都會自動重查 |
+| `/k-candles/chart` | **K 線圖表** | 同一批 K 線改用圖呈現。**拉遠拉近就是在選要看多長**，每根涵蓋多久跟著自動換（五分鐘／十五分鐘／一小時／四小時／一天，挑最細的且畫面上不超過 400 根的那一種）；快捷區間一天到一年一鍵切換，畫法可在蠟燭與曲線之間切換。取資料時兩側各多取半段，因此小幅拖動不重新取 |
 | `/indicator-calculations` | **指標計算** | **只寫算式內容**——套件宣告、匯入與 `Calculate` 進入點由畫面依「指標值種類」備妥並唯讀顯示在上下方；內容區有語法著色、自動縮排與常用片段。指標值種類四選一（一個數字／一串數字／一個是非／一串是非），結果依種類呈現：一串逐個列出、是非顯示「是」／「否」；附一鍵帶入該種類的範例內容 |
 
 四種狀態（載入中／查無資料／被拒絕／連不上）與四類失敗（欄位填錯、請求的問題、
@@ -45,6 +46,7 @@
 | K 線維護 | [`.sdd/2026-08-30-k-candle-management/`](.sdd/2026-08-30-k-candle-management/) |
 | 指標計算 | [`.sdd/2026-08-30-indicator-calculation/`](.sdd/2026-08-30-indicator-calculation/) |
 | 只寫算式的內容 | [`.sdd/2026-09-02-strategy-script-authoring/`](.sdd/2026-09-02-strategy-script-authoring/) |
+| K 線圖表 | [`.sdd/2026-09-02-k-candle-chart-view/`](.sdd/2026-09-02-k-candle-chart-view/) |
 
 共用的詞彙與專案前提在 [`.sdd/UL-MAP.md`](.sdd/UL-MAP.md) 與 [`.sdd/PROJECT.md`](.sdd/PROJECT.md)。
 每個切片的 `CONTRACT.md` 是驗收情境與程式碼的符合性稽核矩陣——它記錄的是
@@ -110,6 +112,12 @@ tests/                      鏡射 app/ 的目錄結構，檔名 {受測檔名}.
 
 `k-candle` 切片是這條呼叫鏈的完整範例，可照著它長新功能：
 `KCandleProxy` → `KCandleService` → `KCandleApplication` → `KCandleSearchPanel` → `pages/k-candles/index.vue`。
+
+K 線圖表走同一條鏈，但中間多一個判斷點：`KCandleChartViewportDomain` 收下
+「正在看哪一段 + 手上有什麼」，一口氣算出每根該多粗、要不要重新取、要取哪一段。
+**不必重新取時 `KCandleChartApplication.loadKCandleChart` 回 `null`**——
+這是圖表不會自己轉個不停的原因：餵完資料之後圖會再說一次「正在看的區間變了」，
+若那時又回傳一批資料，畫面就會重畫、圖又再說一次，永遠停不下來。
 
 **頁面只做接線**：從組裝根取得 Application 往下傳，互動狀態一律住在 organism。
 這讓每條驗收情境都能用元件測試涵蓋，不必啟動 Nuxt runtime
