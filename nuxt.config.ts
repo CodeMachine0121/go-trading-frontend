@@ -23,6 +23,10 @@ export default defineNuxtConfig({
   // 原始碼一律住在 app/ 底下（分層結構見 .claude/rules/architecture.md）。
   // `~` / `@` 因此指向 app/，import 一律寫成 `~/domain/...`、`~/application/...`。
   srcDir: 'app/',
+  // 開發 server 的 port 寫死，因為它就是我們的 origin：後端 go-trading 只回授權標頭給
+  // CORS_ALLOWED_ORIGINS 名單內的來源（預設 http://localhost:3000）。這裡換 port，
+  // 後端那個環境變數要一起換，否則瀏覽器會擋掉每一次呼叫。
+  devServer: { port: 3000 },
   compatibilityDate: '2026-08-30',
   vite: {
     css: {
