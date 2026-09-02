@@ -37,7 +37,7 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 | AC-24 | 這段區間內沒有任何 K 線 | 顯示「查無 K 線」，不畫出空白的圖，不呈現錯誤 | `KCandleChartPanel.vue:197` | `KCandleChartPanel.spec.ts:165` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-25 | 被系統拒絕 | 如實顯示「時間區間過大，請縮小區間或改用更長的彙總刻度」，不畫出任何 K 線 | `KCandleChartPanel.vue:147` | `KCandleChartPanel.spec.ts:181` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-26 | 連不上後端 | 顯示「連不上後端」與重試方式，不畫出任何 K 線 | `KCandleChartPanel.vue:173` | `KCandleChartPanel.spec.ts:202` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-27 | 取資料進行中 | 呈現載入中 | `KCandleChartPanel.vue:191` | `KCandleChartPanel.spec.ts:84`（快捷區間在載入中被停用一併驗到）、渲染於 `loading` 為真時 | shallow | produces-oracle | 🟠 mis-asserted |
+| AC-27 | 取資料進行中 | 呈現載入中 | `KCandleChartPanel.vue:191` | `KCandleChartPanel.spec.ts:181` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-28 | 失敗後再成功 | 只顯示這次的結果，先前的錯誤訊息消失 | `KCandleChartPanel.vue:56-62` | `KCandleChartPanel.spec.ts:214` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-1 | 刻度挑選：最細的、且「區間 ÷ 刻度」不超過 400 | 見 AC-6…AC-12 的七個結果 | `k-candle-chart-viewport-domain.ts:50` | `k-candle-chart-viewport-domain.spec.ts:54`（七列） | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-2 | 拉遠上限：收到 400 天，保留較晚的那一端 | 收回後的取回區間與四百天那次完全相同 | `k-candle-chart-viewport-domain.ts:60` | `k-candle-chart-viewport-domain.spec.ts:76` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -67,9 +67,11 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 
 ## Summary
 
-- Conforms: 37/38 clauses ✅（97%）
+- Conforms: 38/38 clauses ✅（100%）
 - Violations: 無
-- Mis-asserted: **AC-27**（載入中）— 程式碼會呈現載入中，但沒有一個測試直接斷言那個區塊出現過
+- Mis-asserted: 無
+  （初次稽核時 **AC-27**（載入中）為 🟠——程式碼會呈現載入中，卻沒有任何測試直接斷言那個區塊出現過。
+  已補上一個把請求擋在半路、斷言載入中出現、放行後斷言它收起來的測試。）
 - Partial: 無
 - Gaps: 無
 - Unclear: 無

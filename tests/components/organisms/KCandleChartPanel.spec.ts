@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -176,6 +177,31 @@ describe('KCandleChartPanel', () => {
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
       .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（UTC）')
+  })
+
+  it('取資料進行中時呈現載入中，取回之後就收起來', async () => {
+    let releaseRequest: () => void = () => {}
+    const pendingRequest = new Promise<KCandleSeries>((resolve) => {
+      releaseRequest = () => resolve(new KCandleSeries('BTCUSDT', '5m', [
+        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
+      ]))
+    })
+    const wrapper = mount(KCandleChartPanel, {
+      props: {
+        kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
+          buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }))),
+      },
+      global: { stubs: { KCandleChart: true } },
+    })
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="loading-alert"]').text()).toContain('取行情中')
+
+    releaseRequest()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="loading-alert"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 
   it('被系統拒絕時如實轉達原因', async () => {
