@@ -24,24 +24,26 @@ const { variant = 'neutral' } = defineProps<{ variant?: BadgeVariant }>()
   font-size: font-size('xs');
   white-space: nowrap;
 
+  // 深色底上一整塊實心色太搶戲，尤其表格裡每一列都有一個；
+  // 改成同色系的軟底加上原色的字，語氣還在，但不會蓋過數字本身。
   &--success {
-    background-color: color('success');
-    color: color('text-inverse');
+    background-color: color('success-soft');
+    color: color('success');
   }
 
   &--danger {
-    background-color: color('danger');
-    color: color('text-inverse');
+    background-color: color('danger-soft');
+    color: color('danger');
   }
 
   &--warning {
-    background-color: color('warning');
-    color: color('text-inverse');
+    background-color: color('warning-soft');
+    color: color('warning');
   }
 
   &--info {
-    background-color: color('info');
-    color: color('text-inverse');
+    background-color: color('info-soft');
+    color: color('info');
   }
 
   &--neutral {
