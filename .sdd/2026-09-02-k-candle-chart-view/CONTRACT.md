@@ -3,7 +3,7 @@
 Contract: `PRD.md`
 Design map: `ARCH.md`
 Implementation: `app/domain/models/{vo,entities,domains,dto}`、`app/domain/service/k-candle-chart-service.ts`、`app/application/k-candle-chart-application.ts`、`app/infrastructure/proxy/k-candle-proxy.ts`、`app/components/{molecules,organisms}`、`app/pages/k-candles/chart.vue`
-Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能需求 = 38 clauses）
+Oracle: Acceptance Criteria（27 個情境 + 7 條業務規則 + 5 條非功能需求 = 39 clauses）
 
 ## Clauses
 
@@ -30,6 +30,7 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 | AC-17 | 每根涵蓋的時間改變 | 重新取 | `k-candle-chart-viewport-domain.ts:78` | `k-candle-chart-viewport-domain.spec.ts:108`（刻度那一列）、`k-candle-chart-application.spec.ts:110` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-18 | 換交易標的（重新取） | 重新取 | `k-candle-chart-viewport-domain.ts:78` | `k-candle-chart-viewport-domain.spec.ts:108`（交易標的那一列） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-19 | 取資料時兩側各多取半段 | 看 10:00–12:00 就取回 09:00–13:00 | `k-candle-chart-viewport-domain.ts:84` | `k-candle-chart-viewport-domain.spec.ts:86`、`k-candle-chart-application.spec.ts:62` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-19b | 先送出的那次晚回來時不蓋掉後送出的結果 | 畫面上仍是後送出的那一次的結果 | `KCandleChartPanel.vue:64`、`:69` | `KCandleChartPanel.spec.ts:294`、`:261` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-20 | 預設是蠟燭 | 每一根都畫得出開高低收 | `KCandleChartPanel.vue:24` + `KCandleChart.vue:67` | `KCandleChart.spec.ts:89` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-21 | 切換到曲線 | 同一批資料改以收盤價連成一條線 | `KCandleChart.vue:67` | `KCandleChart.spec.ts:128` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-22 | 切換畫法不重新取資料 | 不重新取，正在看的區間也不變 | `KCandleChartPanel.vue`（`drawing` 只往下傳，不進 `showViewport`） | `KCandleChartPanel.spec.ts:142` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -56,7 +57,6 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 
 | Code | Description | Verdict |
 |------|-------------|---------|
-| `KCandleChartPanel.vue:69`（慢回來的那次不覆蓋新結果） | PRD 第 4 節的 Edge Case「取資料途中使用者又拉了一次」，沒有寫成 Gherkin 情境 | 已實作且有測試（`KCandleChartPanel.spec.ts:237`、`:270`）；建議下次補成一條正式情境 |
 | `KCandleChartPanel.vue:88`（沒認出來的失敗） | 規格沒有列這一種，但「不得留白」是全站既有規則 | 沿用既有畫面的做法，非新行為 |
 | `KCandleChart.vue:157`（離開畫面時收掉圖） | 資源回收，不是業務行為 | 技術必需，非未記載的行為 |
 | `SymbolField.vue` | 把交易標的輸入從兩個畫面收成一個元件 | 內部重構，行為與先前逐處撰寫相同 |
@@ -67,7 +67,7 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 
 ## Summary
 
-- Conforms: 38/38 clauses ✅（100%）
+- Conforms: 39/39 clauses ✅（100%）
 - Violations: 無
 - Mis-asserted: 無
   （初次稽核時 **AC-27**（載入中）為 🟠——程式碼會呈現載入中，卻沒有任何測試直接斷言那個區塊出現過。
@@ -75,7 +75,9 @@ Oracle: Acceptance Criteria（26 個情境 + 7 條業務規則 + 5 條非功能�
 - Partial: 無
 - Gaps: 無
 - Unclear: 無
-- Orphans: 4（三個是技術必需或既有規則，一個是規格漏寫成情境的 Edge Case）
+- Orphans: 3（皆為技術必需或既有的全站規則，非未記載的業務行為）
+  （初次稽核時另有一個 orphan：「慢回來的那次不覆蓋新結果」原本只寫在 PRD 的 Edge Case 裡，
+  沒有正式情境。已補成 AC-19b。）
 
 > 本表是**靜態一致性稽核**：它把測試斷言與程式碼路徑分別對照規格推導出的預期結果，
 > 而不是以「跑起來是綠的」作為判準。作為佐證，本切片新增／變更的每一個檔案
