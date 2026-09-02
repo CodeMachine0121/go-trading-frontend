@@ -46,7 +46,7 @@
 | `app/components/atoms/AppCodeEditor.vue` | **Add** | 全站唯一的程式碼編輯區。CodeMirror 在 `onMounted` 內**動態載入**，SSR 期間只留一個容器 |
 | `app/components/molecules/IndicatorScriptEditor.vue` | **Add** | 把唯讀外框的頭、內容編輯區、外框的尾疊成一段完整算式的樣子 |
 | `app/components/organisms/IndicatorCalculationPanel.vue` | **Modify** | 多一個種類下拉；算式欄位換成新的分子；結果依種類呈現 |
-| `app/components/atoms/AppTextarea.vue` | **Not touched** | 仍是 K 線那一側在用的通用多行輸入；算式改用編輯區不代表要動它 |
+| `app/components/atoms/AppTextarea.vue` | **Delete** | 原本只有指標算式在用；改用編輯區之後全專案沒有任何地方用得到它。留著沒人用的元件只會腐爛 |
 | `app/pages/indicator-calculations/index.vue` | **Not touched** | 頁面只把 application 往下傳，介面沒變 |
 | `package.json` | **Modify** | 新增 CodeMirror 相關套件（語言支援、編輯器核心、補齊） |
 
@@ -56,7 +56,7 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `IndicatorResultTypeDomain` | Domain Model | 種類是什麼：解讀使用者／後端給的字串（不認得退回一個數字）、`isList()`、`holdsNumbers()`、中文標籤 | `IndicatorResultType` | US-02 全部、US-05「結果說明自己是哪一種」 |
+| `IndicatorResultTypeDomain` | Domain Model | 種類是什麼：解讀使用者／後端給的字串（不認得退回一個數字）、`isList()`、`holdsNumbers()`、中文標籤。**「沒有特別挑是哪一種」也由它回答**（`defaultResultType()` 一路透到 application），畫面不自己指定預設值 | `IndicatorResultType` | US-02 全部、US-05「結果說明自己是哪一種」 |
 | `IndicatorScriptDomain` | Domain Model | 算式長什麼樣：外框的頭與尾（依種類決定產出形狀）、該種類的範例內容、把內容組成完整算式 | `IndicatorResultTypeDomain` | US-01、US-02、US-03 全部 |
 | `IndicatorScriptTemplateDto` | DTO | 畫面要的算式樣板：外框頭、外框尾、範例內容。**一次呼叫拿齊**，畫面不必為了同一個種類問三次 | — | US-01「外框看得見」、US-02、US-03 |
 | `IndicatorResultTypeOptionDto` | DTO | 下拉清單的一個選項：種類的值與中文標籤 | — | US-02 全部 |
@@ -175,3 +175,9 @@ flowchart TD
     這是刻意的：判斷「是非要顯示什麼字」屬於領域，不屬於畫面。
 - **Open decisions (for implementation):**
   - 後端回報的種類若是前端不認得的字串，一律當「一個數字」呈現，不讓畫面壞掉。
+
+**實作階段調整的兩件事**
+
+1. 畫面原本打算拿「清單第一個」當預設種類，那會留下一條永遠走不到的 fallback；
+   改成由領域直接回答預設是哪一種。
+2. `AppTextarea` 原本列為不動，實際上改用編輯區後全專案就沒人用它了，因此刪除。
