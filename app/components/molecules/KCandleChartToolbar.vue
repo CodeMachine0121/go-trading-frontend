@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
-import AppInput from '~/components/atoms/AppInput.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
-import FormField from '~/components/molecules/FormField.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 
 // 分子：圖表上方那一排——看哪一檔、看多長、怎麼畫，以及目前每根涵蓋多久。
@@ -24,9 +23,6 @@ const emit = defineEmits<{
 
 const symbol = defineModel<string>('symbol', { required: true })
 
-/** 後端觀察清單上的常用標的，只是快速選取，使用者仍可自行輸入其他標的。 */
-const SUGGESTED_SYMBOLS = ['BTCUSDT', 'ETHUSDT']
-
 const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
   { value: 'candlestick', label: '蠟燭' },
   { value: 'line', label: '曲線' },
@@ -35,29 +31,11 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 
 <template>
   <div class="k-candle-chart-toolbar">
-    <FormField
-      label="交易標的"
-      hint="例如 BTCUSDT"
+    <SymbolField
+      v-model="symbol"
       :error-message="symbolError"
       class="k-candle-chart-toolbar__symbol"
-    >
-      <AppInput
-        v-model="symbol"
-        type="text"
-        list="k-candle-chart-toolbar-symbols"
-        placeholder="BTCUSDT"
-        :invalid="Boolean(symbolError)"
-        data-testid="symbol-input"
-      />
-    </FormField>
-
-    <datalist id="k-candle-chart-toolbar-symbols">
-      <option
-        v-for="suggestedSymbol in SUGGESTED_SYMBOLS"
-        :key="suggestedSymbol"
-        :value="suggestedSymbol"
-      />
-    </datalist>
+    />
 
     <div class="k-candle-chart-toolbar__group">
       <span class="k-candle-chart-toolbar__group-label">看多長</span>

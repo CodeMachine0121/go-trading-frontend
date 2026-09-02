@@ -2,6 +2,7 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
@@ -17,9 +18,6 @@ const emit = defineEmits<{ submit: [] }>()
 const symbol = defineModel<string>('symbol', { required: true })
 const startTime = defineModel<string>('startTime', { required: true })
 const endTime = defineModel<string>('endTime', { required: true })
-
-/** 後端觀察清單上的常用標的，只是快速選取，使用者仍可自行輸入其他標的。 */
-const SUGGESTED_SYMBOLS = ['BTCUSDT', 'ETHUSDT']
 </script>
 
 <template>
@@ -27,29 +25,11 @@ const SUGGESTED_SYMBOLS = ['BTCUSDT', 'ETHUSDT']
     class="k-candle-query-form"
     @submit.prevent="emit('submit')"
   >
-    <FormField
-      label="交易標的"
-      hint="例如 BTCUSDT"
+    <SymbolField
+      v-model="symbol"
       :error-message="symbolError"
       class="k-candle-query-form__field"
-    >
-      <AppInput
-        v-model="symbol"
-        type="text"
-        list="k-candle-query-form-symbols"
-        placeholder="BTCUSDT"
-        :invalid="Boolean(symbolError)"
-        data-testid="symbol-input"
-      />
-    </FormField>
-
-    <datalist id="k-candle-query-form-symbols">
-      <option
-        v-for="suggestedSymbol in SUGGESTED_SYMBOLS"
-        :key="suggestedSymbol"
-        :value="suggestedSymbol"
-      />
-    </datalist>
+    />
 
     <FormField
       label="開始時間"
