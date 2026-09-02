@@ -157,6 +157,56 @@ describe('KCandleChart', () => {
     }]])
   })
 
+  it('函式庫還沒載完使用者就離開時，不建立圖表', async () => {
+    const wrapper = mount(KCandleChart, {
+      props: {
+        chart: chartDto([]),
+        drawing: 'candlestick',
+        visibleStartTime: VISIBLE_START_TIME,
+        visibleEndTime: VISIBLE_END_TIME,
+      },
+    })
+    wrapper.unmount()
+    await flushPromises()
+
+    expect(chartLibrary.createChart).not.toHaveBeenCalled()
+  })
+
+  it('函式庫還沒載完就換了一批資料時，什麼也不畫', async () => {
+    const wrapper = mount(KCandleChart, {
+      props: {
+        chart: null,
+        drawing: 'candlestick',
+        visibleStartTime: VISIBLE_START_TIME,
+        visibleEndTime: VISIBLE_END_TIME,
+      },
+    })
+
+    await wrapper.setProps({ chart: chartDto([]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+  })
+
+  it('離開畫面時把圖收掉', async () => {
+    const wrapper = await mountChart(chartDto([]))
+
+    wrapper.unmount()
+
+    expect(chartLibrary.chartApi.remove).toHaveBeenCalled()
+  })
+
+  it('手還在動就離開畫面時，不會再送出那一次', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDto([]))
+    const notifyRangeChange = chartLibrary.timeScale.subscribeVisibleTimeRangeChange.mock.calls[0]?.[0]
+
+    notifyRangeChange({ from: 1788343200, to: 1788350400 })
+    wrapper.unmount()
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
   it('繪圖函式庫說不出正在看哪一段時，什麼都不送出', async () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))

@@ -43,9 +43,6 @@ const backendUnreachable = ref(false)
 let latestRequestNumber = 0
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
-const coveredRangeLabel = computed(() => chart.value === null
-  ? ''
-  : `${formatUtcDateTime(chart.value.coveredStartTime)} ～ ${formatUtcDateTime(chart.value.coveredEndTime)}`)
 
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   visibleStartTime.value = kCandleChartViewportDto.visibleStartTime
@@ -125,10 +122,7 @@ watch(symbol, reload)
 onMounted(() => {
   presets.value = kCandleChartApplication.listRangePresets()
 
-  const firstPreset = presets.value[0]
-  if (firstPreset !== undefined) {
-    void selectPreset(firstPreset)
-  }
+  void selectPreset(presets.value[0])
 })
 </script>
 
@@ -221,7 +215,8 @@ onMounted(() => {
       class="k-candle-chart-panel__covered"
       data-testid="covered-range"
     >
-      手上這批共 {{ chart.count }} 根，涵蓋 {{ coveredRangeLabel }}（UTC）
+      手上這批共 {{ chart.count }} 根，涵蓋
+      {{ formatUtcDateTime(chart.coveredStartTime) }} ～ {{ formatUtcDateTime(chart.coveredEndTime) }}（UTC）
     </p>
   </section>
 </template>

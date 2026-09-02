@@ -187,6 +187,8 @@ describe('KCandleChartPanel', () => {
     expect(wrapper.get('[data-testid="rejected-alert"]').text())
       .toContain('時間區間過大，請縮小區間或改用更長的彙總刻度')
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(false)
+    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('—')
+    expect(wrapper.find('[data-testid="covered-range"]').exists()).toBe(false)
   })
 
   it('後端自己壞掉時，說的是後端出錯而不是你的條件有問題', async () => {
@@ -222,6 +224,47 @@ describe('KCandleChartPanel', () => {
 
     expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
+  })
+
+  it('沒認出來的失敗一樣要說一聲，不留白', async () => {
+    const wrapper = await mountPanel(buildProxy({
+      findKCandleSeries: vi.fn().mockRejectedValue(new Error('something odd')),
+    }))
+
+    expect(wrapper.get('[data-testid="rejected-alert"]').text()).toContain('取行情時發生未預期的錯誤')
+  })
+
+  it('慢回來的那一次失敗時，不蓋掉已經畫好的圖', async () => {
+    let failSlowRequest: () => void = () => {}
+    const slowRequest = new Promise<KCandleSeries>((_resolve, reject) => {
+      failSlowRequest = () => reject(new BackendUnreachableError('/k-candles/series'))
+    })
+    const findKCandleSeries = vi.fn()
+      .mockResolvedValueOnce(new KCandleSeries('BTCUSDT', '5m', [
+        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
+      ]))
+      .mockImplementationOnce(() => slowRequest)
+      .mockResolvedValue(new KCandleSeries('BTCUSDT', '1h', [
+        buildKCandle('2026-09-02T10:00:00.000Z', '222'),
+      ]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    const chartComponent = wrapper.findComponent(KCandleChart)
+
+    chartComponent.vm.$emit('rangeChange', {
+      startTime: new Date('2025-09-02T12:00:00.000Z'),
+      endTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    await flushPromises()
+    chartComponent.vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-28T12:00:00.000Z'),
+      endTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    await flushPromises()
+    failSlowRequest()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
   })
 
   it('慢回來的那一次不覆蓋後送出的結果', async () => {

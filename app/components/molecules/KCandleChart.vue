@@ -47,18 +47,16 @@ let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
  * 顏色一律從 token 展開出來的 CSS 變數讀，不在這裡寫死色碼——
  * 繪圖函式庫吃的是實際的顏色字串，而 token 是那些字串唯一的來源。
  */
-function readColor(tokenName: string): string {
-  if (chartHost.value === null) {
-    return ''
-  }
-
-  return getComputedStyle(chartHost.value).getPropertyValue(tokenName).trim()
+function readColor(host: HTMLElement, tokenName: string): string {
+  return getComputedStyle(host).getPropertyValue(tokenName).trim()
 }
 
 /** 精確小數只在真的要畫的這一刻才變成一般數值——繪圖函式庫只吃得下一般數值。 */
 function drawKCandles() {
   const series = seriesApi.value
-  if (series === null) {
+  const host = chartHost.value
+  // 資料在繪圖函式庫載完之前就換了一批：還沒有東西可以畫，等載完那一刻自己會畫。
+  if (series === null || host === null) {
     return
   }
 
@@ -70,7 +68,7 @@ function drawKCandles() {
       return { time, value: kCandle.close.toNumber() }
     }
 
-    const toneColor = readColor(TONE_COLOR_TOKENS[kCandle.trend.tone])
+    const toneColor = readColor(host, TONE_COLOR_TOKENS[kCandle.trend.tone])
 
     return {
       time,
@@ -97,16 +95,18 @@ function drawKCandles() {
 onMounted(async () => {
   const { createChart, CandlestickSeries, LineSeries } = await import('lightweight-charts')
 
+  // 函式庫還沒載完，使用者就離開了這個畫面：沒有容器可以畫，就不要建立圖表。
   if (chartHost.value === null) {
     return
   }
 
-  const borderColor = readColor('--color-border')
-  const createdChart = createChart(chartHost.value, {
+  const host = chartHost.value
+  const borderColor = readColor(host, '--color-border')
+  const createdChart = createChart(host, {
     autoSize: true,
     layout: {
-      background: { color: readColor('--color-surface') },
-      textColor: readColor('--color-text-muted'),
+      background: { color: readColor(host, '--color-surface') },
+      textColor: readColor(host, '--color-text-muted'),
     },
     grid: {
       vertLines: { color: borderColor },
@@ -123,7 +123,7 @@ onMounted(async () => {
     }
 
     seriesApi.value = nextDrawing === 'line'
-      ? createdChart.addSeries(LineSeries, { color: readColor('--color-primary'), lineWidth: 2 })
+      ? createdChart.addSeries(LineSeries, { color: readColor(host, '--color-primary'), lineWidth: 2 })
       : createdChart.addSeries(CandlestickSeries)
   }
 
