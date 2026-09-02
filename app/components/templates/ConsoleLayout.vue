@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 樣板：全站共用的版面骨架，只有結構與插槽，不綁任何資料。
-// 三個畫面共用同一條頂欄與同一個標題區，走到哪裡都認得出自己在同一個操作台裡。
+// 四個畫面共用同一條頂欄與同一個標題區，走到哪裡都認得出自己在同一個操作台裡。
 defineProps<{
   title: string
   subtitle?: string
@@ -30,6 +30,12 @@ defineProps<{
           class="console-layout__link"
         >
           K 線瀏覽
+        </NuxtLink>
+        <NuxtLink
+          to="/k-candles/chart"
+          class="console-layout__link"
+        >
+          K 線圖表
         </NuxtLink>
         <NuxtLink
           to="/indicator-calculations"
