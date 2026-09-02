@@ -1,5 +1,7 @@
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 
 /** 計算根數唯一合法的樣子：一串數字。負號、小數點、空白都不算。 */
 const POSITIVE_INTEGER_PATTERN = /^\d+$/
@@ -7,12 +9,16 @@ const POSITIVE_INTEGER_PATTERN = /^\d+$/
 /**
  * Domain Model：一次指標計算的請求，建構當下即驗證。
  *
+ * 使用者只寫算式**內容**；送出去的 `script` 是這裡把內容放進外框之後的整段算式。
+ * 畫面因此不持有、也不需要知道一整段算式長什麼樣。
+ *
  * 單次可用的最大根數**不寫在這裡**——它由後端的設定決定，前端無從得知，
  * 寫死只會在設定改變時說謊。超過上限一律由後端拒絕，前端如實轉達。
  */
 export class IndicatorCalculationRequestDomain {
   readonly symbol: string
   readonly candleCount: number
+  readonly resultType: IndicatorResultTypeDomain
   readonly script: string
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
@@ -42,13 +48,14 @@ export class IndicatorCalculationRequestDomain {
       throw new IndicatorCalculationFieldError('candleCount', '計算根數必須大於零')
     }
 
-    const normalizedScript = indicatorCalculationRequestDto.script.trim()
-    if (normalizedScript === '') {
-      throw new IndicatorCalculationFieldError('script', '請填寫指標算式')
+    const normalizedScriptBody = indicatorCalculationRequestDto.scriptBody.trim()
+    if (normalizedScriptBody === '') {
+      throw new IndicatorCalculationFieldError('scriptBody', '請填寫算式內容')
     }
 
     this.symbol = normalizedSymbol
     this.candleCount = candleCount
-    this.script = normalizedScript
+    this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
+    this.script = new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
   }
 }

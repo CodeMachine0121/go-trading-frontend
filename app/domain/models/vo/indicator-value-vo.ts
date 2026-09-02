@@ -1,8 +1,15 @@
-/** VO：一個指標的名稱與數值。不可變、無行為。 */
+/** 指標值裡的一個元素：依這次的指標值種類，是一個數字或一個是非。 */
+export type IndicatorScalarValue = number | boolean
+
+/**
+ * VO：一個指標算出來的值，尚未格式化。
+ *
+ * 一個值與一串值存法相同——一個值就是長度一的那一串——因為它們的差別是
+ * **這次計算的種類**說了算，不是每個值各自帶著。不可變、無行為。
+ */
 export class IndicatorValueVo {
   constructor(
     public readonly name: string,
-    // 指標數值不是金額（是比例、均價之外的統計值），依規範可用一般數字型別。
-    public readonly value: number,
+    public readonly items: readonly IndicatorScalarValue[],
   ) {}
 }

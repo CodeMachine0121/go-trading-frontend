@@ -1,6 +1,12 @@
 import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
+import { IndicatorValueDto } from '~/domain/models/dto/indicator-value-dto'
+
+/** 是非在這個領域裡就是這麼說的。畫面不自己翻譯。 */
+const TRUE_LABEL = '是'
+const FALSE_LABEL = '否'
 
 /**
  * Domain Model：解讀一次計算的結果。
@@ -25,10 +31,18 @@ export class IndicatorCalculationDomain {
   }
 
   toDto(): IndicatorCalculationResultDto {
+    const resultType = new IndicatorResultTypeDomain(this.indicatorCalculation.resultType)
+
     return new IndicatorCalculationResultDto(
       this.indicatorCalculation.symbol,
       this.indicatorCalculation.usedCandleCount,
-      this.sortedIndicatorValues(),
+      resultType.label(),
+      this.sortedIndicatorValues().map(indicatorValue => new IndicatorValueDto(
+        indicatorValue.name,
+        indicatorValue.items.map(
+          item => (typeof item === 'boolean' ? (item ? TRUE_LABEL : FALSE_LABEL) : String(item))),
+        resultType.isList(),
+      )),
     )
   }
 }

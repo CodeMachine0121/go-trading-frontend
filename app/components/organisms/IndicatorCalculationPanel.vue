@@ -2,8 +2,9 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppTextarea from '~/components/atoms/AppTextarea.vue'
+import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
@@ -23,7 +24,13 @@ const { indicatorCalculationApplication } = defineProps<{
 
 const symbol = ref('BTCUSDT')
 const candleCount = ref('20')
-const script = ref('')
+const scriptBody = ref('')
+// 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
+const resultType = ref<string>(indicatorCalculationApplication.defaultResultType())
+
+const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
+const scriptTemplate = computed(
+  () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
 const calculating = ref(false)
 const result = ref<IndicatorCalculationResultDto | null>(null)
@@ -37,8 +44,8 @@ function messageFor(field: IndicatorCalculationField): string | null {
   return fieldError.value?.field === field ? fieldError.value.message : null
 }
 
-function fillExampleScript() {
-  script.value = indicatorCalculationApplication.buildExampleScript()
+function fillExampleScriptBody() {
+  scriptBody.value = scriptTemplate.value.exampleBody
 }
 
 async function calculateIndicator() {
@@ -52,7 +59,8 @@ async function calculateIndicator() {
 
   try {
     result.value = await indicatorCalculationApplication.calculateIndicator(
-      new IndicatorCalculationRequestDto(symbol.value, candleCount.value, script.value))
+      new IndicatorCalculationRequestDto(
+        symbol.value, candleCount.value, scriptBody.value, resultType.value))
   }
   catch (error: unknown) {
     // 四種失敗各有各的下一步：改欄位、改根數、改算式、去把後端啟動起來。
@@ -121,19 +129,31 @@ async function calculateIndicator() {
             data-testid="candle-count-input"
           />
         </FormField>
+
+        <FormField
+          label="指標值種類"
+          hint="決定算式要回傳什麼形狀，外框跟著變"
+        >
+          <AppSelect
+            v-model="resultType"
+            data-testid="result-type-select"
+          >
+            <option
+              v-for="resultTypeOption in resultTypeOptions"
+              :key="resultTypeOption.value"
+              :value="resultTypeOption.value"
+            >
+              {{ resultTypeOption.label }}
+            </option>
+          </AppSelect>
+        </FormField>
       </div>
 
-      <FormField
-        label="指標算式"
-        hint="必須提供 Calculate 進入點，回傳一組「指標名稱 → 數值」"
-        :error-message="messageFor('script')"
-      >
-        <AppTextarea
-          v-model="script"
-          :invalid="Boolean(messageFor('script'))"
-          data-testid="script-input"
-        />
-      </FormField>
+      <IndicatorScriptEditor
+        v-model="scriptBody"
+        :script-template="scriptTemplate"
+        :error-message="messageFor('scriptBody')"
+      />
 
       <div class="indicator-calculation-panel__actions">
         <AppButton
@@ -147,9 +167,9 @@ async function calculateIndicator() {
           type="button"
           variant="ghost"
           data-testid="example-button"
-          @click="fillExampleScript"
+          @click="fillExampleScriptBody"
         >
-          帶入範例算式
+          帶入範例內容
         </AppButton>
       </div>
     </form>
@@ -226,7 +246,7 @@ async function calculateIndicator() {
           class="indicator-calculation-panel__used-count"
           data-testid="used-candle-count"
         >
-          實際採用 {{ result.usedCandleCount }} 根
+          實際採用 {{ result.usedCandleCount }} 根 · 指標值種類：{{ result.resultTypeLabel }}
         </p>
       </header>
 
@@ -259,7 +279,29 @@ async function calculateIndicator() {
             data-testid="indicator-row"
           >
             <td>{{ indicatorValue.name }}</td>
-            <td>{{ indicatorValue.value }}</td>
+            <td>
+              <span
+                v-if="indicatorValue.isEmptySeries"
+                class="indicator-calculation-panel__empty-series"
+                data-testid="empty-series"
+              >空的一串</span>
+              <ol
+                v-else-if="indicatorValue.isSeries"
+                class="indicator-calculation-panel__series"
+              >
+                <li
+                  v-for="(displayValue, position) in indicatorValue.displayValues"
+                  :key="position"
+                  class="indicator-calculation-panel__series-item"
+                  data-testid="series-item"
+                >
+                  {{ displayValue }}
+                </li>
+              </ol>
+              <template v-else>
+                {{ indicatorValue.displayValues[0] }}
+              </template>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -315,6 +357,26 @@ async function calculateIndicator() {
     margin: 0;
     color: color('text-muted');
     font-size: font-size('sm');
+  }
+
+  &__series {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('2xs');
+    margin: 0;
+    justify-content: flex-end;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__series-item {
+    border-radius: radius('sm');
+    background-color: color('surface-muted');
+    padding: 0 spacing('2xs');
+  }
+
+  &__empty-series {
+    color: color('text-muted');
   }
 
   &__empty {

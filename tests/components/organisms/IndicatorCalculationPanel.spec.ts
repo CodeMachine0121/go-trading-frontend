@@ -12,13 +12,33 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
-const SCRIPT = 'package main\nfunc Calculate() {}'
+const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 
 function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
   return {
-    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, [])),
+    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, 'float', [])),
     ...overrides,
   }
+}
+
+// 算式內容住在編輯區裡，而編輯區是掛載後才動態載入的，microtask 還輪不到它。
+async function settle() {
+  await new Promise(resolve => setTimeout(resolve, 20))
+  await flushPromises()
+}
+
+/** 從畫面上把算式內容打進去——走的是使用者真正會走的那條路。 */
+async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody: string) {
+  await settle()
+  const editor = wrapper.get('[data-testid="code-editor"]').element
+  const firstLine = editor.querySelector('.cm-line')
+  if (firstLine === null) {
+    throw new Error('編輯區還沒準備好')
+  }
+
+  firstLine.textContent = scriptBody
+  editor.querySelector('.cm-content')!.dispatchEvent(new Event('input', { bubbles: true }))
+  await settle()
 }
 
 function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
@@ -32,11 +52,14 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
 
 async function fillAndSubmit(
   wrapper: ReturnType<typeof mountPanel>,
-  values: { symbol?: string, candleCount?: string, script?: string } = {},
+  values: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
 ) {
   await wrapper.get('[data-testid="symbol-input"]').setValue(values.symbol ?? 'BTCUSDT')
   await wrapper.get('[data-testid="candle-count-input"]').setValue(values.candleCount ?? '3')
-  await wrapper.get('[data-testid="script-input"]').setValue(values.script ?? SCRIPT)
+  if (values.resultType !== undefined) {
+    await wrapper.get('[data-testid="result-type-select"]').setValue(values.resultType)
+  }
+  await typeScriptBody(wrapper, values.scriptBody ?? SCRIPT_BODY)
   await wrapper.get('form').trigger('submit')
   await flushPromises()
 }
@@ -50,15 +73,15 @@ describe('IndicatorCalculationPanel', () => {
 
   it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {
     const wrapper = mountPanel(buildProxy({
-      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, [
-        new IndicatorValueVo('最高', 120),
-        new IndicatorValueVo('均價', 110),
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, 'float', [
+        new IndicatorValueVo('最高', [120]),
+        new IndicatorValueVo('均價', [110]),
       ])),
     }))
 
     await fillAndSubmit(wrapper)
 
-    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toBe('實際採用 3 根')
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 3 根')
     const rows = wrapper.findAll('[data-testid="indicator-row"]')
     expect(rows).toHaveLength(2)
     expect(rows[0]?.text()).toContain('均價')
@@ -82,14 +105,17 @@ describe('IndicatorCalculationPanel', () => {
     { description: '根數為負', values: { candleCount: '-3' }, expectedMessage: '計算根數必須大於零' },
     { description: '根數不是整數', values: { candleCount: '2.5' }, expectedMessage: '計算根數必須是整數' },
     { description: '根數留空', values: { candleCount: '' }, expectedMessage: '請填寫計算根數' },
-    { description: '算式留空', values: { script: '' }, expectedMessage: '請填寫指標算式' },
+    { description: '算式內容留空', values: { scriptBody: '' }, expectedMessage: '請填寫算式內容' },
   ])('$description 時標在欄位旁且完全不執行', async ({ values, expectedMessage }) => {
     const indicatorCalculationProxy = buildProxy()
     const wrapper = mountPanel(indicatorCalculationProxy)
 
     await fillAndSubmit(wrapper, values)
 
-    expect(wrapper.get('[data-testid="field-error"]').text()).toBe(expectedMessage)
+    const fieldError = wrapper.find('[data-testid="field-error"]').exists()
+      ? wrapper.get('[data-testid="field-error"]')
+      : wrapper.get('[data-testid="script-body-error"]')
+    expect(fieldError.text()).toBe(expectedMessage)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
 
@@ -173,8 +199,8 @@ describe('IndicatorCalculationPanel', () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn()
         .mockRejectedValueOnce(new IndicatorScriptFailedError('算式無法解讀'))
-        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', 3, [
-          new IndicatorValueVo('均價', 110),
+        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', 3, 'float', [
+          new IndicatorValueVo('均價', [110]),
         ])),
     }))
 
@@ -193,7 +219,7 @@ describe('IndicatorCalculationPanel', () => {
       calculateIndicator: vi.fn().mockReturnValue(pendingCalculation),
     }))
 
-    await wrapper.get('[data-testid="script-input"]').setValue(SCRIPT)
+    await typeScriptBody(wrapper, SCRIPT_BODY)
     await wrapper.get('form').trigger('submit')
     await wrapper.vm.$nextTick()
 
@@ -201,13 +227,138 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.get('[data-testid="calculate-button"]').attributes('disabled')).toBeDefined()
   })
 
-  it('按下帶入範例算式會填入一段可直接執行的算式', async () => {
+  it('按下帶入範例內容會填入一段可直接執行的內容，而不是整段算式', async () => {
     const wrapper = mountPanel(buildProxy())
+    await settle()
 
     await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
 
-    const scriptValue = wrapper.get<HTMLTextAreaElement>('[data-testid="script-input"]').element.value
-    expect(scriptValue).toContain('func Calculate(data []indicator.KCandle) map[string]float64')
-    expect(scriptValue).toContain('均價')
+    const editorText = wrapper.get('[data-testid="code-editor"]').text()
+    expect(editorText).toContain('均價')
+    expect(editorText).not.toContain('func Calculate')
+    expect(editorText).not.toContain('package main')
+  })
+
+  it('指標值種類就是領域給的那四種', async () => {
+    const wrapper = mountPanel(buildProxy())
+
+    const options = wrapper.get('[data-testid="result-type-select"]').findAll('option')
+    expect(options.map(option => option.text()))
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
+  })
+
+  it.each([
+    { resultType: 'float', valueShape: 'map[string]float64' },
+    { resultType: 'floatList', valueShape: 'map[string][]float64' },
+    { resultType: 'bool', valueShape: 'map[string]bool' },
+    { resultType: 'boolList', valueShape: 'map[string][]bool' },
+  ])('挑了 $resultType，外框就產出 $valueShape', async ({ resultType, valueShape }) => {
+    const wrapper = mountPanel(buildProxy())
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue(resultType)
+
+    expect(wrapper.get('[data-testid="script-frame-header"]').text()).toContain(valueShape)
+  })
+
+  it('切換種類不會弄丟已經寫好的內容', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await typeScriptBody(wrapper, 'sum := 0.0')
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
+    await settle()
+
+    expect(wrapper.get('[data-testid="script-frame-header"]').text()).toContain('map[string][]bool')
+    expect(wrapper.get('[data-testid="code-editor"]').text()).toContain('sum := 0.0')
+  })
+
+  it('沒有特別挑時送出的是一個數字', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper)
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({ resultType: expect.objectContaining({ value: 'float' }) }))
+  })
+
+  it('挑了哪一種就送哪一種，且送出的是外框加內容', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, { resultType: 'boolList', scriptBody: 'return nil' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resultType: expect.objectContaining({ value: 'boolList' }),
+        script: expect.stringContaining('map[string][]bool'),
+      }))
+  })
+
+  it('帶入的範例內容跟著當下挑的種類走', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get('[data-testid="code-editor"]').text()).toContain('map[string][]bool{')
+  })
+
+  it('一串數字的每個值都看得到，順序不變', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', 3, 'floatList', [
+          new IndicatorValueVo('均線', [100, 105, 110]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'floatList' })
+
+    expect(wrapper.findAll('[data-testid="series-item"]').map(item => item.text()))
+      .toEqual(['100', '105', '110'])
+  })
+
+  it('是非顯示「是」與「否」', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', 3, 'boolList', [
+          new IndicatorValueVo('逐根收紅', [true, false, true]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'boolList' })
+
+    expect(wrapper.findAll('[data-testid="series-item"]').map(item => item.text()))
+      .toEqual(['是', '否', '是'])
+  })
+
+  it('空的一串明說是空的，不是留一片空白', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', 3, 'floatList', [
+          new IndicatorValueVo('均線', []),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'floatList' })
+
+    expect(wrapper.get('[data-testid="empty-series"]').text()).toBe('空的一串')
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+  })
+
+  it('結果說明這次的指標值種類', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', 3, 'bool', [
+          new IndicatorValueVo('黃金交叉', [true]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'bool' })
+
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('一個是非')
+    expect(wrapper.get('[data-testid="indicator-row"]').text()).toContain('是')
   })
 })

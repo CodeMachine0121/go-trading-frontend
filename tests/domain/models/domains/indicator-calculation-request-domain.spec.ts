@@ -3,13 +3,16 @@ import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indic
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
-const SCRIPT = 'package main\nfunc Calculate() {}'
+const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 
-function buildRequest(overrides: { symbol?: string, candleCount?: string, script?: string } = {}) {
+function buildRequest(
+  overrides: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
+) {
   return new IndicatorCalculationRequestDto(
     overrides.symbol ?? 'BTCUSDT',
     overrides.candleCount ?? '3',
-    overrides.script ?? SCRIPT,
+    overrides.scriptBody ?? SCRIPT_BODY,
+    overrides.resultType ?? 'float',
   )
 }
 
@@ -29,11 +32,42 @@ function fieldErrorOf(build: () => IndicatorCalculationRequestDomain): Indicator
 describe('IndicatorCalculationRequestDomain', () => {
   it('條件都合法時，去掉前後空白並把根數解讀成整數', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(
-      buildRequest({ symbol: '  BTCUSDT  ', candleCount: ' 30 ', script: `  ${SCRIPT}  ` }))
+      buildRequest({ symbol: '  BTCUSDT  ', candleCount: ' 30 ' }))
 
     expect(requestDomain.symbol).toBe('BTCUSDT')
     expect(requestDomain.candleCount).toBe(30)
-    expect(requestDomain.script).toBe(SCRIPT)
+  })
+
+  it('送出的是外框夾著內容的一整段算式，不是使用者打的那幾行', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(buildRequest())
+
+    expect(requestDomain.script).toContain('package main')
+    expect(requestDomain.script).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+    expect(requestDomain.script).toContain(`\t${SCRIPT_BODY}`)
+  })
+
+  it('外框跟著指標值種類走', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ resultType: 'boolList', scriptBody: 'return nil' }))
+
+    expect(requestDomain.resultType.value).toBe('boolList')
+    expect(requestDomain.script).toContain('map[string][]bool')
+  })
+
+  it('沒有宣告種類時當作一個數字', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(buildRequest({ resultType: '' }))
+
+    expect(requestDomain.resultType.value).toBe('float')
+    expect(requestDomain.script).toContain('map[string]float64')
+  })
+
+  it('內容前後多餘的空白不影響組出來的算式', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ scriptBody: `\n\n  ${SCRIPT_BODY}  \n\n` }))
+
+    expect(requestDomain.script).toContain(`\t${SCRIPT_BODY}`)
+    expect(requestDomain.script.split('\n').filter(line => line.trim() !== ''))
+      .toHaveLength(9)
   })
 
   it.each([
@@ -84,12 +118,12 @@ describe('IndicatorCalculationRequestDomain', () => {
   })
 
   it.each([
-    { description: '完全沒填', script: '' },
-    { description: '只有空白字元', script: '  \n  ' },
-  ])('算式 $description 時拒絕', ({ script }) => {
-    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(buildRequest({ script })))
+    { description: '完全沒填', scriptBody: '' },
+    { description: '只有空白字元', scriptBody: '  \n  ' },
+  ])('算式內容 $description 時拒絕', ({ scriptBody }) => {
+    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(buildRequest({ scriptBody })))
 
-    expect(fieldError.field).toBe('script')
-    expect(fieldError.message).toBe('請填寫指標算式')
+    expect(fieldError.field).toBe('scriptBody')
+    expect(fieldError.message).toBe('請填寫算式內容')
   })
 })

@@ -55,6 +55,8 @@ $font-weights: (
 $line-heights: (
   'tight': 1.25,
   'normal': 1.5,
+  // 一行一行讀的程式碼需要比內文更鬆的行距
+  'relaxed': 1.7,
 );
 
 $radii: (
