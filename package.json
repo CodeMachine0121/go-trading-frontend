@@ -25,6 +25,13 @@
     "lint:style:fix": "stylelint \"app/**/*.{scss,vue}\" --fix"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-go": "^6.0.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.2",
+    "@codemirror/view": "^6.43.10",
+    "codemirror": "^6.0.2",
     "decimal.js": "^10.6.0",
     "nuxt": "^3.21.11",
     "vue": "^3.5.42",
