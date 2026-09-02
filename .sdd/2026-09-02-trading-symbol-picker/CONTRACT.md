@@ -21,20 +21,20 @@ Oracle: Acceptance Criteria（10 個情境 + 5 條業務規則 + 2 條非功能�
 | AC-8 | 取清單失敗時仍看得出目前是哪一檔 | 畫面上仍然顯示 BTCUSDT | `SymbolField.vue:81`（目前這一檔不在清單上時仍列一個選項給它） | `SymbolField.spec.ts:70`（斷言選項就是 `['BTCUSDT']`） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-9 | 新增一根系統還沒有過的交易標的 | 可以直接打出 XRPUSDT，不受清單限制 | `KCandleForm.vue`（刻意維持文字輸入，**本切片一行未改**） | `KCandleSearchPanel.spec.ts`（維護入口的既有測試仍以打字填 `form-symbol`，且全數通過） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-10 | 修改既有的一根時交易標的仍然唯讀 | 欄位唯讀 | `KCandleForm.vue`（既有的 `identityReadonly`，本切片未動） | `KCandleSearchPanel.spec.ts`（既有測試） | asserts-oracle | produces-oracle | ✅ conforms |
-| BR-1 | 清單一律來自後端，畫面不寫死任何標的名稱 | 程式碼裡沒有寫死的標的名稱 | `SymbolField.vue`（原本的 `SUGGESTED_SYMBOLS = ['BTCUSDT','ETHUSDT']` 已移除） | `SymbolField.spec.ts:35`（選項完全由替身決定；替身給三檔就出現三檔） | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-1 | 清單一律來自後端，選項不寫死任何標的名稱 | 選單裡的選項完全由後端決定 | `SymbolField.vue`（原本的 `SUGGESTED_SYMBOLS = ['BTCUSDT','ETHUSDT']` 已移除） | `SymbolField.spec.ts:35`（選項完全由替身決定；替身給三檔就出現三檔） | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-2 | 順序依後端，畫面不重排 | 同 AC-3 | `trading-symbol-service.ts` | `trading-symbol-application.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-3 | 落單修正：清單非空且不在清單上就改選第一個 | 同 AC-5 | `SymbolField.vue:52` | `SymbolField.spec.ts:55`、`:49` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-4 | 空清單維持目前這一檔 | 同 AC-6 | `SymbolField.vue:52`（`firstTradingSymbol !== undefined` 這一半） | `SymbolField.spec.ts:61` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-5 | 讀行情從清單挑；建資料維持手打 | 三個讀的畫面是選單；新增表單是輸入框 | 三個 organism 用 `SymbolField`；`KCandleForm.vue` 未動 | `SymbolField.spec.ts`（選單）與既有的維護測試（輸入框）並存且都綠 | asserts-oracle | produces-oracle | ✅ conforms |
 | NFR-1 | 取清單與取行情各自進行 | 取清單慢不擋行情先畫出來 | `SymbolField.vue:42`（自己的 `onMounted`，與 organism 的載入互不等待） | `KCandleChartPanel.spec.ts:62`（圖已經畫出來，清單另外載入） | asserts-oracle | produces-oracle | ✅ conforms |
-| NFR-2 | 畫面上不得出現寫死的交易標的名稱 | 同 BR-1 | 同 BR-1 | 同 BR-1 | asserts-oracle | produces-oracle | ✅ conforms |
+| NFR-2 | **選單裡的選項**不得有寫死的標的名稱 | 同 BR-1 | 同 BR-1 | 同 BR-1 | asserts-oracle | produces-oracle | ✅ conforms |
 
 ## Orphans (code with no clause)
 
 | Code | Description | Verdict |
 |------|-------------|---------|
 | `SymbolField.vue:29`（清單載入中的說明） | 規格第 5 節列了「清單載入中：選單暫時不能操作」，但沒有寫成 Gherkin 情境 | 已實作且有測試（`SymbolField.spec.ts:81`）；屬於 UI/UX 節而非驗收情境，不另補 |
-| 三個 organism 的 `DEFAULT_SYMBOL = 'BTCUSDT'` | 進畫面時先帶哪一檔的起點，清單回來之後依 BR-3 修正 | 保留的理由寫在 ARCH「Do not hardcode」：完全不帶的話畫面一進去就會顯示「請指定交易標的」，那是在怪使用者沒填 |
+| 三個 organism 的 `DEFAULT_SYMBOL = 'BTCUSDT'` | 進畫面時先帶哪一檔的起點，清單回來之後依 BR-3 修正 | Code review 指出它與 NFR-2 原本的寫法直接衝突（一邊標 ✅、一邊列為 orphan 並辯護，兩者不可能同時成立）。**已改 PRD 的 NFR-2**，把它限定在「選單裡的選項」，並在規則本身寫明起點不在此限 |
 | `tests/fixtures/trading-symbol-application.ts` | 四個測試檔共用的替身 | 測試用具，非產品行為 |
 
 未發現實作到 Out of Scope 項目的程式碼：沒有新增／修改／移除清單的路徑、沒有搜尋或篩選、
