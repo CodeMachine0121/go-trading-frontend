@@ -68,7 +68,8 @@ export class KCandleChartViewportDomain {
   }
 
   /**
-   * 這一段接下來該怎麼辦：要不要重新取，以及要取哪一段、用哪一種刻度。
+   * 這一段接下來該怎麼辦：使用者應該看到哪一段（可能已被收回上限）、
+   * 要不要重新取，以及要取哪一段、用哪一種刻度。
    *
    * 手上那批之所以可能還夠用，是因為取的時候兩側各多取了半段——
    * 使用者小幅拖動時，新的一段仍然整個落在裡面。
@@ -88,6 +89,8 @@ export class KCandleChartViewportDomain {
       needsReload,
       this.symbol,
       this.interval,
+      this.startTime,
+      this.endTime,
       new Date(this.startTime.getTime() - prefetchMilliseconds),
       new Date(this.endTime.getTime() + prefetchMilliseconds),
     )

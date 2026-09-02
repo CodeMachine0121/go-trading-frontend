@@ -4,7 +4,6 @@ import { KCandleChartApplication } from '~/application/k-candle-chart-applicatio
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
-import { KCandleSeries } from '~/domain/models/entities/k-candle-series'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
@@ -25,7 +24,7 @@ function buildKCandle(openTime: string, open: string, closePrice: string): KCand
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
-    findKCandleSeries: vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', [])),
+    findKCandleSeries: vi.fn().mockResolvedValue([]),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
@@ -60,7 +59,7 @@ afterEach(() => {
 describe('KCandleChartApplication', () => {
   describe('loadKCandleChart', () => {
     it('第一次進畫面時去取，並帶著由顯示區間推出來的彙總刻度與兩側預取', async () => {
-      const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
+      const findKCandleSeries = vi.fn().mockResolvedValue([])
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
 
       await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
@@ -68,63 +67,68 @@ describe('KCandleChartApplication', () => {
       const loadPlan = findKCandleSeries.mock.calls[0]?.[0]
       expect(loadPlan.interval.value).toBe('5m')
       expect(loadPlan.symbol).toBe('BTCUSDT')
-      expect(loadPlan.startTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
-      expect(loadPlan.endTime.toISOString()).toBe('2026-09-03T00:00:00.000Z')
+      expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+      expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-03T00:00:00.000Z')
     })
 
     it('把取回的每一根都算好漲跌交給畫面', async () => {
       const kCandleChartApplication = buildApplication(buildProxy({
-        findKCandleSeries: vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', [
+        findKCandleSeries: vi.fn().mockResolvedValue([
           buildKCandle('2026-09-02T10:00:00.000Z', '100', '110'),
           buildKCandle('2026-09-02T10:05:00.000Z', '100', '90'),
-        ])),
+        ]),
       }))
 
-      const chart = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+      const chartView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
-      expect(chart?.count).toBe(2)
-      expect(chart?.kCandles.map(kCandle => kCandle.trend.tone)).toEqual(['success', 'danger'])
-      expect(chart?.interval.label).toBe('五分鐘')
+      expect(chartView.reloadedChart?.count).toBe(2)
+      expect(chartView.reloadedChart?.kCandles.map(kCandle => kCandle.trend.tone))
+        .toEqual(['success', 'danger'])
+      expect(chartView.reloadedChart?.interval.label).toBe('五分鐘')
     })
 
     it('取回一根都沒有時是空的一批，不是錯誤', async () => {
       const kCandleChartApplication = buildApplication(buildProxy())
 
-      const chart = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+      const chartView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
-      expect(chart?.isEmpty).toBe(true)
+      expect(chartView.reloadedChart?.isEmpty).toBe(true)
     })
 
     it('顯示區間仍落在手上那批之內時不再去取，並回覆「沒事」', async () => {
-      const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
+      const findKCandleSeries = vi.fn().mockResolvedValue([])
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
-      const loadedChart = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+      const loaded = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
-      const nextChart = await kCandleChartApplication.loadKCandleChart(
-        viewportSpanning(12 * 60, loadedChart))
+      const nextView = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(12 * 60, loaded.reloadedChart))
 
-      expect(nextChart).toBeNull()
+      expect(nextView.reloadedChart).toBeNull()
       expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+      // 不必換資料，但仍然說得出該看哪一段——按快捷區間才不會像壞掉
+      expect(nextView.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(nextView.visibleStartTime.toISOString()).toBe('2026-09-02T00:00:00.000Z')
     })
 
     it('拉遠到該換刻度時再去取一次，這次帶著較粗的刻度', async () => {
-      const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
+      const findKCandleSeries = vi.fn().mockResolvedValue([])
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
-      const loadedChart = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+      const loaded = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
-      await kCandleChartApplication.loadKCandleChart(viewportSpanning(5 * 24 * 60, loadedChart))
+      await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(5 * 24 * 60, loaded.reloadedChart))
 
       expect(findKCandleSeries).toHaveBeenCalledTimes(2)
       expect(findKCandleSeries.mock.calls[1]?.[0].interval.value).toBe('1h')
     })
 
     it('換一個交易標的就重新取', async () => {
-      const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
+      const findKCandleSeries = vi.fn().mockResolvedValue([])
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
-      const loadedChart = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+      const loaded = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
       await kCandleChartApplication.loadKCandleChart(
-        viewportSpanning(24 * 60, loadedChart, 'ETHUSDT'))
+        viewportSpanning(24 * 60, loaded.reloadedChart, 'ETHUSDT'))
 
       expect(findKCandleSeries).toHaveBeenCalledTimes(2)
       expect(findKCandleSeries.mock.calls[1]?.[0].symbol).toBe('ETHUSDT')
@@ -137,6 +141,17 @@ describe('KCandleChartApplication', () => {
       await expect(kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60, null, ' ')))
         .rejects.toThrowError(new KCandleQueryValidationError('symbol', '請指定交易標的'))
       expect(findKCandleSeries).not.toHaveBeenCalled()
+    })
+
+    it('拉得比最粗的刻度所能涵蓋的還遠時，回覆的是被收回之後該看的那一段', async () => {
+      const kCandleChartApplication = buildApplication(buildProxy())
+
+      const chartView = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(500 * 24 * 60))
+
+      // 問的是五百天，該看的被收回四百天，結束的那一端不變
+      expect(chartView.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(chartView.visibleStartTime.toISOString()).toBe('2025-07-29T12:00:00.000Z')
     })
 
     it('後端拒絕時如實往上拋，讓畫面轉達原因', async () => {
