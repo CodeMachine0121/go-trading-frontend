@@ -6,9 +6,7 @@ import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
-import { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
-import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
+import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
@@ -40,16 +38,6 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     deleteKCandle: vi.fn(),
     ...overrides,
   }
-}
-
-/**
- * 交易標的清單來自另一個外部資源，只 mock 它的介面。
- * 預設就給既有那兩檔——這樣既有的測試不會因為多了一份清單而換一檔標的。
- */
-function buildTradingSymbolApplication(symbols: string[] = ['BTCUSDT', 'ETHUSDT']): TradingSymbolApplication {
-  return new TradingSymbolApplication(new TradingSymbolService({
-    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
-  }))
 }
 
 async function mountPanel(kCandleProxy: IKCandleProxy) {

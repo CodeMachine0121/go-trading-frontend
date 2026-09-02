@@ -3,9 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
-import { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
-import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
+import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -55,16 +53,6 @@ function frameHeaderText(wrapper: ReturnType<typeof mountPanel>): string {
 function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
   return wrapper.get('[data-testid="script-body"]').element
     .querySelector('.cm-content')?.textContent ?? ''
-}
-
-/**
- * 交易標的清單來自另一個外部資源，只 mock 它的介面。
- * 預設就給既有那兩檔——這樣既有的測試不會因為多了一份清單而換一檔標的。
- */
-function buildTradingSymbolApplication(symbols: string[] = ['BTCUSDT', 'ETHUSDT']): TradingSymbolApplication {
-  return new TradingSymbolApplication(new TradingSymbolService({
-    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
-  }))
 }
 
 function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
