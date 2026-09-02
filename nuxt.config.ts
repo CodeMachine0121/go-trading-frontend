@@ -49,8 +49,11 @@ export default defineNuxtConfig({
     // 當場重新優化依賴，而正在飛的那批 import 就會拿到 504 Outdated Optimize Dep——
     // 三個編輯器的 onMounted 一起炸掉，畫面只剩空容器，得手動重新載入才會好。
     // 在這裡先報名，dev server 啟動時就一次預打包完，那個時序缺口就消失了。
+    // lightweight-charts 同理：KCandleChart 掛載後才動態 import（它要的是真正的畫布），
+    // 不先報名的話，dev 冷啟動時第一次打開「K 線圖表」才臨時發現它、當場重新優化依賴。
     optimizeDeps: {
       include: [
+        'lightweight-charts',
         '@codemirror/view',
         '@codemirror/state',
         '@codemirror/commands',
