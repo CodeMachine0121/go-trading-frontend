@@ -5,6 +5,7 @@ import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
@@ -18,7 +19,10 @@ import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-
 const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線查詢這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
-const { kCandleApplication } = defineProps<{ kCandleApplication: KCandleApplication }>()
+const { kCandleApplication, tradingSymbolApplication } = defineProps<{
+  kCandleApplication: KCandleApplication
+  tradingSymbolApplication: TradingSymbolApplication
+}>()
 
 const symbol = ref('')
 const startTime = ref('')
@@ -119,6 +123,7 @@ async function searchKCandles() {
         v-model:symbol="symbol"
         v-model:start-time="startTime"
         v-model:end-time="endTime"
+        :trading-symbol-application="tradingSymbolApplication"
         :loading="loading"
         :symbol-error="symbolError"
         :start-time-error="startTimeError"

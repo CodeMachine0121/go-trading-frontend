@@ -1,11 +1,16 @@
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
+import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
+import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
 import { KCandleApplication } from '~/application/k-candle-application'
+import { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 
 /**
@@ -25,6 +30,14 @@ export default defineNuxtPlugin(() => {
     new KCandleService(new KCandleProxy(backendBaseUrl)),
   )
 
+  const kCandleChartApplication = new KCandleChartApplication(
+    new KCandleChartService(new KCandleProxy(backendBaseUrl)),
+  )
+
+  const tradingSymbolApplication = new TradingSymbolApplication(
+    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl)),
+  )
+
   const indicatorCalculationApplication = new IndicatorCalculationApplication(
     new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl)),
   )
@@ -33,6 +46,8 @@ export default defineNuxtPlugin(() => {
     provide: {
       backendHealthApplication,
       kCandleApplication,
+      kCandleChartApplication,
+      tradingSymbolApplication,
       indicatorCalculationApplication,
     },
   }

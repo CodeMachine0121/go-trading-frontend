@@ -2,7 +2,9 @@ import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleSearchPanel from '~/components/organisms/KCandleSearchPanel.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleApplication } from '~/application/k-candle-application'
+import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
@@ -31,6 +33,7 @@ function buildKCandle(openTime: string): KCandle {
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn().mockResolvedValue([]),
+    findKCandleSeries: vi.fn(),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
@@ -40,10 +43,13 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
 
 async function mountPanel(kCandleProxy: IKCandleProxy) {
   const wrapper = mount(KCandleSearchPanel, {
-    props: { kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)) },
+    props: {
+      kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)),
+      tradingSymbolApplication: buildTradingSymbolApplication(),
+    },
   })
-  // 預設區間在 onMounted 才帶入，等一次更新讓畫面反映出來。
-  await wrapper.vm.$nextTick()
+  // 預設區間與交易標的清單都在 onMounted 才帶入，等它們都到齊再讓測試往下走。
+  await flushPromises()
   return wrapper
 }
 
@@ -60,7 +66,7 @@ describe('KCandleSearchPanel', () => {
   it('進入畫面時帶入最近二十四小時的預設區間', async () => {
     const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }))
 
-    expect(wrapper.get<HTMLInputElement>('[data-testid="symbol-input"]').element.value).toBe('BTCUSDT')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="symbol-select"]').element.value).toBe('BTCUSDT')
     expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
       .toBe('2026-08-29T12:00')
     expect(wrapper.get<HTMLInputElement>('[data-testid="end-time-input"]').element.value)
@@ -100,8 +106,6 @@ describe('KCandleSearchPanel', () => {
   })
 
   it.each([
-    { description: '未指定交易標的', input: '[data-testid="symbol-input"]', value: '', expectedMessage: '請指定交易標的' },
-    { description: '交易標的只有空白', input: '[data-testid="symbol-input"]', value: '   ', expectedMessage: '請指定交易標的' },
     { description: '結束時間早於開始時間', input: '[data-testid="end-time-input"]', value: '2026-08-28T12:00', expectedMessage: '結束時間不得早於開始時間' },
     { description: '開始時間被清空', input: '[data-testid="start-time-input"]', value: '', expectedMessage: '請填寫開始時間' },
     { description: '結束時間被清空', input: '[data-testid="end-time-input"]', value: '', expectedMessage: '請填寫結束時間' },
@@ -117,6 +121,21 @@ describe('KCandleSearchPanel', () => {
     expect(kCandleProxy.findKCandlesInRange).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="rejected-alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
+  })
+
+  it('交易標的交出一個空的值時，訊息標在那一欄旁邊', async () => {
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
+    const wrapper = await mountPanel(kCandleProxy)
+
+    // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
+    // 直接讓欄位交出一個空的標的，驗畫面確實把原因標回那一欄旁邊。
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '   ')
+    await wrapper.vm.$nextTick()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請指定交易標的')
+    expect(kCandleProxy.findKCandlesInRange).not.toHaveBeenCalled()
   })
 
   it('開始時間與結束時間相同時照常查詢', async () => {
@@ -242,7 +261,7 @@ describe('KCandleSearchPanel', () => {
     it('新增時預先帶入目前正在瀏覽的交易標的', async () => {
       const wrapper = await mountPanel(buildProxy())
 
-      await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+      await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
       await wrapper.get('[data-testid="create-button"]').trigger('click')
 
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-symbol"]').element.value).toBe('ETHUSDT')

@@ -3,10 +3,12 @@ import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import type { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import type { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
 import type { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
+import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const K_CANDLES_ENDPOINT = '/k-candles'
+const K_CANDLE_SERIES_ENDPOINT = '/k-candles/series'
 
 /**
  * 後端回傳的原始 wire 形狀，只存在於本檔內，不外流進 domain。
@@ -25,6 +27,15 @@ type KCandleWire = {
   takerBuyQuoteVolume: string
 }
 
+/**
+ * 彙總查詢的回覆形狀：一個物件，不是陣列。
+ * 它也回報了交易標的與這批用的彙總刻度，但那兩個就是我們剛剛問出去的東西，
+ * 這裡刻意不讀——把它們帶進 domain 只會讓「手上這批是誰」多一個來源。
+ */
+type KCandleSeriesWire = {
+  kCandles: KCandleWire[]
+}
+
 /** 送往後端時的 body 形狀：價量一律以字串傳遞以保留精確度。 */
 type KCandleRequest = Record<string, string>
 
@@ -40,6 +51,20 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
     })
 
     return kCandleWires.map(kCandleWire => this.toKCandle(kCandleWire))
+  }
+
+  async findKCandleSeries(kCandleChartLoadPlanVo: KCandleChartLoadPlanVo): Promise<KCandle[]> {
+    const kCandleSeriesWire = await this.requestBackend<KCandleSeriesWire>(
+      K_CANDLE_SERIES_ENDPOINT, {
+        query: {
+          symbol: kCandleChartLoadPlanVo.symbol,
+          startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
+          endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
+          interval: kCandleChartLoadPlanVo.interval.value,
+        },
+      })
+
+    return kCandleSeriesWire.kCandles.map(kCandleWire => this.toKCandle(kCandleWire))
   }
 
   async saveKCandle(kCandleWriteDomain: KCandleWriteDomain): Promise<KCandle> {

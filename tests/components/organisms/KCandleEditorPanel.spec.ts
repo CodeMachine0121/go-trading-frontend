@@ -19,6 +19,7 @@ const EDITING_OPEN_TIME = new Date('2026-08-30T09:00:00.000Z')
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn().mockResolvedValue([]),
+    findKCandleSeries: vi.fn(),
     saveKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     updateKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     deleteKCandle: vi.fn().mockResolvedValue(undefined),

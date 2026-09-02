@@ -1,11 +1,14 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
+import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 
 function mountForm(props: Record<string, unknown> = {}) {
   return mount(KCandleQueryForm, {
     props: {
       symbol: 'BTCUSDT',
+      tradingSymbolApplication: buildTradingSymbolApplication(),
       startTime: '2026-08-29T12:00',
       endTime: '2026-08-30T12:00',
       ...props,
@@ -53,7 +56,7 @@ describe('KCandleQueryForm', () => {
   it('使用者改動輸入時把新值往上送', async () => {
     const wrapper = mountForm()
 
-    await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', 'ETHUSDT')
 
     expect(wrapper.emitted('update:symbol')?.at(-1)).toEqual(['ETHUSDT'])
   })

@@ -22,5 +22,7 @@ describe('ConsoleLayout', () => {
 
     expect(wrapper.text()).toContain('連線狀態')
     expect(wrapper.text()).toContain('K 線瀏覽')
+    expect(wrapper.text()).toContain('K 線圖表')
+    expect(wrapper.text()).toContain('指標計算')
   })
 })

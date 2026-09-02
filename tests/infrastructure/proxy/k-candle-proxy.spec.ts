@@ -6,6 +6,8 @@ import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
 import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
+import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
+import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -29,6 +31,16 @@ const K_CANDLE_WIRE = {
   takerBuyBaseVolume: '5',
   takerBuyQuoteVolume: '600',
 }
+
+const LOAD_PLAN = new KCandleChartLoadPlanVo(
+  true,
+  'BTCUSDT',
+  new AggregationIntervalVo('1h', '一小時', 60),
+  new Date('2026-08-30T03:00:00.000Z'),
+  new Date('2026-08-30T09:00:00.000Z'),
+  new Date('2026-08-30T00:00:00.000Z'),
+  new Date('2026-08-30T12:00:00.000Z'),
+)
 
 /**
  * 用真正的 FetchError 當替身：它與自己 new 出來的 Error 形狀不同——
@@ -88,6 +100,46 @@ describe('KCandleProxy', () => {
     expect(kCandles[0]?.open.toString()).toBe('100.5')
     expect(kCandles[0]?.quoteVolume.toString()).toBe('1200.25')
     expect(kCandles[0]?.takerBuyQuoteVolume.toString()).toBe('600')
+  })
+
+  it('取彙總 K 線時，把要取的那一段與彙總刻度一起問出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '1h', kCandles: [] })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
+      query: {
+        symbol: 'BTCUSDT',
+        startTime: '2026-08-30T00:00:00.000Z',
+        endTime: '2026-08-30T12:00:00.000Z',
+        interval: '1h',
+      },
+    })
+  })
+
+  it('把彙總回覆正規化成那幾根 K 線', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '1h', kCandles: [K_CANDLE_WIRE],
+    }))
+
+    const kCandles = await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+
+    expect(kCandles).toHaveLength(1)
+    expect(kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
+    expect(kCandles[0]?.open.toString()).toBe('100.5')
+  })
+
+  it('彙總查詢被拒絕時，一樣把後端說的原因包成可轉達的錯誤', async () => {
+    const rejection = buildFetchError({
+      status: 400,
+      statusText: 'Bad Request',
+      message: '時間區間過大，請縮小區間或改用更長的彙總刻度（單次最多 1000 根）',
+    })
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
+
+    await expect(new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN))
+      .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 
   it('後端有回應但拒絕時，把後端說的原因包成可轉達的錯誤', async () => {
