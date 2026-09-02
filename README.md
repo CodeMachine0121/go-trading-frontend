@@ -192,6 +192,58 @@ Bun 只取代 pnpm 那一層（套件管理與 script runner）；**打包仍然
 測試仍然是 Vitest。依賴的 postinstall script 由 package.json 的 `trustedDependencies`
 明確授權（`esbuild`、`unrs-resolver`），這是 bun 的安全預設。
 
+### Dev server 有兩個「別讓它自己發現」的設定
+
+`nuxt.config.ts` 裡有兩處設定看起來可以刪，其實是在補 dev server 的兩個啟動時序缺口。
+兩者都只在**冷啟動**（剛 clone、`bun install` 之後、或 `nuxt build` 清掉 `.nuxt` 之後的
+第一次 `bun run dev`）才現形，所以很容易被誤判成偶發雜訊而刪掉。
+
+#### `experimental.appManifest: false`
+
+關掉 Nuxt 的 app manifest。開著的話 `#app-manifest` 這個 alias 會指向
+`.nuxt/manifest/meta/{buildId}.json`，而那個檔案要等 nitro 建完才寫出來；dev 冷啟動時 Vite
+會先 pre-transform nuxt 的 manifest composable，比 nitro 快一步就會噴：
+
+```
+ERROR  Pre-transform error: Failed to resolve import "#app-manifest" ... Does the file exist?
+```
+
+這是啟動時序的 race（`nuxt build` 清掉 `.nuxt` 之後的第一次 `bun run dev` 最容易踩到），
+畫面其實還是正常的，但每次冷啟動都刷一排紅字。關掉之後 alias 改指向 node_modules 裡恆存在的
+空模組，錯誤就結構上不會發生。
+
+關掉之後**確實**少掉的只有兩件事（其餘照舊——client 端 route rules 走的是建置期產生的
+`#build/route-rules.mjs`，不經過 manifest；chunk 載入失敗自動重載也不經過）：
+
+| 少了什麼 | 影響 |
+| :--- | :--- |
+| `check-outdated-build.client` 這個 plugin 不再註冊 | 不會再定期輪詢 `builds/latest.json`，所以「部署了新版本，開著的頁籤自動重載」偵測不到 |
+| 靜態產出的 `_payload.json` 不會再被載入 | `bun run generate` 之後，client 端換頁改成重新取資料，而不是讀預渲染好的 payload |
+
+第二點是實測的：同一份 `bun run generate` 產出，開著 manifest 時換頁會抓
+`/k-candles/_payload.json`，關掉之後一個都不抓（頁面本身正常）。這個操作台目前沒有任何
+畫面在載入時就取資料——連線狀態要按「重新檢查」，K 線與指標計算都是使用者觸發——
+所以現在沒有差別。
+
+**哪天要真的部署（尤其是 `bun run generate` 靜態部署），要重新評估這個開關。**
+
+#### `vite.optimizeDeps.include` 點名 CodeMirror
+
+`AppCodeEditor` 掛載後才動態 `import()` 那七個 `@codemirror/*`（編輯器碰得到 `document`，
+伺服器端沒有），所以 Vite 從進入點靜態掃不到它們。少了這份名單，dev 冷啟動後第一次打開
+「指標計算」才會臨時發現這些套件、當場重新優化依賴，正在飛的那批 import 就拿到：
+
+```
+504 (Outdated Optimize Dep) .../deps/@codemirror_theme-one-dark.js
+TypeError: Failed to fetch dynamically imported module
+```
+
+三個編輯器的 `onMounted` 會一起炸掉，畫面只剩三個空容器，**得手動重新載入才會好**。
+在這裡先報名，dev server 啟動時就一次預打包完，那個缺口就不存在了。
+
+> 兩件事的共通點：**新增任何「只在 `onMounted` 裡動態 import」的第三方套件時，記得同時加進
+> 這份 `optimizeDeps.include`**，否則同一個 504 會在那個新頁面重演。
+
 ## Git Hooks
 
 | Hook | 動作 |
