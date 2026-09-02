@@ -358,4 +358,14 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('一個是非')
     expect(wrapper.get('[data-testid="indicator-row"]').text()).toContain('是')
   })
+
+  it('算式內容寫得根本不成立時，畫面照樣送出——判定是後端的事', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, { scriptBody: '這根本不是一段程式 {{{' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
 })
