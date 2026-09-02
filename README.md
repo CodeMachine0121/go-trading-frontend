@@ -16,6 +16,11 @@
 四種狀態（載入中／查無資料／被拒絕／連不上）與四類失敗（欄位填錯、請求的問題、
 後端出錯、連不上）在每個畫面上的呈現方式一致，使用者一眼知道下一步該做什麼。
 
+**交易標的一律從清單裡挑，不手打**：三個要讀行情的畫面（K 線瀏覽、K 線圖表、指標計算）
+共用同一個 `SymbolField`，選項來自後端 `GET /trading-symbols`——那是它**實際握有 K 線**的那些標的，
+所以挑得到的每一檔都真的查得出東西。清單是空的或取不到時，欄位會說明原因並保留目前那一檔，
+不會變成一個空白的選單。**新增／修改 K 線的表單維持手打**：那正是新的交易標的誕生的地方。
+
 ### 介面走暗色
 
 這是開發者自己在用的操作台，因此**只走暗色一種主題**。配色以編輯器的 One Dark 為錨——
@@ -47,6 +52,7 @@
 | 指標計算 | [`.sdd/2026-08-30-indicator-calculation/`](.sdd/2026-08-30-indicator-calculation/) |
 | 只寫算式的內容 | [`.sdd/2026-09-02-strategy-script-authoring/`](.sdd/2026-09-02-strategy-script-authoring/) |
 | K 線圖表 | [`.sdd/2026-09-02-k-candle-chart-view/`](.sdd/2026-09-02-k-candle-chart-view/) |
+| 交易標的選單 | [`.sdd/2026-09-02-trading-symbol-picker/`](.sdd/2026-09-02-trading-symbol-picker/) |
 
 共用的詞彙與專案前提在 [`.sdd/UL-MAP.md`](.sdd/UL-MAP.md) 與 [`.sdd/PROJECT.md`](.sdd/PROJECT.md)。
 每個切片的 `CONTRACT.md` 是驗收情境與程式碼的符合性稽核矩陣——它記錄的是
