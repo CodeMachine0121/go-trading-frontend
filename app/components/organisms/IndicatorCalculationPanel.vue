@@ -5,8 +5,10 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import {
@@ -22,8 +24,9 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 //
 // 版面照著「寫程式 → 執行 → 看結果」的順序擺：左邊是那塊夠大的算式編輯區，
 // 右邊是按下去會發生事情的那一欄，結果攤在下面整排。
-const { indicatorCalculationApplication } = defineProps<{
+const { indicatorCalculationApplication, tradingSymbolApplication } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
+  tradingSymbolApplication: TradingSymbolApplication
 }>()
 
 const symbol = ref('BTCUSDT')
@@ -136,18 +139,11 @@ async function calculateIndicator() {
           執行條件
         </h2>
 
-        <FormField
-          label="交易標的"
-          hint="例如 BTCUSDT"
+        <SymbolField
+          v-model="symbol"
+          :trading-symbol-application="tradingSymbolApplication"
           :error-message="messageFor('symbol')"
-        >
-          <AppInput
-            v-model="symbol"
-            type="text"
-            :invalid="Boolean(messageFor('symbol'))"
-            data-testid="symbol-input"
-          />
-        </FormField>
+        />
 
         <FormField
           label="計算根數"

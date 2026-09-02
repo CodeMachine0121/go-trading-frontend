@@ -2,19 +2,23 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 
 // 分子：圖表上方那一排——看哪一檔、看多長、怎麼畫，以及目前每根涵蓋多久。
 // 每根涵蓋多久是唯讀的：它是「正在看多長」推出來的結果，不是使用者能直接選的東西。
-const { presets, activePresetLabel = null, intervalLabel, drawing, loading = false, symbolError = null }
-  = defineProps<{
-    presets: KCandleChartRangePresetDto[]
-    activePresetLabel?: string | null
-    intervalLabel: string
-    drawing: 'candlestick' | 'line'
-    loading?: boolean
-    symbolError?: string | null
-  }>()
+const {
+  tradingSymbolApplication, presets, activePresetLabel = null,
+  intervalLabel, drawing, loading = false, symbolError = null,
+} = defineProps<{
+  tradingSymbolApplication: TradingSymbolApplication
+  presets: KCandleChartRangePresetDto[]
+  activePresetLabel?: string | null
+  intervalLabel: string
+  drawing: 'candlestick' | 'line'
+  loading?: boolean
+  symbolError?: string | null
+}>()
 
 const emit = defineEmits<{
   'selectPreset': [preset: KCandleChartRangePresetDto]
@@ -33,6 +37,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
   <div class="k-candle-chart-toolbar">
     <SymbolField
       v-model="symbol"
+      :trading-symbol-application="tradingSymbolApplication"
       :error-message="symbolError"
       class="k-candle-chart-toolbar__symbol"
     />

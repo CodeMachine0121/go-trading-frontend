@@ -1,11 +1,26 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
+import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
+
+/**
+ * 交易標的清單來自另一個外部資源，只 mock 它的介面。
+ * 預設就給既有那兩檔——這樣既有的測試不會因為多了一份清單而換一檔標的。
+ */
+function buildTradingSymbolApplication(symbols: string[] = ['BTCUSDT', 'ETHUSDT']): TradingSymbolApplication {
+  return new TradingSymbolApplication(new TradingSymbolService({
+    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
+  }))
+}
 
 function mountForm(props: Record<string, unknown> = {}) {
   return mount(KCandleQueryForm, {
     props: {
       symbol: 'BTCUSDT',
+      tradingSymbolApplication: buildTradingSymbolApplication(),
       startTime: '2026-08-29T12:00',
       endTime: '2026-08-30T12:00',
       ...props,
@@ -53,7 +68,7 @@ describe('KCandleQueryForm', () => {
   it('使用者改動輸入時把新值往上送', async () => {
     const wrapper = mountForm()
 
-    await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', 'ETHUSDT')
 
     expect(wrapper.emitted('update:symbol')?.at(-1)).toEqual(['ETHUSDT'])
   })

@@ -4,6 +4,7 @@ import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
@@ -18,7 +19,10 @@ const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線圖表這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
 // 這裡不做任何業務判斷：每根多粗、要不要重新取、取哪一段，全部問 Application。
-const { kCandleChartApplication } = defineProps<{ kCandleChartApplication: KCandleChartApplication }>()
+const { kCandleChartApplication, tradingSymbolApplication } = defineProps<{
+  kCandleChartApplication: KCandleChartApplication
+  tradingSymbolApplication: TradingSymbolApplication
+}>()
 
 const symbol = ref(DEFAULT_SYMBOL)
 const drawing = ref<'candlestick' | 'line'>('candlestick')
@@ -132,6 +136,7 @@ onMounted(() => {
       <KCandleChartToolbar
         v-model:symbol="symbol"
         v-model:drawing="drawing"
+        :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
         :interval-label="intervalLabel"

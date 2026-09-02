@@ -4,7 +4,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
+import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
@@ -38,10 +42,21 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   }
 }
 
+/**
+ * 交易標的清單來自另一個外部資源，只 mock 它的介面。
+ * 預設就給既有那兩檔——這樣既有的測試不會因為多了一份清單而換一檔標的。
+ */
+function buildTradingSymbolApplication(symbols: string[] = ['BTCUSDT', 'ETHUSDT']): TradingSymbolApplication {
+  return new TradingSymbolApplication(new TradingSymbolService({
+    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
+  }))
+}
+
 async function mountPanel(kCandleProxy: IKCandleProxy) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
+      tradingSymbolApplication: buildTradingSymbolApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -130,7 +145,7 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const firstPlan = findKCandleSeries.mock.calls[0]?.[0]
 
-    await wrapper.get('[data-testid="symbol-input"]').setValue('ETHUSDT')
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
@@ -156,7 +171,9 @@ describe('KCandleChartPanel', () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    await wrapper.get('[data-testid="symbol-input"]').setValue('   ')
+    // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
+    // 直接讓欄位交出一個空的標的，驗畫面確實把原因標回欄位旁。
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '   ')
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
@@ -190,6 +207,7 @@ describe('KCandleChartPanel', () => {
       props: {
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
           buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }))),
+        tradingSymbolApplication: buildTradingSymbolApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })

@@ -3,10 +3,12 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
-const { loading = false, symbolError = null, startTimeError = null, endTimeError = null } = defineProps<{
+const { tradingSymbolApplication, loading = false, symbolError = null, startTimeError = null, endTimeError = null } = defineProps<{
+  tradingSymbolApplication: TradingSymbolApplication
   loading?: boolean
   symbolError?: string | null
   startTimeError?: string | null
@@ -27,6 +29,7 @@ const endTime = defineModel<string>('endTime', { required: true })
   >
     <SymbolField
       v-model="symbol"
+      :trading-symbol-application="tradingSymbolApplication"
       :error-message="symbolError"
       class="k-candle-query-form__field"
     />

@@ -1,7 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
+import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -53,11 +57,22 @@ function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
     .querySelector('.cm-content')?.textContent ?? ''
 }
 
+/**
+ * 交易標的清單來自另一個外部資源，只 mock 它的介面。
+ * 預設就給既有那兩檔——這樣既有的測試不會因為多了一份清單而換一檔標的。
+ */
+function buildTradingSymbolApplication(symbols: string[] = ['BTCUSDT', 'ETHUSDT']): TradingSymbolApplication {
+  return new TradingSymbolApplication(new TradingSymbolService({
+    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
+  }))
+}
+
 function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
   return mount(IndicatorCalculationPanel, {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
+      tradingSymbolApplication: buildTradingSymbolApplication(),
     },
   })
 }
@@ -66,7 +81,12 @@ async function fillAndSubmit(
   wrapper: ReturnType<typeof mountPanel>,
   values: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
 ) {
-  await wrapper.get('[data-testid="symbol-input"]').setValue(values.symbol ?? 'BTCUSDT')
+  // 先讓交易標的清單到齊，否則欄位一取回清單就會把不在清單上的那一檔改掉。
+  await flushPromises()
+  // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
+  // 直接讓欄位交出那個值，驗畫面確實照它處理。
+  wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', values.symbol ?? 'BTCUSDT')
+  await wrapper.vm.$nextTick()
   await wrapper.get('[data-testid="candle-count-input"]').setValue(values.candleCount ?? '3')
   if (values.resultType !== undefined) {
     await wrapper.get('[data-testid="result-type-select"]').setValue(values.resultType)
