@@ -30,6 +30,7 @@ function buildKCandle(openTime: string): KCandle {
 function buildProxy(kCandles: KCandle[]): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn().mockResolvedValue(kCandles),
+    findKCandleSeries: vi.fn(),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
