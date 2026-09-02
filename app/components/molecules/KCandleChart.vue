@@ -41,7 +41,17 @@ const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
 const seriesApi = shallowRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null)
 const createSeriesFor = shallowRef<((drawing: KCandleChartDrawing) => void) | null>(null)
+const releaseGestureListeners = shallowRef<(() => void) | null>(null)
 let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
+/**
+ * 上一次區間變動是不是圖自己造成的。
+ *
+ * 繪圖函式庫對**任何**區間變動都會通知，包含 `setData` 與我們自己發出的
+ * `setVisibleRange`。把那些當成使用者拖曳的後果是：剛按下的快捷區間會自己失去反白，
+ * 而且回報的區間會被對齊到真實資料上——資料稀疏時，「看一年」會被對齊成「看一天」，
+ * 於是又推導出五分鐘刻度、再取一次。
+ */
+let selfIssuedRangeChange = false
 
 /**
  * 顏色一律從 token 展開出來的 CSS 變數讀，不在這裡寫死色碼——
@@ -60,6 +70,14 @@ function drawKCandles() {
     return
   }
 
+  // 三種語氣的顏色一次讀完。它們在同一批 K 線之間不會變，
+  // 而一次繪製最多八百根——放在迴圈裡就是對同一個元素做八百次樣式解析。
+  const toneColors = {
+    success: readColor(host, TONE_COLOR_TOKENS.success),
+    danger: readColor(host, TONE_COLOR_TOKENS.danger),
+    neutral: readColor(host, TONE_COLOR_TOKENS.neutral),
+  }
+
   const kCandles = chart === null ? [] : chart.kCandles
   const rows = kCandles.map((kCandle) => {
     const time = (kCandle.openTime.getTime() / 1000) as UTCTimestamp
@@ -68,7 +86,7 @@ function drawKCandles() {
       return { time, value: kCandle.close.toNumber() }
     }
 
-    const toneColor = readColor(host, TONE_COLOR_TOKENS[kCandle.trend.tone])
+    const toneColor = toneColors[kCandle.trend.tone]
 
     return {
       time,
@@ -83,9 +101,22 @@ function drawKCandles() {
   })
 
   series.setData(rows)
+  applyVisibleRange()
+}
 
-  // 換上新的一批之後，把看的位置擺回使用者原本在看的那一段——
-  // 否則畫面會自己跳到別的地方，看起來像圖被抽換掉了。
+/**
+ * 把看的位置擺到外面指定的那一段。
+ *
+ * 這件事必須與「換一批資料」分開，因為它會單獨發生：使用者按下快捷區間、
+ * 或拉遠到被收回上限時，資料可能完全不必換（手上那批就夠了），
+ * 但位置一定要動。少了這一條，按鈕看起來就像壞掉。
+ */
+function applyVisibleRange() {
+  // 圖自己換位置也會回頭說一次「正在看的區間變了」，那不是使用者的動作。
+  // setData 與 setVisibleRange 發出的事件會被下面的等待時間併成同一次，
+  // 所以標記一次就夠——真正的手勢會在事件之前先把這個標記清掉。
+  selfIssuedRangeChange = true
+
   chartApi.value?.timeScale().setVisibleRange({
     from: (visibleStartTime.getTime() / 1000) as UTCTimestamp,
     to: (visibleEndTime.getTime() / 1000) as UTCTimestamp,
@@ -131,9 +162,21 @@ onMounted(async () => {
       : createdChart.addSeries(CandlestickSeries)
   }
 
-  createSeriesFor.value(drawing)
-  drawKCandles()
+  // 真正的手勢一定發生在它造成的區間事件之前，所以在這裡清掉標記，
+  // 就不會有「上一次繪製沒有觸發事件、標記卡著」而吃掉使用者下一次拖曳的情況。
+  const markUserGesture = () => {
+    selfIssuedRangeChange = false
+  }
+  host.addEventListener('wheel', markUserGesture, { passive: true })
+  host.addEventListener('pointerdown', markUserGesture)
+  host.addEventListener('touchstart', markUserGesture, { passive: true })
+  releaseGestureListeners.value = () => {
+    host.removeEventListener('wheel', markUserGesture)
+    host.removeEventListener('pointerdown', markUserGesture)
+    host.removeEventListener('touchstart', markUserGesture)
+  }
 
+  // 先接上通知再畫第一次，這樣連第一次繪製自己造成的區間變動也走得到抑制邏輯。
   createdChart.timeScale().subscribeVisibleTimeRangeChange((range: { from: Time, to: Time } | null) => {
     if (range === null) {
       return
@@ -143,14 +186,27 @@ onMounted(async () => {
       clearTimeout(rangeSettleTimer)
     }
 
-    rangeSettleTimer = setTimeout(() => emit('rangeChange', {
-      startTime: new Date(Number(range.from) * 1000),
-      endTime: new Date(Number(range.to) * 1000),
-    }), RANGE_SETTLE_MILLISECONDS)
+    rangeSettleTimer = setTimeout(() => {
+      if (selfIssuedRangeChange) {
+        selfIssuedRangeChange = false
+        return
+      }
+
+      emit('rangeChange', {
+        startTime: new Date(Number(range.from) * 1000),
+        endTime: new Date(Number(range.to) * 1000),
+      })
+    }, RANGE_SETTLE_MILLISECONDS)
   })
+
+  createSeriesFor.value(drawing)
+  drawKCandles()
 })
 
 watch(() => chart, drawKCandles)
+
+// 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
+watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
 
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
@@ -162,6 +218,9 @@ onBeforeUnmount(() => {
   if (rangeSettleTimer !== null) {
     clearTimeout(rangeSettleTimer)
   }
+
+  releaseGestureListeners.value?.()
+  releaseGestureListeners.value = null
 
   chartApi.value?.remove()
   chartApi.value = null

@@ -13,9 +13,30 @@ import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 const chartLibrary = vi.hoisted(() => {
   const candlestickSeries = { setData: vi.fn(), kind: 'Candlestick' }
   const lineSeries = { setData: vi.fn(), kind: 'Line' }
+
+  // 真的那個函式庫對**任何**區間變動都會回頭通知，包含 setData 與我們自己發出的
+  // setVisibleRange，而且回報的區間會被對齊到真實的 bar 上。替身照做——
+  // 一個什麼都不回呼的替身，正好看不見這個元件最容易出錯的那條路。
+  let notifyRangeChange: ((range: { from: number, to: number } | null) => void) | null = null
+  let lastReported: { from: number, to: number } | null = null
+  // 真的那個函式庫回報的是**真實 bar 的時間**，也就是往內對齊到資料上；
+  // 資料稀疏時，換一段要看的區間可能被對齊回完全相同的位置——那時它一聲都不會吭。
+  let snapEveryRangeTo: { from: number, to: number } | null = null
+
   const timeScale = {
-    subscribeVisibleTimeRangeChange: vi.fn(),
-    setVisibleRange: vi.fn(),
+    subscribeVisibleTimeRangeChange: vi.fn((handler) => {
+      notifyRangeChange = handler
+    }),
+    setVisibleRange: vi.fn((range: { from: number, to: number }) => {
+      const snapped = snapEveryRangeTo ?? range
+      if (lastReported !== null
+        && lastReported.from === snapped.from && lastReported.to === snapped.to) {
+        return
+      }
+
+      lastReported = { ...snapped }
+      notifyRangeChange?.({ ...snapped })
+    }),
   }
   const chartApi = {
     addSeries: vi.fn(),
@@ -24,7 +45,26 @@ const chartLibrary = vi.hoisted(() => {
     remove: vi.fn(),
   }
 
-  return { candlestickSeries, lineSeries, timeScale, chartApi, createChart: vi.fn(() => chartApi) }
+  return {
+    candlestickSeries,
+    lineSeries,
+    timeScale,
+    chartApi,
+    createChart: vi.fn(() => chartApi),
+    /** 讓替身像使用者拖出一段那樣回報一個區間。 */
+    reportRange(range: { from: number, to: number }) {
+      lastReported = range === null ? lastReported : { ...range }
+      notifyRangeChange?.(range)
+    },
+    /** 讓替身把之後每一次要求的區間都對齊到同一個位置（模擬資料稀疏）。 */
+    snapEveryRangeTo(range: { from: number, to: number } | null) {
+      snapEveryRangeTo = range
+    },
+    reset() {
+      lastReported = null
+      snapEveryRangeTo = null
+    },
+  }
 })
 
 vi.mock('lightweight-charts', () => ({
@@ -71,6 +111,7 @@ async function mountChart(chart: KCandleChartDto | null, drawing: 'candlestick' 
 
 beforeEach(() => {
   vi.clearAllMocks()
+  chartLibrary.reset()
   chartLibrary.chartApi.addSeries.mockImplementation(
     (definition: string) => definition === 'LineSeries' ? chartLibrary.lineSeries : chartLibrary.candlestickSeries)
   // 顏色從 token 展開的 CSS 變數讀；測試環境沒有樣式表，因此把讀到的值換成 token 名稱本身，
@@ -151,10 +192,12 @@ describe('KCandleChart', () => {
   it('使用者停手之後才送出一次新的顯示區間', async () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))
-    const notifyRangeChange = chartLibrary.timeScale.subscribeVisibleTimeRangeChange.mock.calls[0]?.[0]
+    // 掛載時自己擺過一次位置，先讓那一次走完
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
 
-    notifyRangeChange({ from: 1788343200, to: 1788350400 })
-    notifyRangeChange({ from: 1788346800, to: 1788350400 })
+    chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
+    chartLibrary.reportRange({ from: 1788346800, to: 1788350400 })
 
     // 手還在動的時候什麼都不說
     vi.advanceTimersByTime(100)
@@ -166,6 +209,44 @@ describe('KCandleChart', () => {
       startTime: new Date('2026-09-02T11:00:00.000Z'),
       endTime: new Date('2026-09-02T12:00:00.000Z'),
     }]])
+  })
+
+  it('圖自己換位置不算使用者拖曳，不送回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDto([]))
+
+    // 掛載時畫了一次、也擺了一次位置，替身照真的那樣回頭通知了
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
+  it('外面換了要看的那一段時，就算資料沒換也把位置移過去', async () => {
+    const wrapper = await mountChart(chartDto([]))
+    chartLibrary.timeScale.setVisibleRange.mockClear()
+
+    await wrapper.setProps({
+      visibleStartTime: new Date('2026-09-02T11:00:00.000Z'),
+      visibleEndTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+
+    expect(chartLibrary.timeScale.setVisibleRange).toHaveBeenCalledWith({
+      from: 1788346800,
+      to: 1788350400,
+    })
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+  })
+
+  it('自己移動位置之後，使用者真的拖曳仍然送得回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDto([]))
+    vi.advanceTimersByTime(300)
+
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('pointerdown'))
+    chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toHaveLength(1)
   })
 
   it('函式庫還沒載完使用者就離開時，不建立圖表', async () => {
@@ -209,21 +290,45 @@ describe('KCandleChart', () => {
   it('手還在動就離開畫面時，不會再送出那一次', async () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))
-    const notifyRangeChange = chartLibrary.timeScale.subscribeVisibleTimeRangeChange.mock.calls[0]?.[0]
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
 
-    notifyRangeChange({ from: 1788343200, to: 1788350400 })
+    chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
     wrapper.unmount()
     vi.advanceTimersByTime(300)
 
     expect(wrapper.emitted('rangeChange')).toBeUndefined()
   })
 
+  it('自己移動位置卻沒有造成任何變化時，使用者的下一次拖曳仍然送得回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDto([]))
+    vi.advanceTimersByTime(300)
+
+    // 換了要看的一段，但被對齊回原本的位置——函式庫因此完全沒有通知
+    chartLibrary.snapEveryRangeTo({ from: 1788343200, to: 1788350400 })
+    await wrapper.setProps({
+      visibleStartTime: new Date('2026-09-02T11:00:00.000Z'),
+      visibleEndTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    vi.advanceTimersByTime(300)
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+
+    chartLibrary.snapEveryRangeTo(null)
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    chartLibrary.reportRange({ from: 1788346800, to: 1788350400 })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toHaveLength(1)
+  })
+
   it('繪圖函式庫說不出正在看哪一段時，什麼都不送出', async () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))
-    const notifyRangeChange = chartLibrary.timeScale.subscribeVisibleTimeRangeChange.mock.calls[0]?.[0]
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
 
-    notifyRangeChange(null)
+    chartLibrary.reportRange(null as unknown as { from: number, to: number })
     vi.advanceTimersByTime(300)
 
     expect(wrapper.emitted('rangeChange')).toBeUndefined()

@@ -10,7 +10,6 @@ import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-app
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
-import { KCandleSeries } from '~/domain/models/entities/k-candle-series'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -30,9 +29,7 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
-    findKCandleSeries: vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', [
-      buildKCandle('2026-09-02T10:00:00.000Z', '110'),
-    ])),
+    findKCandleSeries: vi.fn().mockResolvedValue([buildKCandle('2026-09-02T10:00:00.000Z', '110')]),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
@@ -65,7 +62,7 @@ afterEach(() => {
 describe('KCandleChartPanel', () => {
   it('進入畫面就以最近一天取一次行情，並標示每根涵蓋多久', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(
-      new KCandleSeries('BTCUSDT', '5m', [buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
@@ -86,7 +83,7 @@ describe('KCandleChartPanel', () => {
   })
 
   it('選一個月就以較粗的刻度重新取', async () => {
-    const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '4h', []))
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     await wrapper.findAll('[data-testid="range-preset-button"]')[2]?.trigger('click')
@@ -97,9 +94,50 @@ describe('KCandleChartPanel', () => {
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('四小時')
   })
 
+  it('不必重新取時，仍然把該看的那一段交給圖——按快捷區間不會像壞掉', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    // 先縮到一個仍在已取回範圍內的小段，再按回「一天」
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T10:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await wrapper.findAll('[data-testid="range-preset-button"]')[0]?.trigger('click')
+    await flushPromises()
+
+    // 資料確實不必換
+    expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+    // 但圖一定要被告知回到那一整天
+    expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
+      .toEqual(new Date('2026-09-01T12:00:00.000Z'))
+    expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
+      .toEqual(new Date('2026-09-02T12:00:00.000Z'))
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[0]?.classes())
+      .toContain('app-button--primary')
+  })
+
+  it('拉得太遠時，交給圖的是被收回四百天之後的那一段', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2025-04-20T12:00:00.000Z'),
+      endTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    await flushPromises()
+
+    // 問的是五百天，該看的被收回四百天，結束的那一端不變
+    expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
+      .toEqual(new Date('2025-07-29T12:00:00.000Z'))
+    expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
+      .toEqual(new Date('2026-09-02T12:00:00.000Z'))
+  })
+
   it('使用者在圖上拉出仍落在手上這批之內的一段時，不再去取', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(
-      new KCandleSeries('BTCUSDT', '5m', [buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -114,7 +152,7 @@ describe('KCandleChartPanel', () => {
 
   it('使用者拉出手上這批之外的一段時，重新取', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(
-      new KCandleSeries('BTCUSDT', '5m', [buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -128,8 +166,8 @@ describe('KCandleChartPanel', () => {
 
   it('換交易標的就重新取，正在看的那一段不變', async () => {
     const findKCandleSeries = vi.fn()
-      .mockResolvedValueOnce(new KCandleSeries('BTCUSDT', '5m', []))
-      .mockResolvedValue(new KCandleSeries('ETHUSDT', '5m', []))
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const firstPlan = findKCandleSeries.mock.calls[0]?.[0]
 
@@ -145,7 +183,7 @@ describe('KCandleChartPanel', () => {
 
   it('換畫法不重新取，只改怎麼畫', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(
-      new KCandleSeries('BTCUSDT', '5m', [buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     await wrapper.findAll('[data-testid="drawing-button"]')[1]?.trigger('click')
@@ -156,7 +194,7 @@ describe('KCandleChartPanel', () => {
   })
 
   it('未指定交易標的時不去取，並把原因標在欄位旁', async () => {
-    const findKCandleSeries = vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', []))
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
@@ -170,7 +208,7 @@ describe('KCandleChartPanel', () => {
 
   it('這段區間內沒有任何 K 線時說「查無 K 線」，不畫空白的圖', async () => {
     const wrapper = await mountPanel(buildProxy({
-      findKCandleSeries: vi.fn().mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', [])),
+      findKCandleSeries: vi.fn().mockResolvedValue([]),
     }))
 
     expect(wrapper.get('[data-testid="empty-chart"]').text()).toContain('查無 K 線')
@@ -186,10 +224,8 @@ describe('KCandleChartPanel', () => {
 
   it('取資料進行中時呈現載入中，取回之後就收起來', async () => {
     let releaseRequest: () => void = () => {}
-    const pendingRequest = new Promise<KCandleSeries>((resolve) => {
-      releaseRequest = () => resolve(new KCandleSeries('BTCUSDT', '5m', [
-        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
-      ]))
+    const pendingRequest = new Promise<KCandle[]>((resolve) => {
+      releaseRequest = () => resolve([buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     })
     const wrapper = mount(KCandleChartPanel, {
       props: {
@@ -246,9 +282,7 @@ describe('KCandleChartPanel', () => {
   it('前一次失敗、這一次成功時，先前的錯誤訊息消失', async () => {
     const findKCandleSeries = vi.fn()
       .mockRejectedValueOnce(new BackendUnreachableError('/k-candles/series'))
-      .mockResolvedValue(new KCandleSeries('BTCUSDT', '5m', [
-        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
-      ]))
+      .mockResolvedValue([buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     await wrapper.get('[data-testid="unreachable-alert"] button').trigger('click')
@@ -268,17 +302,13 @@ describe('KCandleChartPanel', () => {
 
   it('慢回來的那一次失敗時，不蓋掉已經畫好的圖', async () => {
     let failSlowRequest: () => void = () => {}
-    const slowRequest = new Promise<KCandleSeries>((_resolve, reject) => {
+    const slowRequest = new Promise<KCandle[]>((_resolve, reject) => {
       failSlowRequest = () => reject(new BackendUnreachableError('/k-candles/series'))
     })
     const findKCandleSeries = vi.fn()
-      .mockResolvedValueOnce(new KCandleSeries('BTCUSDT', '5m', [
-        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
-      ]))
+      .mockResolvedValueOnce([buildKCandle('2026-09-02T10:00:00.000Z', '110')])
       .mockImplementationOnce(() => slowRequest)
-      .mockResolvedValue(new KCandleSeries('BTCUSDT', '1h', [
-        buildKCandle('2026-09-02T10:00:00.000Z', '222'),
-      ]))
+      .mockResolvedValue([buildKCandle('2026-09-02T10:00:00.000Z', '222')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const chartComponent = wrapper.findComponent(KCandleChart)
 
@@ -300,16 +330,14 @@ describe('KCandleChartPanel', () => {
   })
 
   it('慢回來的那一次不覆蓋後送出的結果', async () => {
-    const slowSeries = new KCandleSeries('BTCUSDT', '1d', [buildKCandle('2026-09-02T00:00:00.000Z', '111')])
-    const fastSeries = new KCandleSeries('BTCUSDT', '1h', [buildKCandle('2026-09-02T10:00:00.000Z', '222')])
+    const slowSeries = [buildKCandle('2026-09-02T00:00:00.000Z', '111')]
+    const fastSeries = [buildKCandle('2026-09-02T10:00:00.000Z', '222')]
     let releaseSlowRequest: () => void = () => {}
-    const slowRequest = new Promise<KCandleSeries>((resolve) => {
+    const slowRequest = new Promise<KCandle[]>((resolve) => {
       releaseSlowRequest = () => resolve(slowSeries)
     })
     const findKCandleSeries = vi.fn()
-      .mockResolvedValueOnce(new KCandleSeries('BTCUSDT', '5m', [
-        buildKCandle('2026-09-02T10:00:00.000Z', '110'),
-      ]))
+      .mockResolvedValueOnce([buildKCandle('2026-09-02T10:00:00.000Z', '110')])
       .mockImplementationOnce(() => slowRequest)
       .mockResolvedValue(fastSeries)
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))

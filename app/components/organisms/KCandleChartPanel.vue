@@ -49,9 +49,8 @@ let latestRequestNumber = 0
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
-  visibleStartTime.value = kCandleChartViewportDto.visibleStartTime
-  visibleEndTime.value = kCandleChartViewportDto.visibleEndTime
-
+  // 正在看的那一段等領域回答再設：它可能與這裡問的不一樣（拉太遠會被收回上限），
+  // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
   latestRequestNumber += 1
   const requestNumber = latestRequestNumber
 
@@ -62,11 +61,17 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   backendUnreachable.value = false
 
   try {
-    const loadedChart = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
+    const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
 
-    // null 代表手上那批就夠了——什麼都不必做，尤其不能把圖清掉。
-    if (loadedChart !== null && requestNumber === latestRequestNumber) {
-      chart.value = loadedChart
+    if (requestNumber === latestRequestNumber) {
+      // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
+      visibleStartTime.value = chartView.visibleStartTime
+      visibleEndTime.value = chartView.visibleEndTime
+
+      // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
+      if (chartView.reloadedChart !== null) {
+        chart.value = chartView.reloadedChart
+      }
     }
   }
   catch (error: unknown) {
