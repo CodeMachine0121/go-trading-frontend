@@ -30,7 +30,7 @@ async function settle() {
 /** 從畫面上把算式內容打進去——走的是使用者真正會走的那條路。 */
 async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody: string) {
   await settle()
-  const editor = wrapper.get('[data-testid="code-editor"]').element
+  const editor = wrapper.get('[data-testid="script-body"]').element
   const firstLine = editor.querySelector('.cm-line')
   if (firstLine === null) {
     throw new Error('編輯區還沒準備好')
@@ -39,6 +39,18 @@ async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody
   firstLine.textContent = scriptBody
   editor.querySelector('.cm-content')!.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
+}
+
+/** 讀唯讀外框「寫了什麼」——不含行號欄。 */
+function frameHeaderText(wrapper: ReturnType<typeof mountPanel>): string {
+  return wrapper.get('[data-testid="script-frame-header"]').element
+    .querySelector('.cm-content')?.textContent ?? ''
+}
+
+/** 讀算式內容區「寫了什麼」——不含行號欄。 */
+function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
+  return wrapper.get('[data-testid="script-body"]').element
+    .querySelector('.cm-content')?.textContent ?? ''
 }
 
 function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
@@ -231,7 +243,7 @@ describe('IndicatorCalculationPanel', () => {
     await wrapper.get('[data-testid="example-button"]').trigger('click')
     await settle()
 
-    const editorText = wrapper.get('[data-testid="code-editor"]').text()
+    const editorText = scriptBodyText(wrapper)
     expect(editorText).toContain('均價')
     expect(editorText).not.toContain('func Calculate')
     expect(editorText).not.toContain('package main')
@@ -252,10 +264,12 @@ describe('IndicatorCalculationPanel', () => {
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
   ])('挑了 $resultType，外框就產出 $valueShape', async ({ resultType, valueShape }) => {
     const wrapper = mountPanel(buildProxy())
+    await settle()
 
     await wrapper.get('[data-testid="result-type-select"]').setValue(resultType)
+    await settle()
 
-    expect(wrapper.get('[data-testid="script-frame-header"]').text()).toContain(valueShape)
+    expect(frameHeaderText(wrapper)).toContain(valueShape)
   })
 
   it('切換種類不會弄丟已經寫好的內容', async () => {
@@ -265,8 +279,8 @@ describe('IndicatorCalculationPanel', () => {
     await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
     await settle()
 
-    expect(wrapper.get('[data-testid="script-frame-header"]').text()).toContain('map[string][]bool')
-    expect(wrapper.get('[data-testid="code-editor"]').text()).toContain('sum := 0.0')
+    expect(frameHeaderText(wrapper)).toContain('map[string][]bool')
+    expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
   })
 
   it('沒有特別挑時送出的是一個數字', async () => {
@@ -300,7 +314,7 @@ describe('IndicatorCalculationPanel', () => {
     await wrapper.get('[data-testid="example-button"]').trigger('click')
     await settle()
 
-    expect(wrapper.get('[data-testid="code-editor"]').text()).toContain('map[string][]bool{')
+    expect(scriptBodyText(wrapper)).toContain('map[string][]bool{')
   })
 
   it('一串數字的每個值都看得到，順序不變', async () => {

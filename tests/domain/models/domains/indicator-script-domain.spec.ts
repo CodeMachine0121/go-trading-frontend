@@ -78,6 +78,21 @@ describe('IndicatorScriptDomain', () => {
     expect(assembled).toContain('\tsum := 0.0\n\n\treturn nil')
   })
 
+  it('樣板說得出使用者寫的第一行是整段算式的第幾行', () => {
+    const templateDto = scriptOf('float').toTemplateDto()
+
+    // 外框開頭九行（package、空行、import 三行加頭尾、空行、簽章），內容從第十行開始。
+    expect(templateDto.frameHeaderLineCount).toBe(9)
+    expect(templateDto.bodyStartLineNumber).toBe(10)
+  })
+
+  it('每一種種類的外框行數都一樣，只有簽章那一行不同', () => {
+    const lineCounts = ['float', 'floatList', 'bool', 'boolList']
+      .map(resultType => scriptOf(resultType).toTemplateDto().frameHeaderLineCount)
+
+    expect(lineCounts).toEqual([9, 9, 9, 9])
+  })
+
   it('化成樣板時，外框頭尾與範例內容一次拿齊', () => {
     const templateDto = scriptOf('boolList').toTemplateDto()
 

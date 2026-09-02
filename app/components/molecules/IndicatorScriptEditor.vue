@@ -1,74 +1,163 @@
 <script setup lang="ts">
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
-import FormField from '~/components/molecules/FormField.vue'
 import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 
-// 分子：把唯讀的外框頭、可編輯的算式內容、唯讀的外框尾疊成一段看起來完整的算式。
-// 使用者因此看得到自己寫的東西被放進哪裡，也對得上錯誤訊息裡的行號。
-// 標籤、說明與錯誤訊息沿用 FormField，跟其他欄位長得一樣。
-defineProps<{
+// 分子：一整塊「看起來就是一份 Go 檔案」的編輯區。
+//
+// 唯讀的外框、可編輯的內容、收尾的括號是同一個原子的三份，因此著色、行號欄與字體行高
+// 天生一致，讀起來是一份連續的程式碼，而不是三個上下疊著的元件。行號也是連續的：
+// 外框從第一行開始，內容接在後面——後端說「第 12 行出錯」時，畫面上就是那一行。
+const { scriptTemplate } = defineProps<{
   scriptTemplate: IndicatorScriptTemplateDto
   errorMessage?: string | null
 }>()
 
 const scriptBody = defineModel<string>({ required: true })
+
+const footerLineNumber = computed(
+  () => scriptTemplate.bodyStartLineNumber + scriptBody.value.split('\n').length)
+
+const bodyEditor = useTemplateRef('bodyEditor')
+
+// 整塊留著一份夠大的高度，多出來的空白落在整份檔案的後面（就像編輯器裡的檔尾），
+// 而不是把收尾的括號推得離程式碼老遠。點在那片空白上照樣接著最後一行打字。
+function continueWriting() {
+  bodyEditor.value?.focusAtEnd()
+}
 </script>
 
 <template>
-  <FormField
-    label="指標算式"
-    hint="只要寫進入點裡面那幾行；上下的外框由畫面備妥，會跟著指標值種類變"
-    :error-message="errorMessage"
+  <section
+    class="indicator-script-editor"
+    :class="{ 'indicator-script-editor--invalid': Boolean(errorMessage) }"
   >
-    <div class="indicator-script-editor">
-      <pre
-        class="indicator-script-editor__frame indicator-script-editor__frame--header"
+    <header class="indicator-script-editor__bar">
+      <div class="indicator-script-editor__identity">
+        <span class="indicator-script-editor__filename">indicator.go</span>
+        <span class="indicator-script-editor__hint">
+          只寫進入點裡面那幾行，外框由畫面備妥並跟著指標值種類變
+        </span>
+      </div>
+      <div class="indicator-script-editor__tools">
+        <slot name="toolbar" />
+      </div>
+    </header>
+
+    <div class="indicator-script-editor__file">
+      <AppCodeEditor
+        :model-value="scriptTemplate.frameHeader"
+        class="indicator-script-editor__frame"
+        readonly
         data-testid="script-frame-header"
-      >{{ scriptTemplate.frameHeader }}</pre>
+      />
 
       <AppCodeEditor
+        ref="bodyEditor"
         v-model="scriptBody"
         class="indicator-script-editor__body"
+        data-testid="script-body"
+        indented
+        :start-line-number="scriptTemplate.bodyStartLineNumber"
         :invalid="Boolean(errorMessage)"
       />
 
-      <pre
-        class="indicator-script-editor__frame indicator-script-editor__frame--footer"
+      <AppCodeEditor
+        :model-value="scriptTemplate.frameFooter"
+        class="indicator-script-editor__frame"
+        readonly
+        :start-line-number="footerLineNumber"
         data-testid="script-frame-footer"
-      >{{ scriptTemplate.frameFooter }}</pre>
+      />
+
+      <div
+        class="indicator-script-editor__filler"
+        data-testid="script-filler"
+        @mousedown.prevent="continueWriting"
+      />
     </div>
-  </FormField>
+
+    <p
+      v-if="errorMessage"
+      class="indicator-script-editor__error"
+      data-testid="field-error"
+    >
+      {{ errorMessage }}
+    </p>
+  </section>
 </template>
 
 <style scoped lang="scss">
 .indicator-script-editor {
   display: flex;
   flex-direction: column;
+  border: 1px solid color('border');
+  border-radius: radius('md');
+  background-color: color('surface-raised');
+  overflow: hidden;
 
-  &__frame {
-    margin: 0;
-    border: 1px solid color('border');
-    background-color: color('surface-muted');
-    padding: spacing('xs') spacing('sm');
-    overflow-x: auto;
-    color: color('text-muted');
-    font-size: font-size('sm');
-    font-family: font-family('mono');
-    line-height: line-height('relaxed');
-
-    &--header {
-      border-bottom: none;
-      border-radius: radius('sm') radius('sm') 0 0;
-    }
-
-    &--footer {
-      border-top: none;
-      border-radius: 0 0 radius('sm') radius('sm');
-    }
+  &--invalid {
+    border-color: color('danger');
   }
 
-  &__body :deep(.app-code-editor) {
-    border-radius: 0;
+  &__bar {
+    display: flex;
+    gap: spacing('md');
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid color('border');
+    background-color: color('surface');
+    padding: spacing('xs') spacing('sm');
+  }
+
+  &__identity {
+    display: flex;
+    gap: spacing('sm');
+    align-items: baseline;
+    min-width: 0;
+  }
+
+  &__filename {
+    color: color('text-strong');
+    font-size: font-size('sm');
+    font-family: font-family('mono');
+  }
+
+  &__hint {
+    overflow: hidden;
+    color: color('text-muted');
+    font-size: font-size('xs');
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__tools {
+    display: flex;
+    flex: none;
+    gap: spacing('xs');
+    align-items: center;
+  }
+
+  &__file {
+    display: flex;
+    flex-direction: column;
+
+    // 一塊夠大的編輯區。內容短的時候多出來的高度由 __filler 補在檔尾，
+    // 不是塞進可編輯的那一段——否則收尾的括號會被推得離程式碼老遠。
+    min-height: 26rem;
+  }
+
+  &__filler {
+    flex: 1;
+    cursor: text;
+  }
+
+  &__error {
+    margin: 0;
+    border-top: 1px solid color('border');
+    background-color: color('danger-soft');
+    padding: spacing('2xs') spacing('sm');
+    color: color('danger');
+    font-size: font-size('xs');
   }
 }
 </style>

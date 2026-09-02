@@ -13,4 +13,17 @@ export class IndicatorScriptTemplateDto {
     /** 這個種類可直接執行的範例內容。 */
     public readonly exampleBody: string,
   ) {}
+
+  /** 外框開頭佔掉的行數。 */
+  get frameHeaderLineCount(): number {
+    return this.frameHeader.split('\n').length
+  }
+
+  /**
+   * 使用者寫的第一行，在整段算式裡是第幾行。
+   * 畫面照這個號碼接續編號，後端說「第 12 行出錯」時使用者數得到同一行。
+   */
+  get bodyStartLineNumber(): number {
+    return this.frameHeaderLineCount + 1
+  }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
@@ -18,6 +19,9 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
+//
+// 版面照著「寫程式 → 執行 → 看結果」的順序擺：左邊是那塊夠大的算式編輯區，
+// 右邊是按下去會發生事情的那一欄，結果攤在下面整排。
 const { indicatorCalculationApplication } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
 }>()
@@ -90,19 +94,48 @@ async function calculateIndicator() {
 </script>
 
 <template>
-  <section class="indicator-calculation-panel">
-    <AppAlert
-      tone="info"
-      data-testid="calculation-notice"
-    >
-      計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
-    </AppAlert>
+  <form
+    class="indicator-calculation-panel"
+    @submit.prevent="calculateIndicator"
+  >
+    <div class="indicator-calculation-panel__workbench">
+      <IndicatorScriptEditor
+        v-model="scriptBody"
+        class="indicator-calculation-panel__editor"
+        :script-template="scriptTemplate"
+        :error-message="messageFor('scriptBody')"
+      >
+        <template #toolbar>
+          <AppSelect
+            v-model="resultType"
+            class="indicator-calculation-panel__result-type"
+            data-testid="result-type-select"
+          >
+            <option
+              v-for="resultTypeOption in resultTypeOptions"
+              :key="resultTypeOption.value"
+              :value="resultTypeOption.value"
+            >
+              {{ resultTypeOption.label }}
+            </option>
+          </AppSelect>
+          <AppButton
+            type="button"
+            variant="secondary"
+            size="small"
+            data-testid="example-button"
+            @click="fillExampleScriptBody"
+          >
+            帶入範例內容
+          </AppButton>
+        </template>
+      </IndicatorScriptEditor>
 
-    <form
-      class="indicator-calculation-panel__form"
-      @submit.prevent="calculateIndicator"
-    >
-      <div class="indicator-calculation-panel__conditions">
+      <aside class="indicator-calculation-panel__run">
+        <h2 class="indicator-calculation-panel__run-title">
+          執行條件
+        </h2>
+
         <FormField
           label="交易標的"
           hint="例如 BTCUSDT"
@@ -130,109 +163,83 @@ async function calculateIndicator() {
           />
         </FormField>
 
-        <FormField
-          label="指標值種類"
-          hint="決定算式要回傳什麼形狀，外框跟著變"
-        >
-          <AppSelect
-            v-model="resultType"
-            data-testid="result-type-select"
-          >
-            <option
-              v-for="resultTypeOption in resultTypeOptions"
-              :key="resultTypeOption.value"
-              :value="resultTypeOption.value"
-            >
-              {{ resultTypeOption.label }}
-            </option>
-          </AppSelect>
-        </FormField>
-      </div>
-
-      <IndicatorScriptEditor
-        v-model="scriptBody"
-        :script-template="scriptTemplate"
-        :error-message="messageFor('scriptBody')"
-      />
-
-      <div class="indicator-calculation-panel__actions">
         <AppButton
           type="submit"
+          block
           :disabled="calculating"
           data-testid="calculate-button"
         >
           {{ calculating ? '計算中…' : '執行計算' }}
         </AppButton>
-        <AppButton
-          type="button"
-          variant="ghost"
-          data-testid="example-button"
-          @click="fillExampleScriptBody"
+
+        <p
+          class="indicator-calculation-panel__notice"
+          data-testid="calculation-notice"
         >
-          帶入範例內容
-        </AppButton>
-      </div>
-    </form>
+          計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
+        </p>
 
-    <AppAlert
-      v-if="scriptFailedMessage"
-      tone="danger"
-      data-testid="script-failed-alert"
-    >
-      算式的問題（要改的是算式）：{{ scriptFailedMessage }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="requestRejectedMessage"
-      tone="warning"
-      data-testid="request-rejected-alert"
-    >
-      請求的問題：{{ requestRejectedMessage }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="serverErrorMessage"
-      tone="danger"
-      data-testid="server-error-alert"
-    >
-      後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="calculating"
-          @click="calculateIndicator"
+        <AppAlert
+          v-if="scriptFailedMessage"
+          tone="danger"
+          data-testid="script-failed-alert"
         >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
+          算式的問題（要改的是算式）：{{ scriptFailedMessage }}
+        </AppAlert>
 
-    <AppAlert
-      v-else-if="backendUnreachable"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      連不上後端 go-trading API，請確認它已啟動。
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="calculating"
-          @click="calculateIndicator"
+        <AppAlert
+          v-else-if="requestRejectedMessage"
+          tone="warning"
+          data-testid="request-rejected-alert"
         >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
+          請求的問題：{{ requestRejectedMessage }}
+        </AppAlert>
 
-    <AppAlert
-      v-else-if="calculating"
-      tone="info"
-      data-testid="calculating-alert"
-    >
-      計算中…算式最長可能跑上數十秒。
-    </AppAlert>
+        <AppAlert
+          v-else-if="serverErrorMessage"
+          tone="danger"
+          data-testid="server-error-alert"
+        >
+          後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="calculating"
+              @click="calculateIndicator"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="backendUnreachable"
+          tone="danger"
+          data-testid="unreachable-alert"
+        >
+          連不上後端 go-trading API，請確認它已啟動。
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="calculating"
+              @click="calculateIndicator"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="calculating"
+          tone="info"
+          data-testid="calculating-alert"
+        >
+          計算中…算式最長可能跑上數十秒。
+        </AppAlert>
+      </aside>
+    </div>
 
     <section
       v-if="result"
@@ -246,7 +253,10 @@ async function calculateIndicator() {
           class="indicator-calculation-panel__used-count"
           data-testid="used-candle-count"
         >
-          實際採用 {{ result.usedCandleCount }} 根 · 指標值種類：{{ result.resultTypeLabel }}
+          實際採用 {{ result.usedCandleCount }} 根
+          <AppBadge variant="info">
+            {{ result.resultTypeLabel }}
+          </AppBadge>
         </p>
       </header>
 
@@ -278,7 +288,9 @@ async function calculateIndicator() {
             :key="indicatorValue.name"
             data-testid="indicator-row"
           >
-            <td>{{ indicatorValue.name }}</td>
+            <td class="indicator-calculation-panel__indicator-name">
+              {{ indicatorValue.name }}
+            </td>
             <td>
               <span
                 v-if="indicatorValue.isEmptySeries"
@@ -298,15 +310,16 @@ async function calculateIndicator() {
                   {{ displayValue }}
                 </li>
               </ol>
-              <template v-else>
-                {{ indicatorValue.displayValues[0] }}
-              </template>
+              <span
+                v-else
+                class="indicator-calculation-panel__value"
+              >{{ indicatorValue.displayValues[0] }}</span>
             </td>
           </tr>
         </tbody>
       </table>
     </section>
-  </section>
+  </form>
 </template>
 
 <style scoped lang="scss">
@@ -315,25 +328,51 @@ async function calculateIndicator() {
   flex-direction: column;
   gap: spacing('lg');
 
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('md');
-  }
-
-  &__conditions {
+  // 編輯區要大，執行那一欄夠填就好；窄螢幕就上下疊起來。
+  &__workbench {
     display: grid;
-    gap: spacing('md');
+    gap: spacing('lg');
     grid-template-columns: 1fr;
+    align-items: start;
 
-    @include respond-to('md') {
-      grid-template-columns: 1fr 1fr;
+    @include respond-to('lg') {
+      grid-template-columns: minmax(0, 1fr) 20rem;
     }
   }
 
-  &__actions {
+  &__editor {
+    min-width: 0;
+  }
+
+  &__result-type {
+    width: auto;
+  }
+
+  &__run {
     display: flex;
-    gap: spacing('sm');
+    flex-direction: column;
+    gap: spacing('md');
+
+    @include surface('md');
+
+    @include respond-to('lg') {
+      position: sticky;
+      top: spacing('2xl');
+    }
+  }
+
+  &__run-title {
+    margin: 0;
+    font-size: font-size('md');
+  }
+
+  &__notice {
+    margin: 0;
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
+    color: color('text-muted');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 
   &__result {
@@ -354,38 +393,48 @@ async function calculateIndicator() {
   }
 
   &__used-count {
+    display: flex;
+    gap: spacing('xs');
+    align-items: center;
     margin: 0;
     color: color('text-muted');
     font-size: font-size('sm');
+  }
+
+  &__empty {
+    margin: 0;
+    border: 1px dashed color('border-strong');
+    border-radius: radius('md');
+    padding: spacing('xl');
+    color: color('text-muted');
+    text-align: center;
   }
 
   &__series {
     display: flex;
     flex-wrap: wrap;
     gap: spacing('2xs');
-    margin: 0;
     justify-content: flex-end;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  &__series-item {
+  &__series-item,
+  &__value {
     border-radius: radius('sm');
     background-color: color('surface-muted');
     padding: 0 spacing('2xs');
+    color: color('text-strong');
+    font-family: font-family('mono');
+  }
+
+  &__indicator-name {
+    color: color('text-strong');
   }
 
   &__empty-series {
     color: color('text-muted');
-  }
-
-  &__empty {
-    margin: 0;
-    border: 1px dashed color('border');
-    border-radius: radius('md');
-    padding: spacing('lg');
-    color: color('text-muted');
-    text-align: center;
   }
 
   &__table {
@@ -410,7 +459,18 @@ async function calculateIndicator() {
 
     th {
       background-color: color('surface-muted');
+      color: color('text-muted');
       font-weight: font-weight('medium');
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: font-size('xs');
+    }
+
+    // 指標名稱那一欄只要放得下名字就好，剩下的寬度全部留給值
+    td:first-child {
+      width: 1%;
+      white-space: nowrap;
     }
 
     tbody tr:last-child td {
