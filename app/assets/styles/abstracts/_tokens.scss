@@ -6,25 +6,39 @@
 // 也不得在元件內寫死任何字面值（見 .claude/rules/component-design.md）。
 //
 // 之所以最終落地成 CSS custom property 而不是編譯期常數：token 因此在執行期仍可被覆寫，
-// 未來要加深色主題 / 多品牌換色，只需要覆寫 :root 的變數，不必重新編譯每個元件。
+// 未來要多品牌換色，只需要覆寫 :root 的變數，不必重新編譯每個元件。
+//
+// 本專案是開發者自己在用的操作台，一次只走一個主題：**暗色**。
+// 配色以編輯器的 One Dark 為錨——程式碼區塊用的就是它的底色，
+// 其餘介面沿著同一條色階往下鋪，讓編輯器看起來是這個介面的一部分，而不是貼上去的元件。
 
 $colors: (
-  'background': #f6f7f9,
-  'surface': #fff,
-  'surface-muted': #f1f3f5,
-  'border': #d4d4d8,
-  'border-strong': #a1a1aa,
-  'text': #18181b,
-  'text-muted': #52525b,
-  'text-inverse': #fafafa,
-  'primary': #2563eb,
-  'primary-strong': #1d4ed8,
-  'primary-soft': #dbeafe,
-  'success': #15803d,
-  'danger': #b91c1c,
-  'warning': #b45309,
-  'info': #0369a1,
-  'disabled': #d4d4d8,
+  // 表面色階：由深到淺。深色介面的層次靠「越上層越亮」表達，不靠陰影，
+  // 直接把淺色主題反過來會得到一片糊掉的灰，這條色階就是為了避免那件事。
+  'background': #16181d,      // 頁面底
+  'surface': #1c1f26,         // 面板
+  'surface-muted': #22262e,   // 表頭、唯讀區、內凹的區塊
+  'surface-raised': #282c34,  // 程式碼區——與 One Dark 編輯器同色
+  'border': #2f343d,
+  'border-strong': #3e4451,
+  'text': #c5cad3,
+  'text-strong': #eceff4,     // 標題與需要跳出來的數字
+  'text-muted': #8b93a1,
+  'text-inverse': #16181d,    // 壓在實心色塊上的字
+  'primary': #61afef,
+  'primary-strong': #8cc6f5,  // 深色介面的 hover 是「更亮」，不是更深
+  'primary-soft': #1e2a38,
+  'success': #98c379,
+  'success-soft': #1e2a1f,
+  'danger': #e06c75,
+  'danger-soft': #2f1f22,
+  'warning': #d19a66,
+  'warning-soft': #2e2620,
+  'info': #56b6c2,
+  'info-soft': #1b2a2d,
+  'disabled': #3a3f4b,
+  // 游標刻意是純白而不是文字色：它要在一片程式碼裡一眼找得到
+  'caret': #fff,
 );
 
 $spacings: (
@@ -67,8 +81,9 @@ $radii: (
 );
 
 $shadows: (
-  'sm': 0 1px 2px rgb(24 24 27 / 8%),
-  'md': 0 4px 12px rgb(24 24 27 / 10%),
+  // 深色底上的陰影要夠深才看得出層次，淺色主題那種半透明黑在這裡等於沒有
+  'sm': 0 1px 2px rgb(0 0 0 / 40%),
+  'md': 0 8px 24px rgb(0 0 0 / 45%),
 );
 
 $durations: (
