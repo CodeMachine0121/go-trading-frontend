@@ -18,6 +18,9 @@ import { KCandleApplication } from '~/application/k-candle-application'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import { LiveKCandleApplication } from '~/application/live-k-candle-application'
+import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
+import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
@@ -64,6 +67,12 @@ export default defineNuxtPlugin(() => {
     ),
   )
 
+  // 跟盤是一條持續連著的通道，與其他那些一次問一次答的完全不同——
+  // 所以它有自己的 proxy，而不是塞進取 K 線的那一個。
+  const liveKCandleApplication = new LiveKCandleApplication(
+    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -78,6 +87,7 @@ export default defineNuxtPlugin(() => {
       indicatorCalculationApplication,
       strategyApplication,
       chartIndicatorApplication,
+      liveKCandleApplication,
       timeZoneApplication,
     },
   }

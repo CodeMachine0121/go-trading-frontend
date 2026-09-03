@@ -8,6 +8,7 @@ import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
+import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildStrategyApplication } from '../../fixtures/strategy-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
@@ -45,6 +46,7 @@ async function mountPanel(kCandleProxy: IKCandleProxy) {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication(),
       strategyApplication: buildStrategyApplication(),
       timeZone: buildTimeZone(),
@@ -254,6 +256,7 @@ describe('KCandleChartPanel', () => {
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
           buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }))),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyApplication: buildStrategyApplication(),
         timeZone: buildTimeZone(),

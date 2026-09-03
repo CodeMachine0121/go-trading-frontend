@@ -9,6 +9,7 @@ const {
   $kCandleChartApplication,
   $tradingSymbolApplication,
   $chartIndicatorApplication,
+  $liveKCandleApplication,
   $strategyApplication,
 } = useNuxtApp()
 
@@ -45,6 +46,7 @@ const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth(
       :k-candle-chart-application="$kCandleChartApplication"
       :trading-symbol-application="$tradingSymbolApplication"
       :chart-indicator-application="$chartIndicatorApplication"
+      :live-k-candle-application="$liveKCandleApplication"
       :strategy-application="$strategyApplication"
       :time-zone="selectedTimeZone"
     />
