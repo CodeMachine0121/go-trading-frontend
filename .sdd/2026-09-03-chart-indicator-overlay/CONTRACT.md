@@ -28,7 +28,7 @@
 | AC-02.5 | 一支都沒套用時不發生任何計算 | O-11：計算次數＝0 | `recalculateAll` 走空清單 | 同檔:`一支都沒套用時，換交易標的不發生任何計算` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.1 | 一個數字畫成水平線 | O-12：1 條水平線、值 115、名稱「均價」；曲線為空 | `chart-indicator-domain.ts:toLevelDtos` | `chart-indicator-domain.spec.ts:每個指標名稱一條水平線，帶著它的值`；`KCandleChart.spec.ts:一個數字畫成一條水平線` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.2 | 一串數字畫成曲線，第 n 個值對第 n 根 | O-13：值與起始時間逐一對上；水平線為空 | `chart-indicator-domain.ts:pointsOf` | `chart-indicator-domain.spec.ts:第 n 個值配上第 n 根 K 線的起始時間`；`KCandleChart.spec.ts:一串數字畫成一條曲線` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-03.3 | 值比 K 線少時只畫得出來的那幾點 | O-14：2 個值、3 根 → 2 點，時間為前 2 根 | 同上 | `chart-indicator-domain.spec.ts:值比 K 線少時只畫得出來的那幾點，不補值`、`沒回起始時間時一點都不畫` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-03.3 | 值比 K 線少時靠右對齊 | O-14：2 個值、3 根 → 2 點，時間為**後** 2 根；最後一個值落在最後一根 | 同上 | `chart-indicator-domain.spec.ts:值比 K 線少時靠右對齊——少掉的是最前面那幾根`、`最後一個值永遠落在最後一根 K 線上`、`值比 K 線多時，多出來的那幾個落在頭部之外，不畫` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.4 | 好幾個指標名稱就畫好幾條線 | O-15：2 條線、各有名稱、**顏色不同** | `chart-indicator-domain.ts:drawableLines` | `chart-indicator-domain.spec.ts:一次產出好幾個指標名稱就畫好幾條，且各有各的顏色`；`KCandleChartPanelIndicators.spec.ts:一支畫出兩條線時兩條都列出來` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.5 | 是非類型挑不到 | O-16：選項被停用且標明畫不成線 | `StrategyDto.drawableOnChart` + `ChartIndicatorPanel.vue` | `KCandleChartPanelIndicators.spec.ts:是非類型的策略列得出來但挑不到` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.6 | 一個指標名稱都沒產出不是失敗 | O-17：兩份清單都空、**沒有**失敗說明 | `ChartIndicatorDto.drawsNothing` | `chart-indicator-domain.spec.ts:一個指標名稱都沒有時兩份清單都是空的`；`KCandleChartPanelIndicators.spec.ts:算完但一個指標都沒有時明說，而不是當成失敗` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -55,7 +55,7 @@
 | BR-4 | 重算的觸發沿用既有的「要不要重新取」 | 由 AC-02.2～02.4 覆蓋 ✅ |
 | BR-5 | 每一支各自成敗，並收掉上一輪的線 | 由 AC-05.4／05.6 覆蓋 ✅ |
 | BR-6 | 顏色身分＝策略＋指標名稱；挑過的優先於避開重複 | 由 AC-04.3／04.6 覆蓋 ✅ |
-| BR-7 | 一串數字以「這次讀了哪幾根」對位 | 由 AC-03.2／03.3 覆蓋 ✅ |
+| BR-7 | 一串數字以「這次讀了哪幾根」**靠右**對位 | 由 AC-03.2／03.3 覆蓋 ✅ |
 | BR-8 | 一個指標名稱都沒產出是成功 | 由 AC-03.6 覆蓋 ✅ |
 
 ---
@@ -98,3 +98,21 @@ Conformance: 100%
 **突變測試**：十一個針對本切片新規則的突變，第一輪有一個倖存
 （「是非也被當成線畫」——原測試只涵蓋一個是非，沒涵蓋一串是非，
 而後者會產出一條零點的幽靈線）。補測試後全部被殺，無倖存者。
+
+---
+
+## 4. 覆核後的修正（2026-09-03）
+
+這份矩陣寫完之後又做了一次程式碼覆核，抓到五件測試與矩陣都沒問到的事。
+它們都不是「條款寫錯」，而是**條款沒問到的那一格**——所以修的是程式，同時補上會紅的測試。
+
+| # | 問題 | 為什麼矩陣當時沒抓到 | 處置 |
+|---|---|---|---|
+| 1 | 正在算的時候移除它，結果回來又把線加回圖上 | AC-01.4（移除只移除它）只描述「已經算完」的狀態，沒有「正在算」這個時間差 | 每一支各自記「這是第幾次要求」，移除時把號碼往前推；不是最新的那一次回來就丟掉 |
+| 2 | BTC→ETH→BTC 時，慢回來的 ETH 蓋掉較新的 BTC | AC-02.2 只說「重算一次」，沒說回應可能亂序 | 同上一套機制。圖表本身早就有同一個機制，理由一模一樣 |
+| 3 | 同時算好幾支時，全部拿到第一個顏色 | AC-04.1 的情境是「連續套用三支」，逐一送出時成立；上一輪全部失敗後的重算是同時送出，不成立 | 重算改成一支一支來，讓配色變成確定的 |
+| 4 | 一串數字靠左對齊，滾動窗口的指標整條往左位移一個窗口 | **AC-03.3 當時就是這樣簽的**——是驗收條件本身漏想了「少掉的是哪一端」 | 改成靠右對齊，BRIEF／PRD／ARCH／UL-MAP 一併更新（見上表 AC-03.3） |
+| 5 | 取行情失敗時，上一批的線留在一張空圖上 | AC-05.6 講的是「某一支重算失敗」，這裡是**圖整批取不到**，兩者不同 | 圖沒了就把線收掉，已套用的清單留著等圖回來重算 |
+
+第 4 項動到已經簽下去的驗收條件，是使用者當面授權的（「修到好」）。
+其餘四項都在既有條款的空隙裡，沒有改動任何一條原有條款的語意。

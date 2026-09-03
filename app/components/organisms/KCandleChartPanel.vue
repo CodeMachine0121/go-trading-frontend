@@ -124,6 +124,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
 
     chart.value = null
+    // 圖沒了，上一批算出來的線也不能留——它們畫的是另一段行情，
+    // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
+    chartIndicators.clearLines()
   }
   finally {
     if (requestNumber === latestRequestNumber) {
