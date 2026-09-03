@@ -57,10 +57,7 @@ const scriptTemplate = computed(
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
   () => new StrategyContentDto(
-    scriptBody.value,
-    resultType.value as StrategyContentDto['resultType'],
-    aggregationInterval.value as StrategyContentDto['aggregationInterval'],
-    Number(candleCount.value)),
+    scriptBody.value, resultType.value, aggregationInterval.value, Number(candleCount.value)),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType

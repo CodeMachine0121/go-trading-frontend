@@ -6,7 +6,7 @@ import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dt
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
+import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
 
 /**
  * Domain Service：策略的編排。
@@ -60,6 +60,6 @@ export class StrategyService {
 
   /** 沒特別挑時是哪一種。畫面不自己指定預設值。 */
   defaultAggregationInterval(): AggregationIntervalValue {
-    return AGGREGATION_INTERVALS[0].value
+    return FINEST_AGGREGATION_INTERVAL.value
   }
 }

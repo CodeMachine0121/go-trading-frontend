@@ -220,7 +220,6 @@ export function useStrategyLibrary(
     closeDialog,
     selectStrategy,
     confirmDiscard,
-    loadStrategy,
     saveStrategy,
     openNameDialog,
     createStrategy,

@@ -69,7 +69,7 @@
 | `domains.StrategyDomain` | Domain Model | 一支策略對畫面的樣子：把完整算式**拆回內容**，並說明外框認不認得出來 | `IndicatorScriptDomain`、`StrategyDto` | 載入時拿掉外框／縮排原樣／認不出外框整段原樣帶入 |
 | `domains.StrategyWriteDomain` | Domain Model | 存檔前的不變式：名稱去空白後非空；**內容包回外框**成為要送出的完整算式。名稱長度**不檢查**——那是後端的規則 | `IndicatorScriptDomain`、`StrategyWriteDto` | 名稱沒填／一趟來回不長不掉 |
 | `domains.StrategyDraftDomain` | Domain Model | 只回答一個問題：畫面上的四樣東西與載入當下的那一份**是不是同一份**。沒有載入過任何一支時，只要內容非空就算有東西可弄丟 | `StrategyContentDto` | 有未儲存變更時先確認／沒改過就不問／沒有使用中策略但已寫了東西 |
-| `dto.StrategyContentDto` | DTO | **四樣東西的唯一形狀**。載入帶進畫面、存檔送出去、比對有沒有改過，三處共用同一個型別 | — | （幾乎全部） |
+| `dto.StrategyContentDto` | DTO | **四樣東西的唯一形狀**。載入帶進畫面、存檔送出去、比對有沒有改過，三處共用同一個型別。種類與刻度收字串而非窄型別——這個形狀是雙向的，畫面上的選單天生交出字串，硬要窄型別只會在畫面上多一個編譯器檢查不了的斷言；把關由 domain 負責 | — | （幾乎全部） |
 | `dto.StrategyDto` | DTO | 一支策略離開 domain 的形狀：識別碼、名稱、`StrategyContentDto`、`frameRecognised` | `StrategyContentDto` | 挑策略全部帶入／清單依名稱排列 |
 | `dto.StrategyWriteDto` | DTO | 存檔輸入：名稱＋`StrategyContentDto`＋可選識別碼。**識別碼有無決定是更新還是新增** | `StrategyContentDto` | 儲存存回那一支／沒有使用中時等同另存 |
 | `dto.AggregationIntervalOptionDto` | DTO | 彙總刻度選單的一個選項（代號＋中文） | — | 挑刻度／沒挑就是五分鐘 |
@@ -201,6 +201,9 @@ StrategyPicker 選了一支
 - **How to add it:** 在 `IndicatorCalculationRequestDto` 收下 `StrategyContentDto`
   （而不是四個散裝參數），再讓計算那條路徑讀它的刻度。策略庫這些檔案不必動。
 - **Patterns applied & why:**
+  - **「預設是最細的那一種」有名字**（`FINEST_AGGREGATION_INTERVAL`）——
+    原本 domain model 與 domain service 各自寫了一次 `AGGREGATION_INTERVALS[0]`，
+    等於同一條規則有兩個地方要記得。
   - **一種形狀四處共用**（`StrategyContentDto`）——「有沒有改過」因此是兩個同型別物件的比對，
     而不是四個欄位的手工對照；漏比一個欄位就會弄丟使用者的東西，那是本切片最嚴重的失敗。
   - **往返成對**（`assemble` / `disassemble` 同檔）——外框的知識只有一個家。

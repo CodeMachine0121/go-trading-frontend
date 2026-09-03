@@ -4,10 +4,7 @@ import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-
-/** 沒認出來的彙總刻度退回這一個——與後端「未指定視為五分鐘」的規則一致。 */
-const DEFAULT_AGGREGATION_INTERVAL = AGGREGATION_INTERVALS[0]
+import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
 
 /**
  * Domain Model：一支已存策略對畫面的樣子。
@@ -44,6 +41,6 @@ export class StrategyDomain {
     const matched = AGGREGATION_INTERVALS.find(
       interval => interval.value === this.strategy.aggregationInterval)
 
-    return (matched ?? DEFAULT_AGGREGATION_INTERVAL).value
+    return (matched ?? FINEST_AGGREGATION_INTERVAL).value
   }
 }
