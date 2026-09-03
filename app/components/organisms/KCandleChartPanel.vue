@@ -78,6 +78,12 @@ const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.
 const liveUpdateStalled = ref(false)
 /** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
 let stopFollowing: (() => void) | null = null
+/**
+ * 這是第幾次跟盤。回呼是個閉包，它可能比自己的訂閱活得更久——
+ * 只認自己那一次的號碼，就不必假設「停止」在每一種情況下都立刻生效。
+ * 圖表與指標各自也有同一套，理由一模一樣。
+ */
+let followGeneration = 0
 
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   // 正在看的那一段等領域回答再設：它可能與這裡問的不一樣（拉太遠會被收回上限），
@@ -139,7 +145,13 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
 
     chart.value = null
-    // 圖沒了，上一批算出來的線也不能留——它們畫的是另一段行情，
+    // 圖沒了，跟盤也得停。留著它，上一檔的下一則更新就會把圖「復活」——
+    // 而畫面上同時還顯示著取行情失敗，看到的人會以為那張圖是這一檔的。
+    stopFollowing?.()
+    stopFollowing = null
+    followGeneration += 1
+    liveUpdateStalled.value = false
+    // 上一批算出來的線也不能留——它們畫的是另一段行情，
     // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
     chartIndicators.clearLines()
   }
@@ -156,9 +168,16 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
  */
 function followTheMarket(followedChart: KCandleChartDto) {
   stopFollowing?.()
+  followGeneration += 1
+  const generation = followGeneration
 
   stopFollowing = liveKCandleApplication.followKCandles(
     followedChart.symbol, followedChart, (report) => {
+      // 已經不是這一次在跟了：這一則講的是上一檔的行情。
+      if (generation !== followGeneration) {
+        return
+      }
+
       // 跟不動了：明說，但圖照樣顯示手上有的——停的是「即時」，不是「圖表」。
       liveUpdateStalled.value = report.isStalled
       if (report.isStalled) {
@@ -177,6 +196,7 @@ function followTheMarket(followedChart: KCandleChartDto) {
 
 onBeforeUnmount(() => {
   stopFollowing?.()
+  followGeneration += 1
   chartIndicators.stopSettling()
 })
 

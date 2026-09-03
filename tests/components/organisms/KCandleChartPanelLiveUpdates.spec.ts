@@ -15,6 +15,7 @@ import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-app
 import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 const CURRENT_TIME = new Date('2026-09-03T12:00:00.000Z')
@@ -62,14 +63,17 @@ function controllableFeed() {
   return { followKCandles, report, stopped, followerCount: () => listeners.length }
 }
 
-async function mountPanel(feed: ReturnType<typeof controllableFeed>) {
+async function mountPanel(
+  feed: ReturnType<typeof controllableFeed>,
+  kCandleProxy: Partial<IKCandleProxy> = {},
+) {
   const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
 
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(
-        new KCandleChartService(buildKCandleProxy())),
+        new KCandleChartService({ ...buildKCandleProxy(), ...kCandleProxy })),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication(
         { followKCandles: feed.followKCandles }),
@@ -147,6 +151,28 @@ describe('圖跟著市場走', () => {
     wrapper.unmount()
 
     expect(feed.stopped.count).toBe(1)
+  })
+})
+
+describe('取行情失敗之後', () => {
+  it('不再跟上一檔的市場，圖也不會被它復活', async () => {
+    // 留著跟盤，上一檔的下一則更新就會把圖畫回來——而畫面上同時說著取行情失敗。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {
+      findKCandleSeries: vi.fn()
+        .mockResolvedValueOnce([buildKCandle('2026-09-03T11:55:00.000Z', '110')])
+        .mockRejectedValue(new BackendServerError('後端出錯了')),
+    })
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    expect(feed.stopped.count).toBe(1)
+
+    feed.report('forming', '118')
+    await flushPromises()
+
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(false)
+    expect(wrapper.find('[data-testid="server-error-alert"]').exists()).toBe(true)
   })
 })
 
