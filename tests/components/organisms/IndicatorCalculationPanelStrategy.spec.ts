@@ -52,6 +52,15 @@ function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
     .querySelector('.cm-content')?.textContent ?? ''
 }
 
+/** 按下刪除確認裡那一顆真正的刪除鈕——與清單上那幾顆同名，靠樣式變體分辨。 */
+async function confirmDelete(wrapper: ReturnType<typeof mountPanel>) {
+  const confirmButtons = wrapper.findAll('button')
+    .filter(button => button.text() === '刪除' && button.classes().includes('app-button--danger'))
+  expect(confirmButtons).toHaveLength(1)
+  await confirmButtons[0]!.trigger('click')
+  await settle()
+}
+
 async function pickStrategy(wrapper: ReturnType<typeof mountPanel>, id: number) {
   await wrapper.get('[data-testid="strategy-picker-select"]').setValue(String(id))
   await settle()
@@ -164,6 +173,24 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
     expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
   })
 
+  it('載入了一支又改過它，再挑另一支時要問', async () => {
+    // US-02 真正的主線：手上已經有一支、也已經動過它。前面幾個案例都是「還沒載入過」。
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([
+        buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+        buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+      ]),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await typeScriptBody(wrapper, '我改過的東西')
+
+    await pickStrategy(wrapper, 8)
+
+    expect(wrapper.text()).toContain('放棄尚未儲存的變更')
+    expect(scriptBodyText(wrapper)).toContain('我改過的東西')
+  })
+
   it('載入之後一個字都沒改，再挑另一支不再問', async () => {
     const wrapper = mountPanel({
       listStrategies: vi.fn().mockResolvedValue([
@@ -237,6 +264,28 @@ describe('指標計算畫面上的策略：存回去', () => {
     await settle()
     expect(updateStrategy).toHaveBeenCalledOnce()
     expect(createStrategy).toHaveBeenCalledOnce()
+  })
+
+  it('從既有的一支另存出新的一支，原本那一支不受影響', async () => {
+    const createStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(8, '二十根均線 v2'))
+    const updateStrategy = vi.fn()
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      createStrategy,
+      updateStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await typeScriptBody(wrapper, '衍生出來的東西')
+    await wrapper.get('[data-testid="save-as-strategy-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('二十根均線 v2')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    // 建立了新的一支，而且**沒有**去改寫原本那一支。
+    expect(createStrategy).toHaveBeenCalledOnce()
+    expect(updateStrategy).not.toHaveBeenCalled()
   })
 
   it('存完之後就不再算有未儲存的變更', async () => {
@@ -353,6 +402,64 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
     expect(deleteStrategy).not.toHaveBeenCalled()
   })
 
+  it('確認刪除之後那一支就從清單上消失', async () => {
+    const listStrategies = vi.fn()
+      .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')])
+      .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')])
+      .mockResolvedValue([buildStoredStrategy(8, '六十根均線')])
+    const wrapper = mountPanel({ listStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined) })
+    await settle()
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-library-delete-7"]').trigger('click')
+    await settle()
+
+    await confirmDelete(wrapper)
+
+    const rows = wrapper.findAll('[data-testid="strategy-library-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.text()).toContain('六十根均線')
+  })
+
+  it('刪掉別的那一支時，正在用的那一支完全不受影響', async () => {
+    const listStrategies = vi.fn()
+      .mockResolvedValue([
+        buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+        buildStoredStrategy(8, '六十根均線'),
+      ])
+    const wrapper = mountPanel({ listStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined) })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-library-delete-8"]').trigger('click')
+    await settle()
+
+    await confirmDelete(wrapper)
+
+    // 內容留著，而且「正在用第 7 支」這個關聯也還在——只有刪到自己時才該解除。
+    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-picker-select"]').element.value)
+      .toBe('7')
+  })
+
+  it('刪除時連不上後端，那一支仍在清單上並說明連不上', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      deleteStrategy: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
+    })
+    await settle()
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-library-delete-7"]').trigger('click')
+    await settle()
+
+    await confirmDelete(wrapper)
+
+    expect(wrapper.findAll('[data-testid="strategy-library-row"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="strategy-error"]').text()).toContain('連不上後端')
+  })
+
   it('刪掉正在用的那一支時，編輯區留著，之後儲存變成先問名字', async () => {
     const wrapper = mountPanel({
       listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
@@ -365,11 +472,7 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
     await wrapper.get('[data-testid="strategy-library-delete-7"]').trigger('click')
     await settle()
 
-    const confirmButtons = wrapper.findAll('button')
-      .filter(button => button.text() === '刪除' && button.classes().includes('app-button--danger'))
-    expect(confirmButtons).toHaveLength(1)
-    await confirmButtons[0]!.trigger('click')
-    await settle()
+    await confirmDelete(wrapper)
 
     // 編輯區的內容留著不動——使用者的工作不能被另一個動作弄丟。
     expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
