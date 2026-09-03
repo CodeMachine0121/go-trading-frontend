@@ -9,6 +9,7 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
+import KCandleFieldReference from '~/components/molecules/KCandleFieldReference.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
 import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
@@ -68,6 +69,8 @@ const aggregationInterval = ref<string>(blankStrategyContent.aggregationInterval
 const aggregationIntervalOptions = strategyApplication.listAggregationIntervalOptions()
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
+// 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
+const kCandleFields = indicatorCalculationApplication.listKCandleFields()
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
@@ -262,124 +265,130 @@ async function calculateIndicator() {
         </template>
       </IndicatorScriptEditor>
 
-      <AppPanel
-        title="執行條件"
-        class="indicator-calculation-panel__run"
-      >
-        <SymbolField
-          v-model="symbol"
-          :trading-symbol-application="tradingSymbolApplication"
-          :error-message="messageFor('symbol')"
-        />
-
-        <FormField
-          label="計算根數"
-          hint="要餵給算式的 K 線根數"
-          :error-message="messageFor('candleCount')"
+      <!-- 右欄裝兩塊：按下去會發生事情的那一欄，加上寫算式時要查的那一份說明。 -->
+      <div class="indicator-calculation-panel__side">
+        <AppPanel
+          title="執行條件"
+          class="indicator-calculation-panel__run"
         >
-          <AppInput
-            v-model="candleCount"
-            type="text"
-            inputmode="numeric"
-            :invalid="Boolean(messageFor('candleCount'))"
-            data-testid="candle-count-input"
+          <SymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            :error-message="messageFor('symbol')"
           />
-        </FormField>
 
-        <FormField
-          label="彙總刻度"
-          hint="這支策略要吃多粗的 K 線。目前計算仍以五分鐘執行，記下來是為了下一版生效時不必回頭一支一支改。"
-        >
-          <AppSelect
-            v-model="aggregationInterval"
-            data-testid="aggregation-interval-select"
+          <FormField
+            label="計算根數"
+            hint="要餵給算式的 K 線根數"
+            :error-message="messageFor('candleCount')"
           >
-            <option
-              v-for="intervalOption in aggregationIntervalOptions"
-              :key="intervalOption.value"
-              :value="intervalOption.value"
+            <AppInput
+              v-model="candleCount"
+              type="text"
+              inputmode="numeric"
+              :invalid="Boolean(messageFor('candleCount'))"
+              data-testid="candle-count-input"
+            />
+          </FormField>
+
+          <FormField
+            label="彙總刻度"
+            hint="這支策略要吃多粗的 K 線。目前計算仍以五分鐘執行，記下來是為了下一版生效時不必回頭一支一支改。"
+          >
+            <AppSelect
+              v-model="aggregationInterval"
+              data-testid="aggregation-interval-select"
             >
-              {{ intervalOption.label }}
-            </option>
-          </AppSelect>
-        </FormField>
+              <option
+                v-for="intervalOption in aggregationIntervalOptions"
+                :key="intervalOption.value"
+                :value="intervalOption.value"
+              >
+                {{ intervalOption.label }}
+              </option>
+            </AppSelect>
+          </FormField>
 
-        <AppButton
-          type="submit"
-          block
-          :disabled="calculating"
-          data-testid="calculate-button"
-        >
-          {{ calculating ? '計算中…' : '執行計算' }}
-        </AppButton>
+          <AppButton
+            type="submit"
+            block
+            :disabled="calculating"
+            data-testid="calculate-button"
+          >
+            {{ calculating ? '計算中…' : '執行計算' }}
+          </AppButton>
 
-        <p
-          class="indicator-calculation-panel__notice"
-          data-testid="calculation-notice"
-        >
-          計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
-        </p>
+          <p
+            class="indicator-calculation-panel__notice"
+            data-testid="calculation-notice"
+          >
+            計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
+          </p>
 
-        <AppAlert
-          v-if="scriptFailedMessage"
-          tone="danger"
-          data-testid="script-failed-alert"
-        >
-          算式的問題（要改的是算式）：{{ scriptFailedMessage }}
-        </AppAlert>
+          <AppAlert
+            v-if="scriptFailedMessage"
+            tone="danger"
+            data-testid="script-failed-alert"
+          >
+            算式的問題（要改的是算式）：{{ scriptFailedMessage }}
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="requestRejectedMessage"
-          tone="warning"
-          data-testid="request-rejected-alert"
-        >
-          請求的問題：{{ requestRejectedMessage }}
-        </AppAlert>
+          <AppAlert
+            v-else-if="requestRejectedMessage"
+            tone="warning"
+            data-testid="request-rejected-alert"
+          >
+            請求的問題：{{ requestRejectedMessage }}
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="serverErrorMessage"
-          tone="danger"
-          data-testid="server-error-alert"
-        >
-          後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
-          <template #action>
-            <AppButton
-              variant="secondary"
-              size="small"
-              :disabled="calculating"
-              @click="calculateIndicator"
-            >
-              重試
-            </AppButton>
-          </template>
-        </AppAlert>
+          <AppAlert
+            v-else-if="serverErrorMessage"
+            tone="danger"
+            data-testid="server-error-alert"
+          >
+            後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
+            <template #action>
+              <AppButton
+                variant="secondary"
+                size="small"
+                :disabled="calculating"
+                @click="calculateIndicator"
+              >
+                重試
+              </AppButton>
+            </template>
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="backendUnreachable"
-          tone="danger"
-          data-testid="unreachable-alert"
-        >
-          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-          <template #action>
-            <AppButton
-              variant="secondary"
-              size="small"
-              :disabled="calculating"
-              @click="calculateIndicator"
-            >
-              重試
-            </AppButton>
-          </template>
-        </AppAlert>
+          <AppAlert
+            v-else-if="backendUnreachable"
+            tone="danger"
+            data-testid="unreachable-alert"
+          >
+            連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+            <template #action>
+              <AppButton
+                variant="secondary"
+                size="small"
+                :disabled="calculating"
+                @click="calculateIndicator"
+              >
+                重試
+              </AppButton>
+            </template>
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="calculating"
-          tone="info"
-          data-testid="calculating-alert"
-        >
-          計算中…算式最長可能跑上數十秒。
-        </AppAlert>
-      </AppPanel>
+          <AppAlert
+            v-else-if="calculating"
+            tone="info"
+            data-testid="calculating-alert"
+          >
+            計算中…算式最長可能跑上數十秒。
+          </AppAlert>
+        </AppPanel>
+
+        <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它擺在編輯區旁邊。 -->
+        <KCandleFieldReference :fields="kCandleFields" />
+      </div>
     </div>
 
     <AppPanel
@@ -548,9 +557,19 @@ async function calculateIndicator() {
     min-height: 0;
 
     @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1fr) 19rem;
+      // 右欄放得下最長的那個欄位名（TakerBuyQuoteVolume）而不必折行。
+      grid-template-columns: minmax(0, 1fr) 21rem;
       align-items: stretch;
     }
+  }
+
+  // 右欄裝兩塊：執行條件在上、K 線欄位說明在下，一起在自己的框裡捲。
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    min-height: 0;
+    overflow-y: auto;
   }
 
   &__editor {
@@ -562,9 +581,7 @@ async function calculateIndicator() {
   }
 
   &__run {
-    // 執行條件那一欄要能自己捲：條件之外還會長出四種失敗訊息，
-    // 讓它把整個工作台頂長的話，編輯區就會被推出視窗外。
-    overflow-y: auto;
+    flex: none;
   }
 
   &__notice {

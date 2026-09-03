@@ -75,6 +75,7 @@
 | 查到送出當下 | [`.sdd/2026-09-03-k-candle-search-until-now/`](.sdd/2026-09-03-k-candle-search-until-now/) |
 | 策略庫 | [`.sdd/2026-09-03-strategy-library/`](.sdd/2026-09-03-strategy-library/) |
 | 開一份新的空白策略 | [`.sdd/2026-09-03-blank-strategy-draft/`](.sdd/2026-09-03-blank-strategy-draft/) |
+| 算式收到的 K 線有哪些欄位 | [`.sdd/2026-09-03-k-candle-field-reference/`](.sdd/2026-09-03-k-candle-field-reference/) |
 
 共用的詞彙與專案前提在 [`.sdd/UL-MAP.md`](.sdd/UL-MAP.md) 與 [`.sdd/PROJECT.md`](.sdd/PROJECT.md)。
 每個切片的 `CONTRACT.md` 是驗收情境與程式碼的符合性稽核矩陣——它記錄的是
