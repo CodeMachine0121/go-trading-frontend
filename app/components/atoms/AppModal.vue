@@ -11,11 +11,10 @@ const emit = defineEmits<{ close: [] }>()
 
 // Esc 關掉是對話框的基本禮貌，但它是全域鍵盤事件——只在開著的時候聽，
 // 否則三個對話框會同時搶同一個按鍵。
+//
+// 這兩段都不必防伺服器端：watcher 只在 props 變動時跑、onBeforeUnmount 只在拆掉時跑，
+// 而伺服器端只渲染一次，兩件事都不會發生。
 watch(() => open, (isOpen) => {
-  if (import.meta.server) {
-    return
-  }
-
   if (isOpen) {
     document.addEventListener('keydown', closeOnEscape)
   }
@@ -24,10 +23,9 @@ watch(() => open, (isOpen) => {
   }
 })
 
+// 沒有這一段的話，開著的時候被拆掉就會留下一個對著已消失元件喊話的監聽器。
 onBeforeUnmount(() => {
-  if (import.meta.client) {
-    document.removeEventListener('keydown', closeOnEscape)
-  }
+  document.removeEventListener('keydown', closeOnEscape)
 })
 
 function closeOnEscape(event: KeyboardEvent) {

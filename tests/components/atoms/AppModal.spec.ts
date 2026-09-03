@@ -69,6 +69,16 @@ describe('AppModal', () => {
     expect(wrapper.emitted('close')).toBeUndefined()
   })
 
+  it('開著的時候被拆掉，留下的監聽器也一起收掉', async () => {
+    const wrapper = mount(AppModal, { props: { open: false, title: 'x' }, attachTo: document.body })
+    await wrapper.setProps({ open: true })
+
+    wrapper.unmount()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
   it('按其他鍵不關閉', async () => {
     const wrapper = mount(AppModal, { props: { open: false, title: 'x' }, attachTo: document.body })
     await wrapper.setProps({ open: true })
