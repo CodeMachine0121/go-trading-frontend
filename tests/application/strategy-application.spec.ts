@@ -189,4 +189,10 @@ describe('StrategyApplication 的彙總刻度選項', () => {
 
     expect(strategyApplication.defaultAggregationInterval()).toBe('5m')
   })
+
+  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
+    const strategyApplication = buildApplication({})
+
+    expect(strategyApplication.defaultCandleCount()).toBe(20)
+  })
 })

@@ -40,20 +40,44 @@ const { indicatorCalculationApplication, strategyApplication, tradingSymbolAppli
     tradingSymbolApplication: TradingSymbolApplication
   }>()
 
+/**
+ * 一份空白的策略內容——「空白長什麼樣」在這個畫面上只有這一個定義。
+ *
+ * 第一次進入畫面時是它，按下「新的空白策略」時也是它。各寫一份的話，
+ * 哪天預設的彙總刻度改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
+ */
+const blankStrategyContent = new StrategyContentDto(
+  '',
+  indicatorCalculationApplication.defaultResultType(),
+  strategyApplication.defaultAggregationInterval(),
+  strategyApplication.defaultCandleCount(),
+)
+
+// 交易標的不是策略記著的東西（同一支策略要能套用在不同市場上），
+// 所以它不在那份空白裡，開一份新稿子也不會把它換掉。
 const symbol = ref('BTCUSDT')
-const candleCount = ref('20')
-const scriptBody = ref('')
+
+const scriptBody = ref(blankStrategyContent.scriptBody)
+const candleCount = ref(String(blankStrategyContent.candleCount))
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
-const resultType = ref<string>(indicatorCalculationApplication.defaultResultType())
+const resultType = ref<string>(blankStrategyContent.resultType)
 
 // 彙總刻度目前只被記進策略，計算還沒理它——畫面上必須說出來，
 // 否則使用者會以為自己已經在用一小時的 K 線算指標。
-const aggregationInterval = ref<string>(strategyApplication.defaultAggregationInterval())
+const aggregationInterval = ref<string>(blankStrategyContent.aggregationInterval)
 const aggregationIntervalOptions = strategyApplication.listAggregationIntervalOptions()
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
+
+const calculating = ref(false)
+const result = ref<IndicatorCalculationResultDto | null>(null)
+const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
+const requestRejectedMessage = ref<string | null>(null)
+const scriptFailedMessage = ref<string | null>(null)
+const backendUnreachable = ref(false)
+const serverErrorMessage = ref<string | null>(null)
 
 // 策略庫拿畫面上這四樣東西當它的輸入，也負責把載入的那一份寫回來。
 // 「這四樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
@@ -66,19 +90,14 @@ const strategyLibrary = useStrategyLibrary(
     resultType.value = content.resultType
     aggregationInterval.value = content.aggregationInterval
     candleCount.value = String(content.candleCount)
-  })
+    // 換了一份算式，上一次的結果就不再是這份算式算出來的——留著它只會誤導。
+    result.value = null
+  },
+  blankStrategyContent)
 
 onMounted(() => {
   void strategyLibrary.refreshStrategies()
 })
-
-const calculating = ref(false)
-const result = ref<IndicatorCalculationResultDto | null>(null)
-const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
-const requestRejectedMessage = ref<string | null>(null)
-const scriptFailedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
 
 function messageFor(field: IndicatorCalculationField): string | null {
   return fieldError.value?.field === field ? fieldError.value.message : null
@@ -143,6 +162,16 @@ async function calculateIndicator() {
         @select="strategyLibrary.selectStrategy"
       >
         <template #actions>
+          <!-- 「新的」排第一：每一個檔案選單都是這個順序，肌肉記憶在那裡。 -->
+          <AppButton
+            type="button"
+            variant="secondary"
+            label="新的空白策略"
+            data-testid="new-strategy-button"
+            @click="strategyLibrary.startBlankStrategy"
+          >
+            <AppIcon name="new" />
+          </AppButton>
           <AppButton
             type="button"
             variant="secondary"
@@ -465,8 +494,8 @@ async function calculateIndicator() {
     <ConfirmDialog
       :open="strategyLibrary.openDialog.value === 'discard'"
       title="放棄尚未儲存的變更？"
-      message="編輯區的內容已經改過而且還沒存。載入另一支策略會蓋掉它。"
-      confirm-label="放棄並載入"
+      message="編輯區的內容已經改過而且還沒存。接下來這個動作會蓋掉它。"
+      confirm-label="放棄並繼續"
       @confirm="strategyLibrary.confirmDiscard"
       @cancel="strategyLibrary.closeDialog"
     />

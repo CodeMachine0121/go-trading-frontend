@@ -9,7 +9,8 @@
 // 因此同一個圖示放在哪一種按鈕上都不必另外調色。
 
 type IconName
-  = | 'save'
+  = | 'new'
+    | 'save'
     | 'save-as'
     | 'library'
     | 'rename'
@@ -25,6 +26,12 @@ type IconName
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
+  // 一張空白的紙加一個加號——開一份新的
+  'new': [
+    'M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9Z',
+    'M13 3v6h6',
+    'M12 13v5M9.5 15.5h5',
+  ],
   // 磁片
   'save': [
     'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z',

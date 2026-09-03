@@ -22,6 +22,8 @@ export function useStrategyLibrary(
   strategyApplication: StrategyApplication,
   readCurrentContent: () => StrategyContentDto,
   applyContent: (content: StrategyContentDto) => void,
+  /** 一份空白的策略內容。「空白長什麼樣」由畫面定義，這裡只負責在對的時機套用它。 */
+  blankContent: StrategyContentDto,
 ) {
   const strategies = ref<StrategyDto[]>([])
   const activeStrategy = ref<StrategyDto | null>(null)
@@ -35,8 +37,17 @@ export function useStrategyLibrary(
   const noticeMessage = ref<string | null>(null)
   const errorMessage = ref<string | null>(null)
 
-  /** 被確認擋下來的那件事。使用者說「好」之後才真的做。 */
+  /** 被確認擋下來的「要刪哪一支」。使用者說「好」之後才真的刪。 */
   const pendingStrategyId = ref<number | null>(null)
+
+  /**
+   * 被確認擋下來的「會蓋掉編輯區的那件事」。
+   *
+   * 存的是**待執行的動作**而不是一個識別碼，因為會蓋掉編輯區的動作不只一種：
+   * 載入某一支有識別碼，開一份空白沒有。存動作的話，確認之後只要把它叫出來，
+   * 不必知道那是哪一種——之後再多一個這類動作也不必回頭改這裡。
+   */
+  const pendingDraftAction = shallowRef<(() => void) | null>(null)
 
   async function refreshStrategies() {
     listErrorMessage.value = null
@@ -59,30 +70,62 @@ export function useStrategyLibrary(
     openDialog.value = 'none'
     nameErrorMessage.value = null
     pendingStrategyId.value = null
+    pendingDraftAction.value = null
+  }
+
+  /** 挑一支來用。 */
+  function selectStrategy(id: number) {
+    guardOverwritingDraft(() => loadStrategy(id))
   }
 
   /**
-   * 挑一支來用。會蓋掉編輯區的動作在有未儲存變更時一律先問過——
-   * 其他事情做錯了可以重來，弄丟寫到一半的算式沒得重來。
+   * 開一份新的空白——編輯器裡的「開新檔案」。
+   *
+   * 它**到不了應用程式邊界**：沒有請求、沒有 await，純粹是把畫面上這一份稿子換成一份空白，
+   * 並解除它與任何一支策略的關聯。因此接著按儲存就是問名字、另存為新的一支，
+   * 不會蓋掉剛才在用的那一支。
+   *
+   * `loadedContent` 設成 null 而不是那份空白，因為「沒有載入過任何策略」就是實話；
+   * 而既有的「還沒載入過時只看算式是不是空白」那條規則剛好正是我們要的行為——
+   * 一個字都還沒打就再按一次，不必再問一遍。
    */
-  function selectStrategy(id: number) {
+  function startBlankStrategy() {
+    guardOverwritingDraft(applyBlankContent)
+  }
+
+  function applyBlankContent() {
+    applyContent(blankContent)
+    activeStrategy.value = null
+    loadedContent.value = null
+    openDialog.value = 'none'
+    clearMessages()
+    // 編輯區本來就空的時候，少了這一句，那顆按鈕看起來像壞了。
+    noticeMessage.value = '已經開了一份新的空白策略。'
+  }
+
+  /**
+   * 這件事會蓋掉編輯區，所以有還沒存的東西時先問過——
+   * 其他事情做錯了可以重來，弄丟寫到一半的算式沒得重來。
+   *
+   * 「載入另一支」與「開一份空白」共用它：兩者都會蓋掉編輯區，
+   * 把關的條件與那個對話框因此只有一份。
+   */
+  function guardOverwritingDraft(action: () => void) {
     if (strategyApplication.hasUnsavedChanges(loadedContent.value, readCurrentContent())) {
-      pendingStrategyId.value = id
+      pendingDraftAction.value = action
       openDialog.value = 'discard'
       return
     }
 
-    loadStrategy(id)
+    action()
   }
 
   function confirmDiscard() {
-    const id = pendingStrategyId.value
-    pendingStrategyId.value = null
+    const action = pendingDraftAction.value
+    pendingDraftAction.value = null
     openDialog.value = 'none'
 
-    if (id !== null) {
-      loadStrategy(id)
-    }
+    action?.()
   }
 
   function loadStrategy(id: number) {
@@ -246,6 +289,7 @@ export function useStrategyLibrary(
     openLibrary,
     closeDialog,
     selectStrategy,
+    startBlankStrategy,
     confirmDiscard,
     saveStrategy,
     openNameDialog,
