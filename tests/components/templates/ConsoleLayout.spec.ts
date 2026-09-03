@@ -25,4 +25,14 @@ describe('ConsoleLayout', () => {
     expect(wrapper.text()).toContain('K 線圖表')
     expect(wrapper.text()).toContain('指標計算')
   })
+
+  it('頂欄留一個位置給時區選單', () => {
+    const wrapper = mount(ConsoleLayout, {
+      props: { title: 'K 線瀏覽' },
+      slots: { timezone: '<span data-testid="time-zone">台北（UTC+08:00）</span>' },
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
+    })
+
+    expect(wrapper.get('[data-testid="time-zone"]').text()).toBe('台北（UTC+08:00）')
+  })
 })

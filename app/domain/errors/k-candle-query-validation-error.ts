@@ -4,7 +4,7 @@
  */
 export class KCandleQueryValidationError extends Error {
   constructor(
-    public readonly field: 'symbol' | 'startTime' | 'endTime',
+    public readonly field: 'symbol' | 'startTime',
     message: string,
   ) {
     super(message)

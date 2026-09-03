@@ -7,6 +7,7 @@ import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
@@ -42,6 +43,7 @@ async function mountPanel(kCandleProxy: IKCandleProxy) {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      timeZone: buildTimeZone(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -219,7 +221,19 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy())
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
-      .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（UTC）')
+      .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（世界標準時間）')
+  })
+
+  it('換時區時，涵蓋的那一段改用新時區說，且不重新取', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(
+      [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+
+    expect(wrapper.get('[data-testid="covered-range"]').text())
+      .toBe('手上這批共 1 根，涵蓋 2026-09-01 08:00 ～ 2026-09-03 08:00（台北）')
+    expect(findKCandleSeries).toHaveBeenCalledTimes(1)
   })
 
   it('取資料進行中時呈現載入中，取回之後就收起來', async () => {
@@ -232,6 +246,7 @@ describe('KCandleChartPanel', () => {
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
           buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }))),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        timeZone: buildTimeZone(),
       },
       global: { stubs: { KCandleChart: true } },
     })

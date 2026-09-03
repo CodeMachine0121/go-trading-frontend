@@ -6,16 +6,18 @@ import type { KCandleApplication } from '~/application/k-candle-application'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { KCandleFieldError, type KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-format'
 
 // 有機體：一次 K 線維護的互動。
 // editingKCandle 為 null 代表新增，否則代表修改那一根（身分唯讀）。
-const { kCandleApplication, editingKCandle = null, defaultSymbol = '' } = defineProps<{
+const { kCandleApplication, timeZone, editingKCandle = null, defaultSymbol = '' } = defineProps<{
   kCandleApplication: KCandleApplication
+  /** 起始時間用哪一個時區填與呈現。 */
+  timeZone: TimeZoneDto
   editingKCandle?: KCandleDto | null
   /** 新增時預先帶入的交易標的——沿用使用者正在瀏覽的那一個，才不必在兩處之間抄。 */
   defaultSymbol?: string
@@ -50,12 +52,12 @@ onMounted(() => {
   if (editingKCandle === null) {
     const draft = kCandleApplication.buildNewKCandleDraft(defaultSymbol)
     symbol.value = draft.symbol
-    openTime.value = formatUtcMinuteInput(draft.openTime)
+    openTime.value = timeZone.formatMinuteInput(draft.openTime)
     return
   }
 
   symbol.value = editingKCandle.symbol
-  openTime.value = formatUtcMinuteInput(editingKCandle.openTime)
+  openTime.value = timeZone.formatMinuteInput(editingKCandle.openTime)
   open.value = editingKCandle.open.toString()
   high.value = editingKCandle.high.toString()
   low.value = editingKCandle.low.toString()
@@ -66,12 +68,22 @@ onMounted(() => {
   takerBuyQuoteVolume.value = editingKCandle.takerBuyQuoteVolume.toString()
 })
 
+// 換時區只是換一種說法：欄位裡指的仍是同一個瞬間，以舊時區讀回、以新時區寫出。
+watch(() => timeZone, (nextTimeZone, previousTimeZone) => {
+  const filledInstant = previousTimeZone.parseMinuteInput(openTime.value)
+  if (Number.isNaN(filledInstant.getTime())) {
+    return
+  }
+
+  openTime.value = nextTimeZone.formatMinuteInput(filledInstant)
+})
+
 async function submitKCandle() {
   startRequest()
 
   const writeDto = new KCandleWriteDto(
     symbol.value,
-    parseUtcMinuteInput(openTime.value),
+    timeZone.parseMinuteInput(openTime.value),
     open.value,
     high.value,
     low.value,
@@ -103,7 +115,7 @@ async function deleteKCandle() {
 
   try {
     await kCandleApplication.deleteKCandle(new KCandleIdentityDto(
-      symbol.value, parseUtcMinuteInput(openTime.value)))
+      symbol.value, timeZone.parseMinuteInput(openTime.value)))
     deleted.value = true
     finishRequest('已刪除這根 K 線')
   }
@@ -171,6 +183,7 @@ function reportFailure(error: unknown) {
       v-model:quote-volume="quoteVolume"
       v-model:taker-buy-base-volume="takerBuyBaseVolume"
       v-model:taker-buy-quote-volume="takerBuyQuoteVolume"
+      :time-zone="timeZone"
       :identity-readonly="editing"
       :submitting="submitting"
       :field-error="fieldError"

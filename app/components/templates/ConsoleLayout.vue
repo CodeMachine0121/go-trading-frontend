@@ -45,9 +45,10 @@ defineProps<{
         </NuxtLink>
       </nav>
 
-      <p class="console-layout__timezone">
-        UTC
-      </p>
+      <!-- 時區選單由頁面填進來：樣板只出骨架與位置，不認識任何資料 -->
+      <div class="console-layout__timezone">
+        <slot name="timezone" />
+      </div>
     </header>
 
     <main
@@ -141,12 +142,6 @@ defineProps<{
 
   &__timezone {
     margin-left: auto;
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    padding: 0 spacing('2xs');
-    color: color('text-muted');
-    font-size: font-size('xs');
-    font-family: font-family('mono');
   }
 
   &__main {

@@ -15,7 +15,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 // 只 mock 最外層的 proxy 介面，domain service 與 domain model 都是真的——
 // 這是刻意的「測試力度放大」（見 .claude/rules/testing.md）。
 const START_TIME = new Date('2026-08-30T00:00:00.000Z')
-const END_TIME = new Date('2026-08-30T12:00:00.000Z')
+const FUTURE_TIME = new Date('2126-08-30T12:00:00.000Z')
 
 function buildKCandle(openTime: string, open: string, close: string): KCandle {
   return new KCandle(
@@ -57,7 +57,7 @@ describe('KCandleApplication', () => {
     }))
 
     const result = await kCandleApplication.searchKCandles(
-      new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+      new KCandleQueryDto('BTCUSDT', START_TIME),
     )
 
     expect(result.count).toBe(2)
@@ -72,7 +72,7 @@ describe('KCandleApplication', () => {
     }))
 
     const result = await kCandleApplication.searchKCandles(
-      new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+      new KCandleQueryDto('BTCUSDT', START_TIME),
     )
 
     expect(result.isEmpty).toBe(true)
@@ -86,21 +86,21 @@ describe('KCandleApplication', () => {
     const kCandleApplication = buildApplication(buildProxy({ findKCandlesInRange: vi.fn() }))
 
     await expect(kCandleApplication.searchKCandles(
-      new KCandleQueryDto(symbol, START_TIME, END_TIME),
+      new KCandleQueryDto(symbol, START_TIME),
     )).rejects.toThrow(expectedMessage)
 
-    await kCandleApplication.searchKCandles(new KCandleQueryDto(symbol, START_TIME, END_TIME))
+    await kCandleApplication.searchKCandles(new KCandleQueryDto(symbol, START_TIME))
       .catch((error: unknown) => {
         expect((error as KCandleQueryValidationError).field).toBe(expectedField)
       })
   })
 
-  it('結束時間早於開始時間時以可修正的條件錯誤拒絕', async () => {
+  it('開始時間晚於目前時間時以可修正的條件錯誤拒絕', async () => {
     const kCandleApplication = buildApplication(buildProxy({ findKCandlesInRange: vi.fn() }))
 
     await expect(kCandleApplication.searchKCandles(
-      new KCandleQueryDto('BTCUSDT', END_TIME, START_TIME),
-    )).rejects.toThrow('結束時間不得早於開始時間')
+      new KCandleQueryDto('BTCUSDT', FUTURE_TIME),
+    )).rejects.toThrow('開始時間不得晚於目前時間')
   })
 
   it('後端以業務規則拒絕時，原因原封往上傳', async () => {
@@ -111,7 +111,7 @@ describe('KCandleApplication', () => {
     }))
 
     await expect(kCandleApplication.searchKCandles(
-      new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+      new KCandleQueryDto('BTCUSDT', START_TIME),
     )).rejects.toThrow('時間區間過大，請縮小區間（單次最多 1000 根）')
   })
 
@@ -121,7 +121,7 @@ describe('KCandleApplication', () => {
     }))
 
     await expect(kCandleApplication.searchKCandles(
-      new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+      new KCandleQueryDto('BTCUSDT', START_TIME),
     )).rejects.toBeInstanceOf(BackendUnreachableError)
   })
 

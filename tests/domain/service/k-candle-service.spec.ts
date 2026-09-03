@@ -10,7 +10,7 @@ import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 
 const START_TIME = new Date('2026-08-30T00:00:00.000Z')
-const END_TIME = new Date('2026-08-30T12:00:00.000Z')
+const CURRENT_TIME = new Date('2026-08-30T12:00:00.000Z')
 
 function buildKCandle(openTime: string): KCandle {
   return new KCandle(
@@ -39,6 +39,16 @@ function buildProxy(kCandles: KCandle[]): IKCandleProxy {
 
 describe('KCandleService', () => {
   describe('searchKCandles', () => {
+    // 查詢一律查到「目前時間」，因此每個案例都把目前時間釘住。
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(CURRENT_TIME)
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
     it('把取回的 K 線由新到舊排好，並算出筆數', async () => {
       const kCandleService = new KCandleService(buildProxy([
         buildKCandle('2026-08-30T10:10:00.000Z'),
@@ -47,7 +57,7 @@ describe('KCandleService', () => {
       ]))
 
       const result = await kCandleService.searchKCandles(
-        new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+        new KCandleQueryDto('BTCUSDT', START_TIME),
       )
 
       expect(result.kCandles.map(kCandle => kCandle.openTime.toISOString())).toEqual([
@@ -63,7 +73,7 @@ describe('KCandleService', () => {
       const kCandleService = new KCandleService(buildProxy([buildKCandle('2026-08-30T10:00:00.000Z')]))
 
       const result = await kCandleService.searchKCandles(
-        new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+        new KCandleQueryDto('BTCUSDT', START_TIME),
       )
 
       expect(result.count).toBe(1)
@@ -74,7 +84,7 @@ describe('KCandleService', () => {
       const kCandleService = new KCandleService(buildProxy([]))
 
       const result = await kCandleService.searchKCandles(
-        new KCandleQueryDto('BTCUSDT', START_TIME, END_TIME),
+        new KCandleQueryDto('BTCUSDT', START_TIME),
       )
 
       expect(result.count).toBe(0)
@@ -86,19 +96,19 @@ describe('KCandleService', () => {
       const kCandleService = new KCandleService(kCandleProxy)
 
       await expect(kCandleService.searchKCandles(
-        new KCandleQueryDto('', START_TIME, END_TIME),
+        new KCandleQueryDto('', START_TIME),
       )).rejects.toBeInstanceOf(KCandleQueryValidationError)
       expect(kCandleProxy.findKCandlesInRange).not.toHaveBeenCalled()
     })
 
-    it('交給取資料的條件是正規化後的交易標的', async () => {
+    it('交給取資料的條件是正規化後的交易標的，且查到目前時間為止', async () => {
       const kCandleProxy = buildProxy([])
       const kCandleService = new KCandleService(kCandleProxy)
 
-      await kCandleService.searchKCandles(new KCandleQueryDto('  BTCUSDT  ', START_TIME, END_TIME))
+      await kCandleService.searchKCandles(new KCandleQueryDto('  BTCUSDT  ', START_TIME))
 
       expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledWith(
-        expect.objectContaining({ symbol: 'BTCUSDT', startTime: START_TIME, endTime: END_TIME }),
+        expect.objectContaining({ symbol: 'BTCUSDT', startTime: START_TIME, endTime: CURRENT_TIME }),
       )
     })
   })
@@ -113,14 +123,13 @@ describe('KCandleService', () => {
       vi.useRealTimers()
     })
 
-    it('預設區間為目前時間往前二十四小時到目前時間', () => {
+    it('預設開始時間為目前時間往前二十四小時', () => {
       const kCandleService = new KCandleService(buildProxy([]))
 
       const defaultQuery = kCandleService.buildDefaultQuery('BTCUSDT')
 
       expect(defaultQuery.symbol).toBe('BTCUSDT')
       expect(defaultQuery.startTime.toISOString()).toBe('2026-08-29T12:00:00.000Z')
-      expect(defaultQuery.endTime.toISOString()).toBe('2026-08-30T12:00:00.000Z')
     })
   })
 

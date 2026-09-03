@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import type { IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+
+/**
+ * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
+ * （它碰得到 document），所以型別在這裡先取出來，值等載完再拿。
+ */
+type TickMarkTypes = typeof import('lightweight-charts').TickMarkType
 
 /** 同一批資料的兩種畫法。是同一個元件的兩個樣子，不是兩個元件。 */
 type KCandleChartDrawing = 'candlestick' | 'line'
@@ -28,11 +36,47 @@ const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
  */
 const RANGE_SETTLE_MILLISECONDS = 220
 
-const { chart = null, drawing = 'candlestick', visibleStartTime, visibleEndTime } = defineProps<{
+/** 繪圖函式庫收發的是秒，這裡收發的是時間值。 */
+function timeValueOf(time: Time): Date {
+  return new Date(Number(time) * 1000)
+}
+
+/**
+ * 交給繪圖函式庫的**不是**瞬間，而是選定時區的**當地時鐘讀數**。
+ *
+ * 它決定哪一格該標年、哪一格該標日，看的是自己收到的時間的世界標準時間年月日
+ * （`weightByTime`）。餵真正的瞬間進去，分格就會落在世界標準時間的午夜與元旦上——
+ * 負位移的時區還會整格標成前一天、前一年。把讀數搬進去，分格與標籤就都是當地的。
+ */
+function wallClockSecondsOf(instant: Date, timeZone: TimeZoneDto): UTCTimestamp {
+  return (timeZone.toWallClock(instant).getTime() / 1000) as UTCTimestamp
+}
+
+/**
+ * 時間軸一格刻度要說到多細：年、月、日或時分。
+ * 切的是當地時鐘讀數（`2026-08-30 12:00`），與分格用的是同一份讀數。
+ */
+function sliceTickMark(
+  localDateTime: string, tickMarkType: TickMarkType, tickMarkTypes: TickMarkTypes): string {
+  switch (tickMarkType) {
+    case tickMarkTypes.Year:
+      return localDateTime.slice(0, 4)
+    case tickMarkTypes.Month:
+      return localDateTime.slice(0, 7)
+    case tickMarkTypes.DayOfMonth:
+      return localDateTime.slice(5, 10)
+    default:
+      return localDateTime.slice(11, 16)
+  }
+}
+
+const { chart = null, drawing = 'candlestick', visibleStartTime, visibleEndTime, timeZone } = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
   visibleStartTime: Date
   visibleEndTime: Date
+  /** 時間軸與十字準星用哪一個時區說。 */
+  timeZone: TimeZoneDto
 }>()
 
 const emit = defineEmits<{ rangeChange: [{ startTime: Date, endTime: Date }] }>()
@@ -41,6 +85,7 @@ const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
 const seriesApi = shallowRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null)
 const createSeriesFor = shallowRef<((drawing: KCandleChartDrawing) => void) | null>(null)
+const applyTimeZoneFormatting = shallowRef<(() => void) | null>(null)
 const releaseGestureListeners = shallowRef<(() => void) | null>(null)
 let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
 /**
@@ -80,7 +125,7 @@ function drawKCandles() {
 
   const kCandles = chart === null ? [] : chart.kCandles
   const rows = kCandles.map((kCandle) => {
-    const time = (kCandle.openTime.getTime() / 1000) as UTCTimestamp
+    const time = wallClockSecondsOf(kCandle.openTime, timeZone)
 
     if (drawing === 'line') {
       return { time, value: kCandle.close.toNumber() }
@@ -118,13 +163,13 @@ function applyVisibleRange() {
   selfIssuedRangeChange = true
 
   chartApi.value?.timeScale().setVisibleRange({
-    from: (visibleStartTime.getTime() / 1000) as UTCTimestamp,
-    to: (visibleEndTime.getTime() / 1000) as UTCTimestamp,
+    from: wallClockSecondsOf(visibleStartTime, timeZone),
+    to: wallClockSecondsOf(visibleEndTime, timeZone),
   })
 }
 
 onMounted(async () => {
-  const { createChart, CandlestickSeries, LineSeries } = await import('lightweight-charts')
+  const { createChart, CandlestickSeries, LineSeries, TickMarkType } = await import('lightweight-charts')
 
   // 函式庫還沒載完，使用者就離開了這個畫面：沒有容器可以畫，就不要建立圖表。
   if (chartHost.value === null) {
@@ -152,6 +197,20 @@ onMounted(async () => {
   })
 
   chartApi.value = createdChart
+
+  // 時間的說法與其他選項分開套用：它會跟著使用者換時區再套一次，
+  // 而 applyOptions 是合併的，因此這裡只講時間怎麼寫，不必重覆其他設定。
+  // 送進去的既然是當地時鐘讀數，標籤就照世界標準時間讀出來——那正是當地的說法。
+  const readWallClock = (time: Time) => formatDateTimeInTimeZone(timeValueOf(time), 'UTC')
+  applyTimeZoneFormatting.value = () => createdChart.applyOptions({
+    localization: { timeFormatter: (time: Time) => readWallClock(time) },
+    timeScale: {
+      tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => sliceTickMark(
+        readWallClock(time), tickMarkType, TickMarkType),
+    },
+  })
+  applyTimeZoneFormatting.value()
+
   createSeriesFor.value = (nextDrawing: KCandleChartDrawing) => {
     if (seriesApi.value !== null) {
       createdChart.removeSeries(seriesApi.value)
@@ -192,9 +251,10 @@ onMounted(async () => {
         return
       }
 
+      // 圖上那一段是當地時鐘讀數，外面要的是瞬間。
       emit('rangeChange', {
-        startTime: new Date(Number(range.from) * 1000),
-        endTime: new Date(Number(range.to) * 1000),
+        startTime: timeZone.fromWallClock(timeValueOf(range.from)),
+        endTime: timeZone.fromWallClock(timeValueOf(range.to)),
       })
     }, RANGE_SETTLE_MILLISECONDS)
   })
@@ -207,6 +267,13 @@ watch(() => chart, drawKCandles)
 
 // 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
 watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
+
+// 換時區只是換一種說法：看的還是同一段、同一批資料，但交給繪圖函式庫的讀數整批換了一種寫法，
+// 所以連資料帶位置一起重講一次——不會因此回頭去取任何東西。
+watch(() => timeZone, () => {
+  applyTimeZoneFormatting.value?.()
+  drawKCandles()
+})
 
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
@@ -221,6 +288,7 @@ onBeforeUnmount(() => {
 
   releaseGestureListeners.value?.()
   releaseGestureListeners.value = null
+  applyTimeZoneFormatting.value = null
 
   chartApi.value?.remove()
   chartApi.value = null

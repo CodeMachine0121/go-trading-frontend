@@ -12,16 +12,18 @@ import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-vali
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { formatUtcDateTime } from '~/utilities/utc-time-format'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線圖表這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
 // 這裡不做任何業務判斷：每根多粗、要不要重新取、取哪一段，全部問 Application。
-const { kCandleChartApplication, tradingSymbolApplication } = defineProps<{
+const { kCandleChartApplication, tradingSymbolApplication, timeZone } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
+  /** 時間軸與已取回區間用哪一個時區說。 */
+  timeZone: TimeZoneDto
 }>()
 
 const symbol = ref(DEFAULT_SYMBOL)
@@ -217,6 +219,7 @@ onMounted(() => {
       :drawing="drawing"
       :visible-start-time="visibleStartTime"
       :visible-end-time="visibleEndTime"
+      :time-zone="timeZone"
       @range-change="showRange"
     />
 
@@ -226,7 +229,8 @@ onMounted(() => {
       data-testid="covered-range"
     >
       手上這批共 {{ chart.count }} 根，涵蓋
-      {{ formatUtcDateTime(chart.coveredStartTime) }} ～ {{ formatUtcDateTime(chart.coveredEndTime) }}（UTC）
+      {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
+      {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
     </p>
   </section>
 </template>

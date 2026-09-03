@@ -9,30 +9,30 @@ import type { TradingSymbolApplication } from '~/application/trading-symbol-appl
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { formatUtcMinuteInput, parseUtcMinuteInput } from '~/utilities/utc-time-format'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線查詢這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
-const { kCandleApplication, tradingSymbolApplication } = defineProps<{
+const { kCandleApplication, tradingSymbolApplication, timeZone } = defineProps<{
   kCandleApplication: KCandleApplication
   tradingSymbolApplication: TradingSymbolApplication
+  /** 開始時間用哪一個時區填與呈現；查到的 K 線也用它說。 */
+  timeZone: TimeZoneDto
 }>()
 
 const symbol = ref('')
 const startTime = ref('')
-const endTime = ref('')
 
 const loading = ref(false)
 const result = ref<KCandleSearchResultDto | null>(null)
 const symbolError = ref<string | null>(null)
 const startTimeError = ref<string | null>(null)
-const endTimeError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
 const serverErrorMessage = ref<string | null>(null)
@@ -59,29 +59,37 @@ function closeEditor() {
   editorBusy.value = false
 }
 
-// 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
+// 預設開始時間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(() => {
   const defaultQuery = kCandleApplication.buildDefaultQuery(DEFAULT_SYMBOL)
   symbol.value = defaultQuery.symbol
-  startTime.value = formatUtcMinuteInput(defaultQuery.startTime)
-  endTime.value = formatUtcMinuteInput(defaultQuery.endTime)
+  startTime.value = timeZone.formatMinuteInput(defaultQuery.startTime)
+})
+
+// 換時區只是換一種說法：欄位裡指的仍是同一個瞬間，以舊時區讀回、以新時區寫出。
+watch(() => timeZone, (nextTimeZone, previousTimeZone) => {
+  const filledInstant = previousTimeZone.parseMinuteInput(startTime.value)
+  if (Number.isNaN(filledInstant.getTime())) {
+    return
+  }
+
+  startTime.value = nextTimeZone.formatMinuteInput(filledInstant)
 })
 
 async function searchKCandles() {
   loading.value = true
   symbolError.value = null
   startTimeError.value = null
-  endTimeError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
   serverErrorMessage.value = null
   result.value = null
 
   try {
+    // 只送開始時間：查到哪裡為止是領域的事——它一律查到送出當下。
     result.value = await kCandleApplication.searchKCandles(new KCandleQueryDto(
       symbol.value,
-      parseUtcMinuteInput(startTime.value),
-      parseUtcMinuteInput(endTime.value),
+      timeZone.parseMinuteInput(startTime.value),
     ))
   }
   catch (error: unknown) {
@@ -90,11 +98,8 @@ async function searchKCandles() {
       if (error.field === 'symbol') {
         symbolError.value = error.message
       }
-      else if (error.field === 'startTime') {
-        startTimeError.value = error.message
-      }
       else {
-        endTimeError.value = error.message
+        startTimeError.value = error.message
       }
     }
     else if (error instanceof BackendServerError) {
@@ -122,12 +127,11 @@ async function searchKCandles() {
       <KCandleQueryForm
         v-model:symbol="symbol"
         v-model:start-time="startTime"
-        v-model:end-time="endTime"
         :trading-symbol-application="tradingSymbolApplication"
+        :time-zone="timeZone"
         :loading="loading"
         :symbol-error="symbolError"
         :start-time-error="startTimeError"
-        :end-time-error="endTimeError"
         @submit="searchKCandles"
       />
     </div>
@@ -200,6 +204,7 @@ async function searchKCandles() {
       v-if="editorOpen"
       :key="editingKCandle ? editingKCandle.openTime.toISOString() : 'new'"
       :k-candle-application="kCandleApplication"
+      :time-zone="timeZone"
       :editing-k-candle="editingKCandle"
       :default-symbol="symbol"
       @changed="searchKCandles"
@@ -210,6 +215,7 @@ async function searchKCandles() {
     <KCandleTable
       v-if="result"
       :result="result"
+      :time-zone="timeZone"
     >
       <template #row-actions="{ kCandle }">
         <AppButton

@@ -2,16 +2,19 @@ import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
+import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import { TimeZoneService } from '~/domain/service/time-zone-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
 import { KCandleApplication } from '~/application/k-candle-application'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import { TimeZoneApplication } from '~/application/time-zone-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -42,6 +45,11 @@ export default defineNuxtPlugin(() => {
     new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl)),
   )
 
+  // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
+  const timeZoneApplication = new TimeZoneApplication(
+    new TimeZoneService(new TimeZonePreferenceProxy()),
+  )
+
   return {
     provide: {
       backendHealthApplication,
@@ -49,6 +57,7 @@ export default defineNuxtPlugin(() => {
       kCandleChartApplication,
       tradingSymbolApplication,
       indicatorCalculationApplication,
+      timeZoneApplication,
     },
   }
 })

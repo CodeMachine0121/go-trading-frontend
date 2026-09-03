@@ -20,6 +20,7 @@ export class KCandleService {
 
   /**
    * 查詢一段區間的 K 線：驗證條件（不合法就沒有查詢）→ 取回 → 由新到舊排序 → 轉 DTO。
+   * 區間的結束一律是目前時間，由 KCandleQueryDomain 於建構當下決定。
    * 呼叫端拿到的清單順序、筆數、漲跌都已經算好。
    */
   async searchKCandles(kCandleQueryDto: KCandleQueryDto): Promise<KCandleSearchResultDto> {
@@ -36,12 +37,14 @@ export class KCandleService {
     )
   }
 
-  /** 進入畫面時帶入的預設查詢區間：目前時間往前二十四小時到目前時間。 */
+  /**
+   * 進入畫面時帶入的預設開始時間：目前時間往前二十四小時。
+   * 沒有預設結束時間——查詢一律查到送出當下的時間。
+   */
   buildDefaultQuery(symbol: string): KCandleQueryDto {
-    const endTime = new Date()
-    const startTime = new Date(endTime.getTime() - DEFAULT_QUERY_RANGE_MILLISECONDS)
+    const startTime = new Date(Date.now() - DEFAULT_QUERY_RANGE_MILLISECONDS)
 
-    return new KCandleQueryDto(symbol, startTime, endTime)
+    return new KCandleQueryDto(symbol, startTime)
   }
 
   /**

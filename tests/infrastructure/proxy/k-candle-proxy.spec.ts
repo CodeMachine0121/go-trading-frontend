@@ -13,11 +13,19 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 
 const BASE_URL = 'http://localhost:8080'
-const QUERY = new KCandleQueryDomain(new KCandleQueryDto(
-  'BTCUSDT',
-  new Date('2026-08-30T00:00:00.000Z'),
-  new Date('2026-08-30T12:00:00.000Z'),
-))
+// 查詢條件的結束時間取自建構當下，因此把目前時間釘住再建，送出去的那一段才說得準。
+const QUERY = buildQueryAt(new Date('2026-08-30T12:00:00.000Z'))
+
+function buildQueryAt(currentTime: Date): KCandleQueryDomain {
+  vi.useFakeTimers()
+  vi.setSystemTime(currentTime)
+  const kCandleQueryDomain = new KCandleQueryDomain(
+    new KCandleQueryDto('BTCUSDT', new Date('2026-08-30T00:00:00.000Z')),
+  )
+  vi.useRealTimers()
+
+  return kCandleQueryDomain
+}
 
 const K_CANDLE_WIRE = {
   symbol: 'BTCUSDT',
