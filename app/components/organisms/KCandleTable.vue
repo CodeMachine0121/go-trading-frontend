@@ -194,11 +194,13 @@ defineProps<{
     tbody tr:hover td {
       background-color: color('surface-muted');
     }
-  }
 
-  // 時間是每一列的身分，不是要互相比較的數字——它報到就好，數字才是主角。
-  &__time {
-    color: color('text-muted');
+    // 時間是每一列的身分，不是要互相比較的數字——它報到就好，數字才是主角。
+    // 這條必須住在 &__table 裡面：上面那條 `td` 的顏色比單一個 class 更明確，
+    // 擺在外面的話這行會被它蓋掉，而且不會有任何錯誤提醒你。
+    td.k-candle-table__time {
+      color: color('text-muted');
+    }
   }
 }
 </style>

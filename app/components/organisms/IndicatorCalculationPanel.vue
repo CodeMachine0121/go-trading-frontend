@@ -82,6 +82,22 @@ const scriptFailedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
 const serverErrorMessage = ref<string | null>(null)
 
+/**
+ * 把上一次計算留下的東西全部清掉——結果與四種失敗訊息。
+ *
+ * 它們是同一次計算的產物，所以永遠一起清。少清一個就會出現對不上的畫面：
+ * 換了一份算式之後，欄位已經是新的預設值，旁邊卻還紅著上一次那句
+ * 「計算根數必須是正整數」。
+ */
+function clearLastCalculation() {
+  result.value = null
+  fieldError.value = null
+  requestRejectedMessage.value = null
+  scriptFailedMessage.value = null
+  serverErrorMessage.value = null
+  backendUnreachable.value = false
+}
+
 // 策略庫拿畫面上這四樣東西當它的輸入，也負責把載入的那一份寫回來。
 // 「這四樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
 const strategyLibrary = useStrategyLibrary(
@@ -93,8 +109,8 @@ const strategyLibrary = useStrategyLibrary(
     resultType.value = content.resultType
     aggregationInterval.value = content.aggregationInterval
     candleCount.value = String(content.candleCount)
-    // 換了一份算式，上一次的結果就不再是這份算式算出來的——留著它只會誤導。
-    result.value = null
+    // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
+    clearLastCalculation()
   },
   blankStrategyContent)
 
@@ -112,12 +128,7 @@ function fillExampleScriptBody() {
 
 async function calculateIndicator() {
   calculating.value = true
-  fieldError.value = null
-  requestRejectedMessage.value = null
-  scriptFailedMessage.value = null
-  backendUnreachable.value = false
-  serverErrorMessage.value = null
-  result.value = null
+  clearLastCalculation()
 
   try {
     result.value = await indicatorCalculationApplication.calculateIndicator(

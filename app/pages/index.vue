@@ -39,6 +39,7 @@ const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTim
       :health="health"
       :loading="checking"
       :error-message="errorMessage"
+      :time-zone="selectedTimeZone"
       @refresh="checkBackendHealth"
     />
   </ConsoleLayout>

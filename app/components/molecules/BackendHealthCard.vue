@@ -3,6 +3,7 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：一整塊「後端連線狀態」。
 // 元件（Controller）只認識 DTO 與 Application，不認識 entity / domain model / proxy。
@@ -13,6 +14,8 @@ defineProps<{
   health: BackendHealthDto | null
   loading: boolean
   errorMessage: string | null
+  /** 檢查時間用哪一個時區說。操作台上每一個時間都照選定的那一個講，這一個不例外。 */
+  timeZone: TimeZoneDto
 }>()
 
 defineEmits<{
@@ -65,7 +68,7 @@ defineEmits<{
         </dd>
         <dt>檢查於</dt>
         <dd class="backend-health-card__checked-at">
-          {{ health.checkedAt.toISOString() }}
+          {{ timeZone.formatDateTime(health.checkedAt) }}（{{ timeZone.cityLabel }}）
         </dd>
       </dl>
     </div>

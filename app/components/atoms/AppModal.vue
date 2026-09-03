@@ -125,9 +125,9 @@ function closeOnEscape(event: KeyboardEvent) {
     min-height: 2.25rem;
   }
 
+  // 對話框的標題與面板的標題是同一種東西——疊上來的東西也是這個操作台的一部分。
   &__title {
     margin: 0;
-    font-size: font-size('sm');
 
     @include dense-label;
   }

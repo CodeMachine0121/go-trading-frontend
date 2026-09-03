@@ -17,13 +17,6 @@
   height: 1px;
 }
 
-@mixin surface($padding: 'md') {
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing($padding);
-}
-
 // 密集介面的標籤：面板頭、表頭、欄位名、單位。
 //
 // 它們全都在做同一件事——用最小的存在感說出「底下那個數字是什麼」。

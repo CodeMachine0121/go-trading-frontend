@@ -729,6 +729,23 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
     expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
   })
 
+  it('上一次的失敗訊息也不留——欄位已經換成預設值，旁邊不能還紅著舊的那句', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    // 根數填成不合法的，送出後那一欄旁邊會紅一句話
+    await wrapper.get('[data-testid="candle-count-input"]').setValue('0')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(true)
+
+    await startBlankStrategy(wrapper)
+
+    // 根數已經回到預設的 20，那句話卻還留著的話，訊息說的就是一個不存在的值
+    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
+      .toBe('20')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
   it('編輯區本來就空的時候也要說一聲，否則按鈕看起來像壞了', async () => {
     const wrapper = mountPanel()
     await settle()

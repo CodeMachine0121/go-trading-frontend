@@ -206,8 +206,11 @@ onMounted(() => {
       </AppAlert>
     </AppPanel>
 
+    <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
+         換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
+         畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
     <AppPanel
-      :title="symbol"
+      :title="chart?.symbol ?? symbol"
       flush
       class="k-candle-chart-panel__chart"
     >
