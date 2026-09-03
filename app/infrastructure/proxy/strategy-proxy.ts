@@ -22,8 +22,6 @@ type StrategyWire = {
   name: string
   script: string
   resultType: string
-  aggregationInterval: string
-  candleCount: number
 }
 
 /** Proxy：打策略端點，並把「名稱被佔用」與「找不到那一支」從一般的拒絕裡分出來。 */
@@ -69,8 +67,6 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
           name: strategyWriteDomain.name,
           script: strategyWriteDomain.script,
           resultType: strategyWriteDomain.resultType,
-          aggregationInterval: strategyWriteDomain.aggregationInterval,
-          candleCount: strategyWriteDomain.candleCount,
         },
       })
 
@@ -107,8 +103,6 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
       strategyWire.name,
       strategyWire.script,
       strategyWire.resultType,
-      strategyWire.aggregationInterval,
-      strategyWire.candleCount,
     )
   }
 }

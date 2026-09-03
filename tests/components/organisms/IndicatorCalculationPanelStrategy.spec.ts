@@ -25,7 +25,7 @@ function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService({
           calculateIndicator: vi.fn().mockResolvedValue(
-            new IndicatorCalculation('BTCUSDT', 3, 'float', [])),
+            new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
         })),
       strategyApplication: buildStrategyApplication(strategyProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
@@ -81,12 +81,11 @@ async function discardAndProceed(wrapper: ReturnType<typeof mountPanel>) {
 }
 
 describe('指標計算畫面上的策略：挑一支來用', () => {
-  it('挑一支就把它記住的四樣東西全部帶進畫面', async () => {
+  it('挑一支就把它記住的算法帶進畫面', async () => {
     const wrapper = mountPanel({
       listStrategies: vi.fn().mockResolvedValue([
         buildStoredStrategy(7, '二十根均線', {
           scriptBody: 'sum := 123.0', resultType: 'boolList',
-          aggregationInterval: '4h', candleCount: 45,
         }),
       ]),
     })
@@ -97,10 +96,24 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
     expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]').element.value)
       .toBe('boolList')
+  })
+
+  it('挑一支不會動到這一次的執行設定', async () => {
+    // 彙總刻度與計算根數跟交易標的同一類：它們是「這一次要怎麼算」。
+    // 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘。
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+    })
+    await settle()
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
+    await wrapper.get('[data-testid="candle-count-input"]').setValue('60')
+
+    await pickStrategy(wrapper, 7)
+
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
-      .toBe('4h')
+      .toBe('1h')
     expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
-      .toBe('45')
+      .toBe('60')
   })
 
   it('挑一支不會動到交易標的——策略不記交易標的', async () => {
@@ -142,6 +155,28 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
     expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
     expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
+  })
+
+  it.each([
+    { changed: '彙總刻度', selector: '[data-testid="aggregation-interval-select"]', value: '1h' },
+    { changed: '計算根數', selector: '[data-testid="candle-count-input"]', value: '60' },
+  ])('只改了$changed 時不問——它不屬於任何一支策略，沒有東西會被弄丟', async ({ selector, value }) => {
+    // 該問卻不問會弄丟使用者寫的東西；不該問卻問，只會讓他學會無視那個對話框，
+    // 而它在真正要緊的時候必須被讀。
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([
+        buildStoredStrategy(7, '二十根均線'),
+        buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+      ]),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get(selector).setValue(value)
+
+    await pickStrategy(wrapper, 8)
+
+    expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
+    expect(scriptBodyText(wrapper)).toContain('sum := 456.0')
   })
 
   it('已經寫了東西時先問過再覆蓋', async () => {
@@ -641,12 +676,14 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
 })
 
 describe('指標計算畫面上的策略：彙總刻度', () => {
-  it('選單在，且說明它目前還沒生效', async () => {
+  it('選單在，且不再說它還沒生效', async () => {
+    // 這個欄位曾經只被記下來、計算完全不理它，畫面因此得在旁邊寫一句道歉。
+    // 它現在真的生效了，那句話必須消失——留著就是說謊。
     const wrapper = mountPanel()
     await settle()
 
     expect(wrapper.find('[data-testid="aggregation-interval-select"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('目前計算仍以五分鐘執行')
+    expect(wrapper.text()).not.toContain('目前計算仍以五分鐘執行')
   })
 
   it('沒挑時是五分鐘', async () => {
@@ -659,12 +696,11 @@ describe('指標計算畫面上的策略：彙總刻度', () => {
 })
 
 describe('指標計算畫面上的策略：開一份新的空白', () => {
-  it('清空算式並把三個設定帶回預設', async () => {
+  it('清空算式並把指標值種類帶回預設', async () => {
     const wrapper = mountPanel({
       listStrategies: vi.fn().mockResolvedValue([
         buildStoredStrategy(7, '二十根均線', {
           scriptBody: 'sum := 123.0', resultType: 'boolList',
-          aggregationInterval: '4h', candleCount: 45,
         }),
       ]),
     })
@@ -676,10 +712,22 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
     expect(scriptBodyText(wrapper)).not.toContain('sum := 123.0')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]').element.value)
       .toBe('float')
+  })
+
+  it('開一份新的空白也不動這一次的執行設定', async () => {
+    // 「開新檔案」換掉的是稿子，不是使用者正在看的那個市場與粗細——
+    // 與載入另一支策略同一個理由。
+    const wrapper = mountPanel()
+    await settle()
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('4h')
+    await wrapper.get('[data-testid="candle-count-input"]').setValue('60')
+
+    await startBlankStrategy(wrapper)
+
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
-      .toBe('5m')
+      .toBe('4h')
     expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
-      .toBe('20')
+      .toBe('60')
   })
 
   it('解除與那一支的關聯——之後按儲存是問新名字，不是存回原本那一支', async () => {
@@ -729,7 +777,7 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
     expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
   })
 
-  it('上一次的失敗訊息也不留——欄位已經換成預設值，旁邊不能還紅著舊的那句', async () => {
+  it('上一次的失敗訊息不留——那是上一次計算的產物，與新的稿子無關', async () => {
     const wrapper = mountPanel()
     await settle()
     // 根數填成不合法的，送出後那一欄旁邊會紅一句話
@@ -740,9 +788,6 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
 
     await startBlankStrategy(wrapper)
 
-    // 根數已經回到預設的 20，那句話卻還留著的話，訊息說的就是一個不存在的值
-    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
-      .toBe('20')
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 

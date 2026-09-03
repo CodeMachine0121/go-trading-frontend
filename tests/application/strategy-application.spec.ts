@@ -27,11 +27,11 @@ function wholeScriptOf(scriptBody: string): string {
 }
 
 function storedStrategy(id: number, name: string, scriptBody = 'sum := 0.0'): Strategy {
-  return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList', '1h', 45)
+  return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList')
 }
 
 function contentOf(scriptBody = 'sum := 0.0'): StrategyContentDto {
-  return new StrategyContentDto(scriptBody, 'floatList', '1h', 45)
+  return new StrategyContentDto(scriptBody, 'floatList')
 }
 
 describe('StrategyApplication.listStrategies', () => {
@@ -46,8 +46,21 @@ describe('StrategyApplication.listStrategies', () => {
 
     expect(strategies.map(strategy => strategy.name)).toEqual(['二十根均線', '六十根均線'])
     expect(strategies[0]?.content.scriptBody).toBe('sum := 0.0')
-    expect(strategies[0]?.content.candleCount).toBe(45)
+    expect(strategies[0]?.content.resultType).toBe('floatList')
     expect(strategies[0]?.frameRecognised).toBe(true)
+  })
+
+  it('讀回來的策略身上沒有取數計畫可讀', async () => {
+    // 型別系統已經擋住「再把它們加回去」，但那是建置時的保證。
+    // 這一條在執行期也釘住它，並且說出理由：那兩樣屬於某一次執行，
+    // 一旦它們又出現在策略身上，載入就會開始覆蓋使用者正在用的粗細。
+    const strategyApplication = buildApplication({
+      listStrategies: vi.fn().mockResolvedValue([storedStrategy(1, '二十根均線')]),
+    })
+
+    const strategies = await strategyApplication.listStrategies()
+
+    expect(Object.keys(strategies[0]?.content ?? {})).toEqual(['scriptBody', 'resultType'])
   })
 
   it('一支都沒有是空清單，不是錯誤', async () => {
@@ -170,29 +183,5 @@ describe('StrategyApplication.hasUnsavedChanges', () => {
     const strategyApplication = buildApplication({})
 
     expect(strategyApplication.hasUnsavedChanges(null, contentOf(''))).toBe(false)
-  })
-})
-
-describe('StrategyApplication 的彙總刻度選項', () => {
-  it('五種都在，由細到粗，帶中文名字', () => {
-    const strategyApplication = buildApplication({})
-
-    const options = strategyApplication.listAggregationIntervalOptions()
-
-    expect(options.map(option => option.value)).toEqual(['5m', '15m', '1h', '4h', '1d'])
-    expect(options.map(option => option.label))
-      .toEqual(['五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
-  })
-
-  it('沒特別挑時是五分鐘', () => {
-    const strategyApplication = buildApplication({})
-
-    expect(strategyApplication.defaultAggregationInterval()).toBe('5m')
-  })
-
-  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
-    const strategyApplication = buildApplication({})
-
-    expect(strategyApplication.defaultCandleCount()).toBe(20)
   })
 })

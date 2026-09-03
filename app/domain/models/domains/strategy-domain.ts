@@ -3,8 +3,6 @@ import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-res
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyDto } from '~/domain/models/dto/strategy-dto'
-import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
-import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
 
 /**
  * Domain Model：一支已存策略對畫面的樣子。
@@ -23,24 +21,11 @@ export class StrategyDomain {
     return new StrategyDto(
       this.strategy.id,
       this.strategy.name,
-      new StrategyContentDto(
-        scriptBody.body,
-        resultType.value,
-        this.aggregationInterval(),
-        this.strategy.candleCount,
-      ),
+      new StrategyContentDto(scriptBody.body, resultType.value),
       scriptBody.frameRecognised,
+      // 畫得成線的條件就是「值是數字」。既有的種類模型已經知道這件事，
+      // 這裡借用它而不是再比對一次種類——多一套判斷就多一個會漂移的地方。
+      resultType.holdsNumbers(),
     )
-  }
-
-  /**
-   * 後端說的彙總刻度，對上這裡認得的那五種。認不得就退回最細的那一種——
-   * 讓畫面卡住或顯示一個空選項，都比退回一個明確的預設值糟。
-   */
-  private aggregationInterval(): AggregationIntervalValue {
-    const matched = AGGREGATION_INTERVALS.find(
-      interval => interval.value === this.strategy.aggregationInterval)
-
-    return (matched ?? FINEST_AGGREGATION_INTERVAL).value
   }
 }

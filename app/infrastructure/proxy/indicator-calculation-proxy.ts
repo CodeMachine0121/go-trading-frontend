@@ -22,7 +22,10 @@ type IndicatorWireValue = number | number[] | boolean | boolean[]
 
 type IndicatorCalculationWire = {
   symbol: string
+  interval: string
   usedCandleCount: number
+  /** 這次讀了哪幾根，由早到晚；後端一律以世界標準時間的字串給。 */
+  openTimes: string[] | null
   resultType: string
   values: Record<string, IndicatorWireValue> | null
 }
@@ -39,7 +42,12 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           method: 'POST',
           body: {
             symbol: indicatorCalculationRequestDomain.symbol,
+            aggregationInterval: indicatorCalculationRequestDomain.aggregationInterval.value,
             candleCount: indicatorCalculationRequestDomain.candleCount,
+            // 省略等同「算到現在」，那正是沒指定時後端的預設，因此不必送一個假的現在。
+            ...(indicatorCalculationRequestDomain.endTime === null
+              ? {}
+              : { endTime: indicatorCalculationRequestDomain.endTime.toISOString() }),
             resultType: indicatorCalculationRequestDomain.resultType.value,
             script: indicatorCalculationRequestDomain.script,
           },
@@ -48,6 +56,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
 
       return new IndicatorCalculation(
         wire.symbol,
+        wire.interval,
         wire.usedCandleCount,
         wire.resultType,
         // 一個值與一串值在 domain 裡存法相同，差別由這次的種類決定，
@@ -55,6 +64,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
         Object.entries(wire.values ?? {}).map(([name, value]) => new IndicatorValueVo(
           name,
           Array.isArray(value) ? (value as IndicatorScalarValue[]) : [value])),
+        (wire.openTimes ?? []).map(openTime => new Date(openTime)),
       )
     }
     catch (error: unknown) {

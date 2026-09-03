@@ -1,22 +1,9 @@
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import { StrategyDraftDomain } from '~/domain/models/domains/strategy-draft-domain'
 import { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
-import { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
-import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
-import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
-
-/**
- * 沒特別指定時要餵給算式幾根 K 線。
- *
- * 二十根五分鐘 K 線約一小時四十分——夠算出一條短均線，又不必等太久。
- * 它與彙總刻度的預設值住在一起（而不是散在畫面上），因為兩者是同一件事的兩半：
- * 「一支還沒被指定過任何東西的策略」長什麼樣。
- */
-const DEFAULT_CANDLE_COUNT = 20
-
 /**
  * Domain Service：策略的編排。
  * 公開用例方法之間互不呼叫。
@@ -59,21 +46,5 @@ export class StrategyService {
     currentContent: StrategyContentDto,
   ): boolean {
     return new StrategyDraftDomain(loadedContent, currentContent).hasUnsavedChanges()
-  }
-
-  /** 使用者可以挑的彙總刻度，含給人看的名字。清單沿用既有的那一份，不另列。 */
-  listAggregationIntervalOptions(): AggregationIntervalOptionDto[] {
-    return AGGREGATION_INTERVALS.map(
-      interval => new AggregationIntervalOptionDto(interval.value, interval.label))
-  }
-
-  /** 沒特別挑時是哪一種。畫面不自己指定預設值。 */
-  defaultAggregationInterval(): AggregationIntervalValue {
-    return FINEST_AGGREGATION_INTERVAL.value
-  }
-
-  /** 沒特別填時要算幾根。同上——畫面不自己指定預設值。 */
-  defaultCandleCount(): number {
-    return DEFAULT_CANDLE_COUNT
   }
 }

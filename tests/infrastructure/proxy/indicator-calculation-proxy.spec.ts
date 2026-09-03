@@ -10,11 +10,11 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 const BASE_URL = 'http://localhost:8080'
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 const REQUEST = new IndicatorCalculationRequestDomain(
-  new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, 'float'))
+  new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'float'))
 
 function requestOf(resultType: string): IndicatorCalculationRequestDomain {
   return new IndicatorCalculationRequestDomain(
-    new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, resultType))
+    new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, resultType))
 }
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
@@ -39,7 +39,7 @@ afterEach(() => {
 })
 
 describe('IndicatorCalculationProxy', () => {
-  it('把交易標的、根數、指標值種類與組好的算式送到指標計算端點', async () => {
+  it('把交易標的、彙總刻度、根數、指標值種類與組好的算式送到指標計算端點', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
     })
@@ -51,6 +51,7 @@ describe('IndicatorCalculationProxy', () => {
       method: 'POST',
       body: {
         symbol: 'BTCUSDT',
+        aggregationInterval: '5m',
         candleCount: 3,
         resultType: 'float',
         script: REQUEST.script,
@@ -153,5 +154,61 @@ describe('IndicatorCalculationProxy', () => {
 
     await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
       .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+})
+
+describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => {
+  it('沒指定算到哪一刻時就不送它——省略等同算到現在，不必送一個假的現在', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, openTimes: [], resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect('endTime' in options.body).toBe(false)
+  })
+
+  it('指定了算到哪一刻就送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '1h', usedCandleCount: 3, openTimes: [], resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+    const endTime = new Date('2026-09-02T12:00:00.000Z')
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+      new IndicatorCalculationRequestDomain(
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '3', SCRIPT_BODY, 'float', endTime)))
+
+    const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(options.body.endTime).toBe('2026-09-02T12:00:00.000Z')
+  })
+
+  it('把這次讀了哪幾根收成時間', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT',
+      interval: '1h',
+      usedCandleCount: 2,
+      openTimes: ['2026-09-02T10:00:00Z', '2026-09-02T11:00:00Z'],
+      resultType: 'floatList',
+      values: { 線: [1, 2] },
+    }))
+
+    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    expect(calculation.openTimes).toEqual([
+      new Date('2026-09-02T10:00:00Z'), new Date('2026-09-02T11:00:00Z'),
+    ])
+  })
+
+  it('沒回這次讀了哪幾根時是空的，不是壞掉', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, openTimes: null, resultType: 'float', values: {},
+    }))
+
+    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    expect(calculation.openTimes).toEqual([])
   })
 })

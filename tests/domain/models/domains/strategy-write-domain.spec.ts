@@ -5,7 +5,7 @@ import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 import { StrategyFieldError } from '~/domain/errors/strategy-field-error'
 
 function contentOf(scriptBody = 'sum := 0.0'): StrategyContentDto {
-  return new StrategyContentDto(scriptBody, 'floatList', '1h', 20)
+  return new StrategyContentDto(scriptBody, 'floatList')
 }
 
 describe('StrategyWriteDomain', () => {
@@ -18,8 +18,6 @@ describe('StrategyWriteDomain', () => {
     expect(strategyWriteDomain.script).toContain('func Calculate(data []indicator.KCandle) map[string][]float64 {')
     expect(strategyWriteDomain.script).toContain('\tsum := 0.0')
     expect(strategyWriteDomain.resultType).toBe('floatList')
-    expect(strategyWriteDomain.aggregationInterval).toBe('1h')
-    expect(strategyWriteDomain.candleCount).toBe(20)
   })
 
   it('名稱前後的空白不予保留', () => {
@@ -73,7 +71,7 @@ describe('StrategyWriteDomain', () => {
 
   it('外框的產出形狀跟著指標值種類走', () => {
     const strategyWriteDomain = new StrategyWriteDomain(
-      new StrategyWriteDto('是非題', new StrategyContentDto('return nil', 'bool', '5m', 20)))
+      new StrategyWriteDto('是非題', new StrategyContentDto('return nil', 'bool')))
 
     expect(strategyWriteDomain.script).toContain('map[string]bool {')
   })

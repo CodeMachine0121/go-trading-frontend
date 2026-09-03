@@ -6,7 +6,7 @@ import { StrategyDto } from '~/domain/models/dto/strategy-dto'
 
 function strategyOf(id: number, name: string): StrategyDto {
   return new StrategyDto(
-    id, name, new StrategyContentDto('sum := 0.0', 'floatList', '1h', 45), true)
+    id, name, new StrategyContentDto('sum := 0.0', 'floatList'), true, true)
 }
 
 function mountLibrary(props: Record<string, unknown> = {}) {

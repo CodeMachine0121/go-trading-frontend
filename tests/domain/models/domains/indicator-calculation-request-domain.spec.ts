@@ -6,10 +6,17 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 
 function buildRequest(
-  overrides: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
+  overrides: {
+    symbol?: string
+    aggregationInterval?: string
+    candleCount?: string
+    scriptBody?: string
+    resultType?: string
+  } = {},
 ) {
   return new IndicatorCalculationRequestDto(
     overrides.symbol ?? 'BTCUSDT',
+    overrides.aggregationInterval ?? '5m',
     overrides.candleCount ?? '3',
     overrides.scriptBody ?? SCRIPT_BODY,
     overrides.resultType ?? 'float',
@@ -125,5 +132,29 @@ describe('IndicatorCalculationRequestDomain', () => {
 
     expect(fieldError.field).toBe('scriptBody')
     expect(fieldError.message).toBe('請填寫算式內容')
+  })
+})
+
+describe('IndicatorCalculationRequestDomain 的彙總刻度', () => {
+  it.each([
+    { declared: '1h', expected: '1h' },
+    { declared: '1D', expected: '1d' },
+    { declared: ' 15m ', expected: '15m' },
+  ])('宣告 $declared 帶著走的是 $expected', ({ declared, expected }) => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ aggregationInterval: declared }))
+
+    expect(requestDomain.aggregationInterval.value).toBe(expected)
+  })
+
+  it.each([
+    { name: '完全沒宣告', declared: '' },
+    { name: '宣告了認不得的代號', declared: '7m' },
+  ])('$name 時退回最細的那一種，而不是拒絕整次計算', ({ declared }) => {
+    // 與指標值種類同一套處理：使用者從清單挑，挑不出非法值。
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ aggregationInterval: declared }))
+
+    expect(requestDomain.aggregationInterval.value).toBe('5m')
   })
 })

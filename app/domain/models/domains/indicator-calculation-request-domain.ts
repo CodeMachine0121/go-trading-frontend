@@ -1,5 +1,6 @@
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 
@@ -17,9 +18,11 @@ const POSITIVE_INTEGER_PATTERN = /^\d+$/
  */
 export class IndicatorCalculationRequestDomain {
   readonly symbol: string
+  readonly aggregationInterval: AggregationIntervalDomain
   readonly candleCount: number
   readonly resultType: IndicatorResultTypeDomain
   readonly script: string
+  readonly endTime: Date | null
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
@@ -54,8 +57,14 @@ export class IndicatorCalculationRequestDomain {
     }
 
     this.symbol = normalizedSymbol
+    // 刻度不做合法性拒絕：使用者是從清單挑的，挑不出非法值。
+    // 認不得的代號一律退回最細的那一種，與指標值種類同一套處理。
+    this.aggregationInterval
+      = new AggregationIntervalDomain(indicatorCalculationRequestDto.aggregationInterval)
     this.candleCount = candleCount
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.script = new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
+    // 不驗證它落在哪裡：指向未來由系統那頭視同現在，那是它的規則，抄一份下來只會有兩套。
+    this.endTime = indicatorCalculationRequestDto.endTime
   }
 }

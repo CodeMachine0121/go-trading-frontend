@@ -1,9 +1,11 @@
 import type { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
 import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
+import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 
 /** Application：指標計算的用例編排，全程只碰 DTO。 */
@@ -22,6 +24,18 @@ export class IndicatorCalculationApplication {
 
   defaultResultType(): IndicatorResultType {
     return this.indicatorCalculationService.defaultResultType()
+  }
+
+  listAggregationIntervalOptions(): AggregationIntervalOptionDto[] {
+    return this.indicatorCalculationService.listAggregationIntervalOptions()
+  }
+
+  defaultAggregationInterval(): AggregationIntervalValue {
+    return this.indicatorCalculationService.defaultAggregationInterval()
+  }
+
+  defaultCandleCount(): number {
+    return this.indicatorCalculationService.defaultCandleCount()
   }
 
   listResultTypeOptions(): IndicatorResultTypeOptionDto[] {

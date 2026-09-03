@@ -1,0 +1,137 @@
+import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
+import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
+import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { ChartLineColorDomain } from '~/domain/models/domains/chart-line-color-domain'
+import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { IndicatorLevelDto } from '~/domain/models/dto/indicator-level-dto'
+import { IndicatorPointDto } from '~/domain/models/dto/indicator-point-dto'
+import { IndicatorSeriesDto } from '~/domain/models/dto/indicator-series-dto'
+
+/**
+ * Domain Model：一次計算的結果在圖上該畫成什麼。
+ *
+ * **這是唯一知道「一個數字畫成水平線、一串數字畫成跟著 K 線走的曲線」的地方。**
+ * 畫面收到的是兩份已經分好類、連顏色與標籤都定好的清單，因此那個認識繪圖函式庫的檔案
+ * 不必為了畫指標學會任何一種判斷——它多的是兩個迴圈，不是一個 if。
+ *
+ * 一支算式可以一次產出好幾個指標名稱，所以產出的是「幾條線」而不是「一條線」。
+ * 顏色的身分是**策略識別碼加指標名稱**：同一支策略畫出的兩條線因此各有各的顏色，
+ * 而重新打開畫面之後同一條線還認得出自己挑過什麼色。
+ */
+export class ChartIndicatorDomain {
+  private readonly resultType: IndicatorResultTypeDomain
+
+  constructor(
+    private readonly strategyId: number,
+    private readonly indicatorCalculation: IndicatorCalculation,
+    /**
+     * 怎麼回想一條線挑過的顏色。
+     *
+     * 收的是**能力**而不是一份查好的表：那份表的鍵是「線的身分」，
+     * 而線的身分只有這裡知道怎麼算。交出一份表，就等於要求外面也會算同一把鑰匙——
+     * 而那把鑰匙一旦兩邊算得不一樣，顏色會**安靜地**不再被記得：沒有錯誤，只是失憶。
+     */
+    private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
+    /** 圖上其他線已經用掉的顏色——沒有它，第二條線就會與第一條同色。 */
+    private readonly takenColorTokens: readonly string[],
+  ) {
+    this.resultType = new IndicatorResultTypeDomain(indicatorCalculation.resultType)
+  }
+
+  /** 指標值是一個數字時畫的那幾條水平線。是一串數字時這裡是空的。 */
+  toLevelDtos(): IndicatorLevelDto[] {
+    if (this.resultType.isList()) {
+      return []
+    }
+
+    return this.drawableLines().flatMap((line) => {
+      const value = line.indicatorValue.items[0]
+      // 一個數字的種類下卻沒有值，就沒有線可畫。空的一組是合法結果，不是失敗。
+      if (typeof value !== 'number') {
+        return []
+      }
+
+      return [new IndicatorLevelDto(
+        line.lineKey, line.indicatorValue.name, line.colorToken, value)]
+    })
+  }
+
+  /** 指標值是一串數字時畫的那幾條曲線。是一個數字時這裡是空的。 */
+  toSeriesDtos(): IndicatorSeriesDto[] {
+    if (!this.resultType.isList()) {
+      return []
+    }
+
+    return this.drawableLines().map(line => new IndicatorSeriesDto(
+      line.lineKey,
+      line.indicatorValue.name,
+      line.colorToken,
+      this.pointsOf(line.indicatorValue.items),
+    ))
+  }
+
+  /**
+   * 每一個畫得出來的指標名稱，配上它的身分與顏色。
+   *
+   * 配色只在這裡發生一次，而且是**逐條往下配**——每配出一個顏色就把它算進「已經用掉的」，
+   * 下一條才不會拿到同一個。兩個公開方法都從這裡出發，因此不論結果是哪一種種類，
+   * 配色規則都只有這一份。
+   */
+  private drawableLines() {
+    const assignedTokens = [...this.takenColorTokens]
+
+    return this.numericIndicatorValues().map((indicatorValue) => {
+      const lineKey = `${this.strategyId}:${indicatorValue.name}`
+      const colorToken = new ChartLineColorDomain(
+        this.chartLineColorPreferenceProxy.readColorToken(lineKey), assignedTokens).token
+      assignedTokens.push(colorToken)
+
+      return { indicatorValue, lineKey, colorToken }
+    })
+  }
+
+  /**
+   * 最後一個值配上最後一根 K 線，往前逐一對回去。
+   *
+   * **靠右對齊，不是靠左。** 兩邊的長度不保證相同，而少掉的那幾個幾乎總是在**最前面**：
+   * 絕大多數技術指標是滾動窗口，一支二十期均線吃一百根只回得出八十一個值，
+   * 因為前十九根還湊不滿一個窗口。靠左對齊會把整條線往左推十九格——
+   * 而一條位移的線**看起來完全正常**，沒有任何地方會報錯。
+   * 這也與系統那頭「最新 N 根」的語意一致：對得上的是尾巴，不是頭。
+   *
+   * 沒有對應的那一根就沒有那一點：值比 K 線還多時，多出來的那幾個落在頭部之外，不畫。
+   * 補一個點出來，看起來會與算出來的一模一樣。
+   */
+  private pointsOf(items: readonly (number | boolean)[]): IndicatorPointDto[] {
+    const points: IndicatorPointDto[] = []
+    const offsetFromOldest = this.indicatorCalculation.openTimes.length - items.length
+
+    for (const [index, value] of items.entries()) {
+      const openTime = this.indicatorCalculation.openTimes[index + offsetFromOldest]
+      if (typeof value === 'number' && openTime !== undefined) {
+        points.push(new IndicatorPointDto(openTime, value))
+      }
+    }
+
+    return points
+  }
+
+  /**
+   * 依名稱排序，理由與結果表格那邊一字不差：算式產出的順序不保證固定，
+   * 而順序在這裡還多決定一件事——沒挑過顏色時是誰先拿到哪個顏色。
+   * 不排的話，同一支策略每算一次，兩條線的顏色就可能對調。
+   *
+   * 比的是碼位而不是語系字序：同一組結果在不同瀏覽器上必須排出同一個順序。
+   */
+  private numericIndicatorValues(): IndicatorValueVo[] {
+    return [...this.indicatorCalculation.indicatorValues]
+      .filter(indicatorValue => indicatorValue.items.every(item => typeof item === 'number'))
+      .sort((former, latter) => {
+        if (former.name === latter.name) {
+          return 0
+        }
+
+        return former.name < latter.name ? -1 : 1
+      })
+  }
+}

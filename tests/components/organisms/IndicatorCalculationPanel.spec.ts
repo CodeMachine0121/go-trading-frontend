@@ -19,7 +19,7 @@ const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 
 function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
   return {
-    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, 'float', [])),
+    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
     ...overrides,
   }
 }
@@ -87,15 +87,18 @@ async function fillAndSubmit(
 }
 
 describe('IndicatorCalculationPanel', () => {
-  it('一進畫面就說明計算會排除最新一根', () => {
+  it('一進畫面就說明計算只採用走完的那幾格', () => {
     const wrapper = mountPanel(buildProxy())
 
-    expect(wrapper.get('[data-testid="calculation-notice"]').text()).toContain('排除最新一根')
+    // 刻度變粗之後「排除最新一根」就講不清楚了：一小時的刻度下，
+    // 不採用的是一整個還沒走完的小時。畫面說的必須是實際的規則。
+    expect(wrapper.get('[data-testid="calculation-notice"]').text()).toContain('已經走完')
+    expect(wrapper.get('[data-testid="calculation-notice"]').text()).not.toContain('排除最新一根')
   })
 
   it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {
     const wrapper = mountPanel(buildProxy({
-      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', 3, 'float', [
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [
         new IndicatorValueVo('最高', [120]),
         new IndicatorValueVo('均價', [110]),
       ])),
@@ -218,7 +221,7 @@ describe('IndicatorCalculationPanel', () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn()
         .mockRejectedValueOnce(new IndicatorScriptFailedError('算式無法解讀'))
-        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', 3, 'float', [
+        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [
           new IndicatorValueVo('均價', [110]),
         ])),
     }))
@@ -330,7 +333,7 @@ describe('IndicatorCalculationPanel', () => {
   it('一串數字的每個值都看得到，順序不變', async () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockResolvedValue(
-        new IndicatorCalculation('BTCUSDT', 3, 'floatList', [
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'floatList', [
           new IndicatorValueVo('均線', [100, 105, 110]),
         ])),
     }))
@@ -344,7 +347,7 @@ describe('IndicatorCalculationPanel', () => {
   it('是非顯示「是」與「否」', async () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockResolvedValue(
-        new IndicatorCalculation('BTCUSDT', 3, 'boolList', [
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'boolList', [
           new IndicatorValueVo('逐根收紅', [true, false, true]),
         ])),
     }))
@@ -358,7 +361,7 @@ describe('IndicatorCalculationPanel', () => {
   it('空的一串明說是空的，不是留一片空白', async () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockResolvedValue(
-        new IndicatorCalculation('BTCUSDT', 3, 'floatList', [
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'floatList', [
           new IndicatorValueVo('均線', []),
         ])),
     }))
@@ -372,7 +375,7 @@ describe('IndicatorCalculationPanel', () => {
   it('結果說明這次的指標值種類', async () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockResolvedValue(
-        new IndicatorCalculation('BTCUSDT', 3, 'bool', [
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'bool', [
           new IndicatorValueVo('黃金交叉', [true]),
         ])),
     }))
@@ -410,5 +413,96 @@ describe('指標計算畫面上的 K 線欄位說明', () => {
 
     expect(wrapper.text()).toContain('不是資料庫那張表')
     expect(wrapper.text()).toContain('data []indicator.KCandle')
+  })
+})
+
+describe('指標計算畫面：這次用了多粗', () => {
+  it('挑好的彙總刻度真的被送出去', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '1h', 24, 'float', []))
+    const wrapper = mountPanel(buildProxy({ calculateIndicator }))
+    await settle()
+
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
+    await fillAndSubmit(wrapper)
+
+    expect(calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aggregationInterval: expect.objectContaining({ value: '1h' }),
+      }))
+  })
+
+  it('什麼都沒挑時送出的是五分鐘', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []))
+    const wrapper = mountPanel(buildProxy({ calculateIndicator }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aggregationInterval: expect.objectContaining({ value: '5m' }),
+      }))
+  })
+
+  it('結果寫出這次實際採用的彙總刻度，與根數並列', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '1h', 24, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('一小時')
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 24 根')
+  })
+
+  it('最細的那一種也照樣寫出來', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('五分鐘')
+  })
+
+  it('寫的是後端回報的刻度，不是送出時挑的那一個', async () => {
+    // 挑了一小時卻用五分鐘算出來的數字，長得跟對的一模一樣。
+    // 照回報的呈現，這種錯才看得見。
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    }))
+    await settle()
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('五分鐘')
+  })
+
+  it('一個指標都沒算出來時照樣寫得出這次用的刻度', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '4h', 10, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('四小時')
+  })
+
+  it('計算失敗時完全不呈現結果，也就沒有刻度可說', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(
+        new IndicatorScriptFailedError('算式執行失敗')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="used-interval"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
   })
 })
