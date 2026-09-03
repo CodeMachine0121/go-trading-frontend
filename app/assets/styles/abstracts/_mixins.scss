@@ -37,6 +37,17 @@
   text-transform: uppercase;
 }
 
+// 一整排欄位旁邊那顆按鈕，要與輸入框切齊，不是與說明文字切齊。
+//
+// FormField 把標籤、控制項與說明三樣上下疊起來，所以整排用 align-items: end 對齊時，
+// 按鈕會對到最下面那一行說明，看起來比它旁邊的輸入框低一截。
+// 這個 mixin 把按鈕往下推一個「標籤那一行」的高度——標籤的字級就定義在上面那個 mixin 裡，
+// 兩者住在同一個檔案，所以不會有一天各自改了一半。
+@mixin align-with-field-control {
+  align-self: start;
+  margin-top: calc(#{font-size('2xs')} * #{line-height('normal')} + #{spacing('3xs')});
+}
+
 // 可以上下對齊著讀的數字。
 //
 // 價、量、時間、指標值——只要是「一整欄要互相比較」的東西都用它。

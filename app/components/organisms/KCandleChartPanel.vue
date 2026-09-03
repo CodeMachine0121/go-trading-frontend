@@ -2,6 +2,7 @@
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
@@ -147,7 +148,6 @@ onMounted(() => {
         :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
-        :interval-label="intervalLabel"
         :loading="loading"
         :symbol-error="symbolError"
         @select-preset="selectPreset"
@@ -211,6 +211,18 @@ onMounted(() => {
       flush
       class="k-candle-chart-panel__chart"
     >
+      <!-- 每根涵蓋多久寫在圖的標題列上：它是「正在看多長」推出來的結果，
+           所以它跟著圖，不跟著控制項。 -->
+      <template #meta>
+        <span>每根涵蓋</span>
+        <AppBadge
+          variant="info"
+          data-testid="interval-label"
+        >
+          {{ intervalLabel }}
+        </AppBadge>
+      </template>
+
       <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
            它收在面板底下那一條窄帶裡，需要對照的時候才會被看見。 -->
       <template
@@ -241,6 +253,16 @@ onMounted(() => {
         :time-zone="timeZone"
         @range-change="showRange"
       />
+
+      <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
+           而不是留一整片黑——那看起來像壞了。 -->
+      <p
+        v-else
+        class="k-candle-chart-panel__empty"
+        data-testid="idle-chart"
+      >
+        還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+      </p>
     </AppPanel>
   </section>
 </template>

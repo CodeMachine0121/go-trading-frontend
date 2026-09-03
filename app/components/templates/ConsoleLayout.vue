@@ -174,7 +174,7 @@ defineProps<{
     // Nuxt 會在目前這條路由的連結上掛 exact-active，讓「我在哪一頁」看得出來。
     // 除了換底色，左邊還立一條強調色的短邊——一整排文字裡，那條邊比顏色更快被找到。
     &.router-link-exact-active {
-      box-shadow: inset 2px 0 0 0 var(--color-primary);
+      box-shadow: inset 2px 0 0 0 color('primary');
       background-color: color('primary-soft');
       color: color('primary');
     }

@@ -37,7 +37,7 @@ const startTime = defineModel<string>('startTime', { required: true })
 
     <FormField
       label="開始時間"
-      :hint="`${timeZone.label}；查詢區間一律到送出當下為止`"
+      :hint="`${timeZone.cityLabel}；查到送出當下`"
       :error-message="startTimeError"
       class="k-candle-query-form__field"
     >
@@ -64,7 +64,9 @@ const startTime = defineModel<string>('startTime', { required: true })
 .k-candle-query-form {
   display: grid;
   gap: spacing('xs') spacing('sm');
-  align-items: end;
+
+  // 從上面對齊：欄位的標籤因此排成一條線，而按鈕自己補上那一行的高度（見下方）。
+  align-items: start;
   grid-template-columns: 1fr;
 
   @include respond-to('md') {
@@ -75,7 +77,7 @@ const startTime = defineModel<string>('startTime', { required: true })
   }
 
   &__submit {
-    height: fit-content;
+    @include align-with-field-control;
   }
 }
 </style>
