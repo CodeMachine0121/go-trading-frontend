@@ -10,7 +10,7 @@ import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator
 import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
-import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
+import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
 import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
@@ -62,9 +62,15 @@ export class IndicatorCalculationService {
       interval => new AggregationIntervalDomain(interval.value).toOptionDto())
   }
 
-  /** 沒特別挑時是哪一種。畫面不自己指定預設值。 */
+  /**
+   * 沒特別挑時是哪一種。畫面不自己指定預設值。
+   *
+   * 問的是刻度自己——「沒宣告時算哪一種」已經是它建構子裡的規則，
+   * 在這裡再讀一次最細的那一個，等於把同一條規則寫第二遍：
+   * 哪天退回的對象改了，這裡會安靜地不同意。與隔壁的指標值種類同一個寫法。
+   */
   defaultAggregationInterval(): AggregationIntervalValue {
-    return FINEST_AGGREGATION_INTERVAL.value
+    return new AggregationIntervalDomain('').value
   }
 
   /** 沒特別填時要算幾根。同上——畫面不自己指定預設值。 */
