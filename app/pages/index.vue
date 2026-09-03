@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
+import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
 import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -29,6 +30,9 @@ async function checkBackendHealth() {
 }
 
 onMounted(checkBackendHealth)
+
+// 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
+const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
 </script>
 
 <template>
@@ -36,6 +40,14 @@ onMounted(checkBackendHealth)
     title="連線狀態"
     subtitle="這個操作台的每一個功能都以後端 go-trading 可用為前提。"
   >
+    <template #timezone>
+      <TimeZoneField
+        :model-value="selectedTimeZone.identifier"
+        :selectable-time-zones="selectableTimeZones"
+        @update:model-value="selectTimeZone"
+      />
+    </template>
+
     <BackendHealthCard
       :health="health"
       :loading="loading"

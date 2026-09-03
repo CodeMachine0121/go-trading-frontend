@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import { KCandleApplication } from '~/application/k-candle-application'
 import { KCandleService } from '~/domain/service/k-candle-service'
+import { buildTimeZone } from '../../fixtures/time-zone'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
@@ -48,10 +49,12 @@ async function mountPanel(
   kCandleProxy: IKCandleProxy,
   editingKCandle: KCandleDto | null = null,
   defaultSymbol = 'BTCUSDT',
+  timeZoneIdentifier = 'UTC',
 ) {
   const wrapper = mount(KCandleEditorPanel, {
     props: {
       kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)),
+      timeZone: buildTimeZone(timeZoneIdentifier),
       editingKCandle,
       defaultSymbol,
     },
@@ -355,5 +358,38 @@ describe('KCandleEditorPanel', () => {
     await wrapper.get('[data-testid="form-cancel"]').trigger('click')
 
     expect(wrapper.emitted('cancel')).toHaveLength(1)
+  })
+
+  describe('顯示時區', () => {
+    it('起始時間以選定的時區填與呈現', async () => {
+      const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto(), 'BTCUSDT', 'Asia/Taipei')
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
+        .toBe('2026-08-30T17:00')
+    })
+
+    it('填進去的起始時間被當成選定時區的當地時間', async () => {
+      const kCandleProxy = buildProxy()
+      const wrapper = await mountPanel(kCandleProxy, null, 'BTCUSDT', 'Asia/Taipei')
+
+      await wrapper.get('[data-testid="form-open-time"]').setValue('2026-08-30T20:00')
+      await fillFigures(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(kCandleProxy.saveKCandle).toHaveBeenCalledWith(expect.objectContaining({
+        identity: expect.objectContaining({ openTime: new Date('2026-08-30T12:00:00.000Z') }),
+      }))
+    })
+
+    it('填好之後才換時區時，欄位換一種說法但指的是同一個瞬間', async () => {
+      const wrapper = await mountPanel(buildProxy())
+      await wrapper.get('[data-testid="form-open-time"]').setValue('2026-08-30T09:00')
+
+      await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+
+      expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
+        .toBe('2026-08-30T17:00')
+    })
   })
 })

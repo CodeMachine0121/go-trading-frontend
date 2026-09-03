@@ -4,12 +4,14 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
 // 結束時間不是欄位：查詢一律查到送出當下，因此表單只收開始時間。
-const { tradingSymbolApplication, loading = false, symbolError = null, startTimeError = null } = defineProps<{
+const { tradingSymbolApplication, timeZone, loading = false, symbolError = null, startTimeError = null } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
+  timeZone: TimeZoneDto
   loading?: boolean
   symbolError?: string | null
   startTimeError?: string | null
@@ -35,7 +37,7 @@ const startTime = defineModel<string>('startTime', { required: true })
 
     <FormField
       label="開始時間"
-      hint="世界標準時間（UTC）；查詢區間一律到送出當下為止"
+      :hint="`${timeZone.label}；查詢區間一律到送出當下為止`"
       :error-message="startTimeError"
       class="k-candle-query-form__field"
     >

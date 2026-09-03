@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 
 function mountForm(props: Record<string, unknown> = {}) {
   return mount(KCandleQueryForm, {
@@ -10,6 +11,7 @@ function mountForm(props: Record<string, unknown> = {}) {
       symbol: 'BTCUSDT',
       tradingSymbolApplication: buildTradingSymbolApplication(),
       startTime: '2026-08-29T12:00',
+      timeZone: buildTimeZone(),
       ...props,
     },
   })

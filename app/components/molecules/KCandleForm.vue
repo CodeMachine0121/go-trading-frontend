@@ -3,10 +3,13 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { KCandleWriteField } from '~/domain/errors/k-candle-field-error'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：一根 K 線的輸入表單。
 // 欄位合不合法是業務規則，這裡只負責把外部傳進來的錯誤標在對應欄位旁。
-const { identityReadonly = false, submitting = false, fieldError = null } = defineProps<{
+const { timeZone, identityReadonly = false, submitting = false, fieldError = null } = defineProps<{
+  /** 起始時間要用哪一個時區填與呈現。 */
+  timeZone: TimeZoneDto
   /** 修改既有的 K 線時，交易標的與起始時間不得更換。 */
   identityReadonly?: boolean
   submitting?: boolean
@@ -74,7 +77,7 @@ function messageFor(field: KCandleWriteField): string | null {
 
       <FormField
         label="起始時間"
-        :hint="identityReadonly ? '修改時不得更換' : '世界標準時間（UTC），須落在五分鐘刻度'"
+        :hint="identityReadonly ? '修改時不得更換' : `${timeZone.label}，須落在五分鐘刻度`"
         :error-message="messageFor('openTime')"
       >
         <AppInput

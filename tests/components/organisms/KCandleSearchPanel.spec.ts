@@ -5,6 +5,7 @@ import KCandleSearchPanel from '~/components/organisms/KCandleSearchPanel.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleApplication } from '~/application/k-candle-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
@@ -52,11 +53,12 @@ function expectQueriedUntilSubmissionTime(kCandleProxy: IKCandleProxy) {
   expect(queriedCondition?.endTime.getTime()).toBeLessThan(CURRENT_TIME.getTime() + 5000)
 }
 
-async function mountPanel(kCandleProxy: IKCandleProxy) {
+async function mountPanel(kCandleProxy: IKCandleProxy, timeZoneIdentifier = 'UTC') {
   const wrapper = mount(KCandleSearchPanel, {
     props: {
       kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      timeZone: buildTimeZone(timeZoneIdentifier),
     },
   })
   // 預設區間與交易標的清單都在 onMounted 才帶入，等它們都到齊再讓測試往下走。
@@ -341,5 +343,46 @@ describe('KCandleSearchPanel', () => {
 
       expect(wrapper.find('[data-testid="form-symbol"]').exists()).toBe(false)
     })
+  })
+
+  it('選定的時區決定預設開始時間怎麼寫', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }), 'Asia/Taipei')
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
+      .toBe('2026-08-29T20:00')
+  })
+
+  it('填進去的開始時間被當成選定時區的當地時間', async () => {
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
+    const wrapper = await mountPanel(kCandleProxy, 'Asia/Taipei')
+
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T12:00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledWith(expect.objectContaining({
+      startTime: new Date('2026-08-30T04:00:00.000Z'),
+    }))
+  })
+
+  it('填好之後才換時區時，欄位換一種說法但指的是同一個瞬間', async () => {
+    const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }))
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T04:00')
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
+      .toBe('2026-08-30T12:00')
+  })
+
+  it('換時區不會自己去查一次', async () => {
+    const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
+    const wrapper = await mountPanel(kCandleProxy)
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+    await flushPromises()
+
+    expect(kCandleProxy.findKCandlesInRange).not.toHaveBeenCalled()
   })
 })

@@ -5,6 +5,7 @@ import KCandleTable from '~/components/organisms/KCandleTable.vue'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
+import { buildTimeZone } from '../../fixtures/time-zone'
 
 function buildKCandleDto(openTime: string, trend: KCandleTrendVo): KCandleDto {
   return new KCandleDto(
@@ -34,7 +35,7 @@ describe('KCandleTable', () => {
       buildKCandleDto(`2026-08-30T10:0${index}:00.000Z`, UP_TREND))
 
     const wrapper = mount(KCandleTable, {
-      props: { result: new KCandleSearchResultDto(kCandleDtos) },
+      props: { result: new KCandleSearchResultDto(kCandleDtos), timeZone: buildTimeZone() },
     })
 
     expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(candleCount)
@@ -44,7 +45,7 @@ describe('KCandleTable', () => {
 
   it('一根都沒有時顯示查無 K 線而不是空白表格', () => {
     const wrapper = mount(KCandleTable, {
-      props: { result: new KCandleSearchResultDto([]) },
+      props: { result: new KCandleSearchResultDto([]), timeZone: buildTimeZone() },
     })
 
     expect(wrapper.get('[data-testid="empty-result"]').text()).toContain('查無 K 線')
@@ -59,6 +60,7 @@ describe('KCandleTable', () => {
           buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND),
           buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
         ]),
+        timeZone: buildTimeZone(),
       },
     })
 
@@ -67,21 +69,29 @@ describe('KCandleTable', () => {
     expect(rows[1]?.text()).toContain('下跌')
   })
 
-  it('起始時間以世界標準時間呈現', () => {
+  it.each([
+    { identifier: 'UTC', expectedOpenTime: '2026-08-30 10:05', expectedOffsetLabel: 'UTC+00:00' },
+    { identifier: 'Asia/Taipei', expectedOpenTime: '2026-08-30 18:05', expectedOffsetLabel: 'UTC+08:00' },
+  ])('選定 $identifier 時，起始時間以該時區呈現', ({ identifier, expectedOpenTime, expectedOffsetLabel }) => {
     const wrapper = mount(KCandleTable, {
       props: {
         result: new KCandleSearchResultDto([
           buildKCandleDto('2026-08-30T10:05:00.000Z', UP_TREND),
         ]),
+        timeZone: buildTimeZone(identifier),
       },
     })
 
-    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 10:05')
+    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain(expectedOpenTime)
+    expect(wrapper.text()).toContain(`起始時間（${expectedOffsetLabel}）`)
   })
 
   it('沒有給操作插槽時不多出操作欄', () => {
     const wrapper = mount(KCandleTable, {
-      props: { result: new KCandleSearchResultDto([buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND)]) },
+      props: {
+        result: new KCandleSearchResultDto([buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND)]),
+        timeZone: buildTimeZone(),
+      },
     })
 
     expect(wrapper.text()).not.toContain('操作')
@@ -94,6 +104,7 @@ describe('KCandleTable', () => {
           buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND),
           buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
         ]),
+        timeZone: buildTimeZone(),
       },
       slots: {
         'row-actions': '<button data-testid="row-action">{{ params.kCandle.trend.label }}</button>',

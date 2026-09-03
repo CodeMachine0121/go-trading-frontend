@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import type { IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+
+/**
+ * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
+ * （它碰得到 document），所以型別在這裡先取出來，值等載完再拿。
+ */
+type TickMarkTypes = typeof import('lightweight-charts').TickMarkType
 
 /** 同一批資料的兩種畫法。是同一個元件的兩個樣子，不是兩個元件。 */
 type KCandleChartDrawing = 'candlestick' | 'line'
@@ -28,11 +35,36 @@ const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
  */
 const RANGE_SETTLE_MILLISECONDS = 220
 
-const { chart = null, drawing = 'candlestick', visibleStartTime, visibleEndTime } = defineProps<{
+/** 繪圖函式庫給的是秒，領域說的是瞬間。 */
+function instantOf(time: Time): Date {
+  return new Date(Number(time) * 1000)
+}
+
+/**
+ * 時間軸一格刻度要說到多細：年、月、日或時分。
+ * 一律從當地說法（`2026-08-30 12:00`）上切，這樣刻度與十字準星說的是同一個時區。
+ */
+function sliceTickMark(
+  localDateTime: string, tickMarkType: TickMarkType, tickMarkTypes: TickMarkTypes): string {
+  switch (tickMarkType) {
+    case tickMarkTypes.Year:
+      return localDateTime.slice(0, 4)
+    case tickMarkTypes.Month:
+      return localDateTime.slice(0, 7)
+    case tickMarkTypes.DayOfMonth:
+      return localDateTime.slice(5, 10)
+    default:
+      return localDateTime.slice(11, 16)
+  }
+}
+
+const { chart = null, drawing = 'candlestick', visibleStartTime, visibleEndTime, timeZone } = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
   visibleStartTime: Date
   visibleEndTime: Date
+  /** 時間軸與十字準星用哪一個時區說。 */
+  timeZone: TimeZoneDto
 }>()
 
 const emit = defineEmits<{ rangeChange: [{ startTime: Date, endTime: Date }] }>()
@@ -41,6 +73,7 @@ const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
 const seriesApi = shallowRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null)
 const createSeriesFor = shallowRef<((drawing: KCandleChartDrawing) => void) | null>(null)
+const applyTimeZoneFormatting = shallowRef<(() => void) | null>(null)
 const releaseGestureListeners = shallowRef<(() => void) | null>(null)
 let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
 /**
@@ -124,7 +157,7 @@ function applyVisibleRange() {
 }
 
 onMounted(async () => {
-  const { createChart, CandlestickSeries, LineSeries } = await import('lightweight-charts')
+  const { createChart, CandlestickSeries, LineSeries, TickMarkType } = await import('lightweight-charts')
 
   // 函式庫還沒載完，使用者就離開了這個畫面：沒有容器可以畫，就不要建立圖表。
   if (chartHost.value === null) {
@@ -152,6 +185,18 @@ onMounted(async () => {
   })
 
   chartApi.value = createdChart
+
+  // 時間的說法與其他選項分開套用：它會跟著使用者換時區再套一次，
+  // 而 applyOptions 是合併的，因此這裡只講時間怎麼寫，不必重覆其他設定。
+  applyTimeZoneFormatting.value = () => createdChart.applyOptions({
+    localization: { timeFormatter: (time: Time) => timeZone.formatDateTime(instantOf(time)) },
+    timeScale: {
+      tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => sliceTickMark(
+        timeZone.formatDateTime(instantOf(time)), tickMarkType, TickMarkType),
+    },
+  })
+  applyTimeZoneFormatting.value()
+
   createSeriesFor.value = (nextDrawing: KCandleChartDrawing) => {
     if (seriesApi.value !== null) {
       createdChart.removeSeries(seriesApi.value)
@@ -208,6 +253,9 @@ watch(() => chart, drawKCandles)
 // 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
 watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
 
+// 換時區只是換一種說法，看的還是同一段、同一批資料：時間軸與十字準星重講一次就好。
+watch(() => timeZone, () => applyTimeZoneFormatting.value?.())
+
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
   createSeriesFor.value?.(nextDrawing)
@@ -221,6 +269,7 @@ onBeforeUnmount(() => {
 
   releaseGestureListeners.value?.()
   releaseGestureListeners.value = null
+  applyTimeZoneFormatting.value = null
 
   chartApi.value?.remove()
   chartApi.value = null

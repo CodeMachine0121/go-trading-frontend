@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
-import { formatUtcDateTime } from '~/utilities/utc-time-format'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 有機體：把一次查詢的結果攤成表格。
-// 筆數、排序、漲跌語氣都已經在 DTO 裡算好，這裡只負責呈現。
-defineProps<{ result: KCandleSearchResultDto }>()
+// 筆數、排序、漲跌語氣都已經在 DTO 裡算好，這裡只負責呈現；
+// 時間要用哪一個時區說，問選定的那一個。
+defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
 </script>
 
 <template>
@@ -38,7 +39,7 @@ defineProps<{ result: KCandleSearchResultDto }>()
         <thead>
           <tr>
             <th scope="col">
-              起始時間（UTC）
+              起始時間（{{ timeZone.offsetLabel }}）
             </th>
             <th scope="col">
               漲跌
@@ -81,7 +82,7 @@ defineProps<{ result: KCandleSearchResultDto }>()
             :key="kCandle.openTime.toISOString()"
             data-testid="k-candle-row"
           >
-            <td>{{ formatUtcDateTime(kCandle.openTime) }}</td>
+            <td>{{ timeZone.formatDateTime(kCandle.openTime) }}</td>
             <td>
               <AppBadge :variant="kCandle.trend.tone">
                 {{ kCandle.trend.label }}

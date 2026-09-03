@@ -6,6 +6,7 @@ import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
+import { buildTimeZone } from '../../fixtures/time-zone'
 
 // 繪圖函式庫是最外層的邊界，比照 proxy 用 mocking 套件替身，不手刻假實作。
 // 它需要真正的畫布，測試環境沒有；而我們要驗的也不是它畫得對不對，
@@ -40,6 +41,7 @@ const chartLibrary = vi.hoisted(() => {
   }
   const chartApi = {
     addSeries: vi.fn(),
+    applyOptions: vi.fn(),
     removeSeries: vi.fn(),
     timeScale: () => timeScale,
     remove: vi.fn(),
@@ -71,6 +73,8 @@ vi.mock('lightweight-charts', () => ({
   createChart: chartLibrary.createChart,
   CandlestickSeries: 'CandlestickSeries',
   LineSeries: 'LineSeries',
+  // 真的那個函式庫用這組列舉告訴我們這一格刻度該說到多細。
+  TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
 }))
 
 const VISIBLE_START_TIME = new Date('2026-09-02T10:00:00.000Z')
@@ -95,13 +99,27 @@ function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
   )
 }
 
-async function mountChart(chart: KCandleChartDto | null, drawing: 'candlestick' | 'line' = 'candlestick') {
+/** 最後一次交給函式庫的「時間怎麼寫」。 */
+function latestTimeFormatting() {
+  const options = chartLibrary.chartApi.applyOptions.mock.calls.at(-1)?.[0] as {
+    localization: { timeFormatter: (time: number) => string }
+    timeScale: { tickMarkFormatter: (time: number, tickMarkType: number) => string }
+  }
+
+  return {
+    formatCrosshair: options.localization.timeFormatter,
+    formatTickMark: options.timeScale.tickMarkFormatter,
+  }
+}
+
+async function mountChart(chart: KCandleChartDto | null, drawing: 'candlestick' | 'line' = 'candlestick', timeZoneIdentifier = 'UTC') {
   const wrapper = mount(KCandleChart, {
     props: {
       chart,
       drawing,
       visibleStartTime: VISIBLE_START_TIME,
       visibleEndTime: VISIBLE_END_TIME,
+      timeZone: buildTimeZone(timeZoneIdentifier),
     },
   })
   await flushPromises()
@@ -256,6 +274,7 @@ describe('KCandleChart', () => {
         drawing: 'candlestick',
         visibleStartTime: VISIBLE_START_TIME,
         visibleEndTime: VISIBLE_END_TIME,
+        timeZone: buildTimeZone(),
       },
     })
     wrapper.unmount()
@@ -271,6 +290,7 @@ describe('KCandleChart', () => {
         drawing: 'candlestick',
         visibleStartTime: VISIBLE_START_TIME,
         visibleEndTime: VISIBLE_END_TIME,
+        timeZone: buildTimeZone(),
       },
     })
 
@@ -332,5 +352,43 @@ describe('KCandleChart', () => {
     vi.advanceTimersByTime(300)
 
     expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
+  it.each([
+    { identifier: 'UTC', expectedCrosshair: '2026-09-02 10:00', expectedTime: '10:00' },
+    { identifier: 'Asia/Taipei', expectedCrosshair: '2026-09-02 18:00', expectedTime: '18:00' },
+  ])('時間軸與十字準星照選定的 $identifier 說時間', async ({ identifier, expectedCrosshair, expectedTime }) => {
+    await mountChart(chartDto([]), 'candlestick', identifier)
+
+    const { formatCrosshair, formatTickMark } = latestTimeFormatting()
+    const barTime = VISIBLE_START_TIME.getTime() / 1000
+
+    expect(formatCrosshair(barTime)).toBe(expectedCrosshair)
+    expect(formatTickMark(barTime, 3)).toBe(expectedTime)
+  })
+
+  it.each([
+    { description: '年', tickMarkType: 0, expected: '2026' },
+    { description: '月', tickMarkType: 1, expected: '2026-09' },
+    { description: '日', tickMarkType: 2, expected: '09-02' },
+    { description: '時分', tickMarkType: 3, expected: '10:00' },
+  ])('$description 這一格刻度只說到該說的粗細', async ({ tickMarkType, expected }) => {
+    await mountChart(chartDto([]))
+
+    expect(latestTimeFormatting().formatTickMark(VISIBLE_START_TIME.getTime() / 1000, tickMarkType))
+      .toBe(expected)
+  })
+
+  it('換時區時，時間軸重講一次，但不重畫資料也不動位置', async () => {
+    const wrapper = await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success'))]))
+    chartLibrary.candlestickSeries.setData.mockClear()
+    chartLibrary.timeScale.setVisibleRange.mockClear()
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+
+    expect(latestTimeFormatting().formatCrosshair(VISIBLE_START_TIME.getTime() / 1000))
+      .toBe('2026-09-02 18:00')
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+    expect(chartLibrary.timeScale.setVisibleRange).not.toHaveBeenCalled()
   })
 })
