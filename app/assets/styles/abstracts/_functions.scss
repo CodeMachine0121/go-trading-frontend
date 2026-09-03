@@ -43,6 +43,10 @@
   @return var(--shadow-#{assert-token(tokens.$shadows, $name, 'shadow')});
 }
 
+@function z-index($name) {
+  @return var(--z-index-#{assert-token(tokens.$z-indices, $name, 'z-index')});
+}
+
 @function duration($name) {
   @return var(--duration-#{assert-token(tokens.$durations, $name, 'duration')});
 }
