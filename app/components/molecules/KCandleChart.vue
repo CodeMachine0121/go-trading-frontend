@@ -2,6 +2,7 @@
 import type { IChartApi, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 /**
  * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
@@ -35,14 +36,25 @@ const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
  */
 const RANGE_SETTLE_MILLISECONDS = 220
 
-/** 繪圖函式庫給的是秒，領域說的是瞬間。 */
-function instantOf(time: Time): Date {
+/** 繪圖函式庫收發的是秒，這裡收發的是時間值。 */
+function timeValueOf(time: Time): Date {
   return new Date(Number(time) * 1000)
 }
 
 /**
+ * 交給繪圖函式庫的**不是**瞬間，而是選定時區的**當地時鐘讀數**。
+ *
+ * 它決定哪一格該標年、哪一格該標日，看的是自己收到的時間的世界標準時間年月日
+ * （`weightByTime`）。餵真正的瞬間進去，分格就會落在世界標準時間的午夜與元旦上——
+ * 負位移的時區還會整格標成前一天、前一年。把讀數搬進去，分格與標籤就都是當地的。
+ */
+function wallClockSecondsOf(instant: Date, timeZone: TimeZoneDto): UTCTimestamp {
+  return (timeZone.toWallClock(instant).getTime() / 1000) as UTCTimestamp
+}
+
+/**
  * 時間軸一格刻度要說到多細：年、月、日或時分。
- * 一律從當地說法（`2026-08-30 12:00`）上切，這樣刻度與十字準星說的是同一個時區。
+ * 切的是當地時鐘讀數（`2026-08-30 12:00`），與分格用的是同一份讀數。
  */
 function sliceTickMark(
   localDateTime: string, tickMarkType: TickMarkType, tickMarkTypes: TickMarkTypes): string {
@@ -113,7 +125,7 @@ function drawKCandles() {
 
   const kCandles = chart === null ? [] : chart.kCandles
   const rows = kCandles.map((kCandle) => {
-    const time = (kCandle.openTime.getTime() / 1000) as UTCTimestamp
+    const time = wallClockSecondsOf(kCandle.openTime, timeZone)
 
     if (drawing === 'line') {
       return { time, value: kCandle.close.toNumber() }
@@ -151,8 +163,8 @@ function applyVisibleRange() {
   selfIssuedRangeChange = true
 
   chartApi.value?.timeScale().setVisibleRange({
-    from: (visibleStartTime.getTime() / 1000) as UTCTimestamp,
-    to: (visibleEndTime.getTime() / 1000) as UTCTimestamp,
+    from: wallClockSecondsOf(visibleStartTime, timeZone),
+    to: wallClockSecondsOf(visibleEndTime, timeZone),
   })
 }
 
@@ -188,11 +200,13 @@ onMounted(async () => {
 
   // 時間的說法與其他選項分開套用：它會跟著使用者換時區再套一次，
   // 而 applyOptions 是合併的，因此這裡只講時間怎麼寫，不必重覆其他設定。
+  // 送進去的既然是當地時鐘讀數，標籤就照世界標準時間讀出來——那正是當地的說法。
+  const readWallClock = (time: Time) => formatDateTimeInTimeZone(timeValueOf(time), 'UTC')
   applyTimeZoneFormatting.value = () => createdChart.applyOptions({
-    localization: { timeFormatter: (time: Time) => timeZone.formatDateTime(instantOf(time)) },
+    localization: { timeFormatter: (time: Time) => readWallClock(time) },
     timeScale: {
       tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => sliceTickMark(
-        timeZone.formatDateTime(instantOf(time)), tickMarkType, TickMarkType),
+        readWallClock(time), tickMarkType, TickMarkType),
     },
   })
   applyTimeZoneFormatting.value()
@@ -237,9 +251,10 @@ onMounted(async () => {
         return
       }
 
+      // 圖上那一段是當地時鐘讀數，外面要的是瞬間。
       emit('rangeChange', {
-        startTime: new Date(Number(range.from) * 1000),
-        endTime: new Date(Number(range.to) * 1000),
+        startTime: timeZone.fromWallClock(timeValueOf(range.from)),
+        endTime: timeZone.fromWallClock(timeValueOf(range.to)),
       })
     }, RANGE_SETTLE_MILLISECONDS)
   })
@@ -253,8 +268,12 @@ watch(() => chart, drawKCandles)
 // 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
 watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
 
-// 換時區只是換一種說法，看的還是同一段、同一批資料：時間軸與十字準星重講一次就好。
-watch(() => timeZone, () => applyTimeZoneFormatting.value?.())
+// 換時區只是換一種說法：看的還是同一段、同一批資料，但交給繪圖函式庫的讀數整批換了一種寫法，
+// 所以連資料帶位置一起重講一次——不會因此回頭去取任何東西。
+watch(() => timeZone, () => {
+  applyTimeZoneFormatting.value?.()
+  drawKCandles()
+})
 
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {

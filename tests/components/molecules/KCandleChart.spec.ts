@@ -77,6 +77,7 @@ vi.mock('lightweight-charts', () => ({
   TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
 }))
 
+const UP_TREND = new KCandleTrendVo('up', '上漲', 'success')
 const VISIBLE_START_TIME = new Date('2026-09-02T10:00:00.000Z')
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 
@@ -97,6 +98,13 @@ function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
     VISIBLE_END_TIME,
     kCandles,
   )
+}
+
+/** 最後一次真的交給函式庫的那幾根。 */
+function drawnRows(): { time: number }[] {
+  const [rows] = chartLibrary.candlestickSeries.setData.mock.calls.at(-1) as [{ time: number }[]]
+
+  return rows
 }
 
 /** 最後一次交給函式庫的「時間怎麼寫」。 */
@@ -358,13 +366,41 @@ describe('KCandleChart', () => {
     { identifier: 'UTC', expectedCrosshair: '2026-09-02 10:00', expectedTime: '10:00' },
     { identifier: 'Asia/Taipei', expectedCrosshair: '2026-09-02 18:00', expectedTime: '18:00' },
   ])('時間軸與十字準星照選定的 $identifier 說時間', async ({ identifier, expectedCrosshair, expectedTime }) => {
-    await mountChart(chartDto([]), 'candlestick', identifier)
+    await mountChart(
+      chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]), 'candlestick', identifier)
 
+    // 用的是真正交給函式庫的那個時間值——標籤與分格看的是同一份東西。
+    const drawnTime = drawnRows()[0].time
     const { formatCrosshair, formatTickMark } = latestTimeFormatting()
-    const barTime = VISIBLE_START_TIME.getTime() / 1000
 
-    expect(formatCrosshair(barTime)).toBe(expectedCrosshair)
-    expect(formatTickMark(barTime, 3)).toBe(expectedTime)
+    expect(formatCrosshair(drawnTime)).toBe(expectedCrosshair)
+    expect(formatTickMark(drawnTime, 3)).toBe(expectedTime)
+  })
+
+  it.each([
+    { identifier: 'UTC', expectedDrawnTime: '2026-09-02T10:00:00.000Z' },
+    { identifier: 'Asia/Taipei', expectedDrawnTime: '2026-09-02T18:00:00.000Z' },
+    { identifier: 'America/New_York', expectedDrawnTime: '2026-09-02T06:00:00.000Z' },
+  ])('交給函式庫的是 $identifier 的當地時鐘讀數，不是那個瞬間', async ({ identifier, expectedDrawnTime }) => {
+    await mountChart(
+      chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]), 'candlestick', identifier)
+
+    expect(new Date(drawnRows()[0].time * 1000).toISOString()).toBe(expectedDrawnTime)
+  })
+
+  it('分格因此落在當地的元旦上，而不是世界標準時間的那一個', async () => {
+    // 函式庫用它收到的時間的**世界標準時間**年月日決定哪一格標年（weightByTime）。
+    // 紐約的跨年在世界標準時間是一月一日的清晨五點——餵瞬間進去，
+    // 十二月三十一日晚上七點那一根就會被當成新的一年並標上前一年的年份。
+    await mountChart(chartDto([
+      kCandleDto('2027-01-01T00:00:00.000Z', '110', UP_TREND),
+      kCandleDto('2027-01-01T05:00:00.000Z', '110', UP_TREND),
+    ]), 'candlestick', 'America/New_York')
+
+    const drawnYears = drawnRows().map(
+      row => new Date(row.time * 1000).toISOString().slice(0, 4))
+
+    expect(drawnYears).toEqual(['2026', '2027'])
   })
 
   it.each([
@@ -379,16 +415,36 @@ describe('KCandleChart', () => {
       .toBe(expected)
   })
 
-  it('換時區時，時間軸重講一次，但不重畫資料也不動位置', async () => {
-    const wrapper = await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success'))]))
-    chartLibrary.candlestickSeries.setData.mockClear()
-    chartLibrary.timeScale.setVisibleRange.mockClear()
+  it('換時區時整批讀數與標籤一起重講，看的還是同一根', async () => {
+    const wrapper = await mountChart(
+      chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]))
+    expect(new Date(drawnRows()[0].time * 1000).toISOString()).toBe('2026-09-02T10:00:00.000Z')
 
     await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
 
-    expect(latestTimeFormatting().formatCrosshair(VISIBLE_START_TIME.getTime() / 1000))
-      .toBe('2026-09-02 18:00')
-    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
-    expect(chartLibrary.timeScale.setVisibleRange).not.toHaveBeenCalled()
+    const drawnTime = drawnRows()[0].time
+    expect(new Date(drawnTime * 1000).toISOString()).toBe('2026-09-02T18:00:00.000Z')
+    expect(latestTimeFormatting().formatCrosshair(drawnTime)).toBe('2026-09-02 18:00')
+  })
+
+  it('使用者在別的時區拉出一段時，送回去的是那一段真正的瞬間', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(
+      chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]), 'candlestick', 'Asia/Taipei')
+    // 掛載時自己擺過一次位置，先讓那一次走完
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('pointerdown'))
+
+    // 函式庫回報的是它手上那份讀數（台北的當地時鐘），不是瞬間。
+    chartLibrary.reportRange({
+      from: new Date('2026-09-02T18:00:00.000Z').getTime() / 1000,
+      to: new Date('2026-09-02T20:00:00.000Z').getTime() / 1000,
+    })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')?.at(-1)).toEqual([{
+      startTime: new Date('2026-09-02T10:00:00.000Z'),
+      endTime: new Date('2026-09-02T12:00:00.000Z'),
+    }])
   })
 })

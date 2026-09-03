@@ -70,9 +70,9 @@ describe('KCandleTable', () => {
   })
 
   it.each([
-    { identifier: 'UTC', expectedOpenTime: '2026-08-30 10:05', expectedOffsetLabel: 'UTC+00:00' },
-    { identifier: 'Asia/Taipei', expectedOpenTime: '2026-08-30 18:05', expectedOffsetLabel: 'UTC+08:00' },
-  ])('選定 $identifier 時，起始時間以該時區呈現', ({ identifier, expectedOpenTime, expectedOffsetLabel }) => {
+    { identifier: 'UTC', expectedOpenTime: '2026-08-30 10:05', expectedCityLabel: '世界標準時間' },
+    { identifier: 'Asia/Taipei', expectedOpenTime: '2026-08-30 18:05', expectedCityLabel: '台北' },
+  ])('選定 $identifier 時，起始時間以該時區呈現', ({ identifier, expectedOpenTime, expectedCityLabel }) => {
     const wrapper = mount(KCandleTable, {
       props: {
         result: new KCandleSearchResultDto([
@@ -83,7 +83,7 @@ describe('KCandleTable', () => {
     })
 
     expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain(expectedOpenTime)
-    expect(wrapper.text()).toContain(`起始時間（${expectedOffsetLabel}）`)
+    expect(wrapper.text()).toContain(`起始時間（${expectedCityLabel}）`)
   })
 
   it('沒有給操作插槽時不多出操作欄', () => {

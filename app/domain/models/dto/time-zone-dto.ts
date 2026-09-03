@@ -2,6 +2,8 @@ import {
   formatDateTimeInTimeZone,
   formatMinuteInputInTimeZone,
   parseMinuteInputInTimeZone,
+  shiftToWallClock,
+  unshiftFromWallClock,
 } from '~/utilities/time-zone-format'
 
 /**
@@ -36,5 +38,18 @@ export class TimeZoneDto {
   /** 把使用者填的當地時間讀回一個瞬間；值不完整時回傳一個無效的時間值。 */
   parseMinuteInput(inputValue: string): Date {
     return parseMinuteInputInTimeZone(inputValue, this.identifier)
+  }
+
+  /**
+   * 把一個瞬間搬到當地時鐘讀數的位置上（台北的 12:00 → `2026-08-30T12:00Z`）。
+   * 只認世界標準時間、卻要照當地時鐘分格的東西才需要它——目前只有繪圖函式庫。
+   */
+  toWallClock(instant: Date): Date {
+    return shiftToWallClock(instant, this.identifier)
+  }
+
+  /** 把當地時鐘讀數讀回它真正指的那個瞬間，是 `toWallClock` 的反向。 */
+  fromWallClock(wallClock: Date): Date {
+    return unshiftFromWallClock(wallClock, this.identifier)
   }
 }

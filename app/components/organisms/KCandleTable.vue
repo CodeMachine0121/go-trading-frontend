@@ -39,7 +39,9 @@ defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
         <thead>
           <tr>
             <th scope="col">
-              起始時間（{{ timeZone.offsetLabel }}）
+              <!-- 標城市名而不是位移：每一列的位移是那一列那個瞬間的，
+                   一個「現在的」位移會在日光節約時間前後對不上自己底下的列 -->
+              起始時間（{{ timeZone.cityLabel }}）
             </th>
             <th scope="col">
               漲跌

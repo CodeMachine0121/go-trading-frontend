@@ -221,7 +221,7 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy())
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
-      .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（UTC+00:00）')
+      .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（世界標準時間）')
   })
 
   it('換時區時，涵蓋的那一段改用新時區說，且不重新取', async () => {
@@ -232,7 +232,7 @@ describe('KCandleChartPanel', () => {
     await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
-      .toBe('手上這批共 1 根，涵蓋 2026-09-01 08:00 ～ 2026-09-03 08:00（UTC+08:00）')
+      .toBe('手上這批共 1 根，涵蓋 2026-09-01 08:00 ～ 2026-09-03 08:00（台北）')
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
   })
 

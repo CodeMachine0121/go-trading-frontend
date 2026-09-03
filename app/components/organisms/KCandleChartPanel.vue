@@ -230,7 +230,7 @@ onMounted(() => {
     >
       手上這批共 {{ chart.count }} 根，涵蓋
       {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
-      {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.offsetLabel }}）
+      {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
     </p>
   </section>
 </template>

@@ -18,9 +18,22 @@ const MINUTE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
 const MINUTES_PER_HOUR = 60
 const MILLISECONDS_PER_MINUTE = 60 * 1000
 
-/** 一個瞬間在某個時區的年月日時分秒，全部補滿兩位（年份四位）。 */
-function readLocalParts(instant: Date, timeZoneIdentifier: string): Record<string, string> {
-  const parts = new Intl.DateTimeFormat('en-US', {
+/**
+ * 每個時區的格式化器只建一次。
+ *
+ * 建一個 `Intl.DateTimeFormat` 是這裡最貴的一件事，而清單上就那幾個時區、
+ * 每個時區的格式又固定不變。一張 K 線表格一次渲染就要問上千次時間怎麼寫，
+ * 每次現建一個的話那份成本會整份乘上去（實測千列約 24ms → 2ms）。
+ */
+const localPartsFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function localPartsFormatterFor(timeZoneIdentifier: string): Intl.DateTimeFormat {
+  const cachedFormatter = localPartsFormatters.get(timeZoneIdentifier)
+  if (cachedFormatter !== undefined) {
+    return cachedFormatter
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timeZoneIdentifier,
     hourCycle: 'h23',
     year: 'numeric',
@@ -29,15 +42,27 @@ function readLocalParts(instant: Date, timeZoneIdentifier: string): Record<strin
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  }).formatToParts(instant)
+  })
+  localPartsFormatters.set(timeZoneIdentifier, formatter)
+
+  return formatter
+}
+
+/** 一個瞬間在某個時區的年月日時分秒，全部補滿兩位（年份四位）。 */
+function readLocalParts(instant: Date, timeZoneIdentifier: string): Record<string, string> {
+  const parts = localPartsFormatterFor(timeZoneIdentifier).formatToParts(instant)
 
   return Object.fromEntries(parts.map(part => [part.type, part.value]))
 }
 
-/** 該時區在那個瞬間相對於世界標準時間的位移（毫秒，東經為正）。 */
-function offsetMillisecondsAt(instant: Date, timeZoneIdentifier: string): number {
+/**
+ * 當地時鐘讀數，以世界標準時間表達（台北的 12:00 → `2026-08-30T12:00Z`）。
+ * 它**不是**那個瞬間——是「時鐘上看到的數字」被搬到世界標準時間的位置上。
+ */
+function wallClockOf(instant: Date, timeZoneIdentifier: string): number {
   const localParts = readLocalParts(instant, timeZoneIdentifier)
-  const localWallClockAsUtc = Date.UTC(
+
+  return Date.UTC(
     Number(localParts.year),
     Number(localParts.month) - 1,
     Number(localParts.day),
@@ -45,9 +70,12 @@ function offsetMillisecondsAt(instant: Date, timeZoneIdentifier: string): number
     Number(localParts.minute),
     Number(localParts.second),
   )
+}
 
+/** 該時區在那個瞬間相對於世界標準時間的位移（毫秒，東經為正）。 */
+function offsetMillisecondsAt(instant: Date, timeZoneIdentifier: string): number {
   // 位移一律是整分鐘，所以先把秒以下抹掉再相減，否則會被毫秒帶出一個假的零頭。
-  return localWallClockAsUtc - Math.floor(instant.getTime() / 1000) * 1000
+  return wallClockOf(instant, timeZoneIdentifier) - Math.floor(instant.getTime() / 1000) * 1000
 }
 
 /** 畫面上呈現的當地時間字串（`2026-08-30 12:00`）。 */
@@ -63,22 +91,47 @@ export function formatMinuteInputInTimeZone(instant: Date, timeZoneIdentifier: s
 }
 
 /**
+ * 把一個瞬間搬到「當地時鐘讀數」的位置上。
+ *
+ * 給的是那種只認世界標準時間、卻要照當地時鐘分格的東西看的
+ * （繪圖函式庫就是：它用世界標準時間的年月日決定哪一格該標年、哪一格該標日）。
+ */
+export function shiftToWallClock(instant: Date, timeZoneIdentifier: string): Date {
+  return new Date(wallClockOf(instant, timeZoneIdentifier))
+}
+
+/**
+ * 把當地時鐘讀數讀回它真正指的那個瞬間。
+ *
+ * 換算要做兩次：先把讀數當成世界標準時間估一個瞬間、取那一刻的位移換一次，
+ * 再用換出來的那一刻的位移修正一次——否則日光節約時間切換的那一天會差一小時。
+ *
+ * 日光節約時間結束那一天有一個小時的讀數會出現兩次（倫敦的 01:30 就有兩個瞬間）。
+ * 那是「當地讀數」這件事本身的歧義，不是換算的錯：這裡一律取後面那一個，並保持一致。
+ */
+export function unshiftFromWallClock(wallClock: Date, timeZoneIdentifier: string): Date {
+  const wallClockMilliseconds = wallClock.getTime()
+  if (Number.isNaN(wallClockMilliseconds)) {
+    return new Date(Number.NaN)
+  }
+
+  const estimatedInstant = new Date(
+    wallClockMilliseconds - offsetMillisecondsAt(wallClock, timeZoneIdentifier))
+
+  return new Date(
+    wallClockMilliseconds - offsetMillisecondsAt(estimatedInstant, timeZoneIdentifier))
+}
+
+/**
  * 把分鐘精度時間輸入的值當成該時區的當地時間讀回一個瞬間。
  * 值不完整時回傳一個無效的時間值，由 domain 決定要怎麼告訴使用者。
- *
- * 換算要做兩次：先把當地寫法當成世界標準時間估一個瞬間、取那一刻的位移換一次，
- * 再用換出來的那一刻的位移修正一次——否則日光節約時間切換的那一天會差一小時。
  */
 export function parseMinuteInputInTimeZone(inputValue: string, timeZoneIdentifier: string): Date {
   if (!MINUTE_INPUT_PATTERN.test(inputValue)) {
     return new Date(Number.NaN)
   }
 
-  const localWallClockAsUtc = new Date(`${inputValue}:00Z`).getTime()
-  const estimatedInstant = new Date(
-    localWallClockAsUtc - offsetMillisecondsAt(new Date(localWallClockAsUtc), timeZoneIdentifier))
-
-  return new Date(localWallClockAsUtc - offsetMillisecondsAt(estimatedInstant, timeZoneIdentifier))
+  return unshiftFromWallClock(new Date(`${inputValue}:00Z`), timeZoneIdentifier)
 }
 
 /** 該時區在那個瞬間的位移標籤（`UTC+08:00`、`UTC-04:00`、`UTC+00:00`）。 */
