@@ -106,6 +106,18 @@ function readColor(host: HTMLElement, tokenName: string): string {
   return getComputedStyle(host).getPropertyValue(tokenName).trim()
 }
 
+/**
+ * 圖上那些刻度標籤要多大。
+ *
+ * 繪圖函式庫自己吃的是 px，所以它不會跟著介面的縮放走——不告訴它的話，
+ * 整個介面放大之後，只有時間軸與價格軸的數字還留在原本的大小。
+ * 這裡讀容器實際算出來的字級（它繼承自 body，也就是跟著根字級縮放的那一個），
+ * 於是圖上的字與畫面上的字永遠一樣大。
+ */
+function readFontSize(host: HTMLElement): number {
+  return Number.parseFloat(getComputedStyle(host).fontSize)
+}
+
 /** 精確小數只在真的要畫的這一刻才變成一般數值——繪圖函式庫只吃得下一般數值。 */
 function drawKCandles() {
   const series = seriesApi.value
@@ -183,6 +195,7 @@ onMounted(async () => {
     layout: {
       background: { color: readColor(host, '--color-surface') },
       textColor: readColor(host, '--color-text-muted'),
+      fontSize: readFontSize(host),
       // 圖上不擺繪圖函式庫的商標。它的授權要求的是保留 NOTICE 與一個連結，
       // 而這個操作台只在本機跑、沒有對外的頁面可以放那個連結；
       // 函式庫本身也為此留了這個開關（預設為開）。
@@ -312,5 +325,9 @@ onBeforeUnmount(() => {
   background-color: color('surface');
   width: 100%;
   min-height: 20rem;
+
+  // 圖上刻度標籤的大小是從這裡讀出去的（見 readFontSize）——
+  // 密集的軸標籤用小一級，才不會與價格數字爭。
+  font-size: font-size('2xs');
 }
 </style>
