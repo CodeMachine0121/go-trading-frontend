@@ -55,7 +55,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `TimeZone` | Entity | 一個可選時區的本體形狀：IANA 識別字與城市名。只有欄位，帶一個 `toDomain()` | `TimeZoneDomain` | US-01 全部 |
 | `TimeZoneDomain` | Domain Model | 算出「目前」相對於世界標準時間的位移、組出「台北（UTC+08:00）」這個說法、轉 DTO | `TimeZoneDto`、`utilities/time-zone-format` | 可選的時區都標出目前的位移 |
-| `TimeZoneDto` | DTO | 畫面拿到的形狀，**並負責雙向換算**：`formatDateTime`（顯示）、`formatMinuteInput` / `parseMinuteInput`（輸入） | `utilities/time-zone-format` | US-02、US-03 全部 |
+| `TimeZoneDto` | DTO | 畫面拿到的形狀，**並負責雙向換算**：`formatDateTime`（顯示）、`formatMinuteInput` / `parseMinuteInput`（輸入）、`toWallClock` / `fromWallClock`（給只認世界標準時間卻要照當地時鐘分格的東西，目前只有繪圖函式庫） | `utilities/time-zone-format` | US-02、US-03 全部 |
 | `ITimeZonePreferenceProxy` | 介面 | 記住／讀回這台瀏覽器選的時區 | — | US-04 全部 |
 | `TimeZonePreferenceProxy` | Proxy | localStorage 實作。**全站唯一碰瀏覽器儲存的檔案** | — | US-04 全部 |
 | `TimeZoneService` | Domain Service | 三個互不呼叫的用例：`listSelectableTimeZones` / `restoreSelectedTimeZone` / `selectTimeZone`。清單以外的識別字一律退回世界標準時間（私有 helper `resolveTimeZone`） | `ITimeZonePreferenceProxy`、`TimeZone` | US-01、US-04 |
@@ -79,7 +79,7 @@
 | `KCandleQueryForm` / `KCandleForm` | 說明文字改問 `timeZone` | 使用者要知道自己填的是哪一個時區 |
 | `KCandleSearchPanel` / `KCandleEditorPanel` | 進出欄位的換算改問 `timeZone`；**換時區時把欄位裡的值以舊時區讀回瞬間、再以新時區寫出** | 換說法不該改變它指的瞬間 |
 | `KCandleChartPanel` | 已取回區間的說明改問 `timeZone` | 顯示 |
-| `KCandleChart` | 時間軸與十字準星的格式改問 `timeZone`，換了就 `applyOptions` | 繪圖函式庫預設以世界標準時間畫刻度 |
+| `KCandleChart` | 交給繪圖函式庫的是選定時區的**當地時鐘讀數**（`timeZone.toWallClock`），標籤直接從那份讀數讀回來；使用者拉出的區間再換回瞬間（`fromWallClock`） | 繪圖函式庫用它收到的時間的**世界標準時間**年月日決定哪一格標年、標月、標日（`weightByTime`）。餵真正的瞬間進去，分格就落在世界標準時間的午夜與元旦上，負位移的時區還會整格標成前一天、前一年 |
 
 ---
 
@@ -128,6 +128,12 @@ page ──┼── useSelectedTimeZone() ──▶ TimeZoneApplication ──�
 - **伺服器端與瀏覽器端說法不同**：`localStorage` 只有瀏覽器有。因此初值一律世界標準時間，
   掛載後才讀回——比照既有畫面「預設區間在 onMounted 才取」的做法。
 - **日光節約時間邊界**：當地寫法回推瞬間時要修正兩次（先以估算的位移換一次、再以換出來那一刻的位移修一次）。
-  紐約的三月與十一月是這條的測試對象。
+  紐約的三月與十一月是這條的測試對象。日光節約時間**結束**那一天有一小時的讀數會出現兩次
+  （倫敦的 01:30 有兩個瞬間），那是「當地讀數」本身的歧義：一律取後面那一個。
+- **位移標籤只說得準「現在」**：`offsetLabel` 是在取清單的那一刻算的，因此只用在時區選單上。
+  表格表頭與涵蓋區間的說明改標**城市名**——每一列的位移是那一列那個瞬間的，
+  一個「現在的」位移會在日光節約時間前後對不上自己底下的列。
+- **格式化器要快取**：一張表格一次渲染會問上千次時間怎麼寫，
+  每次現建一個 `Intl.DateTimeFormat` 會把成本整份乘上去（實測千列 24ms → 2ms）。
 - **五分鐘刻度**：所有清單內時區的位移都是五分鐘的整數倍，因此「起始時間須落在五分鐘刻度」
   在任何時區下看起來都仍然落在刻度上。加時區時要守住這一點。
