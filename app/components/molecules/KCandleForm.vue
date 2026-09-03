@@ -131,28 +131,36 @@ function messageFor(field: KCandleWriteField): string | null {
 .k-candle-form {
   display: flex;
   flex-direction: column;
-  gap: spacing('md');
+  gap: spacing('sm');
 
   &__notice {
     margin: 0;
-    color: color('text-muted');
-    font-size: font-size('sm');
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
+  // 十個欄位攤成一片密集的格子。窄螢幕兩欄、寬螢幕五欄，
+  // 於是「身分（標的、時間）」剛好一列、「價量」剛好兩列，讀起來是三組而不是十個。
   &__grid {
     display: grid;
-    gap: spacing('md');
-    grid-template-columns: 1fr;
+    gap: spacing('xs') spacing('sm');
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
     @include respond-to('md') {
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    @include respond-to('xl') {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
     }
   }
 
   &__actions {
     display: flex;
-    gap: spacing('sm');
+    gap: spacing('xs');
     align-items: center;
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
   }
 }
 </style>

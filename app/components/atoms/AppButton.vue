@@ -47,32 +47,34 @@ const { variant = 'primary', size = 'medium', block = false, label } = definePro
   gap: spacing('2xs');
   align-items: center;
   justify-content: center;
-  transition: background-color duration('fast') ease, border-color duration('fast') ease;
+  transition: background-color duration('fast') ease, border-color duration('fast') ease,
+    color duration('fast') ease;
   border: 1px solid transparent;
-  border-radius: radius('md');
+  border-radius: radius('sm');
   cursor: pointer;
   line-height: line-height('tight');
   font-weight: font-weight('medium');
+  white-space: nowrap;
 
   @include focus-ring;
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
   &--small {
-    padding: spacing('2xs') spacing('xs');
-    font-size: font-size('xs');
+    padding: spacing('3xs') spacing('xs');
+    font-size: font-size('2xs');
   }
 
   &--medium {
-    padding: spacing('xs') spacing('md');
+    padding: spacing('xs') spacing('sm');
     font-size: font-size('sm');
   }
 
   &--large {
-    padding: spacing('sm') spacing('lg');
+    padding: spacing('sm') spacing('md');
     font-size: font-size('md');
   }
 
@@ -88,6 +90,8 @@ const { variant = 'primary', size = 'medium', block = false, label } = definePro
     padding: spacing('xs');
   }
 
+  // 實心的強調色只留給「這個畫面上要按的那一顆」。
+  // 一個版面上有兩顆亮藍色按鈕，等於沒有主要動作。
   &--primary {
     background-color: color('primary');
     color: color('text-inverse');
@@ -97,28 +101,38 @@ const { variant = 'primary', size = 'medium', block = false, label } = definePro
     }
   }
 
+  // 儀器上的按鍵：一圈髮絲線加一塊比面板略暗的鍵面，按下去才亮起來。
   &--secondary {
-    border-color: color('border');
-    background-color: color('surface');
+    border-color: color('border-strong');
+    background-color: color('surface-muted');
     color: color('text');
 
     &:hover:not(:disabled) {
-      background-color: color('surface-muted');
+      border-color: color('text-faint');
+      color: color('text-strong');
     }
   }
 
+  // 幽靈按鈕在這裡是中性的，不是強調色的淡版——
+  // 它們成排出現（區間、畫法、清單），一整排藍字會把版面吵翻。
   &--ghost {
     background-color: transparent;
-    color: color('primary');
+    color: color('text-muted');
 
     &:hover:not(:disabled) {
-      background-color: color('primary-soft');
+      background-color: color('surface-muted');
+      color: color('text-strong');
     }
   }
 
   &--danger {
     background-color: color('danger');
     color: color('text-inverse');
+
+    &:hover:not(:disabled) {
+      background-color: color('danger-soft');
+      color: color('danger');
+    }
   }
 }
 </style>

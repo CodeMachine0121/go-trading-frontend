@@ -2,7 +2,9 @@
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
@@ -139,127 +141,155 @@ onMounted(() => {
 
 <template>
   <section class="k-candle-chart-panel">
-    <div class="k-candle-chart-panel__toolbar">
+    <AppPanel title="看什麼">
       <KCandleChartToolbar
         v-model:symbol="symbol"
         v-model:drawing="drawing"
         :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
-        :interval-label="intervalLabel"
         :loading="loading"
         :symbol-error="symbolError"
         @select-preset="selectPreset"
       />
-    </div>
 
-    <AppAlert
-      v-if="rejectedMessage"
-      tone="danger"
-      data-testid="rejected-alert"
-    >
-      {{ rejectedMessage }}
-    </AppAlert>
+      <AppAlert
+        v-if="rejectedMessage"
+        tone="danger"
+        data-testid="rejected-alert"
+      >
+        {{ rejectedMessage }}
+      </AppAlert>
 
-    <AppAlert
-      v-else-if="serverErrorMessage"
-      tone="danger"
-      data-testid="server-error-alert"
+      <AppAlert
+        v-else-if="serverErrorMessage"
+        tone="danger"
+        data-testid="server-error-alert"
+      >
+        後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="reload"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="backendUnreachable"
+        tone="danger"
+        data-testid="unreachable-alert"
+      >
+        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="reload"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="loading"
+        tone="info"
+        data-testid="loading-alert"
+      >
+        取行情中…
+      </AppAlert>
+    </AppPanel>
+
+    <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
+         換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
+         畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
+    <AppPanel
+      :title="chart?.symbol ?? symbol"
+      flush
+      class="k-candle-chart-panel__chart"
     >
-      後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
+      <!-- 每根涵蓋多久寫在圖的標題列上：它是「正在看多長」推出來的結果，
+           所以它跟著圖，不跟著控制項。 -->
+      <template #meta>
+        <span>每根涵蓋</span>
+        <AppBadge
+          variant="info"
+          data-testid="interval-label"
         >
-          重試
-        </AppButton>
+          {{ intervalLabel }}
+        </AppBadge>
       </template>
-    </AppAlert>
 
-    <AppAlert
-      v-else-if="backendUnreachable"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
-        >
-          重試
-        </AppButton>
+      <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
+           它收在面板底下那一條窄帶裡，需要對照的時候才會被看見。 -->
+      <template
+        v-if="chart && !chart.isEmpty"
+        #footer
+      >
+        <span data-testid="covered-range">
+          手上這批共 {{ chart.count }} 根，涵蓋
+          {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
+          {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
+        </span>
       </template>
-    </AppAlert>
 
-    <AppAlert
-      v-else-if="loading"
-      tone="info"
-      data-testid="loading-alert"
-    >
-      取行情中…
-    </AppAlert>
+      <p
+        v-if="chart && chart.isEmpty"
+        class="k-candle-chart-panel__empty"
+        data-testid="empty-chart"
+      >
+        查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
+      </p>
 
-    <p
-      v-if="chart && chart.isEmpty"
-      class="k-candle-chart-panel__empty"
-      data-testid="empty-chart"
-    >
-      查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
-    </p>
+      <KCandleChart
+        v-else-if="chart"
+        :chart="chart"
+        :drawing="drawing"
+        :visible-start-time="visibleStartTime"
+        :visible-end-time="visibleEndTime"
+        :time-zone="timeZone"
+        @range-change="showRange"
+      />
 
-    <KCandleChart
-      v-else-if="chart"
-      :chart="chart"
-      :drawing="drawing"
-      :visible-start-time="visibleStartTime"
-      :visible-end-time="visibleEndTime"
-      :time-zone="timeZone"
-      @range-change="showRange"
-    />
-
-    <p
-      v-if="chart && !chart.isEmpty"
-      class="k-candle-chart-panel__covered"
-      data-testid="covered-range"
-    >
-      手上這批共 {{ chart.count }} 根，涵蓋
-      {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
-      {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
-    </p>
+      <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
+           而不是留一整片黑——那看起來像壞了。 -->
+      <p
+        v-else
+        class="k-candle-chart-panel__empty"
+        data-testid="idle-chart"
+      >
+        還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+      </p>
+    </AppPanel>
   </section>
 </template>
 
 <style scoped lang="scss">
 .k-candle-chart-panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: spacing('lg');
+  gap: spacing('sm');
+  min-height: 0;
 
-  // 上方那一排收成一張卡，才不會一整排控制項懸在頁面底色上
-  &__toolbar {
-    @include surface('md');
+  // 圖吃掉工作區剩下的所有高度——這個畫面就是為了看圖而存在的。
+  &__chart {
+    flex: 1;
+    min-height: 20rem;
   }
 
   &__empty {
-    margin: 0;
-    border: 1px dashed color('border-strong');
-    border-radius: radius('md');
-    padding: spacing('2xl');
-    color: color('text-muted');
-    text-align: center;
-  }
-
-  &__covered {
-    margin: 0;
-    color: color('text-muted');
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    color: color('text-faint');
     font-size: font-size('xs');
-    font-family: font-family('mono');
+    text-align: center;
   }
 }
 </style>

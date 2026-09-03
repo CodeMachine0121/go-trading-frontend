@@ -66,6 +66,20 @@ async function pickStrategy(wrapper: ReturnType<typeof mountPanel>, id: number) 
   await settle()
 }
 
+/** 按下「新的空白策略」——編輯器裡的「開新檔案」。 */
+async function startBlankStrategy(wrapper: ReturnType<typeof mountPanel>) {
+  await wrapper.get('[data-testid="new-strategy-button"]').trigger('click')
+  await settle()
+}
+
+/** 在「放棄尚未儲存的變更？」裡說「好」。兩個觸發點（載入另一支、開一份空白）共用它。 */
+async function discardAndProceed(wrapper: ReturnType<typeof mountPanel>) {
+  const confirmButtons = wrapper.findAll('button').filter(button => button.text() === '放棄並繼續')
+  expect(confirmButtons).toHaveLength(1)
+  await confirmButtons[0]!.trigger('click')
+  await settle()
+}
+
 describe('指標計算畫面上的策略：挑一支來用', () => {
   it('挑一支就把它記住的四樣東西全部帶進畫面', async () => {
     const wrapper = mountPanel({
@@ -167,7 +181,7 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
     await typeScriptBody(wrapper, '我寫到一半的東西')
     await pickStrategy(wrapper, 7)
 
-    await wrapper.findAll('button').filter(b => b.text() === '放棄並載入')[0]?.trigger('click')
+    await discardAndProceed(wrapper)
     await settle()
 
     expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
@@ -641,5 +655,186 @@ describe('指標計算畫面上的策略：彙總刻度', () => {
 
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
       .toBe('5m')
+  })
+})
+
+describe('指標計算畫面上的策略：開一份新的空白', () => {
+  it('清空算式並把三個設定帶回預設', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([
+        buildStoredStrategy(7, '二十根均線', {
+          scriptBody: 'sum := 123.0', resultType: 'boolList',
+          aggregationInterval: '4h', candleCount: 45,
+        }),
+      ]),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await startBlankStrategy(wrapper)
+
+    expect(scriptBodyText(wrapper)).not.toContain('sum := 123.0')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]').element.value)
+      .toBe('float')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
+      .toBe('5m')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
+      .toBe('20')
+  })
+
+  it('解除與那一支的關聯——之後按儲存是問新名字，不是存回原本那一支', async () => {
+    const updateStrategy = vi.fn()
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      updateStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await startBlankStrategy(wrapper)
+
+    await wrapper.get('[data-testid="save-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.find('[data-testid="strategy-name-input"]').exists()).toBe(true)
+    expect(updateStrategy).not.toHaveBeenCalled()
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-picker-select"]').element.value)
+      .toBe('')
+  })
+
+  it('交易標的不動——它不是策略記著的東西', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+
+    await startBlankStrategy(wrapper)
+
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="symbol-select"]').element.value)
+      .toBe('ETHUSDT')
+  })
+
+  it('上一次的計算結果不留在畫面上——它不是這份空白算出來的', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    // 算得出結果的前提是算式裡真的有東西，所以這一份稿子必然是「還沒存的」，
+    // 於是清空之前一定會先問一次——這裡的重點在問完之後結果有沒有跟著走。
+    await typeScriptBody(wrapper, 'sum := 1.0')
+    // 送出走的是表單本身——happy-dom 不會把 submit 按鈕的點擊轉成 submit 事件。
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(true)
+
+    await startBlankStrategy(wrapper)
+    await discardAndProceed(wrapper)
+
+    expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
+  })
+
+  it('上一次的失敗訊息也不留——欄位已經換成預設值，旁邊不能還紅著舊的那句', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    // 根數填成不合法的，送出後那一欄旁邊會紅一句話
+    await wrapper.get('[data-testid="candle-count-input"]').setValue('0')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(true)
+
+    await startBlankStrategy(wrapper)
+
+    // 根數已經回到預設的 20，那句話卻還留著的話，訊息說的就是一個不存在的值
+    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
+      .toBe('20')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
+  it('編輯區本來就空的時候也要說一聲，否則按鈕看起來像壞了', async () => {
+    const wrapper = mountPanel()
+    await settle()
+
+    await startBlankStrategy(wrapper)
+
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('新的空白策略')
+  })
+
+  it('有還沒存的東西時先問過，而且一個字都還沒被清掉', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    await typeScriptBody(wrapper, '我寫到一半的東西')
+
+    await startBlankStrategy(wrapper)
+
+    expect(wrapper.text()).toContain('放棄尚未儲存的變更')
+    expect(scriptBodyText(wrapper)).toContain('我寫到一半的東西')
+  })
+
+  it('確認放棄之後才真的清空', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await startBlankStrategy(wrapper)
+
+    await discardAndProceed(wrapper)
+
+    expect(scriptBodyText(wrapper)).not.toContain('我寫到一半的東西')
+  })
+
+  it('取消就什麼都不動，也仍然屬於原本那一支', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await typeScriptBody(wrapper, '我改到一半的東西')
+    await startBlankStrategy(wrapper)
+
+    await wrapper.findAll('button').filter(button => button.text() === '取消')[0]?.trigger('click')
+    await settle()
+
+    expect(scriptBodyText(wrapper)).toContain('我改到一半的東西')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-picker-select"]').element.value)
+      .toBe('7')
+  })
+
+  it('一份沒動過的空白再按一次不必問——沒有東西可以弄丟', async () => {
+    const wrapper = mountPanel()
+    await settle()
+    await startBlankStrategy(wrapper)
+
+    await startBlankStrategy(wrapper)
+
+    expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
+  })
+
+  it('一次後端請求都不發，清單一支不增不減', async () => {
+    const listStrategies = vi.fn().mockResolvedValue([
+      buildStoredStrategy(1, '甲'), buildStoredStrategy(2, '乙'), buildStoredStrategy(3, '丙'),
+    ])
+    const createStrategy = vi.fn()
+    const updateStrategy = vi.fn()
+    const deleteStrategy = vi.fn()
+    const wrapper = mountPanel({ listStrategies, createStrategy, updateStrategy, deleteStrategy })
+    await settle()
+    const listCallsBefore = listStrategies.mock.calls.length
+
+    await startBlankStrategy(wrapper)
+
+    expect(listStrategies.mock.calls).toHaveLength(listCallsBefore)
+    expect(createStrategy).not.toHaveBeenCalled()
+    expect(updateStrategy).not.toHaveBeenCalled()
+    expect(deleteStrategy).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="strategy-picker-select"] option')).toHaveLength(4)
+  })
+
+  it('後端連不上也照樣開得起來', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockRejectedValue(new BackendUnreachableError('/strategies')),
+    })
+    await settle()
+    await typeScriptBody(wrapper, '我寫到一半的東西')
+
+    await startBlankStrategy(wrapper)
+    await discardAndProceed(wrapper)
+
+    expect(scriptBodyText(wrapper)).not.toContain('我寫到一半的東西')
+    expect(wrapper.find('[data-testid="strategy-error"]').exists()).toBe(false)
   })
 })

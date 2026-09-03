@@ -87,3 +87,49 @@ describe('IndicatorCalculationService', () => {
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
   })
 })
+
+describe('IndicatorCalculationService 交出的 K 線欄位說明', () => {
+  it('列出算式收到的每一個欄位，順序與 K 線瀏覽那張表一致', () => {
+    const indicatorCalculationService = new IndicatorCalculationService(buildProxy())
+
+    const fields = indicatorCalculationService.listKCandleFields()
+
+    expect(fields.map(field => field.name)).toEqual([
+      'Symbol', 'OpenTimeUnixSeconds', 'Open', 'High', 'Low', 'Close',
+      'Volume', 'QuoteVolume', 'TakerBuyBaseVolume', 'TakerBuyQuoteVolume',
+    ])
+  })
+
+  it.each([
+    // 說明的是**沙箱裡**那個型別，不是資料庫那張表——三個差異都是最容易寫錯的地方。
+    { name: 'OpenTimeUnixSeconds', type: 'int64', 為什麼: '沙箱沒有 time 可以匯入，時間以 Unix 秒交給算式' },
+    { name: 'Close', type: 'float64', 為什麼: '算式做純運算，價量不是 decimal' },
+    { name: 'Symbol', type: 'string', 為什麼: '交易標的照樣看得到' },
+  ])('$name 的型別是 $type（$為什麼）', ({ name, type }) => {
+    const indicatorCalculationService = new IndicatorCalculationService(buildProxy())
+
+    const field = indicatorCalculationService.listKCandleFields()
+      .find(candidate => candidate.name === name)
+
+    expect(field?.type).toBe(type)
+  })
+
+  it('不列出資料庫那張表才有的東西——算式看不到它', () => {
+    const indicatorCalculationService = new IndicatorCalculationService(buildProxy())
+
+    const fields = indicatorCalculationService.listKCandleFields()
+
+    expect(fields.map(field => field.name)).not.toContain('ID')
+    // 表上是 time.Time，沙箱裡不是，所以那個名字在算式裡寫不出來。
+    expect(fields.map(field => field.name)).not.toContain('OpenTime')
+  })
+
+  it('每一個欄位都帶一個給人看的名字', () => {
+    const indicatorCalculationService = new IndicatorCalculationService(buildProxy())
+
+    const fields = indicatorCalculationService.listKCandleFields()
+
+    expect(fields.every(field => field.label.trim() !== '')).toBe(true)
+    expect(fields.find(field => field.name === 'Close')?.label).toBe('收盤價')
+  })
+})

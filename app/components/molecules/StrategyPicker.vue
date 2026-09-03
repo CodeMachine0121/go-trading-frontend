@@ -83,7 +83,7 @@ function selectStrategy(value: string) {
 .strategy-picker {
   display: flex;
   flex-direction: column;
-  gap: spacing('2xs');
+  gap: spacing('3xs');
 
   &__row {
     display: flex;
@@ -97,23 +97,23 @@ function selectStrategy(value: string) {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
 
     // 選項一長就把動作擠出去，除非允許這一欄縮到比內容窄。
     min-width: 0;
+    max-width: 24rem;
   }
 
   &__label {
-    font-weight: font-weight('medium');
-    font-size: font-size('sm');
+    @include dense-label;
   }
 
   &__empty {
     margin: 0;
-    border: 1px dashed color('border');
+    border: 1px dashed color('border-strong');
     border-radius: radius('sm');
-    padding: spacing('xs') spacing('sm');
-    color: color('text-muted');
+    padding: spacing('xs');
+    color: color('text-faint');
     font-size: font-size('sm');
   }
 
@@ -125,8 +125,8 @@ function selectStrategy(value: string) {
 
   &__hint {
     margin: 0;
-    color: color('text-muted');
-    font-size: font-size('xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 }
 </style>

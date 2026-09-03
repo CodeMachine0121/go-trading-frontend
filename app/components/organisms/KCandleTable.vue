@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
@@ -6,26 +7,47 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 有機體：把一次查詢的結果攤成表格。
 // 筆數、排序、漲跌語氣都已經在 DTO 裡算好，這裡只負責呈現；
 // 時間要用哪一個時區說，問選定的那一個。
-defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
+//
+// 還沒查過（`result` 為 null）時它照樣在：表格區是這個畫面的主體，
+// 一片空白比一張「還沒查」的空表格更難懂，而且維護 K 線的入口就掛在它的標題列上——
+// 那顆按鈕在第一次查詢之前就要按得到。
+defineProps<{
+  result?: KCandleSearchResultDto | null
+  timeZone: TimeZoneDto
+}>()
 </script>
 
 <template>
-  <section class="k-candle-table">
-    <header class="k-candle-table__header">
-      <h2 class="k-candle-table__title">
-        查詢結果
-      </h2>
-      <p
-        class="k-candle-table__count"
-        data-testid="result-count"
-      >
-        共 {{ result.count }} 根
-      </p>
-    </header>
+  <AppPanel
+    title="查詢結果"
+    flush
+    class="k-candle-table"
+  >
+    <template
+      v-if="result"
+      #meta
+    >
+      <span data-testid="result-count">共 {{ result.count }} 根</span>
+    </template>
+
+    <template
+      v-if="$slots.actions"
+      #actions
+    >
+      <slot name="actions" />
+    </template>
 
     <p
-      v-if="result.isEmpty"
-      class="k-candle-table__empty"
+      v-if="!result"
+      class="k-candle-table__placeholder"
+      data-testid="idle-result"
+    >
+      填好上面的條件按「查詢」，查到的 K 線會列在這裡。
+    </p>
+
+    <p
+      v-else-if="result.isEmpty"
+      class="k-candle-table__placeholder"
       data-testid="empty-result"
     >
       查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
@@ -84,7 +106,9 @@ defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
             :key="kCandle.openTime.toISOString()"
             data-testid="k-candle-row"
           >
-            <td>{{ timeZone.formatDateTime(kCandle.openTime) }}</td>
+            <td class="k-candle-table__time">
+              {{ timeZone.formatDateTime(kCandle.openTime) }}
+            </td>
             <td>
               <AppBadge :variant="kCandle.trend.tone">
                 {{ kCandle.trend.label }}
@@ -108,57 +132,39 @@ defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
         </tbody>
       </table>
     </div>
-  </section>
+  </AppPanel>
 </template>
 
 <style scoped lang="scss">
 .k-candle-table {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('sm');
+  // 表格是這個畫面的主體，剩下的高度全部給它；資料再多也在自己的框裡捲。
+  flex: 1;
+  min-height: 18rem;
 
-  &__header {
-    display: flex;
-    gap: spacing('md');
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  &__title {
-    margin: 0;
-  }
-
-  &__count {
-    margin: 0;
-    color: color('text-muted');
-    font-size: font-size('sm');
-  }
-
-  &__empty {
-    margin: 0;
-    border: 1px dashed color('border-strong');
-    border-radius: radius('md');
-    padding: spacing('xl');
-    color: color('text-muted');
+  &__placeholder {
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('xs');
     text-align: center;
   }
 
   &__scroller {
-    overflow-x: auto;
-    border: 1px solid color('border');
-    border-radius: radius('md');
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   &__table {
-    border-collapse: collapse;
-    background-color: color('surface');
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
-    font-size: font-size('sm');
+    font-size: font-size('xs');
 
     th,
     td {
       border-bottom: 1px solid color('border');
-      padding: spacing('xs') spacing('sm');
+      padding: spacing('2xs') spacing('sm');
       text-align: right;
       white-space: nowrap;
     }
@@ -166,8 +172,8 @@ defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
     // 一整欄的價量數字要能上下對齊著讀，等寬與定寬數字是為了這件事
     td {
       color: color('text-strong');
-      font-variant-numeric: tabular-nums;
-      font-family: font-family('mono');
+
+      @include numeric;
     }
 
     th:first-child,
@@ -175,27 +181,25 @@ defineProps<{ result: KCandleSearchResultDto, timeZone: TimeZoneDto }>()
       text-align: left;
     }
 
-    td:first-child {
-      color: color('text-muted');
-    }
-
     th {
       position: sticky;
       top: 0;
+
+      // sticky 的表頭必須自己不透明，否則捲上來的列會從它底下透出來。
       background-color: color('surface-muted');
-      color: color('text-muted');
-      font-weight: font-weight('medium');
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-size: font-size('xs');
+
+      @include dense-label;
     }
 
     tbody tr:hover td {
       background-color: color('surface-muted');
     }
 
-    tbody tr:last-child td {
-      border-bottom: none;
+    // 時間是每一列的身分，不是要互相比較的數字——它報到就好，數字才是主角。
+    // 這條必須住在 &__table 裡面：上面那條 `td` 的顏色比單一個 class 更明確，
+    // 擺在外面的話這行會被它蓋掉，而且不會有任何錯誤提醒你。
+    td.k-candle-table__time {
+      color: color('text-muted');
     }
   }
 }

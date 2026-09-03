@@ -1,37 +1,15 @@
 <script setup lang="ts">
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
+import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
-import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
-const { $backendHealthApplication } = useNuxtApp()
+// 頁面只做接線：取用跨畫面共用的畫面狀態，往下傳給要說它的元件。
+//
+// 後端狀態與側欄那顆燈共用同一次檢查（見 useBackendHealth）——
+// 這一頁只是把同一個答案講得大聲一點，不會自己再問一次。
+const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 
-const health = ref<BackendHealthDto | null>(null)
-const loading = ref(false)
-const errorMessage = ref<string | null>(null)
-
-async function checkBackendHealth() {
-  loading.value = true
-  errorMessage.value = null
-  try {
-    health.value = await $backendHealthApplication.checkBackendHealth()
-  }
-  catch (error: unknown) {
-    // 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼
-    errorMessage.value = error instanceof BackendUnreachableError
-      ? '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
-      : '檢查後端狀態時發生未預期的錯誤。'
-    health.value = null
-  }
-  finally {
-    loading.value = false
-  }
-}
-
-onMounted(checkBackendHealth)
-
-// 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
 </script>
 
@@ -48,10 +26,20 @@ const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTim
       />
     </template>
 
+    <template #status>
+      <BackendStatusIndicator
+        :health="health"
+        :checking="checking"
+        :error-message="errorMessage"
+        @recheck="checkBackendHealth"
+      />
+    </template>
+
     <BackendHealthCard
       :health="health"
-      :loading="loading"
+      :loading="checking"
       :error-message="errorMessage"
+      :time-zone="selectedTimeZone"
       @refresh="checkBackendHealth"
     />
   </ConsoleLayout>

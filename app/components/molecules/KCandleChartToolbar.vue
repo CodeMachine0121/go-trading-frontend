@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
-import AppBadge from '~/components/atoms/AppBadge.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 
-// 分子：圖表上方那一排——看哪一檔、看多長、怎麼畫，以及目前每根涵蓋多久。
-// 每根涵蓋多久是唯讀的：它是「正在看多長」推出來的結果，不是使用者能直接選的東西。
+// 分子：圖表上方那一排——看哪一檔、看多長、怎麼畫。
+//
+// 這裡只放「使用者按得動的東西」。每根涵蓋多久是唯讀的推導結果，不是選項，
+// 所以它跟著圖走（寫在圖那塊面板的標題列上），不混在控制項裡假裝自己可以選。
 const {
   tradingSymbolApplication, presets, activePresetLabel = null,
-  intervalLabel, drawing, loading = false, symbolError = null,
+  drawing, loading = false, symbolError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   presets: KCandleChartRangePresetDto[]
   activePresetLabel?: string | null
-  intervalLabel: string
   drawing: 'candlestick' | 'line'
   loading?: boolean
   symbolError?: string | null
@@ -74,16 +74,6 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
         </AppButton>
       </div>
     </div>
-
-    <div class="k-candle-chart-toolbar__group">
-      <span class="k-candle-chart-toolbar__group-label">每根涵蓋</span>
-      <AppBadge
-        variant="info"
-        data-testid="interval-label"
-      >
-        {{ intervalLabel }}
-      </AppBadge>
-    </div>
   </div>
 </template>
 
@@ -91,27 +81,36 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 .k-candle-chart-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: spacing('lg');
-  align-items: flex-end;
+  gap: spacing('sm') spacing('lg');
+
+  // 從上面對齊：每一組的標籤因此排成一條線，控制項也跟著排成一條線。
+  // 靠底部對齊的話，帶說明文字的那一欄會把其他組往下拉。
+  align-items: flex-start;
 
   &__symbol {
-    min-width: 12rem;
+    min-width: 10rem;
+    max-width: 14rem;
   }
 
   &__group {
     display: flex;
     flex-direction: column;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
   }
 
   &__group-label {
-    color: color('text-muted');
-    font-size: font-size('xs');
+    @include dense-label;
   }
 
+  // 一組互斥的選擇擺成一條連在一起的軌道，而不是幾顆各自獨立的按鈕——
+  // 連在一起才看得出「只能選一個」，這也是每一台交易終端機講區間的方式。
   &__buttons {
     display: flex;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
+    border: 1px solid color('border');
+    border-radius: radius('md');
+    background-color: color('background');
+    padding: spacing('3xs');
   }
 }
 </style>

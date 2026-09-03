@@ -4,10 +4,12 @@ import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
+import KCandleFieldReference from '~/components/molecules/KCandleFieldReference.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
 import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
@@ -29,7 +31,8 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
 //
-// 版面照著「寫程式 → 執行 → 看結果」的順序擺：左邊是那塊夠大的算式編輯區，
+// 版面照著「寫程式 → 執行 → 看結果」的順序擺，也就是每一台開發工作台的擺法：
+// 最上面一條說「現在用的是哪一支策略」，左邊是那塊夠大的算式編輯區，
 // 右邊是按下去會發生事情的那一欄，結果攤在下面整排。
 const { indicatorCalculationApplication, strategyApplication, tradingSymbolApplication }
   = defineProps<{
@@ -38,20 +41,62 @@ const { indicatorCalculationApplication, strategyApplication, tradingSymbolAppli
     tradingSymbolApplication: TradingSymbolApplication
   }>()
 
+/**
+ * 一份空白的策略內容——「空白長什麼樣」在這個畫面上只有這一個定義。
+ *
+ * 第一次進入畫面時是它，按下「新的空白策略」時也是它。各寫一份的話，
+ * 哪天預設的彙總刻度改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
+ */
+const blankStrategyContent = new StrategyContentDto(
+  '',
+  indicatorCalculationApplication.defaultResultType(),
+  strategyApplication.defaultAggregationInterval(),
+  strategyApplication.defaultCandleCount(),
+)
+
+// 交易標的不是策略記著的東西（同一支策略要能套用在不同市場上），
+// 所以它不在那份空白裡，開一份新稿子也不會把它換掉。
 const symbol = ref('BTCUSDT')
-const candleCount = ref('20')
-const scriptBody = ref('')
+
+const scriptBody = ref(blankStrategyContent.scriptBody)
+const candleCount = ref(String(blankStrategyContent.candleCount))
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
-const resultType = ref<string>(indicatorCalculationApplication.defaultResultType())
+const resultType = ref<string>(blankStrategyContent.resultType)
 
 // 彙總刻度目前只被記進策略，計算還沒理它——畫面上必須說出來，
 // 否則使用者會以為自己已經在用一小時的 K 線算指標。
-const aggregationInterval = ref<string>(strategyApplication.defaultAggregationInterval())
+const aggregationInterval = ref<string>(blankStrategyContent.aggregationInterval)
 const aggregationIntervalOptions = strategyApplication.listAggregationIntervalOptions()
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
+// 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
+const kCandleFields = indicatorCalculationApplication.listKCandleFields()
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
+
+const calculating = ref(false)
+const result = ref<IndicatorCalculationResultDto | null>(null)
+const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
+const requestRejectedMessage = ref<string | null>(null)
+const scriptFailedMessage = ref<string | null>(null)
+const backendUnreachable = ref(false)
+const serverErrorMessage = ref<string | null>(null)
+
+/**
+ * 把上一次計算留下的東西全部清掉——結果與四種失敗訊息。
+ *
+ * 它們是同一次計算的產物，所以永遠一起清。少清一個就會出現對不上的畫面：
+ * 換了一份算式之後，欄位已經是新的預設值，旁邊卻還紅著上一次那句
+ * 「計算根數必須是正整數」。
+ */
+function clearLastCalculation() {
+  result.value = null
+  fieldError.value = null
+  requestRejectedMessage.value = null
+  scriptFailedMessage.value = null
+  serverErrorMessage.value = null
+  backendUnreachable.value = false
+}
 
 // 策略庫拿畫面上這四樣東西當它的輸入，也負責把載入的那一份寫回來。
 // 「這四樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
@@ -64,19 +109,14 @@ const strategyLibrary = useStrategyLibrary(
     resultType.value = content.resultType
     aggregationInterval.value = content.aggregationInterval
     candleCount.value = String(content.candleCount)
-  })
+    // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
+    clearLastCalculation()
+  },
+  blankStrategyContent)
 
 onMounted(() => {
   void strategyLibrary.refreshStrategies()
 })
-
-const calculating = ref(false)
-const result = ref<IndicatorCalculationResultDto | null>(null)
-const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
-const requestRejectedMessage = ref<string | null>(null)
-const scriptFailedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
 
 function messageFor(field: IndicatorCalculationField): string | null {
   return fieldError.value?.field === field ? fieldError.value.message : null
@@ -88,12 +128,7 @@ function fillExampleScriptBody() {
 
 async function calculateIndicator() {
   calculating.value = true
-  fieldError.value = null
-  requestRejectedMessage.value = null
-  scriptFailedMessage.value = null
-  backendUnreachable.value = false
-  serverErrorMessage.value = null
-  result.value = null
+  clearLastCalculation()
 
   try {
     result.value = await indicatorCalculationApplication.calculateIndicator(
@@ -132,13 +167,25 @@ async function calculateIndicator() {
     class="indicator-calculation-panel"
     @submit.prevent="calculateIndicator"
   >
-    <section class="indicator-calculation-panel__strategy">
+    <!-- 策略那一列收成一塊面板，才不會一整排控制項懸在工作區的底色上。
+         它不必有標題列——「策略」兩個字就寫在它自己的欄位標籤上了。 -->
+    <AppPanel class="indicator-calculation-panel__strategy">
       <StrategyPicker
         :strategies="strategyLibrary.strategies.value"
         :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
         @select="strategyLibrary.selectStrategy"
       >
         <template #actions>
+          <!-- 「新的」排第一：每一個檔案選單都是這個順序，肌肉記憶在那裡。 -->
+          <AppButton
+            type="button"
+            variant="secondary"
+            label="新的空白策略"
+            data-testid="new-strategy-button"
+            @click="strategyLibrary.startBlankStrategy"
+          >
+            <AppIcon name="new" />
+          </AppButton>
           <AppButton
             type="button"
             variant="secondary"
@@ -194,7 +241,7 @@ async function calculateIndicator() {
       >
         {{ strategyLibrary.errorMessage.value }}
       </p>
-    </section>
+    </AppPanel>
 
     <div class="indicator-calculation-panel__workbench">
       <IndicatorScriptEditor
@@ -229,145 +276,146 @@ async function calculateIndicator() {
         </template>
       </IndicatorScriptEditor>
 
-      <aside class="indicator-calculation-panel__run">
-        <h2 class="indicator-calculation-panel__run-title">
-          執行條件
-        </h2>
-
-        <SymbolField
-          v-model="symbol"
-          :trading-symbol-application="tradingSymbolApplication"
-          :error-message="messageFor('symbol')"
-        />
-
-        <FormField
-          label="計算根數"
-          hint="要餵給算式的 K 線根數"
-          :error-message="messageFor('candleCount')"
+      <!-- 右欄裝兩塊：按下去會發生事情的那一欄，加上寫算式時要查的那一份說明。 -->
+      <div class="indicator-calculation-panel__side">
+        <AppPanel
+          title="執行條件"
+          class="indicator-calculation-panel__run"
         >
-          <AppInput
-            v-model="candleCount"
-            type="text"
-            inputmode="numeric"
-            :invalid="Boolean(messageFor('candleCount'))"
-            data-testid="candle-count-input"
+          <SymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            :error-message="messageFor('symbol')"
           />
-        </FormField>
 
-        <FormField
-          label="彙總刻度"
-          hint="這支策略要吃多粗的 K 線。目前計算仍以五分鐘執行，記下來是為了下一版生效時不必回頭一支一支改。"
-        >
-          <AppSelect
-            v-model="aggregationInterval"
-            data-testid="aggregation-interval-select"
+          <FormField
+            label="計算根數"
+            hint="要餵給算式的 K 線根數"
+            :error-message="messageFor('candleCount')"
           >
-            <option
-              v-for="intervalOption in aggregationIntervalOptions"
-              :key="intervalOption.value"
-              :value="intervalOption.value"
+            <AppInput
+              v-model="candleCount"
+              type="text"
+              inputmode="numeric"
+              :invalid="Boolean(messageFor('candleCount'))"
+              data-testid="candle-count-input"
+            />
+          </FormField>
+
+          <FormField
+            label="彙總刻度"
+            hint="這支策略要吃多粗的 K 線。目前計算仍以五分鐘執行，記下來是為了下一版生效時不必回頭一支一支改。"
+          >
+            <AppSelect
+              v-model="aggregationInterval"
+              data-testid="aggregation-interval-select"
             >
-              {{ intervalOption.label }}
-            </option>
-          </AppSelect>
-        </FormField>
+              <option
+                v-for="intervalOption in aggregationIntervalOptions"
+                :key="intervalOption.value"
+                :value="intervalOption.value"
+              >
+                {{ intervalOption.label }}
+              </option>
+            </AppSelect>
+          </FormField>
 
-        <AppButton
-          type="submit"
-          block
-          :disabled="calculating"
-          data-testid="calculate-button"
-        >
-          {{ calculating ? '計算中…' : '執行計算' }}
-        </AppButton>
+          <AppButton
+            type="submit"
+            block
+            :disabled="calculating"
+            data-testid="calculate-button"
+          >
+            {{ calculating ? '計算中…' : '執行計算' }}
+          </AppButton>
 
-        <p
-          class="indicator-calculation-panel__notice"
-          data-testid="calculation-notice"
-        >
-          計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
-        </p>
+          <p
+            class="indicator-calculation-panel__notice"
+            data-testid="calculation-notice"
+          >
+            計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
+          </p>
 
-        <AppAlert
-          v-if="scriptFailedMessage"
-          tone="danger"
-          data-testid="script-failed-alert"
-        >
-          算式的問題（要改的是算式）：{{ scriptFailedMessage }}
-        </AppAlert>
+          <AppAlert
+            v-if="scriptFailedMessage"
+            tone="danger"
+            data-testid="script-failed-alert"
+          >
+            算式的問題（要改的是算式）：{{ scriptFailedMessage }}
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="requestRejectedMessage"
-          tone="warning"
-          data-testid="request-rejected-alert"
-        >
-          請求的問題：{{ requestRejectedMessage }}
-        </AppAlert>
+          <AppAlert
+            v-else-if="requestRejectedMessage"
+            tone="warning"
+            data-testid="request-rejected-alert"
+          >
+            請求的問題：{{ requestRejectedMessage }}
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="serverErrorMessage"
-          tone="danger"
-          data-testid="server-error-alert"
-        >
-          後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
-          <template #action>
-            <AppButton
-              variant="secondary"
-              size="small"
-              :disabled="calculating"
-              @click="calculateIndicator"
-            >
-              重試
-            </AppButton>
-          </template>
-        </AppAlert>
+          <AppAlert
+            v-else-if="serverErrorMessage"
+            tone="danger"
+            data-testid="server-error-alert"
+          >
+            後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
+            <template #action>
+              <AppButton
+                variant="secondary"
+                size="small"
+                :disabled="calculating"
+                @click="calculateIndicator"
+              >
+                重試
+              </AppButton>
+            </template>
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="backendUnreachable"
-          tone="danger"
-          data-testid="unreachable-alert"
-        >
-          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-          <template #action>
-            <AppButton
-              variant="secondary"
-              size="small"
-              :disabled="calculating"
-              @click="calculateIndicator"
-            >
-              重試
-            </AppButton>
-          </template>
-        </AppAlert>
+          <AppAlert
+            v-else-if="backendUnreachable"
+            tone="danger"
+            data-testid="unreachable-alert"
+          >
+            連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+            <template #action>
+              <AppButton
+                variant="secondary"
+                size="small"
+                :disabled="calculating"
+                @click="calculateIndicator"
+              >
+                重試
+              </AppButton>
+            </template>
+          </AppAlert>
 
-        <AppAlert
-          v-else-if="calculating"
-          tone="info"
-          data-testid="calculating-alert"
-        >
-          計算中…算式最長可能跑上數十秒。
-        </AppAlert>
-      </aside>
+          <AppAlert
+            v-else-if="calculating"
+            tone="info"
+            data-testid="calculating-alert"
+          >
+            計算中…算式最長可能跑上數十秒。
+          </AppAlert>
+        </AppPanel>
+
+        <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它擺在編輯區旁邊。 -->
+        <KCandleFieldReference :fields="kCandleFields" />
+      </div>
     </div>
 
-    <section
+    <AppPanel
       v-if="result"
+      title="計算結果"
+      flush
       class="indicator-calculation-panel__result"
     >
-      <header class="indicator-calculation-panel__result-header">
-        <h2 class="indicator-calculation-panel__result-title">
-          計算結果
-        </h2>
-        <p
-          class="indicator-calculation-panel__used-count"
-          data-testid="used-candle-count"
-        >
+      <template #meta>
+        <span data-testid="used-candle-count">
           實際採用 {{ result.usedCandleCount }} 根
           <AppBadge variant="info">
             {{ result.resultTypeLabel }}
           </AppBadge>
-        </p>
-      </header>
+        </span>
+      </template>
 
       <p
         v-if="result.isEmpty"
@@ -377,57 +425,60 @@ async function calculateIndicator() {
         這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
       </p>
 
-      <table
+      <div
         v-else
-        class="indicator-calculation-panel__table"
+        class="indicator-calculation-panel__scroller"
       >
-        <thead>
-          <tr>
-            <th scope="col">
-              指標名稱
-            </th>
-            <th scope="col">
-              數值
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="indicatorValue in result.indicatorValues"
-            :key="indicatorValue.name"
-            data-testid="indicator-row"
-          >
-            <td class="indicator-calculation-panel__indicator-name">
-              {{ indicatorValue.name }}
-            </td>
-            <td>
-              <span
-                v-if="indicatorValue.isEmptySeries"
-                class="indicator-calculation-panel__empty-series"
-                data-testid="empty-series"
-              >空的一串</span>
-              <ol
-                v-else-if="indicatorValue.isSeries"
-                class="indicator-calculation-panel__series"
-              >
-                <li
-                  v-for="(displayValue, position) in indicatorValue.displayValues"
-                  :key="position"
-                  class="indicator-calculation-panel__series-item"
-                  data-testid="series-item"
+        <table class="indicator-calculation-panel__table">
+          <thead>
+            <tr>
+              <th scope="col">
+                指標名稱
+              </th>
+              <th scope="col">
+                數值
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="indicatorValue in result.indicatorValues"
+              :key="indicatorValue.name"
+              data-testid="indicator-row"
+            >
+              <td class="indicator-calculation-panel__indicator-name">
+                {{ indicatorValue.name }}
+              </td>
+              <td>
+                <span
+                  v-if="indicatorValue.isEmptySeries"
+                  class="indicator-calculation-panel__empty-series"
+                  data-testid="empty-series"
+                >空的一串</span>
+                <ol
+                  v-else-if="indicatorValue.isSeries"
+                  class="indicator-calculation-panel__series"
                 >
-                  {{ displayValue }}
-                </li>
-              </ol>
-              <span
-                v-else
-                class="indicator-calculation-panel__value"
-              >{{ indicatorValue.displayValues[0] }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+                  <li
+                    v-for="(displayValue, position) in indicatorValue.displayValues"
+                    :key="position"
+                    class="indicator-calculation-panel__series-item"
+                    data-testid="series-item"
+                  >
+                    {{ displayValue }}
+                  </li>
+                </ol>
+                <span
+                  v-else
+                  class="indicator-calculation-panel__value"
+                >{{ indicatorValue.displayValues[0] }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppPanel>
+
     <StrategyLibraryDialog
       :open="strategyLibrary.openDialog.value === 'library'"
       :strategies="strategyLibrary.strategies.value"
@@ -463,8 +514,8 @@ async function calculateIndicator() {
     <ConfirmDialog
       :open="strategyLibrary.openDialog.value === 'discard'"
       title="放棄尚未儲存的變更？"
-      message="編輯區的內容已經改過而且還沒存。載入另一支策略會蓋掉它。"
-      confirm-label="放棄並載入"
+      message="編輯區的內容已經改過而且還沒存。接下來這個動作會蓋掉它。"
+      confirm-label="放棄並繼續"
       @confirm="strategyLibrary.confirmDiscard"
       @cancel="strategyLibrary.closeDialog"
     />
@@ -482,42 +533,54 @@ async function calculateIndicator() {
 </template>
 
 <style scoped lang="scss">
-.indicator-calculation-panel__strategy {
+.indicator-calculation-panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: spacing('2xs');
-  margin-bottom: spacing('md');
+  gap: spacing('sm');
+  min-height: 0;
 
-  &-notice,
-  &-error {
-    margin: 0;
-    font-size: font-size('xs');
+  &__strategy {
+    flex: none;
   }
 
-  &-notice {
+  &__strategy-notice,
+  &__strategy-error {
+    margin: 0;
+    font-size: font-size('2xs');
+  }
+
+  &__strategy-notice {
     color: color('text-muted');
   }
 
-  &-error {
+  &__strategy-error {
     color: color('danger');
   }
-}
-
-.indicator-calculation-panel {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('lg');
 
   // 編輯區要大，執行那一欄夠填就好；窄螢幕就上下疊起來。
   &__workbench {
     display: grid;
-    gap: spacing('lg');
-    grid-template-columns: 1fr;
+    flex: 1;
+    gap: spacing('sm');
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
+    min-height: 0;
 
     @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1fr) 20rem;
+      // 右欄放得下最長的那個欄位名（TakerBuyQuoteVolume）而不必折行。
+      grid-template-columns: minmax(0, 1fr) 21rem;
+      align-items: stretch;
     }
+  }
+
+  // 右欄裝兩塊：執行條件在上、K 線欄位說明在下，一起在自己的框裡捲。
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    min-height: 0;
+    overflow-y: auto;
   }
 
   &__editor {
@@ -529,71 +592,37 @@ async function calculateIndicator() {
   }
 
   &__run {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('md');
-
-    @include surface('md');
-
-    @include respond-to('lg') {
-      position: sticky;
-      top: spacing('2xl');
-    }
-  }
-
-  &__run-title {
-    margin: 0;
-    font-size: font-size('md');
+    flex: none;
   }
 
   &__notice {
     margin: 0;
     border-top: 1px solid color('border');
     padding-top: spacing('sm');
-    color: color('text-muted');
-    font-size: font-size('xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
     line-height: line-height('normal');
   }
 
   &__result {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('sm');
-  }
+    flex: none;
 
-  &__result-header {
-    display: flex;
-    gap: spacing('md');
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  &__result-title {
-    margin: 0;
-  }
-
-  &__used-count {
-    display: flex;
-    gap: spacing('xs');
-    align-items: center;
-    margin: 0;
-    color: color('text-muted');
-    font-size: font-size('sm');
+    // 一串很長的指標值不該把整個畫面撐開——結果自己在框裡捲。
+    max-height: 24rem;
   }
 
   &__empty {
-    margin: 0;
-    border: 1px dashed color('border-strong');
-    border-radius: radius('md');
-    padding: spacing('xl');
-    color: color('text-muted');
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('xs');
     text-align: center;
   }
 
   &__series {
     display: flex;
     flex-wrap: wrap;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
     justify-content: flex-end;
     margin: 0;
     padding: 0;
@@ -606,29 +635,35 @@ async function calculateIndicator() {
     background-color: color('surface-muted');
     padding: 0 spacing('2xs');
     color: color('text-strong');
-    font-family: font-family('mono');
+
+    @include numeric;
   }
 
   &__indicator-name {
     color: color('text-strong');
+    font-family: font-family('mono');
   }
 
   &__empty-series {
-    color: color('text-muted');
+    color: color('text-faint');
+  }
+
+  &__scroller {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   &__table {
-    border-collapse: collapse;
-    border: 1px solid color('border');
-    border-radius: radius('md');
-    background-color: color('surface');
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
-    font-size: font-size('sm');
+    font-size: font-size('xs');
 
     th,
     td {
       border-bottom: 1px solid color('border');
-      padding: spacing('xs') spacing('sm');
+      padding: spacing('2xs') spacing('sm');
       text-align: left;
     }
 
@@ -638,23 +673,20 @@ async function calculateIndicator() {
     }
 
     th {
+      position: sticky;
+      top: 0;
+
+      // sticky 的表頭必須自己不透明，否則捲上來的列會從它底下透出來。
       background-color: color('surface-muted');
-      color: color('text-muted');
-      font-weight: font-weight('medium');
       white-space: nowrap;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-size: font-size('xs');
+
+      @include dense-label;
     }
 
     // 指標名稱那一欄只要放得下名字就好，剩下的寬度全部留給值
     td:first-child {
       width: 1%;
       white-space: nowrap;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
     }
   }
 }

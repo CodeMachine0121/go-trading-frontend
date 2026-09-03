@@ -393,3 +393,22 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 })
+
+describe('指標計算畫面上的 K 線欄位說明', () => {
+  it('把算式收到的每一個欄位列在編輯區旁邊', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    const fieldNames = wrapper.findAll('[data-testid="k-candle-field"]').map(field => field.text())
+
+    expect(fieldNames).toContain('Close')
+    expect(fieldNames).toContain('TakerBuyQuoteVolume')
+    expect(fieldNames).not.toContain('ID')
+  })
+
+  it('說出它是算式看得到的形狀，不是資料庫那張表', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.text()).toContain('不是資料庫那張表')
+    expect(wrapper.text()).toContain('data []indicator.KCandle')
+  })
+})

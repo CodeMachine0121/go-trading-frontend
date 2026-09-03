@@ -26,13 +26,16 @@ describe('ConsoleLayout', () => {
     expect(wrapper.text()).toContain('指標計算')
   })
 
-  it('頂欄留一個位置給時區選單', () => {
+  it.each([
+    ['時區選單', 'timezone', 'time-zone', '台北（UTC+08:00）'],
+    ['後端狀態那顆燈', 'status', 'status', '可用'],
+  ])('外框留一個位置給%s', (_label, slotName, testId, content) => {
     const wrapper = mount(ConsoleLayout, {
       props: { title: 'K 線瀏覽' },
-      slots: { timezone: '<span data-testid="time-zone">台北（UTC+08:00）</span>' },
+      slots: { [slotName]: `<span data-testid="${testId}">${content}</span>` },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
     })
 
-    expect(wrapper.get('[data-testid="time-zone"]').text()).toBe('台北（UTC+08:00）')
+    expect(wrapper.get(`[data-testid="${testId}"]`).text()).toBe(content)
   })
 })

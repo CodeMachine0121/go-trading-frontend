@@ -35,4 +35,8 @@ export class StrategyApplication {
   defaultAggregationInterval(): AggregationIntervalValue {
     return this.strategyService.defaultAggregationInterval()
   }
+
+  defaultCandleCount(): number {
+    return this.strategyService.defaultCandleCount()
+  }
 }

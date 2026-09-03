@@ -2,6 +2,7 @@
 import KCandleForm from '~/components/molecules/KCandleForm.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
@@ -166,10 +167,16 @@ function reportFailure(error: unknown) {
 </script>
 
 <template>
-  <section class="k-candle-editor-panel">
-    <h2 class="k-candle-editor-panel__title">
-      {{ editing ? '修改 K 線' : '新增 K 線' }}
-    </h2>
+  <AppPanel
+    :title="editing ? '修改 K 線' : '新增 K 線'"
+    class="k-candle-editor-panel"
+  >
+    <template
+      v-if="editing"
+      #meta
+    >
+      <span class="k-candle-editor-panel__identity">{{ symbol }} · {{ openTime }}</span>
+    </template>
 
     <KCandleForm
       v-if="!deleted"
@@ -281,21 +288,18 @@ function reportFailure(error: unknown) {
     >
       連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
     </AppAlert>
-  </section>
+  </AppPanel>
 </template>
 
 <style scoped lang="scss">
 .k-candle-editor-panel {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('md');
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing('lg');
+  // 維護表單是暫時插進來的一塊，不跟表格搶剩下的高度。
+  flex: none;
 
-  &__title {
-    margin: 0;
+  // 正在動的是哪一根，寫在標題列上而不是表單裡——
+  // 表單裡那兩個欄位是灰的（改不動），灰字不適合當這塊面板的身分證。
+  &__identity {
+    @include numeric;
   }
 
   &__confirm-actions {

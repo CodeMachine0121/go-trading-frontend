@@ -17,11 +17,38 @@
   height: 1px;
 }
 
-@mixin surface($padding: 'md') {
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing($padding);
+// 密集介面的標籤：面板頭、表頭、欄位名、單位。
+//
+// 它們全都在做同一件事——用最小的存在感說出「底下那個數字是什麼」。
+// 因此小、暗、大寫、拉開字距：夠讀得出來，但絕不與數字爭。
+// 這個介面裡這種標籤有二十幾處，散著各寫一份的話會慢慢長出五種大小。
+@mixin dense-label {
+  color: color('text-faint');
+  font-weight: font-weight('medium');
+  font-size: font-size('2xs');
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+// 一整排欄位旁邊那顆按鈕，要與輸入框切齊，不是與說明文字切齊。
+//
+// FormField 把標籤、控制項與說明三樣上下疊起來，所以整排用 align-items: end 對齊時，
+// 按鈕會對到最下面那一行說明，看起來比它旁邊的輸入框低一截。
+// 這個 mixin 把按鈕往下推一個「標籤那一行」的高度——標籤的字級就定義在上面那個 mixin 裡，
+// 兩者住在同一個檔案，所以不會有一天各自改了一半。
+@mixin align-with-field-control {
+  align-self: start;
+  margin-top: calc(#{font-size('2xs')} * #{line-height('normal')} + #{spacing('3xs')});
+}
+
+// 可以上下對齊著讀的數字。
+//
+// 價、量、時間、指標值——只要是「一整欄要互相比較」的東西都用它。
+// tabular-nums 讓每個數字佔一樣寬，等寬字體讓小數點排成一條線；
+// 少了任一個，一整欄數字讀起來就會歪歪扭扭。
+@mixin numeric {
+  font-variant-numeric: tabular-nums;
+  font-family: font-family('mono');
 }
 
 // 程式碼要看起來像一份檔案，行高、字體與行號欄的寬度就必須到處一致——

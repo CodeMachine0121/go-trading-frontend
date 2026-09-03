@@ -6,8 +6,10 @@ import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicat
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
 import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
+import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
+import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
 
 /**
  * Domain Service：指標計算的編排。
@@ -41,5 +43,15 @@ export class IndicatorCalculationService {
   listResultTypeOptions(): IndicatorResultTypeOptionDto[] {
     return INDICATOR_RESULT_TYPES.map(
       resultType => new IndicatorResultTypeDomain(resultType).toOptionDto())
+  }
+
+  /**
+   * 算式收到的每一根 K 線有哪些欄位。
+   *
+   * 它與外框（`describeIndicatorScript`）描述的是同一份沙箱契約，因此住在同一個 service——
+   * 分開放的話，外框哪天換了型別，欄位說明會繼續說舊的那一套。
+   */
+  listKCandleFields(): KCandleFieldDto[] {
+    return K_CANDLE_FIELDS.map(field => field.toDto())
   }
 }

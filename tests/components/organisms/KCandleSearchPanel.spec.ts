@@ -259,6 +259,13 @@ describe('KCandleSearchPanel', () => {
   })
 
   describe('維護入口', () => {
+    it('第一次查詢之前就按得到「新增 K 線」——第一根 K 線只能從那裡來', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      expect(wrapper.get('[data-testid="create-button"]').attributes('disabled')).toBeUndefined()
+      expect(wrapper.find('[data-testid="k-candle-row"]').exists()).toBe(false)
+    })
+
     it('按「新增 K 線」會打開空白的維護表單', async () => {
       const wrapper = await mountPanel(buildProxy())
 

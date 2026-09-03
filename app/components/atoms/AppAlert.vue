@@ -26,19 +26,25 @@ const { tone = 'info' } = defineProps<{ tone?: AlertTone }>()
 <style scoped lang="scss">
 .app-alert {
   display: flex;
-  gap: spacing('md');
-  align-items: center;
+  gap: spacing('sm');
+
+  // 訊息可能長到換行，動作要留在第一行旁邊而不是掉到中間。
+  align-items: flex-start;
   justify-content: space-between;
   border: 1px solid color('border');
-  border-left-width: 3px;
+  border-left-width: 2px;
   border-radius: radius('sm');
   background-color: color('surface');
-  padding: spacing('sm') spacing('md');
-  font-size: font-size('sm');
+  padding: spacing('xs') spacing('sm');
+  font-size: font-size('xs');
   line-height: line-height('normal');
 
   &__message {
     margin: 0;
+  }
+
+  &__action {
+    flex: none;
   }
 
   // 深色底上光靠一條左邊框太弱，整塊帶一層語氣的底色才看得出這是哪一類訊息

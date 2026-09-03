@@ -28,21 +28,24 @@ defineProps<{
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: spacing('2xs');
+  gap: spacing('3xs');
+  min-width: 0;
 
+  // 欄位名與表頭是同一種東西：說出「底下那格是什麼」，然後閉嘴。
   &__label {
-    font-weight: font-weight('medium');
-    font-size: font-size('sm');
+    @include dense-label;
   }
 
   &__hint {
-    color: color('text-muted');
-    font-size: font-size('xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
   }
 
   &__error {
     color: color('danger');
-    font-size: font-size('xs');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
   }
 }
 </style>
