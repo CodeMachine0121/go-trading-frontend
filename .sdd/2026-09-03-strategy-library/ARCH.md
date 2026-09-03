@@ -48,10 +48,12 @@
 | `application/strategy-application.ts` | **Add** | `StrategyApplication`——轉呼叫，全程只碰 DTO |
 | `infrastructure/proxy/strategy-proxy.ts` | **Add** | `StrategyProxy`——五個端點；`409`／`404` 在這一層翻成領域錯誤 |
 | `composables/use-strategy-library.ts` | **Add** | 策略在這個畫面上的**畫面狀態**：清單、使用中那一支、載入當下的快照、哪個對話框開著、進行中旗標 |
+| `components/atoms/AppIcon.vue` | **Add** | 全站唯一的圖示元件。圖示直接畫在裡面，不拉圖示庫——用得到的不到十個 |
+| `components/atoms/AppButton.vue` | **Modify** | 多一個 `label`：只放圖示時，這顆按鈕叫什麼。**無障礙名稱與滑鼠提示都取自它** |
 | `components/atoms/AppModal.vue` | **Add** | 覆蓋層＋面板＋關閉。**專案目前沒有任何對話框元件**。原子，不認識 DTO |
 | `components/molecules/ConfirmDialog.vue` | **Add** | 「再問一次」——刪除與放棄未存變更**共用同一個**，不是兩個元件 |
 | `components/molecules/StrategyPicker.vue` | **Add** | 挑策略的選單＋目前使用中是哪一支＋一支都沒有時的說法 |
-| `components/molecules/StrategyNameDialog.vue` | **Add** | 只問名稱的對話框，含就地顯示的錯誤 |
+| `components/molecules/StrategyNameDialog.vue` | **Add** | 問一個策略名稱的對話框。**另存與改名共用它**——兩者問的是同一件事，差別只在標題與框裡先放什麼 |
 | `components/molecules/StrategyLibraryDialog.vue` | **Add** | 完整清單＋逐列載入／刪除。**是 molecule 不是 organism**——見 §4 |
 | `components/organisms/IndicatorCalculationPanel.vue` | **Modify** | 接上以上元件與 composable；既有的計算流程一行不動 |
 | `pages/indicator-calculations/index.vue` | **Modify** | 多注入一個 Application |
@@ -100,7 +102,7 @@
 | :--- | :--- | :--- |
 | `IndicatorScriptDomain` | 全前端唯一產生算式文字的地方：外框頭尾、範例內容、`assemble()` | 新增 `disassemble(script)`（見下） |
 | `AggregationIntervalVo` | 圖表的彙總刻度，註解寫「使用者不直接選它」 | **只改註解**：策略這邊使用者會直接選。取值、清單、順序一行不動 |
-| `IndicatorCalculationPanel` | 指標計算這一整塊 | 上方接 `StrategyPicker`，工具列接儲存／另存／開清單；掛上三個對話框。**既有的計算流程與結果呈現一行不動** |
+| `IndicatorCalculationPanel` | 指標計算這一整塊 | 上方接 `StrategyPicker`，動作（儲存／另存／改名／開清單）以圖示放進它的 `actions` 插槽；掛上四個對話框。**既有的計算流程與結果呈現一行不動** |
 | `pages/indicator-calculations/index.vue` | 只做接線 | 多取一個 `$strategyApplication` 往下傳 |
 | `plugins/dependencies.ts` | 組裝根 | 多組一條 |
 
@@ -117,6 +119,16 @@
 **它與 `assemble()` 放在同一個檔案**，這是刻意的：那個檔案的註解說「這是全前端唯一產生算式文字的地方」，
 逆運算放進同一個檔案，這條規則就仍然成立。外框改了，兩邊在同一個畫面裡一起改，
 不可能只改一半。**兩者互為往返**——ARCH 要求的驗收之一就是「載入後不改任何東西再存回去，算式完全相同」。
+
+### `StrategyPicker` 為什麼不用 `FormField`
+
+`FormField` 把標籤、控制項與說明整包在一個 `<label>` 裡。動作按鈕若放進那個 `<label>`，
+**點按鈕會被瀏覽器轉給 `<label>` 包住的第一個控制項**——實際的後果是按「策略清單」跳出取名對話框。
+（這不是推論：改版當下就是這樣壞的，被既有的整合測試抓到。）
+
+因此 `StrategyPicker` 自己排：`<label>` 只包住選單，動作是它的兄弟，兩者同屬一列並**底部對齊**。
+底部對齊而不是置中，是因為欄位那一欄的最後一樣東西就是選單，對齊底部就等於對齊選單。
+動作若擺在整個欄位外面，會對齊到說明文字那一行，看起來比選單低一截。
 
 ### `StrategyLibraryDialog` 為什麼是 molecule 而不是 organism
 

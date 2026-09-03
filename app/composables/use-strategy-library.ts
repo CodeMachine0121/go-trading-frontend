@@ -7,8 +7,8 @@ import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflic
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
-/** 目前哪一個對話框疊在畫面上。一次只有一個——三個同時開沒有任何意義。 */
-type OpenDialog = 'none' | 'library' | 'name' | 'discard' | 'delete'
+/** 目前哪一個對話框疊在畫面上。一次只有一個——好幾個同時開沒有任何意義。 */
+type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete'
 
 /**
  * 策略在指標計算這個畫面上的**狀態**：留著哪些、正在用哪一支、載入當下那一份長什麼樣、
@@ -103,7 +103,10 @@ export function useStrategyLibrary(
     }
   }
 
-  /** 有使用中的那一支就存回它，沒有就先問名字。呼叫端不必自己判斷。 */
+  /**
+   * 有使用中的那一支就存回它，沒有就先問名字。呼叫端不必自己判斷。
+   * 名字沿用它原本的——**改名是另一個動作**，儲存不會順手改掉它。
+   */
   async function saveStrategy() {
     if (activeStrategy.value === null) {
       openDialog.value = 'name'
@@ -119,8 +122,30 @@ export function useStrategyLibrary(
     nameErrorMessage.value = null
   }
 
+  /** 只有手上真的有一支時才問得出「要改成什麼名字」。 */
+  function openRenameDialog() {
+    if (activeStrategy.value === null) {
+      return
+    }
+
+    openDialog.value = 'rename'
+    nameErrorMessage.value = null
+  }
+
   async function createStrategy(name: string) {
     await writeStrategy(name, undefined)
+  }
+
+  /**
+   * 替使用中的那一支改名。它走的是同一條存檔路徑——改名就是「內容照舊、名字換掉」的一次儲存，
+   * 因此名稱被佔用、那一支已經不在、連不上後端，三種失敗的處理完全不必重寫一遍。
+   */
+  async function renameStrategy(name: string) {
+    if (activeStrategy.value === null) {
+      return
+    }
+
+    await writeStrategy(name, activeStrategy.value.id)
   }
 
   async function writeStrategy(name: string, id: number | undefined) {
@@ -140,8 +165,10 @@ export function useStrategyLibrary(
     catch (error: unknown) {
       // 名稱的問題留在取名對話框裡就地說；其餘的整塊告知。
       // 兩種都**不動畫面上的內容**——一次存檔失敗不該連帶弄丟使用者寫的東西。
+      // 回到原本那一個問名字的對話框——改名時退回改名、另存時退回另存，
+      // 使用者才不會被丟到一個他沒打開過的地方。
       if (error instanceof StrategyNameConflictError || error instanceof StrategyFieldError) {
-        openDialog.value = 'name'
+        openDialog.value = openDialog.value === 'rename' ? 'rename' : 'name'
         nameErrorMessage.value = error.message
         return
       }
@@ -222,7 +249,9 @@ export function useStrategyLibrary(
     confirmDiscard,
     saveStrategy,
     openNameDialog,
+    openRenameDialog,
     createStrategy,
+    renameStrategy,
     askToDelete,
     confirmDelete,
   }

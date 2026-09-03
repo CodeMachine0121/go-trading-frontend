@@ -12,7 +12,7 @@
 
 | 判定 | 數量 |
 | :--- | ---: |
-| ✅ conforms | 38 |
+| ✅ conforms | 47 |
 | 🔴 violation | 0 |
 | 🟠 mis-asserted | 0 |
 | 🟡 partial | 0 |
@@ -20,7 +20,7 @@
 | ❔ unclear | 0 |
 | ⚠️ orphan | 0 |
 
-**Conformance: 38 / 38 = 100%**
+**Conformance: 47 / 47 = 100%**
 
 初次稽核為 33 ✅ / 5 🟡。五條「PRD 講了但沒有測試釘住」已於稽核後補上，
 每一條都經反向驗證（破壞行為 → 對應測試轉紅 → 還原）。詳見文末〈稽核後的補強〉。
@@ -214,6 +214,33 @@
 
 ---
 
+## 第二輪：改名與圖示
+
+初版交出去之後，使用者指出兩件事：按鈕文字太多也太小，以及**改不了策略的名字**。
+
+第二件不是實作錯誤，是**需求階段就漏了**——BRIEF 與 PRD 從頭到尾只有「另存為新策略」，
+沒有任何一條提到改名，而後端的 `PUT` 一直都收 name。已補進 BRIEF／PRD（US-10）／UL-MAP。
+
+| ID | Clause | Implementation | Test | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| AC-39 | 只換名字，其他都不動 | `lib.renameStrategy`（走同一條存檔路徑，帶識別碼） | `Tpanel`「改名送出的是同一支策略，只有名字換了」、「改名不會動到這一支記著的算式」 | ✅ |
+| AC-40 | 改名的框裡先放著現在的名字 | `StrategyNameDialog.initialName` | `Tpanel`「改名的框裡先放著現在的名字」、`TnameDlg` | ✅ |
+| AC-41 | 改成別支用過的名字 | `lib.writeStrategy`（失敗時退回**原本那一個**問名字的對話框） | `Tpanel`「改成別人用過的名字時退回改名的對話框，不是退回另存」 | ✅ |
+| AC-42 | 沒有使用中的策略時改不了名 | `panel`（按鈕停用）+ `lib.openRenameDialog`（無使用中即不開） | `Tpanel`「只有手上真的有一支時才改得了名字」 | ✅ |
+| AC-43 | 儲存不會順手改掉名字 | `lib.saveStrategy`（沿用 `activeStrategy.name`） | `Tpanel`「儲存不會順手改掉名字——那是另一個動作」 | ✅ |
+| AC-44 | 動作以圖示呈現 | `AppIcon` + `panel`／`libDlg` 的按鈕 | `TIcon`、`Tpanel` | ✅ |
+| AC-45 | 每一顆都說得出自己叫什麼 | `AppButton.label` → `aria-label` + `title` | `TButton`「只放圖示時，按鈕自己說得出它叫什麼」 | ✅ |
+| AC-46 | 動作與策略選單對齊 | `StrategyPicker`（同一列、底部對齊，動作**不在** `<label>` 內） | `Tpicker`「動作與選單同一列，且不在標籤裡面」 | ✅ |
+| AC-47 | 一支策略都沒有時動作仍然在 | `StrategyPicker`（空狀態仍渲染 actions 插槽） | `Tpicker`「一支都沒有時動作仍然在」 | ✅ |
+
+**這一輪抓到的錯**：把動作放進 `FormField` 的 `<label>` 之後，點「策略清單」會跳出取名對話框——
+瀏覽器把 `<label>` 內的點擊轉給了它包住的第一個控制項（也就是「儲存」）。
+**既有的整合測試立刻轉紅**，這也是為什麼 `StrategyPicker` 現在自己排版而不用 `FormField`，
+並且多了一條專門擋這件事的測試。
+
+九條皆經反向驗證（破壞行為 → 對應測試轉紅 → 還原）。
+
 ## Verdict
 
-**38 / 38 條符合（100%）。0 violation、0 gap、0 mis-asserted、0 orphan 違規。**
+**47 / 47 條符合（100%）。0 violation、0 gap、0 mis-asserted、0 orphan 違規。**
+（38 條初版 + 9 條第二輪的改名與圖示。）

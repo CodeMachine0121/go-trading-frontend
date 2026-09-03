@@ -4,26 +4,40 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import FormField from '~/components/molecules/FormField.vue'
 
-// 分子：另存一支新策略時只問名稱。
+// 分子：問一個策略名稱。
 //
-// 其餘四樣東西畫面上都已經有了，再問一次是多餘的。
+// 另存為新策略與替現有的那一支改名共用它——兩者問的是同一件事，
+// 差別只在標題與一開始框裡有沒有字。做成兩個元件，只會讓「名稱被佔用時怎麼辦」
+// 有兩個地方要維護。
+//
 // 名稱被佔用時**不關閉、不清空**——讓使用者當場改一個字再送一次，
 // 而不是把他剛打的名字丟掉重來。
-const { open, errorMessage = null, submitting = false } = defineProps<{
+const {
+  open,
+  title,
+  hint,
+  initialName = '',
+  errorMessage = null,
+  submitting = false,
+} = defineProps<{
   open: boolean
+  title: string
+  hint: string
+  /** 打開時框裡先放什麼。改名時放現在的名字，另存時留空。 */
+  initialName?: string
   errorMessage?: string | null
   submitting?: boolean
 }>()
 
 const emit = defineEmits<{ submit: [name: string], cancel: [] }>()
 
-const name = ref('')
+const name = ref(initialName)
 const missingNameMessage = ref<string | null>(null)
 
-// 每次打開都從空白開始；上一次留下的名字對這一次沒有意義。
+// 每次打開都重新從「這一次該有的起點」開始；上一次留下的字對這一次沒有意義。
 watch(() => open, (isOpen) => {
   if (isOpen) {
-    name.value = ''
+    name.value = initialName
     missingNameMessage.value = null
   }
 })
@@ -43,7 +57,7 @@ function submitName() {
 <template>
   <AppModal
     :open="open"
-    title="另存為新策略"
+    :title="title"
     @close="emit('cancel')"
   >
     <form
@@ -52,7 +66,7 @@ function submitName() {
     >
       <FormField
         label="策略名稱"
-        hint="其餘內容取自畫面上目前的算式、指標值種類、彙總刻度與計算根數。"
+        :hint="hint"
         :error-message="missingNameMessage ?? errorMessage"
       >
         <AppInput

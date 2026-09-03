@@ -362,6 +362,134 @@ describe('指標計算畫面上的策略：存回去', () => {
   })
 })
 
+describe('指標計算畫面上的策略：改名', () => {
+  it('只有手上真的有一支時才改得了名字', async () => {
+    const wrapper = mountPanel()
+    await settle()
+
+    expect(wrapper.get('[data-testid="rename-strategy-button"]').attributes('disabled'))
+      .toBeDefined()
+  })
+
+  it('改名的框裡先放著現在的名字', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="rename-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="strategy-name-input"]').element.value)
+      .toBe('二十根均線')
+  })
+
+  it('改名送出的是同一支策略，只有名字換了', async () => {
+    const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20'))
+    const createStrategy = vi.fn()
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      updateStrategy,
+      createStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="rename-strategy-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('均線 20')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    // 改的是原本那一支，不是複製出新的一支。
+    expect(createStrategy).not.toHaveBeenCalled()
+    expect(updateStrategy).toHaveBeenCalledOnce()
+    expect(updateStrategy.mock.calls[0]?.[0].id).toBe(7)
+    expect(updateStrategy.mock.calls[0]?.[0].name).toBe('均線 20')
+  })
+
+  it('改名之後畫面上顯示的就是新名字', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn()
+        .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線')])
+        .mockResolvedValue([buildStoredStrategy(7, '均線 20')]),
+      updateStrategy: vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20')),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="rename-strategy-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('均線 20')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('均線 20')
+    expect(wrapper.findAll('option').map(option => option.text())).toContain('均線 20')
+  })
+
+  it('改名不會動到這一支記著的算式', async () => {
+    const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20'))
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([
+        buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+      ]),
+      updateStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="rename-strategy-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('均線 20')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    expect(updateStrategy.mock.calls[0]?.[0].script).toContain('sum := 123.0')
+    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+  })
+
+  it('改成別人用過的名字時退回改名的對話框，不是退回另存', async () => {
+    // 被丟到一個自己沒打開過的對話框，比錯誤訊息本身更讓人困惑。
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      updateStrategy: vi.fn().mockRejectedValue(
+        new StrategyNameConflictError('策略名稱「六十根均線」已被使用')),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="rename-strategy-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('六十根均線')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('重新命名')
+    expect(wrapper.text()).not.toContain('另存為新策略的名稱')
+    expect(wrapper.get('[data-testid="field-error"]').text()).toContain('已被使用')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="strategy-name-input"]').element.value)
+      .toBe('六十根均線')
+  })
+
+  it('儲存不會順手改掉名字——那是另一個動作', async () => {
+    const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '二十根均線'))
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      updateStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+    await typeScriptBody(wrapper, '改過的內容')
+
+    await wrapper.get('[data-testid="save-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(updateStrategy.mock.calls[0]?.[0].name).toBe('二十根均線')
+  })
+})
+
 describe('指標計算畫面上的策略：清單與刪除', () => {
   it('打開清單看得到每一支，載入之後留在同一頁', async () => {
     const wrapper = mountPanel({
