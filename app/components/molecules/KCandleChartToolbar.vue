@@ -91,27 +91,33 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 .k-candle-chart-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: spacing('lg');
+  gap: spacing('sm') spacing('lg');
   align-items: flex-end;
 
   &__symbol {
-    min-width: 12rem;
+    min-width: 10rem;
+    max-width: 14rem;
   }
 
   &__group {
     display: flex;
     flex-direction: column;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
   }
 
   &__group-label {
-    color: color('text-muted');
-    font-size: font-size('xs');
+    @include dense-label;
   }
 
+  // 一組互斥的選擇擺成一條連在一起的軌道，而不是幾顆各自獨立的按鈕——
+  // 連在一起才看得出「只能選一個」，這也是每一台交易終端機講區間的方式。
   &__buttons {
     display: flex;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
+    border: 1px solid color('border');
+    border-radius: radius('md');
+    background-color: color('background');
+    padding: spacing('3xs');
   }
 }
 </style>

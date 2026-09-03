@@ -306,14 +306,11 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .k-candle-chart {
-  border: 1px solid color('border');
-  border-radius: radius('md');
+  // 圖用光面板給它的所有高度。看得多寬與看得多高都是使用者的事，
+  // 寫死一個 32rem 只會在大螢幕上留一大片沒人要的空白。
+  flex: 1;
   background-color: color('surface');
   width: 100%;
-  height: 32rem;
-
-  @include respond-to('md') {
-    height: 40rem;
-  }
+  min-height: 20rem;
 }
 </style>

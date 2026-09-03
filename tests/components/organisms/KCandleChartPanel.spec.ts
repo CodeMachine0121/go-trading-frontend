@@ -107,6 +107,10 @@ describe('KCandleChartPanel', () => {
       endTime: new Date('2026-09-02T11:00:00.000Z'),
     })
     await flushPromises()
+    // 快捷區間算的是「到現在為止的一天」，而這一組測試讓假時鐘跟著真實時間走
+    // （防抖的等待時間需要它）。按下去之前把時鐘釘回釘住的那一刻，
+    // 斷言才是在驗那一天的邊界，不是在驗這幾行跑得夠不夠快。
+    vi.setSystemTime(CURRENT_TIME)
     await wrapper.findAll('[data-testid="range-preset-button"]')[0]?.trigger('click')
     await flushPromises()
 
