@@ -4,6 +4,7 @@ import KCandleTable from '~/components/organisms/KCandleTable.vue'
 import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
@@ -123,7 +124,7 @@ async function searchKCandles() {
 
 <template>
   <section class="k-candle-search-panel">
-    <div class="k-candle-search-panel__query">
+    <AppPanel title="查詢條件">
       <KCandleQueryForm
         v-model:symbol="symbol"
         v-model:start-time="startTime"
@@ -134,71 +135,59 @@ async function searchKCandles() {
         :start-time-error="startTimeError"
         @submit="searchKCandles"
       />
-    </div>
 
-    <AppAlert
-      v-if="rejectedMessage"
-      tone="danger"
-      data-testid="rejected-alert"
-    >
-      {{ rejectedMessage }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="serverErrorMessage"
-      tone="danger"
-      data-testid="server-error-alert"
-    >
-      後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="searchKCandles"
-        >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="backendUnreachable"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="searchKCandles"
-        >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="loading"
-      tone="info"
-      data-testid="loading-alert"
-    >
-      查詢中…
-    </AppAlert>
-
-    <div class="k-candle-search-panel__maintenance">
-      <span class="k-candle-search-panel__maintenance-label">手動維護 K 線</span>
-      <AppButton
-        variant="secondary"
-        :disabled="editorOpen"
-        data-testid="create-button"
-        @click="startCreating"
+      <AppAlert
+        v-if="rejectedMessage"
+        tone="danger"
+        data-testid="rejected-alert"
       >
-        新增 K 線
-      </AppButton>
-    </div>
+        {{ rejectedMessage }}
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="serverErrorMessage"
+        tone="danger"
+        data-testid="server-error-alert"
+      >
+        後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="searchKCandles"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="backendUnreachable"
+        tone="danger"
+        data-testid="unreachable-alert"
+      >
+        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="searchKCandles"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="loading"
+        tone="info"
+        data-testid="loading-alert"
+      >
+        查詢中…
+      </AppAlert>
+    </AppPanel>
 
     <KCandleEditorPanel
       v-if="editorOpen"
@@ -213,10 +202,22 @@ async function searchKCandles() {
     />
 
     <KCandleTable
-      v-if="result"
       :result="result"
       :time-zone="timeZone"
     >
+      <!-- 維護入口掛在結果那一塊的標題列上：要動哪一根，就在看得到它的地方動。 -->
+      <template #actions>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="editorOpen"
+          data-testid="create-button"
+          @click="startCreating"
+        >
+          新增 K 線
+        </AppButton>
+      </template>
+
       <template #row-actions="{ kCandle }">
         <AppButton
           variant="ghost"
@@ -235,26 +236,9 @@ async function searchKCandles() {
 <style scoped lang="scss">
 .k-candle-search-panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: spacing('lg');
-
-  // 查詢條件收成一張卡，才不會一整排欄位懸在頁面底色上
-  &__query {
-    @include surface('md');
-  }
-
-  &__maintenance {
-    display: flex;
-    gap: spacing('md');
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid color('border');
-    padding-top: spacing('md');
-  }
-
-  &__maintenance-label {
-    color: color('text-muted');
-    font-size: font-size('sm');
-  }
+  gap: spacing('sm');
+  min-height: 0;
 }
 </style>

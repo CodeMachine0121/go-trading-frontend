@@ -63,12 +63,15 @@ const startTime = defineModel<string>('startTime', { required: true })
 <style scoped lang="scss">
 .k-candle-query-form {
   display: grid;
-  gap: spacing('md');
+  gap: spacing('xs') spacing('sm');
   align-items: end;
   grid-template-columns: 1fr;
 
   @include respond-to('md') {
-    grid-template-columns: 1fr 1fr auto;
+    // 條件只有兩格，剩下的寬度不必分給它們——擺完就靠左收起來，
+    // 一排跨滿整個寬度的輸入框只會讓兩個欄位看起來像八個。
+    grid-template-columns: minmax(10rem, 16rem) minmax(12rem, 18rem) auto;
+    justify-content: start;
   }
 
   &__submit {

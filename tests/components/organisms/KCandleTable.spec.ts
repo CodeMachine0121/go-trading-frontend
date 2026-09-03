@@ -43,6 +43,14 @@ describe('KCandleTable', () => {
     expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
   })
 
+  it('還沒查過時就說還沒查，不是查無——那是兩種不同的答案', () => {
+    const wrapper = mount(KCandleTable, { props: { result: null, timeZone: buildTimeZone() } })
+
+    expect(wrapper.get('[data-testid="idle-result"]').text()).toContain('按「查詢」')
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="result-count"]').exists()).toBe(false)
+  })
+
   it('一根都沒有時顯示查無 K 線而不是空白表格', () => {
     const wrapper = mount(KCandleTable, {
       props: { result: new KCandleSearchResultDto([]), timeZone: buildTimeZone() },
