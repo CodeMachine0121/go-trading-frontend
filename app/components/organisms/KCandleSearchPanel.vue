@@ -26,13 +26,11 @@ const { kCandleApplication, tradingSymbolApplication } = defineProps<{
 
 const symbol = ref('')
 const startTime = ref('')
-const endTime = ref('')
 
 const loading = ref(false)
 const result = ref<KCandleSearchResultDto | null>(null)
 const symbolError = ref<string | null>(null)
 const startTimeError = ref<string | null>(null)
-const endTimeError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
 const serverErrorMessage = ref<string | null>(null)
@@ -59,29 +57,27 @@ function closeEditor() {
   editorBusy.value = false
 }
 
-// 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
+// 預設開始時間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(() => {
   const defaultQuery = kCandleApplication.buildDefaultQuery(DEFAULT_SYMBOL)
   symbol.value = defaultQuery.symbol
   startTime.value = formatUtcMinuteInput(defaultQuery.startTime)
-  endTime.value = formatUtcMinuteInput(defaultQuery.endTime)
 })
 
 async function searchKCandles() {
   loading.value = true
   symbolError.value = null
   startTimeError.value = null
-  endTimeError.value = null
   rejectedMessage.value = null
   backendUnreachable.value = false
   serverErrorMessage.value = null
   result.value = null
 
   try {
+    // 只送開始時間：查到哪裡為止是領域的事——它一律查到送出當下。
     result.value = await kCandleApplication.searchKCandles(new KCandleQueryDto(
       symbol.value,
       parseUtcMinuteInput(startTime.value),
-      parseUtcMinuteInput(endTime.value),
     ))
   }
   catch (error: unknown) {
@@ -90,11 +86,8 @@ async function searchKCandles() {
       if (error.field === 'symbol') {
         symbolError.value = error.message
       }
-      else if (error.field === 'startTime') {
-        startTimeError.value = error.message
-      }
       else {
-        endTimeError.value = error.message
+        startTimeError.value = error.message
       }
     }
     else if (error instanceof BackendServerError) {
@@ -122,12 +115,10 @@ async function searchKCandles() {
       <KCandleQueryForm
         v-model:symbol="symbol"
         v-model:start-time="startTime"
-        v-model:end-time="endTime"
         :trading-symbol-application="tradingSymbolApplication"
         :loading="loading"
         :symbol-error="symbolError"
         :start-time-error="startTimeError"
-        :end-time-error="endTimeError"
         @submit="searchKCandles"
       />
     </div>

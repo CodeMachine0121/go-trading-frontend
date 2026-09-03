@@ -10,7 +10,6 @@ function mountForm(props: Record<string, unknown> = {}) {
       symbol: 'BTCUSDT',
       tradingSymbolApplication: buildTradingSymbolApplication(),
       startTime: '2026-08-29T12:00',
-      endTime: '2026-08-30T12:00',
       ...props,
     },
   })
@@ -42,15 +41,21 @@ describe('KCandleQueryForm', () => {
   })
 
   it.each([
-    { field: 'symbolError', message: '請指定交易標的' },
-    { field: 'startTimeError', message: '請填寫開始時間' },
-    { field: 'endTimeError', message: '結束時間不得早於開始時間' },
-  ])('把 $field 的訊息標在對應欄位旁', ({ field, message }) => {
+    { description: '交易標的沒填', field: 'symbolError', message: '請指定交易標的' },
+    { description: '開始時間沒填', field: 'startTimeError', message: '請填寫開始時間' },
+    { description: '開始時間指向未來', field: 'startTimeError', message: '開始時間不得晚於目前時間' },
+  ])('$description 時把訊息標在對應欄位旁', ({ field, message }) => {
     const wrapper = mountForm({ [field]: message })
 
     const fieldErrors = wrapper.findAll('[data-testid="field-error"]')
     expect(fieldErrors).toHaveLength(1)
     expect(fieldErrors[0]?.text()).toBe(message)
+  })
+
+  it('沒有結束時間可填——查詢一律查到送出當下', () => {
+    const wrapper = mountForm()
+
+    expect(wrapper.find('[data-testid="end-time-input"]').exists()).toBe(false)
   })
 
   it('使用者改動輸入時把新值往上送', async () => {

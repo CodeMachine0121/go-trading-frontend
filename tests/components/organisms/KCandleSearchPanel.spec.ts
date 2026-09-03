@@ -41,6 +41,17 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   }
 }
 
+/**
+ * 結束時間不是填出來的：它是送出當下。時鐘會隨真實時間往前走，
+ * 因此只斷言「不早於釘住的目前時間、且就在那一刻附近」。
+ */
+function expectQueriedUntilSubmissionTime(kCandleProxy: IKCandleProxy) {
+  const queriedCondition = vi.mocked(kCandleProxy.findKCandlesInRange).mock.calls.at(-1)?.[0]
+
+  expect(queriedCondition?.endTime.getTime()).toBeGreaterThanOrEqual(CURRENT_TIME.getTime())
+  expect(queriedCondition?.endTime.getTime()).toBeLessThan(CURRENT_TIME.getTime() + 5000)
+}
+
 async function mountPanel(kCandleProxy: IKCandleProxy) {
   const wrapper = mount(KCandleSearchPanel, {
     props: {
@@ -63,17 +74,16 @@ afterEach(() => {
 })
 
 describe('KCandleSearchPanel', () => {
-  it('進入畫面時帶入最近二十四小時的預設區間', async () => {
+  it('進入畫面時帶入二十四小時前的預設開始時間，且沒有結束時間可填', async () => {
     const wrapper = await mountPanel(buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) }))
 
     expect(wrapper.get<HTMLSelectElement>('[data-testid="symbol-select"]').element.value).toBe('BTCUSDT')
     expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
       .toBe('2026-08-29T12:00')
-    expect(wrapper.get<HTMLInputElement>('[data-testid="end-time-input"]').element.value)
-      .toBe('2026-08-30T12:00')
+    expect(wrapper.find('[data-testid="end-time-input"]').exists()).toBe(false)
   })
 
-  it('以使用者輸入的區間查詢，並列出查到的 K 線', async () => {
+  it('以使用者輸入的開始時間查到目前時間，並列出查到的 K 線', async () => {
     const kCandleProxy = buildProxy({
       findKCandlesInRange: vi.fn().mockResolvedValue([
         buildKCandle('2026-08-30T10:05:00.000Z'),
@@ -82,15 +92,15 @@ describe('KCandleSearchPanel', () => {
     })
     const wrapper = await mountPanel(kCandleProxy)
 
-    await wrapper.get('[data-testid="end-time-input"]').setValue('2026-08-30T18:30')
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T06:00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'BTCUSDT',
-      startTime: new Date('2026-08-29T12:00:00.000Z'),
-      endTime: new Date('2026-08-30T18:30:00.000Z'),
+      startTime: new Date('2026-08-30T06:00:00.000Z'),
     }))
+    expectQueriedUntilSubmissionTime(kCandleProxy)
     expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(2)
     expect(wrapper.get('[data-testid="result-count"]').text()).toBe('共 2 根')
   })
@@ -106,9 +116,8 @@ describe('KCandleSearchPanel', () => {
   })
 
   it.each([
-    { description: '結束時間早於開始時間', input: '[data-testid="end-time-input"]', value: '2026-08-28T12:00', expectedMessage: '結束時間不得早於開始時間' },
+    { description: '開始時間晚於目前時間', input: '[data-testid="start-time-input"]', value: '2026-08-30T12:01', expectedMessage: '開始時間不得晚於目前時間' },
     { description: '開始時間被清空', input: '[data-testid="start-time-input"]', value: '', expectedMessage: '請填寫開始時間' },
-    { description: '結束時間被清空', input: '[data-testid="end-time-input"]', value: '', expectedMessage: '請填寫結束時間' },
   ])('$description 時標在欄位旁且完全不去查詢', async ({ input, value, expectedMessage }) => {
     const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
@@ -138,7 +147,7 @@ describe('KCandleSearchPanel', () => {
     expect(kCandleProxy.findKCandlesInRange).not.toHaveBeenCalled()
   })
 
-  it('開始時間與結束時間相同時照常查詢', async () => {
+  it('開始時間剛好是目前時間時照常查詢', async () => {
     const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
 
@@ -150,19 +159,18 @@ describe('KCandleSearchPanel', () => {
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 
-  it('查詢區間可以是不對齊五分鐘刻度的時間', async () => {
+  it('開始時間可以是不對齊五分鐘刻度的時間', async () => {
     const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
 
     await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T10:07')
-    await wrapper.get('[data-testid="end-time-input"]').setValue('2026-08-30T11:23')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledWith(expect.objectContaining({
       startTime: new Date('2026-08-30T10:07:00.000Z'),
-      endTime: new Date('2026-08-30T11:23:00.000Z'),
     }))
+    expectQueriedUntilSubmissionTime(kCandleProxy)
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
   })
 

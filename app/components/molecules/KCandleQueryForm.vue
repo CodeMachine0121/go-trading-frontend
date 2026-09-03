@@ -7,19 +7,18 @@ import type { TradingSymbolApplication } from '~/application/trading-symbol-appl
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
-const { tradingSymbolApplication, loading = false, symbolError = null, startTimeError = null, endTimeError = null } = defineProps<{
+// 結束時間不是欄位：查詢一律查到送出當下，因此表單只收開始時間。
+const { tradingSymbolApplication, loading = false, symbolError = null, startTimeError = null } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   loading?: boolean
   symbolError?: string | null
   startTimeError?: string | null
-  endTimeError?: string | null
 }>()
 
 const emit = defineEmits<{ submit: [] }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
 const startTime = defineModel<string>('startTime', { required: true })
-const endTime = defineModel<string>('endTime', { required: true })
 </script>
 
 <template>
@@ -36,7 +35,7 @@ const endTime = defineModel<string>('endTime', { required: true })
 
     <FormField
       label="開始時間"
-      hint="世界標準時間（UTC）"
+      hint="世界標準時間（UTC）；查詢區間一律到送出當下為止"
       :error-message="startTimeError"
       class="k-candle-query-form__field"
     >
@@ -45,20 +44,6 @@ const endTime = defineModel<string>('endTime', { required: true })
         type="datetime-local"
         :invalid="Boolean(startTimeError)"
         data-testid="start-time-input"
-      />
-    </FormField>
-
-    <FormField
-      label="結束時間"
-      hint="世界標準時間（UTC）"
-      :error-message="endTimeError"
-      class="k-candle-query-form__field"
-    >
-      <AppInput
-        v-model="endTime"
-        type="datetime-local"
-        :invalid="Boolean(endTimeError)"
-        data-testid="end-time-input"
       />
     </FormField>
 
@@ -81,7 +66,7 @@ const endTime = defineModel<string>('endTime', { required: true })
   grid-template-columns: 1fr;
 
   @include respond-to('md') {
-    grid-template-columns: 1fr 1fr 1fr auto;
+    grid-template-columns: 1fr 1fr auto;
   }
 
   &__submit {
