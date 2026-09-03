@@ -149,6 +149,12 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     if (range === undefined) {
       return
     }
+
+    // 看不到最新那一根：走完的那一根不在他正在看的那一段裡，
+    // 「可用的資料多了一根」對他的問題並不成立。
+    if (!range.showsTheLatestKCandle(chart.latestKCandleOpenTime)) {
+      return
+    }
     current.value = { chart, range }
 
     await recalculateEveryApplied()
@@ -207,7 +213,9 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           // 顯示區間是狀態不是參數，所以剛套用的那一支與早就套上的那幾支
           // 算的必然是同一段——沒有哪個呼叫點可以忘記帶它。
           range.kCandleCountAt(chart.interval),
-          range.endTime,
+          // 算到哪一刻由顯示區間回答：看得到最新那一根就不指定（照系統的現在），
+          // 看不到就是這一段的右端。
+          range.calculationEndTime(chart.latestKCandleOpenTime),
           takenColorTokensExcept(strategy.id),
         ))
 

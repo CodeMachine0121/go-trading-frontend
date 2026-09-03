@@ -16,7 +16,12 @@ export class ChartIndicatorRequestDto {
     public readonly symbol: string,
     public readonly aggregationInterval: string,
     public readonly candleCount: number,
-    public readonly endTime: Date,
+    /**
+     * 算到哪一刻。**`null` 是一個答案而不是缺值**——它的意思是「照系統的現在」，
+     * 而系統本來就規定未指定即視為現在。整條路上只有一處產生它、一處消費它，
+     * 中間每一層都只是搬運。
+     */
+    public readonly endTime: Date | null,
     public readonly takenColorTokens: readonly string[],
   ) {}
 }

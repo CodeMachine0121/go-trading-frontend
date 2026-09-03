@@ -61,3 +61,65 @@ describe('顯示區間：這一段裡有幾根', () => {
       .kCandleCountAt(intervalOf(interval))).toBe(expected)
   })
 })
+
+describe('顯示區間：看得到最新那一根嗎', () => {
+  // 這條問句決定兩件事：指標算到哪一刻，以及一根走完時要不要重算。
+  // 判準刻意不是時間門檻——多少分鐘算「現在」沒有正確答案，而且會隨彙總刻度改變意義。
+  it.each([
+    {
+      name: '最新那一根在這一段之內，看得到',
+      range: rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z'),
+      latest: new Date('2026-09-03T11:55:00.000Z'),
+      expected: true,
+    },
+    {
+      name: '最新那一根還在這一段的右端之後，看不到',
+      range: rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z'),
+      latest: new Date('2026-09-03T11:55:00.000Z'),
+      expected: false,
+    },
+    {
+      name: '剛好卡在右端上，算看得到',
+      range: rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T11:55:00.000Z'),
+      latest: new Date('2026-09-03T11:55:00.000Z'),
+      expected: true,
+    },
+    {
+      name: '差一毫秒就看不到',
+      range: rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T11:54:59.999Z'),
+      latest: new Date('2026-09-03T11:55:00.000Z'),
+      expected: false,
+    },
+    {
+      name: '圖上一根都沒有時，不算在看現在',
+      range: rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z'),
+      latest: null,
+      expected: false,
+    },
+  ])('$name', ({ range, latest, expected }) => {
+    expect(range.showsTheLatestKCandle(latest)).toBe(expected)
+  })
+})
+
+describe('顯示區間：這一次要算到哪一刻', () => {
+  it('看得到最新那一根就不指定——交給系統的「現在」', () => {
+    // 系統本來就規定未指定即視為現在，所以「跟著市場走」是不要去指定它。
+    const range = rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z')
+
+    expect(range.calculationEndTime(new Date('2026-09-03T11:55:00.000Z'))).toBeNull()
+  })
+
+  it('看不到最新那一根就算到這一段的右端', () => {
+    // 一段已經過去的行情，答案不該因為現在又走完一根而改變。
+    const range = rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z')
+
+    expect(range.calculationEndTime(new Date('2026-09-03T11:55:00.000Z')))
+      .toEqual(new Date('2026-09-03T09:00:00.000Z'))
+  })
+
+  it('圖上一根都沒有時算到這一段的右端', () => {
+    const range = rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z')
+
+    expect(range.calculationEndTime(null)).toEqual(new Date('2026-09-03T09:00:00.000Z'))
+  })
+})
