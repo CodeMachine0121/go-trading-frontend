@@ -101,7 +101,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `IndicatorCalculation`（entity） | 一次計算的結果本體 | 新增「這次讀了哪幾根」。**一串數字唯一正確的對位依據**——照位置硬對，只要算式少回一個值，整條線就位移，而位移的線看起來完全正常 |
+| `IndicatorCalculation`（entity） | 一次計算的結果本體 | 新增「這次讀了哪幾根」。**一串數字唯一正確的對位依據**，而且要**靠右**對齊——滾動窗口的指標前幾根湊不滿窗口，靠左會讓整條線往左位移一個窗口，而位移的線看起來完全正常 |
 | `IndicatorCalculationRequestDto` / `Domain` | 一次計算的請求 | 新增「算到哪一刻」。圖表要算到它畫得到的右緣，而不是「現在」 |
 | `StrategyDto` / `StrategyDomain` | 一支已存策略對畫面的樣子 | 新增「畫不畫得成線」。判斷來自既有的 `IndicatorResultTypeDomain.holdsNumbers()`——**不新增第二套種類判斷** |
 | `KCandleChart.vue` | 全站唯一認識繪圖函式庫的檔案 | 多收 `indicators`；每個 level 一條價格線、每個 series 一條線圖。**零個新的業務判斷**（見 §1） |
@@ -181,7 +181,7 @@ flowchart TD
 | US-02.2／02.3 換標的／換到需重取時重算 | `reloadedChart !== null` 這一個觸發點 |
 | US-02.4／02.5 那批沒換不重算／沒套用不計算 | 同上（既有取回計畫 + 空清單） |
 | US-03.1 一個數字畫成水平線 | `ChartIndicatorDomain.toLevelDtos` |
-| US-03.2／03.3 一串數字畫成曲線、少的不補 | `ChartIndicatorDomain` 以「這次讀了哪幾根」對位 |
+| US-03.2／03.3 一串數字畫成曲線、靠右對齊 | `ChartIndicatorDomain.pointsOf` 以「這次讀了哪幾根」靠右對位 |
 | US-03.4 好幾個指標名稱就畫好幾條線 | 同上（逐個指標名稱產出一條） |
 | US-03.5 是非類型挑不到 | `StrategyDto.drawableOnChart` + `ChartIndicatorPanel` 停用該選項 |
 | US-03.6 一個指標名稱都沒產出不是失敗 | `ChartIndicatorDto` 交出空的兩份清單，狀態仍是成功 |

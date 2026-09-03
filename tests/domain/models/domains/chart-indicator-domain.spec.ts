@@ -89,7 +89,7 @@ describe('ChartIndicatorDomain：一串數字畫成跟著 K 線走的曲線', ()
     new Date('2026-09-02T10:10:00.000Z'),
   ]
 
-  it('第 n 個值配上第 n 根 K 線的起始時間', () => {
+  it('個數一樣時逐一對上', () => {
     const domain = domainOf(
       calculationOf('floatList', [new IndicatorValueVo('線', [100, 110, 120])], openTimes))
 
@@ -101,23 +101,39 @@ describe('ChartIndicatorDomain：一串數字畫成跟著 K 線走的曲線', ()
     expect(domain.toLevelDtos()).toEqual([])
   })
 
-  it('值比 K 線少時只畫得出來的那幾點，不補值', () => {
-    // 補出來的一點看起來與算出來的一模一樣，那正是它不能存在的理由。
+  it('值比 K 線少時靠右對齊——少掉的是最前面那幾根', () => {
+    // 滾動窗口的指標本來就是這樣：二十期均線吃一百根只回得出八十一個值，
+    // 前十九根湊不滿一個窗口。靠左對齊會把整條線往左推十九格，
+    // 而一條位移的線看起來完全正常。
     const domain = domainOf(
       calculationOf('floatList', [new IndicatorValueVo('線', [100, 110])], openTimes))
 
     const points = domain.toSeriesDtos()[0]?.points ?? []
 
-    expect(points).toHaveLength(2)
-    expect(points.map(point => point.openTime)).toEqual(openTimes.slice(0, 2))
+    expect(points.map(point => point.openTime)).toEqual(openTimes.slice(1, 3))
+    expect(points.map(point => point.value)).toEqual([100, 110])
   })
 
-  it('K 線比值少時也只畫得出來的那幾點', () => {
+  it('最後一個值永遠落在最後一根 K 線上', () => {
+    const domain = domainOf(
+      calculationOf('floatList', [new IndicatorValueVo('線', [100])], openTimes))
+
+    const points = domain.toSeriesDtos()[0]?.points ?? []
+
+    expect(points).toHaveLength(1)
+    expect(points[0]?.openTime).toEqual(openTimes[2])
+  })
+
+  it('值比 K 線多時，多出來的那幾個落在頭部之外，不畫', () => {
     const domain = domainOf(
       calculationOf('floatList', [new IndicatorValueVo('線', [100, 110, 120])],
         openTimes.slice(0, 1)))
 
-    expect(domain.toSeriesDtos()[0]?.points).toHaveLength(1)
+    const points = domain.toSeriesDtos()[0]?.points ?? []
+
+    expect(points).toHaveLength(1)
+    // 留下來的是最後一個值，配上唯一那一根。
+    expect(points[0]?.value).toBe(120)
   })
 
   it('沒回起始時間時一點都不畫——寧可沒有線，也不要一條錯位的線', () => {

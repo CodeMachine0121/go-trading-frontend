@@ -91,17 +91,23 @@ export class ChartIndicatorDomain {
   }
 
   /**
-   * 第 n 個值配上第 n 根 K 線的**起始時間**。
+   * 最後一個值配上最後一根 K 線，往前逐一對回去。
    *
-   * 沒有對應的那一根就沒有那一點——**這一句就是對位規則本身**。
-   * 兩邊的長度不保證相同（算式可以只回一部分，系統也可能少讀幾根），
-   * 而補一個點出來，看起來會與算出來的一模一樣。
+   * **靠右對齊，不是靠左。** 兩邊的長度不保證相同，而少掉的那幾個幾乎總是在**最前面**：
+   * 絕大多數技術指標是滾動窗口，一支二十期均線吃一百根只回得出八十一個值，
+   * 因為前十九根還湊不滿一個窗口。靠左對齊會把整條線往左推十九格——
+   * 而一條位移的線**看起來完全正常**，沒有任何地方會報錯。
+   * 這也與系統那頭「最新 N 根」的語意一致：對得上的是尾巴，不是頭。
+   *
+   * 沒有對應的那一根就沒有那一點：值比 K 線還多時，多出來的那幾個落在頭部之外，不畫。
+   * 補一個點出來，看起來會與算出來的一模一樣。
    */
   private pointsOf(items: readonly (number | boolean)[]): IndicatorPointDto[] {
     const points: IndicatorPointDto[] = []
+    const offsetFromOldest = this.indicatorCalculation.openTimes.length - items.length
 
     for (const [index, value] of items.entries()) {
-      const openTime = this.indicatorCalculation.openTimes[index]
+      const openTime = this.indicatorCalculation.openTimes[index + offsetFromOldest]
       if (typeof value === 'number' && openTime !== undefined) {
         points.push(new IndicatorPointDto(openTime, value))
       }
