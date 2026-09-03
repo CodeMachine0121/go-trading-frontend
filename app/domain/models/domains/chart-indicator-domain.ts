@@ -1,3 +1,4 @@
+import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { ChartLineColorDomain } from '~/domain/models/domains/chart-line-color-domain'
@@ -23,8 +24,14 @@ export class ChartIndicatorDomain {
   constructor(
     private readonly strategyId: number,
     private readonly indicatorCalculation: IndicatorCalculation,
-    /** 這條線挑過的顏色，沒挑過的不在裡面。鍵是線的身分。 */
-    private readonly rememberedColorTokens: ReadonlyMap<string, string>,
+    /**
+     * 怎麼回想一條線挑過的顏色。
+     *
+     * 收的是**能力**而不是一份查好的表：那份表的鍵是「線的身分」，
+     * 而線的身分只有這裡知道怎麼算。交出一份表，就等於要求外面也會算同一把鑰匙——
+     * 而那把鑰匙一旦兩邊算得不一樣，顏色會**安靜地**不再被記得：沒有錯誤，只是失憶。
+     */
+    private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
     /** 圖上其他線已經用掉的顏色——沒有它，第二條線就會與第一條同色。 */
     private readonly takenColorTokens: readonly string[],
   ) {
@@ -76,7 +83,7 @@ export class ChartIndicatorDomain {
     return this.numericIndicatorValues().map((indicatorValue) => {
       const lineKey = `${this.strategyId}:${indicatorValue.name}`
       const colorToken = new ChartLineColorDomain(
-        this.rememberedColorTokens.get(lineKey) ?? null, assignedTokens).token
+        this.chartLineColorPreferenceProxy.readColorToken(lineKey), assignedTokens).token
       assignedTokens.push(colorToken)
 
       return { indicatorValue, lineKey, colorToken }

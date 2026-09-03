@@ -6,7 +6,6 @@ import { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
-import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { CHART_LINE_COLORS } from '~/domain/models/vo/chart-line-color-vo'
 
 /**
@@ -45,8 +44,7 @@ export class ChartIndicatorService {
     const chartIndicatorDomain = new ChartIndicatorDomain(
       chartIndicatorRequestDto.strategy.id,
       indicatorCalculation,
-      this.rememberedColorTokensOf(
-        chartIndicatorRequestDto.strategy.id, indicatorCalculation.indicatorValues),
+      this.chartLineColorPreferenceProxy,
       chartIndicatorRequestDto.takenColorTokens,
     )
 
@@ -77,27 +75,5 @@ export class ChartIndicatorService {
   /** 使用者可以挑的線色，含給人看的名字。清單沿用既有的那一份，不另列。 */
   listChartLineColorOptions(): ChartLineColorOptionDto[] {
     return CHART_LINE_COLORS.map(color => new ChartLineColorOptionDto(color.token, color.label))
-  }
-
-  /**
-   * 這一支算出來的每個指標名稱，各自挑過什麼顏色。
-   *
-   * 只問這一次真的出現的那幾個名稱：算式改過之後，舊名稱記著的顏色留在儲存裡不礙事，
-   * 而去把它們一併撈出來只會讓「已經用掉的顏色」多出幾個其實沒人在用的。
-   */
-  private rememberedColorTokensOf(
-    strategyId: number, indicatorValues: readonly IndicatorValueVo[],
-  ): Map<string, string> {
-    const rememberedColorTokens = new Map<string, string>()
-
-    for (const indicatorValue of indicatorValues) {
-      const lineKey = `${strategyId}:${indicatorValue.name}`
-      const rememberedColorToken = this.chartLineColorPreferenceProxy.readColorToken(lineKey)
-      if (rememberedColorToken !== null) {
-        rememberedColorTokens.set(lineKey, rememberedColorToken)
-      }
-    }
-
-    return rememberedColorTokens
   }
 }

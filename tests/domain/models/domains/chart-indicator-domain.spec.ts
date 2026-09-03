@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
@@ -19,7 +19,11 @@ function domainOf(
   remembered: Map<string, string> = new Map(),
   taken: string[] = [],
 ): ChartIndicatorDomain {
-  return new ChartIndicatorDomain(7, calculation, remembered, taken)
+  // 「怎麼回想一個顏色」是一種能力，替身照介面給——不手刻假實作。
+  return new ChartIndicatorDomain(7, calculation, {
+    readColorToken: vi.fn((lineKey: string) => remembered.get(lineKey) ?? null),
+    writeColorToken: vi.fn(),
+  }, taken)
 }
 
 describe('ChartIndicatorDomain：一個數字畫成水平線', () => {
