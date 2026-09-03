@@ -4,6 +4,7 @@ import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculati
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildStrategyApplication } from '../../fixtures/strategy-application'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -60,6 +61,7 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
+      strategyApplication: buildStrategyApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
     },
   })

@@ -1,0 +1,114 @@
+import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
+import type { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
+import { Strategy } from '~/domain/models/entities/strategy'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
+import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
+import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+
+const STRATEGIES_ENDPOINT = '/strategies'
+
+/** 後端用這兩個狀態碼分別表示「名稱被佔用」與「沒有這一支」。只有這裡需要知道。 */
+const NAME_CONFLICT_STATUS = 409
+const NOT_FOUND_STATUS = 404
+
+/**
+ * 後端回傳的原始 wire 形狀，只存在於本檔內。
+ * 兩個時間欄位後端也會給，但畫面上沒有一處用得到，因此不收進 entity——
+ * 收了就得替它們想一個顯示時區的說法，而那是還沒有人要的功能。
+ */
+type StrategyWire = {
+  id: number
+  name: string
+  script: string
+  resultType: string
+  aggregationInterval: string
+  candleCount: number
+}
+
+/** Proxy：打策略端點，並把「名稱被佔用」與「找不到那一支」從一般的拒絕裡分出來。 */
+export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
+  async listStrategies(): Promise<Strategy[]> {
+    const strategyWires = await this.requestBackend<StrategyWire[]>(STRATEGIES_ENDPOINT)
+
+    return strategyWires.map(strategyWire => this.toStrategy(strategyWire))
+  }
+
+  async createStrategy(strategyWriteDomain: StrategyWriteDomain): Promise<Strategy> {
+    return this.writeStrategy(
+      STRATEGIES_ENDPOINT, 'POST', strategyWriteDomain)
+  }
+
+  async updateStrategy(strategyWriteDomain: StrategyWriteDomain): Promise<Strategy> {
+    return this.writeStrategy(
+      `${STRATEGIES_ENDPOINT}/${strategyWriteDomain.id}`, 'PUT', strategyWriteDomain)
+  }
+
+  async deleteStrategy(id: number): Promise<void> {
+    try {
+      await this.requestBackend<null>(`${STRATEGIES_ENDPOINT}/${id}`, { method: 'DELETE' })
+    }
+    catch (error: unknown) {
+      throw this.strategyFailureOf(error)
+    }
+  }
+
+  /**
+   * 建立與改寫只差在打哪一條路徑，其餘完全相同：同一份 body、同一套失敗翻譯。
+   * 分成兩份寫的話，翻譯規則就有兩個地方會漂移。
+   */
+  private async writeStrategy(
+    path: string,
+    method: 'POST' | 'PUT',
+    strategyWriteDomain: StrategyWriteDomain,
+  ): Promise<Strategy> {
+    try {
+      const strategyWire = await this.requestBackend<StrategyWire>(path, {
+        method,
+        body: {
+          name: strategyWriteDomain.name,
+          script: strategyWriteDomain.script,
+          resultType: strategyWriteDomain.resultType,
+          aggregationInterval: strategyWriteDomain.aggregationInterval,
+          candleCount: strategyWriteDomain.candleCount,
+        },
+      })
+
+      return this.toStrategy(strategyWire)
+    }
+    catch (error: unknown) {
+      throw this.strategyFailureOf(error)
+    }
+  }
+
+  /**
+   * 狀態碼只在這一層被解讀。名稱被佔用與找不到那一支，使用者的下一步完全不同——
+   * 前者當場改個名字，後者改什麼都沒用——所以它們不能共用一種錯誤。
+   * 其餘的拒絕原樣往上拋，由既有的呈現方式處理。
+   */
+  private strategyFailureOf(error: unknown): unknown {
+    if (!(error instanceof BackendRequestRejectedError)) {
+      return error
+    }
+
+    if (error.status === NAME_CONFLICT_STATUS) {
+      return new StrategyNameConflictError(error.message, { cause: error })
+    }
+    if (error.status === NOT_FOUND_STATUS) {
+      return new StrategyNotFoundError(error.message, { cause: error })
+    }
+
+    return error
+  }
+
+  private toStrategy(strategyWire: StrategyWire): Strategy {
+    return new Strategy(
+      strategyWire.id,
+      strategyWire.name,
+      strategyWire.script,
+      strategyWire.resultType,
+      strategyWire.aggregationInterval,
+      strategyWire.candleCount,
+    )
+  }
+}

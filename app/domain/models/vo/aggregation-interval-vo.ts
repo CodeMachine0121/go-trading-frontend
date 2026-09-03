@@ -29,6 +29,12 @@ export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
   new AggregationIntervalVo('1d', '一天', 24 * 60),
 ]
 
+/**
+ * 最細的那一種，也是任何地方「沒特別指定」時的意思——它剛好等於一根 K 線本來的長度，
+ * 所以以它彙總等於不彙總。名字寫在這裡，用到的地方就不必各自記得「第一個就是預設」。
+ */
+export const FINEST_AGGREGATION_INTERVAL = AGGREGATION_INTERVALS[0]
+
 /** 最粗的那一種。拉遠拉到連它都擺不下時，就是不能再遠了。 */
 export const COARSEST_AGGREGATION_INTERVAL
   = AGGREGATION_INTERVALS[AGGREGATION_INTERVALS.length - 1]

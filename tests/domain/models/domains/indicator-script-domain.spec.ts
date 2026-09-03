@@ -101,3 +101,107 @@ describe('IndicatorScriptDomain', () => {
     expect(templateDto.exampleBody).toContain('return map[string][]bool{')
   })
 })
+
+describe('IndicatorScriptDomain.disassemble', () => {
+  it.each(['float', 'floatList', 'bool', 'boolList'])(
+    '%s 的算式拆得回當初寫的內容',
+    (resultType) => {
+      const scriptBody = 'sum := 0.0\nreturn nil'
+      const script = scriptOf(resultType).assemble(scriptBody)
+
+      const disassembled = scriptOf(resultType).disassemble(script)
+
+      expect(disassembled.body).toBe(scriptBody)
+      expect(disassembled.frameRecognised).toBe(true)
+    })
+
+  it('內容本來就有的縮排原樣取回，不多一層也不少一層', () => {
+    const scriptBody = 'for _, candle := range data {\n\tsum += candle.Close\n}'
+    const script = scriptOf('float').assemble(scriptBody)
+
+    expect(scriptOf('float').disassemble(script).body).toBe(scriptBody)
+  })
+
+  it('內容裡的空行仍然是空行', () => {
+    const scriptBody = 'sum := 0.0\n\nreturn map[string]float64{"均價": sum}'
+    const script = scriptOf('float').assemble(scriptBody)
+
+    expect(scriptOf('float').disassemble(script).body).toBe(scriptBody)
+  })
+
+  it('外框日後多一個匯入，既有的算式仍然拆得開', () => {
+    // 拆解錨定的是進入點與收尾，不是外框的字面。逐字比對的話，
+    // 外框只要動一個字，所有既有的算式就會一起認不出來。
+    const script = [
+      'package main',
+      '',
+      'import (',
+      '\t"indicator"',
+      '\t"math"',
+      '\t"sort"',
+      '\t"strings"',
+      ')',
+      '',
+      'func Calculate(data []indicator.KCandle) map[string]float64 {',
+      '\tsum := 0.0',
+      '\treturn nil',
+      '}',
+      '',
+    ].join('\n')
+
+    const disassembled = scriptOf('float').disassemble(script)
+
+    expect(disassembled.body).toBe('sum := 0.0\nreturn nil')
+    expect(disassembled.frameRecognised).toBe(true)
+  })
+
+  it('外框日後改了進入點的參數名，既有的算式仍然拆得開', () => {
+    // 錨定的是「這一行是進入點」，不是「這一行長得跟現在的外框一模一樣」。
+    const script = [
+      'package main',
+      '',
+      'func Calculate(candles []indicator.KCandle) map[string]float64 {',
+      '\tsum := 0.0',
+      '\treturn nil',
+      '}',
+      '',
+    ].join('\n')
+
+    const disassembled = scriptOf('float').disassemble(script)
+
+    expect(disassembled.body).toBe('sum := 0.0\nreturn nil')
+    expect(disassembled.frameRecognised).toBe(true)
+  })
+
+  it.each([
+    { name: '沒有進入點那一行', script: 'sum := 0.0\nreturn nil' },
+    { name: '空字串', script: '' },
+    { name: '有進入點卻沒有收尾', script: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\tsum := 0.0' },
+  ])('認不出外框時整段原樣交還：$name', ({ script }) => {
+    // 硬拆的代價太高——使用者可能過很久才發現程式碼被剪壞，而那時原稿已經沒了。
+    const disassembled = scriptOf('float').disassemble(script)
+
+    expect(disassembled.body).toBe(script)
+    expect(disassembled.frameRecognised).toBe(false)
+  })
+
+  it('包起來再拆開再包起來，與第一次包的完全相同', () => {
+    const scriptDomain = scriptOf('floatList')
+    const scriptBody = 'closePrices := []float64{}\nfor _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n\nreturn map[string][]float64{"收盤價": closePrices}'
+
+    const firstAssembly = scriptDomain.assemble(scriptBody)
+    const roundTripped = scriptDomain.assemble(scriptDomain.disassemble(firstAssembly).body)
+
+    expect(roundTripped).toBe(firstAssembly)
+  })
+
+  it('拆開再包起來再拆開，與第一次拆的完全相同', () => {
+    const scriptDomain = scriptOf('float')
+    const script = scriptDomain.assemble('sum := 0.0\nreturn nil')
+
+    const firstBody = scriptDomain.disassemble(script).body
+    const roundTrippedBody = scriptDomain.disassemble(scriptDomain.assemble(firstBody)).body
+
+    expect(roundTrippedBody).toBe(firstBody)
+  })
+})

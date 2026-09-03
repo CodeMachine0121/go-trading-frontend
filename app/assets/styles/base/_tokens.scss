@@ -29,6 +29,10 @@
     --radius-#{$name}: #{$value};
   }
 
+  @each $name, $value in $z-indices {
+    --z-index-#{$name}: #{$value};
+  }
+
   @each $name, $value in $shadows {
     --shadow-#{$name}: #{$value};
   }
