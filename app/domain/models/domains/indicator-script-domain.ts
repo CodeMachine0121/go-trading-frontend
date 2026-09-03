@@ -1,6 +1,7 @@
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
+import { IndicatorScriptBodyVo } from '~/domain/models/vo/indicator-script-body-vo'
 
 /**
  * 每個種類一段可直接執行的範例內容——只有內容，沒有外框，因為使用者要寫的就只有內容。
@@ -42,12 +43,16 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
 /** 算式內容在外框裡的縮排——它整段住在進入點內。 */
 const BODY_INDENT = '\t'
 
+/** 外框上那個進入點的名字。拆解時以它為錨，不逐字比對整個外框。 */
+const ENTRY_POINT_ANCHOR = 'func Calculate'
+
 /**
  * Domain Model：一段指標算式長什麼樣。
  *
- * **這是全前端唯一產生算式文字的地方。** 外框的頭、外框的尾、每個種類的範例內容、
- * 以及「內容如何變成一整段算式」都只寫在這裡；後端哪天改了進入點的形式，
- * 要改的就只有這個檔案，也不可能有第二個地方組出不一樣的外框。
+ * **這是全前端唯一產生算式文字的地方，也是唯一拆解它的地方。** 外框的頭、外框的尾、
+ * 每個種類的範例內容、內容如何變成一整段算式、以及一整段算式如何拆回內容，
+ * 都只寫在這裡；後端哪天改了進入點的形式，要改的就只有這個檔案，
+ * 也不可能有第二個地方組出、或認出不一樣的外框。
  */
 export class IndicatorScriptDomain {
   constructor(private readonly resultType: IndicatorResultTypeDomain) {}
@@ -97,5 +102,32 @@ export class IndicatorScriptDomain {
       .join('\n')
 
     return `${this.frameHeader()}\n${indentedBody}\n${this.frameFooter()}\n`
+  }
+
+  /**
+   * `assemble` 的逆運算：從一整段算式取回使用者當初寫的內容。
+   *
+   * 它**錨定結構而不比對外框的文字**——從進入點那一行的下一行起，到最後一個收尾行為止，
+   * 整段退一層縮排。逐字比對外框的話，日後外框只要多一個匯入，
+   * 所有既有的算式就會一起認不出來。
+   *
+   * **認不出來時整段原樣交還**，並說明沒認出來。硬拆的代價太高：
+   * 使用者可能過很久才發現程式碼被剪壞，而那時原稿已經沒了。
+   */
+  disassemble(script: string): IndicatorScriptBodyVo {
+    const lines = script.split('\n')
+    const entryPointIndex = lines.findIndex(line => line.trimStart().startsWith(ENTRY_POINT_ANCHOR))
+    const footerIndex = lines.findLastIndex(line => line.trim() === this.frameFooter())
+
+    if (entryPointIndex === -1 || footerIndex <= entryPointIndex) {
+      return new IndicatorScriptBodyVo(script, false)
+    }
+
+    const body = lines
+      .slice(entryPointIndex + 1, footerIndex)
+      .map(line => (line.startsWith(BODY_INDENT) ? line.slice(BODY_INDENT.length) : line))
+      .join('\n')
+
+    return new IndicatorScriptBodyVo(body, true)
   }
 }
