@@ -5,10 +5,8 @@ import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 function contentOf(
   scriptBody = 'sum := 0.0',
   resultType: 'float' | 'floatList' = 'floatList',
-  aggregationInterval: '5m' | '1h' = '1h',
-  candleCount = 20,
 ): StrategyContentDto {
-  return new StrategyContentDto(scriptBody, resultType, aggregationInterval, candleCount)
+  return new StrategyContentDto(scriptBody, resultType)
 }
 
 describe('StrategyDraftDomain', () => {
@@ -21,8 +19,6 @@ describe('StrategyDraftDomain', () => {
   it.each([
     { changed: '算式內容', current: contentOf('sum := 1.0') },
     { changed: '指標值種類', current: contentOf('sum := 0.0', 'float') },
-    { changed: '彙總刻度', current: contentOf('sum := 0.0', 'floatList', '5m') },
-    { changed: '計算根數', current: contentOf('sum := 0.0', 'floatList', '1h', 60) },
   ])('$changed 改了就算有未儲存的變更', ({ current }) => {
     const draft = new StrategyDraftDomain(contentOf(), current)
 

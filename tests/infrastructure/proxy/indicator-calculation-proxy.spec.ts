@@ -10,11 +10,11 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 const BASE_URL = 'http://localhost:8080'
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 const REQUEST = new IndicatorCalculationRequestDomain(
-  new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, 'float'))
+  new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'float'))
 
 function requestOf(resultType: string): IndicatorCalculationRequestDomain {
   return new IndicatorCalculationRequestDomain(
-    new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, resultType))
+    new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, resultType))
 }
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
@@ -39,7 +39,7 @@ afterEach(() => {
 })
 
 describe('IndicatorCalculationProxy', () => {
-  it('把交易標的、根數、指標值種類與組好的算式送到指標計算端點', async () => {
+  it('把交易標的、彙總刻度、根數、指標值種類與組好的算式送到指標計算端點', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
     })
@@ -51,6 +51,7 @@ describe('IndicatorCalculationProxy', () => {
       method: 'POST',
       body: {
         symbol: 'BTCUSDT',
+        aggregationInterval: '5m',
         candleCount: 3,
         resultType: 'float',
         script: REQUEST.script,

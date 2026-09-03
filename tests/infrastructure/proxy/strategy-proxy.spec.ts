@@ -13,7 +13,7 @@ const BASE_URL = 'http://localhost:8080'
 
 function writeDomainOf(id?: number): StrategyWriteDomain {
   return new StrategyWriteDomain(new StrategyWriteDto(
-    '二十根均線', new StrategyContentDto('sum := 0.0', 'floatList', '1h', 45), id))
+    '二十根均線', new StrategyContentDto('sum := 0.0', 'floatList'), id))
 }
 
 function strategyWireOf(id: number, name: string) {
@@ -22,8 +22,6 @@ function strategyWireOf(id: number, name: string) {
     name,
     script: 'package main\n\nfunc Calculate(data []indicator.KCandle) map[string][]float64 {\n\tsum := 0.0\n}\n',
     resultType: 'floatList',
-    aggregationInterval: '1h',
-    candleCount: 45,
   }
 }
 
@@ -61,8 +59,6 @@ describe('StrategyProxy.listStrategies', () => {
     expect(strategies[0]?.id).toBe(1)
     expect(strategies[0]?.name).toBe('二十根均線')
     expect(strategies[0]?.resultType).toBe('floatList')
-    expect(strategies[0]?.aggregationInterval).toBe('1h')
-    expect(strategies[0]?.candleCount).toBe(45)
     expect(strategies[1]?.name).toBe('六十根均線')
   })
 
@@ -102,8 +98,6 @@ describe('StrategyProxy.createStrategy', () => {
         name: '二十根均線',
         script: writeDomainOf().script,
         resultType: 'floatList',
-        aggregationInterval: '1h',
-        candleCount: 45,
       },
     })
   })

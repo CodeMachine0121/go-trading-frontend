@@ -1,5 +1,6 @@
 import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import { IndicatorValueDto } from '~/domain/models/dto/indicator-value-dto'
@@ -35,6 +36,7 @@ export class IndicatorCalculationDomain {
 
     return new IndicatorCalculationResultDto(
       this.indicatorCalculation.symbol,
+      new AggregationIntervalDomain(this.indicatorCalculation.interval).label(),
       this.indicatorCalculation.usedCandleCount,
       resultType.label(),
       this.sortedIndicatorValues().map(indicatorValue => new IndicatorValueDto(

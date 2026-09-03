@@ -18,8 +18,6 @@ export class StrategyWriteDomain {
   readonly name: string
   readonly script: string
   readonly resultType: string
-  readonly aggregationInterval: string
-  readonly candleCount: number
 
   constructor(strategyWriteDto: StrategyWriteDto) {
     const normalizedName = strategyWriteDto.name.trim()
@@ -33,7 +31,5 @@ export class StrategyWriteDomain {
     this.name = normalizedName
     this.script = new IndicatorScriptDomain(resultType).assemble(strategyWriteDto.content.scriptBody)
     this.resultType = resultType.value
-    this.aggregationInterval = strategyWriteDto.content.aggregationInterval
-    this.candleCount = strategyWriteDto.content.candleCount
   }
 }

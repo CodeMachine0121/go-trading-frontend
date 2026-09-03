@@ -45,28 +45,30 @@ const { indicatorCalculationApplication, strategyApplication, tradingSymbolAppli
  * 一份空白的策略內容——「空白長什麼樣」在這個畫面上只有這一個定義。
  *
  * 第一次進入畫面時是它，按下「新的空白策略」時也是它。各寫一份的話，
- * 哪天預設的彙總刻度改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
+ * 哪天預設的種類改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
  */
 const blankStrategyContent = new StrategyContentDto(
   '',
   indicatorCalculationApplication.defaultResultType(),
-  strategyApplication.defaultAggregationInterval(),
-  strategyApplication.defaultCandleCount(),
 )
 
-// 交易標的不是策略記著的東西（同一支策略要能套用在不同市場上），
-// 所以它不在那份空白裡，開一份新稿子也不會把它換掉。
+/*
+ * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、計算根數。
+ * 它們因此不在那份空白裡，也不會被載入另一支策略換掉——
+ * 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘，
+ * 一如換算法向來不會把他丟到別的市場去。
+ */
 const symbol = ref('BTCUSDT')
+const aggregationInterval = ref<string>(
+  indicatorCalculationApplication.defaultAggregationInterval())
+const candleCount = ref(String(indicatorCalculationApplication.defaultCandleCount()))
 
 const scriptBody = ref(blankStrategyContent.scriptBody)
-const candleCount = ref(String(blankStrategyContent.candleCount))
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
 const resultType = ref<string>(blankStrategyContent.resultType)
 
-// 彙總刻度目前只被記進策略，計算還沒理它——畫面上必須說出來，
-// 否則使用者會以為自己已經在用一小時的 K 線算指標。
-const aggregationInterval = ref<string>(blankStrategyContent.aggregationInterval)
-const aggregationIntervalOptions = strategyApplication.listAggregationIntervalOptions()
+const aggregationIntervalOptions
+  = indicatorCalculationApplication.listAggregationIntervalOptions()
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
 // 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
@@ -98,17 +100,16 @@ function clearLastCalculation() {
   backendUnreachable.value = false
 }
 
-// 策略庫拿畫面上這四樣東西當它的輸入，也負責把載入的那一份寫回來。
-// 「這四樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
+// 策略庫拿畫面上這兩樣東西當它的輸入，也負責把載入的那一份寫回來。
+// 「這兩樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
+// 彙總刻度與計算根數刻意不在其中：它們不屬於任何一支策略，
+// 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
-  () => new StrategyContentDto(
-    scriptBody.value, resultType.value, aggregationInterval.value, Number(candleCount.value)),
+  () => new StrategyContentDto(scriptBody.value, resultType.value),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType
-    aggregationInterval.value = content.aggregationInterval
-    candleCount.value = String(content.candleCount)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
     clearLastCalculation()
   },
@@ -133,7 +134,11 @@ async function calculateIndicator() {
   try {
     result.value = await indicatorCalculationApplication.calculateIndicator(
       new IndicatorCalculationRequestDto(
-        symbol.value, candleCount.value, scriptBody.value, resultType.value))
+        symbol.value,
+        aggregationInterval.value,
+        candleCount.value,
+        scriptBody.value,
+        resultType.value))
   }
   catch (error: unknown) {
     // 四種失敗各有各的下一步：改欄位、改根數、改算式、去把後端啟動起來。
@@ -304,7 +309,7 @@ async function calculateIndicator() {
 
           <FormField
             label="彙總刻度"
-            hint="這支策略要吃多粗的 K 線。目前計算仍以五分鐘執行，記下來是為了下一版生效時不必回頭一支一支改。"
+            hint="這次要吃多粗的 K 線。它屬於這一次計算，不會跟著策略存下來。"
           >
             <AppSelect
               v-model="aggregationInterval"
@@ -333,7 +338,7 @@ async function calculateIndicator() {
             class="indicator-calculation-panel__notice"
             data-testid="calculation-notice"
           >
-            計算一律排除最新一根 K 線，因為它涵蓋的五分鐘尚未走完；算式只能做純運算，碰不到檔案、網路與時間。
+            計算只採用已經走完的那幾格——還在走的那一格不算，因為它的數字還會變；算式只能做純運算，碰不到檔案、網路與時間。
           </p>
 
           <AppAlert
@@ -408,9 +413,18 @@ async function calculateIndicator() {
       flush
       class="indicator-calculation-panel__result"
     >
+      <!-- 「這次用了多粗」與「用了幾根」是同一句話的兩半，所以並列。
+           挑了一小時卻用五分鐘算出來的數字長得跟對的一模一樣，
+           所以它必須看得見，而不是靠信任。 -->
       <template #meta>
         <span data-testid="used-candle-count">
           實際採用 {{ result.usedCandleCount }} 根
+          <AppBadge
+            variant="info"
+            data-testid="used-interval"
+          >
+            每根涵蓋 {{ result.intervalLabel }}
+          </AppBadge>
           <AppBadge variant="info">
             {{ result.resultTypeLabel }}
           </AppBadge>
@@ -492,7 +506,7 @@ async function calculateIndicator() {
     <StrategyNameDialog
       :open="strategyLibrary.openDialog.value === 'name'"
       title="另存為新策略"
-      hint="其餘內容取自畫面上目前的算式、指標值種類、彙總刻度與計算根數。"
+      hint="其餘內容取自畫面上目前的算式與指標值種類。"
       :error-message="strategyLibrary.nameErrorMessage.value"
       :submitting="strategyLibrary.saving.value"
       @submit="strategyLibrary.createStrategy"

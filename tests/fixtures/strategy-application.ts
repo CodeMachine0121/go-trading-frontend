@@ -31,8 +31,6 @@ export function buildStoredStrategy(
     /** 整段算式直接給——用來造一支「不是在這裡寫出來的」策略。 */
     rawScript?: string
     resultType?: string
-    aggregationInterval?: string
-    candleCount?: number
   } = {},
 ): Strategy {
   const resultType = overrides.resultType ?? 'floatList'
@@ -40,12 +38,5 @@ export function buildStoredStrategy(
     ?? new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
       .assemble(overrides.scriptBody ?? 'sum := 0.0')
 
-  return new Strategy(
-    id,
-    name,
-    script,
-    resultType,
-    overrides.aggregationInterval ?? '1h',
-    overrides.candleCount ?? 45,
-  )
+  return new Strategy(id, name, script, resultType)
 }

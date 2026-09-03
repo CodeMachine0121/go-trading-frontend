@@ -22,6 +22,7 @@ type IndicatorWireValue = number | number[] | boolean | boolean[]
 
 type IndicatorCalculationWire = {
   symbol: string
+  interval: string
   usedCandleCount: number
   resultType: string
   values: Record<string, IndicatorWireValue> | null
@@ -39,6 +40,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           method: 'POST',
           body: {
             symbol: indicatorCalculationRequestDomain.symbol,
+            aggregationInterval: indicatorCalculationRequestDomain.aggregationInterval.value,
             candleCount: indicatorCalculationRequestDomain.candleCount,
             resultType: indicatorCalculationRequestDomain.resultType.value,
             script: indicatorCalculationRequestDomain.script,
@@ -48,6 +50,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
 
       return new IndicatorCalculation(
         wire.symbol,
+        wire.interval,
         wire.usedCandleCount,
         wire.resultType,
         // 一個值與一串值在 domain 裡存法相同，差別由這次的種類決定，

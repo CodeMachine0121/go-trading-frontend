@@ -9,21 +9,21 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
 
 function buildProxy(
-  indicatorCalculation = new IndicatorCalculation('BTCUSDT', 3, 'float', []),
+  indicatorCalculation = new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []),
 ): IIndicatorCalculationProxy {
   return { calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation) }
 }
 
 describe('IndicatorCalculationService', () => {
   it('把驗證過的請求交出去，並回傳排好序的結果', async () => {
-    const indicatorCalculationProxy = buildProxy(new IndicatorCalculation('BTCUSDT', 3, 'float', [
+    const indicatorCalculationProxy = buildProxy(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [
       new IndicatorValueVo('最高', [120]),
       new IndicatorValueVo('均價', [110]),
     ]))
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     const resultDto = await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -41,7 +41,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '3', SCRIPT_BODY, 'boolList'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'boolList'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -54,7 +54,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await expect(indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('', '3', SCRIPT_BODY, 'float'),
+      new IndicatorCalculationRequestDto('', '5m', '3', SCRIPT_BODY, 'float'),
     )).rejects.toBeInstanceOf(IndicatorCalculationFieldError)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -131,5 +131,63 @@ describe('IndicatorCalculationService 交出的 K 線欄位說明', () => {
 
     expect(fields.every(field => field.label.trim() !== '')).toBe(true)
     expect(fields.find(field => field.name === 'Close')?.label).toBe('收盤價')
+  })
+})
+
+describe('IndicatorCalculationService 的執行設定', () => {
+  it('五種彙總刻度都在，由細到粗，帶中文名字', () => {
+    const options = new IndicatorCalculationService(buildProxy())
+      .listAggregationIntervalOptions()
+
+    expect(options.map(option => option.value)).toEqual(['5m', '15m', '1h', '4h', '1d'])
+    expect(options.map(option => option.label))
+      .toEqual(['五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
+  })
+
+  it('沒特別挑時是五分鐘', () => {
+    expect(new IndicatorCalculationService(buildProxy()).defaultAggregationInterval()).toBe('5m')
+  })
+
+  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
+    expect(new IndicatorCalculationService(buildProxy()).defaultCandleCount()).toBe(20)
+  })
+
+  it('挑好的彙總刻度真的被送出去執行', async () => {
+    // 這個欄位曾經只被記下來、計算完全不理它。它現在會到達邊界。
+    const indicatorCalculationProxy = buildProxy()
+
+    await new IndicatorCalculationService(indicatorCalculationProxy).calculateIndicator(
+      new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aggregationInterval: expect.objectContaining({ value: '1h' }),
+        candleCount: 24,
+      }))
+  })
+
+  it('結果說出的是後端回報的刻度，不是送出時挑的那一個', async () => {
+    // 挑了一小時卻用五分鐘算出來的數字長得跟對的一模一樣。
+    // 照回報的呈現，這種錯才看得見。
+    const indicatorCalculationProxy = buildProxy(
+      new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []))
+
+    const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
+      .calculateIndicator(
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '3', SCRIPT_BODY, 'float'))
+
+    expect(resultDto.intervalLabel).toBe('五分鐘')
+  })
+
+  it('一個指標都沒算出來時照樣說得出這次用的刻度', async () => {
+    const indicatorCalculationProxy = buildProxy(
+      new IndicatorCalculation('BTCUSDT', '1h', 24, 'float', []))
+
+    const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
+      .calculateIndicator(
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+
+    expect(resultDto.isEmpty).toBe(true)
+    expect(resultDto.intervalLabel).toBe('一小時')
   })
 })

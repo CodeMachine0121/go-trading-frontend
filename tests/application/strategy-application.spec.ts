@@ -27,11 +27,11 @@ function wholeScriptOf(scriptBody: string): string {
 }
 
 function storedStrategy(id: number, name: string, scriptBody = 'sum := 0.0'): Strategy {
-  return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList', '1h', 45)
+  return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList')
 }
 
 function contentOf(scriptBody = 'sum := 0.0'): StrategyContentDto {
-  return new StrategyContentDto(scriptBody, 'floatList', '1h', 45)
+  return new StrategyContentDto(scriptBody, 'floatList')
 }
 
 describe('StrategyApplication.listStrategies', () => {
@@ -46,7 +46,7 @@ describe('StrategyApplication.listStrategies', () => {
 
     expect(strategies.map(strategy => strategy.name)).toEqual(['二十根均線', '六十根均線'])
     expect(strategies[0]?.content.scriptBody).toBe('sum := 0.0')
-    expect(strategies[0]?.content.candleCount).toBe(45)
+    expect(strategies[0]?.content.resultType).toBe('floatList')
     expect(strategies[0]?.frameRecognised).toBe(true)
   })
 
@@ -170,29 +170,5 @@ describe('StrategyApplication.hasUnsavedChanges', () => {
     const strategyApplication = buildApplication({})
 
     expect(strategyApplication.hasUnsavedChanges(null, contentOf(''))).toBe(false)
-  })
-})
-
-describe('StrategyApplication 的彙總刻度選項', () => {
-  it('五種都在，由細到粗，帶中文名字', () => {
-    const strategyApplication = buildApplication({})
-
-    const options = strategyApplication.listAggregationIntervalOptions()
-
-    expect(options.map(option => option.value)).toEqual(['5m', '15m', '1h', '4h', '1d'])
-    expect(options.map(option => option.label))
-      .toEqual(['五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
-  })
-
-  it('沒特別挑時是五分鐘', () => {
-    const strategyApplication = buildApplication({})
-
-    expect(strategyApplication.defaultAggregationInterval()).toBe('5m')
-  })
-
-  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
-    const strategyApplication = buildApplication({})
-
-    expect(strategyApplication.defaultCandleCount()).toBe(20)
   })
 })
