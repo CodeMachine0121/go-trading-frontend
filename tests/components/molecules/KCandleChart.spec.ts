@@ -2,6 +2,10 @@ import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
+import { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
+import { IndicatorLevelDto } from '~/domain/models/dto/indicator-level-dto'
+import { IndicatorPointDto } from '~/domain/models/dto/indicator-point-dto'
+import { IndicatorSeriesDto } from '~/domain/models/dto/indicator-series-dto'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
@@ -12,8 +16,19 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 // 它需要真正的畫布，測試環境沒有；而我們要驗的也不是它畫得對不對，
 // 是我們餵給它的東西對不對。
 const chartLibrary = vi.hoisted(() => {
-  const candlestickSeries = { setData: vi.fn(), kind: 'Candlestick' }
-  const lineSeries = { setData: vi.fn(), kind: 'Line' }
+  const candlestickSeries = {
+    setData: vi.fn(),
+    kind: 'Candlestick',
+    // 水平線掛在主序列身上，而且要交回把手才收得掉——替身照做。
+    createPriceLine: vi.fn((options: unknown) => ({ options })),
+    removePriceLine: vi.fn(),
+  }
+  const lineSeries = {
+    setData: vi.fn(),
+    kind: 'Line',
+    createPriceLine: vi.fn((options: unknown) => ({ options })),
+    removePriceLine: vi.fn(),
+  }
 
   // 真的那個函式庫對**任何**區間變動都會回頭通知，包含 setData 與我們自己發出的
   // setVisibleRange，而且回報的區間會被對齊到真實的 bar 上。替身照做——
@@ -120,7 +135,12 @@ function latestTimeFormatting() {
   }
 }
 
-async function mountChart(chart: KCandleChartDto | null, drawing: 'candlestick' | 'line' = 'candlestick', timeZoneIdentifier = 'UTC') {
+async function mountChart(
+  chart: KCandleChartDto | null,
+  drawing: 'candlestick' | 'line' = 'candlestick',
+  timeZoneIdentifier = 'UTC',
+  indicators: ChartIndicatorDto[] = [],
+) {
   const wrapper = mount(KCandleChart, {
     props: {
       chart,
@@ -128,6 +148,7 @@ async function mountChart(chart: KCandleChartDto | null, drawing: 'candlestick' 
       visibleStartTime: VISIBLE_START_TIME,
       visibleEndTime: VISIBLE_END_TIME,
       timeZone: buildTimeZone(timeZoneIdentifier),
+      indicators,
     },
   })
   await flushPromises()
@@ -446,5 +467,103 @@ describe('KCandleChart', () => {
       startTime: new Date('2026-09-02T10:00:00.000Z'),
       endTime: new Date('2026-09-02T12:00:00.000Z'),
     }])
+  })
+})
+
+const A_CANDLE = kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)
+
+function levelIndicator(
+  colorToken = '--color-chart-line-1', indicatorName = '均價', value = 115,
+): ChartIndicatorDto {
+  return new ChartIndicatorDto(
+    7, '二十根均線', [new IndicatorLevelDto('7:' + indicatorName, indicatorName, colorToken, value)], [])
+}
+
+function seriesIndicator(colorToken = '--color-chart-line-2'): ChartIndicatorDto {
+  return new ChartIndicatorDto(7, '收盤線', [], [
+    new IndicatorSeriesDto('7:收盤', '收盤', colorToken, [
+      new IndicatorPointDto(new Date('2026-09-02T10:00:00.000Z'), 110),
+      new IndicatorPointDto(new Date('2026-09-02T10:05:00.000Z'), 120),
+    ]),
+  ])
+}
+
+describe('KCandleChart 上的指標', () => {
+  it('一個數字畫成一條水平線，位置、顏色與名稱都照領域給的', async () => {
+    await mountChart(chartDto([A_CANDLE]), 'candlestick', 'UTC', [levelIndicator()])
+
+    expect(chartLibrary.candlestickSeries.createPriceLine).toHaveBeenCalledWith(
+      expect.objectContaining({
+        price: 115,
+        color: '--color-chart-line-1',
+        title: '均價',
+      }))
+  })
+
+  it('一串數字畫成一條曲線，每一點的時間來自那一根 K 線', async () => {
+    await mountChart(chartDto([A_CANDLE]), 'candlestick', 'UTC', [seriesIndicator()])
+
+    // 指標的曲線用的是線圖，顏色由指標帶進來。
+    expect(chartLibrary.chartApi.addSeries).toHaveBeenCalledWith(
+      'LineSeries', expect.objectContaining({ color: '--color-chart-line-2' }))
+    const points = chartLibrary.lineSeries.setData.mock.calls.at(-1)?.[0] as
+      { time: number, value: number }[]
+    expect(points.map(point => point.value)).toEqual([110, 120])
+    expect(points[0]?.time).toBe(new Date('2026-09-02T10:00:00.000Z').getTime() / 1000)
+  })
+
+  it('一支都沒套用時，一條指標線都不畫', async () => {
+    await mountChart(chartDto([A_CANDLE]))
+
+    expect(chartLibrary.candlestickSeries.createPriceLine).not.toHaveBeenCalled()
+  })
+
+  it('換一批指標時先把上一批整批收掉', async () => {
+    // 繪圖函式庫沒有「清掉全部指標」這種呼叫，得逐一交回它給的把手。
+    // 少收一次，上一批就會留在圖上與新的疊在一起。
+    const wrapper = await mountChart(
+      chartDto([A_CANDLE]), 'candlestick', 'UTC', [levelIndicator()])
+
+    await wrapper.setProps({ indicators: [levelIndicator('--color-chart-line-3', '新的', 99)] })
+    await flushPromises()
+
+    expect(chartLibrary.candlestickSeries.removePriceLine).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.candlestickSeries.createPriceLine).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: '新的', price: 99 }))
+  })
+
+  it('函式庫還沒載完就換了一批指標時，安靜地不畫——等載完那一刻自己會畫', async () => {
+    // 這條路真的走得到：指標是在掛載之外被換的（套用、移除、換色），
+    // 而函式庫要掛載後才動態載入。少了這道門，那一瞬間會對 null 操作。
+    const wrapper = mount(KCandleChart, {
+      props: {
+        chart: chartDto([A_CANDLE]),
+        drawing: 'candlestick' as const,
+        visibleStartTime: VISIBLE_START_TIME,
+        visibleEndTime: VISIBLE_END_TIME,
+        timeZone: buildTimeZone(),
+        indicators: [],
+      },
+    })
+
+    // 刻意不 flush：函式庫還沒載完，這時換一批指標。
+    await wrapper.setProps({ indicators: [levelIndicator()] })
+
+    expect(chartLibrary.candlestickSeries.createPriceLine).not.toHaveBeenCalled()
+
+    // 載完之後那一批照樣畫得出來。
+    await flushPromises()
+    expect(chartLibrary.candlestickSeries.createPriceLine).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '均價' }))
+  })
+
+  it('換掉上一批曲線時也把序列收掉', async () => {
+    const wrapper = await mountChart(
+      chartDto([A_CANDLE]), 'candlestick', 'UTC', [seriesIndicator()])
+
+    await wrapper.setProps({ indicators: [] })
+    await flushPromises()
+
+    expect(chartLibrary.chartApi.removeSeries).toHaveBeenCalledWith(chartLibrary.lineSeries)
   })
 })

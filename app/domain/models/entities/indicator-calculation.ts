@@ -15,6 +15,14 @@ export class IndicatorCalculation {
     public readonly usedCandleCount: number,
     public readonly resultType: string,
     public readonly indicatorValues: IndicatorValueVo[],
+    /**
+     * 這次餵給算式的每一根 K 線從哪裡開始，由早到晚。
+     *
+     * 一串指標值的第 n 個對應這裡的第 n 個。它存在的理由是**不要自己反推**：
+     * 從刻度、根數與截止時間重算一次切格規則，只要與系統差一格，
+     * 整條線就會錯位，而錯位的線看起來完全正常。
+     */
+    public readonly openTimes: readonly Date[] = [],
   ) {}
 
   toDomain(): IndicatorCalculationDomain {

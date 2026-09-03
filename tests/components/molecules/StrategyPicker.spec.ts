@@ -6,7 +6,7 @@ import { StrategyDto } from '~/domain/models/dto/strategy-dto'
 
 function strategyOf(id: number, name: string): StrategyDto {
   return new StrategyDto(
-    id, name, new StrategyContentDto('sum := 0.0', 'floatList'), true)
+    id, name, new StrategyContentDto('sum := 0.0', 'floatList'), true, true)
 }
 
 describe('StrategyPicker', () => {

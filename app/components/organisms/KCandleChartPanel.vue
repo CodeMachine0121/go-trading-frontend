@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
+import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
+import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import type { StrategyApplication } from '~/application/strategy-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
@@ -14,6 +17,7 @@ import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-vali
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
@@ -21,9 +25,17 @@ const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線圖表這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
 // 這裡不做任何業務判斷：每根多粗、要不要重新取、取哪一段，全部問 Application。
-const { kCandleChartApplication, tradingSymbolApplication, timeZone } = defineProps<{
+const {
+  kCandleChartApplication,
+  tradingSymbolApplication,
+  chartIndicatorApplication,
+  strategyApplication,
+  timeZone,
+} = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
+  chartIndicatorApplication: ChartIndicatorApplication
+  strategyApplication: StrategyApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
 }>()
@@ -50,6 +62,12 @@ const backendUnreachable = ref(false)
  */
 let latestRequestNumber = 0
 
+// 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
+const chartIndicators = useChartIndicators(chartIndicatorApplication)
+
+/** 可以挑來套用的策略。取不到清單時是空的——那是一份清單，不是一個功能。 */
+const strategies = ref<StrategyDto[]>([])
+
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
@@ -75,6 +93,11 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         chart.value = chartView.reloadedChart
+
+        // 指標重算的**唯一**觸發點，而且刻意就掛在這裡：圖上那批真的換了才重算。
+        // 掛在「正在看的區間變了」上的話，每一格拖動都會重算一次，
+        // 而那幾次算出來的必定一模一樣——K 線一根都沒換。
+        void chartIndicators.recalculateAll(chartView.reloadedChart)
       }
     }
   }
@@ -132,10 +155,19 @@ function reload() {
 watch(symbol, reload)
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
-onMounted(() => {
+onMounted(async () => {
   presets.value = kCandleChartApplication.listRangePresets()
 
   void selectPreset(presets.value[0])
+
+  try {
+    strategies.value = await strategyApplication.listStrategies()
+  }
+  catch {
+    // 取不到策略清單只代表這一次沒有東西可挑，圖表本身照畫——
+    // 為此擋掉整張圖，等於讓一個附加功能決定主功能能不能用。
+    strategies.value = []
+  }
 })
 </script>
 
@@ -151,6 +183,18 @@ onMounted(() => {
         :loading="loading"
         :symbol-error="symbolError"
         @select-preset="selectPreset"
+      />
+
+      <ChartIndicatorPanel
+        :selectable-strategies="chartIndicators.selectableStrategies(strategies)"
+        :applied-strategies="chartIndicators.appliedStrategies.value"
+        :chart-indicators="chartIndicators.chartIndicators.value"
+        :color-options="chartIndicators.colorOptions"
+        :is-calculating="chartIndicators.isCalculating"
+        :failure-message-of="chartIndicators.failureMessageOf"
+        @apply="chartIndicators.applyStrategy"
+        @remove="chartIndicators.removeStrategy"
+        @change-line-color="chartIndicators.changeLineColor"
       />
 
       <AppAlert
@@ -254,6 +298,7 @@ onMounted(() => {
         :visible-start-time="visibleStartTime"
         :visible-end-time="visibleEndTime"
         :time-zone="timeZone"
+        :indicators="chartIndicators.chartIndicators.value"
         @range-change="showRange"
       />
 

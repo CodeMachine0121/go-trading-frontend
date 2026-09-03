@@ -5,7 +5,12 @@ import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicato
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $kCandleChartApplication, $tradingSymbolApplication } = useNuxtApp()
+const {
+  $kCandleChartApplication,
+  $tradingSymbolApplication,
+  $chartIndicatorApplication,
+  $strategyApplication,
+} = useNuxtApp()
 
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
@@ -39,6 +44,8 @@ const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth(
     <KCandleChartPanel
       :k-candle-chart-application="$kCandleChartApplication"
       :trading-symbol-application="$tradingSymbolApplication"
+      :chart-indicator-application="$chartIndicatorApplication"
+      :strategy-application="$strategyApplication"
       :time-zone="selectedTimeZone"
     />
   </ConsoleLayout>

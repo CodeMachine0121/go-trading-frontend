@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { IChartApi, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, IPriceLine, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
+import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
@@ -70,13 +71,28 @@ function sliceTickMark(
   }
 }
 
-const { chart = null, drawing = 'candlestick', visibleStartTime, visibleEndTime, timeZone } = defineProps<{
+const {
+  chart = null,
+  drawing = 'candlestick',
+  visibleStartTime,
+  visibleEndTime,
+  timeZone,
+  indicators = [],
+} = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
   visibleStartTime: Date
   visibleEndTime: Date
   /** 時間軸與十字準星用哪一個時區說。 */
   timeZone: TimeZoneDto
+  /**
+   * 已經算好、該疊在這張圖上的指標。
+   *
+   * 每一條線的位置、顏色與標籤都已經在領域裡決定完了，所以這裡沒有一個判斷：
+   * 水平線與曲線各跑一個迴圈，各對應繪圖函式庫的一個呼叫。
+   * 一旦這個檔案裡出現「這是一個數字還是一串」之類的 if，就是把業務規則搬錯地方了。
+   */
+  indicators?: readonly ChartIndicatorDto[]
 }>()
 
 const emit = defineEmits<{ rangeChange: [{ startTime: Date, endTime: Date }] }>()
@@ -85,6 +101,12 @@ const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
 const seriesApi = shallowRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null)
 const createSeriesFor = shallowRef<((drawing: KCandleChartDrawing) => void) | null>(null)
+
+// 指標畫在圖上的東西，記著才收得掉：繪圖函式庫沒有「清掉全部指標」這種呼叫，
+// 得逐一交回它給的把手。少收一次，上一批指標就會留在圖上與新的疊在一起。
+const indicatorPriceLines = shallowRef<IPriceLine[]>([])
+const indicatorSeriesApis = shallowRef<ISeriesApi<'Line'>[]>([])
+const addLineSeries = shallowRef<((color: string) => ISeriesApi<'Line'>) | null>(null)
 const applyTimeZoneFormatting = shallowRef<(() => void) | null>(null)
 const releaseGestureListeners = shallowRef<(() => void) | null>(null)
 let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
@@ -158,7 +180,56 @@ function drawKCandles() {
   })
 
   series.setData(rows)
+  drawIndicators()
   applyVisibleRange()
+}
+
+/**
+ * 把已經算好的指標疊上去：每條水平線一條價格線，每條曲線一個線圖。
+ *
+ * 一律先整批收掉再重畫。逐條比對誰還在、誰換了顏色會快一點，
+ * 但那需要在這裡記住上一批長什麼樣——而畫面記住的每一份狀態，都是一份會與真相分岔的複本。
+ */
+function drawIndicators() {
+  const host = chartHost.value
+  const priceLineHost = seriesApi.value
+  const addSeriesForLine = addLineSeries.value
+  // 三者在同一個掛載流程裡一起備妥，所以這是同一道門：函式庫還沒載完（或已經收掉）時，
+  // 沒有東西可以畫。等載完那一刻自己會畫。
+  if (host === null || priceLineHost === null || addSeriesForLine === null) {
+    return
+  }
+
+  for (const priceLine of indicatorPriceLines.value) {
+    priceLineHost.removePriceLine(priceLine)
+  }
+  indicatorPriceLines.value = []
+
+  for (const indicatorSeries of indicatorSeriesApis.value) {
+    chartApi.value?.removeSeries(indicatorSeries)
+  }
+  indicatorSeriesApis.value = []
+
+  for (const indicator of indicators) {
+    for (const level of indicator.levels) {
+      indicatorPriceLines.value.push(priceLineHost.createPriceLine({
+        price: level.value,
+        color: readColor(host, level.colorToken),
+        lineWidth: 2,
+        title: level.indicatorName,
+      }))
+    }
+
+    for (const indicatorSeries of indicator.series) {
+      const addedSeries = addSeriesForLine(readColor(host, indicatorSeries.colorToken))
+
+      addedSeries.setData(indicatorSeries.points.map(point => ({
+        time: wallClockSecondsOf(point.openTime, timeZone),
+        value: point.value,
+      })))
+      indicatorSeriesApis.value.push(addedSeries)
+    }
+  }
 }
 
 /**
@@ -224,8 +295,14 @@ onMounted(async () => {
   })
   applyTimeZoneFormatting.value()
 
+  // 指標的曲線與 K 線的曲線用的是同一種序列，只差在顏色由指標帶進來。
+  addLineSeries.value = (color: string) => createdChart.addSeries(
+    LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
+
   createSeriesFor.value = (nextDrawing: KCandleChartDrawing) => {
     if (seriesApi.value !== null) {
+      // 主序列被換掉時，掛在它身上的價格線也跟著沒了——把手留著只會在下次收掉時對空氣操作。
+      indicatorPriceLines.value = []
       createdChart.removeSeries(seriesApi.value)
     }
 
@@ -278,6 +355,9 @@ onMounted(async () => {
 
 watch(() => chart, drawKCandles)
 
+// 套用了一支、移除了一支、或換了某條線的顏色：K 線一根都沒變，只要重畫指標。
+watch(() => indicators, drawIndicators)
+
 // 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
 watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
 
@@ -306,6 +386,10 @@ onBeforeUnmount(() => {
   chartApi.value?.remove()
   chartApi.value = null
   seriesApi.value = null
+  // 整張圖都收掉了，這些把手指向的東西已經不存在——留著只會讓下次繪製對空氣操作。
+  indicatorPriceLines.value = []
+  indicatorSeriesApis.value = []
+  addLineSeries.value = null
 })
 </script>
 

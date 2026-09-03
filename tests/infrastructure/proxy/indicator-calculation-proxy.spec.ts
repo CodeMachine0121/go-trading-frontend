@@ -156,3 +156,59 @@ describe('IndicatorCalculationProxy', () => {
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
+
+describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => {
+  it('沒指定算到哪一刻時就不送它——省略等同算到現在，不必送一個假的現在', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, openTimes: [], resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect('endTime' in options.body).toBe(false)
+  })
+
+  it('指定了算到哪一刻就送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '1h', usedCandleCount: 3, openTimes: [], resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+    const endTime = new Date('2026-09-02T12:00:00.000Z')
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+      new IndicatorCalculationRequestDomain(
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '3', SCRIPT_BODY, 'float', endTime)))
+
+    const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
+    expect(options.body.endTime).toBe('2026-09-02T12:00:00.000Z')
+  })
+
+  it('把這次讀了哪幾根收成時間', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT',
+      interval: '1h',
+      usedCandleCount: 2,
+      openTimes: ['2026-09-02T10:00:00Z', '2026-09-02T11:00:00Z'],
+      resultType: 'floatList',
+      values: { 線: [1, 2] },
+    }))
+
+    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    expect(calculation.openTimes).toEqual([
+      new Date('2026-09-02T10:00:00Z'), new Date('2026-09-02T11:00:00Z'),
+    ])
+  })
+
+  it('沒回這次讀了哪幾根時是空的，不是壞掉', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, openTimes: null, resultType: 'float', values: {},
+    }))
+
+    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    expect(calculation.openTimes).toEqual([])
+  })
+})

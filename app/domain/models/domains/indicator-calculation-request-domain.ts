@@ -22,6 +22,7 @@ export class IndicatorCalculationRequestDomain {
   readonly candleCount: number
   readonly resultType: IndicatorResultTypeDomain
   readonly script: string
+  readonly endTime: Date | null
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
@@ -63,5 +64,7 @@ export class IndicatorCalculationRequestDomain {
     this.candleCount = candleCount
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.script = new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
+    // 不驗證它落在哪裡：指向未來由系統那頭視同現在，那是它的規則，抄一份下來只會有兩套。
+    this.endTime = indicatorCalculationRequestDto.endTime
   }
 }
