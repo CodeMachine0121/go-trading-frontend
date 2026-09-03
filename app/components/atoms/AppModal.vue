@@ -52,6 +52,7 @@ function closeOnEscape(event: KeyboardEvent) {
     />
 
     <div class="app-modal__panel">
+      <!-- 對話框的頭尾與面板的頭尾是同一條窄帶：疊上來的東西也是這個操作台的一部分。 -->
       <header class="app-modal__header">
         <h2 class="app-modal__title">
           {{ title }}
@@ -89,7 +90,7 @@ function closeOnEscape(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: spacing('md');
+  padding: spacing('lg');
 
   &__backdrop {
     position: absolute;
@@ -101,51 +102,72 @@ function closeOnEscape(event: KeyboardEvent) {
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: spacing('md');
-    box-shadow: shadow('md');
-    border: 1px solid color('border');
+    box-shadow: shadow('lg');
+    border: 1px solid color('border-strong');
     border-radius: radius('lg');
-    background-color: color('surface');
-    padding: spacing('lg');
-    width: min(40rem, 100%);
+
+    // 疊在面板之上的東西比面板亮一階——深色介面的「浮起來」是這樣講的。
+    background-color: color('surface-overlay');
+    width: min(38rem, 100%);
     max-height: 100%;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   &__header {
     display: flex;
+    flex: none;
     gap: spacing('md');
     align-items: center;
     justify-content: space-between;
+    border-bottom: 1px solid color('border');
+    background-color: color('surface-muted');
+    padding: spacing('2xs') spacing('2xs') spacing('2xs') spacing('sm');
+    min-height: 2.25rem;
   }
 
   &__title {
     margin: 0;
-    color: color('text-strong');
-    font-size: font-size('lg');
-    font-weight: font-weight('medium');
+    font-size: font-size('sm');
+
+    @include dense-label;
   }
 
   &__close {
     display: inline-flex;
+    flex: none;
     border: none;
     border-radius: radius('sm');
     background: none;
     cursor: pointer;
-    padding: spacing('2xs');
-    color: color('text-muted');
+    padding: spacing('3xs');
+    color: color('text-faint');
 
     @include focus-ring;
 
     &:hover {
+      background-color: color('surface');
       color: color('text-strong');
     }
   }
 
+  &__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: spacing('md');
+    min-height: 0;
+    padding: spacing('md');
+    overflow-y: auto;
+  }
+
   &__actions {
     display: flex;
+    flex: none;
     gap: spacing('xs');
     justify-content: flex-end;
+    border-top: 1px solid color('border');
+    background-color: color('surface-muted');
+    padding: spacing('xs') spacing('sm');
   }
 }
 </style>

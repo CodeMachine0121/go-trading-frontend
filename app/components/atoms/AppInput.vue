@@ -17,20 +17,29 @@ const modelValue = defineModel<string>({ required: true })
 
 <style scoped lang="scss">
 .app-input {
-  transition: border-color duration('fast') ease;
-  border: 1px solid color('border');
+  transition: border-color duration('fast') ease, background-color duration('fast') ease;
+  border: 1px solid color('border-strong');
   border-radius: radius('sm');
-  background-color: color('surface');
-  padding: spacing('xs') spacing('sm');
+
+  // 輸入的東西是凹進面板裡的，比面板底色更暗——
+  // 深色介面上「可以打字的地方」就是靠這個暗度被認出來的。
+  background-color: color('background');
+  padding: spacing('xs');
   width: 100%;
-  color: color('text');
+  color: color('text-strong');
   font-size: font-size('sm');
 
+  @include numeric;
   @include focus-ring;
 
+  &:hover:not(:disabled) {
+    border-color: color('text-faint');
+  }
+
   &:disabled {
+    border-color: color('border');
     background-color: color('surface-muted');
-    color: color('text-muted');
+    color: color('text-faint');
   }
 
   &--invalid {
