@@ -12,20 +12,24 @@ body {
   background-color: color('background');
   color: color('text');
   font-family: font-family('base');
-  font-size: font-size('md');
+  font-size: font-size('sm');
   line-height: line-height('normal');
   -webkit-font-smoothing: antialiased;
 }
 
+// 操作台的標題是「我在哪一個畫面」的標記，不是一篇文章的開頭，
+// 所以它比內文大一級就夠——版面的注意力要留給資料本身。
 h1 {
   color: color('text-strong');
-  font-size: font-size('xl');
+  font-weight: font-weight('semibold');
+  font-size: font-size('lg');
   line-height: line-height('tight');
 }
 
 h2 {
   color: color('text-strong');
-  font-size: font-size('lg');
+  font-weight: font-weight('semibold');
+  font-size: font-size('md');
   line-height: line-height('tight');
 }
 
@@ -40,4 +44,10 @@ a {
 ::selection {
   background-color: color('primary-soft');
   color: color('text-strong');
+}
+
+// 一整片深色介面上，瀏覽器預設的捲軸是最亮的一塊——把它收進版面裡。
+* {
+  scrollbar-color: color('border-strong') transparent;
+  scrollbar-width: thin;
 }

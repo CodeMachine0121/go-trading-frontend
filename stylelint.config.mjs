@@ -36,6 +36,9 @@ export default {
         'function-disallowed-list': null,
         'declaration-no-important': null,
         'custom-property-pattern': null,
+        // reset 要接上 Nuxt 自己掛在頁面上的根節點（`#__nuxt`）才能把「填滿視窗」
+        // 一路傳下來。那個名字是框架給的，改不動，所以在這一層放行 id 的命名規則。
+        'selector-id-pattern': null,
       },
     },
   ],
