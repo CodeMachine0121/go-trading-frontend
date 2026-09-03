@@ -376,6 +376,21 @@ describe('KCandleSearchPanel', () => {
       .toBe('2026-08-30T12:00')
   })
 
+  it('換時區時，已經列出來的 K 線當場改用新說法', async () => {
+    const kCandleProxy = buildProxy({
+      findKCandlesInRange: vi.fn().mockResolvedValue([buildKCandle('2026-08-30T10:05:00.000Z')]),
+    })
+    const wrapper = await mountPanel(kCandleProxy)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 10:05')
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
+
+    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 18:05')
+    expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledTimes(1)
+  })
+
   it('換時區不會自己去查一次', async () => {
     const kCandleProxy = buildProxy({ findKCandlesInRange: vi.fn().mockResolvedValue([]) })
     const wrapper = await mountPanel(kCandleProxy)
