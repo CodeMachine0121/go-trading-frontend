@@ -250,6 +250,48 @@ describe('圖表上的指標：什麼時候重算', () => {
     }))
   })
 
+  it('拉遠時以新的區間與新的根數重算', async () => {
+    // 拉遠改變的不只是起訖，還有那一段裡放得下幾根。
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T10:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+    // 一小時、五分鐘一根 → 12 根。
+    expect(calculateIndicator).toHaveBeenLastCalledWith(
+      expect.objectContaining({ candleCount: 12 }))
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T08:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+
+    // 三小時、同樣五分鐘一根 → 36 根。
+    expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
+      candleCount: 36,
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    }))
+  })
+
+  it('一支都沒套用時，拖動畫面不發生任何計算', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T09:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).not.toHaveBeenCalled()
+  })
+
   it('顯示區間沒真的變就不重算', async () => {
     // 同一段區間算出來的必然一樣。
     const { wrapper, calculateIndicator } = await mountPanel()
