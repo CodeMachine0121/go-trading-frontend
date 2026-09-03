@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 
-// 分子：由原子（AppButton）與文字組成的一個完整功能區塊。
+// 分子：一整塊「後端連線狀態」。
 // 元件（Controller）只認識 DTO 與 Application，不認識 entity / domain model / proxy。
+//
+// 這一頁只回答一個問題，所以答案就是版面上唯一的大字，其餘（原始回覆字串、
+// 檢查時間）縮在它底下當佐證——像儀器上的一顆主讀數加幾行小字。
 defineProps<{
   health: BackendHealthDto | null
   loading: boolean
@@ -17,9 +21,11 @@ defineEmits<{
 </script>
 
 <template>
-  <section class="backend-health-card">
-    <header class="backend-health-card__header">
-      <h2>後端連線狀態</h2>
+  <AppPanel
+    title="後端連線狀態"
+    class="backend-health-card"
+  >
+    <template #actions>
       <AppButton
         variant="secondary"
         size="small"
@@ -28,7 +34,7 @@ defineEmits<{
       >
         {{ loading ? '檢查中…' : '重新檢查' }}
       </AppButton>
-    </header>
+    </template>
 
     <p
       v-if="errorMessage"
@@ -38,16 +44,31 @@ defineEmits<{
       {{ errorMessage }}
     </p>
 
-    <p
+    <div
       v-else-if="health"
-      class="backend-health-card__status"
+      class="backend-health-card__readout"
       data-testid="status"
     >
-      <AppBadge :variant="health.tone">
+      <p
+        class="backend-health-card__label"
+        :class="`backend-health-card__label--${health.tone}`"
+      >
         {{ health.label }}
-      </AppBadge>
-      <span class="backend-health-card__status-value">{{ health.status }}</span>
-    </p>
+      </p>
+
+      <dl class="backend-health-card__facts">
+        <dt>回覆</dt>
+        <dd>
+          <AppBadge :variant="health.tone">
+            {{ health.status }}
+          </AppBadge>
+        </dd>
+        <dt>檢查於</dt>
+        <dd class="backend-health-card__checked-at">
+          {{ health.checkedAt.toISOString() }}
+        </dd>
+      </dl>
+    </div>
 
     <p
       v-else
@@ -56,46 +77,70 @@ defineEmits<{
     >
       尚未檢查
     </p>
-  </section>
+  </AppPanel>
 </template>
 
 <style scoped lang="scss">
 .backend-health-card {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('sm');
-
-  @include surface('lg');
-
-  &__header {
-    display: flex;
-    gap: spacing('md');
-    align-items: center;
-    justify-content: space-between;
-  }
+  // 一個只有一句答案的面板不必攤滿整片工作區——那樣看起來像沒寫完。
+  max-width: 30rem;
 
   &__error {
     margin: 0;
     color: color('danger');
+    font-size: font-size('sm');
   }
 
   &__idle {
     margin: 0;
-    color: color('text-muted');
+    color: color('text-faint');
+    font-size: font-size('sm');
   }
 
-  // 這一頁只回答一個問題：後端活著嗎。答案就該是整頁最大的那一行。
-  &__status {
+  &__readout {
     display: flex;
+    flex-direction: column;
     gap: spacing('sm');
-    align-items: center;
-    margin: 0;
   }
 
-  &__status-value {
-    color: color('text-strong');
-    font-size: font-size('lg');
-    font-family: font-family('mono');
+  // 整頁只有一個問題，答案就該是整頁最大的那一行。
+  &__label {
+    margin: 0;
+    line-height: line-height('tight');
+    font-weight: font-weight('semibold');
+    font-size: font-size('2xl');
+
+    &--success {
+      color: color('success');
+    }
+
+    &--danger {
+      color: color('danger');
+    }
+  }
+
+  &__facts {
+    display: grid;
+    gap: spacing('2xs') spacing('sm');
+    grid-template-columns: auto 1fr;
+    margin: 0;
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
+
+    dt {
+      @include dense-label;
+    }
+
+    dd {
+      margin: 0;
+      font-size: font-size('xs');
+    }
+  }
+
+  &__checked-at {
+    color: color('text-muted');
+
+    @include numeric;
   }
 }
 </style>
