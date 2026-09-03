@@ -2,6 +2,7 @@ import type { ChartIndicatorApplication } from '~/application/chart-indicator-ap
 import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
@@ -24,8 +25,26 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   /** 每一支各自的失敗說明。一支失敗只標在它自己旁邊，其他支照常畫。 */
   const failureMessages = ref<Map<number, string>>(new Map())
 
-  /** 上一次拿來算的那批 K 線。重算一律照它，因此線與圖上的 K 線是同一段行情。 */
-  const lastChart = shallowRef<KCandleChartDto | null>(null)
+  /**
+   * 目前在算的是哪一張圖的哪一段。
+   *
+   * 兩者是同一件事的兩面，所以一起存：圖給的是交易標的與彙總刻度，
+   * 區間給的是**算哪一段**。分開存就會有一個已經設好、另一個還沒有的空檔，
+   * 而那個空檔裡算出來的是另一段行情的指標。
+   *
+   * **同步記下，不等停手**——否則剛套上來的那一支會用整批算，而停手之後的重算
+   * 又會用這一段再算一次：同一支算兩遍，而且兩遍的答案不一樣。
+   * 延後的只有「重算」這件事本身。
+   */
+  const current = shallowRef<{ chart: KCandleChartDto, range: ChartVisibleRangeVo } | null>(null)
+
+  /**
+   * 使用者停手多久才算。拖動一次會產生幾十個中間狀態，每一個都算是把同一份工作
+   * 做上幾十遍，而使用者根本來不及看清其中任何一個——只算停下來的那一個，
+   * 看到的結果完全一樣。
+   */
+  const SETTLE_MILLISECONDS = 300
+  let settleTimer: ReturnType<typeof setTimeout> | null = null
 
   /**
    * 每一支各自的「這是第幾次要求」。回來的結果只有在它仍是那一支最新的一次時才採用。
@@ -90,22 +109,52 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   /**
-   * 圖上換了一批 K 線，每一支都重算一次——包含上次算失敗的那幾支。
+   * 使用者正在看的那一段變了：等他停手，然後對**那一段**重算每一支。
    *
-   * 失敗多半是暫時的（這一段區間根數不夠，換一段就夠了），
-   * 所以它們留在清單上，換了資料就再試一次。
+   * 「等停手」在這裡而不在領域裡，是因為它需要計時器：一個「等一下再做」的物件，
+   * 行為只能靠推進時間來觀察，而領域物件在這個專案裡的價值正是不必推進時間就驗得動。
+   * **要不要算**這個判斷仍然不在這裡——那是顯示區間自己回答的。
    */
-  /**
-   * 圖上換了一批 K 線，每一支都重算一次——包含上次算失敗的那幾支。
-   *
-   * **一支一支來，不並行。** 沒挑過顏色的線是從「目前沒被用掉的」裡面依序取的，
-   * 而「已經用掉的」只看得到已經算完的那幾支：一起送出去的話，它們會全部拿到同一個顏色，
-   * 那正是顏色要解決的問題。一支一支來讓配色變成確定的，代價是幾支就是幾趟——
-   * 同時掛著的指標數量由使用者自己控制，這個代價換一個看得懂的畫面很划算。
-   */
-  async function recalculateAll(chart: KCandleChartDto) {
-    lastChart.value = chart
+  function recalculateForRange(chart: KCandleChartDto, range: ChartVisibleRangeVo) {
+    const previous = current.value
+    const wasNeverSet = previous === null
+    // 同一檔的同一段：算出來必然一樣。換了交易標的就不算同一段——
+    // 換標的時使用者正在看的那一段不變，光比對時間會把它誤判成沒事發生。
+    const isUnchanged = range.isSameAs(previous?.range ?? null)
+      && chart.symbol === previous?.chart.symbol
 
+    current.value = { chart, range }
+
+    // 還沒有任何一支在別的區間下算過，就沒有東西需要跟上。
+    if (isUnchanged || wasNeverSet) {
+      return
+    }
+
+    if (settleTimer !== null) {
+      clearTimeout(settleTimer)
+    }
+
+    settleTimer = setTimeout(() => {
+      settleTimer = null
+      void recalculateEveryApplied()
+    }, SETTLE_MILLISECONDS)
+  }
+
+  /**
+   * 一根走完了：指標可用的資料真的多了一根，所以要重算——**不等停手**。
+   * 五分鐘才發生一次，節流它只會讓畫面慢半拍。
+   */
+  async function recalculateAfterKCandleClosed(chart: KCandleChartDto) {
+    const range = current.value?.range
+    if (range === undefined) {
+      return
+    }
+    current.value = { chart, range }
+
+    await recalculateEveryApplied()
+  }
+
+  async function recalculateEveryApplied() {
     for (const strategy of appliedStrategies.value) {
       await calculateOne(strategy)
     }
@@ -122,6 +171,14 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     chartIndicators.value = []
   }
 
+  /** 元件收掉時把還在等的那次也收掉，免得對一個已經不存在的畫面重算。 */
+  function stopSettling() {
+    if (settleTimer !== null) {
+      clearTimeout(settleTimer)
+      settleTimer = null
+    }
+  }
+
   /** 換一條線的顏色。圖上立刻換，不重算——算出來的值一個字都不會變。 */
   function changeLineColor(lineKey: string, colorToken: string) {
     chartIndicators.value = chartIndicatorApplication.changeChartLineColor(
@@ -129,11 +186,12 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   async function calculateOne(strategy: StrategyDto) {
-    const chart = lastChart.value
+    const inView = current.value
     // 圖上還沒有任何 K 線（系統沒起來、查無資料）：沒有東西可以算。
-    if (chart === null || chart.isEmpty) {
+    if (inView === null || inView.chart.isEmpty) {
       return
     }
+    const { chart, range } = inView
 
     const requestNumber = nextRequestNumber(strategy.id)
     calculatingStrategyIds.value = [...calculatingStrategyIds.value, strategy.id]
@@ -145,8 +203,11 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           strategy,
           chart.symbol,
           chart.interval.value,
-          chart.count,
-          chart.coveredEndTime,
+          // 算的是使用者正在看的那一段，不是手上那一整批（後者兩側各多取了半段）。
+          // 顯示區間是狀態不是參數，所以剛套用的那一支與早就套上的那幾支
+          // 算的必然是同一段——沒有哪個呼叫點可以忘記帶它。
+          range.kCandleCountAt(chart.interval),
+          range.endTime,
           takenColorTokensExcept(strategy.id),
         ))
 
@@ -219,8 +280,10 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     failureMessageOf,
     applyStrategy,
     removeStrategy,
-    recalculateAll,
+    recalculateForRange,
+    recalculateAfterKCandleClosed,
     clearLines,
+    stopSettling,
     changeLineColor,
   }
 }
