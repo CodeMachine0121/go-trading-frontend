@@ -58,6 +58,36 @@ describe('StrategyPicker', () => {
     expect(wrapper.emitted('select')).toEqual([[2]])
   })
 
+  it('動作與選單同一列，且不在標籤裡面', async () => {
+    // 標籤包住動作的話，點動作會被瀏覽器轉給標籤包住的第一個控制項——
+    // 按「策略清單」會變成按到「儲存」。這一條就是為了擋住那個。
+    const wrapper = mount(StrategyPicker, {
+      props: { strategies: [strategyOf(1, '二十根均線')] },
+      slots: { actions: '<button data-testid="an-action">動作</button>' },
+    })
+
+    expect(wrapper.get('label').find('[data-testid="an-action"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="an-action"]').exists()).toBe(true)
+  })
+
+  it('一支都沒有時動作仍然在——那正是要存下第一支的時候', () => {
+    const wrapper = mount(StrategyPicker, {
+      props: { strategies: [] },
+      slots: { actions: '<button data-testid="an-action">動作</button>' },
+    })
+
+    expect(wrapper.find('[data-testid="strategy-picker-empty"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="an-action"]').exists()).toBe(true)
+  })
+
+  it('說明跟著有沒有策略換一句話', () => {
+    const withNone = mount(StrategyPicker, { props: { strategies: [] } })
+    const withSome = mount(StrategyPicker, { props: { strategies: [strategyOf(1, 'x')] } })
+
+    expect(withNone.text()).toContain('按「另存為新策略」就會留下第一支')
+    expect(withSome.text()).toContain('挑一支會把它的算式')
+  })
+
   it('挑回「未使用任何策略」不算挑了一支', async () => {
     // 那不是一支策略，把它當成挑了東西會去載入一支不存在的策略。
     const wrapper = mount(StrategyPicker, {

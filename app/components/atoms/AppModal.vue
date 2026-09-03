@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '~/components/atoms/AppIcon.vue'
+
 // 原子：全站唯一的對話框。疊在畫面上、把注意力收在一件事上——
 // 清單、取名、再問一次三處共用它，不各自長出一個。
 // 它不認識任何領域概念，內容一律由使用端以插槽給。
@@ -58,9 +60,10 @@ function closeOnEscape(event: KeyboardEvent) {
           class="app-modal__close"
           type="button"
           aria-label="關閉"
+          title="關閉"
           @click="emit('close')"
         >
-          ×
+          <AppIcon name="close" />
         </button>
       </header>
 
@@ -124,13 +127,13 @@ function closeOnEscape(event: KeyboardEvent) {
   }
 
   &__close {
+    display: inline-flex;
     border: none;
+    border-radius: radius('sm');
     background: none;
     cursor: pointer;
-    padding: 0 spacing('2xs');
+    padding: spacing('2xs');
     color: color('text-muted');
-    line-height: line-height('tight');
-    font-size: font-size('xl');
 
     @include focus-ring;
 

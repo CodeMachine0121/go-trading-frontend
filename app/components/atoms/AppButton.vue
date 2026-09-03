@@ -8,10 +8,18 @@
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type ButtonSize = 'small' | 'medium' | 'large'
 
-const { variant = 'primary', size = 'medium', block = false } = defineProps<{
+const { variant = 'primary', size = 'medium', block = false, label } = defineProps<{
   variant?: ButtonVariant
   size?: ButtonSize
   block?: boolean
+  /**
+   * 只放圖示、沒有文字時，這顆按鈕叫什麼。
+   *
+   * **它是必要的，不是裝飾**：一顆只有圖示的按鈕，對讀螢幕的人來說什麼都沒說，
+   * 對看得到但不確定那個圖示是什麼意思的人也一樣。給了它，兩種人都問得出答案——
+   * 一個從無障礙名稱、一個從滑鼠停留的提示。
+   */
+  label?: string
 }>()
 
 // disabled / type / @click 等原生行為一律走 attribute fallthrough，不重新包一層 props。
@@ -23,9 +31,11 @@ const { variant = 'primary', size = 'medium', block = false } = defineProps<{
     :class="[
       `app-button--${variant}`,
       `app-button--${size}`,
-      { 'app-button--block': block },
+      { 'app-button--block': block, 'app-button--labelled': label !== undefined },
     ]"
     type="button"
+    :aria-label="label"
+    :title="label"
   >
     <slot />
   </button>
@@ -69,6 +79,13 @@ const { variant = 'primary', size = 'medium', block = false } = defineProps<{
   &--block {
     display: flex;
     width: 100%;
+  }
+
+  // 只放圖示時左右不需要留給文字的空間，收成正方形才不會看起來歪歪的。
+  // 它與 size 相乘，所以大小仍然由使用端決定。
+  &--labelled {
+    aspect-ratio: 1;
+    padding: spacing('xs');
   }
 
   &--primary {

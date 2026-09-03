@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 
@@ -64,18 +65,26 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
           <AppButton
             variant="secondary"
             size="small"
+            :label="`載入「${strategy.name}」`"
             :data-testid="`strategy-library-load-${strategy.id}`"
             @click="emit('load', strategy.id)"
           >
-            載入
+            <AppIcon
+              name="load"
+              size="small"
+            />
           </AppButton>
           <AppButton
             variant="danger"
             size="small"
+            :label="`刪除「${strategy.name}」`"
             :data-testid="`strategy-library-delete-${strategy.id}`"
             @click="emit('remove', strategy.id)"
           >
-            刪除
+            <AppIcon
+              name="delete"
+              size="small"
+            />
           </AppButton>
         </span>
       </li>

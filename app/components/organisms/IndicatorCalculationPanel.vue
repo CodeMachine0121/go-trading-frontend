@@ -2,6 +2,7 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
@@ -133,42 +134,51 @@ async function calculateIndicator() {
   >
     <section class="indicator-calculation-panel__strategy">
       <StrategyPicker
-        class="indicator-calculation-panel__strategy-picker"
         :strategies="strategyLibrary.strategies.value"
         :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
         @select="strategyLibrary.selectStrategy"
-      />
-
-      <div class="indicator-calculation-panel__strategy-actions">
-        <AppButton
-          type="button"
-          variant="secondary"
-          size="small"
-          :disabled="strategyLibrary.saving.value"
-          data-testid="save-strategy-button"
-          @click="strategyLibrary.saveStrategy"
-        >
-          {{ strategyLibrary.saving.value ? '儲存中…' : '儲存' }}
-        </AppButton>
-        <AppButton
-          type="button"
-          variant="secondary"
-          size="small"
-          data-testid="save-as-strategy-button"
-          @click="strategyLibrary.openNameDialog"
-        >
-          另存為新策略
-        </AppButton>
-        <AppButton
-          type="button"
-          variant="ghost"
-          size="small"
-          data-testid="open-library-button"
-          @click="strategyLibrary.openLibrary"
-        >
-          策略清單
-        </AppButton>
-      </div>
+      >
+        <template #actions>
+          <AppButton
+            type="button"
+            variant="secondary"
+            :disabled="strategyLibrary.saving.value"
+            label="儲存"
+            data-testid="save-strategy-button"
+            @click="strategyLibrary.saveStrategy"
+          >
+            <AppIcon name="save" />
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="secondary"
+            label="另存為新策略"
+            data-testid="save-as-strategy-button"
+            @click="strategyLibrary.openNameDialog"
+          >
+            <AppIcon name="save-as" />
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="secondary"
+            :disabled="strategyLibrary.activeStrategy.value === null"
+            label="重新命名"
+            data-testid="rename-strategy-button"
+            @click="strategyLibrary.openRenameDialog"
+          >
+            <AppIcon name="rename" />
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="ghost"
+            label="策略清單"
+            data-testid="open-library-button"
+            @click="strategyLibrary.openLibrary"
+          >
+            <AppIcon name="library" />
+          </AppButton>
+        </template>
+      </StrategyPicker>
 
       <p
         v-if="strategyLibrary.noticeMessage.value"
@@ -210,11 +220,11 @@ async function calculateIndicator() {
           <AppButton
             type="button"
             variant="secondary"
-            size="small"
+            label="帶入範例內容"
             data-testid="example-button"
             @click="fillExampleScriptBody"
           >
-            帶入範例內容
+            <AppIcon name="example" />
           </AppButton>
         </template>
       </IndicatorScriptEditor>
@@ -430,9 +440,23 @@ async function calculateIndicator() {
 
     <StrategyNameDialog
       :open="strategyLibrary.openDialog.value === 'name'"
+      title="另存為新策略"
+      hint="其餘內容取自畫面上目前的算式、指標值種類、彙總刻度與計算根數。"
       :error-message="strategyLibrary.nameErrorMessage.value"
       :submitting="strategyLibrary.saving.value"
       @submit="strategyLibrary.createStrategy"
+      @cancel="strategyLibrary.closeDialog"
+    />
+
+    <StrategyNameDialog
+      :open="strategyLibrary.openDialog.value === 'rename'"
+      title="重新命名"
+      hint="只換名字，這一支記著的算式與其餘設定都不會被動到。"
+      :initial-name="strategyLibrary.activeStrategy.value?.name ?? ''"
+      :error-message="strategyLibrary.nameErrorMessage.value"
+      :submitting="strategyLibrary.saving.value"
+      data-testid="rename-dialog"
+      @submit="strategyLibrary.renameStrategy"
       @cancel="strategyLibrary.closeDialog"
     />
 
@@ -460,23 +484,12 @@ async function calculateIndicator() {
 <style scoped lang="scss">
 .indicator-calculation-panel__strategy {
   display: flex;
-  flex-wrap: wrap;
-  gap: spacing('sm');
-  align-items: flex-end;
+  flex-direction: column;
+  gap: spacing('2xs');
   margin-bottom: spacing('md');
-
-  &-picker {
-    flex: 1 1 18rem;
-  }
-
-  &-actions {
-    display: flex;
-    gap: spacing('2xs');
-  }
 
   &-notice,
   &-error {
-    flex-basis: 100%;
     margin: 0;
     font-size: font-size('xs');
   }
