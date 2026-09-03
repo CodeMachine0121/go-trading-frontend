@@ -17,6 +17,11 @@ type IconName
     | 'delete'
     | 'close'
     | 'example'
+    | 'connection'
+    | 'table'
+    | 'candles'
+    | 'formula'
+    | 'refresh'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -61,6 +66,33 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   // 星芒——帶入一段現成的東西
   'example': [
     'm12 3-1.9 5.8L4 10.7l6.1 1.9L12 18.5l1.9-5.9L20 10.7l-6.1-1.9Z',
+  ],
+  // 一段心跳——後端還活著嗎
+  'connection': [
+    'M3 12h4l2.5-7 4.5 14 2.5-7h4',
+  ],
+  // 一張有欄有列的表
+  'table': [
+    'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z',
+    'M3 9h18M3 15h18M11 9v11',
+  ],
+  // 兩根帶影線的蠟燭
+  'candles': [
+    'M7 3v3M7 15v3',
+    'M5 6h4v9H5z',
+    'M17 5v3M17 18v2',
+    'M15 8h4v10h-4z',
+  ],
+  // 一對大括號夾著一個算式
+  'formula': [
+    'M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1',
+    'M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1',
+    'm10 9 4 6M14 9l-4 6',
+  ],
+  // 繞一圈的箭頭——再問一次
+  'refresh': [
+    'M20.5 12a8.5 8.5 0 1 1-2.8-6.3',
+    'M21 4v5h-5',
   ],
 }
 

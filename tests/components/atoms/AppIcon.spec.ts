@@ -4,6 +4,7 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 
 const EVERY_ICON = [
   'save', 'save-as', 'library', 'rename', 'load', 'delete', 'close', 'example',
+  'connection', 'table', 'candles', 'formula', 'refresh',
 ] as const
 
 describe('AppIcon', () => {
