@@ -17,6 +17,7 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
+import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -59,6 +60,7 @@ async function mountPanel(overrides: {
       kCandleChartApplication: new KCandleChartApplication(
         new KCandleChartService(buildKCandleProxy())),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
         listStrategies: vi.fn().mockResolvedValue(strategies),
@@ -74,6 +76,15 @@ async function mountPanel(overrides: {
 
 async function applyStrategy(wrapper: Awaited<ReturnType<typeof mountPanel>>['wrapper'], id: number) {
   await wrapper.get('[data-testid="chart-indicator-picker"]').setValue(String(id))
+  await flushPromises()
+}
+
+/**
+ * 等使用者「停手」。指標重算不在顯示區間變動的當下發生——拖動一次會產生幾十個
+ * 中間狀態，每一個都算等於把同一份工作做幾十遍。停下來之後才算那一次。
+ */
+async function settle() {
+  await vi.advanceTimersByTimeAsync(400)
   await flushPromises()
 }
 
@@ -97,15 +108,15 @@ describe('圖表上的指標：挑一支套上去', () => {
     expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
   })
 
-  it('算的是圖上正在畫的那批 K 線', async () => {
-    // 少給任何一樣，算出來的都是另一段行情的指標，而它畫在圖上看起來完全正常。
+  it('算的是圖上這一檔、這個彙總刻度', async () => {
+    // 交易標的或刻度給錯，算出來就是另一段行情的指標，而它畫在圖上看起來完全正常。
+    // 「算哪一段」則由顯示區間決定，由「什麼時候重算」那一組釘住。
     const { wrapper, calculateIndicator } = await mountPanel()
 
     await applyStrategy(wrapper, 7)
 
     expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'BTCUSDT',
-      candleCount: 1,
       aggregationInterval: expect.objectContaining({ value: '5m' }),
     }))
   })
@@ -198,28 +209,15 @@ describe('圖表上的指標：什麼時候重算', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     expect(calculateIndicator).toHaveBeenCalledTimes(2)
     expect(calculateIndicator).toHaveBeenLastCalledWith(
       expect.objectContaining({ symbol: 'ETHUSDT' }))
   })
 
-  it('拉到需要重新取一批 K 線的區間時，也重算一次', async () => {
-    // 換標的與換區間走的是同一個觸發點：圖上那批被換掉了。
-    const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
-
-    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-08-01T00:00:00.000Z'),
-      endTime: new Date('2026-09-02T12:00:00.000Z'),
-    })
-    await flushPromises()
-
-    expect(calculateIndicator).toHaveBeenCalledTimes(2)
-  })
-
-  it('圖上那批 K 線沒換就不重算', async () => {
-    // 小幅拖動仍落在手上這批之內：K 線一根都沒換，重算算出來的必定一模一樣。
+  it('拖到另一段就重算，即使手上那批 K 線一根都沒換', async () => {
+    // 一支「這段區間的最高價」換一段就該有不同答案，即使那幾根 K 線早就在手上。
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyStrategy(wrapper, 7)
 
@@ -228,8 +226,110 @@ describe('圖表上的指標：什麼時候重算', () => {
       endTime: new Date('2026-09-02T11:00:00.000Z'),
     })
     await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(2)
+  })
+
+  it('算的是使用者正在看的那一段，不是手上那一整批', async () => {
+    // 取資料時前後各多取了半段，拿整批去算等於回答一段他沒在看的行情。
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T09:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+      // 09:00 到 11:00 是兩小時；以五分鐘一根算就是 24 根。
+      candleCount: 24,
+    }))
+  })
+
+  it('拉遠時以新的區間與新的根數重算', async () => {
+    // 拉遠改變的不只是起訖，還有那一段裡放得下幾根。
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T10:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+    // 一小時、五分鐘一根 → 12 根。
+    expect(calculateIndicator).toHaveBeenLastCalledWith(
+      expect.objectContaining({ candleCount: 12 }))
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T08:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+
+    // 三小時、同樣五分鐘一根 → 36 根。
+    expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
+      candleCount: 36,
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    }))
+  })
+
+  it('一支都沒套用時，拖動畫面不發生任何計算', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-02T09:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    })
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).not.toHaveBeenCalled()
+  })
+
+  it('顯示區間沒真的變就不重算', async () => {
+    // 同一段區間算出來的必然一樣。
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+    const sameRange = {
+      startTime: new Date('2026-09-02T09:00:00.000Z'),
+      endTime: new Date('2026-09-02T11:00:00.000Z'),
+    }
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', sameRange)
+    await flushPromises()
+    await settle()
+    expect(calculateIndicator).toHaveBeenCalledTimes(2)
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', { ...sameRange })
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(2)
+  })
+
+  it('使用者還在動的時候一次都不算', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    for (const hour of [10, 11, 12, 13]) {
+      wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+        startTime: new Date(`2026-09-02T0${hour - 9}:00:00.000Z`),
+        endTime: new Date(`2026-09-02T${hour}:00:00.000Z`),
+      })
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(100)
+    }
 
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
+
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(2)
   })
 
   it('一支都沒套用時，換交易標的不發生任何計算', async () => {
@@ -237,6 +337,7 @@ describe('圖表上的指標：什麼時候重算', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     expect(calculateIndicator).not.toHaveBeenCalled()
   })
@@ -298,6 +399,7 @@ describe('圖表上的指標：算不出來的時候', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     expect(wrapper.find('[data-testid="indicator-error-7"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -315,6 +417,7 @@ describe('圖表上的指標：算不出來的時候', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     expect(wrapper.find('[data-testid="indicator-error-7"]').exists()).toBe(true)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
@@ -345,6 +448,7 @@ describe('圖表上的指標：線的顏色', () => {
         kCandleChartApplication: new KCandleChartApplication(
           new KCandleChartService(buildKCandleProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(
           { calculateIndicator: vi.fn().mockResolvedValue(aCalculation()) },
           // 上一次打開這個畫面時，使用者替這條線挑過粉色。
@@ -416,6 +520,7 @@ describe('圖表上的指標：邊界', () => {
         kCandleChartApplication: new KCandleChartApplication(
           new KCandleChartService(emptyChartProxy)),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
         strategyApplication: buildStrategyApplication({
           listStrategies: vi.fn().mockResolvedValue(
@@ -482,6 +587,7 @@ describe('圖表上的指標：邊界', () => {
         kCandleChartApplication: new KCandleChartApplication(
           new KCandleChartService(buildKCandleProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyApplication: buildStrategyApplication({
           listStrategies: vi.fn().mockRejectedValue(
@@ -555,8 +661,10 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
     await wrapper.get('[data-testid="symbol-select"]').setValue('BTCUSDT')
     await flushPromises()
+    await settle()
 
     // 最新那一次（BTC）先回來，被換掉的那一次（ETH）後回來。
     resolvers[2]?.(aCalculation('最新的 BTC'))
@@ -566,6 +674,32 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
 
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
     expect(indicators[0]?.levels[0]?.indicatorName).toBe('最新的 BTC')
+  })
+
+  it('慢回來的失敗也不會蓋掉比它新的那一次', async () => {
+    // 與慢回來的成功是同一類 bug：過期的那一次不該把畫面改成它的樣子，
+    // 無論它帶回來的是一條線還是一則失敗說明。
+    const resolvers: (() => void)[] = []
+    const calculateIndicator = vi.fn()
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => {
+        resolvers.push(() => reject(new IndicatorScriptFailedError('過期的失敗')))
+      }))
+      .mockResolvedValue(aCalculation('最新的值'))
+    const { wrapper } = await mountPanel({ calculateIndicator })
+
+    await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
+    await flushPromises()
+
+    // 還沒回來就又換了一次，較新的那一次先回來。
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    await settle()
+
+    resolvers[0]?.()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="indicator-error-7"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
   })
 
   it('上一輪全部失敗之後重算，它們仍然拿到不同的顏色', async () => {
@@ -589,6 +723,7 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
     expect(indicators).toHaveLength(2)
@@ -608,6 +743,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
         kCandleChartApplication: new KCandleChartApplication(
           new KCandleChartService({ ...buildKCandleProxy(), findKCandleSeries })),
         tradingSymbolApplication: buildTradingSymbolApplication(),
+        liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({
           calculateIndicator: vi.fn().mockResolvedValue(aCalculation()),
         }),
@@ -626,6 +762,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
+    await settle()
 
     // 圖沒了，上一批算出來的線也不能留——它們畫的是另一段行情。
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(false)

@@ -8,11 +8,13 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import type { StrategyApplication } from '~/application/strategy-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -29,12 +31,14 @@ const {
   kCandleChartApplication,
   tradingSymbolApplication,
   chartIndicatorApplication,
+  liveKCandleApplication,
   strategyApplication,
   timeZone,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
   chartIndicatorApplication: ChartIndicatorApplication
+  liveKCandleApplication: LiveKCandleApplication
   strategyApplication: StrategyApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
@@ -70,6 +74,17 @@ const strategies = ref<StrategyDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
+/** 即時更新停掉了。圖照常顯示，只是不再跟著市場動——所以要明說。 */
+const liveUpdateStalled = ref(false)
+/** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
+let stopFollowing: (() => void) | null = null
+/**
+ * 這是第幾次跟盤。回呼是個閉包，它可能比自己的訂閱活得更久——
+ * 只認自己那一次的號碼，就不必假設「停止」在每一種情況下都立刻生效。
+ * 圖表與指標各自也有同一套，理由一模一樣。
+ */
+let followGeneration = 0
+
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   // 正在看的那一段等領域回答再設：它可能與這裡問的不一樣（拉太遠會被收回上限），
   // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
@@ -93,11 +108,17 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         chart.value = chartView.reloadedChart
+        followTheMarket(chartView.reloadedChart)
+      }
 
-        // 指標重算的**唯一**觸發點，而且刻意就掛在這裡：圖上那批真的換了才重算。
-        // 掛在「正在看的區間變了」上的話，每一格拖動都會重算一次，
-        // 而那幾次算出來的必定一模一樣——K 線一根都沒換。
-        void chartIndicators.recalculateAll(chartView.reloadedChart)
+      // **指標算的是使用者正在看的那一段**，不是手上那一整批（後者兩側各多取了半段）。
+      // 因此重算掛在顯示區間上，而不是掛在「有沒有重新取資料」上：
+      // 拉遠拉近改變的是他看得見的那一段，一支「這段區間的最高價」本來就該跟著變。
+      // 「不重算」的條件因此收窄成「那一段真的沒變」，由顯示區間自己回答。
+      if (chart.value !== null) {
+        chartIndicators.recalculateForRange(
+          chart.value,
+          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime))
       }
     }
   }
@@ -124,7 +145,13 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
 
     chart.value = null
-    // 圖沒了，上一批算出來的線也不能留——它們畫的是另一段行情，
+    // 圖沒了，跟盤也得停。留著它，上一檔的下一則更新就會把圖「復活」——
+    // 而畫面上同時還顯示著取行情失敗，看到的人會以為那張圖是這一檔的。
+    stopFollowing?.()
+    stopFollowing = null
+    followGeneration += 1
+    liveUpdateStalled.value = false
+    // 上一批算出來的線也不能留——它們畫的是另一段行情，
     // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
     chartIndicators.clearLines()
   }
@@ -134,6 +161,44 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
   }
 }
+
+/**
+ * 開始跟這一檔的市場。換一批 K 線就換一次：跟盤是把即時的變動併進**手上這一批**，
+ * 舊的那一批已經不在圖上了。
+ */
+function followTheMarket(followedChart: KCandleChartDto) {
+  stopFollowing?.()
+  followGeneration += 1
+  const generation = followGeneration
+
+  stopFollowing = liveKCandleApplication.followKCandles(
+    followedChart.symbol, followedChart, (report) => {
+      // 已經不是這一次在跟了：這一則講的是上一檔的行情。
+      if (generation !== followGeneration) {
+        return
+      }
+
+      // 跟不動了：明說，但圖照樣顯示手上有的——停的是「即時」，不是「圖表」。
+      liveUpdateStalled.value = report.isStalled
+      if (report.isStalled) {
+        return
+      }
+
+      chart.value = report.chart
+
+      // 還在走的那一根怎麼動都不改變指標的答案（它本來就不算數），重算只是白算。
+      // 一根**走完**時才重算——那一刻指標可用的資料真的多了一根。
+      if (report.hasClosedAKCandle) {
+        void chartIndicators.recalculateAfterKCandleClosed(report.chart)
+      }
+    })
+}
+
+onBeforeUnmount(() => {
+  stopFollowing?.()
+  followGeneration += 1
+  chartIndicators.stopSettling()
+})
 
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePresetLabel.value = preset.label
@@ -199,6 +264,18 @@ onMounted(async () => {
         @remove="chartIndicators.removeStrategy"
         @change-line-color="chartIndicators.changeLineColor"
       />
+
+      <!--
+        即時停掉是「這一層停了」，不是「圖表壞了」——所以它與那幾則錯誤各自獨立，
+        不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+      -->
+      <AppAlert
+        v-if="liveUpdateStalled"
+        tone="warning"
+        data-testid="live-update-stalled-alert"
+      >
+        即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。
+      </AppAlert>
 
       <AppAlert
         v-if="rejectedMessage"
