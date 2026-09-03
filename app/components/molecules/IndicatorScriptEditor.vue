@@ -90,6 +90,10 @@ function continueWriting() {
 .indicator-script-editor {
   display: flex;
   flex-direction: column;
+
+  // 編輯區跟著工作台的高度長，多出來的高度落在檔尾（見 __filler），
+  // 不是留在面板外面當空白。
+  min-height: 0;
   border: 1px solid color('border');
   border-radius: radius('md');
   background-color: color('surface-raised');
@@ -99,14 +103,18 @@ function continueWriting() {
     border-color: color('danger');
   }
 
+  // 這條列與面板的標題列是同一條列——編輯區也是這個操作台上的一塊面板，
+  // 只是它裡面裝的是一份檔案。
   &__bar {
     display: flex;
+    flex: none;
     gap: spacing('md');
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid color('border');
-    background-color: color('surface');
-    padding: spacing('xs') spacing('sm');
+    background-color: color('surface-muted');
+    padding: spacing('2xs') spacing('sm');
+    min-height: 2.25rem;
   }
 
   &__identity {
@@ -118,14 +126,15 @@ function continueWriting() {
 
   &__filename {
     color: color('text-strong');
-    font-size: font-size('sm');
+    font-size: font-size('xs');
     font-family: font-family('mono');
+    white-space: nowrap;
   }
 
   &__hint {
     overflow: hidden;
-    color: color('text-muted');
-    font-size: font-size('xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
     white-space: nowrap;
     text-overflow: ellipsis;
   }
@@ -133,31 +142,34 @@ function continueWriting() {
   &__tools {
     display: flex;
     flex: none;
-    gap: spacing('xs');
+    gap: spacing('2xs');
     align-items: center;
   }
 
   &__file {
     display: flex;
+    flex: 1;
     flex-direction: column;
 
-    // 一塊夠大的編輯區。內容短的時候多出來的高度由 __filler 補在檔尾，
-    // 不是塞進可編輯的那一段——否則收尾的括號會被推得離程式碼老遠。
-    min-height: 26rem;
+    // 上下疊起來的窄螢幕上沒有「剩下的高度」可以吃，所以仍然留一塊夠大的底線。
+    min-height: 24rem;
+    overflow: auto;
   }
 
   &__filler {
     flex: 1;
+    min-height: spacing('2xl');
     cursor: text;
   }
 
   &__error {
     margin: 0;
+    flex: none;
     border-top: 1px solid color('border');
     background-color: color('danger-soft');
     padding: spacing('2xs') spacing('sm');
     color: color('danger');
-    font-size: font-size('xs');
+    font-size: font-size('2xs');
   }
 }
 </style>

@@ -4,6 +4,7 @@ import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
@@ -29,7 +30,8 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
 //
-// 版面照著「寫程式 → 執行 → 看結果」的順序擺：左邊是那塊夠大的算式編輯區，
+// 版面照著「寫程式 → 執行 → 看結果」的順序擺，也就是每一台開發工作台的擺法：
+// 最上面一條說「現在用的是哪一支策略」，左邊是那塊夠大的算式編輯區，
 // 右邊是按下去會發生事情的那一欄，結果攤在下面整排。
 const { indicatorCalculationApplication, strategyApplication, tradingSymbolApplication }
   = defineProps<{
@@ -132,7 +134,9 @@ async function calculateIndicator() {
     class="indicator-calculation-panel"
     @submit.prevent="calculateIndicator"
   >
-    <section class="indicator-calculation-panel__strategy">
+    <!-- 策略那一列收成一塊面板，才不會一整排控制項懸在工作區的底色上。
+         它不必有標題列——「策略」兩個字就寫在它自己的欄位標籤上了。 -->
+    <AppPanel class="indicator-calculation-panel__strategy">
       <StrategyPicker
         :strategies="strategyLibrary.strategies.value"
         :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
@@ -194,7 +198,7 @@ async function calculateIndicator() {
       >
         {{ strategyLibrary.errorMessage.value }}
       </p>
-    </section>
+    </AppPanel>
 
     <div class="indicator-calculation-panel__workbench">
       <IndicatorScriptEditor
@@ -229,11 +233,10 @@ async function calculateIndicator() {
         </template>
       </IndicatorScriptEditor>
 
-      <aside class="indicator-calculation-panel__run">
-        <h2 class="indicator-calculation-panel__run-title">
-          執行條件
-        </h2>
-
+      <AppPanel
+        title="執行條件"
+        class="indicator-calculation-panel__run"
+      >
         <SymbolField
           v-model="symbol"
           :trading-symbol-application="tradingSymbolApplication"
@@ -347,27 +350,23 @@ async function calculateIndicator() {
         >
           計算中…算式最長可能跑上數十秒。
         </AppAlert>
-      </aside>
+      </AppPanel>
     </div>
 
-    <section
+    <AppPanel
       v-if="result"
+      title="計算結果"
+      flush
       class="indicator-calculation-panel__result"
     >
-      <header class="indicator-calculation-panel__result-header">
-        <h2 class="indicator-calculation-panel__result-title">
-          計算結果
-        </h2>
-        <p
-          class="indicator-calculation-panel__used-count"
-          data-testid="used-candle-count"
-        >
+      <template #meta>
+        <span data-testid="used-candle-count">
           實際採用 {{ result.usedCandleCount }} 根
           <AppBadge variant="info">
             {{ result.resultTypeLabel }}
           </AppBadge>
-        </p>
-      </header>
+        </span>
+      </template>
 
       <p
         v-if="result.isEmpty"
@@ -377,57 +376,60 @@ async function calculateIndicator() {
         這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
       </p>
 
-      <table
+      <div
         v-else
-        class="indicator-calculation-panel__table"
+        class="indicator-calculation-panel__scroller"
       >
-        <thead>
-          <tr>
-            <th scope="col">
-              指標名稱
-            </th>
-            <th scope="col">
-              數值
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="indicatorValue in result.indicatorValues"
-            :key="indicatorValue.name"
-            data-testid="indicator-row"
-          >
-            <td class="indicator-calculation-panel__indicator-name">
-              {{ indicatorValue.name }}
-            </td>
-            <td>
-              <span
-                v-if="indicatorValue.isEmptySeries"
-                class="indicator-calculation-panel__empty-series"
-                data-testid="empty-series"
-              >空的一串</span>
-              <ol
-                v-else-if="indicatorValue.isSeries"
-                class="indicator-calculation-panel__series"
-              >
-                <li
-                  v-for="(displayValue, position) in indicatorValue.displayValues"
-                  :key="position"
-                  class="indicator-calculation-panel__series-item"
-                  data-testid="series-item"
+        <table class="indicator-calculation-panel__table">
+          <thead>
+            <tr>
+              <th scope="col">
+                指標名稱
+              </th>
+              <th scope="col">
+                數值
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="indicatorValue in result.indicatorValues"
+              :key="indicatorValue.name"
+              data-testid="indicator-row"
+            >
+              <td class="indicator-calculation-panel__indicator-name">
+                {{ indicatorValue.name }}
+              </td>
+              <td>
+                <span
+                  v-if="indicatorValue.isEmptySeries"
+                  class="indicator-calculation-panel__empty-series"
+                  data-testid="empty-series"
+                >空的一串</span>
+                <ol
+                  v-else-if="indicatorValue.isSeries"
+                  class="indicator-calculation-panel__series"
                 >
-                  {{ displayValue }}
-                </li>
-              </ol>
-              <span
-                v-else
-                class="indicator-calculation-panel__value"
-              >{{ indicatorValue.displayValues[0] }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+                  <li
+                    v-for="(displayValue, position) in indicatorValue.displayValues"
+                    :key="position"
+                    class="indicator-calculation-panel__series-item"
+                    data-testid="series-item"
+                  >
+                    {{ displayValue }}
+                  </li>
+                </ol>
+                <span
+                  v-else
+                  class="indicator-calculation-panel__value"
+                >{{ indicatorValue.displayValues[0] }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AppPanel>
+
     <StrategyLibraryDialog
       :open="strategyLibrary.openDialog.value === 'library'"
       :strategies="strategyLibrary.strategies.value"
@@ -482,41 +484,43 @@ async function calculateIndicator() {
 </template>
 
 <style scoped lang="scss">
-.indicator-calculation-panel__strategy {
+.indicator-calculation-panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: spacing('2xs');
-  margin-bottom: spacing('md');
+  gap: spacing('sm');
+  min-height: 0;
 
-  &-notice,
-  &-error {
-    margin: 0;
-    font-size: font-size('xs');
+  &__strategy {
+    flex: none;
   }
 
-  &-notice {
+  &__strategy-notice,
+  &__strategy-error {
+    margin: 0;
+    font-size: font-size('2xs');
+  }
+
+  &__strategy-notice {
     color: color('text-muted');
   }
 
-  &-error {
+  &__strategy-error {
     color: color('danger');
   }
-}
-
-.indicator-calculation-panel {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('lg');
 
   // 編輯區要大，執行那一欄夠填就好；窄螢幕就上下疊起來。
   &__workbench {
     display: grid;
-    gap: spacing('lg');
-    grid-template-columns: 1fr;
+    flex: 1;
+    gap: spacing('sm');
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
+    min-height: 0;
 
     @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1fr) 20rem;
+      grid-template-columns: minmax(0, 1fr) 19rem;
+      align-items: stretch;
     }
   }
 
@@ -529,71 +533,39 @@ async function calculateIndicator() {
   }
 
   &__run {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('md');
-
-    @include surface('md');
-
-    @include respond-to('lg') {
-      position: sticky;
-      top: spacing('2xl');
-    }
-  }
-
-  &__run-title {
-    margin: 0;
-    font-size: font-size('md');
+    // 執行條件那一欄要能自己捲：條件之外還會長出四種失敗訊息，
+    // 讓它把整個工作台頂長的話，編輯區就會被推出視窗外。
+    overflow-y: auto;
   }
 
   &__notice {
     margin: 0;
     border-top: 1px solid color('border');
     padding-top: spacing('sm');
-    color: color('text-muted');
-    font-size: font-size('xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
     line-height: line-height('normal');
   }
 
   &__result {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('sm');
-  }
+    flex: none;
 
-  &__result-header {
-    display: flex;
-    gap: spacing('md');
-    align-items: baseline;
-    justify-content: space-between;
-  }
-
-  &__result-title {
-    margin: 0;
-  }
-
-  &__used-count {
-    display: flex;
-    gap: spacing('xs');
-    align-items: center;
-    margin: 0;
-    color: color('text-muted');
-    font-size: font-size('sm');
+    // 一串很長的指標值不該把整個畫面撐開——結果自己在框裡捲。
+    max-height: 24rem;
   }
 
   &__empty {
-    margin: 0;
-    border: 1px dashed color('border-strong');
-    border-radius: radius('md');
-    padding: spacing('xl');
-    color: color('text-muted');
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('xs');
     text-align: center;
   }
 
   &__series {
     display: flex;
     flex-wrap: wrap;
-    gap: spacing('2xs');
+    gap: spacing('3xs');
     justify-content: flex-end;
     margin: 0;
     padding: 0;
@@ -606,29 +578,35 @@ async function calculateIndicator() {
     background-color: color('surface-muted');
     padding: 0 spacing('2xs');
     color: color('text-strong');
-    font-family: font-family('mono');
+
+    @include numeric;
   }
 
   &__indicator-name {
     color: color('text-strong');
+    font-family: font-family('mono');
   }
 
   &__empty-series {
-    color: color('text-muted');
+    color: color('text-faint');
+  }
+
+  &__scroller {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   &__table {
-    border-collapse: collapse;
-    border: 1px solid color('border');
-    border-radius: radius('md');
-    background-color: color('surface');
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
-    font-size: font-size('sm');
+    font-size: font-size('xs');
 
     th,
     td {
       border-bottom: 1px solid color('border');
-      padding: spacing('xs') spacing('sm');
+      padding: spacing('2xs') spacing('sm');
       text-align: left;
     }
 
@@ -638,23 +616,20 @@ async function calculateIndicator() {
     }
 
     th {
+      position: sticky;
+      top: 0;
+
+      // sticky 的表頭必須自己不透明，否則捲上來的列會從它底下透出來。
       background-color: color('surface-muted');
-      color: color('text-muted');
-      font-weight: font-weight('medium');
       white-space: nowrap;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-size: font-size('xs');
+
+      @include dense-label;
     }
 
     // 指標名稱那一欄只要放得下名字就好，剩下的寬度全部留給值
     td:first-child {
       width: 1%;
       white-space: nowrap;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
     }
   }
 }

@@ -97,7 +97,7 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
   &__error,
   &__empty {
     margin: 0;
-    color: color('text-muted');
+    color: color('text-faint');
     font-size: font-size('sm');
   }
 
@@ -105,13 +105,17 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
     color: color('danger');
   }
 
+  // 一份清單就畫成一份清單：一條一條以髮絲線隔開，不是一疊各自帶框的小卡。
+  // 十支策略疊起來時，十個框會比十行字更難數。
   &__list {
     display: flex;
     flex-direction: column;
-    gap: spacing('2xs');
     margin: 0;
+    border: 1px solid color('border');
+    border-radius: radius('sm');
     padding: 0;
     list-style: none;
+    overflow: hidden;
   }
 
   &__row {
@@ -119,30 +123,38 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
     gap: spacing('md');
     align-items: center;
     justify-content: space-between;
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    background-color: color('surface-muted');
-    padding: spacing('xs') spacing('sm');
+    padding: spacing('2xs') spacing('xs') spacing('2xs') spacing('sm');
+
+    &:not(:last-child) {
+      border-bottom: 1px solid color('border');
+    }
+
+    &:hover {
+      background-color: color('surface-muted');
+    }
   }
 
   &__name {
     display: flex;
     gap: spacing('xs');
     align-items: center;
+    min-width: 0;
     color: color('text-strong');
     font-size: font-size('sm');
   }
 
   &__active {
-    border-radius: radius('pill');
+    flex: none;
+    border-radius: radius('sm');
     background-color: color('primary-soft');
-    padding: 0 spacing('xs');
+    padding: 0 spacing('2xs');
     color: color('primary');
-    font-size: font-size('xs');
+    font-size: font-size('2xs');
   }
 
   &__actions {
     display: flex;
+    flex: none;
     gap: spacing('2xs');
   }
 }
