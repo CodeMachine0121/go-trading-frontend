@@ -73,8 +73,9 @@ function controllableFeed() {
   }
 
   function report(status: LiveKCandleStatus, openTime = LATEST_OPEN_TIME) {
+    const kCandle = status === 'stalled' ? null : buildKCandle(openTime, '118')
     for (const listener of listeners) {
-      listener(new LiveKCandleUpdate('BTCUSDT', status, buildKCandle(openTime, '118')))
+      listener(new LiveKCandleUpdate('BTCUSDT', status, kCandle))
     }
   }
 
@@ -223,6 +224,32 @@ describe('在看過去，就停在那一段', () => {
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(
       expect.objectContaining({ endTime: null }))
+  })
+})
+
+describe('看過去時，圖照樣跟著市場走', () => {
+  it('看不見最新那一根時它照樣更新，拖回來就是最新的', async () => {
+    // 指標停住是因為那一根不在他看的那一段裡，不是因為跟盤該停——
+    // 把跟盤變成「只在看現在時才運作」會讓他拖回來時看到一張過期的圖。
+    const { wrapper, feed } = await mountPanel()
+    await look(wrapper, SHOWING_THE_PAST)
+
+    feed.report('forming', '2026-09-03T12:00:00.000Z')
+    await flushPromises()
+
+    const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
+    expect(kCandles.map(kCandle => kCandle.openTime.toISOString()))
+      .toContain('2026-09-03T12:00:00.000Z')
+  })
+
+  it('即時更新停掉時照樣明說，與在看哪一段無關', async () => {
+    const { wrapper, feed } = await mountPanel()
+    await look(wrapper, SHOWING_THE_PAST)
+
+    feed.report('stalled')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(true)
   })
 })
 
