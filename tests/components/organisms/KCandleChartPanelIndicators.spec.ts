@@ -336,6 +336,35 @@ describe('圖表上的指標：線的顏色', () => {
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
   })
 
+  it('重新打開畫面再套用同一支，用的是上次挑過的那個顏色', async () => {
+    // 顏色是「我習慣哪條線是什麼色」，那個習慣跨越每一次操作。
+    // 這條驗的是整條路徑：這台瀏覽器記著的東西，真的變成圖上那條線的顏色。
+    const wrapper = mount(KCandleChartPanel, {
+      props: {
+        kCandleChartApplication: new KCandleChartApplication(
+          new KCandleChartService(buildKCandleProxy())),
+        tradingSymbolApplication: buildTradingSymbolApplication(),
+        chartIndicatorApplication: buildChartIndicatorApplication(
+          { calculateIndicator: vi.fn().mockResolvedValue(aCalculation()) },
+          // 上一次打開這個畫面時，使用者替這條線挑過粉色。
+          { readColorToken: vi.fn().mockReturnValue('--color-chart-line-5') }),
+        strategyApplication: buildStrategyApplication({
+          listStrategies: vi.fn().mockResolvedValue(
+            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+        }),
+        timeZone: buildTimeZone(),
+      },
+      global: { stubs: { KCandleChart: true } },
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
+    await flushPromises()
+
+    const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
+    expect(indicators[0]?.levels[0]?.colorToken).toBe('--color-chart-line-5')
+  })
+
   it('連續套用兩支時，它們是不同顏色', async () => {
     const calculateIndicator = vi.fn()
       .mockResolvedValueOnce(aCalculation('甲'))
