@@ -57,14 +57,27 @@ function onValueInput(index: number, raw: string | number) {
         class="strategy-parameter-list__row"
         data-testid="parameter-row"
       >
-        <AppInput
-          :model-value="field.parameter.name"
-          type="text"
-          placeholder="名稱"
-          :invalid="field.isInvalid"
-          data-testid="parameter-name-input"
-          @update:model-value="emit('rename', index, $event)"
-        />
+        <div class="strategy-parameter-list__name">
+          <AppInput
+            :model-value="field.parameter.name"
+            type="text"
+            placeholder="名稱"
+            :invalid="field.isInvalid"
+            data-testid="parameter-name-input"
+            @update:model-value="emit('rename', index, $event)"
+          />
+
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="small"
+            label="移除"
+            :data-testid="`remove-parameter-${index}`"
+            @click="emit('remove', index)"
+          >
+            <AppIcon name="delete" />
+          </AppButton>
+        </div>
 
         <AppSelect
           :model-value="field.parameter.kind"
@@ -89,15 +102,6 @@ function onValueInput(index: number, raw: string | number) {
           data-testid="parameter-value-input"
           @update:model-value="onValueInput(index, $event)"
         />
-
-        <AppButton
-          type="button"
-          variant="ghost"
-          :data-testid="`remove-parameter-${index}`"
-          @click="emit('remove', index)"
-        >
-          <AppIcon name="delete" />
-        </AppButton>
       </li>
     </ul>
 
@@ -125,10 +129,15 @@ function onValueInput(index: number, raw: string | number) {
     font-size: font-size('sm');
   }
 
+  // 旋鈕橫著排開，一格一個。
+  //
+  // 它們曾經是一列一個、每列四個控制項橫跨整個寬度——那讓「名稱」與「值」兩個
+  // 各佔掉半個版面，而它們裝的通常是「期數」與「20」。
+  // 一個旋鈕是一個小東西，就給它一個小格子；格子裝不下才換行。
   &__rows {
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: spacing('xs');
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     margin: 0;
     padding: 0;
     list-style: none;
@@ -136,8 +145,19 @@ function onValueInput(index: number, raw: string | number) {
 
   &__row {
     display: grid;
-    grid-template-columns: 1fr auto 1fr auto;
-    gap: spacing('xs');
+    gap: spacing('3xs');
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    padding: spacing('2xs');
+  }
+
+  // 名稱是這一格的標題，所以獨佔上面一整行；移除跟著它，因為刪掉的是「這個名字」。
+  &__name {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: spacing('3xs');
     align-items: center;
   }
 }
