@@ -65,9 +65,13 @@ export class RememberedAppliedIndicatorsDomain {
   private restorableStrategiesOf(
     rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
   ): StrategyDto[] {
-    return this.strategies.filter(
-      strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId
+    return this.strategies
+      .filter(strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId
         && strategy.drawableOnChart)
+      // **「零個或一個」由結構保證，不是由註解保證。** 發號用的是回得來的**筆數**，
+      // 所以這裡一旦交出兩個（策略清單裡出現兩支同識別碼），兩筆就會共用同一個序號——
+      // 而那正是這個切片已經踩過一次的撞號：移除一筆時兩筆一起消失，且不報錯。
+      .slice(0, 1)
   }
 
   /**

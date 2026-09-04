@@ -92,6 +92,17 @@ describe('RememberedAppliedIndicatorsDomain：序號接在既有的後面繼續�
   })
 })
 
+describe('RememberedAppliedIndicatorsDomain：一筆只回得來一次', () => {
+  it('策略清單裡出現兩支同識別碼時只認第一支——否則兩筆會共用同一個序號', () => {
+    // 發號用的是回得來的**筆數**，所以交出兩個就會撞號：
+    // 移除一筆時兩筆一起消失，而且不報錯。這件事要由結構保證，不是由註解保證。
+    const restored = restore(
+      [rememberedOf(7)], [strategyOf(7, '均線'), strategyOf(7, '同號的另一支')])
+
+    expect(restored.map(one => [one.id, one.strategy.name])).toEqual([[1, '均線']])
+  })
+})
+
 describe('RememberedAppliedIndicatorsDomain：對不上現在的策略清單就不回來', () => {
   it('策略已經被刪掉的那一筆不回來，其餘照常', () => {
     const restored = restore([rememberedOf(404), rememberedOf(7)], [strategyOf(7, '均線')])
