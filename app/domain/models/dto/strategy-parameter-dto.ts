@@ -9,6 +9,20 @@
 export type StrategyParameterKind = 'lookbackCount' | 'number' | 'boolean'
 
 /**
+ * 可以宣告的每一種，**一份清單**。
+ *
+ * 它存在的理由是：問「是不是回看根數」的地方加一種種類不會壞，
+ * **列舉全部種類的地方會**。系統那一側早就把它們收在一份清單裡；
+ * 這一側曾經沒有，於是新增「是非」的時候，把後端回來的種類收乾淨的那一處漏掉了——
+ * 存好的是非讀回來變成數值，沒有任何地方報錯。
+ */
+export const STRATEGY_PARAMETER_KINDS: readonly StrategyParameterKind[] = [
+  'lookbackCount',
+  'number',
+  'boolean',
+]
+
+/**
  * DTO：一個策略參數的唯一形狀。
  *
  * **它是雙向的**：載入策略時帶進畫面的是它，存起來時送出去的是它，

@@ -1,6 +1,6 @@
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import type { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { Strategy } from '~/domain/models/entities/strategy'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
@@ -118,11 +118,14 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
       strategyWire.name,
       strategyWire.script,
       strategyWire.resultType,
-      // 認不得的種類一律當成數值——系統對數值不解讀任何意思，
+      // 認得的照收，認不得的一律當成數值——系統對數值不解讀任何意思，
       // 所以把它當成數值最不會誤導人：它不會憑空變成一個回看根數去多拿 K 線。
+      //
+      // 「認得的」問的是那一份清單，不是一串寫死的比較。這裡曾經是後者，
+      // 於是多一種種類的時候它被漏掉，而存好的東西讀回來就換了一種種類。
       (strategyWire.parameters ?? []).map(parameter => new StrategyParameterDto(
         parameter.name,
-        parameter.kind === 'lookbackCount' ? 'lookbackCount' : 'number',
+        STRATEGY_PARAMETER_KINDS.find(kind => kind === parameter.kind) ?? 'number',
         parameter.defaultValue)),
     )
   }

@@ -4,7 +4,7 @@ import { IndicatorCalculation } from '~/domain/models/entities/indicator-calcula
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
@@ -211,6 +211,12 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
   // 它住在領域而不是畫面，理由也相同：那些字一旦散在畫面上，
   // 系統那一側改了注入的函式名時，沒有人會知道要回頭改它們。
   const accesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses()
+
+  it('選單上挑得到的就是可宣告的每一種，一種都不少', () => {
+    // 少一種就是那一種存得進去卻挑不出來——而漏掉一個列舉點正是這個切片犯過的錯。
+    expect(new IndicatorCalculationService(buildProxy()).listStrategyParameterKindOptions()
+      .map(option => option.value)).toEqual([...STRATEGY_PARAMETER_KINDS])
+  })
 
   it('每一種可宣告的種類都有一則，一則都不少', () => {
     // 少一則就是一種讀法沒有人說得出來，而那一種在選單上挑得到。

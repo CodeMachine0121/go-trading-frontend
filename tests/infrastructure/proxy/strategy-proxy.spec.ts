@@ -4,7 +4,7 @@ import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
 import { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
@@ -230,6 +230,20 @@ describe('StrategyProxy：策略記著的旋鈕', () => {
       expect.objectContaining({ name: '期數', kind: 'lookbackCount', value: 20 }),
     ])
   })
+
+  it.each(STRATEGY_PARAMETER_KINDS.map(kind => ({ kind })))(
+    '$kind 這一種存進去讀回來還是同一種', async ({ kind }) => {
+      // 這一條走過**每一種**，而不是列幾種來測：漏掉一種的後果是
+      // 存好的東西讀回來換了一種種類，而那不會有任何地方報錯。
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+        ...strategyWireOf(1, '布林通道'),
+        parameters: [{ name: '旋鈕', kind, defaultValue: 1 }],
+      }]))
+
+      const strategies = await new StrategyProxy(BASE_URL).listStrategies()
+
+      expect(strategies[0]?.parameters[0]?.kind).toBe(kind)
+    })
 
   it('認不得的種類一律當成數值——它不會憑空變成回看根數去多拿 K 線', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
