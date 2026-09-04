@@ -1,6 +1,7 @@
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import { ChartLineColorDomain } from '~/domain/models/domains/chart-line-color-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorLevelDto } from '~/domain/models/dto/indicator-level-dto'
@@ -17,6 +18,11 @@ import { IndicatorSeriesDto } from '~/domain/models/dto/indicator-series-dto'
  * 一支算式可以一次產出好幾個指標名稱，所以產出的是「幾條線」而不是「一條線」。
  * 顏色的身分是**策略識別碼加指標名稱**：同一支策略畫出的兩條線因此各有各的顏色，
  * 而重新打開畫面之後同一條線還認得出自己挑過什麼色。
+ *
+ * **那個身分刻意不含「這是第幾次套用」。** 顏色記的是
+ * 「我習慣這支的均線是藍色」，那個習慣屬於策略，不屬於某一次套用——
+ * 把套用序號寫進去，下次打開畫面時所有人挑過的顏色會全部失憶。
+ * 同一支被套用兩次時該怎麼辦，由配色那個模型看著「圖上畫著什麼」回答。
  */
 export class ChartIndicatorDomain {
   private readonly resultType: IndicatorResultTypeDomain
@@ -32,8 +38,8 @@ export class ChartIndicatorDomain {
      * 而那把鑰匙一旦兩邊算得不一樣，顏色會**安靜地**不再被記得：沒有錯誤，只是失憶。
      */
     private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
-    /** 圖上其他線已經用掉的顏色——沒有它，第二條線就會與第一條同色。 */
-    private readonly takenColorTokens: readonly string[],
+    /** 圖上其他線的樣子——沒有它，第二條線就會與第一條同色。 */
+    private readonly drawnLines: DrawnChartLinesVo,
   ) {
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculation.resultType)
   }
@@ -78,12 +84,14 @@ export class ChartIndicatorDomain {
    * 配色規則都只有這一份。
    */
   private drawableLines() {
-    const assignedTokens = [...this.takenColorTokens]
+    const assignedTokens = [...this.drawnLines.takenColorTokens]
 
     return this.numericIndicatorValues().map((indicatorValue) => {
       const lineKey = `${this.strategyId}:${indicatorValue.name}`
       const colorToken = new ChartLineColorDomain(
-        this.chartLineColorPreferenceProxy.readColorToken(lineKey), assignedTokens).token
+        lineKey,
+        this.chartLineColorPreferenceProxy.readColorToken(lineKey),
+        new DrawnChartLinesVo(assignedTokens, this.drawnLines.drawnLineKeys)).token
       assignedTokens.push(colorToken)
 
       return { indicatorValue, lineKey, colorToken }

@@ -1,6 +1,8 @@
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
+import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
+import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
@@ -14,16 +16,34 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
  * 一律問 Application。它持有的是狀態，不是規則。
  *
  * 清單刻意**不留存**：每次坐下來想看的東西都不同，記住它反而礙事。
- * 被記住的只有顏色，而那由領域那一側負責。
+ * 被記住的是顏色與旋鈕調成什麼，而那兩件都由領域那一側負責。
+ *
+ * **同一支策略可以擺好幾筆**，所以這裡的每一把鑰匙都是「**這一次套用**」的序號，
+ * 不是策略識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
+ * 一筆算完會覆蓋掉另一筆的線——而這四件事沒有一件會報錯。
  */
 export function useChartIndicators(chartIndicatorApplication: ChartIndicatorApplication) {
-  /** 已套用的那幾支，依加入的順序。順序決定沒挑過顏色時誰先拿到哪個顏色。 */
-  const appliedStrategies = ref<StrategyDto[]>([])
-  /** 算成功的那幾支該畫的線。失敗與計算中的不在裡面——圖上就不會有它們。 */
+  /** 已套用的那幾筆，依加入的順序。順序決定沒挑過顏色時誰先拿到哪個顏色。 */
+  const appliedIndicators = ref<AppliedIndicatorDto[]>([])
+  /** 算成功的那幾筆該畫的線。失敗與計算中的不在裡面——圖上就不會有它們。 */
   const chartIndicators = ref<ChartIndicatorDto[]>([])
-  const calculatingStrategyIds = ref<number[]>([])
-  /** 每一支各自的失敗說明。一支失敗只標在它自己旁邊，其他支照常畫。 */
+  const calculatingIds = ref<number[]>([])
+  /** 每一筆各自的失敗說明。一筆失敗只標在它自己旁邊，其他筆照常畫。 */
   const failureMessages = ref<Map<number, string>>(new Map())
+
+  /**
+   * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略，正在調它的值。
+   *
+   * 它與已經在圖上的那幾筆是不同的東西——**還沒有人算過它**，
+   * 圖上也還沒有屬於它的線。放在這裡而不另開一個地方，是因為
+   * 「這一次要不要停下來調」的判斷必須留在這個 composable 裡：
+   * 拆出去就會浮到元件層，而元件不該做那個判斷。
+   */
+  const pendingAppliedIndicator = ref<AppliedIndicatorDto | null>(null)
+  const pendingParametersMessage = ref<string | null>(null)
+
+  /** 下一筆套用的序號。它只在這個畫面活著——清單本來就不留存。 */
+  let lastAppliedIndicatorId = 0
 
   /**
    * 目前在算的是哪一張圖的哪一段。
@@ -60,52 +80,131 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    */
   const requestNumbers = new Map<number, number>()
 
-  function nextRequestNumber(strategyId: number): number {
-    const requestNumber = (requestNumbers.get(strategyId) ?? 0) + 1
-    requestNumbers.set(strategyId, requestNumber)
+  function nextRequestNumber(appliedIndicatorId: number): number {
+    const requestNumber = (requestNumbers.get(appliedIndicatorId) ?? 0) + 1
+    requestNumbers.set(appliedIndicatorId, requestNumber)
 
     return requestNumber
   }
 
-  function isLatestRequest(strategyId: number, requestNumber: number): boolean {
-    return requestNumbers.get(strategyId) === requestNumber
+  function isLatestRequest(appliedIndicatorId: number, requestNumber: number): boolean {
+    return requestNumbers.get(appliedIndicatorId) === requestNumber
   }
 
   const colorOptions = chartIndicatorApplication.listChartLineColorOptions()
 
-  /** 還可以挑的策略：已經在圖上的那幾支不再出現。 */
+  /**
+   * 還可以挑的策略：**全部**——已經在圖上的那幾支仍然挑得到。
+   *
+   * 這裡曾經把已套用的那幾支濾掉，前提是「同一支只畫得出同一條線」。
+   * 旋鈕讓那個前提不成立了：二十期與六十期是兩條不同的線，只是恰好共用同一段算法。
+   * 規則沒有錯，是它的前提消失了。
+   */
   function selectableStrategies(strategies: readonly StrategyDto[]): StrategyDto[] {
-    return strategies.filter(strategy => !appliedStrategies.value.some(
-      applied => applied.id === strategy.id))
+    return [...strategies]
   }
 
-  function isCalculating(strategyId: number): boolean {
-    return calculatingStrategyIds.value.includes(strategyId)
+  function isCalculating(appliedIndicatorId: number): boolean {
+    return calculatingIds.value.includes(appliedIndicatorId)
   }
 
-  function failureMessageOf(strategyId: number): string | null {
-    return failureMessages.value.get(strategyId) ?? null
+  function failureMessageOf(appliedIndicatorId: number): string | null {
+    return failureMessages.value.get(appliedIndicatorId) ?? null
   }
 
-  /** 加一支上來，並立刻對圖上那批 K 線算一次——不必再按任何按鈕。 */
-  async function applyStrategy(strategy: StrategyDto) {
-    if (appliedStrategies.value.some(applied => applied.id === strategy.id)) {
+  /**
+   * 使用者挑了一支——**唯一的入口**。
+   *
+   * 有旋鈕的先停下來讓他調；一個旋鈕都沒有的直接上圖，中間不多一步。
+   * **這個判斷不是畫面的事**，而是那一筆自己答得出來的：多數策略沒有旋鈕，
+   * 為了少數有旋鈕的讓所有策略都多一次確認，是拿多數人的每一次操作去補貼少數情況。
+   */
+  async function applyIndicator(strategy: StrategyDto) {
+    lastAppliedIndicatorId += 1
+    const prepared = chartIndicatorApplication.prepareAppliedIndicator(
+      strategy, lastAppliedIndicatorId)
+
+    if (!prepared.readyToApply) {
+      pendingAppliedIndicator.value = prepared
+      pendingParametersMessage.value = null
       return
     }
 
-    appliedStrategies.value = [...appliedStrategies.value, strategy]
-    await calculateOne(strategy)
+    await addToChart(prepared)
   }
 
-  /** 移除一支：它的線、它的失敗說明、它在清單上的位置一起消失。 */
-  function removeStrategy(strategyId: number) {
+  /** 調待上圖那一筆的其中一格。 */
+  function changePendingParameterValue(parameterName: string, value: number) {
+    const pending = pendingAppliedIndicator.value
+    if (pending === null) {
+      return
+    }
+
+    pendingAppliedIndicator.value = pending.withParameterValue(parameterName, value)
+    pendingParametersMessage.value = null
+  }
+
+  /** 調好了：值合法才上圖，不合法就地說明、什麼都不算。 */
+  async function confirmPendingIndicator() {
+    const pending = pendingAppliedIndicator.value
+    if (pending === null) {
+      return
+    }
+
+    const message = chartIndicatorApplication.validateAppliedIndicatorParameters(
+      pending.parameters)
+    if (message !== null) {
+      pendingParametersMessage.value = message
+      return
+    }
+
+    pendingAppliedIndicator.value = null
+    await addToChart(pending)
+  }
+
+  /** 不加了。那一筆從來沒有上過圖，所以沒有任何東西要收拾。 */
+  function cancelPendingIndicator() {
+    pendingAppliedIndicator.value = null
+    pendingParametersMessage.value = null
+  }
+
+  /** 改掉已經在圖上那一筆的值：記住它，並且**只有那一筆**重算。 */
+  async function changeAppliedParameterValue(
+    appliedIndicatorId: number, parameterName: string, value: number,
+  ) {
+    const applied = appliedIndicators.value.find(one => one.id === appliedIndicatorId)
+    if (applied === undefined) {
+      return
+    }
+
+    const changed = applied.withParameterValue(parameterName, value)
+    if (chartIndicatorApplication.validateAppliedIndicatorParameters(
+      changed.parameters) !== null) {
+      return
+    }
+
+    appliedIndicators.value = appliedIndicators.value.map(
+      one => (one.id === appliedIndicatorId ? changed : one))
+    chartIndicatorApplication.rememberAppliedIndicatorParameters(changed)
+    await calculateOne(changed)
+  }
+
+  /** 移除一筆：它的線、它的失敗說明、它在清單上的位置一起消失。 */
+  function removeAppliedIndicator(appliedIndicatorId: number) {
     // 往前推一號：正在飛的那一次回來時已經不是最新的，於是它算出來的線不會被加回去。
-    nextRequestNumber(strategyId)
-    appliedStrategies.value = appliedStrategies.value.filter(
-      applied => applied.id !== strategyId)
+    nextRequestNumber(appliedIndicatorId)
+    appliedIndicators.value = appliedIndicators.value.filter(
+      applied => applied.id !== appliedIndicatorId)
     chartIndicators.value = chartIndicators.value.filter(
-      indicator => indicator.strategyId !== strategyId)
-    forgetFailure(strategyId)
+      indicator => indicator.appliedIndicatorId !== appliedIndicatorId)
+    forgetFailure(appliedIndicatorId)
+  }
+
+  /** 真的加上去：記住這一次的值，然後立刻算一次。 */
+  async function addToChart(appliedIndicator: AppliedIndicatorDto) {
+    chartIndicatorApplication.rememberAppliedIndicatorParameters(appliedIndicator)
+    appliedIndicators.value = [...appliedIndicators.value, appliedIndicator]
+    await calculateOne(appliedIndicator)
   }
 
   /**
@@ -161,8 +260,8 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   async function recalculateEveryApplied() {
-    for (const strategy of appliedStrategies.value) {
-      await calculateOne(strategy)
+    for (const appliedIndicator of appliedIndicators.value) {
+      await calculateOne(appliedIndicator)
     }
   }
 
@@ -191,7 +290,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       chartIndicators.value, lineKey, colorToken)
   }
 
-  async function calculateOne(strategy: StrategyDto) {
+  async function calculateOne(appliedIndicator: AppliedIndicatorDto) {
     const inView = current.value
     // 圖上還沒有任何 K 線（系統沒起來、查無資料）：沒有東西可以算。
     if (inView === null || inView.chart.isEmpty) {
@@ -199,14 +298,14 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     }
     const { chart, range } = inView
 
-    const requestNumber = nextRequestNumber(strategy.id)
-    calculatingStrategyIds.value = [...calculatingStrategyIds.value, strategy.id]
-    forgetFailure(strategy.id)
+    const requestNumber = nextRequestNumber(appliedIndicator.id)
+    calculatingIds.value = [...calculatingIds.value, appliedIndicator.id]
+    forgetFailure(appliedIndicator.id)
 
     try {
       const calculated = await chartIndicatorApplication.calculateChartIndicator(
         new ChartIndicatorRequestDto(
-          strategy,
+          appliedIndicator,
           chart.symbol,
           chart.interval.value,
           // 算的是使用者正在看的那一段，不是手上那一整批（後者兩側各多取了半段）。
@@ -216,52 +315,61 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           // 算到哪一刻由顯示區間回答：看得到最新那一根就不指定（照系統的現在），
           // 看不到就是這一段的右端。
           range.calculationEndTime(chart.latestKCandleOpenTime),
-          takenColorTokensExcept(strategy.id),
+          drawnLinesExcept(appliedIndicator.id),
         ))
 
       // 這一次已經不是那一支最新的要求了（使用者又換了一次標的，或已經把它移除）：
       // 這份結果講的是另一段行情，採用它就是在圖上畫一條沒有人要求過的線。
-      if (!isLatestRequest(strategy.id, requestNumber)) {
+      if (!isLatestRequest(appliedIndicator.id, requestNumber)) {
         return
       }
 
       chartIndicators.value = [
-        ...chartIndicators.value.filter(indicator => indicator.strategyId !== strategy.id),
+        ...chartIndicators.value.filter(
+          indicator => indicator.appliedIndicatorId !== appliedIndicator.id),
         calculated,
       ]
     }
     catch (error: unknown) {
-      if (!isLatestRequest(strategy.id, requestNumber)) {
+      if (!isLatestRequest(appliedIndicator.id, requestNumber)) {
         return
       }
 
-      // 這一支失敗了，就只有這一支不畫線。**上一輪那條也要收掉**——
+      // 這一筆失敗了，就只有這一筆不畫線。**上一輪那條也要收掉**——
       // 留著它，圖上就會有一條屬於另一段行情、卻看起來完全正常的線。
       chartIndicators.value = chartIndicators.value.filter(
-        indicator => indicator.strategyId !== strategy.id)
+        indicator => indicator.appliedIndicatorId !== appliedIndicator.id)
       failureMessages.value = new Map(failureMessages.value)
-        .set(strategy.id, messageOf(error))
+        .set(appliedIndicator.id, messageOf(error))
     }
     finally {
-      calculatingStrategyIds.value = calculatingStrategyIds.value.filter(
-        id => id !== strategy.id)
+      calculatingIds.value = calculatingIds.value.filter(id => id !== appliedIndicator.id)
     }
   }
 
-  /** 除了這一支之外，圖上其他線已經用掉的顏色。重算它時要避開那些。 */
-  function takenColorTokensExcept(strategyId: number): string[] {
-    return chartIndicators.value
-      .filter(indicator => indicator.strategyId !== strategyId)
-      .flatMap(indicator => indicator.usedColorTokens)
+  /**
+   * 除了這一筆之外，圖上其他線的樣子。重算它時要避開那些顏色。
+   *
+   * 記憶身分也一起交出去：同一支策略的另一筆畫的是**同一條線**，
+   * 而那正是唯一該跳過記住的顏色的情況。
+   */
+  function drawnLinesExcept(appliedIndicatorId: number): DrawnChartLinesVo {
+    const others = chartIndicators.value.filter(
+      indicator => indicator.appliedIndicatorId !== appliedIndicatorId)
+
+    return new DrawnChartLinesVo(
+      others.flatMap(indicator => indicator.usedColorTokens),
+      others.flatMap(indicator => indicator.drawnLineKeys),
+    )
   }
 
-  function forgetFailure(strategyId: number) {
-    if (!failureMessages.value.has(strategyId)) {
+  function forgetFailure(appliedIndicatorId: number) {
+    if (!failureMessages.value.has(appliedIndicatorId)) {
       return
     }
 
     const remaining = new Map(failureMessages.value)
-    remaining.delete(strategyId)
+    remaining.delete(appliedIndicatorId)
     failureMessages.value = remaining
   }
 
@@ -280,14 +388,20 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   return {
-    appliedStrategies,
+    appliedIndicators,
     chartIndicators,
     colorOptions,
+    pendingAppliedIndicator,
+    pendingParametersMessage,
     selectableStrategies,
     isCalculating,
     failureMessageOf,
-    applyStrategy,
-    removeStrategy,
+    applyIndicator,
+    changePendingParameterValue,
+    confirmPendingIndicator,
+    cancelPendingIndicator,
+    changeAppliedParameterValue,
+    removeAppliedIndicator,
     recalculateForRange,
     recalculateAfterKCandleClosed,
     clearLines,

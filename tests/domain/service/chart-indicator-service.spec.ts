@@ -7,6 +7,9 @@ import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
+import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
+import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
 
 const CHART_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 
@@ -15,17 +18,24 @@ function strategyOf(resultType = 'float'): StrategyDto {
     7, '二十根均線', new StrategyContentDto('sum := 0.0', resultType), true, true)
 }
 
+/** 一次套用：預設沒有旋鈕，與這個切片之前的行為一模一樣。 */
+function appliedIndicatorOf(strategy = strategyOf(), id = 1): AppliedIndicatorDto {
+  return new AppliedIndicatorDto(id, strategy, strategy.content.parameters)
+}
+
 function requestOf(
-  strategy = strategyOf(), takenColorTokens: string[] = [],
+  strategy = strategyOf(), takenColorTokens: string[] = [], drawnLineKeys: string[] = [],
 ): ChartIndicatorRequestDto {
   return new ChartIndicatorRequestDto(
-    strategy, 'BTCUSDT', '1h', 24, CHART_END_TIME, takenColorTokens)
+    appliedIndicatorOf(strategy), 'BTCUSDT', '1h', 24, CHART_END_TIME,
+    new DrawnChartLinesVo(takenColorTokens, drawnLineKeys))
 }
 
 function buildService(
   indicatorCalculation = new IndicatorCalculation(
     'BTCUSDT', '1h', 24, 'float', [new IndicatorValueVo('均價', [115])]),
   colorPreference: Partial<IChartLineColorPreferenceProxy> = {},
+  parameterValuePreference: Partial<IStrategyParameterValuePreferenceProxy> = {},
 ) {
   const indicatorCalculationProxy: IIndicatorCalculationProxy = {
     calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation),
@@ -36,11 +46,20 @@ function buildService(
     ...colorPreference,
   }
 
+  const strategyParameterValuePreferenceProxy: IStrategyParameterValuePreferenceProxy = {
+    readValue: vi.fn().mockReturnValue(null),
+    writeValue: vi.fn(),
+    ...parameterValuePreference,
+  }
+
   return {
     chartIndicatorService: new ChartIndicatorService(
-      indicatorCalculationProxy, chartLineColorPreferenceProxy),
+      indicatorCalculationProxy,
+      chartLineColorPreferenceProxy,
+      strategyParameterValuePreferenceProxy),
     indicatorCalculationProxy,
     chartLineColorPreferenceProxy,
+    strategyParameterValuePreferenceProxy,
   }
 }
 
@@ -69,13 +88,15 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
       expect.objectContaining({ script: expect.stringContaining('sum := 0.0') }))
   })
 
-  it('交出這一支該畫的水平線，帶著策略的身分與名字', async () => {
+  it('交出這一筆該畫的水平線，帶著這一次套用的身分與策略的名字', async () => {
     const fixture = buildService()
 
     const chartIndicator
       = await fixture.chartIndicatorService.calculateChartIndicator(requestOf())
 
-    expect(chartIndicator.strategyId).toBe(7)
+    // 畫出來的東西屬於**這一次套用**：同一支策略可以擺好幾筆，
+    // 移除哪一筆、覆蓋哪一筆都認它，而不是認策略。
+    expect(chartIndicator.appliedIndicatorId).toBe(1)
     expect(chartIndicator.strategyName).toBe('二十根均線')
     expect(chartIndicator.levels.map(level => level.value)).toEqual([115])
     expect(chartIndicator.series).toEqual([])
@@ -126,7 +147,8 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
     const scriptFailure = new Error('算式執行失敗')
     const failing = new ChartIndicatorService(
       { calculateIndicator: vi.fn().mockRejectedValue(scriptFailure) },
-      { readColorToken: vi.fn().mockReturnValue(null), writeColorToken: vi.fn() })
+      { readColorToken: vi.fn().mockReturnValue(null), writeColorToken: vi.fn() },
+      { readValue: vi.fn().mockReturnValue(null), writeValue: vi.fn() })
 
     await expect(failing.calculateChartIndicator(requestOf())).rejects.toBe(scriptFailure)
   })

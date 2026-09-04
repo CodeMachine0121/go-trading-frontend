@@ -1,7 +1,15 @@
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import { AppliedIndicatorParametersDomain } from '~/domain/models/domains/applied-indicator-parameters-domain'
+import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
+import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
+import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
+import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
+import { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
 import { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
@@ -16,7 +24,67 @@ export class ChartIndicatorService {
   constructor(
     private readonly indicatorCalculationProxy: IIndicatorCalculationProxy,
     private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
+    private readonly strategyParameterValuePreferenceProxy:
+    IStrategyParameterValuePreferenceProxy,
   ) {}
+
+  /**
+   * 準備一次套用：交出這一支這一次要用的那幾格。
+   *
+   * 呼叫端只說「我要套用這一支」。讀記憶、對照宣告、丟掉已經不存在的名字、
+   * 補上策略的預設值，四件事都在這裡面——**呼叫端不知道記憶存在，也不該知道**。
+   */
+  prepareAppliedIndicator(strategy: StrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
+    return new AppliedIndicatorDto(
+      appliedIndicatorId,
+      strategy,
+      new AppliedIndicatorParametersDomain(
+        strategy.id,
+        strategy.content.parameters,
+        this.strategyParameterValuePreferenceProxy).toDtos(),
+    )
+  }
+
+  /**
+   * 把這一次調成的值記下來。
+   *
+   * 記的是「**這支策略的這個旋鈕**上次被調成什麼」，不是「這一次套用」——
+   * 清單本來就不留存，所以下次打開時「這一次」已經不存在了；
+   * 能被記住而且有意義的，是「我習慣把這支的期數調成 60」。
+   */
+  rememberAppliedIndicatorParameters(appliedIndicatorDto: AppliedIndicatorDto): void {
+    new AppliedIndicatorParametersDomain(
+      appliedIndicatorDto.strategy.id,
+      appliedIndicatorDto.parameters,
+      this.strategyParameterValuePreferenceProxy).remember(appliedIndicatorDto.parameters)
+  }
+
+  /**
+   * 這幾格在畫面上該長什麼樣子。
+   *
+   * 「回看根數要整數鍵盤」是業務規則，不是版面問題——與宣告在哪裡編輯無關，
+   * 所以與指標計算畫面那一側借用同一份模型，而不是各判斷一次。
+   */
+  describeAppliedIndicatorParameters(
+    parameters: readonly StrategyParameterDto[],
+  ): StrategyParameterFieldDto[] {
+    return parameters.map((parameter) => {
+      const parameterDomain = new StrategyParameterDomain(parameter)
+
+      return new StrategyParameterFieldDto(
+        parameter,
+        parameterDomain.inputMode(),
+        parameterDomain.step(),
+        parameterDomain.validationMessage() !== null)
+    })
+  }
+
+  /** 這幾格哪裡不對——沒有就是 null。規則與宣告在哪裡編輯無關，所以借用同一份。 */
+  validateAppliedIndicatorParameters(
+    parameters: readonly StrategyParameterDto[],
+  ): string | null {
+    return new StrategyParametersDomain(parameters).validationMessage()
+  }
 
   /**
    * 拿一支策略對圖上那批 K 線算一次，交出它該畫的那幾條線。
@@ -28,15 +96,17 @@ export class ChartIndicatorService {
   async calculateChartIndicator(
     chartIndicatorRequestDto: ChartIndicatorRequestDto,
   ): Promise<ChartIndicatorDto> {
+    const { appliedIndicator } = chartIndicatorRequestDto
     const requestDomain = new IndicatorCalculationRequestDomain(
       new IndicatorCalculationRequestDto(
         chartIndicatorRequestDto.symbol,
         chartIndicatorRequestDto.aggregationInterval,
         chartIndicatorRequestDto.candleCount,
-        chartIndicatorRequestDto.strategy.content.scriptBody,
-        chartIndicatorRequestDto.strategy.content.resultType,
-        // 圖表上還不能調旋鈕——那是下一個切片。這裡先照策略記著的那一份送出去。
-        chartIndicatorRequestDto.strategy.content.parameters,
+        appliedIndicator.strategy.content.scriptBody,
+        appliedIndicator.strategy.content.resultType,
+        // **這一次**的值，不是策略記著的預設值。同一支策略的另一筆套用
+        // 可能填著完全不同的數字，而它們必須各自算各自的。
+        appliedIndicator.parameters,
         chartIndicatorRequestDto.endTime,
       ))
 
@@ -44,15 +114,17 @@ export class ChartIndicatorService {
       = await this.indicatorCalculationProxy.calculateIndicator(requestDomain)
 
     const chartIndicatorDomain = new ChartIndicatorDomain(
-      chartIndicatorRequestDto.strategy.id,
+      // 線的記憶身分掛在**策略**上，不在這一次套用上：顏色記的是跨越每一次打開畫面的習慣。
+      appliedIndicator.strategy.id,
       indicatorCalculation,
       this.chartLineColorPreferenceProxy,
-      chartIndicatorRequestDto.takenColorTokens,
+      chartIndicatorRequestDto.drawnLines,
     )
 
     return new ChartIndicatorDto(
-      chartIndicatorRequestDto.strategy.id,
-      chartIndicatorRequestDto.strategy.name,
+      // 畫出來的東西屬於**這一次套用**：移除哪一筆、覆蓋哪一筆都認它。
+      appliedIndicator.id,
+      appliedIndicator.strategy.name,
       chartIndicatorDomain.toLevelDtos(),
       chartIndicatorDomain.toSeriesDtos(),
     )
