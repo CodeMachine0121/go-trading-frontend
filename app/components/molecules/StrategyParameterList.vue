@@ -47,17 +47,24 @@ function onValueInput(index: number, raw: string | number) {
       這支算式沒有可調的東西。加一個之後，算式就能用它的名字取用它。
     </p>
 
-    <ul
-      v-else
-      class="strategy-parameter-list__rows"
-    >
-      <li
-        v-for="(field, index) in fields"
-        :key="index"
-        class="strategy-parameter-list__row"
-        data-testid="parameter-row"
+    <template v-else>
+      <div
+        class="strategy-parameter-list__row strategy-parameter-list__row--head"
+        aria-hidden="true"
       >
-        <div class="strategy-parameter-list__name">
+        <span>名稱</span>
+        <span>種類</span>
+        <span>預設值</span>
+        <span />
+      </div>
+
+      <ul class="strategy-parameter-list__rows">
+        <li
+          v-for="(field, index) in fields"
+          :key="index"
+          class="strategy-parameter-list__row"
+          data-testid="parameter-row"
+        >
           <AppInput
             :model-value="field.parameter.name"
             type="text"
@@ -65,6 +72,30 @@ function onValueInput(index: number, raw: string | number) {
             :invalid="field.isInvalid"
             data-testid="parameter-name-input"
             @update:model-value="emit('rename', index, $event)"
+          />
+
+          <AppSelect
+            :model-value="field.parameter.kind"
+            data-testid="parameter-kind-select"
+            @update:model-value="emit('changeKind', index, $event as StrategyParameterKind)"
+          >
+            <option
+              v-for="kindOption in kindOptions"
+              :key="kindOption.value"
+              :value="kindOption.value"
+            >
+              {{ kindOption.label }}
+            </option>
+          </AppSelect>
+
+          <AppInput
+            :model-value="String(field.parameter.value)"
+            type="number"
+            :inputmode="field.inputMode"
+            :step="field.step"
+            :invalid="field.isInvalid"
+            data-testid="parameter-value-input"
+            @update:model-value="onValueInput(index, $event)"
           />
 
           <AppButton
@@ -77,33 +108,9 @@ function onValueInput(index: number, raw: string | number) {
           >
             <AppIcon name="delete" />
           </AppButton>
-        </div>
-
-        <AppSelect
-          :model-value="field.parameter.kind"
-          data-testid="parameter-kind-select"
-          @update:model-value="emit('changeKind', index, $event as StrategyParameterKind)"
-        >
-          <option
-            v-for="kindOption in kindOptions"
-            :key="kindOption.value"
-            :value="kindOption.value"
-          >
-            {{ kindOption.label }}
-          </option>
-        </AppSelect>
-
-        <AppInput
-          :model-value="String(field.parameter.value)"
-          type="number"
-          :inputmode="field.inputMode"
-          :step="field.step"
-          :invalid="field.isInvalid"
-          data-testid="parameter-value-input"
-          @update:model-value="onValueInput(index, $event)"
-        />
-      </li>
-    </ul>
+        </li>
+      </ul>
+    </template>
 
     <AppButton
       type="button"
@@ -122,49 +129,46 @@ function onValueInput(index: number, raw: string | number) {
 .strategy-parameter-list {
   display: flex;
   flex-direction: column;
-  gap: spacing('sm');
+  gap: spacing('2xs');
 
   // 加一個是偶爾才做一次的事，不必是一顆橫跨整個寬度的按鈕。
   &__add {
     align-self: start;
+    margin-top: spacing('2xs');
   }
 
   &__empty {
     margin: 0;
     color: color('text-muted');
     font-size: font-size('sm');
+    line-height: line-height('normal');
   }
 
-  // 旋鈕橫著排開，一格一個。
-  //
-  // 它們曾經是一列一個、每列四個控制項橫跨整個寬度——那讓「名稱」與「值」兩個
-  // 各佔掉半個版面，而它們裝的通常是「期數」與「20」。
-  // 一個旋鈕是一個小東西，就給它一個小格子；格子裝不下才換行。
   &__rows {
-    display: grid;
-    gap: spacing('xs');
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    display: flex;
+    flex-direction: column;
+    gap: spacing('2xs');
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
+  // 一列一個旋鈕，四欄對齊：名稱、種類、預設值，加上移除。
+  //
+  // 它曾經是一格一個、會換行的小卡片。那在寬螢幕上還行，一擠窄就散成參差不齊的兩排——
+  // 而這幾樣東西天生就是一份清單：欄位一樣、每一列讀法相同，對齊才看得出哪裡不一樣。
   &__row {
     display: grid;
-    gap: spacing('3xs');
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    padding: spacing('2xs');
+    gap: spacing('2xs');
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
   }
 
-  // 名稱是這一格的標題，所以獨佔上面一整行；移除跟著它，因為刪掉的是「這個名字」。
-  &__name {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: spacing('3xs');
-    align-items: center;
+  // 標題那一列只是欄位名，不是資料——所以它不在清單裡，讀螢幕的人也不必聽到它。
+  &__row--head {
+    padding: 0 spacing('3xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 }
 </style>

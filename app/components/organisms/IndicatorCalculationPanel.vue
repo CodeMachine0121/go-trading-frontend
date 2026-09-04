@@ -21,7 +21,7 @@ import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
-import StrategyParameterList from '~/components/molecules/StrategyParameterList.vue'
+import StrategyParameterDialog from '~/components/molecules/StrategyParameterDialog.vue'
 import { readNumberInput } from '~/utilities/number-input-reading'
 import { useStrategyParameters } from '~/composables/use-strategy-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
@@ -89,6 +89,8 @@ const kCandleFields = indicatorCalculationApplication.listKCandleFields()
 const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
 /** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
 const guideOpen = ref(false)
+/** 宣告旋鈕的那一份開著沒有。同理——它是偶爾做一次的事。 */
+const parametersOpen = ref(false)
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
@@ -433,6 +435,19 @@ async function calculateIndicator() {
           >
             <AppIcon name="example" />
           </AppButton>
+          <!--
+            宣告旋鈕是偶爾做一次的事——寫算式時做一次，之後幾十次執行都不再動它。
+            所以它在一顆按鈕後面，不佔編輯區的版面；數量寫在按鈕上，
+            使用者不必打開就知道這支算式有沒有旋鈕。
+          -->
+          <AppButton
+            type="button"
+            :variant="calculationRun.messageFor('parameters') ? 'danger' : 'secondary'"
+            data-testid="parameters-button"
+            @click="parametersOpen = true"
+          >
+            參數 {{ strategyParameters.fields.value.length }}
+          </AppButton>
           <AppButton
             type="button"
             variant="ghost"
@@ -442,31 +457,6 @@ async function calculateIndicator() {
           >
             <AppIcon name="info" />
           </AppButton>
-        </template>
-
-        <!--
-          旋鈕與算式、指標值種類**同屬一支策略**，所以它們在同一個框裡。
-          判準相同：「快線是二十期」換到哪一檔、哪種粗細、哪一段時間去算都一樣。
-          彙總刻度與要看多長則在執行條件那一區——它們描述的是這一次。
-        -->
-        <template #footer>
-          <StrategyParameterList
-            :fields="strategyParameters.fields.value"
-            :kind-options="strategyParameters.kindOptions"
-            @add="strategyParameters.add"
-            @remove="strategyParameters.remove"
-            @rename="strategyParameters.rename"
-            @change-kind="strategyParameters.changeKind"
-            @change-value="strategyParameters.changeValue"
-          />
-
-          <AppAlert
-            v-if="calculationRun.messageFor('parameters')"
-            tone="danger"
-            data-testid="parameters-alert"
-          >
-            {{ calculationRun.messageFor('parameters') }}
-          </AppAlert>
         </template>
       </IndicatorScriptEditor>
     </div>
@@ -565,6 +555,19 @@ async function calculateIndicator() {
         </table>
       </div>
     </AppPanel>
+
+    <StrategyParameterDialog
+      :open="parametersOpen"
+      :fields="strategyParameters.fields.value"
+      :kind-options="strategyParameters.kindOptions"
+      :error-message="calculationRun.messageFor('parameters')"
+      @close="parametersOpen = false"
+      @add="strategyParameters.add"
+      @remove="strategyParameters.remove"
+      @rename="strategyParameters.rename"
+      @change-kind="strategyParameters.changeKind"
+      @change-value="strategyParameters.changeValue"
+    />
 
     <!-- 兩份要查的清單收在同一個對話框裡：去查它們的時機是同一個。 -->
     <IndicatorScriptGuideDialog

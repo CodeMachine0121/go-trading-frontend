@@ -38,7 +38,23 @@ async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, body: stri
   await wrapper.vm.$nextTick()
 }
 
+/**
+ * 打開宣告旋鈕的那一份。
+ *
+ * 宣告旋鈕是偶爾做一次的事，所以它在一顆按鈕後面而不是攤在編輯區旁邊——
+ * 使用者要先說「我要改參數」，這裡也照著走那條路。
+ */
+async function openParameters(wrapper: ReturnType<typeof mountPanel>) {
+  await wrapper.get('[data-testid="parameters-button"]').trigger('click')
+  await flushPromises()
+
+  return wrapper
+}
+
 async function addParameter(wrapper: ReturnType<typeof mountPanel>, name: string, value: string) {
+  if (!wrapper.find('[data-testid="add-parameter-button"]').exists()) {
+    await openParameters(wrapper)
+  }
   await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
   const rows = wrapper.findAll('[data-testid="parameter-row"]')
   const row = rows[rows.length - 1]
@@ -47,9 +63,21 @@ async function addParameter(wrapper: ReturnType<typeof mountPanel>, name: string
 }
 
 describe('指標計算畫面上的參數', () => {
-  it('一開始一個都沒有，而且明說', async () => {
+  it('沒打開的時候不佔編輯區的版面，按鈕上寫著有幾個', async () => {
+    // 宣告旋鈕是偶爾做一次的事——常駐在編輯區旁邊，等於讓它一直佔著寫程式的地方。
     const wrapper = mountPanel(buildProxy())
     await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="parameter-row"]')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="parameters-empty"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="parameters-button"]').text()).toContain('0')
+  })
+
+  it('打開之後，一個都沒有時明說', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await flushPromises()
+
+    await openParameters(wrapper)
 
     expect(wrapper.findAll('[data-testid="parameter-row"]')).toHaveLength(0)
     expect(wrapper.find('[data-testid="parameters-empty"]').exists()).toBe(true)
@@ -58,6 +86,7 @@ describe('指標計算畫面上的參數', () => {
   it('新增出來的那一列名稱是空的、種類是回看根數、值是 20', async () => {
     const wrapper = mountPanel(buildProxy())
     await flushPromises()
+    await openParameters(wrapper)
 
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
 
@@ -106,6 +135,7 @@ describe('指標計算畫面上的參數', () => {
     const wrapper = mountPanel(buildProxy(calculateIndicator))
     await flushPromises()
     await typeScriptBody(wrapper, SCRIPT_BODY)
+    await openParameters(wrapper)
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
 
     await wrapper.get('form').trigger('submit')
@@ -172,6 +202,25 @@ describe('指標計算畫面上的參數', () => {
         all: [expect.objectContaining({ name: '期數', value: 20 })],
       }),
     }))
+  })
+
+  it('對話框關著時算不出來，按鈕自己會說它有問題', async () => {
+    // 說明在對話框裡，而按下執行的當下對話框是關的——使用者要有辦法知道
+    // 該回頭去改哪裡，否則畫面只是安靜地什麼都沒發生。
+    const calculateIndicator = vi.fn()
+    const wrapper = mountPanel(buildProxy(calculateIndicator))
+    await flushPromises()
+    await typeScriptBody(wrapper, SCRIPT_BODY)
+    await addParameter(wrapper, '期數', '0')
+    await wrapper.get('[data-testid="close-parameters-button"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(calculateIndicator).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="parameters-button"]').classes())
+      .toContain('app-button--danger')
   })
 
   it('回看根數不合法時就地說明', async () => {

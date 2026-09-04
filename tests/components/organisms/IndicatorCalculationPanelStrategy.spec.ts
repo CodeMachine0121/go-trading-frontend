@@ -890,9 +890,18 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
   // 用哪種粗細都一樣，它是這支算法的一部分。交易標的、彙總刻度、要看多長則不是——
   // 那些描述的是「這一次」，所以載入策略時它們不被覆蓋。
 
+  /** 旋鈕在一顆按鈕後面——它是偶爾做一次的事，不常駐在編輯區旁邊。 */
+  async function openParameters(wrapper: ReturnType<typeof mountPanel>) {
+    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
+    await settle()
+  }
+
   async function addParameter(
     wrapper: ReturnType<typeof mountPanel>, name: string, value: string,
   ) {
+    if (!wrapper.find('[data-testid="add-parameter-button"]').exists()) {
+      await openParameters(wrapper)
+    }
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
     const row = wrapper.findAll('[data-testid="parameter-row"]').at(-1)!
     await row.get('[data-testid="parameter-name-input"]').setValue(name)
@@ -911,6 +920,7 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
     await settle()
 
     await pickStrategy(wrapper, 7)
+    await openParameters(wrapper)
 
     const row = wrapper.get('[data-testid="parameter-row"]')
     expect(row.get<HTMLInputElement>('[data-testid="parameter-name-input"]').element.value)
