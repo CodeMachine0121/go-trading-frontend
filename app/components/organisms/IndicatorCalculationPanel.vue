@@ -332,6 +332,22 @@ async function calculateIndicator() {
       data-testid="script-failed-alert"
     >
       算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
+      <!--
+        「沙箱裡沒有這個名字」是這一則最常見的原因，而訊息只說得出少了什麼，
+        說不出有什麼——那份清單在工具列那顆 ⓘ 後面。
+        這裡不去解讀訊息的文字：那是直譯器的措辭，它會隨版本改。
+        指路對每一種算式問題都成立，所以它一律出現。
+      -->
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          data-testid="script-failed-guide-button"
+          @click="guideOpen = true"
+        >
+          算式裡可以用什麼
+        </AppButton>
+      </template>
     </AppAlert>
 
     <AppAlert

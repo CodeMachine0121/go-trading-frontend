@@ -191,6 +191,11 @@ describe('IndicatorCalculationPanel', () => {
     const alert = wrapper.get('[data-testid="script-failed-alert"]')
     expect(alert.text()).toContain('要改的是算式')
     expect(alert.text()).toContain('算式必須提供 Calculate 進入點')
+    // 最常見的原因是沙箱裡沒有那個名字，而訊息說得出少了什麼、說不出有什麼。
+    await alert.get('[data-testid="script-failed-guide-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]').length)
+      .toBeGreaterThan(0)
     expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
   })
