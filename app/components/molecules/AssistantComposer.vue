@@ -45,12 +45,18 @@ function onKeydown(event: KeyboardEvent): void {
   send()
 }
 
-/** 回答回來就把焦點還回來，好接著問下一句。 */
+/**
+ * 回答回來就把焦點還回來，好接著問下一句。
+ *
+ * **要等畫面更新完才做**（`flush: 'post'`）：等待中輸入框是鎖住的，
+ * 而預設的時機在解鎖之前——對一個還鎖著的輸入框叫 focus 什麼都不會發生，
+ * 於是每問一句都得重新點一次。
+ */
 watch(() => pending, (isPending, wasPending) => {
   if (wasPending && !isPending) {
     textarea.value?.focus()
   }
-})
+}, { flush: 'post' })
 
 onMounted(() => {
   if (autofocus) {

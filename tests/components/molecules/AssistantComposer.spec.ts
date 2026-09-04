@@ -2,10 +2,16 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import AssistantComposer from '~/components/molecules/AssistantComposer.vue'
 
-function mountComposer(props: { draft: string, pending?: boolean }) {
+function mountComposer(props: { draft: string, pending?: boolean, autofocus?: boolean }) {
   return mount(AssistantComposer, {
-    props: { modelValue: props.draft, pending: props.pending },
+    props: { modelValue: props.draft, pending: props.pending, autofocus: props.autofocus },
+    attachTo: document.body,
   })
+}
+
+/** 焦點在輸入框上嗎。要真的掛進文件裡才問得出來。 */
+function inputHasFocus(wrapper: ReturnType<typeof mountComposer>): boolean {
+  return document.activeElement === wrapper.get('[data-testid="assistant-composer-input"]').element
 }
 
 describe('AssistantComposer 的送出鍵', () => {
@@ -117,5 +123,42 @@ describe('AssistantComposer 的輸入框', () => {
   it('下方說出助手可能會出錯', () => {
     // 這一句不是免責話術：它要讓人在把數字拿去下單之前多看一眼。
     expect(mountComposer({ draft: '' }).text()).toContain('請自行覆核')
+  })
+})
+
+describe('AssistantComposer 的焦點', () => {
+  it('叫出來就等著被打字', () => {
+    // 抽屜與整頁都是「叫出來就是要問一句」，光標不必自己再點一下。
+    const wrapper = mountComposer({ draft: '', autofocus: true })
+
+    expect(inputHasFocus(wrapper)).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('沒要求就不搶焦點', () => {
+    const wrapper = mountComposer({ draft: '' })
+
+    expect(inputHasFocus(wrapper)).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('回答回來就把焦點還回來，好接著問下一句', async () => {
+    // 等待中輸入框是鎖住的，焦點會掉。不還回來的話，每問一句都要重新點一次。
+    const wrapper = mountComposer({ draft: '', pending: true })
+    expect(inputHasFocus(wrapper)).toBe(false)
+
+    await wrapper.setProps({ pending: false })
+
+    expect(inputHasFocus(wrapper)).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('還在等的時候不會把焦點搶回來', async () => {
+    const wrapper = mountComposer({ draft: '', pending: false })
+
+    await wrapper.setProps({ pending: true })
+
+    expect(inputHasFocus(wrapper)).toBe(false)
+    wrapper.unmount()
   })
 })

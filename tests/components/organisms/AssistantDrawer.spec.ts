@@ -194,3 +194,40 @@ describe('AssistantDrawer 在抽屜裡換對話', () => {
     expect(wrapper.get('[data-testid="assistant-list-error"]').text()).toContain('連不上後端')
   })
 })
+
+describe('AssistantDrawer 把裡面那兩塊的事件接出去', () => {
+  it('對話串的再試一次交得出去', async () => {
+    const wrapper = mount(AssistantDrawer, {
+      props: {
+        open: true,
+        messages: [buildMessage('ask', '問一句')],
+        pending: false,
+        rejectionMessage: '助手目前沒有回應',
+        suggestedPrompts: SUGGESTED_PROMPTS,
+        timeZone: buildTimeZone(),
+        draft: '',
+        conversations: [],
+        activeConversationId: null,
+        conversationsErrorMessage: null,
+      },
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
+    })
+
+    await wrapper.get('[data-testid="assistant-rejection-retry"]').trigger('click')
+
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+  })
+
+  it('歷史那一層的重新讀取也是去讀清單', async () => {
+    const wrapper = mountDrawer({
+      open: true,
+      conversationsErrorMessage: '連不上後端 go-trading API',
+    })
+    await wrapper.get('[data-testid="assistant-drawer-history-toggle"]').trigger('click')
+
+    await wrapper.get('[data-testid="assistant-list-reload"]').trigger('click')
+
+    // 一次是打開那一層時讀的，一次是按重新讀取。
+    expect(wrapper.emitted('openHistory')).toHaveLength(2)
+  })
+})
