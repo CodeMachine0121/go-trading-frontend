@@ -8,8 +8,11 @@ const HEADING_PATTERN = /^#{1,6}\s+(.*)$/
 const BULLET_PATTERN = /^\s*[-*•]\s+(.*)$/
 /** 編號的寫法：行首一串數字加一個點或右括號，再加一個空白。 */
 const ORDERED_PATTERN = /^\s*\d+[.)]\s+(.*)$/
-/** 照原樣呈現的圍欄：連續三個以上的反引號自成一行。 */
-const FENCE_PATTERN = /^\s*```/
+/**
+ * 程式碼的圍欄：連續三個以上的反引號自成一行，後面可以跟著語言的名字。
+ * 那個名字只用來標給人看，不用來挑著色器。
+ */
+const FENCE_PATTERN = /^\s*```+\s*([A-Za-z0-9+#-]*)\s*$/
 /** 表格的那幾行：以直線開頭與結尾。 */
 const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/
 /** 行內的強調與等寬：`**強調**` 與 `` `等寬` ``。兩者一起比對，先出現的先切。 */
@@ -46,6 +49,7 @@ export class MessageContentDomain {
     let pending: string[] = []
     let pendingKind: AnswerBlockKind | null = null
     let insideFence = false
+    let fenceLanguage = ''
 
     const flush = (): void => {
       if (pendingKind === null || pending.length === 0) {
@@ -54,7 +58,7 @@ export class MessageContentDomain {
         return
       }
 
-      blocks.push(this.blockOf(pendingKind, pending))
+      blocks.push(this.blockOf(pendingKind, pending, fenceLanguage))
       pending = []
       pendingKind = null
     }
@@ -70,22 +74,25 @@ export class MessageContentDomain {
 
     for (const line of lines) {
       // 圍欄裡的東西一個字都不解讀，連空白行也留著——那正是「照原樣」的意思。
-      if (FENCE_PATTERN.test(line)) {
+      const fence = FENCE_PATTERN.exec(line)
+      if (fence !== null) {
+        flush()
+
         if (insideFence) {
-          flush()
+          // 關起來了。語言不必清掉：程式碼只從圍欄裡來，而下一個圍欄開起來時
+          // 一律重新記一次。
           insideFence = false
+          continue
         }
-        else {
-          flush()
-          insideFence = true
-          pendingKind = 'preformatted'
-        }
+
+        insideFence = true
+        fenceLanguage = fence[1] ?? ''
 
         continue
       }
 
       if (insideFence) {
-        collect('preformatted', line)
+        collect('code', line)
         continue
       }
 
@@ -103,7 +110,7 @@ export class MessageContentDomain {
       if (heading !== null) {
         // 小標永遠自成一塊：兩個連著的小標是兩個小標，不是一塊裡的兩行。
         flush()
-        blocks.push(this.blockOf('heading', [heading[1] ?? '']))
+        blocks.push(this.blockOf('heading', [heading[1] ?? ''], ''))
         continue
       }
 
@@ -128,12 +135,19 @@ export class MessageContentDomain {
   }
 
   /**
-   * 一塊的每一行拆成行內片段。照原樣呈現的那一種**不拆**——
-   * 它的重點就是原樣，在裡面認記號等於沒有照原樣。
+   * 一塊的每一行拆成行內片段。程式碼與照原樣的那兩種**不拆**——
+   * 它們的重點就是原樣，在裡面認記號等於沒有照原樣（一段 Go 裡的 `**` 是運算子，
+   * 不是強調）。
    */
-  private blockOf(kind: AnswerBlockKind, lines: readonly string[]): AnswerBlockVo {
-    if (kind === 'preformatted') {
-      return new AnswerBlockVo(kind, lines.map(line => [new AnswerSegmentVo('text', line)]))
+  private blockOf(
+    kind: AnswerBlockKind, lines: readonly string[], language: string,
+  ): AnswerBlockVo {
+    if (kind === 'code' || kind === 'preformatted') {
+      return new AnswerBlockVo(
+        kind,
+        lines.map(line => [new AnswerSegmentVo('text', line)]),
+        kind === 'code' ? language : '',
+      )
     }
 
     return new AnswerBlockVo(kind, lines.map(line => this.segmentsOf(line)))

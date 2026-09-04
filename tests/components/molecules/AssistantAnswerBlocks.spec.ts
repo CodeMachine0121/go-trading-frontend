@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import AssistantAnswerBlocks from '~/components/molecules/AssistantAnswerBlocks.vue'
 import { MessageContentDomain } from '~/domain/models/domains/message-content-domain'
@@ -65,6 +65,86 @@ describe('AssistantAnswerBlocks', () => {
     expect(wrapper.find('table').exists()).toBe(false)
     expect(wrapper.get('[data-testid="assistant-answer-preformatted"]').text())
       .toContain('| 09:00 | 110 |')
+  })
+
+  it('表格不會被當成程式碼——給它行號只會讓人以為可以貼去執行', () => {
+    const wrapper = mountWith('| 時間 | 收盤 |\n| --- | --- |')
+
+    expect(wrapper.find('[data-testid="assistant-answer-code"]').exists()).toBe(false)
+  })
+})
+
+// 編輯器是掛載後才動態載入的，microtask 還輪不到它，所以要等一個真正的 tick。
+async function settle() {
+  await new Promise(resolve => setTimeout(resolve, 20))
+  await flushPromises()
+}
+
+async function mountCode(content: string) {
+  const wrapper = mountWith(content)
+  await settle()
+
+  return wrapper
+}
+
+describe('AssistantAnswerBlocks 的程式碼區塊', () => {
+  it('用的是操作台同一個程式碼區塊元件', async () => {
+    // 使用者會把那段東西貼進算式編輯器。兩邊長得一樣，他才認得出那是同一種東西。
+    const wrapper = await mountCode('```go\nsum := 0.0\n```')
+
+    expect(wrapper.find('[data-testid="code-editor"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('sum := 0.0')
+  })
+
+  it('有行號，而且從第一行數起', async () => {
+    // 後端說「第 12 行出錯」時，畫面上就要是那一行。
+    const wrapper = await mountCode('```go\nsum := 0.0\nreturn nil\n```')
+
+    const numbers = wrapper.findAll('.cm-gutterElement').map(gutter => gutter.text())
+    expect(numbers).toContain('1')
+    expect(numbers).toContain('2')
+  })
+
+  it('著色是真的上了', async () => {
+    // 著色是編輯器套件自己的行為，這裡只驗它確實被套上了——
+    // 沒有著色的話那整塊會是一片同色的字。
+    const wrapper = await mountCode('```go\nsum := 0.0\n```')
+
+    expect(wrapper.findAll('.cm-line span').length).toBeGreaterThan(0)
+  })
+
+  it('**改不動**——一則已經說出口的訊息不該能被改', async () => {
+    // 這是這個功能唯一不能妥協的地方：唯讀不是樣式上的收斂，
+    // 是編輯器本身回報自己不可編輯。
+    const wrapper = await mountCode('```go\nsum := 0.0\n```')
+
+    expect(wrapper.get('[data-testid="code-editor"]').classes())
+      .toContain('app-code-editor--readonly')
+    expect(wrapper.get('.cm-content').attributes('contenteditable')).toBe('false')
+  })
+
+  it('改不動也就送不出任何改動', async () => {
+    // 就算有人想辦法在那塊 DOM 上敲字，也沒有一條把它寫回去的路。
+    const wrapper = await mountCode('```go\nsum := 0.0\n```')
+
+    wrapper.get('.cm-line').element.textContent = '被改掉了'
+    await wrapper.get('.cm-content').trigger('input')
+    await settle()
+
+    expect(wrapper.text()).not.toContain('被改掉了')
+  })
+
+  it('圍欄上說了語言就標出來', async () => {
+    // 這個操作台的程式碼區塊只認得 Go。標註是那份著色的誠實對照。
+    const wrapper = await mountCode('```json\n{"symbol":"BTCUSDT"}\n```')
+
+    expect(wrapper.get('[data-testid="assistant-answer-code-language"]').text()).toBe('json')
+  })
+
+  it('沒說語言就不標', async () => {
+    const wrapper = await mountCode('```\nsum := 0.0\n```')
+
+    expect(wrapper.find('[data-testid="assistant-answer-code-language"]').exists()).toBe(false)
   })
 })
 

@@ -85,8 +85,97 @@ describe('MessageContentDomain 照原樣呈現的那幾行', () => {
       '```\n# 這不是小標\n\n- 這不是條列\n```').toBlocks()
 
     expect(blocks).toHaveLength(1)
-    expect(blocks[0]?.kind).toBe('preformatted')
+    expect(blocks[0]?.kind).toBe('code')
     expect(textOf(blocks[0]!.lines)).toEqual(['# 這不是小標', '', '- 這不是條列'])
+  })
+
+  it('圍欄圈起來的是程式碼，表格那幾行不是', () => {
+    // 兩者是兩種東西：程式碼值得行號（使用者會把它貼進算式編輯器，
+    // 而「第 12 行出錯」要對得上畫面上的第 12 行）；表格給了行號，
+    // 只會讓人以為那是可以貼去執行的東西。
+    const code = new MessageContentDomain('```\nsum := 0.0\n```').toBlocks()
+    const table = new MessageContentDomain('| 時間 | 收盤 |\n| --- | --- |').toBlocks()
+
+    expect(code[0]?.kind).toBe('code')
+    expect(table[0]?.kind).toBe('preformatted')
+  })
+
+  it.each([
+    { fence: '```go', expectedLanguage: 'go' },
+    { fence: '```json', expectedLanguage: 'json' },
+    { fence: '```   go   ', expectedLanguage: 'go' },
+    { fence: '````go', expectedLanguage: 'go' },
+    { fence: '```', expectedLanguage: '' },
+    { fence: '```   ', expectedLanguage: '' },
+  ])('圍欄上說了語言就記下來（$fence）', ({ fence, expectedLanguage }) => {
+    // 它只用來標給人看：這個操作台的程式碼區塊只認得 Go，
+    // 標註是那份著色的誠實對照。
+    const blocks = new MessageContentDomain(`${fence}\nsum := 0.0\n\u0060\u0060\u0060`).toBlocks()
+
+    expect(blocks[0]?.kind).toBe('code')
+    expect(blocks[0]?.language).toBe(expectedLanguage)
+  })
+
+  it('表格那一塊不帶語言', () => {
+    const blocks = new MessageContentDomain('| 時間 | 收盤 |').toBlocks()
+
+    expect(blocks[0]?.language).toBe('')
+  })
+
+  it('圍欄關起來之後的文字回到一般段落', () => {
+    // 少了「關起來」這一步，後面整段話都會被吞進那塊程式碼裡。
+    const blocks = new MessageContentDomain(
+      '```go\nsum := 0.0\n```\n這段算式會回一個數字。').toBlocks()
+
+    expect(blocks.map(block => block.kind)).toEqual(['code', 'paragraph'])
+    expect(textOf(blocks[1]!.lines)).toEqual(['這段算式會回一個數字。'])
+  })
+
+  it('兩段程式碼各自帶自己的語言', () => {
+    const blocks = new MessageContentDomain(
+      '```go\nsum := 0.0\n```\n中間說一句話\n```json\n{"a":1}\n```').toBlocks()
+
+    expect(blocks.map(block => block.kind)).toEqual(['code', 'paragraph', 'code'])
+    expect(blocks[0]?.language).toBe('go')
+    expect(blocks[2]?.language).toBe('json')
+  })
+
+  it('兩段程式碼背靠背時不會併成一塊', () => {
+    // 中間連一個空白行都沒有的兩塊。不在碰到圍欄時就收掉上一塊的話，
+    // 它們會黏成一塊，而且掛上後面那一塊的語言。
+    const blocks = new MessageContentDomain(
+      '```go\nsum := 0.0\n```\n```json\n{"a":1}\n```').toBlocks()
+
+    expect(blocks.map(block => block.kind)).toEqual(['code', 'code'])
+    expect(textOf(blocks[0]!.lines)).toEqual(['sum := 0.0'])
+    expect(blocks[0]?.language).toBe('go')
+    expect(textOf(blocks[1]!.lines)).toEqual(['{"a":1}'])
+    expect(blocks[1]?.language).toBe('json')
+  })
+
+  it('段落緊接著圍欄時，段落自己成一塊', () => {
+    const blocks = new MessageContentDomain(
+      '這是算式：\n```go\nsum := 0.0\n```').toBlocks()
+
+    expect(blocks.map(block => block.kind)).toEqual(['paragraph', 'code'])
+    expect(textOf(blocks[0]!.lines)).toEqual(['這是算式：'])
+  })
+
+  it('圍欄沒關起來時，剩下的都算那塊程式碼', () => {
+    // 助手忘了關圍欄的時候，把後面當程式碼比把它當段落誠實：
+    // 它本來就是在寫一段程式碼。
+    const blocks = new MessageContentDomain('```go\nsum := 0.0\nreturn nil').toBlocks()
+
+    expect(blocks.map(block => block.kind)).toEqual(['code'])
+    expect(textOf(blocks[0]!.lines)).toEqual(['sum := 0.0', 'return nil'])
+  })
+
+  it('程式碼裡的星號是運算子，不是強調', () => {
+    // 在圍欄裡認記號等於沒有照原樣。
+    const blocks = new MessageContentDomain('```\nx := a ** b\n```').toBlocks()
+
+    expect(textOf(blocks[0]!.lines)).toEqual(['x := a ** b'])
+    expect(blocks[0]!.lines[0]!.every(segment => segment.kind === 'text')).toBe(true)
   })
 
   it('表格的那幾行照原樣當文字，不畫成表格', () => {
