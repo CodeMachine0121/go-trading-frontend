@@ -13,6 +13,10 @@ import type { StrategyParameterDto } from '~/domain/models/dto/strategy-paramete
 export class StrategyParameterFieldDto {
   constructor(
     public readonly parameter: StrategyParameterDto,
+    /** 用打的還是用勾的。是非用勾的——「填 0 或 1」是系統內部的約定，不該漏到畫面上。 */
+    public readonly control: 'number' | 'toggle',
+    /** 這一格現在是不是「是」。只有勾的那一種在意它。 */
+    public readonly isTrue: boolean,
     public readonly inputMode: 'numeric' | 'decimal',
     public readonly step: number,
     public readonly isInvalid: boolean,

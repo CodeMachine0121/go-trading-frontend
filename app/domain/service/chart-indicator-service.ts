@@ -73,6 +73,8 @@ export class ChartIndicatorService {
 
       return new StrategyParameterFieldDto(
         parameter,
+        parameterDomain.control(),
+        parameterDomain.isTrue(),
         parameterDomain.inputMode(),
         parameterDomain.step(),
         parameterDomain.validationMessage() !== null)

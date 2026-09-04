@@ -121,6 +121,7 @@ export class IndicatorCalculationService {
     return [
       new StrategyParameterKindOptionDto('lookbackCount', '回看根數'),
       new StrategyParameterKindOptionDto('number', '數值'),
+      new StrategyParameterKindOptionDto('boolean', '是非'),
     ]
   }
 
@@ -138,6 +139,8 @@ export class IndicatorCalculationService {
 
       return new StrategyParameterFieldDto(
         parameter,
+        parameterDomain.control(),
+        parameterDomain.isTrue(),
         parameterDomain.inputMode(),
         parameterDomain.step(),
         parameterDomain.validationMessage() !== null)

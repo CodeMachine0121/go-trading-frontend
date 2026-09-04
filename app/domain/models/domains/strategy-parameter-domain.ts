@@ -9,6 +9,16 @@ import { StrategyParameterDto, type StrategyParameterKind } from '~/domain/model
 export class StrategyParameterDomain {
   constructor(private readonly parameter: StrategyParameterDto) {}
 
+  /**
+   * 這一格要用哪一種控制項。
+   *
+   * 是非用勾的，不是打字的——一個「填 0 或 1」的數字框等於要使用者記住一個約定，
+   * 而那個約定是系統內部的事，不該漏到畫面上。
+   */
+  control(): 'number' | 'toggle' {
+    return this.parameter.kind === 'boolean' ? 'toggle' : 'number'
+  }
+
   /** 回看根數要整數鍵盤，數值要能打小數點。 */
   inputMode(): 'numeric' | 'decimal' {
     return this.parameter.kind === 'lookbackCount' ? 'numeric' : 'decimal'
@@ -41,9 +51,14 @@ export class StrategyParameterDomain {
     return null
   }
 
-  /** 這個參數會讓系統多拿幾根。數值那一種不影響，所以是零。 */
+  /** 這個參數會讓系統多拿幾根。其餘種類不影響，所以是零。 */
   lookbackCount(): number {
     return this.parameter.kind === 'lookbackCount' ? this.parameter.value : 0
+  }
+
+  /** 這個是非現在是不是「是」。零是否，非零是是。 */
+  isTrue(): boolean {
+    return this.parameter.value !== 0
   }
 
   /** 改掉其中一樣，其餘照舊——參數是不可變的，換一個值就是換一個。 */

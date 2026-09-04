@@ -454,7 +454,7 @@ describe('指標計算畫面：算式裡可以用什麼', () => {
     expect(wrapper.text()).toContain('data []indicator.KCandle')
   })
 
-  it('也說出宣告好的參數在算式裡怎麼讀，兩種種類各一則', async () => {
+  it('也說出宣告好的參數在算式裡怎麼讀，每一種各一則', async () => {
     // 讀法屬於沙箱契約，與 K 線欄位同一份——所以它們在同一個地方，
     // 而且都不是畫面自己寫的字。
     const wrapper = await openGuide(await mountPanel(buildProxy()))
@@ -462,9 +462,10 @@ describe('指標計算畫面：算式裡可以用什麼', () => {
     const calls = wrapper.findAll('[data-testid="script-parameter-access"]')
       .map(access => access.text())
 
-    expect(calls).toHaveLength(2)
+    expect(calls).toHaveLength(3)
     expect(calls.some(call => call.includes('indicator.LookbackCount('))).toBe(true)
     expect(calls.some(call => call.includes('indicator.Number('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Boolean('))).toBe(true)
   })
 
   it('說出參數要怎麼設，以及名字對不上時會發生什麼', async () => {

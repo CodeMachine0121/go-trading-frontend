@@ -79,16 +79,20 @@ describe('IndicatorCalculationProxy', () => {
         'BTCUSDT', '5m', 3, SCRIPT_BODY, 'float', [
           new StrategyParameterDto('期數', 'lookbackCount', 20),
           new StrategyParameterDto('倍數', 'number', 1.5),
+          new StrategyParameterDto('只看多方', 'boolean', 0),
         ])))
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.parameters).toEqual([
       { name: '期數', kind: 'lookbackCount', defaultValue: 20 },
       { name: '倍數', kind: 'number', defaultValue: 1.5 },
+      // 是非在這條路上就是一個數字，跟另外兩種一模一樣——這正是分種類只分「讀法」的意義。
+      { name: '只看多方', kind: 'boolean', defaultValue: 0 },
     ])
     expect(body.parameterValues).toEqual([
       { name: '期數', value: 20 },
       { name: '倍數', value: 1.5 },
+      { name: '只看多方', value: 0 },
     ])
   })
 
