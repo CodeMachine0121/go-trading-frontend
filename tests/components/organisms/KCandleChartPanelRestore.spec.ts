@@ -380,3 +380,23 @@ describe('行情與策略清單誰先回來都算得出來', () => {
     expect(calculateIndicator).not.toHaveBeenCalled()
   })
 })
+
+describe('還原後每一筆只算一次', () => {
+  it.each([0, 1, 2, 3])('行情延後 %i 個微任務回來時也只算一次', async (ticks) => {
+    // 還原是「附加整份、然後逐筆 await」，而每一個 await 都是一個空檔。
+    // 行情的續段若正好落在那個空檔裡，補算會與還原的迴圈同時跑，
+    // 於是同一批被算兩遍——而兩次都畫得出線，圖上不會有任何異狀。
+    const kCandlesArrived = Array.from({ length: ticks }).reduce<Promise<KCandle[]>>(
+      previous => previous.then(candles => candles), Promise.resolve([aKCandle()]))
+
+    const { calculateIndicator } = await mountPanel({
+      strategies: [strategyWithLookback(7, '均線'), strategyWithLookback(9, '布林'),
+        strategyWithLookback(11, 'RSI')],
+      remembered: [rememberedOf(7, { 期數: 20 }), rememberedOf(9, { 期數: 30 }),
+        rememberedOf(11, { 期數: 40 })],
+      findKCandleSeries: vi.fn().mockReturnValue(kCandlesArrived),
+    })
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(3)
+  })
+})

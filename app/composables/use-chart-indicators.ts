@@ -171,6 +171,14 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     lastAppliedIndicatorId += restored.length
     appliedIndicators.value = [...appliedIndicators.value, ...restored]
 
+    // **在這裡就決定要不要算，而不是邊算邊等。**
+    // 行情還沒回來時算不動（`calculateOne` 會安靜地回頭），而第一次擺好位置時會補算。
+    // 若照樣逐筆 await，每一個 await 都是一個空檔——行情的續段可能正好落在裡面，
+    // 於是補算與這個迴圈同時跑，同一批被算兩遍。兩次都畫得出線，圖上不會有任何異狀。
+    if (current.value === null) {
+      return
+    }
+
     for (const appliedIndicator of restored) {
       await calculateOne(appliedIndicator)
     }
