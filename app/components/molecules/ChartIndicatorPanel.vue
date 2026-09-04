@@ -3,10 +3,10 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
+import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
 import AppliedIndicatorParameterFields from '~/components/molecules/AppliedIndicatorParameterFields.vue'
 
@@ -14,33 +14,22 @@ import AppliedIndicatorParameterFields from '~/components/molecules/AppliedIndic
  * 分子：圖表上「已套用的指標」這一塊——挑一支、調它的旋鈕、加進來、
  * 看它算得怎麼樣、換線的顏色、移除它。
  *
- * 它一個業務判斷都不做：哪些策略挑得到、每一筆算得怎麼樣、線是什麼顏色、
- * 那幾格該長什麼樣子，全部由上面傳進來。連「是非畫不成線」都是策略自己說的，
- * 「這一筆要不要先停下來調」也是。
+ * 它一個業務判斷都不做，**也不逐列查表**：每一列拿到手上就已經知道自己是什麼樣子——
+ * 有沒有在算、算不出來的原因、畫出哪幾條線、那幾格長什麼樣。
+ * 連「是非畫不成線」都是策略自己說的，「這一筆要不要先停下來調」也是。
  *
  * **清單上的每一把鑰匙都是「這一次套用」的序號，不是策略識別碼**——
  * 同一支策略可以擺好幾筆，用後者當鍵會讓移除一筆時兩筆一起消失。
  */
-const {
-  selectableStrategies,
-  appliedIndicators,
-  chartIndicators,
-  colorOptions,
-  isCalculating,
-  failureMessageOf,
-} = defineProps<{
+const { selectableStrategies, appliedIndicatorRows, colorOptions } = defineProps<{
   /** 還可以挑的策略。**已經在圖上的那幾支仍然在裡面**——同一支可以擺好幾次。 */
   selectableStrategies: readonly StrategyDto[]
-  appliedIndicators: readonly AppliedIndicatorDto[]
-  chartIndicators: readonly ChartIndicatorDto[]
+  appliedIndicatorRows: readonly AppliedIndicatorRowDto[]
   colorOptions: readonly ChartLineColorOptionDto[]
   /** 還沒上圖、正在調的那一筆。沒有就是 null。 */
   pendingAppliedIndicator: AppliedIndicatorDto | null
   pendingParameterFields: readonly StrategyParameterFieldDto[]
   pendingParametersMessage: string | null
-  describeParameters: (indicator: AppliedIndicatorDto) => readonly StrategyParameterFieldDto[]
-  isCalculating: (appliedIndicatorId: number) => boolean
-  failureMessageOf: (appliedIndicatorId: number) => string | null
 }>()
 
 const emit = defineEmits<{
@@ -55,31 +44,6 @@ const emit = defineEmits<{
 
 /** 選單永遠停在「挑一支加進來」——挑完就加進去了，它不代表任何持續的狀態。 */
 const pickerValue = ref('')
-
-/** 這一筆算出來的每一條線，水平線與曲線攤成同一份清單：畫面上它們長得一樣。 */
-function linesOf(appliedIndicatorId: number) {
-  const indicator = chartIndicators.find(
-    candidate => candidate.appliedIndicatorId === appliedIndicatorId)
-  if (indicator === undefined) {
-    return []
-  }
-
-  return [
-    ...indicator.levels.map(level => ({
-      lineKey: level.lineKey, indicatorName: level.indicatorName, colorToken: level.colorToken,
-    })),
-    ...indicator.series.map(oneSeries => ({
-      lineKey: oneSeries.lineKey,
-      indicatorName: oneSeries.indicatorName,
-      colorToken: oneSeries.colorToken,
-    })),
-  ]
-}
-
-function drawsNothing(appliedIndicatorId: number): boolean {
-  return chartIndicators.some(
-    candidate => candidate.appliedIndicatorId === appliedIndicatorId && candidate.drawsNothing)
-}
 
 function applyPicked(value: string) {
   // 選單永遠停回「套用一支策略…」：挑完就加進去了，它不代表任何持續的狀態。
@@ -174,46 +138,46 @@ function applyPicked(value: string) {
     </section>
 
     <ul
-      v-if="appliedIndicators.length > 0"
+      v-if="appliedIndicatorRows.length > 0"
       class="chart-indicator-panel__applied"
     >
       <li
-        v-for="appliedIndicator in appliedIndicators"
-        :key="appliedIndicator.id"
+        v-for="row in appliedIndicatorRows"
+        :key="row.appliedIndicator.id"
         class="chart-indicator-panel__item"
         data-testid="applied-indicator"
       >
         <div class="chart-indicator-panel__item-header">
           <span class="chart-indicator-panel__name">
-            {{ appliedIndicator.strategy.name }}
+            {{ row.appliedIndicator.strategy.name }}
             <!-- 同一支擺好幾筆時靠這一句分辨：值本身就是它們唯一的差別。 -->
             <span
-              v-if="appliedIndicator.parameterSummary"
+              v-if="row.appliedIndicator.parameterSummary"
               class="chart-indicator-panel__summary"
               data-testid="applied-indicator-summary"
-            >{{ appliedIndicator.parameterSummary }}</span>
+            >{{ row.appliedIndicator.parameterSummary }}</span>
           </span>
           <AppButton
             type="button"
             variant="ghost"
             size="small"
             label="移除"
-            :data-testid="`remove-indicator-${appliedIndicator.id}`"
-            @click="emit('remove', appliedIndicator.id)"
+            :data-testid="`remove-indicator-${row.appliedIndicator.id}`"
+            @click="emit('remove', row.appliedIndicator.id)"
           >
             <AppIcon name="delete" />
           </AppButton>
         </div>
 
         <AppliedIndicatorParameterFields
-          v-if="!appliedIndicator.readyToApply"
-          :fields="describeParameters(appliedIndicator)"
+          v-if="row.parameterFields.length > 0"
+          :fields="row.parameterFields"
           @change-value="(name, value) =>
-            emit('changeAppliedParameterValue', appliedIndicator.id, name, value)"
+            emit('changeAppliedParameterValue', row.appliedIndicator.id, name, value)"
         />
 
         <p
-          v-if="isCalculating(appliedIndicator.id)"
+          v-if="row.isCalculating"
           class="chart-indicator-panel__note"
           data-testid="indicator-calculating"
         >
@@ -221,15 +185,15 @@ function applyPicked(value: string) {
         </p>
 
         <AppAlert
-          v-else-if="failureMessageOf(appliedIndicator.id)"
+          v-else-if="row.failureMessage"
           tone="danger"
-          :data-testid="`indicator-error-${appliedIndicator.id}`"
+          :data-testid="`indicator-error-${row.appliedIndicator.id}`"
         >
-          {{ failureMessageOf(appliedIndicator.id) }}
+          {{ row.failureMessage }}
         </AppAlert>
 
         <p
-          v-else-if="drawsNothing(appliedIndicator.id)"
+          v-else-if="row.drawsNothing"
           class="chart-indicator-panel__note"
           data-testid="indicator-draws-nothing"
         >
@@ -237,7 +201,7 @@ function applyPicked(value: string) {
         </p>
 
         <div
-          v-for="line in linesOf(appliedIndicator.id)"
+          v-for="line in row.lines"
           :key="line.lineKey"
           class="chart-indicator-panel__line"
           data-testid="indicator-line"

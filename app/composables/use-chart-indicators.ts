@@ -3,6 +3,7 @@ import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-re
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
+import { AppliedIndicatorLineDto, AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
@@ -94,6 +95,38 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const colorOptions = chartIndicatorApplication.listChartLineColorOptions()
 
   /**
+   * 清單上每一列此刻的樣子。
+   *
+   * 這幾樣東西各自住在自己的地方（哪幾筆、哪幾筆在算、哪幾筆失敗、算出哪些線），
+   * 因為它們各自變動的時機不同。但**畫面要的是一列**——讓它拿身分去查五次，
+   * 等於要求它也會算同一把鑰匙，而那把鑰匙一旦兩邊算得不一樣，
+   * 畫面會安靜地少畫一列的狀態，不會有任何地方報錯。
+   */
+  const appliedIndicatorRows = computed(() => appliedIndicators.value.map((appliedIndicator) => {
+    const drawn = chartIndicators.value.find(
+      indicator => indicator.appliedIndicatorId === appliedIndicator.id)
+
+    return new AppliedIndicatorRowDto(
+      appliedIndicator,
+      chartIndicatorApplication.describeAppliedIndicatorParameters(appliedIndicator.parameters),
+      calculatingIds.value.includes(appliedIndicator.id),
+      failureMessages.value.get(appliedIndicator.id) ?? null,
+      [
+        ...(drawn?.levels ?? []).map(level => new AppliedIndicatorLineDto(
+          level.lineKey, level.indicatorName, level.colorToken)),
+        ...(drawn?.series ?? []).map(oneSeries => new AppliedIndicatorLineDto(
+          oneSeries.lineKey, oneSeries.indicatorName, oneSeries.colorToken)),
+      ],
+      drawn?.drawsNothing ?? false,
+    )
+  }))
+
+  /** 還沒上圖那一筆的那幾格。同一個問法，只是問的是還沒上圖的那一筆。 */
+  const pendingParameterFields = computed(
+    () => chartIndicatorApplication.describeAppliedIndicatorParameters(
+      pendingAppliedIndicator.value?.parameters ?? []))
+
+  /**
    * 還可以挑的策略：**全部**——已經在圖上的那幾支仍然挑得到。
    *
    * 這裡曾經把已套用的那幾支濾掉，前提是「同一支只畫得出同一條線」。
@@ -102,14 +135,6 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    */
   function selectableStrategies(strategies: readonly StrategyDto[]): StrategyDto[] {
     return [...strategies]
-  }
-
-  function isCalculating(appliedIndicatorId: number): boolean {
-    return calculatingIds.value.includes(appliedIndicatorId)
-  }
-
-  function failureMessageOf(appliedIndicatorId: number): string | null {
-    return failureMessages.value.get(appliedIndicatorId) ?? null
   }
 
   /**
@@ -389,13 +414,13 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
   return {
     appliedIndicators,
+    appliedIndicatorRows,
     chartIndicators,
     colorOptions,
     pendingAppliedIndicator,
+    pendingParameterFields,
     pendingParametersMessage,
     selectableStrategies,
-    isCalculating,
-    failureMessageOf,
     applyIndicator,
     changePendingParameterValue,
     confirmPendingIndicator,

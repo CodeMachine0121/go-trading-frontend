@@ -20,7 +20,6 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
-import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
@@ -69,15 +68,6 @@ let latestRequestNumber = 0
 
 // 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
 const chartIndicators = useChartIndicators(chartIndicatorApplication)
-
-// 每一格該長什麼樣子由領域回答——「回看根數要整數鍵盤」是業務規則，不是版面問題。
-const pendingParameterFields = computed(() => chartIndicatorApplication
-  .describeAppliedIndicatorParameters(
-    chartIndicators.pendingAppliedIndicator.value?.parameters ?? []))
-
-function describeAppliedParameters(appliedIndicator: AppliedIndicatorDto) {
-  return chartIndicatorApplication.describeAppliedIndicatorParameters(appliedIndicator.parameters)
-}
 
 /** 可以挑來套用的策略。取不到清單時是空的——那是一份清單，不是一個功能。 */
 const strategies = ref<StrategyDto[]>([])
@@ -270,15 +260,11 @@ onMounted(async () => {
 
       <ChartIndicatorPanel
         :selectable-strategies="chartIndicators.selectableStrategies(strategies)"
-        :applied-indicators="chartIndicators.appliedIndicators.value"
-        :chart-indicators="chartIndicators.chartIndicators.value"
+        :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
         :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
-        :pending-parameter-fields="pendingParameterFields"
+        :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
         :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
-        :describe-parameters="describeAppliedParameters"
-        :is-calculating="chartIndicators.isCalculating"
-        :failure-message-of="chartIndicators.failureMessageOf"
         @apply="chartIndicators.applyIndicator"
         @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
         @confirm-pending="chartIndicators.confirmPendingIndicator"

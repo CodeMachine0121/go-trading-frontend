@@ -333,8 +333,9 @@ ChartIndicatorApplication.rememberParameterValues(appliedIndicatorDto)
 
 ### Risks / trade-offs
 
-- **`useChartIndicators` 會膨脹到約 380 行、四組狀態。**
-  接受的理由：把「待調整那一筆」拆出去會讓「要不要直接上圖」的判斷浮到元件層。
+- **`useChartIndicators` 實測 436 行、仍是四組狀態**（圖上那幾筆、待調整那一筆、
+  正在看的那一段、停手計時）。收尾時重新量過：**訊號尚未觸發**，維持原判。
+  接受的理由不變：把「待調整那一筆」拆出去會讓「要不要直接上圖」的判斷浮到元件層。
   **該回頭處理的訊號**：當「正在看的那一段 + 停手計時」那兩組狀態也開始被別的
   畫面需要，或這個檔案長出第五組彼此獨立的狀態時，先拆那兩組（它們與套用無關），
   而不是拆待調整那一筆。
@@ -343,6 +344,19 @@ ChartIndicatorApplication.rememberParameterValues(appliedIndicatorDto)
 - **`AppliedIndicatorDto` 同時帶策略識別碼與套用序號**，看起來像兩個身分。
   它們確實是兩個，而且刻意如此（§2、§3）。命名上以 `id` 專指套用序號、
   `strategy.id` 專指策略，避免出現裸的 `strategyId` 欄位造成誤用。
+
+### 收尾時做的一件事：讓每一列自己知道自己是什麼樣子
+
+`ChartIndicatorPanel` 原本收 **10 個 props（其中 3 個是函式）**，每畫一列要拿那一列的
+身分**查五次表**：有沒有在算、失敗說明、那幾格、畫了哪些線、是不是什麼都沒畫。
+函式型 props 就是那個訊號——它等於請上層代查，而每一次查表都是一次
+「外面也要會算同一把鑰匙」的要求；鑰匙一旦兩邊算得不一樣，畫面會**安靜地**少畫一列的狀態。
+
+新增 `AppliedIndicatorRowDto`（連同 `AppliedIndicatorLineDto`），由 composable 一處併好。
+結果：**props 10 → 6、函式型 props 3 → 0、逐列查表 5 → 0**，
+`KCandleChartPanel` 那兩處把 Application 的答案轉手給下層的地方也一併消失
+（那個問法搬進了 composable，它本來就持有 Application）。
+**一條測試都沒有改**——行為完全沒變，這正是它是重構而不是改行為的證據。
 
 ### 實作時發現的一處既有死碼
 
