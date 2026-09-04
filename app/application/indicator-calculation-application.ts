@@ -12,6 +12,7 @@ import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-s
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
+import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 
 /** Application：指標計算的用例編排，全程只碰 DTO。 */
 export class IndicatorCalculationApplication {
@@ -93,6 +94,10 @@ export class IndicatorCalculationApplication {
 
   listResultTypeOptions(): IndicatorResultTypeOptionDto[] {
     return this.indicatorCalculationService.listResultTypeOptions()
+  }
+
+  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
+    return this.indicatorCalculationService.listScriptParameterAccesses()
   }
 
   listKCandleFields(): KCandleFieldDto[] {

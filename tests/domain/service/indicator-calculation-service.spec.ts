@@ -205,3 +205,26 @@ describe('IndicatorCalculationService：改一個不存在的第幾列', () => {
     expect(change(new IndicatorCalculationService(buildProxy()))).toEqual([期數])
   })
 })
+
+describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀', () => {
+  // 這一份與 K 線欄位那一份是同一件事的兩半——兩者描述的都是沙箱交給算式的東西。
+  // 它住在領域而不是畫面，理由也相同：那些字一旦散在畫面上，
+  // 系統那一側改了注入的函式名時，沒有人會知道要回頭改它們。
+  const accesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses()
+
+  it('兩種種類各一則，沒有第三種', () => {
+    expect(accesses).toHaveLength(2)
+  })
+
+  it.each([
+    { kindLabel: '回看根數', call: 'indicator.LookbackCount("期數")', returnType: 'int' },
+    { kindLabel: '數值', call: 'indicator.Number("倍數")', returnType: 'float64' },
+  ])('$kindLabel 讀出來是 $returnType', ({ kindLabel, call, returnType }) => {
+    // 兩種讀出來的型別不同，而那正是分兩種的理由：回看根數幾乎總是拿去切片，
+    // 而 Go 不讓浮點數當索引。
+    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+
+    expect(access?.call).toBe(call)
+    expect(access?.returnType).toBe(returnType)
+  })
+})

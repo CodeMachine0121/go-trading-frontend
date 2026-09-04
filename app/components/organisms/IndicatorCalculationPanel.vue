@@ -9,7 +9,7 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
-import KCandleFieldReference from '~/components/molecules/KCandleFieldReference.vue'
+import IndicatorScriptGuideDialog from '~/components/molecules/IndicatorScriptGuideDialog.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
 import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
@@ -83,8 +83,12 @@ const aggregationIntervalOptions
 const spanUnitOptions = indicatorCalculationApplication.listCalculationSpanUnitOptions()
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
-// 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
+// 算式收到的每一根 K 線有哪些欄位，以及宣告好的參數怎麼讀。
+// 兩份都是沙箱契約的一部分，都不會變，取一次就好。
 const kCandleFields = indicatorCalculationApplication.listKCandleFields()
+const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
+/** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
+const guideOpen = ref(false)
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
@@ -429,6 +433,15 @@ async function calculateIndicator() {
           >
             <AppIcon name="example" />
           </AppButton>
+          <AppButton
+            type="button"
+            variant="ghost"
+            label="算式裡可以用什麼"
+            data-testid="script-guide-button"
+            @click="guideOpen = true"
+          >
+            <AppIcon name="info" />
+          </AppButton>
         </template>
 
         <!--
@@ -457,8 +470,6 @@ async function calculateIndicator() {
         </template>
       </IndicatorScriptEditor>
     </div>
-    <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它就在編輯區底下。 -->
-    <KCandleFieldReference :fields="kCandleFields" />
 
     <AppPanel
       v-if="calculationRun.result.value"
@@ -554,6 +565,14 @@ async function calculateIndicator() {
         </table>
       </div>
     </AppPanel>
+
+    <!-- 兩份要查的清單收在同一個對話框裡：去查它們的時機是同一個。 -->
+    <IndicatorScriptGuideDialog
+      :open="guideOpen"
+      :fields="kCandleFields"
+      :parameter-accesses="scriptParameterAccesses"
+      @close="guideOpen = false"
+    />
 
     <StrategyLibraryDialog
       :open="strategyLibrary.openDialog.value === 'library'"

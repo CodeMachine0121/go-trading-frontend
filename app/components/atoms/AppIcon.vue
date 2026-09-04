@@ -23,6 +23,7 @@ type IconName
     | 'candles'
     | 'formula'
     | 'refresh'
+    | 'info'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -100,6 +101,12 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   'refresh': [
     'M20.5 12a8.5 8.5 0 1 1-2.8-6.3',
     'M21 4v5h-5',
+  ],
+  // 一個圈裡的 i——這裡有東西可以查
+  'info': [
+    'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
+    'M12 16v-5',
+    'M12 8h.01',
   ],
 }
 

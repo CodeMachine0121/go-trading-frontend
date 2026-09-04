@@ -23,6 +23,8 @@ import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-v
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
 import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
+import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
+import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 
 /**
  * 沒特別填時要餵給算式幾根 K 線。
@@ -208,5 +210,16 @@ export class IndicatorCalculationService {
    */
   listKCandleFields(): KCandleFieldDto[] {
     return K_CANDLE_FIELDS.map(field => field.toDto())
+  }
+
+  /**
+   * 宣告好的參數在算式裡怎麼讀——一種種類一則。
+   *
+   * 它與上面那一份是同一件事的兩半：兩者描述的都是沙箱交給算式的東西。
+   * 畫面問這個而不是自己寫幾段範例，理由也相同——那些字一旦散在畫面上，
+   * 後端改了注入的函式名時，沒有人會知道要回頭改它們。
+   */
+  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
+    return SCRIPT_PARAMETER_ACCESSES.map(access => access.toDto())
   }
 }

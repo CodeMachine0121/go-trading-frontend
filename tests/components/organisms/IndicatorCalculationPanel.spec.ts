@@ -419,9 +419,26 @@ describe('IndicatorCalculationPanel', () => {
   })
 })
 
-describe('指標計算畫面上的 K 線欄位說明', () => {
-  it('把算式收到的每一個欄位列在編輯區旁邊', async () => {
+describe('指標計算畫面：算式裡可以用什麼', () => {
+  // 這兩份清單曾經常駐在編輯區旁邊。**改成問了才出現是刻意的**：
+  // 它們是「想不起來翻一下」，不是「一直看著」，而常駐要付的代價是
+  // 跟編輯區——這個畫面上唯一需要空間的東西——搶同一塊寬度。
+  async function openGuide(wrapper: Awaited<ReturnType<typeof mountPanel>>) {
+    await wrapper.get('[data-testid="script-guide-button"]').trigger('click')
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('沒問的時候不佔畫面', async () => {
     const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="k-candle-field"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]')).toHaveLength(0)
+  })
+
+  it('問了就列出算式收到的每一個欄位', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
 
     const fieldNames = wrapper.findAll('[data-testid="k-candle-field"]').map(field => field.text())
 
@@ -431,10 +448,31 @@ describe('指標計算畫面上的 K 線欄位說明', () => {
   })
 
   it('說出它是算式看得到的形狀，不是資料庫那張表', async () => {
-    const wrapper = await mountPanel(buildProxy())
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
 
     expect(wrapper.text()).toContain('不是資料庫那張表')
     expect(wrapper.text()).toContain('data []indicator.KCandle')
+  })
+
+  it('也說出宣告好的參數在算式裡怎麼讀，兩種種類各一則', async () => {
+    // 讀法屬於沙箱契約，與 K 線欄位同一份——所以它們在同一個地方，
+    // 而且都不是畫面自己寫的字。
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const calls = wrapper.findAll('[data-testid="script-parameter-access"]')
+      .map(access => access.text())
+
+    expect(calls).toHaveLength(2)
+    expect(calls.some(call => call.includes('indicator.LookbackCount('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Number('))).toBe(true)
+  })
+
+  it('說出參數要怎麼設，以及名字對不上時會發生什麼', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    expect(wrapper.text()).toContain('新增參數')
+    expect(wrapper.text()).toContain('同一個名字')
+    expect(wrapper.text()).toContain('失敗並指名')
   })
 })
 
