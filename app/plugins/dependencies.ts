@@ -26,6 +26,9 @@ import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
+import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
+import { AssistantConversationApplication } from '~/application/assistant-conversation-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -80,6 +83,12 @@ export default defineNuxtPlugin(() => {
     new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
   )
 
+  // 助手是後端的一項能力，因此它只吃 base URL——這台瀏覽器上沒有任何要記住的東西。
+  // 「目前這段對話」活在共用的畫面狀態裡，不是留存下來的偏好。
+  const assistantConversationApplication = new AssistantConversationApplication(
+    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl)),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -96,6 +105,7 @@ export default defineNuxtPlugin(() => {
       chartIndicatorApplication,
       liveKCandleApplication,
       timeZoneApplication,
+      assistantConversationApplication,
     },
   }
 })
