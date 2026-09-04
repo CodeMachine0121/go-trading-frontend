@@ -24,6 +24,11 @@ type IconName
     | 'formula'
     | 'refresh'
     | 'info'
+    | 'robot'
+    | 'send'
+    | 'copy'
+    | 'copied'
+    | 'expand'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -102,6 +107,36 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M20.5 12a8.5 8.5 0 1 1-2.8-6.3',
     'M21 4v5h-5',
   ],
+  // 一顆機器人的頭：天線、圓角的臉、兩隻眼睛、一張線條嘴
+  'robot': [
+    'M12 2v3',
+    'M12 2.5a1.5 1.5 0 1 0 0 .01',
+    'M7 7h10a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3Z',
+    'M9.5 12h.01M14.5 12h.01',
+    'M9.5 15.5h5',
+    'M2 11v4M22 11v4',
+  ],
+  // 兩張疊著的紙——把它複製走
+  'copy': [
+    'M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z',
+    'M5 15H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1',
+  ],
+  // 一個勾——複製好了
+  'copied': [
+    'm4 13 5 5L20 6',
+  ],
+  // 往上的箭頭——把這一句送出去
+  'send': [
+    'M12 19V5',
+    'm5 12 7-7 7 7',
+  ],
+  // 往外指的兩個角——攤開到整頁
+  'expand': [
+    'M15 3h6v6',
+    'M9 21H3v-6',
+    'M21 3l-7 7',
+    'M3 21l7-7',
+  ],
   // 一個圈裡的 i——這裡有東西可以查
   'info': [
     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
@@ -112,7 +147,11 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
 
 const { name, size = 'medium' } = defineProps<{
   name: IconName
-  size?: 'small' | 'medium'
+  /**
+   * 三種大小。`large` 是給「一整顆鍵就是這個圖示」的地方用的——
+   * 一顆手指大小的圓鍵配一個字級大小的圖示，看起來會像圖示掉在鍵裡面。
+   */
+  size?: 'small' | 'medium' | 'large'
 }>()
 
 const paths = computed(() => ICON_PATHS[name])
@@ -151,6 +190,11 @@ const paths = computed(() => ICON_PATHS[name])
   &--medium {
     width: font-size('lg');
     height: font-size('lg');
+  }
+
+  &--large {
+    width: font-size('2xl');
+    height: font-size('2xl');
   }
 }
 </style>

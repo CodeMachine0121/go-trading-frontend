@@ -56,7 +56,10 @@ export abstract class BackendApiProxy {
 
           // 後端自己壞掉時，使用者改什麼都沒用——不能說成「你的請求有問題」。
           if (backendFailure.response.status >= SERVER_ERROR_STATUS_FLOOR) {
-            throw new BackendServerError(message, { cause: error })
+            throw new BackendServerError(message, {
+              cause: error,
+              status: backendFailure.response.status,
+            })
           }
 
           throw new BackendRequestRejectedError(

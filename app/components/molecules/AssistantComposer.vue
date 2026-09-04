@@ -1,0 +1,147 @@
+<script setup lang="ts">
+import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppTextarea from '~/components/atoms/AppTextarea.vue'
+
+// 分子：輸入區。抽屜與整頁**共用這一個**——兩個地方的差別是寬度，不是行為。
+//
+// 外形是一整枚膠囊，裡面是輸入框與一顆圓形的送出鍵。這是對話輸入的既有慣例
+// （Base44、Substack、Teams 都是這個形狀），而它之所以不是一個方框加一顆方鍵：
+// 對話是人在講話，方方正正的框讓人以為自己在填表單。
+//
+// 送出鍵的可按與否接的是「這一句送不送得出去」，那個判定在 domain。
+// 這裡不自己判斷空白：判斷寫兩份的話，畫面與後端會在某一天對空白有不同的看法。
+//
+// 等待中一切送出動作都鎖住，包含 Enter。少了這一道，使用者在那可能長達兩分鐘的
+// 等待裡多按一次 Enter 就是多花一次錢。
+const { pending = false, autofocus = false } = defineProps<{
+  pending?: boolean
+  autofocus?: boolean
+}>()
+
+const draft = defineModel<string>({ required: true })
+
+const emit = defineEmits<{ send: [] }>()
+
+const textarea = useTemplateRef<{ focus: () => void }>('textarea')
+
+const canSend = computed(() => !pending && draft.value.trim() !== '')
+
+function send(): void {
+  if (!canSend.value) {
+    return
+  }
+
+  emit('send')
+}
+
+/** Enter 送出、Shift+Enter 換行——這是聊天輸入框的既有慣例，不必再教。 */
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+    return
+  }
+
+  event.preventDefault()
+  send()
+}
+
+/**
+ * 回答回來就把焦點還回來，好接著問下一句。
+ *
+ * **要等畫面更新完才做**（`flush: 'post'`）：等待中輸入框是鎖住的，
+ * 而預設的時機在解鎖之前——對一個還鎖著的輸入框叫 focus 什麼都不會發生，
+ * 於是每問一句都得重新點一次。
+ */
+watch(() => pending, (isPending, wasPending) => {
+  if (wasPending && !isPending) {
+    textarea.value?.focus()
+  }
+}, { flush: 'post' })
+
+onMounted(() => {
+  if (autofocus) {
+    textarea.value?.focus()
+  }
+})
+</script>
+
+<template>
+  <form
+    class="assistant-composer"
+    @submit.prevent="send"
+  >
+    <div class="assistant-composer__field">
+      <AppTextarea
+        ref="textarea"
+        v-model="draft"
+        bare
+        :disabled="pending"
+        placeholder="問一句行情，例如：BTCUSDT 最近一天每小時的走勢如何？"
+        aria-label="問助手"
+        data-testid="assistant-composer-input"
+        @keydown="onKeydown"
+      />
+
+      <AppButton
+        type="submit"
+        shape="circle"
+        :disabled="!canSend"
+        label="送出"
+        class="assistant-composer__send"
+        data-testid="assistant-composer-send"
+      >
+        <AppIcon
+          name="send"
+          size="small"
+        />
+      </AppButton>
+    </div>
+
+    <p class="assistant-composer__disclaimer">
+      助手可能會出錯。牽涉到下單決策的數字，請自行覆核。
+    </p>
+  </form>
+</template>
+
+<style scoped lang="scss">
+.assistant-composer {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+
+  // 一整枚膠囊：輸入框與送出鍵住在裡面，框只有這一個。
+  // 焦點框畫在膠囊上而不是裡面的輸入框上，所以打字時亮起來的是整枚。
+  &__field {
+    display: flex;
+    align-items: flex-end;
+    gap: spacing('xs');
+    transition: border-color duration('fast') ease;
+    border: 1px solid color('border-strong');
+    border-radius: radius('2xl');
+    background-color: color('background');
+    padding: spacing('2xs') spacing('2xs') spacing('2xs') spacing('sm');
+
+    &:hover {
+      border-color: color('text-faint');
+    }
+
+    &:focus-within {
+      border-color: color('primary');
+    }
+  }
+
+  &__send {
+    flex-shrink: 0;
+
+    // 明講對齊哪裡，不靠外面那一行的 align-items：輸入框長到兩三行時，
+    // 送出鍵要留在最後一行旁邊，而不是跟著跑到中間。
+    align-self: flex-end;
+  }
+
+  &__disclaimer {
+    margin: 0 spacing('sm');
+    color: color('text-faint');
+    font-size: font-size('xs');
+  }
+}
+</style>

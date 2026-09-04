@@ -26,6 +26,18 @@ import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
+import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
+import { AssistantConversationApplication } from '~/application/assistant-conversation-application'
+import { AssistantTriggerPositionPreferenceProxy } from '~/infrastructure/proxy/assistant-trigger-position-preference-proxy'
+import { AssistantTriggerService } from '~/domain/service/assistant-trigger-service'
+import { AssistantTriggerApplication } from '~/application/assistant-trigger-application'
+import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
+import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
+import { AssistantDrawerWidthApplication } from '~/application/assistant-drawer-width-application'
+import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
+import { ClipboardService } from '~/domain/service/clipboard-service'
+import { ClipboardApplication } from '~/application/clipboard-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -80,6 +92,31 @@ export default defineNuxtPlugin(() => {
     new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
   )
 
+  // 助手是後端的一項能力，因此它只吃 base URL——這台瀏覽器上沒有任何要記住的東西。
+  // 「目前這段對話」活在共用的畫面狀態裡，不是留存下來的偏好。
+  const assistantConversationApplication = new AssistantConversationApplication(
+    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl)),
+  )
+
+  // 那顆叫出助手的鍵擺在哪裡，是這台裝置的習慣而不是行情，所以它只碰瀏覽器儲存、
+  // 不吃 base URL——與時區、線色那幾份記憶同一類。它與上面那一支分開，
+  // 因為「我們正在談什麼」與「那顆鍵擺在哪」會分開改變。
+  const assistantTriggerApplication = new AssistantTriggerApplication(
+    new AssistantTriggerService(new AssistantTriggerPositionPreferenceProxy()),
+  )
+
+  // 抽屜拉成多寬同樣是這台裝置的習慣。它與上面那一支分開，因為「那顆鍵擺在哪」與
+  // 「抽屜多寬」會分開改變——合成一個，它的公開方法會乾淨地分成兩半互不相干。
+  const assistantDrawerWidthApplication = new AssistantDrawerWidthApplication(
+    new AssistantDrawerWidthService(new AssistantDrawerWidthPreferenceProxy()),
+  )
+
+  // 剪貼簿是第三種外部資源（另外是後端與瀏覽器儲存），所以一樣收在 proxy 裡——
+  // 元件不直接碰 navigator，理由與不直接碰 $fetch 相同。
+  const clipboardApplication = new ClipboardApplication(
+    new ClipboardService(new ClipboardProxy()),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -96,6 +133,10 @@ export default defineNuxtPlugin(() => {
       chartIndicatorApplication,
       liveKCandleApplication,
       timeZoneApplication,
+      assistantConversationApplication,
+      assistantTriggerApplication,
+      assistantDrawerWidthApplication,
+      clipboardApplication,
     },
   }
 })
