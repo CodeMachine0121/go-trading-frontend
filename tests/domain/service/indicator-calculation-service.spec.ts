@@ -217,14 +217,26 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
   })
 
   it.each([
-    { kindLabel: '回看根數', call: 'indicator.LookbackCount("期數")', returnType: 'int' },
-    { kindLabel: '數值', call: 'indicator.Number("倍數")', returnType: 'float64' },
+    { kindLabel: '回看根數', call: 'indicator.LookbackCount(', returnType: 'int' },
+    { kindLabel: '數值', call: 'indicator.Number(', returnType: 'float64' },
   ])('$kindLabel 讀出來是 $returnType', ({ kindLabel, call, returnType }) => {
     // 兩種讀出來的型別不同，而那正是分兩種的理由：回看根數幾乎總是拿去切片，
     // 而 Go 不讓浮點數當索引。
     const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
 
-    expect(access?.call).toBe(call)
+    expect(access?.example).toContain(call)
     expect(access?.returnType).toBe(returnType)
+  })
+
+  it.each([
+    { kindLabel: '回看根數', secondLine: 'data[len(data)-period:]' },
+    { kindLabel: '數值', secondLine: '.Close * (1 + factor)' },
+  ])('$kindLabel 的範例還說出讀出來之後拿它做什麼', ({ kindLabel, secondLine }) => {
+    // 一個孤零零的函式簽章答不出「然後呢」。第二行才是會卡住的地方——
+    // 回看根數拿去切片（而那正是它必須是整數的原因），數值拿去跟價格算。
+    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+
+    expect(access?.example).toContain(secondLine)
+    expect(access?.example.split('\n')).toHaveLength(2)
   })
 })

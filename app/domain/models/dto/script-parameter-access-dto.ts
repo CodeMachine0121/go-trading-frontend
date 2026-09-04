@@ -9,10 +9,10 @@ export class ScriptParameterAccessDto {
   constructor(
     /** 這一則講的是哪一種參數，給人看的說法。 */
     public readonly kindLabel: string,
-    /** 照抄就能用的那一行，例如 `indicator.LookbackCount("期數")`。 */
-    public readonly call: string,
-    /** 那一行交出來的 Go 型別，例如 `int`。 */
+    /** 讀出來是什麼 Go 型別，例如 `int`。 */
     public readonly returnType: string,
+    /** 照抄就能用的那幾行（以換行分隔）——包含讀出來之後拿它做什麼。 */
+    public readonly example: string,
     /** 這一種適合拿來做什麼——一句話。 */
     public readonly usage: string,
   ) {}

@@ -36,8 +36,9 @@ const emit = defineEmits<{ close: [] }>()
       <section class="indicator-script-guide-dialog__section">
         <h3 class="indicator-script-guide-dialog__heading">
           每一根 K 線有什麼
-          <code class="indicator-script-guide-dialog__signature">data []indicator.KCandle</code>
         </h3>
+
+        <pre class="indicator-script-guide-dialog__code"><code>func Calculate(data []indicator.KCandle)</code></pre>
 
         <dl class="indicator-script-guide-dialog__fields">
           <template
@@ -50,20 +51,28 @@ const emit = defineEmits<{ close: [] }>()
             >
               {{ field.name }}
             </dt>
+            <dd class="indicator-script-guide-dialog__type">
+              {{ field.type }}
+            </dd>
             <dd class="indicator-script-guide-dialog__meaning">
-              <span class="indicator-script-guide-dialog__type">{{ field.type }}</span>
               {{ field.label }}
             </dd>
           </template>
         </dl>
 
-        <!-- 最容易寫錯的三件事都在這裡：它不是資料庫那張表。 -->
-        <p class="indicator-script-guide-dialog__note">
-          這是<strong>算式看得到的</strong>形狀，不是資料庫那張表：沒有 <code>ID</code>；
-          時間是 Unix 秒的整數，不是 <code>time.Time</code>；價量一律是 <code>float64</code>，
-          直接算就好。沙箱只開放 <code>math</code> 與 <code>sort</code>，外框已經幫你匯入。
-          算式只能做<strong>純運算</strong>，碰不到檔案、網路與時間。
-        </p>
+        <!-- 最容易寫錯的幾件事都在這裡：它不是資料庫那張表。 -->
+        <div class="indicator-script-guide-dialog__caveat">
+          <p class="indicator-script-guide-dialog__caveat-title">
+            這是<strong>算式看得到的</strong>形狀，不是資料庫那張表
+          </p>
+          <ul class="indicator-script-guide-dialog__caveat-list">
+            <li>沒有 <code>ID</code>。</li>
+            <li>時間是 Unix 秒的整數，不是 <code>time.Time</code>。</li>
+            <li>價量一律是 <code>float64</code>，直接算就好。</li>
+            <li>只開放 <code>math</code> 與 <code>sort</code>，外框已經幫你匯入。</li>
+            <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
+          </ul>
+        </div>
       </section>
 
       <section class="indicator-script-guide-dialog__section">
@@ -72,40 +81,38 @@ const emit = defineEmits<{ close: [] }>()
         </h3>
 
         <ol class="indicator-script-guide-dialog__steps">
+          <li>在下面那一區按<strong>新增參數</strong>，取一個名字、挑一種種類、填一個預設值。</li>
+          <li>在算式裡用<strong>同一個名字</strong>把它讀出來。</li>
           <li>
-            在下面那一區按<strong>新增參數</strong>，替它取一個名字，挑一種種類，填一個預設值。
-          </li>
-          <li>
-            在算式裡用<strong>同一個名字</strong>把它讀出來。
-          </li>
-          <li>
-            參數跟著策略一起存；在 K 線圖表上套用這支策略時，可以替<strong>那一次</strong>另外調一個值，
-            而這裡填的預設值不會被動到。
+            參數跟著策略一起存。在 K 線圖表上套用這支策略時，可以替<strong>那一次</strong>
+            另外調一個值，而這裡填的預設值不會被動到。
           </li>
         </ol>
 
-        <dl class="indicator-script-guide-dialog__fields">
-          <template
-            v-for="access in parameterAccesses"
-            :key="access.call"
-          >
-            <dt
-              class="indicator-script-guide-dialog__name"
-              data-testid="script-parameter-access"
-            >
-              {{ access.call }}
-            </dt>
-            <dd class="indicator-script-guide-dialog__meaning">
-              <span class="indicator-script-guide-dialog__type">{{ access.returnType }}</span>
-              {{ access.kindLabel }}——{{ access.usage }}
-            </dd>
-          </template>
-        </dl>
+        <div
+          v-for="access in parameterAccesses"
+          :key="access.kindLabel"
+          class="indicator-script-guide-dialog__kind"
+          data-testid="script-parameter-access"
+        >
+          <p class="indicator-script-guide-dialog__kind-title">
+            {{ access.kindLabel }}
+            <span class="indicator-script-guide-dialog__type">讀出來是 {{ access.returnType }}</span>
+          </p>
+          <pre class="indicator-script-guide-dialog__code"><code>{{ access.example }}</code></pre>
+          <p class="indicator-script-guide-dialog__kind-usage">
+            {{ access.usage }}
+          </p>
+        </div>
 
-        <p class="indicator-script-guide-dialog__note">
-          名字打錯時這一次計算會<strong>失敗並指名</strong>是哪一個名字對不上，
-          而不是安靜地拿到零——零是一個合法的數字，看起來會像算式寫錯，而錯的其實是名字。
-        </p>
+        <div class="indicator-script-guide-dialog__caveat">
+          <p class="indicator-script-guide-dialog__caveat-title">
+            名字打錯時會<strong>失敗並指名</strong>，不會安靜地拿到零
+          </p>
+          <ul class="indicator-script-guide-dialog__caveat-list">
+            <li>零是一個合法的數字，看起來會像算式寫錯，而錯的其實是名字。</li>
+          </ul>
+        </div>
       </section>
     </div>
 
@@ -122,6 +129,7 @@ const emit = defineEmits<{ close: [] }>()
   display: flex;
   flex-direction: column;
   gap: spacing('lg');
+  max-width: 34rem;
 
   &__section {
     display: flex;
@@ -130,29 +138,32 @@ const emit = defineEmits<{ close: [] }>()
   }
 
   &__heading {
-    display: flex;
-    gap: spacing('sm');
-    align-items: baseline;
     margin: 0;
     color: color('text-strong');
     font-weight: font-weight('medium');
     font-size: font-size('sm');
   }
 
-  // 標題旁那一段是外框裡真正的那一行——照抄就對得上編輯區。
-  &__signature {
-    color: color('text-faint');
+  // 程式碼一律照抄得走，所以它長得像編輯區裡的字，不像段落裡的字。
+  &__code {
+    margin: 0;
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    background-color: color('background');
+    padding: spacing('2xs') spacing('xs');
+    overflow-x: auto;
+    color: color('text-strong');
     font-size: font-size('2xs');
+    line-height: line-height('relaxed');
 
     @include numeric;
   }
 
+  // 名字、型別、意思各一欄，三欄各自對齊——十個欄位掃過去才看得出規律。
   &__fields {
     display: grid;
-
-    // 名字要多寬由最長的那一個決定，剩下的寬度給意思。
     gap: spacing('3xs') spacing('sm');
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr);
     margin: 0;
   }
 
@@ -163,20 +174,17 @@ const emit = defineEmits<{ close: [] }>()
     @include numeric;
   }
 
+  &__type {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+
+    @include numeric;
+  }
+
   &__meaning {
-    display: flex;
-    gap: spacing('2xs');
-    align-items: baseline;
     margin: 0;
     color: color('text-muted');
     font-size: font-size('2xs');
-  }
-
-  &__type {
-    flex: none;
-    color: color('text-faint');
-
-    @include numeric;
   }
 
   &__steps {
@@ -188,31 +196,70 @@ const emit = defineEmits<{ close: [] }>()
     color: color('text-muted');
     font-size: font-size('2xs');
     line-height: line-height('normal');
-
-    strong {
-      color: color('text-strong');
-      font-weight: font-weight('medium');
-    }
   }
 
-  &__note {
+  // 一種參數一塊：標題說它讀出來是什麼，接著是照抄得走的那兩行，最後一句說它做什麼。
+  &__kind {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('2xs');
+    border-left: 2px solid color('border-strong');
+    padding-left: spacing('sm');
+  }
+
+  &__kind-title {
+    display: flex;
+    gap: spacing('xs');
+    align-items: baseline;
     margin: 0;
-    border-top: 1px solid color('border');
-    padding-top: spacing('sm');
+    color: color('text-strong');
+    font-weight: font-weight('medium');
+    font-size: font-size('2xs');
+  }
+
+  &__kind-usage {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
+  }
+
+  // 「這裡最容易寫錯」自成一塊，才不會跟上面那些照抄得走的東西混在一起。
+  &__caveat {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('2xs');
+    border-radius: radius('sm');
+    background-color: color('surface-muted');
+    padding: spacing('xs') spacing('sm');
+  }
+
+  &__caveat-title {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('2xs');
+  }
+
+  &__caveat-list {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    margin: 0;
+    padding-left: spacing('sm');
     color: color('text-faint');
     font-size: font-size('2xs');
     line-height: line-height('normal');
+  }
 
-    code {
-      color: color('text-muted');
+  strong {
+    color: color('text-strong');
+    font-weight: font-weight('medium');
+  }
 
-      @include numeric;
-    }
+  code {
+    color: color('text-muted');
 
-    strong {
-      color: color('text-muted');
-      font-weight: font-weight('medium');
-    }
+    @include numeric;
   }
 }
 </style>

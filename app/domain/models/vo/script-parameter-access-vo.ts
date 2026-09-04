@@ -4,13 +4,14 @@ import { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-a
 export class ScriptParameterAccessVo {
   constructor(
     public readonly kindLabel: string,
-    public readonly call: string,
     public readonly returnType: string,
+    public readonly example: string,
     public readonly usage: string,
   ) {}
 
   toDto(): ScriptParameterAccessDto {
-    return new ScriptParameterAccessDto(this.kindLabel, this.call, this.returnType, this.usage)
+    return new ScriptParameterAccessDto(
+      this.kindLabel, this.returnType, this.example, this.usage)
   }
 }
 
@@ -25,19 +26,29 @@ export class ScriptParameterAccessVo {
  * 名字對不上時**這一次計算會失敗並指名**，而不是安靜地拿到零——
  * 零是一個合法的數字，看起來會像算式寫錯，而錯的其實是名字。
  *
+ * 範例刻意寫成**真的會打出來的那兩行**，而不是一個孤零零的函式呼叫：
+ * 第二行才是重點——回看根數拿來切片、數值拿去跟價格算，
+ * 而「拿來做什麼」正是看到函式簽章之後還會卡住的地方。
+ *
  * 後端哪天改了注入的函式名（見 yaegi 那一側的符號表），要改的就是這一份清單。
  */
 export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   new ScriptParameterAccessVo(
     '回看根數',
-    'indicator.LookbackCount("期數")',
     'int',
-    '要往回看幾根。它交出整數，可以直接拿去切片；系統也靠它決定要多拿幾根 K 線。',
+    [
+      'period := indicator.LookbackCount("期數")',
+      'window := data[len(data)-period:]',
+    ].join('\n'),
+    '要往回看幾根。交出整數，可以直接拿去切片；系統也靠它決定要多拿幾根 K 線。',
   ),
   new ScriptParameterAccessVo(
     '數值',
-    'indicator.Number("倍數")',
     'float64',
+    [
+      'factor := indicator.Number("倍數")',
+      'upper := data[len(data)-1].Close * (1 + factor)',
+    ].join('\n'),
     '倍數、門檻、權重之類的任何一個數字。系統不解讀它的意思，原樣交給算式。',
   ),
 ]
