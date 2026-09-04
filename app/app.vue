@@ -39,6 +39,16 @@ const {
   endDrag,
 } = useAssistantTrigger()
 
+const {
+  width: drawerWidth,
+  resizing,
+  loadDrawerWidth,
+  keepDrawerWidthUsable,
+  startResize,
+  moveResize,
+  endResize,
+} = useAssistantDrawerWidth()
+
 /**
  * 拖曳中的 pointer 事件掛在 window 上，因為手一快就會離開那顆鍵——
  * 掛在鍵上的話，拖到一半游標跑出去，那顆鍵就黏在半路上不動了。
@@ -62,14 +72,39 @@ function onDragStart(pointerX: number, pointerY: number): void {
   window.addEventListener('pointerup', onUp)
 }
 
-// 位置記在瀏覽器裡，所以只有到了瀏覽器才讀得到。
+/**
+ * 拉動抽屜那條邊。與拖那顆鍵同一個做法：事件掛在 window 上，
+ * 因為手一快就會離開那條細邊。
+ */
+function onResizeStart(pointerX: number): void {
+  startResize(pointerX)
+
+  const onMove = (event: PointerEvent): void => moveResize(event.clientX)
+  const onUp = (): void => {
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    endResize()
+  }
+
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+}
+
+/** 視窗變小時，那顆鍵與抽屜都要收回看得見、還能用的範圍。 */
+function keepAssistantUsable(): void {
+  keepTriggerInView()
+  keepDrawerWidthUsable()
+}
+
+// 這兩份都記在瀏覽器裡，所以只有到了瀏覽器才讀得到。
 onMounted(() => {
   loadTriggerPosition()
-  window.addEventListener('resize', keepTriggerInView)
+  loadDrawerWidth()
+  window.addEventListener('resize', keepAssistantUsable)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', keepTriggerInView)
+  window.removeEventListener('resize', keepAssistantUsable)
 })
 </script>
 
@@ -96,11 +131,14 @@ onBeforeUnmount(() => {
     :conversations="conversations"
     :active-conversation-id="conversationId"
     :conversations-error-message="conversationsErrorMessage"
+    :width="drawerWidth"
+    :resizing="resizing"
     @close-drawer="closeDrawer()"
     @send="question => ask(question)"
     @retry="retry()"
     @start-new="startNewConversation()"
     @select-conversation="id => selectConversation(id)"
     @open-history="loadConversations()"
+    @resize-start="onResizeStart"
   />
 </template>

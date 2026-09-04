@@ -39,6 +39,15 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
   conversations: readonly ConversationSummaryDto[]
   activeConversationId: number | null
   conversationsErrorMessage: string | null
+  /**
+   * 抽屜多寬（像素）。
+   *
+   * 它從外面來而不是寫在下面的樣式裡，因為**夾回還能用的範圍**那條規則也要用到
+   * 同一個數字。兩邊各寫一份的話，使用者拉到某個寬度時畫出來的會是另一個。
+   */
+  width: number
+  /** 正在被拉動嗎。拉動中要把那條邊標出來，也不要讓文字被選到。 */
+  resizing?: boolean
 }>()
 
 const draft = defineModel<string>('draft', { required: true })
@@ -50,7 +59,13 @@ const emit = defineEmits<{
   startNew: []
   selectConversation: [id: number]
   openHistory: []
+  resizeStart: [pointerX: number]
 }>()
+
+/** 抓住那條邊就交給接線那一層去接 window 上的移動與放手。 */
+function onResizePointerDown(event: PointerEvent): void {
+  emit('resizeStart', event.clientX)
+}
 
 /**
  * 那一層歷史蓋上來了沒有。
@@ -96,7 +111,22 @@ watch(() => open, (isOpen) => {
       class="assistant-drawer__panel"
       aria-label="行情助手"
       data-testid="assistant-drawer-panel"
+      :style="{ width: `${width}px` }"
+      :class="{ 'assistant-drawer__panel--resizing': resizing }"
     >
+      <!--
+        抓著左邊那條邊就能改寬度。抽屜靠右，所以會動的是左邊那一條；
+        往左拉是變寬。它是分隔線也是把手，所以用 separator 的語意。
+      -->
+      <div
+        class="assistant-drawer__resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="調整助手寬度"
+        data-testid="assistant-drawer-resize-handle"
+        @pointerdown="onResizePointerDown"
+      />
+
       <header class="assistant-drawer__head">
         <span class="assistant-drawer__title">
           <span
@@ -208,12 +238,11 @@ watch(() => open, (isOpen) => {
 </template>
 
 <style scoped lang="scss">
-// 抽屜的寬度是一次性的尺寸，不是顏色／間距／字級那幾種一定要有 token 的值。
-// 420 像素放得下有小標與條列的回答，又不至於遮住半張圖。
-$drawer-width: 420px;
-
 // 浮起來的卡片與視窗邊緣之間留一圈，讓它看得出是「疊在上面」而不是「介面的一部分」。
 $drawer-inset: 0.75rem;
+
+// 那條邊要細到不佔版面，又寬到抓得住。指標熱區另外用 padding 往外借一點。
+$resize-handle-width: 5px;
 
 .assistant-drawer {
   &__panel {
@@ -228,11 +257,38 @@ $drawer-inset: 0.75rem;
     border: 1px solid color('border-strong');
     border-radius: radius('2xl');
     background-color: color('surface');
-    width: $drawer-width;
+
+    // 寬度由外面給（見 props 上那段），這裡只保證它不會比視窗還寬——
+    // 極窄的瀏覽器上，夾回範圍那條規則守不住的那一段由這一行接手。
     max-width: calc(100vw - #{$drawer-inset} * 2);
 
     // 圓角要吃到裡面的標題列與輸入區，否則它們的直角會戳出卡片的邊。
     overflow: hidden;
+
+    &--resizing {
+      // 拉動中不要選到裡面的文字，也不要讓游標一離開那條邊就變回箭頭。
+      cursor: col-resize;
+      user-select: none;
+    }
+  }
+
+  // 那條邊只有拉動這一個用途，所以它自己就是熱區：貼在卡片左緣、上下通到底。
+  &__resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1;
+    width: $resize-handle-width;
+    cursor: col-resize;
+
+    // 拉動不是捲動手勢，觸控時不要讓瀏覽器接手。
+    touch-action: none;
+
+    &:hover,
+    &:active {
+      background-color: color('primary');
+    }
   }
 
   &__head {

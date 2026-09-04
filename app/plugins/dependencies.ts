@@ -32,6 +32,9 @@ import { AssistantConversationApplication } from '~/application/assistant-conver
 import { AssistantTriggerPositionPreferenceProxy } from '~/infrastructure/proxy/assistant-trigger-position-preference-proxy'
 import { AssistantTriggerService } from '~/domain/service/assistant-trigger-service'
 import { AssistantTriggerApplication } from '~/application/assistant-trigger-application'
+import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
+import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
+import { AssistantDrawerWidthApplication } from '~/application/assistant-drawer-width-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -99,6 +102,12 @@ export default defineNuxtPlugin(() => {
     new AssistantTriggerService(new AssistantTriggerPositionPreferenceProxy()),
   )
 
+  // 抽屜拉成多寬同樣是這台裝置的習慣。它與上面那一支分開，因為「那顆鍵擺在哪」與
+  // 「抽屜多寬」會分開改變——合成一個，它的公開方法會乾淨地分成兩半互不相干。
+  const assistantDrawerWidthApplication = new AssistantDrawerWidthApplication(
+    new AssistantDrawerWidthService(new AssistantDrawerWidthPreferenceProxy()),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -117,6 +126,7 @@ export default defineNuxtPlugin(() => {
       timeZoneApplication,
       assistantConversationApplication,
       assistantTriggerApplication,
+      assistantDrawerWidthApplication,
     },
   }
 })

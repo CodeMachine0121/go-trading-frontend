@@ -13,6 +13,8 @@ function mountDrawer(props: {
   conversations?: ReturnType<typeof buildSummary>[]
   activeConversationId?: number | null
   conversationsErrorMessage?: string | null
+  width?: number
+  resizing?: boolean
 }) {
   return mount(AssistantDrawer, {
     props: {
@@ -26,6 +28,8 @@ function mountDrawer(props: {
       conversations: props.conversations ?? [],
       activeConversationId: props.activeConversationId ?? null,
       conversationsErrorMessage: props.conversationsErrorMessage ?? null,
+      width: props.width ?? 420,
+      resizing: props.resizing ?? false,
     },
     global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
   })
@@ -209,6 +213,7 @@ describe('AssistantDrawer 把裡面那兩塊的事件接出去', () => {
         conversations: [],
         activeConversationId: null,
         conversationsErrorMessage: null,
+        width: 420,
       },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
     })
@@ -229,5 +234,49 @@ describe('AssistantDrawer 把裡面那兩塊的事件接出去', () => {
 
     // 一次是打開那一層時讀的，一次是按重新讀取。
     expect(wrapper.emitted('openHistory')).toHaveLength(2)
+  })
+})
+
+describe('AssistantDrawer 的寬度', () => {
+  it('畫成外面說的那麼寬', () => {
+    // 寬度不寫在樣式裡：夾回還能用的範圍那條規則要用到同一個數字，
+    // 兩邊各寫一份的話，使用者拉到某個寬度時畫出來的會是另一個。
+    const wrapper = mountDrawer({ open: true, width: 560 })
+
+    expect(wrapper.get('[data-testid="assistant-drawer-panel"]').attributes('style'))
+      .toContain('width: 560px')
+  })
+
+  it('左邊那條邊抓得住', () => {
+    // 抽屜靠右，所以會動的是左邊那一條。
+    const wrapper = mountDrawer({ open: true })
+
+    expect(wrapper.find('[data-testid="assistant-drawer-resize-handle"]').exists()).toBe(true)
+  })
+
+  it('抓住那條邊就把游標的位置交出去', async () => {
+    // 之後的移動與放手掛在 window 上——手一快就會離開那條細邊。
+    const wrapper = mountDrawer({ open: true })
+
+    await wrapper.get('[data-testid="assistant-drawer-resize-handle"]')
+      .trigger('pointerdown', { clientX: 640 })
+
+    expect(wrapper.emitted('resizeStart')).toEqual([[640]])
+  })
+
+  it('拉動中看得出來', () => {
+    const wrapper = mountDrawer({ open: true, resizing: true })
+
+    expect(wrapper.get('[data-testid="assistant-drawer-panel"]').classes())
+      .toContain('assistant-drawer__panel--resizing')
+  })
+
+  it('說得出那條邊是幹什麼的', () => {
+    // 一條五像素的細邊，對讀螢幕的人來說什麼都沒說。
+    const handle = mountDrawer({ open: true })
+      .get('[data-testid="assistant-drawer-resize-handle"]')
+
+    expect(handle.attributes('aria-label')).toContain('調整助手寬度')
+    expect(handle.attributes('role')).toBe('separator')
   })
 })
