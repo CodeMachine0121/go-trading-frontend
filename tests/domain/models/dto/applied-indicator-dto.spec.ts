@@ -73,3 +73,40 @@ describe('AppliedIndicatorDto：改一格的值', () => {
     expect(applied.withParameterValue('週期', 60).parameters.map(one => one.value)).toEqual([20])
   })
 })
+
+describe('AppliedIndicatorDto：留存下來的形狀', () => {
+  it('帶走的是哪一支策略與那幾格調成什麼', () => {
+    const applied = appliedWith([
+      new StrategyParameterDto('期數', 'lookbackCount', 60),
+      new StrategyParameterDto('倍數', 'number', 1.5),
+    ])
+
+    const remembered = applied.toRememberedVo()
+
+    expect(remembered.strategyId).toBe(7)
+    expect(Object.fromEntries(remembered.parameterValues)).toEqual({ 期數: 60, 倍數: 1.5 })
+  })
+
+  it('種類不帶走——種類是宣告說的，留存它只會讓過期的種類贏過宣告', () => {
+    const remembered = appliedWith([
+      new StrategyParameterDto('期數', 'lookbackCount', 60)]).toRememberedVo()
+
+    expect(JSON.stringify(Object.fromEntries(remembered.parameterValues)))
+      .not.toContain('lookbackCount')
+  })
+
+  it('序號不帶走——它只在這個畫面活著', () => {
+    // 同一支策略的兩筆留存下來只差在值，序號下次打開會重新給。
+    const first = appliedWith([new StrategyParameterDto('期數', 'lookbackCount', 20)], 1)
+    const second = appliedWith([new StrategyParameterDto('期數', 'lookbackCount', 20)], 2)
+
+    expect(first.toRememberedVo()).toEqual(second.toRememberedVo())
+  })
+
+  it('一個旋鈕都沒有時帶走的是空的那幾格', () => {
+    const remembered = appliedWith([]).toRememberedVo()
+
+    expect(remembered.strategyId).toBe(7)
+    expect(Object.fromEntries(remembered.parameterValues)).toEqual({})
+  })
+})

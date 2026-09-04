@@ -1,12 +1,13 @@
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 
 /**
  * DTO：圖上**一次套用**——清單上獨立的一筆。
  *
  * **它有兩個身分，而且刻意是兩個：**
- * - `id` 是**這一次套用**的身分。它只在這個畫面活著（清單本來就不留存），
- *   用來分辨圖上這幾筆：移除哪一筆、哪一筆失敗了、哪一筆正在算。
+ * - `id` 是**這一次套用**的身分。它只在這個畫面活著（留存的是「他要哪幾支、各配什麼值」，
+ *   不是這幾個序號），用來分辨圖上這幾筆：移除哪一筆、哪一筆失敗了、哪一筆正在算。
  * - `strategy.id` 是**策略**的身分。線色記憶掛在它身上，因為
  *   「我習慣這支的均線是藍色」這個習慣跨越每一次打開畫面。
  *
@@ -46,6 +47,22 @@ export class AppliedIndicatorDto {
     return this.parameters
       .map(parameter => `${parameter.name} ${parameter.value}`)
       .join('、')
+  }
+
+  /**
+   * 交出留存下來的形狀：**哪一支策略、那幾格調成什麼**。
+   *
+   * 轉換寫在來源身上（`a.toB()`，不是 `B.fromA(a)`）——它讀的全是自己的欄位。
+   *
+   * **序號不帶走**：它只在這個畫面活著，下次打開時圖上那幾筆會拿到新的序號。
+   * **種類也不帶走**：種類是宣告說的，留存它只會讓一份過期的種類贏過宣告。
+   * 帶走的是使用者真正要求過的那兩樣：他要哪一支，以及他把那幾格調成什麼。
+   */
+  toRememberedVo(): RememberedAppliedIndicatorVo {
+    return new RememberedAppliedIndicatorVo(
+      this.strategy.id,
+      new Map(this.parameters.map(parameter => [parameter.name, parameter.value])),
+    )
   }
 
   /** 改掉其中一格的值，交出改過之後的自己；不是這一格就原樣留著。 */
