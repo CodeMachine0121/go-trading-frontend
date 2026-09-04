@@ -104,15 +104,6 @@ describe('是非：仍然是一個數字，只是換一種讀法', () => {
     return new StrategyParameterDto(name, 'boolean', value)
   }
 
-  it.each([
-    { name: '零是否', value: 0, expected: false },
-    { name: '一是是', value: 1, expected: true },
-    { name: '其他非零也是是', value: 2, expected: true },
-  ])('$name', ({ value, expected }) => {
-    expect(new StrategyParameterDomain(booleanParameter('只看多方', value)).isTrue())
-      .toBe(expected)
-  })
-
   it('用挑的，不是用打的', () => {
     // 一個「填 0 或 1」的數字框等於要使用者記住一個系統內部的約定。
     expect(new StrategyParameterDomain(booleanParameter('只看多方', 1)).control())

@@ -224,8 +224,20 @@ function applyPicked(value: string) {
           這三則留在清單上，不進對話框：它們講的是「這一筆現在怎麼了」，
           而那是使用者掃過清單時就該看到的事，不是點開才發現的事。
         -->
+        <!--
+          填的東西用不了時，清單上也要說——對話框關著的時候，
+          那一列寫的值與圖上那條線就對不起來了，而使用者看不到任何理由。
+        -->
+        <AppAlert
+          v-if="row.parameterMessage"
+          tone="danger"
+          :data-testid="`indicator-parameters-error-${row.appliedIndicator.id}`"
+        >
+          {{ row.parameterMessage }}
+        </AppAlert>
+
         <p
-          v-if="row.isCalculating"
+          v-else-if="row.isCalculating"
           class="chart-indicator-panel__note"
           data-testid="indicator-calculating"
         >

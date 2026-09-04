@@ -74,11 +74,6 @@ export class StrategyParameterDomain {
     return this.parameter.kind === 'lookbackCount' ? this.parameter.value : 0
   }
 
-  /** 這個是非現在是不是「是」。零是否，非零是是。 */
-  isTrue(): boolean {
-    return this.parameter.value !== 0
-  }
-
   /** 改掉其中一樣，其餘照舊——參數是不可變的，換一個值就是換一個。 */
   renamedTo(name: string): StrategyParameterDto {
     return new StrategyParameterDto(name, this.parameter.kind, this.parameter.value)

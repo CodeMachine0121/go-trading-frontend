@@ -31,6 +31,13 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const calculatingIds = ref<number[]>([])
   /** 每一筆各自的失敗說明。一筆失敗只標在它自己旁邊，其他筆照常畫。 */
   const failureMessages = ref<Map<number, string>>(new Map())
+  /**
+   * 每一筆各自的「這幾格哪裡不對」。
+   *
+   * 與失敗說明分開，因為它們講的是不同的事：那個說「算過了、算不出來」，
+   * 這個說「還沒算——你填的東西用不了」。混成同一個，使用者會以為算式壞了。
+   */
+  const parameterMessages = ref<Map<number, string>>(new Map())
 
   /**
    * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略，正在調它的值。
@@ -111,6 +118,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       chartIndicatorApplication.describeAppliedIndicatorParameters(appliedIndicator.parameters),
       calculatingIds.value.includes(appliedIndicator.id),
       failureMessages.value.get(appliedIndicator.id) ?? null,
+      parameterMessages.value.get(appliedIndicator.id) ?? null,
       [
         ...(drawn?.levels ?? []).map(level => new AppliedIndicatorLineDto(
           level.lineKey, level.indicatorName, level.colorToken)),
@@ -193,7 +201,13 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     pendingParametersMessage.value = null
   }
 
-  /** 改掉已經在圖上那一筆的值：記住它，並且**只有那一筆**重算。 */
+  /**
+   * 改掉已經在圖上那一筆的值：記住它，並且**只有那一筆**重算。
+   *
+   * 填了用不了的值時**照樣把它留下**，只是不算也不記——畫面必須顯示使用者剛剛打的東西。
+   * 這裡曾經直接不理它：格子裡留著他打的 0，清單那一列卻還寫著 20，
+   * 而沒有任何一個字說為什麼。畫面自己跟自己矛盾，比什麼都不做更糟。
+   */
   async function changeAppliedParameterValue(
     appliedIndicatorId: number, parameterName: string, value: number,
   ) {
@@ -203,15 +217,33 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     }
 
     const changed = applied.withParameterValue(parameterName, value)
-    if (chartIndicatorApplication.validateAppliedIndicatorParameters(
-      changed.parameters) !== null) {
+    appliedIndicators.value = appliedIndicators.value.map(
+      one => (one.id === appliedIndicatorId ? changed : one))
+
+    const message = chartIndicatorApplication.validateAppliedIndicatorParameters(
+      changed.parameters)
+    parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, message)
+    if (message !== null) {
       return
     }
 
-    appliedIndicators.value = appliedIndicators.value.map(
-      one => (one.id === appliedIndicatorId ? changed : one))
     chartIndicatorApplication.rememberAppliedIndicatorParameters(changed)
     await calculateOne(changed)
+  }
+
+  /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
+  function withMessage(
+    messages: ReadonlyMap<number, string>, appliedIndicatorId: number, message: string | null,
+  ): Map<number, string> {
+    const changed = new Map(messages)
+    if (message === null) {
+      changed.delete(appliedIndicatorId)
+    }
+    else {
+      changed.set(appliedIndicatorId, message)
+    }
+
+    return changed
   }
 
   /** 移除一筆：它的線、它的失敗說明、它在清單上的位置一起消失。 */
@@ -223,6 +255,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     chartIndicators.value = chartIndicators.value.filter(
       indicator => indicator.appliedIndicatorId !== appliedIndicatorId)
     forgetFailure(appliedIndicatorId)
+    parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, null)
   }
 
   /** 真的加上去：記住這一次的值，然後立刻算一次。 */

@@ -439,15 +439,45 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
     expect(calculateIndicator).not.toHaveBeenCalled()
   })
 
-  it('把已經在圖上那一筆的值改成不合法的，不重算也不換掉它', async () => {
+  it('把已經在圖上那一筆的值改成不合法的：不重算，但說得出哪裡不對', async () => {
+    // 這裡曾經直接不理它：格子裡留著使用者打的 0，清單那一列卻還寫著 20，
+    // 而沒有任何一個字說為什麼。畫面自己跟自己矛盾，比什麼都不做更糟。
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyWithLookback(wrapper, 7, '20')
     calculateIndicator.mockClear()
 
-    await changeAppliedValue(wrapper, 1, '期數', '0')
+    await openSettings(wrapper, 1)
+    await wrapper.get('[data-testid="applied-parameter-期數"]').setValue('0')
+    await flushPromises()
 
     expect(calculateIndicator).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="applied-indicator-summary"]').text()).toBe('期數 20')
+    expect(wrapper.get('[data-testid="applied-parameters-alert"]').text())
+      .toContain('大於零的整數')
+    // 畫面顯示的是使用者剛剛打的那個值，不是一個他沒打過的舊值。
+    expect(wrapper.get<HTMLInputElement>('[data-testid="applied-parameter-期數"]').element.value)
+      .toBe('0')
+  })
+
+  it('對話框關著時也說得出來——那一列寫的值與圖上那條線已經對不起來了', async () => {
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+
+    expect(wrapper.get('[data-testid="indicator-parameters-error-1"]').text())
+      .toContain('大於零的整數')
+  })
+
+  it('改回合法的值就重算，說明跟著消失', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+    calculateIndicator.mockClear()
+
+    await changeAppliedValue(wrapper, 1, '期數', '60')
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="indicator-parameters-error-1"]').exists()).toBe(false)
   })
 
   it('改一筆已經不在清單上的，什麼都不做', async () => {

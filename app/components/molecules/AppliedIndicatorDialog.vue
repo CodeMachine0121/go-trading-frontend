@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
@@ -48,6 +49,14 @@ const emit = defineEmits<{
           :fields="row.parameterFields"
           @change-value="(name, value) => emit('changeParameterValue', name, value)"
         />
+        <AppAlert
+          v-if="row.parameterMessage"
+          tone="danger"
+          data-testid="applied-parameters-alert"
+        >
+          {{ row.parameterMessage }}
+        </AppAlert>
+
         <p class="applied-indicator-dialog__note">
           改了就重算這一筆，圖上其他線不動。這裡填的值只屬於這一次套用，
           策略記著的預設值不會被動到。
