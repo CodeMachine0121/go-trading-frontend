@@ -108,7 +108,8 @@ function onValueInput(index: number, raw: string | number) {
     <AppButton
       type="button"
       variant="secondary"
-      block
+      size="small"
+      class="strategy-parameter-list__add"
       data-testid="add-parameter-button"
       @click="emit('add')"
     >
@@ -122,6 +123,11 @@ function onValueInput(index: number, raw: string | number) {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
+
+  // 加一個是偶爾才做一次的事，不必是一顆橫跨整個寬度的按鈕。
+  &__add {
+    align-self: start;
+  }
 
   &__empty {
     margin: 0;

@@ -227,10 +227,22 @@ async function calculateIndicator() {
       設定與動作連在同一條帶子上，寫東西的地方獨佔下面那一整片。
       擺成側欄的代價很具體：它得跟編輯區一樣高，於是三個欄位下面永遠空著一大塊。
     -->
+    <!--
+      這一頁只有一個分別要記住：**什麼跟著策略走，什麼只屬於這一次**。
+      它以前被拆成三句小灰字散在三個地方，於是沒有人讀——一句永遠掛著、
+      每次都讀到的話，讀的人很快就會學會不讀它。
+      改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
+    -->
     <AppPanel
       title="執行條件"
       class="indicator-calculation-panel__run"
     >
+      <template #meta>
+        <AppBadge variant="info">
+          只影響這一次
+        </AppBadge>
+      </template>
+
       <div class="indicator-calculation-panel__run-fields">
         <SymbolField
           v-model="symbol"
@@ -240,7 +252,6 @@ async function calculateIndicator() {
 
         <FormField
           label="要看多長"
-          hint="這一次要涵蓋多長一段。要幾根 K 線由系統自己算——包含算式回看要用的那些。"
           :error-message="calculationRun.messageFor('span')"
         >
           <div class="indicator-calculation-panel__span">
@@ -270,7 +281,6 @@ async function calculateIndicator() {
 
         <FormField
           label="彙總刻度"
-          hint="這次要吃多粗的 K 線。它屬於這一次計算，不會跟著策略存下來。"
         >
           <AppSelect
             v-model="aggregationInterval"
@@ -304,17 +314,6 @@ async function calculateIndicator() {
           {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
         </AppButton>
       </div>
-
-      <!--
-        這一行在內容區而不在標題列：標題列的附註是一行不換行的字，
-        寫得下的只有幾個字，而這兩句話都是使用者看到數字之後會問的事。
-      -->
-      <p
-        class="indicator-calculation-panel__notice"
-        data-testid="calculation-notice"
-      >
-        計算只採用已經走完的那幾格——還在走的那一格不算，因為它的數字還會變；算式只能做純運算，碰不到檔案、網路與時間。
-      </p>
     </AppPanel>
 
     <!--
@@ -390,56 +389,54 @@ async function calculateIndicator() {
       計算中…算式最長可能跑上數十秒。
     </AppAlert>
 
+    <!-- 這一整片是「這支算法」：算式、它自己的旋鈕，以及寫的時候翻一下的那份清單。 -->
     <div class="indicator-calculation-panel__workbench">
-      <!-- 左欄是「這支算法」：算式，加上它自己的旋鈕。右欄是寫的時候要查的東西。 -->
-      <div class="indicator-calculation-panel__main">
-        <IndicatorScriptEditor
-          v-model="scriptBody"
-          class="indicator-calculation-panel__editor"
-          :script-template="scriptTemplate"
-          :error-message="calculationRun.messageFor('scriptBody')"
-        >
-          <template #toolbar>
-            <AppSelect
-              v-model="resultType"
-              class="indicator-calculation-panel__result-type"
-              data-testid="result-type-select"
+      <IndicatorScriptEditor
+        v-model="scriptBody"
+        class="indicator-calculation-panel__editor"
+        :script-template="scriptTemplate"
+        :error-message="calculationRun.messageFor('scriptBody')"
+      >
+        <template #toolbar>
+          <!--
+            這個框裡的每一樣東西——算式、指標值種類、旋鈕——都是這支策略記著的。
+            對面那個「只影響這一次」是它的另一半：兩個標記擺在一起才看得出是一組，
+            而這一頁只有這一個分別需要記住。
+          -->
+          <AppBadge variant="success">
+            跟著策略存
+          </AppBadge>
+
+          <AppSelect
+            v-model="resultType"
+            class="indicator-calculation-panel__result-type"
+            data-testid="result-type-select"
+          >
+            <option
+              v-for="resultTypeOption in resultTypeOptions"
+              :key="resultTypeOption.value"
+              :value="resultTypeOption.value"
             >
-              <option
-                v-for="resultTypeOption in resultTypeOptions"
-                :key="resultTypeOption.value"
-                :value="resultTypeOption.value"
-              >
-                {{ resultTypeOption.label }}
-              </option>
-            </AppSelect>
-            <AppButton
-              type="button"
-              variant="secondary"
-              label="帶入範例內容"
-              data-testid="example-button"
-              @click="fillExampleScriptBody"
-            >
-              <AppIcon name="example" />
-            </AppButton>
-          </template>
-        </IndicatorScriptEditor>
+              {{ resultTypeOption.label }}
+            </option>
+          </AppSelect>
+          <AppButton
+            type="button"
+            variant="secondary"
+            label="帶入範例內容"
+            data-testid="example-button"
+            @click="fillExampleScriptBody"
+          >
+            <AppIcon name="example" />
+          </AppButton>
+        </template>
 
         <!--
-          旋鈕與算式、指標值種類同一區，因為判準相同：**它是這支算法的一部分**。
-          「快線是二十期」換到哪一檔、哪種粗細、哪一段時間去算都一樣。
+          旋鈕與算式、指標值種類**同屬一支策略**，所以它們在同一個框裡。
+          判準相同：「快線是二十期」換到哪一檔、哪種粗細、哪一段時間去算都一樣。
           彙總刻度與要看多長則在執行條件那一區——它們描述的是這一次。
         -->
-        <AppPanel
-          title="參數"
-          class="indicator-calculation-panel__parameters"
-        >
-          <template #meta>
-            <span class="indicator-calculation-panel__parameters-hint">
-              算式以名字取用它們；它們跟著策略一起存。
-            </span>
-          </template>
-
+        <template #footer>
           <StrategyParameterList
             :fields="strategyParameters.fields.value"
             :kind-options="strategyParameters.kindOptions"
@@ -457,15 +454,11 @@ async function calculateIndicator() {
           >
             {{ calculationRun.messageFor('parameters') }}
           </AppAlert>
-        </AppPanel>
-      </div>
-
-      <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它擺在編輯區旁邊。 -->
-      <KCandleFieldReference
-        class="indicator-calculation-panel__reference"
-        :fields="kCandleFields"
-      />
+        </template>
+      </IndicatorScriptEditor>
     </div>
+    <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它就在編輯區底下。 -->
+    <KCandleFieldReference :fields="kCandleFields" />
 
     <AppPanel
       v-if="calculationRun.result.value"
@@ -477,6 +470,11 @@ async function calculateIndicator() {
            挑了一小時卻用五分鐘算出來的數字長得跟對的一模一樣，
            所以它必須看得見，而不是靠信任。 -->
       <template #meta>
+        <!--
+          「為什麼是這個數字」與那個數字擺在一起。
+          它以前是一行常駐在執行條件底下的細字——而使用者會問這件事的時刻，
+          正是他看到「實際採用 24 根」卻要了 25 根的那一刻，不是他剛打開畫面的時候。
+        -->
         <span data-testid="used-candle-count">
           實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
           <AppBadge
@@ -488,6 +486,10 @@ async function calculateIndicator() {
           <AppBadge variant="info">
             {{ calculationRun.result.value.resultTypeLabel }}
           </AppBadge>
+          <span
+            class="indicator-calculation-panel__notice"
+            data-testid="calculation-notice"
+          >只採用已經走完的那幾格——還在走的那一格不算，它的數字還會變。</span>
         </span>
       </template>
 
@@ -652,32 +654,13 @@ async function calculateIndicator() {
     align-self: end;
   }
 
-  // 左欄是這支算法（算式加它的旋鈕），右欄是寫的時候要查的東西。
+  // 算式與它的旋鈕。編輯區吃掉剩下的高度——這個畫面上唯一需要空間的就是它。
   &__workbench {
-    display: grid;
-    flex: 1;
-    gap: spacing('sm');
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    min-height: 0;
-
-    @include respond-to('lg') {
-      // 右欄放得下最長的那個欄位名（TakerBuyQuoteVolume）而不必折行。
-      grid-template-columns: minmax(0, 1fr) 21rem;
-      align-items: stretch;
-    }
-  }
-
-  &__main {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: spacing('sm');
-    min-width: 0;
-  }
-
-  &__reference {
     min-height: 0;
-    overflow-y: auto;
   }
 
   &__editor {

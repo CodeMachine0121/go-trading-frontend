@@ -99,13 +99,20 @@ async function fillAndSubmit(
 }
 
 describe('IndicatorCalculationPanel', () => {
-  it('一進畫面就說明計算只採用走完的那幾格', () => {
+  it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {
+    // 這句話曾經一進畫面就掛在執行條件底下。**改成跟著結果出現是刻意的**：
+    // 使用者會問「為什麼是這個數字」的時刻，正是他看到「實際採用 24 根」
+    // 卻要了 25 根的那一刻，不是他剛打開畫面、什麼都還沒算的時候。
     const wrapper = mountPanel(buildProxy())
+    expect(wrapper.find('[data-testid="calculation-notice"]').exists()).toBe(false)
+
+    await fillAndSubmit(wrapper)
 
     // 刻度變粗之後「排除最新一根」就講不清楚了：一小時的刻度下，
     // 不採用的是一整個還沒走完的小時。畫面說的必須是實際的規則。
-    expect(wrapper.get('[data-testid="calculation-notice"]').text()).toContain('已經走完')
-    expect(wrapper.get('[data-testid="calculation-notice"]').text()).not.toContain('排除最新一根')
+    const notice = wrapper.get('[data-testid="calculation-notice"]')
+    expect(notice.text()).toContain('已經走完')
+    expect(notice.text()).not.toContain('排除最新一根')
   })
 
   it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {

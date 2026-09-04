@@ -80,12 +80,15 @@ describe('StrategyPicker', () => {
     expect(wrapper.find('[data-testid="an-action"]').exists()).toBe(true)
   })
 
-  it('說明跟著有沒有策略換一句話', () => {
+  it('一支都還沒有時說一句，有了之後就不說', () => {
+    // 這裡曾經在有策略時也說一句「挑一支會把它帶進來」。**那是刻意拿掉的**：
+    // 那是選單本來就會做的事，而一句永遠掛著、每次都讀到的話，
+    // 讀的人很快就會學會不讀它——連同旁邊真正要緊的那幾句一起。
     const withNone = mount(StrategyPicker, { props: { strategies: [] } })
     const withSome = mount(StrategyPicker, { props: { strategies: [strategyOf(1, 'x')] } })
 
     expect(withNone.text()).toContain('按「另存為新策略」就會留下第一支')
-    expect(withSome.text()).toContain('挑一支會把它的算式')
+    expect(withSome.find('.strategy-picker__hint').exists()).toBe(false)
   })
 
   it('挑回「未使用任何策略」不算挑了一支', async () => {

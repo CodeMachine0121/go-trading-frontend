@@ -83,6 +83,18 @@ function continueWriting() {
     >
       {{ errorMessage }}
     </p>
+
+    <!--
+      這一格裝的是「跟這段算式同屬一支策略」的東西——它的旋鈕。
+      放進同一個框裡是刻意的：算式、指標值種類與旋鈕是**同一個東西的三個面**，
+      各自框一塊會讓使用者以為它們是三件要分別決定的事。
+    -->
+    <div
+      v-if="$slots.footer"
+      class="indicator-script-editor__footer"
+    >
+      <slot name="footer" />
+    </div>
   </section>
 </template>
 
@@ -160,6 +172,12 @@ function continueWriting() {
     flex: 1;
     min-height: spacing('2xl');
     cursor: text;
+  }
+
+  &__footer {
+    flex: none;
+    border-top: 1px solid color('border');
+    padding: spacing('2xs') spacing('sm') spacing('sm');
   }
 
   &__error {
