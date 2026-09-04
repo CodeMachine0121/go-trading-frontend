@@ -1,4 +1,13 @@
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import { StrategyParameterKindOptionDto } from '~/domain/models/dto/strategy-parameter-kind-option-dto'
+import { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
+import type { StrategyParameterDto, StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
+import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
+import { CalculationSpanVo, DEFAULT_CALCULATION_SPAN } from '~/domain/models/vo/calculation-span-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
@@ -14,6 +23,8 @@ import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-v
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
 import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
+import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
+import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 
 /**
  * 沒特別填時要餵給算式幾根 K 線。
@@ -21,7 +32,6 @@ import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
  * 二十根——夠算出一條短均線，又不必等太久。它與彙總刻度的預設值住在一起，
  * 因為兩者是同一件事的兩半：「一次還沒被指定過任何東西的計算」長什麼樣。
  */
-const DEFAULT_CANDLE_COUNT = 20
 
 /**
  * Domain Service：指標計算的編排。
@@ -74,8 +84,119 @@ export class IndicatorCalculationService {
   }
 
   /** 沒特別填時要算幾根。同上——畫面不自己指定預設值。 */
-  defaultCandleCount(): number {
-    return DEFAULT_CANDLE_COUNT
+  /** 「多長」那個單位選單上可以挑的每一個。 */
+  listCalculationSpanUnitOptions(): CalculationSpanUnitOptionDto[] {
+    return [
+      new CalculationSpanUnitOptionDto('minute', '分鐘'),
+      new CalculationSpanUnitOptionDto('hour', '小時'),
+      new CalculationSpanUnitOptionDto('day', '天'),
+    ]
+  }
+
+  /** 打開畫面時預先填好的那一段。 */
+  defaultCalculationSpan(): CalculationSpanDto {
+    return new CalculationSpanDto(
+      DEFAULT_CALCULATION_SPAN.amount, DEFAULT_CALCULATION_SPAN.unit)
+  }
+
+  /**
+   * 這麼長一段、以這個刻度看是幾格；那一段本身不合理時說出來。
+   *
+   * 畫面問這個而不是自己算，因為「至少一格」、怎麼取整、多長才算合理，
+   * 每一條都是規則——而規則不住在畫面上。
+   */
+  kCandleCountFor(span: CalculationSpanDto, aggregationInterval: string): number {
+    const spanVo = new CalculationSpanVo(span.amount, span.unit)
+    const message = spanVo.validationMessage()
+    if (message !== null) {
+      throw new IndicatorCalculationFieldError('span', message)
+    }
+
+    return spanVo.kCandleCountAt(
+      new AggregationIntervalDomain(aggregationInterval).intervalMinutes)
+  }
+
+  /** 種類選單上可以挑的每一個。 */
+  listStrategyParameterKindOptions(): StrategyParameterKindOptionDto[] {
+    return [
+      new StrategyParameterKindOptionDto('lookbackCount', '回看根數'),
+      new StrategyParameterKindOptionDto('number', '數值'),
+      new StrategyParameterKindOptionDto('boolean', '是非'),
+    ]
+  }
+
+  /**
+   * 每一個旋鈕在畫面上該長什麼樣子。
+   *
+   * 畫面問這個而不是自己判斷種類——「回看根數要整數鍵盤」是業務規則，
+   * 寫進畫面就是把規則搬到了它不該在的地方。
+   */
+  describeStrategyParameters(
+    parameters: readonly StrategyParameterDto[],
+  ): StrategyParameterFieldDto[] {
+    return parameters.map((parameter) => {
+      const parameterDomain = new StrategyParameterDomain(parameter)
+
+      return new StrategyParameterFieldDto(
+        parameter,
+        parameterDomain.control(),
+        parameterDomain.valueOptions(),
+        parameterDomain.inputMode(),
+        parameterDomain.step(),
+        parameterDomain.validationMessage() !== null)
+    })
+  }
+
+  /**
+   * 旋鈕的增刪改。每一個都回傳新的一份——一份參數是不可變的，改一下就是換一份。
+   *
+   * 它們在這裡而不在畫面上，是因為「新增出來的那一列長什麼樣子」是規則：
+   * 名稱留白、種類預設回看根數、預設值二十，每一項都有理由（見那個模型）。
+   */
+  addStrategyParameter(
+    parameters: readonly StrategyParameterDto[],
+  ): readonly StrategyParameterDto[] {
+    return new StrategyParametersDomain(parameters).addingNew().all
+  }
+
+  removeStrategyParameter(
+    parameters: readonly StrategyParameterDto[], index: number,
+  ): readonly StrategyParameterDto[] {
+    return new StrategyParametersDomain(parameters).removingAt(index).all
+  }
+
+  renameStrategyParameter(
+    parameters: readonly StrategyParameterDto[], index: number, name: string,
+  ): readonly StrategyParameterDto[] {
+    return this.replacing(parameters, index,
+      parameter => parameter.renamedTo(name))
+  }
+
+  changeStrategyParameterKind(
+    parameters: readonly StrategyParameterDto[], index: number, kind: StrategyParameterKind,
+  ): readonly StrategyParameterDto[] {
+    return this.replacing(parameters, index, parameter => parameter.withKind(kind))
+  }
+
+  changeStrategyParameterValue(
+    parameters: readonly StrategyParameterDto[], index: number, value: number,
+  ): readonly StrategyParameterDto[] {
+    return this.replacing(parameters, index, parameter => parameter.withValue(value))
+  }
+
+  /** 三個改法只差在改哪一樣，其餘完全相同——共用的是「換掉第幾列」這件事。 */
+  private replacing(
+    parameters: readonly StrategyParameterDto[],
+    index: number,
+    change: (parameter: StrategyParameterDomain) => StrategyParameterDto,
+  ): readonly StrategyParameterDto[] {
+    const wholeSet = new StrategyParametersDomain(parameters)
+    const parameter = wholeSet.at(index)
+    if (parameter === null) {
+      return parameters
+    }
+
+    return wholeSet.replacingAt(index, change(parameter)).all
   }
 
   /** 使用者可以挑的指標值種類，含給人看的名字。 */
@@ -92,5 +213,16 @@ export class IndicatorCalculationService {
    */
   listKCandleFields(): KCandleFieldDto[] {
     return K_CANDLE_FIELDS.map(field => field.toDto())
+  }
+
+  /**
+   * 宣告好的參數在算式裡怎麼讀——一種種類一則。
+   *
+   * 它與上面那一份是同一件事的兩半：兩者描述的都是沙箱交給算式的東西。
+   * 畫面問這個而不是自己寫幾段範例，理由也相同——那些字一旦散在畫面上，
+   * 後端改了注入的函式名時，沒有人會知道要回頭改它們。
+   */
+  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
+    return SCRIPT_PARAMETER_ACCESSES.map(access => access.toDto())
   }
 }

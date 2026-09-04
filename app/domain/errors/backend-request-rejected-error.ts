@@ -12,9 +12,31 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly status: number | undefined
 
-  constructor(message: string, options?: { cause?: unknown, status?: number }) {
+  /**
+   * 這次拒絕是關於哪一個策略參數，如果它是關於某一個的話。
+   *
+   * 它以一個欄位存在，而不是靠讀訊息認出來——訊息是寫給人看的，
+   * 措辭一改，任何比對它的程式就跟著壞掉。目前只有「名字對不上」那一種拒絕會帶它。
+   */
+  readonly parameterName: string | undefined
+
+  /**
+   * 這次拒絕是關於**哪一格輸入**，如果它指得出來的話。
+   *
+   * 同樣以一個欄位存在，理由與上面那個相同。後端用它自己的詞彙指名
+   * （例如根數），對應到畫面上的哪一格，是 proxy 的翻譯工作——
+   * 後端沒有理由知道這個畫面把它畫成了「要看多長」。
+   */
+  readonly field: string | undefined
+
+  constructor(
+    message: string,
+    options?: { cause?: unknown, status?: number, parameterName?: string, field?: string },
+  ) {
     super(message, { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
     this.status = options?.status
+    this.parameterName = options?.parameterName
+    this.field = options?.field
   }
 }

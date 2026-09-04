@@ -5,6 +5,7 @@ import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calc
 import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
+import { StrategyParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-parameter-value-preference-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
@@ -58,12 +59,15 @@ export default defineNuxtPlugin(() => {
     new StrategyService(new StrategyProxy(backendBaseUrl)),
   )
 
-  // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色）——
-  // 前者是行情，後者是這台機器上的習慣，所以它吃兩個 proxy。
+  // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼）——
+  // 前者是行情，後兩者是這台機器上的習慣，所以它吃三個 proxy。
+  // 線色與旋鈕值各有各的 proxy 而不是合成一個「偏好」：它們的鍵不同、
+  // 生命週期不同，合起來只會得到一個誰都不好懂的萬用儲存。
   const chartIndicatorApplication = new ChartIndicatorApplication(
     new ChartIndicatorService(
       new IndicatorCalculationProxy(backendBaseUrl),
       new ChartLineColorPreferenceProxy(),
+      new StrategyParameterValuePreferenceProxy(),
     ),
   )
 

@@ -1,3 +1,4 @@
+import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { StrategyDomain } from '~/domain/models/domains/strategy-domain'
 
 /**
@@ -15,6 +16,8 @@ export class Strategy {
     public readonly name: string,
     public readonly script: string,
     public readonly resultType: string,
+    /** 這支算式自己的旋鈕，與後端存的一模一樣。 */
+    public readonly parameters: readonly StrategyParameterDto[] = [],
   ) {}
 
   toDomain(): StrategyDomain {

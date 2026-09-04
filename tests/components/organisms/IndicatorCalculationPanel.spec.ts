@@ -69,7 +69,13 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
 
 async function fillAndSubmit(
   wrapper: ReturnType<typeof mountPanel>,
-  values: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
+  values: {
+    symbol?: string
+    spanAmount?: string
+    spanUnit?: string
+    scriptBody?: string
+    resultType?: string
+  } = {},
 ) {
   // 先讓交易標的清單到齊，否則欄位一取回清單就會把不在清單上的那一檔改掉。
   await flushPromises()
@@ -77,7 +83,13 @@ async function fillAndSubmit(
   // 直接讓欄位交出那個值，驗畫面確實照它處理。
   wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', values.symbol ?? 'BTCUSDT')
   await wrapper.vm.$nextTick()
-  await wrapper.get('[data-testid="candle-count-input"]').setValue(values.candleCount ?? '3')
+  // 使用者說的是「多長」，不是「幾根」——格數由那一段除以彙總刻度得出。
+  if (values.spanAmount !== undefined) {
+    await wrapper.get('[data-testid="span-amount-input"]').setValue(values.spanAmount)
+  }
+  if (values.spanUnit !== undefined) {
+    await wrapper.get('[data-testid="span-unit-select"]').setValue(values.spanUnit)
+  }
   if (values.resultType !== undefined) {
     await wrapper.get('[data-testid="result-type-select"]').setValue(values.resultType)
   }
@@ -87,13 +99,30 @@ async function fillAndSubmit(
 }
 
 describe('IndicatorCalculationPanel', () => {
-  it('一進畫面就說明計算只採用走完的那幾格', () => {
+  it('只有一顆執行計算', () => {
+    // 這一條是補的：把執行條件從側欄改成橫列時，欄位整組搬了過來——
+    // 而那一組裡本來就有一顆送出鈕，於是畫面上同時站著兩顆。
+    // 測試沒紅，因為兩顆共用同一個識別字，而取第一個相符的從來不會抱怨有第二個。
     const wrapper = mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
+    expect(wrapper.findAll('button[type="submit"]')).toHaveLength(1)
+  })
+
+  it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {
+    // 這句話曾經一進畫面就掛在執行條件底下。**改成跟著結果出現是刻意的**：
+    // 使用者會問「為什麼是這個數字」的時刻，正是他看到「實際採用 24 根」
+    // 卻要了 25 根的那一刻，不是他剛打開畫面、什麼都還沒算的時候。
+    const wrapper = mountPanel(buildProxy())
+    expect(wrapper.find('[data-testid="calculation-notice"]').exists()).toBe(false)
+
+    await fillAndSubmit(wrapper)
 
     // 刻度變粗之後「排除最新一根」就講不清楚了：一小時的刻度下，
     // 不採用的是一整個還沒走完的小時。畫面說的必須是實際的規則。
-    expect(wrapper.get('[data-testid="calculation-notice"]').text()).toContain('已經走完')
-    expect(wrapper.get('[data-testid="calculation-notice"]').text()).not.toContain('排除最新一根')
+    const notice = wrapper.get('[data-testid="calculation-notice"]')
+    expect(notice.text()).toContain('已經走完')
+    expect(notice.text()).not.toContain('排除最新一根')
   })
 
   it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {
@@ -126,10 +155,9 @@ describe('IndicatorCalculationPanel', () => {
 
   it.each([
     { description: '未指定交易標的', values: { symbol: '' }, expectedMessage: '請指定交易標的' },
-    { description: '根數為零', values: { candleCount: '0' }, expectedMessage: '計算根數必須大於零' },
-    { description: '根數為負', values: { candleCount: '-3' }, expectedMessage: '計算根數必須大於零' },
-    { description: '根數不是整數', values: { candleCount: '2.5' }, expectedMessage: '計算根數必須是整數' },
-    { description: '根數留空', values: { candleCount: '' }, expectedMessage: '請填寫計算根數' },
+    // 「根數為零 / 為負 / 不是整數 / 留空」那四條在這裡消失了，因為**那一格已經不存在**：
+    // 使用者說的是「要看多長」，格數由那一段除以彙總刻度得出，天生就是大於零的整數。
+    // 這是刻意的行為變更，不是把驗證弄丟了。
     { description: '算式內容留空', values: { scriptBody: '' }, expectedMessage: '請填寫算式內容' },
   ])('$description 時標在欄位旁且完全不執行', async ({ values, expectedMessage }) => {
     const indicatorCalculationProxy = buildProxy()
@@ -141,11 +169,12 @@ describe('IndicatorCalculationPanel', () => {
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
 
-  it('根數為一時照常執行', async () => {
+  it('只看得下一格時照常執行', async () => {
     const indicatorCalculationProxy = buildProxy()
     const wrapper = mountPanel(indicatorCalculationProxy)
 
-    await fillAndSubmit(wrapper, { candleCount: '1' })
+    // 五分鐘一段、五分鐘一根 → 一格。
+    await fillAndSubmit(wrapper, { spanAmount: '5', spanUnit: 'minute' })
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
@@ -162,13 +191,21 @@ describe('IndicatorCalculationPanel', () => {
     const alert = wrapper.get('[data-testid="script-failed-alert"]')
     expect(alert.text()).toContain('要改的是算式')
     expect(alert.text()).toContain('算式必須提供 Calculate 進入點')
+    // 最常見的原因是沙箱裡沒有那個名字，而訊息說得出少了什麼、說不出有什麼。
+    await alert.get('[data-testid="script-failed-guide-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]').length)
+      .toBeGreaterThan(0)
     expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
   })
 
+  // 「超過單次上限」曾經也在這一排。它離開了，因為系統那一側現在會指名是哪一格，
+  // 於是它落在「要看多長」旁邊而不是這裡——見 IndicatorCalculationPanelParameters 那一條。
+  // 這一排剩下的是**指不出哪一格**的那些拒絕：它們只能如實轉達。
   it.each([
     { description: 'K 線不足', message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' },
-    { description: '超過單次上限', message: '超過單次可用的最大根數（最多 1000 根）' },
+    { description: '這一段沒有資料', message: '這一段時間內沒有任何 K 線' },
   ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockRejectedValue(new BackendRequestRejectedError(message)),
@@ -397,9 +434,26 @@ describe('IndicatorCalculationPanel', () => {
   })
 })
 
-describe('指標計算畫面上的 K 線欄位說明', () => {
-  it('把算式收到的每一個欄位列在編輯區旁邊', async () => {
+describe('指標計算畫面：算式裡可以用什麼', () => {
+  // 這兩份清單曾經常駐在編輯區旁邊。**改成問了才出現是刻意的**：
+  // 它們是「想不起來翻一下」，不是「一直看著」，而常駐要付的代價是
+  // 跟編輯區——這個畫面上唯一需要空間的東西——搶同一塊寬度。
+  async function openGuide(wrapper: Awaited<ReturnType<typeof mountPanel>>) {
+    await wrapper.get('[data-testid="script-guide-button"]').trigger('click')
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('沒問的時候不佔畫面', async () => {
     const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="k-candle-field"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]')).toHaveLength(0)
+  })
+
+  it('問了就列出算式收到的每一個欄位', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
 
     const fieldNames = wrapper.findAll('[data-testid="k-candle-field"]').map(field => field.text())
 
@@ -409,10 +463,32 @@ describe('指標計算畫面上的 K 線欄位說明', () => {
   })
 
   it('說出它是算式看得到的形狀，不是資料庫那張表', async () => {
-    const wrapper = await mountPanel(buildProxy())
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
 
     expect(wrapper.text()).toContain('不是資料庫那張表')
     expect(wrapper.text()).toContain('data []indicator.KCandle')
+  })
+
+  it('也說出宣告好的參數在算式裡怎麼讀，每一種各一則', async () => {
+    // 讀法屬於沙箱契約，與 K 線欄位同一份——所以它們在同一個地方，
+    // 而且都不是畫面自己寫的字。
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const calls = wrapper.findAll('[data-testid="script-parameter-access"]')
+      .map(access => access.text())
+
+    expect(calls).toHaveLength(3)
+    expect(calls.some(call => call.includes('indicator.LookbackCount('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Number('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Boolean('))).toBe(true)
+  })
+
+  it('說出參數要怎麼設，以及名字對不上時會發生什麼', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    expect(wrapper.text()).toContain('新增參數')
+    expect(wrapper.text()).toContain('同一個名字')
+    expect(wrapper.text()).toContain('失敗並指名')
   })
 })
 

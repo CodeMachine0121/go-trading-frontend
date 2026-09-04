@@ -21,7 +21,7 @@ export class StrategyDomain {
     return new StrategyDto(
       this.strategy.id,
       this.strategy.name,
-      new StrategyContentDto(scriptBody.body, resultType.value),
+      new StrategyContentDto(scriptBody.body, resultType.value, this.strategy.parameters),
       scriptBody.frameRecognised,
       // 畫得成線的條件就是「值是數字」。既有的種類模型已經知道這件事，
       // 這裡借用它而不是再比對一次種類——多一套判斷就多一個會漂移的地方。

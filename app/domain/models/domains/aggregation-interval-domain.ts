@@ -36,4 +36,12 @@ export class AggregationIntervalDomain {
   toOptionDto(): AggregationIntervalOptionDto {
     return new AggregationIntervalOptionDto(this.value, this.label())
   }
+
+  /**
+   * 這個刻度的一根涵蓋幾分鐘。換算格數的算法住在「要看多長」身上——
+   * 那是它的性質，這裡只交出自己的長度。
+   */
+  get intervalMinutes(): number {
+    return this.interval.minutes
+  }
 }

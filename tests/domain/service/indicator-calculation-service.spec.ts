@@ -4,6 +4,7 @@ import { IndicatorCalculation } from '~/domain/models/entities/indicator-calcula
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
@@ -23,7 +24,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     const resultDto = await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -41,7 +42,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'boolList'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'boolList'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -54,7 +55,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await expect(indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('', '5m', '3', SCRIPT_BODY, 'float'),
+      new IndicatorCalculationRequestDto('', '5m', 3, SCRIPT_BODY, 'float'),
     )).rejects.toBeInstanceOf(IndicatorCalculationFieldError)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -148,16 +149,12 @@ describe('IndicatorCalculationService 的執行設定', () => {
     expect(new IndicatorCalculationService(buildProxy()).defaultAggregationInterval()).toBe('5m')
   })
 
-  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
-    expect(new IndicatorCalculationService(buildProxy()).defaultCandleCount()).toBe(20)
-  })
-
   it('挑好的彙總刻度真的被送出去執行', async () => {
     // 這個欄位曾經只被記下來、計算完全不理它。它現在會到達邊界。
     const indicatorCalculationProxy = buildProxy()
 
     await new IndicatorCalculationService(indicatorCalculationProxy).calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,7 +171,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '3', SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 3, SCRIPT_BODY, 'float'))
 
     expect(resultDto.intervalLabel).toBe('五分鐘')
   })
@@ -185,9 +182,72 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
 
     expect(resultDto.isEmpty).toBe(true)
     expect(resultDto.intervalLabel).toBe('一小時')
+  })
+})
+
+describe('IndicatorCalculationService：改一個不存在的第幾列', () => {
+  // 畫面只會交出它自己畫得出來的列號，所以這條路平常走不到。
+  // 但「整份原封不動」與「拋錯」對使用者是兩件完全不同的事，值得釘住。
+  const 期數 = new StrategyParameterDto('期數', 'lookbackCount', 20)
+
+  it.each([
+    { changed: '改名', change: (service: IndicatorCalculationService) =>
+      service.renameStrategyParameter([期數], 9, '週期') },
+    { changed: '改種類', change: (service: IndicatorCalculationService) =>
+      service.changeStrategyParameterKind([期數], 9, 'number') },
+    { changed: '改值', change: (service: IndicatorCalculationService) =>
+      service.changeStrategyParameterValue([期數], 9, 50) },
+  ])('$changed 第九列時整份原封不動', ({ change }) => {
+    expect(change(new IndicatorCalculationService(buildProxy()))).toEqual([期數])
+  })
+})
+
+describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀', () => {
+  // 這一份與 K 線欄位那一份是同一件事的兩半——兩者描述的都是沙箱交給算式的東西。
+  // 它住在領域而不是畫面，理由也相同：那些字一旦散在畫面上，
+  // 系統那一側改了注入的函式名時，沒有人會知道要回頭改它們。
+  const accesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses()
+
+  it('選單上挑得到的就是可宣告的每一種，一種都不少', () => {
+    // 少一種就是那一種存得進去卻挑不出來——而漏掉一個列舉點正是這個切片犯過的錯。
+    expect(new IndicatorCalculationService(buildProxy()).listStrategyParameterKindOptions()
+      .map(option => option.value)).toEqual([...STRATEGY_PARAMETER_KINDS])
+  })
+
+  it('每一種可宣告的種類都有一則，一則都不少', () => {
+    // 少一則就是一種讀法沒有人說得出來，而那一種在選單上挑得到。
+    expect(accesses.map(access => access.kindLabel))
+      .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyParameterKindOptions()
+        .map(option => option.label))
+  })
+
+  it.each([
+    { kindLabel: '回看根數', call: 'indicator.LookbackCount(', returnType: 'int' },
+    { kindLabel: '數值', call: 'indicator.Number(', returnType: 'float64' },
+    { kindLabel: '是非', call: 'indicator.Boolean(', returnType: 'bool' },
+  ])('$kindLabel 讀出來是 $returnType', ({ kindLabel, call, returnType }) => {
+    // 三種讀出來的型別不同，而那正是分種類的理由：回看根數幾乎總是拿去切片
+    // （Go 不讓浮點數當索引），是非要直接寫進 if。
+    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+
+    expect(access?.example).toContain(call)
+    expect(access?.returnType).toBe(returnType)
+  })
+
+  it.each([
+    { kindLabel: '回看根數', secondLine: 'data[len(data)-period:]' },
+    { kindLabel: '數值', secondLine: '.Close * (1 + factor)' },
+    { kindLabel: '是非', secondLine: 'if strictly &&' },
+  ])('$kindLabel 的範例還說出讀出來之後拿它做什麼', ({ kindLabel, secondLine }) => {
+    // 一個孤零零的函式簽章答不出「然後呢」。第二行才是會卡住的地方——
+    // 回看根數拿去切片（而那正是它必須是整數的原因），數值拿去跟價格算。
+    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+
+    expect(access?.example).toContain(secondLine)
+    expect(access?.example.split('\n')).toHaveLength(2)
   })
 })

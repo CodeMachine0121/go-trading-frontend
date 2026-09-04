@@ -260,13 +260,17 @@ onMounted(async () => {
 
       <ChartIndicatorPanel
         :selectable-strategies="chartIndicators.selectableStrategies(strategies)"
-        :applied-strategies="chartIndicators.appliedStrategies.value"
-        :chart-indicators="chartIndicators.chartIndicators.value"
+        :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
-        :is-calculating="chartIndicators.isCalculating"
-        :failure-message-of="chartIndicators.failureMessageOf"
-        @apply="chartIndicators.applyStrategy"
-        @remove="chartIndicators.removeStrategy"
+        :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
+        :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
+        :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
+        @apply="chartIndicators.applyIndicator"
+        @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
+        @confirm-pending="chartIndicators.confirmPendingIndicator"
+        @cancel-pending="chartIndicators.cancelPendingIndicator"
+        @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
+        @remove="chartIndicators.removeAppliedIndicator"
         @change-line-color="chartIndicators.changeLineColor"
       />
 

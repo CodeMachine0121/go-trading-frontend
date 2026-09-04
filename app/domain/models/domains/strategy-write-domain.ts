@@ -1,3 +1,5 @@
+import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
@@ -18,6 +20,7 @@ export class StrategyWriteDomain {
   readonly name: string
   readonly script: string
   readonly resultType: string
+  readonly parameters: readonly StrategyParameterDto[]
 
   constructor(strategyWriteDto: StrategyWriteDto) {
     const normalizedName = strategyWriteDto.name.trim()
@@ -31,5 +34,12 @@ export class StrategyWriteDomain {
     this.name = normalizedName
     this.script = new IndicatorScriptDomain(resultType).assemble(strategyWriteDto.content.scriptBody)
     this.resultType = resultType.value
+    // 旋鈕的規則由它們自己的模型把關，這裡只借用它——多一套判斷就多一個會漂移的地方。
+    const parameters = new StrategyParametersDomain(strategyWriteDto.content.parameters)
+    const parametersMessage = parameters.validationMessage()
+    if (parametersMessage !== null) {
+      throw new StrategyFieldError('parameters', parametersMessage)
+    }
+    this.parameters = parameters.all
   }
 }

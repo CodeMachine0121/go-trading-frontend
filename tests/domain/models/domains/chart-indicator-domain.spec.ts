@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 
 const FIRST = '--color-chart-line-1'
 const SECOND = '--color-chart-line-2'
@@ -23,7 +24,7 @@ function domainOf(
   return new ChartIndicatorDomain(7, calculation, {
     readColorToken: vi.fn((lineKey: string) => remembered.get(lineKey) ?? null),
     writeColorToken: vi.fn(),
-  }, taken)
+  }, new DrawnChartLinesVo(taken, []))
 }
 
 describe('ChartIndicatorDomain：一個數字畫成水平線', () => {

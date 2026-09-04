@@ -1,18 +1,22 @@
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
+import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 
 /**
- * DTO：拿一支策略對**圖上正在畫的那批 K 線**算一次要給的東西。
+ * DTO：拿**一次套用**對圖上正在畫的那批 K 線算一次要給的東西。
  *
  * 交易標的、彙總刻度、根數與算到哪一刻全部來自圖表當下畫的那一批——
  * 這是線與 K 線不會錯位的唯一理由。少給任何一樣，算出來的都是另一段行情的指標，
  * 而它畫在圖上看起來完全正常。
  *
- * `takenColorTokens` 是圖上其他線已經用掉的顏色。它在請求裡而不是在領域裡自己算，
+ * 收的是**一次套用**而不是一支策略：算出來的東西屬於那一筆，
+ * 而參數值也只屬於那一筆——同一支策略的另一筆可能填著完全不同的值。
+ *
+ * `drawnLines` 是圖上其他線的樣子。它在請求裡而不是在領域裡自己算，
  * 因為「圖上現在有哪些線」是畫面的狀態，領域沒有、也不該持有那份清單。
  */
 export class ChartIndicatorRequestDto {
   constructor(
-    public readonly strategy: StrategyDto,
+    public readonly appliedIndicator: AppliedIndicatorDto,
     public readonly symbol: string,
     public readonly aggregationInterval: string,
     public readonly candleCount: number,
@@ -22,6 +26,6 @@ export class ChartIndicatorRequestDto {
      * 中間每一層都只是搬運。
      */
     public readonly endTime: Date | null,
-    public readonly takenColorTokens: readonly string[],
+    public readonly drawnLines: DrawnChartLinesVo = new DrawnChartLinesVo(),
   ) {}
 }

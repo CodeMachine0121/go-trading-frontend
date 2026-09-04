@@ -10,6 +10,7 @@ import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
 
@@ -99,21 +100,21 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
   })
 
   it('挑一支不會動到這一次的執行設定', async () => {
-    // 彙總刻度與計算根數跟交易標的同一類：它們是「這一次要怎麼算」。
+    // 彙總刻度與要看多長跟交易標的同一類：它們是「這一次要怎麼算」。
     // 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘。
     const wrapper = mountPanel({
       listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
     })
     await settle()
     await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
-    await wrapper.get('[data-testid="candle-count-input"]').setValue('60')
+    await wrapper.get('[data-testid="span-amount-input"]').setValue('6')
 
     await pickStrategy(wrapper, 7)
 
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
       .toBe('1h')
-    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
-      .toBe('60')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="span-amount-input"]').element.value)
+      .toBe('6')
   })
 
   it('挑一支不會動到交易標的——策略不記交易標的', async () => {
@@ -159,7 +160,7 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
   it.each([
     { changed: '彙總刻度', selector: '[data-testid="aggregation-interval-select"]', value: '1h' },
-    { changed: '計算根數', selector: '[data-testid="candle-count-input"]', value: '60' },
+    { changed: '要看多長', selector: '[data-testid="span-amount-input"]', value: '6' },
   ])('只改了$changed 時不問——它不屬於任何一支策略，沒有東西會被弄丟', async ({ selector, value }) => {
     // 該問卻不問會弄丟使用者寫的東西；不該問卻問，只會讓他學會無視那個對話框，
     // 而它在真正要緊的時候必須被讀。
@@ -720,14 +721,14 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
     const wrapper = mountPanel()
     await settle()
     await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('4h')
-    await wrapper.get('[data-testid="candle-count-input"]').setValue('60')
+    await wrapper.get('[data-testid="span-amount-input"]').setValue('6')
 
     await startBlankStrategy(wrapper)
 
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
       .toBe('4h')
-    expect(wrapper.get<HTMLInputElement>('[data-testid="candle-count-input"]').element.value)
-      .toBe('60')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="span-amount-input"]').element.value)
+      .toBe('6')
   })
 
   it('解除與那一支的關聯——之後按儲存是問新名字，不是存回原本那一支', async () => {
@@ -780,8 +781,8 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
   it('上一次的失敗訊息不留——那是上一次計算的產物，與新的稿子無關', async () => {
     const wrapper = mountPanel()
     await settle()
-    // 根數填成不合法的，送出後那一欄旁邊會紅一句話
-    await wrapper.get('[data-testid="candle-count-input"]').setValue('0')
+    // 要看多長填成不合法的，送出後那一欄旁邊會紅一句話
+    await wrapper.get('[data-testid="span-amount-input"]').setValue('0')
     await wrapper.get('form').trigger('submit')
     await settle()
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(true)
@@ -881,5 +882,80 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
 
     expect(scriptBodyText(wrapper)).not.toContain('我寫到一半的東西')
     expect(wrapper.find('[data-testid="strategy-error"]').exists()).toBe(false)
+  })
+})
+
+describe('指標計算畫面上的策略：參數是策略內容', () => {
+  // 判準與算式內容、指標值種類完全相同：「快線看二十根」不論拿去算哪一檔、
+  // 用哪種粗細都一樣，它是這支算法的一部分。交易標的、彙總刻度、要看多長則不是——
+  // 那些描述的是「這一次」，所以載入策略時它們不被覆蓋。
+
+  /** 旋鈕在一顆按鈕後面——它是偶爾做一次的事，不常駐在編輯區旁邊。 */
+  async function openParameters(wrapper: ReturnType<typeof mountPanel>) {
+    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
+    await settle()
+  }
+
+  async function addParameter(
+    wrapper: ReturnType<typeof mountPanel>, name: string, value: string,
+  ) {
+    if (!wrapper.find('[data-testid="add-parameter-button"]').exists()) {
+      await openParameters(wrapper)
+    }
+    await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
+    const row = wrapper.findAll('[data-testid="parameter-row"]').at(-1)!
+    await row.get('[data-testid="parameter-name-input"]').setValue(name)
+    await row.get('[data-testid="parameter-value-input"]').setValue(value)
+    await settle()
+  }
+
+  it('挑一支就把它記住的參數一起帶進畫面', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([
+        buildStoredStrategy(7, '布林通道', {
+          parameters: [new StrategyParameterDto('期數', 'lookbackCount', 50)],
+        }),
+      ]),
+    })
+    await settle()
+
+    await pickStrategy(wrapper, 7)
+    await openParameters(wrapper)
+
+    const row = wrapper.get('[data-testid="parameter-row"]')
+    expect(row.get<HTMLInputElement>('[data-testid="parameter-name-input"]').element.value)
+      .toBe('期數')
+    expect(row.get<HTMLInputElement>('[data-testid="parameter-value-input"]').element.value)
+      .toBe('50')
+  })
+
+  it('挑一支沒有參數的策略，畫面上原本那幾格跟著清掉', async () => {
+    const wrapper = mountPanel({
+      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+    })
+    await settle()
+    await addParameter(wrapper, '期數', '50')
+
+    await pickStrategy(wrapper, 7)
+    await discardAndProceed(wrapper)
+
+    expect(wrapper.findAll('[data-testid="parameter-row"]')).toHaveLength(0)
+  })
+
+  it('另存成一支新策略時，畫面上的參數跟著存進去', async () => {
+    const createStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(1, '布林通道'))
+    const wrapper = mountPanel({ createStrategy })
+    await typeScriptBody(wrapper, 'sum := 1.0')
+    await addParameter(wrapper, '期數', '50')
+
+    await wrapper.get('[data-testid="save-as-strategy-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('布林通道')
+    await settle()
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+    await settle()
+
+    expect(createStrategy.mock.calls[0]![0].parameters).toEqual([
+      expect.objectContaining({ name: '期數', kind: 'lookbackCount', value: 50 }),
+    ])
   })
 })

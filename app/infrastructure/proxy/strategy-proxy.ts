@@ -1,5 +1,6 @@
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import type { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
+import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { Strategy } from '~/domain/models/entities/strategy'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
@@ -17,11 +18,19 @@ const NOT_FOUND_STATUS = 404
  * 兩個時間欄位後端也會給，但畫面上沒有一處用得到，因此不收進 entity——
  * 收了就得替它們想一個顯示時區的說法，而那是還沒有人要的功能。
  */
+/** 後端送來的一個旋鈕。名稱與這一側的欄位刻意不同，所以在這裡收乾淨。 */
+type StrategyParameterWire = {
+  name: string
+  kind: string
+  defaultValue: number
+}
+
 type StrategyWire = {
   id: number
   name: string
   script: string
   resultType: string
+  parameters?: StrategyParameterWire[] | null
 }
 
 /** Proxy：打策略端點，並把「名稱被佔用」與「找不到那一支」從一般的拒絕裡分出來。 */
@@ -67,6 +76,12 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
           name: strategyWriteDomain.name,
           script: strategyWriteDomain.script,
           resultType: strategyWriteDomain.resultType,
+          parameters: strategyWriteDomain.parameters.map(parameter => ({
+            name: parameter.name,
+            kind: parameter.kind,
+            // 在這個畫面上，畫面上那個數字既是這一次要用的，也是要存起來的預設值。
+            defaultValue: parameter.value,
+          })),
         },
       })
 
@@ -103,6 +118,15 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
       strategyWire.name,
       strategyWire.script,
       strategyWire.resultType,
+      // 認得的照收，認不得的一律當成數值——系統對數值不解讀任何意思，
+      // 所以把它當成數值最不會誤導人：它不會憑空變成一個回看根數去多拿 K 線。
+      //
+      // 「認得的」問的是那一份清單，不是一串寫死的比較。這裡曾經是後者，
+      // 於是多一種種類的時候它被漏掉，而存好的東西讀回來就換了一種種類。
+      (strategyWire.parameters ?? []).map(parameter => new StrategyParameterDto(
+        parameter.name,
+        STRATEGY_PARAMETER_KINDS.find(kind => kind === parameter.kind) ?? 'number',
+        parameter.defaultValue)),
     )
   }
 }

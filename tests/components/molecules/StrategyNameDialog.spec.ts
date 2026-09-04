@@ -7,7 +7,7 @@ function mountNameDialog(props: Record<string, unknown> = {}) {
     props: {
       open: true,
       title: '另存為新策略',
-      hint: '其餘內容取自畫面上目前的算式、指標值種類、彙總刻度與計算根數。',
+      hint: '其餘內容取自畫面上目前的算式、指標值種類與參數。',
       ...props,
     },
   })

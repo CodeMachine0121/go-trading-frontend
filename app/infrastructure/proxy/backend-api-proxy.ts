@@ -8,7 +8,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
  */
 type BackendFailure = {
   response?: { status: number }
-  data?: { message?: string }
+  data?: { message?: string, parameterName?: string, field?: string }
 }
 
 /** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
@@ -17,7 +17,11 @@ const SERVER_ERROR_STATUS_FLOOR = 500
 type BackendRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   query?: Record<string, string>
-  body?: Record<string, string | number>
+  /**
+   * 送出去的內容。值可以是一個巢狀的清單（例如策略的那一份旋鈕），
+   * 但仍然逐項具名——沒有一個「什麼都能裝」的位置。
+   */
+  body?: Record<string, string | number | readonly Record<string, string | number>[]>
 }
 
 /**
@@ -57,7 +61,12 @@ export abstract class BackendApiProxy {
 
           throw new BackendRequestRejectedError(
             message,
-            { cause: error, status: backendFailure.response.status },
+            {
+              cause: error,
+              status: backendFailure.response.status,
+              parameterName: backendFailure.data?.parameterName,
+              field: backendFailure.data?.field,
+            },
           )
         }
       }

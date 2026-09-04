@@ -9,7 +9,7 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
-import KCandleFieldReference from '~/components/molecules/KCandleFieldReference.vue'
+import IndicatorScriptGuideDialog from '~/components/molecules/IndicatorScriptGuideDialog.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
 import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
@@ -19,21 +19,25 @@ import type { StrategyApplication } from '~/application/strategy-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
-import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
-import {
-  IndicatorCalculationFieldError,
-  type IndicatorCalculationField,
-} from '~/domain/errors/indicator-calculation-field-error'
-import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
-import { BackendServerError } from '~/domain/errors/backend-server-error'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
+import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
+import StrategyParameterDialog from '~/components/molecules/StrategyParameterDialog.vue'
+import { readNumberInput } from '~/utilities/number-input-reading'
+import { useStrategyParameters } from '~/composables/use-strategy-parameters'
+import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
 //
-// 版面照著「寫程式 → 執行 → 看結果」的順序擺，也就是每一台開發工作台的擺法：
-// 最上面一條說「現在用的是哪一支策略」，左邊是那塊夠大的算式編輯區，
-// 右邊是按下去會發生事情的那一欄，結果攤在下面整排。
+// 版面由上而下照著使用者的順序擺，也就是每一台這類工作台的擺法
+// （Databricks、Neon、Supabase 的查詢頁都是同一個形狀）：
+//
+//   現在用的是哪一支策略  →  這一次要算什麼（一條橫列，最右邊是那顆按鈕）
+//   →  算式與它的旋鈕（獨佔下面那一整片，右邊擺寫的時候要查的東西）
+//   →  結果攤在最下面整排
+//
+// **執行條件是一條橫列，不是一根側欄。** 側欄得跟編輯區一樣高，
+// 於是三個欄位下面永遠空著一大塊；而編輯區——這個畫面上唯一需要空間的東西——
+// 反而被那根用不到的欄子擠窄。
 const { indicatorCalculationApplication, strategyApplication, tradingSymbolApplication }
   = defineProps<{
     indicatorCalculationApplication: IndicatorCalculationApplication
@@ -53,7 +57,7 @@ const blankStrategyContent = new StrategyContentDto(
 )
 
 /*
- * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、計算根數。
+ * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、要看多長。
  * 它們因此不在那份空白裡，也不會被載入另一支策略換掉——
  * 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘，
  * 一如換算法向來不會把他丟到別的市場去。
@@ -61,57 +65,52 @@ const blankStrategyContent = new StrategyContentDto(
 const symbol = ref('BTCUSDT')
 const aggregationInterval = ref<string>(
   indicatorCalculationApplication.defaultAggregationInterval())
-const candleCount = ref(String(indicatorCalculationApplication.defaultCandleCount()))
+// 使用者說得出口的是「最近兩小時」，不是「24 根」——而「24」還會隨彙總刻度
+// 改變意義。要幾格由系統從這一段算出來，畫面不必也不能填。
+const span = ref(indicatorCalculationApplication.defaultCalculationSpan())
 
 const scriptBody = ref(blankStrategyContent.scriptBody)
+// 旋鈕是**策略內容**，與算式內容、指標值種類同一層：載入時跟著換，
+// 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
+const strategyParameters = useStrategyParameters(
+  indicatorCalculationApplication, blankStrategyContent.parameters)
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
 const resultType = ref<string>(blankStrategyContent.resultType)
 
 const aggregationIntervalOptions
   = indicatorCalculationApplication.listAggregationIntervalOptions()
 
+const spanUnitOptions = indicatorCalculationApplication.listCalculationSpanUnitOptions()
+
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
-// 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
+// 算式收到的每一根 K 線有哪些欄位，以及宣告好的參數怎麼讀。
+// 兩份都是沙箱契約的一部分，都不會變，取一次就好。
 const kCandleFields = indicatorCalculationApplication.listKCandleFields()
+const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
+/** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
+const guideOpen = ref(false)
+/** 宣告旋鈕的那一份開著沒有。同理——它是偶爾做一次的事。 */
+const parametersOpen = ref(false)
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
-const calculating = ref(false)
-const result = ref<IndicatorCalculationResultDto | null>(null)
-const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
-const requestRejectedMessage = ref<string | null>(null)
-const scriptFailedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
+const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplication)
 
-/**
- * 把上一次計算留下的東西全部清掉——結果與四種失敗訊息。
- *
- * 它們是同一次計算的產物，所以永遠一起清。少清一個就會出現對不上的畫面：
- * 換了一份算式之後，欄位已經是新的預設值，旁邊卻還紅著上一次那句
- * 「計算根數必須是正整數」。
- */
-function clearLastCalculation() {
-  result.value = null
-  fieldError.value = null
-  requestRejectedMessage.value = null
-  scriptFailedMessage.value = null
-  serverErrorMessage.value = null
-  backendUnreachable.value = false
-}
-
-// 策略庫拿畫面上這兩樣東西當它的輸入，也負責把載入的那一份寫回來。
-// 「這兩樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
-// 彙總刻度與計算根數刻意不在其中：它們不屬於任何一支策略，
+// 策略庫拿畫面上這三樣東西當它的輸入，也負責把載入的那一份寫回來。
+// 「這三樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto——
+// 多一樣東西要跟著策略走，就只有這裡要改，「有沒有還沒存」自動跟著涵蓋它。
+// 彙總刻度與要看多長刻意不在其中：它們不屬於任何一支策略，
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
-  () => new StrategyContentDto(scriptBody.value, resultType.value),
+  () => new StrategyContentDto(
+    scriptBody.value, resultType.value, strategyParameters.parameters.value),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType
+    strategyParameters.replaceAll(content.parameters)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
-    clearLastCalculation()
+    calculationRun.clear()
   },
   blankStrategyContent)
 
@@ -119,8 +118,16 @@ onMounted(() => {
   void strategyLibrary.refreshStrategies()
 })
 
-function messageFor(field: IndicatorCalculationField): string | null {
-  return fieldError.value?.field === field ? fieldError.value.message : null
+/** 同上：打到一半的東西不往下送。 */
+function changeSpanAmount(raw: string | number) {
+  const amount = readNumberInput(raw)
+  if (amount !== null) {
+    span.value = new CalculationSpanDto(amount, span.value.unit)
+  }
+}
+
+function changeSpanUnit(unit: string) {
+  span.value = new CalculationSpanDto(span.value.amount, unit as CalculationSpanUnit)
 }
 
 function fillExampleScriptBody() {
@@ -128,42 +135,13 @@ function fillExampleScriptBody() {
 }
 
 async function calculateIndicator() {
-  calculating.value = true
-  clearLastCalculation()
-
-  try {
-    result.value = await indicatorCalculationApplication.calculateIndicator(
-      new IndicatorCalculationRequestDto(
-        symbol.value,
-        aggregationInterval.value,
-        candleCount.value,
-        scriptBody.value,
-        resultType.value))
-  }
-  catch (error: unknown) {
-    // 四種失敗各有各的下一步：改欄位、改根數、改算式、去把後端啟動起來。
-    if (error instanceof IndicatorCalculationFieldError) {
-      fieldError.value = { field: error.field, message: error.message }
-    }
-    else if (error instanceof IndicatorScriptFailedError) {
-      scriptFailedMessage.value = error.message
-    }
-    else if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
-    }
-    else if (error instanceof BackendRequestRejectedError) {
-      requestRejectedMessage.value = error.message
-    }
-    else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
-    }
-    else {
-      requestRejectedMessage.value = '執行計算時發生未預期的錯誤。'
-    }
-  }
-  finally {
-    calculating.value = false
-  }
+  await calculationRun.run(() => new IndicatorCalculationRequestDto(
+    symbol.value,
+    aggregationInterval.value,
+    indicatorCalculationApplication.kCandleCountFor(span.value, aggregationInterval.value),
+    scriptBody.value,
+    resultType.value,
+    strategyParameters.parameters.value))
 }
 </script>
 
@@ -248,14 +226,200 @@ async function calculateIndicator() {
       </p>
     </AppPanel>
 
+    <!--
+      執行條件是一條**貼在頂上的橫列**，不是一根高高的側欄。
+      它描述的是「這一次要算什麼」——交易標的、看多長、多粗——三件事各一格，
+      按下去的那顆在最右邊。做過這件事的工具（Databricks、Neon、Supabase）都是這樣擺：
+      設定與動作連在同一條帶子上，寫東西的地方獨佔下面那一整片。
+      擺成側欄的代價很具體：它得跟編輯區一樣高，於是三個欄位下面永遠空著一大塊。
+    -->
+    <!--
+      這一頁只有一個分別要記住：**什麼跟著策略走，什麼只屬於這一次**。
+      它以前被拆成三句小灰字散在三個地方，於是沒有人讀——一句永遠掛著、
+      每次都讀到的話，讀的人很快就會學會不讀它。
+      改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
+    -->
+    <AppPanel
+      title="執行條件"
+      class="indicator-calculation-panel__run"
+    >
+      <template #meta>
+        <AppBadge variant="info">
+          只影響這一次
+        </AppBadge>
+      </template>
+
+      <div class="indicator-calculation-panel__run-fields">
+        <SymbolField
+          v-model="symbol"
+          :trading-symbol-application="tradingSymbolApplication"
+          :error-message="calculationRun.messageFor('symbol')"
+        />
+
+        <FormField
+          label="要看多長"
+          :error-message="calculationRun.messageFor('span')"
+        >
+          <div class="indicator-calculation-panel__span">
+            <AppInput
+              :model-value="String(span.amount)"
+              type="number"
+              inputmode="numeric"
+              :invalid="Boolean(calculationRun.messageFor('span'))"
+              data-testid="span-amount-input"
+              @update:model-value="changeSpanAmount"
+            />
+            <AppSelect
+              :model-value="span.unit"
+              data-testid="span-unit-select"
+              @update:model-value="changeSpanUnit"
+            >
+              <option
+                v-for="unitOption in spanUnitOptions"
+                :key="unitOption.value"
+                :value="unitOption.value"
+              >
+                {{ unitOption.label }}
+              </option>
+            </AppSelect>
+          </div>
+        </FormField>
+
+        <FormField
+          label="彙總刻度"
+        >
+          <AppSelect
+            v-model="aggregationInterval"
+            data-testid="aggregation-interval-select"
+          >
+            <option
+              v-for="intervalOption in aggregationIntervalOptions"
+              :key="intervalOption.value"
+              :value="intervalOption.value"
+            >
+              {{ intervalOption.label }}
+            </option>
+          </AppSelect>
+        </FormField>
+
+        <AppButton
+          type="submit"
+          class="indicator-calculation-panel__run-action"
+          :disabled="calculationRun.calculating.value"
+          data-testid="calculate-button"
+        >
+          {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
+        </AppButton>
+      </div>
+    </AppPanel>
+
+    <!--
+      說明橫跨整個寬度：它講的是剛剛那一次計算，不屬於左右任何一欄。
+      刻意不包一層外框——包了，沒有任何說明的時候那個空盒子照樣吃掉一個間距，
+      而 Vue 為沒渲染的東西留下的是註解節點，`:empty` 選不到它。
+    -->
+    <AppAlert
+      v-if="calculationRun.parameterNotDeclaredMessage.value"
+      tone="danger"
+      data-testid="parameter-not-declared-alert"
+    >
+      參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ calculationRun.parameterNotDeclaredMessage.value }}
+    </AppAlert>
+
+    <AppAlert
+      v-if="calculationRun.scriptFailedMessage.value"
+      tone="danger"
+      data-testid="script-failed-alert"
+    >
+      算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
+      <!--
+        「沙箱裡沒有這個名字」是這一則最常見的原因，而訊息只說得出少了什麼，
+        說不出有什麼——那份清單在工具列那顆 ⓘ 後面。
+        這裡不去解讀訊息的文字：那是直譯器的措辭，它會隨版本改。
+        指路對每一種算式問題都成立，所以它一律出現。
+      -->
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          data-testid="script-failed-guide-button"
+          @click="guideOpen = true"
+        >
+          算式裡可以用什麼
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="calculationRun.requestRejectedMessage.value"
+      tone="warning"
+      data-testid="request-rejected-alert"
+    >
+      請求的問題：{{ calculationRun.requestRejectedMessage.value }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="calculationRun.serverErrorMessage.value"
+      tone="danger"
+      data-testid="server-error-alert"
+    >
+      後端出錯了（不是你的請求有問題），請稍後重試：{{ calculationRun.serverErrorMessage.value }}
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="calculationRun.calculating.value"
+          @click="calculateIndicator"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="calculationRun.backendUnreachable.value"
+      tone="danger"
+      data-testid="unreachable-alert"
+    >
+      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="calculationRun.calculating.value"
+          @click="calculateIndicator"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="calculationRun.calculating.value"
+      tone="info"
+      data-testid="calculating-alert"
+    >
+      計算中…算式最長可能跑上數十秒。
+    </AppAlert>
+
+    <!-- 這一整片是「這支算法」：算式、它自己的旋鈕，以及寫的時候翻一下的那份清單。 -->
     <div class="indicator-calculation-panel__workbench">
       <IndicatorScriptEditor
         v-model="scriptBody"
         class="indicator-calculation-panel__editor"
         :script-template="scriptTemplate"
-        :error-message="messageFor('scriptBody')"
+        :error-message="calculationRun.messageFor('scriptBody')"
       >
         <template #toolbar>
+          <!--
+            這個框裡的每一樣東西——算式、指標值種類、旋鈕——都是這支策略記著的。
+            對面那個「只影響這一次」是它的另一半：兩個標記擺在一起才看得出是一組，
+            而這一頁只有這一個分別需要記住。
+          -->
+          <AppBadge variant="success">
+            跟著策略存
+          </AppBadge>
+
           <AppSelect
             v-model="resultType"
             class="indicator-calculation-panel__result-type"
@@ -278,137 +442,34 @@ async function calculateIndicator() {
           >
             <AppIcon name="example" />
           </AppButton>
+          <!--
+            宣告旋鈕是偶爾做一次的事——寫算式時做一次，之後幾十次執行都不再動它。
+            所以它在一顆按鈕後面，不佔編輯區的版面；數量寫在按鈕上，
+            使用者不必打開就知道這支算式有沒有旋鈕。
+          -->
+          <AppButton
+            type="button"
+            :variant="calculationRun.messageFor('parameters') ? 'danger' : 'secondary'"
+            data-testid="parameters-button"
+            @click="parametersOpen = true"
+          >
+            參數 {{ strategyParameters.fields.value.length }}
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="ghost"
+            label="算式裡可以用什麼"
+            data-testid="script-guide-button"
+            @click="guideOpen = true"
+          >
+            <AppIcon name="info" />
+          </AppButton>
         </template>
       </IndicatorScriptEditor>
-
-      <!-- 右欄裝兩塊：按下去會發生事情的那一欄，加上寫算式時要查的那一份說明。 -->
-      <div class="indicator-calculation-panel__side">
-        <AppPanel
-          title="執行條件"
-          class="indicator-calculation-panel__run"
-        >
-          <SymbolField
-            v-model="symbol"
-            :trading-symbol-application="tradingSymbolApplication"
-            :error-message="messageFor('symbol')"
-          />
-
-          <FormField
-            label="計算根數"
-            hint="要餵給算式的 K 線根數"
-            :error-message="messageFor('candleCount')"
-          >
-            <AppInput
-              v-model="candleCount"
-              type="text"
-              inputmode="numeric"
-              :invalid="Boolean(messageFor('candleCount'))"
-              data-testid="candle-count-input"
-            />
-          </FormField>
-
-          <FormField
-            label="彙總刻度"
-            hint="這次要吃多粗的 K 線。它屬於這一次計算，不會跟著策略存下來。"
-          >
-            <AppSelect
-              v-model="aggregationInterval"
-              data-testid="aggregation-interval-select"
-            >
-              <option
-                v-for="intervalOption in aggregationIntervalOptions"
-                :key="intervalOption.value"
-                :value="intervalOption.value"
-              >
-                {{ intervalOption.label }}
-              </option>
-            </AppSelect>
-          </FormField>
-
-          <AppButton
-            type="submit"
-            block
-            :disabled="calculating"
-            data-testid="calculate-button"
-          >
-            {{ calculating ? '計算中…' : '執行計算' }}
-          </AppButton>
-
-          <p
-            class="indicator-calculation-panel__notice"
-            data-testid="calculation-notice"
-          >
-            計算只採用已經走完的那幾格——還在走的那一格不算，因為它的數字還會變；算式只能做純運算，碰不到檔案、網路與時間。
-          </p>
-
-          <AppAlert
-            v-if="scriptFailedMessage"
-            tone="danger"
-            data-testid="script-failed-alert"
-          >
-            算式的問題（要改的是算式）：{{ scriptFailedMessage }}
-          </AppAlert>
-
-          <AppAlert
-            v-else-if="requestRejectedMessage"
-            tone="warning"
-            data-testid="request-rejected-alert"
-          >
-            請求的問題：{{ requestRejectedMessage }}
-          </AppAlert>
-
-          <AppAlert
-            v-else-if="serverErrorMessage"
-            tone="danger"
-            data-testid="server-error-alert"
-          >
-            後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
-            <template #action>
-              <AppButton
-                variant="secondary"
-                size="small"
-                :disabled="calculating"
-                @click="calculateIndicator"
-              >
-                重試
-              </AppButton>
-            </template>
-          </AppAlert>
-
-          <AppAlert
-            v-else-if="backendUnreachable"
-            tone="danger"
-            data-testid="unreachable-alert"
-          >
-            連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-            <template #action>
-              <AppButton
-                variant="secondary"
-                size="small"
-                :disabled="calculating"
-                @click="calculateIndicator"
-              >
-                重試
-              </AppButton>
-            </template>
-          </AppAlert>
-
-          <AppAlert
-            v-else-if="calculating"
-            tone="info"
-            data-testid="calculating-alert"
-          >
-            計算中…算式最長可能跑上數十秒。
-          </AppAlert>
-        </AppPanel>
-
-        <!-- 查「candle. 後面能接什麼」的時刻就是寫算式的時刻，所以它擺在編輯區旁邊。 -->
-        <KCandleFieldReference :fields="kCandleFields" />
-      </div>
     </div>
 
     <AppPanel
-      v-if="result"
+      v-if="calculationRun.result.value"
       title="計算結果"
       flush
       class="indicator-calculation-panel__result"
@@ -417,22 +478,31 @@ async function calculateIndicator() {
            挑了一小時卻用五分鐘算出來的數字長得跟對的一模一樣，
            所以它必須看得見，而不是靠信任。 -->
       <template #meta>
+        <!--
+          「為什麼是這個數字」與那個數字擺在一起。
+          它以前是一行常駐在執行條件底下的細字——而使用者會問這件事的時刻，
+          正是他看到「實際採用 24 根」卻要了 25 根的那一刻，不是他剛打開畫面的時候。
+        -->
         <span data-testid="used-candle-count">
-          實際採用 {{ result.usedCandleCount }} 根
+          實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
           <AppBadge
             variant="info"
             data-testid="used-interval"
           >
-            每根涵蓋 {{ result.intervalLabel }}
+            每根涵蓋 {{ calculationRun.result.value.intervalLabel }}
           </AppBadge>
           <AppBadge variant="info">
-            {{ result.resultTypeLabel }}
+            {{ calculationRun.result.value.resultTypeLabel }}
           </AppBadge>
+          <span
+            class="indicator-calculation-panel__notice"
+            data-testid="calculation-notice"
+          >只採用已經走完的那幾格——還在走的那一格不算，它的數字還會變。</span>
         </span>
       </template>
 
       <p
-        v-if="result.isEmpty"
+        v-if="calculationRun.result.value.isEmpty"
         class="indicator-calculation-panel__empty"
         data-testid="empty-result"
       >
@@ -456,7 +526,7 @@ async function calculateIndicator() {
           </thead>
           <tbody>
             <tr
-              v-for="indicatorValue in result.indicatorValues"
+              v-for="indicatorValue in calculationRun.result.value.indicatorValues"
               :key="indicatorValue.name"
               data-testid="indicator-row"
             >
@@ -493,6 +563,27 @@ async function calculateIndicator() {
       </div>
     </AppPanel>
 
+    <StrategyParameterDialog
+      :open="parametersOpen"
+      :fields="strategyParameters.fields.value"
+      :kind-options="strategyParameters.kindOptions"
+      :error-message="calculationRun.messageFor('parameters')"
+      @close="parametersOpen = false"
+      @add="strategyParameters.add"
+      @remove="strategyParameters.remove"
+      @rename="strategyParameters.rename"
+      @change-kind="strategyParameters.changeKind"
+      @change-value="strategyParameters.changeValue"
+    />
+
+    <!-- 兩份要查的清單收在同一個對話框裡：去查它們的時機是同一個。 -->
+    <IndicatorScriptGuideDialog
+      :open="guideOpen"
+      :fields="kCandleFields"
+      :parameter-accesses="scriptParameterAccesses"
+      @close="guideOpen = false"
+    />
+
     <StrategyLibraryDialog
       :open="strategyLibrary.openDialog.value === 'library'"
       :strategies="strategyLibrary.strategies.value"
@@ -506,7 +597,7 @@ async function calculateIndicator() {
     <StrategyNameDialog
       :open="strategyLibrary.openDialog.value === 'name'"
       title="另存為新策略"
-      hint="其餘內容取自畫面上目前的算式與指標值種類。"
+      hint="其餘內容取自畫面上目前的算式、指標值種類與參數。"
       :error-message="strategyLibrary.nameErrorMessage.value"
       :submitting="strategyLibrary.saving.value"
       @submit="strategyLibrary.createStrategy"
@@ -572,29 +663,33 @@ async function calculateIndicator() {
     color: color('danger');
   }
 
-  // 編輯區要大，執行那一欄夠填就好；窄螢幕就上下疊起來。
-  &__workbench {
+  // 三個欄位排成一列，按下去的那顆貼在最右邊。
+  // 窄螢幕改成一欄一列——三個欄位擠在一行會讓每一格都窄到讀不出裡面的值。
+  &__run-fields {
     display: grid;
-    flex: 1;
     gap: spacing('sm');
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    min-height: 0;
+    align-items: end;
 
-    @include respond-to('lg') {
-      // 右欄放得下最長的那個欄位名（TakerBuyQuoteVolume）而不必折行。
-      grid-template-columns: minmax(0, 1fr) 21rem;
-      align-items: stretch;
+    @include respond-to('md') {
+      // 交易標的要放得下代號、要看多長是「數字＋單位」兩格、刻度只是一個選單，
+      // 所以前兩格分得多一些。最後一欄剛好裝下那顆按鈕。
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) auto;
     }
   }
 
-  // 右欄裝兩塊：執行條件在上、K 線欄位說明在下，一起在自己的框裡捲。
-  &__side {
+  &__run-action {
+    // 與同一列的輸入框對齊：它們的標籤在上面，按鈕沒有標籤。
+    align-self: end;
+  }
+
+  // 算式與它的旋鈕。編輯區吃掉剩下的高度——這個畫面上唯一需要空間的就是它。
+  &__workbench {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: spacing('sm');
     min-height: 0;
-    overflow-y: auto;
   }
 
   &__editor {
@@ -605,14 +700,8 @@ async function calculateIndicator() {
     width: auto;
   }
 
-  &__run {
-    flex: none;
-  }
-
   &__notice {
     margin: 0;
-    border-top: 1px solid color('border');
-    padding-top: spacing('sm');
     color: color('text-faint');
     font-size: font-size('2xs');
     line-height: line-height('normal');

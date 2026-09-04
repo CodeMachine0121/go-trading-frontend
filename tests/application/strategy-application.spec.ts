@@ -52,15 +52,19 @@ describe('StrategyApplication.listStrategies', () => {
 
   it('讀回來的策略身上沒有取數計畫可讀', async () => {
     // 型別系統已經擋住「再把它們加回去」，但那是建置時的保證。
-    // 這一條在執行期也釘住它，並且說出理由：那兩樣屬於某一次執行，
+    // 這一條在執行期也釘住它，並且說出理由：彙總刻度與要看多長屬於某一次執行，
     // 一旦它們又出現在策略身上，載入就會開始覆蓋使用者正在用的粗細。
+    //
+    // **旋鈕在清單裡，而它不是取數計畫。** 判準沒有變：「快線是二十期」換到哪一檔、
+    // 哪種粗細去算都一樣，它是這支算法的一部分；而「多粗、多長」每一次都可能不同。
     const strategyApplication = buildApplication({
       listStrategies: vi.fn().mockResolvedValue([storedStrategy(1, '二十根均線')]),
     })
 
     const strategies = await strategyApplication.listStrategies()
 
-    expect(Object.keys(strategies[0]?.content ?? {})).toEqual(['scriptBody', 'resultType'])
+    expect(Object.keys(strategies[0]?.content ?? {}))
+      .toEqual(['scriptBody', 'resultType', 'parameters'])
   })
 
   it('一支都沒有是空清單，不是錯誤', async () => {

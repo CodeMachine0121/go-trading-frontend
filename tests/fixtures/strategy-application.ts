@@ -5,6 +5,7 @@ import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import { Strategy } from '~/domain/models/entities/strategy'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
 /**
  * 策略來自後端，只 mock 它的介面；application、domain service 與所有 domain model 都是真的。
@@ -31,6 +32,7 @@ export function buildStoredStrategy(
     /** 整段算式直接給——用來造一支「不是在這裡寫出來的」策略。 */
     rawScript?: string
     resultType?: string
+    parameters?: readonly StrategyParameterDto[]
   } = {},
 ): Strategy {
   const resultType = overrides.resultType ?? 'floatList'
@@ -38,5 +40,5 @@ export function buildStoredStrategy(
     ?? new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
       .assemble(overrides.scriptBody ?? 'sum := 0.0')
 
-  return new Strategy(id, name, script, resultType)
+  return new Strategy(id, name, script, resultType, overrides.parameters ?? [])
 }

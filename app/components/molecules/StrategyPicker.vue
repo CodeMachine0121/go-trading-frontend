@@ -24,9 +24,15 @@ const emit = defineEmits<{ select: [id: number] }>()
 /** 選單本身永遠顯示目前使用中的那一支；換掉它是 select 事件的結果，不是選單自己的狀態。 */
 const selectedValue = computed(() => (activeStrategyId === null ? '' : String(activeStrategyId)))
 
+/**
+ * 一支都還沒有的時候要說一句——空的選單看起來像壞了。
+ *
+ * 有策略之後就不說了：「挑一支會把它帶進來」是選單本來就會做的事，
+ * 而一句永遠掛在那裡、每次都讀到的話，讀的人很快就會學會不讀它。
+ */
 const hint = computed(() => (strategies.length === 0
   ? '寫好算式之後按「另存為新策略」就會留下第一支。'
-  : '挑一支會把它的算式、指標值種類、彙總刻度與計算根數一起帶進來。'))
+  : null))
 
 function selectStrategy(value: string) {
   if (value !== '') {
@@ -73,7 +79,10 @@ function selectStrategy(value: string) {
       </div>
     </div>
 
-    <p class="strategy-picker__hint">
+    <p
+      v-if="hint"
+      class="strategy-picker__hint"
+    >
       {{ hint }}
     </p>
   </div>
