@@ -99,6 +99,16 @@ async function fillAndSubmit(
 }
 
 describe('IndicatorCalculationPanel', () => {
+  it('只有一顆執行計算', () => {
+    // 這一條是補的：把執行條件從側欄改成橫列時，欄位整組搬了過來——
+    // 而那一組裡本來就有一顆送出鈕，於是畫面上同時站著兩顆。
+    // 測試沒紅，因為兩顆共用同一個識別字，而取第一個相符的從來不會抱怨有第二個。
+    const wrapper = mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
+    expect(wrapper.findAll('button[type="submit"]')).toHaveLength(1)
+  })
+
   it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {
     // 這句話曾經一進畫面就掛在執行條件底下。**改成跟著結果出現是刻意的**：
     // 使用者會問「為什麼是這個數字」的時刻，正是他看到「實際採用 24 根」

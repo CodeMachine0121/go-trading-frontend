@@ -304,15 +304,6 @@ async function calculateIndicator() {
 
         <AppButton
           type="submit"
-          block
-          :disabled="calculationRun.calculating.value"
-          data-testid="calculate-button"
-        >
-          {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
-        </AppButton>
-
-        <AppButton
-          type="submit"
           class="indicator-calculation-panel__run-action"
           :disabled="calculationRun.calculating.value"
           data-testid="calculate-button"
