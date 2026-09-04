@@ -69,7 +69,13 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
 
 async function fillAndSubmit(
   wrapper: ReturnType<typeof mountPanel>,
-  values: { symbol?: string, candleCount?: string, scriptBody?: string, resultType?: string } = {},
+  values: {
+    symbol?: string
+    spanAmount?: string
+    spanUnit?: string
+    scriptBody?: string
+    resultType?: string
+  } = {},
 ) {
   // 先讓交易標的清單到齊，否則欄位一取回清單就會把不在清單上的那一檔改掉。
   await flushPromises()
@@ -77,7 +83,13 @@ async function fillAndSubmit(
   // 直接讓欄位交出那個值，驗畫面確實照它處理。
   wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', values.symbol ?? 'BTCUSDT')
   await wrapper.vm.$nextTick()
-  await wrapper.get('[data-testid="candle-count-input"]').setValue(values.candleCount ?? '3')
+  // 使用者說的是「多長」，不是「幾根」——格數由那一段除以彙總刻度得出。
+  if (values.spanAmount !== undefined) {
+    await wrapper.get('[data-testid="span-amount-input"]').setValue(values.spanAmount)
+  }
+  if (values.spanUnit !== undefined) {
+    await wrapper.get('[data-testid="span-unit-select"]').setValue(values.spanUnit)
+  }
   if (values.resultType !== undefined) {
     await wrapper.get('[data-testid="result-type-select"]').setValue(values.resultType)
   }
@@ -126,10 +138,9 @@ describe('IndicatorCalculationPanel', () => {
 
   it.each([
     { description: '未指定交易標的', values: { symbol: '' }, expectedMessage: '請指定交易標的' },
-    { description: '根數為零', values: { candleCount: '0' }, expectedMessage: '計算根數必須大於零' },
-    { description: '根數為負', values: { candleCount: '-3' }, expectedMessage: '計算根數必須大於零' },
-    { description: '根數不是整數', values: { candleCount: '2.5' }, expectedMessage: '計算根數必須是整數' },
-    { description: '根數留空', values: { candleCount: '' }, expectedMessage: '請填寫計算根數' },
+    // 「根數為零 / 為負 / 不是整數 / 留空」那四條在這裡消失了，因為**那一格已經不存在**：
+    // 使用者說的是「要看多長」，格數由那一段除以彙總刻度得出，天生就是大於零的整數。
+    // 這是刻意的行為變更，不是把驗證弄丟了。
     { description: '算式內容留空', values: { scriptBody: '' }, expectedMessage: '請填寫算式內容' },
   ])('$description 時標在欄位旁且完全不執行', async ({ values, expectedMessage }) => {
     const indicatorCalculationProxy = buildProxy()
@@ -141,11 +152,12 @@ describe('IndicatorCalculationPanel', () => {
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
 
-  it('根數為一時照常執行', async () => {
+  it('只看得下一格時照常執行', async () => {
     const indicatorCalculationProxy = buildProxy()
     const wrapper = mountPanel(indicatorCalculationProxy)
 
-    await fillAndSubmit(wrapper, { candleCount: '1' })
+    // 五分鐘一段、五分鐘一根 → 一格。
+    await fillAndSubmit(wrapper, { spanAmount: '5', spanUnit: 'minute' })
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)

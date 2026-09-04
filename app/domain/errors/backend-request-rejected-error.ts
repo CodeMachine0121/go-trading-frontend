@@ -12,9 +12,21 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly status: number | undefined
 
-  constructor(message: string, options?: { cause?: unknown, status?: number }) {
+  /**
+   * 這次拒絕是關於哪一個策略參數，如果它是關於某一個的話。
+   *
+   * 它以一個欄位存在，而不是靠讀訊息認出來——訊息是寫給人看的，
+   * 措辭一改，任何比對它的程式就跟著壞掉。目前只有「名字對不上」那一種拒絕會帶它。
+   */
+  readonly parameterName: string | undefined
+
+  constructor(
+    message: string,
+    options?: { cause?: unknown, status?: number, parameterName?: string },
+  ) {
     super(message, { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
     this.status = options?.status
+    this.parameterName = options?.parameterName
   }
 }

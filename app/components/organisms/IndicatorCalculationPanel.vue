@@ -24,6 +24,11 @@ import {
   IndicatorCalculationFieldError,
   type IndicatorCalculationField,
 } from '~/domain/errors/indicator-calculation-field-error'
+import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
+import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
+import type { StrategyParameterDto, StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
+import StrategyParameterList from '~/components/molecules/StrategyParameterList.vue'
+import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -53,7 +58,7 @@ const blankStrategyContent = new StrategyContentDto(
 )
 
 /*
- * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、計算根數。
+ * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、要看多長。
  * 它們因此不在那份空白裡，也不會被載入另一支策略換掉——
  * 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘，
  * 一如換算法向來不會把他丟到別的市場去。
@@ -61,14 +66,26 @@ const blankStrategyContent = new StrategyContentDto(
 const symbol = ref('BTCUSDT')
 const aggregationInterval = ref<string>(
   indicatorCalculationApplication.defaultAggregationInterval())
-const candleCount = ref(String(indicatorCalculationApplication.defaultCandleCount()))
+// 使用者說得出口的是「最近兩小時」，不是「24 根」——而「24」還會隨彙總刻度
+// 改變意義。要幾格由系統從這一段算出來，畫面不必也不能填。
+const span = ref(indicatorCalculationApplication.defaultCalculationSpan())
 
 const scriptBody = ref(blankStrategyContent.scriptBody)
+// 旋鈕是**策略內容**，與算式內容、指標值種類同一層：載入時跟著換，
+// 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
+const parameters = ref<readonly StrategyParameterDto[]>(blankStrategyContent.parameters)
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
 const resultType = ref<string>(blankStrategyContent.resultType)
 
 const aggregationIntervalOptions
   = indicatorCalculationApplication.listAggregationIntervalOptions()
+
+const spanUnitOptions = indicatorCalculationApplication.listCalculationSpanUnitOptions()
+const parameterKindOptions = indicatorCalculationApplication.listStrategyParameterKindOptions()
+
+// 每一列該長什麼樣子由領域回答——「回看根數要整數鍵盤」是業務規則，不是版面問題。
+const parameterFields = computed(
+  () => indicatorCalculationApplication.describeStrategyParameters(parameters.value))
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
 // 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
@@ -81,6 +98,8 @@ const result = ref<IndicatorCalculationResultDto | null>(null)
 const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
 const requestRejectedMessage = ref<string | null>(null)
 const scriptFailedMessage = ref<string | null>(null)
+/** 算式取用了一個沒有宣告的旋鈕名字。它與「算式跑不動」是兩件事。 */
+const parameterNotDeclaredMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
 const serverErrorMessage = ref<string | null>(null)
 
@@ -96,20 +115,23 @@ function clearLastCalculation() {
   fieldError.value = null
   requestRejectedMessage.value = null
   scriptFailedMessage.value = null
+  parameterNotDeclaredMessage.value = null
   serverErrorMessage.value = null
   backendUnreachable.value = false
 }
 
-// 策略庫拿畫面上這兩樣東西當它的輸入，也負責把載入的那一份寫回來。
-// 「這兩樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto。
-// 彙總刻度與計算根數刻意不在其中：它們不屬於任何一支策略，
+// 策略庫拿畫面上這三樣東西當它的輸入，也負責把載入的那一份寫回來。
+// 「這三樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto——
+// 多一樣東西要跟著策略走，就只有這裡要改，「有沒有還沒存」自動跟著涵蓋它。
+// 彙總刻度與要看多長刻意不在其中：它們不屬於任何一支策略，
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
-  () => new StrategyContentDto(scriptBody.value, resultType.value),
+  () => new StrategyContentDto(scriptBody.value, resultType.value, parameters.value),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType
+    parameters.value = content.parameters
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
     clearLastCalculation()
   },
@@ -118,6 +140,42 @@ const strategyLibrary = useStrategyLibrary(
 onMounted(() => {
   void strategyLibrary.refreshStrategies()
 })
+
+function addParameter() {
+  parameters.value = indicatorCalculationApplication.addStrategyParameter(parameters.value)
+}
+
+function removeParameter(index: number) {
+  parameters.value = indicatorCalculationApplication.removeStrategyParameter(
+    parameters.value, index)
+}
+
+function renameParameter(index: number, name: string) {
+  parameters.value = indicatorCalculationApplication.renameStrategyParameter(
+    parameters.value, index, name)
+}
+
+function changeParameterKind(index: number, kind: StrategyParameterKind) {
+  parameters.value = indicatorCalculationApplication.changeStrategyParameterKind(
+    parameters.value, index, kind)
+}
+
+function changeParameterValue(index: number, value: number) {
+  parameters.value = indicatorCalculationApplication.changeStrategyParameterValue(
+    parameters.value, index, value)
+}
+
+/** 同上：數字框交出來的可能已經是數字，也可能是還沒讀成數字的那一段文字。 */
+function changeSpanAmount(raw: string | number) {
+  const amount = typeof raw === 'number' ? raw : Number(raw.trim())
+  if (raw !== '' && Number.isFinite(amount)) {
+    span.value = new CalculationSpanDto(amount, span.value.unit)
+  }
+}
+
+function changeSpanUnit(unit: string) {
+  span.value = new CalculationSpanDto(span.value.amount, unit as CalculationSpanUnit)
+}
 
 function messageFor(field: IndicatorCalculationField): string | null {
   return fieldError.value?.field === field ? fieldError.value.message : null
@@ -136,13 +194,19 @@ async function calculateIndicator() {
       new IndicatorCalculationRequestDto(
         symbol.value,
         aggregationInterval.value,
-        candleCount.value,
+        indicatorCalculationApplication.kCandleCountFor(span.value, aggregationInterval.value),
         scriptBody.value,
-        resultType.value))
+        resultType.value,
+        parameters.value))
   }
   catch (error: unknown) {
-    // 四種失敗各有各的下一步：改欄位、改根數、改算式、去把後端啟動起來。
-    if (error instanceof IndicatorCalculationFieldError) {
+    // 每一種失敗各有各的下一步，而分開它們的判準只有一個：**使用者要去改哪裡**。
+    // 名字對不上要去改參數那一列或算式那一行；算式跑不動要去改算法本身。
+    // 把前者說成後者，會讓人盯著一段其實沒有問題的程式碼看很久。
+    if (error instanceof StrategyParameterNotDeclaredError) {
+      parameterNotDeclaredMessage.value = error.message
+    }
+    else if (error instanceof IndicatorCalculationFieldError) {
       fieldError.value = { field: error.field, message: error.message }
     }
     else if (error instanceof IndicatorScriptFailedError) {
@@ -281,6 +345,40 @@ async function calculateIndicator() {
         </template>
       </IndicatorScriptEditor>
 
+      <!--
+        旋鈕與算式、指標值種類同一區，因為判準相同：**它是這支算法的一部分**。
+        「快線是二十期」換到哪一檔、哪種粗細、哪一段時間去算都一樣。
+        彙總刻度與要看多長則在執行條件那一區——它們描述的是這一次。
+      -->
+      <AppPanel
+        title="參數"
+        class="indicator-calculation-panel__parameters"
+      >
+        <template #meta>
+          <span class="indicator-calculation-panel__parameters-hint">
+            算式以名字取用它們；它們跟著策略一起存。
+          </span>
+        </template>
+
+        <StrategyParameterList
+          :fields="parameterFields"
+          :kind-options="parameterKindOptions"
+          @add="addParameter"
+          @remove="removeParameter"
+          @rename="renameParameter"
+          @change-kind="changeParameterKind"
+          @change-value="changeParameterValue"
+        />
+
+        <AppAlert
+          v-if="messageFor('parameters')"
+          tone="danger"
+          data-testid="parameters-alert"
+        >
+          {{ messageFor('parameters') }}
+        </AppAlert>
+      </AppPanel>
+
       <!-- 右欄裝兩塊：按下去會發生事情的那一欄，加上寫算式時要查的那一份說明。 -->
       <div class="indicator-calculation-panel__side">
         <AppPanel
@@ -294,17 +392,33 @@ async function calculateIndicator() {
           />
 
           <FormField
-            label="計算根數"
-            hint="要餵給算式的 K 線根數"
-            :error-message="messageFor('candleCount')"
+            label="要看多長"
+            hint="這一次要涵蓋多長一段。要幾根 K 線由系統自己算——包含算式回看要用的那些。"
+            :error-message="messageFor('span')"
           >
-            <AppInput
-              v-model="candleCount"
-              type="text"
-              inputmode="numeric"
-              :invalid="Boolean(messageFor('candleCount'))"
-              data-testid="candle-count-input"
-            />
+            <div class="indicator-calculation-panel__span">
+              <AppInput
+                :model-value="String(span.amount)"
+                type="number"
+                inputmode="numeric"
+                :invalid="Boolean(messageFor('span'))"
+                data-testid="span-amount-input"
+                @update:model-value="changeSpanAmount"
+              />
+              <AppSelect
+                :model-value="span.unit"
+                data-testid="span-unit-select"
+                @update:model-value="changeSpanUnit"
+              >
+                <option
+                  v-for="unitOption in spanUnitOptions"
+                  :key="unitOption.value"
+                  :value="unitOption.value"
+                >
+                  {{ unitOption.label }}
+                </option>
+              </AppSelect>
+            </div>
           </FormField>
 
           <FormField
@@ -340,6 +454,14 @@ async function calculateIndicator() {
           >
             計算只採用已經走完的那幾格——還在走的那一格不算，因為它的數字還會變；算式只能做純運算，碰不到檔案、網路與時間。
           </p>
+
+          <AppAlert
+            v-if="parameterNotDeclaredMessage"
+            tone="danger"
+            data-testid="parameter-not-declared-alert"
+          >
+            參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ parameterNotDeclaredMessage }}
+          </AppAlert>
 
           <AppAlert
             v-if="scriptFailedMessage"

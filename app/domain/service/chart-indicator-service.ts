@@ -32,9 +32,11 @@ export class ChartIndicatorService {
       new IndicatorCalculationRequestDto(
         chartIndicatorRequestDto.symbol,
         chartIndicatorRequestDto.aggregationInterval,
-        String(chartIndicatorRequestDto.candleCount),
+        chartIndicatorRequestDto.candleCount,
         chartIndicatorRequestDto.strategy.content.scriptBody,
         chartIndicatorRequestDto.strategy.content.resultType,
+        // 圖表上還不能調旋鈕——那是下一個切片。這裡先照策略記著的那一份送出去。
+        chartIndicatorRequestDto.strategy.content.parameters,
         chartIndicatorRequestDto.endTime,
       ))
 

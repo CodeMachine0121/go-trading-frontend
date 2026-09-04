@@ -1,5 +1,7 @@
+import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+
 /**
- * DTO：一支策略記著的兩樣東西——算式內容與指標值種類。
+ * DTO：一支策略記著的三樣東西——算式內容、指標值種類，與它自己的旋鈕。
  *
  * **這兩樣只有這一種形狀。** 它同時是「載入時帶進畫面的東西」、「儲存時送出去的東西」、
  * 以及「拿來比對有沒有被改過的東西」。三處各自定義一份就有三份會漂移的複本，
@@ -19,5 +21,14 @@ export class StrategyContentDto {
   constructor(
     public readonly scriptBody: string,
     public readonly resultType: string,
+    /**
+     * 這支算式自己的旋鈕。
+     *
+     * 它在這裡而不在執行條件那一區，判準與另外兩樣完全相同：
+     * **「快線是二十期」換到哪一檔、哪一種粗細、哪一段時間去算都一樣**——
+     * 它是這套算法的一部分，不描述某一次執行。
+     * 彙總刻度與要看多長仍然不在這裡，理由也沒有變。
+     */
+    public readonly parameters: readonly StrategyParameterDto[] = [],
   ) {}
 }

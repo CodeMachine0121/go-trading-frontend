@@ -4,6 +4,7 @@ import { IndicatorCalculation } from '~/domain/models/entities/indicator-calcula
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
@@ -23,7 +24,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     const resultDto = await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -41,7 +42,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', '3', SCRIPT_BODY, 'boolList'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'boolList'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -54,7 +55,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await expect(indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('', '5m', '3', SCRIPT_BODY, 'float'),
+      new IndicatorCalculationRequestDto('', '5m', 3, SCRIPT_BODY, 'float'),
     )).rejects.toBeInstanceOf(IndicatorCalculationFieldError)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -148,16 +149,12 @@ describe('IndicatorCalculationService 的執行設定', () => {
     expect(new IndicatorCalculationService(buildProxy()).defaultAggregationInterval()).toBe('5m')
   })
 
-  it('沒特別填時算二十根——預設值住在 domain，不是畫面裡的字面值', () => {
-    expect(new IndicatorCalculationService(buildProxy()).defaultCandleCount()).toBe(20)
-  })
-
   it('挑好的彙總刻度真的被送出去執行', async () => {
     // 這個欄位曾經只被記下來、計算完全不理它。它現在會到達邊界。
     const indicatorCalculationProxy = buildProxy()
 
     await new IndicatorCalculationService(indicatorCalculationProxy).calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -174,7 +171,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '3', SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 3, SCRIPT_BODY, 'float'))
 
     expect(resultDto.intervalLabel).toBe('五分鐘')
   })
@@ -185,9 +182,26 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', '24', SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
 
     expect(resultDto.isEmpty).toBe(true)
     expect(resultDto.intervalLabel).toBe('一小時')
+  })
+})
+
+describe('IndicatorCalculationService：改一個不存在的第幾列', () => {
+  // 畫面只會交出它自己畫得出來的列號，所以這條路平常走不到。
+  // 但「整份原封不動」與「拋錯」對使用者是兩件完全不同的事，值得釘住。
+  const 期數 = new StrategyParameterDto('期數', 'lookbackCount', 20)
+
+  it.each([
+    { changed: '改名', change: (service: IndicatorCalculationService) =>
+      service.renameStrategyParameter([期數], 9, '週期') },
+    { changed: '改種類', change: (service: IndicatorCalculationService) =>
+      service.changeStrategyParameterKind([期數], 9, 'number') },
+    { changed: '改值', change: (service: IndicatorCalculationService) =>
+      service.changeStrategyParameterValue([期數], 9, 50) },
+  ])('$changed 第九列時整份原封不動', ({ change }) => {
+    expect(change(new IndicatorCalculationService(buildProxy()))).toEqual([期數])
   })
 })

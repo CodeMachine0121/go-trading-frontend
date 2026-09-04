@@ -4,6 +4,7 @@ import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
 import { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
+import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
@@ -98,6 +99,9 @@ describe('StrategyProxy.createStrategy', () => {
         name: '二十根均線',
         script: writeDomainOf().script,
         resultType: 'floatList',
+        // 一支沒有旋鈕的算式送出的是一份空的，不是什麼都不送——
+        // 「沒有旋鈕」與「這次不提旋鈕」在改寫時是兩件事。
+        parameters: [],
       },
     })
   })
@@ -193,5 +197,56 @@ describe('StrategyProxy 其餘的拒絕', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
     await expect(act(new StrategyProxy(BASE_URL))).rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+})
+
+describe('StrategyProxy：策略記著的旋鈕', () => {
+  it('存下去時把旋鈕一起送出，預設值就是畫面上那個數字', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(strategyWireOf(1, '布林通道'))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new StrategyProxy(BASE_URL).createStrategy(new StrategyWriteDomain(new StrategyWriteDto(
+      '布林通道',
+      new StrategyContentDto('sum := 0.0', 'floatList', [
+        new StrategyParameterDto('期數', 'lookbackCount', 20),
+        new StrategyParameterDto('倍數', 'number', 1.5),
+      ]))))
+
+    expect(fetchMock.mock.calls[0]![1].body.parameters).toEqual([
+      { name: '期數', kind: 'lookbackCount', defaultValue: 20 },
+      { name: '倍數', kind: 'number', defaultValue: 1.5 },
+    ])
+  })
+
+  it('讀回來時把後端的預設值收成畫面上那個數字', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      ...strategyWireOf(1, '布林通道'),
+      parameters: [{ name: '期數', kind: 'lookbackCount', defaultValue: 20 }],
+    }]))
+
+    const strategies = await new StrategyProxy(BASE_URL).listStrategies()
+
+    expect(strategies[0]?.parameters).toEqual([
+      expect.objectContaining({ name: '期數', kind: 'lookbackCount', value: 20 }),
+    ])
+  })
+
+  it('認不得的種類一律當成數值——它不會憑空變成回看根數去多拿 K 線', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      ...strategyWireOf(1, '布林通道'),
+      parameters: [{ name: '期數', kind: '未來才有的種類', defaultValue: 20 }],
+    }]))
+
+    const strategies = await new StrategyProxy(BASE_URL).listStrategies()
+
+    expect(strategies[0]?.parameters[0]?.kind).toBe('number')
+  })
+
+  it('後端那一支沒有旋鈕這個欄位時，收成一支都沒有', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([strategyWireOf(1, '二十根均線')]))
+
+    const strategies = await new StrategyProxy(BASE_URL).listStrategies()
+
+    expect(strategies[0]?.parameters).toEqual([])
   })
 })

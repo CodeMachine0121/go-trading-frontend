@@ -1,11 +1,9 @@
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
+import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
-
-/** 計算根數唯一合法的樣子：一串數字。負號、小數點、空白都不算。 */
-const POSITIVE_INTEGER_PATTERN = /^\d+$/
 
 /**
  * Domain Model：一次指標計算的請求，建構當下即驗證。
@@ -23,32 +21,12 @@ export class IndicatorCalculationRequestDomain {
   readonly resultType: IndicatorResultTypeDomain
   readonly script: string
   readonly endTime: Date | null
+  readonly parameters: StrategyParametersDomain
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
     if (normalizedSymbol === '') {
       throw new IndicatorCalculationFieldError('symbol', '請指定交易標的')
-    }
-
-    const rawCandleCount = indicatorCalculationRequestDto.candleCount.trim()
-    if (rawCandleCount === '') {
-      throw new IndicatorCalculationFieldError('candleCount', '請填寫計算根數')
-    }
-
-    if (!POSITIVE_INTEGER_PATTERN.test(rawCandleCount)) {
-      // 訊息要依「解讀出來的值」決定，而不是依「看起來像不像整數」：
-      // `20.0` 解讀出來是整數 20，但它不是我們接受的寫法，該說的是「必須是整數」而不是「必須大於零」。
-      const parsedCandleCount = Number(rawCandleCount)
-      throw new IndicatorCalculationFieldError(
-        'candleCount',
-        Number.isFinite(parsedCandleCount) && parsedCandleCount <= 0
-          ? '計算根數必須大於零'
-          : '計算根數必須是整數')
-    }
-
-    const candleCount = Number(rawCandleCount)
-    if (candleCount <= 0) {
-      throw new IndicatorCalculationFieldError('candleCount', '計算根數必須大於零')
     }
 
     const normalizedScriptBody = indicatorCalculationRequestDto.scriptBody.trim()
@@ -61,10 +39,18 @@ export class IndicatorCalculationRequestDomain {
     // 認不得的代號一律退回最細的那一種，與指標值種類同一套處理。
     this.aggregationInterval
       = new AggregationIntervalDomain(indicatorCalculationRequestDto.aggregationInterval)
-    this.candleCount = candleCount
+    this.candleCount = indicatorCalculationRequestDto.candleCount
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.script = new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
     // 不驗證它落在哪裡：指向未來由系統那頭視同現在，那是它的規則，抄一份下來只會有兩套。
     this.endTime = indicatorCalculationRequestDto.endTime
+
+    // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話：
+    // 錯的是「參數」那一塊，不是算式、也不是任何一個執行條件。
+    this.parameters = new StrategyParametersDomain(indicatorCalculationRequestDto.parameters)
+    const parametersMessage = this.parameters.validationMessage()
+    if (parametersMessage !== null) {
+      throw new IndicatorCalculationFieldError('parameters', parametersMessage)
+    }
   }
 }

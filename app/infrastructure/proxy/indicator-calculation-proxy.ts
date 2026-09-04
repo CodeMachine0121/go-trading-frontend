@@ -5,6 +5,7 @@ import type { IndicatorScalarValue } from '~/domain/models/vo/indicator-value-vo
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const INDICATOR_CALCULATIONS_ENDPOINT = '/indicator-calculations'
@@ -69,6 +70,13 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
     }
     catch (error: unknown) {
       // 狀態碼只在這一層被解讀：算式跑不起來與請求本身有問題，使用者要改的東西不同。
+      // 名字對不上先問：它與「算式跑不動」都是被拒絕，但使用者要去改的地方完全不同。
+      // 判準是回應帶回來的那個欄位，不是訊息的文字——文字是寫給人看的。
+      if (error instanceof BackendRequestRejectedError && error.parameterName !== undefined) {
+        throw new StrategyParameterNotDeclaredError(
+          error.parameterName, error.message, { cause: error })
+      }
+
       if (error instanceof BackendRequestRejectedError && error.status === SCRIPT_FAILED_STATUS) {
         throw new IndicatorScriptFailedError(error.message, { cause: error })
       }
