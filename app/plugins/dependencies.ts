@@ -6,6 +6,7 @@ import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-parameter-value-preference-proxy'
+import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
@@ -59,15 +60,17 @@ export default defineNuxtPlugin(() => {
     new StrategyService(new StrategyProxy(backendBaseUrl)),
   )
 
-  // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼）——
-  // 前者是行情，後兩者是這台機器上的習慣，所以它吃三個 proxy。
-  // 線色與旋鈕值各有各的 proxy 而不是合成一個「偏好」：它們的鍵不同、
-  // 生命週期不同，合起來只會得到一個誰都不好懂的萬用儲存。
+  // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼、
+  // 記住圖上擺著哪幾支）——前者是行情，後三者是這台機器上的習慣，所以它吃四個 proxy。
+  // 三種記憶各有各的 proxy 而不是合成一個「偏好」：它們的鍵不同、生命週期不同，
+  // 回答的問題也不同（這條線什麼顏色／我習慣把這支調成幾／圖上擺著哪幾筆），
+  // 合起來只會得到一個誰都不好懂的萬用儲存。
   const chartIndicatorApplication = new ChartIndicatorApplication(
     new ChartIndicatorService(
       new IndicatorCalculationProxy(backendBaseUrl),
       new ChartLineColorPreferenceProxy(),
       new StrategyParameterValuePreferenceProxy(),
+      new AppliedChartIndicatorPreferenceProxy(),
     ),
   )
 

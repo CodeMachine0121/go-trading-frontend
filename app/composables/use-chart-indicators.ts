@@ -16,8 +16,9 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
  * **它不做任何業務判斷**——一個數字畫成什麼、線是什麼顏色、值怎麼對回 K 線，
  * 一律問 Application。它持有的是狀態，不是規則。
  *
- * 清單刻意**不留存**：每次坐下來想看的東西都不同，記住它反而礙事。
- * 被記住的是顏色與旋鈕調成什麼，而那兩件都由領域那一側負責。
+ * 清單**留存**：打開畫面時上次擺著的那幾支自己回來。留存的是「他要哪幾支、各配什麼值」，
+ * 對照現在的策略清單之後才回得來——那個判斷不在這裡，由領域那一側負責。
+ * 顏色與旋鈕習慣值仍然各自留存，各自回答自己的問題。
  *
  * **同一支策略可以擺好幾筆**，所以這裡的每一把鑰匙都是「**這一次套用**」的序號，
  * 不是策略識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
@@ -50,8 +51,26 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const pendingAppliedIndicator = ref<AppliedIndicatorDto | null>(null)
   const pendingParametersMessage = ref<string | null>(null)
 
-  /** 下一筆套用的序號。它只在這個畫面活著——清單本來就不留存。 */
+  /**
+   * 下一筆套用的序號。它只在這個畫面活著——留存的是「他要哪幾支、各配什麼值」，
+   * 不是這幾個序號，所以還原回來的那幾筆也在這裡重新拿號。
+   */
   let lastAppliedIndicatorId = 0
+
+  /**
+   * 每一筆**最後一次「值用得了」**的樣子。
+   *
+   * 畫面上那一份（`appliedIndicators`）可能帶著使用者剛打、但用不了的值——
+   * 那是刻意的，畫面必須顯示他剛剛打的東西。但**留存的不能是那一份**，
+   * 而清單的下一次改動（移除、加入）寫的是**整份**：
+   * 少了這裡，那一次改動就會把用不了的值一起寫下去，
+   * 下次打開時它退回策略的預設值，**使用者自己調過的那個值就這樣消失了**——
+   * 而從頭到尾沒有任何地方報錯。
+   *
+   * 它是一張以序號為鍵的查詢表，不是第二份清單：要寫下去的那一份永遠**由畫面上那一份推導**
+   * （順序與成員一律照它），所以兩者不會漂移。
+   */
+  const lastUsableAppliedIndicators = new Map<number, AppliedIndicatorDto>()
 
   /**
    * 目前在算的是哪一張圖的哪一段。
@@ -146,6 +165,46 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   /**
+   * 把上次擺著的那幾支還原回來。**取到策略清單之後才叫得動**——
+   * 那份清單是還原時唯一的真相（策略可能被刪、改了宣告、現在畫不成線）。
+   *
+   * 「哪幾筆回得來」這個判斷不在這裡：這個 composable 持有的是狀態，不是規則。
+   *
+   * 算不算得動要看行情回來了沒有。**兩件事各自進行、誰先回來都可以**（既有設計），
+   * 所以這裡照樣對每一筆算一次：行情還沒回來時 `calculateOne` 會安靜地回頭，
+   * 而第一次擺好位置時它們會被補算——那一段在 `recalculateForRange` 裡。
+   *
+   * **還原不寫回留存**：留存的內容一個字都沒有變，寫它只是把剛讀到的東西寫回去。
+   */
+  async function restoreAppliedIndicators(strategies: readonly StrategyDto[]) {
+    const restored = chartIndicatorApplication.restoreAppliedIndicators(
+      strategies, lastAppliedIndicatorId)
+    if (restored.length === 0) {
+      return
+    }
+
+    lastAppliedIndicatorId += restored.length
+    appliedIndicators.value = [...appliedIndicators.value, ...restored]
+    // 回來的那幾筆的值都是能用的（用不了的在還原時就退回了預設值）——
+    // 記著它們，之後清單的任何一次改動才寫得出能用的那一份。
+    for (const appliedIndicator of restored) {
+      lastUsableAppliedIndicators.set(appliedIndicator.id, appliedIndicator)
+    }
+
+    // **在這裡就決定要不要算，而不是邊算邊等。**
+    // 行情還沒回來時算不動（`calculateOne` 會安靜地回頭），而第一次擺好位置時會補算。
+    // 若照樣逐筆 await，每一個 await 都是一個空檔——行情的續段可能正好落在裡面，
+    // 於是補算與這個迴圈同時跑，同一批被算兩遍。兩次都畫得出線，圖上不會有任何異狀。
+    if (current.value === null) {
+      return
+    }
+
+    for (const appliedIndicator of restored) {
+      await calculateOne(appliedIndicator)
+    }
+  }
+
+  /**
    * 使用者挑了一支——**唯一的入口**。
    *
    * 有旋鈕的先停下來讓他調；一個旋鈕都沒有的直接上圖，中間不多一步。
@@ -228,7 +287,22 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     }
 
     chartIndicatorApplication.rememberAppliedIndicatorParameters(changed)
+    // 這個值用得了，所以它就是這一筆最後一次能用的樣子。
+    // **值用不了的那一次走不到這裡**（上面已經回頭），於是留存的仍是上一個能用的值。
+    lastUsableAppliedIndicators.set(appliedIndicatorId, changed)
+    rememberAppliedIndicators()
     await calculateOne(changed)
+  }
+
+  /**
+   * 把「圖上擺著哪幾筆」寫下來——**唯一的寫入點**。
+   *
+   * 寫的是**能用的那一份**：成員與順序照畫面上那一份，但每一筆的值取它最後一次用得了的樣子。
+   * 兩者只有在使用者正把一個用不了的值留在某一格裡時才不同。
+   */
+  function rememberAppliedIndicators() {
+    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
+      applied => lastUsableAppliedIndicators.get(applied.id) ?? applied))
   }
 
   /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
@@ -256,12 +330,24 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       indicator => indicator.appliedIndicatorId !== appliedIndicatorId)
     forgetFailure(appliedIndicatorId)
     parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, null)
+    lastUsableAppliedIndicators.delete(appliedIndicatorId)
+    // 不寫的話它明天會回來，而使用者明明已經把它拿下來了。
+    rememberAppliedIndicators()
   }
 
-  /** 真的加上去：記住這一次的值，然後立刻算一次。 */
+  /**
+   * 真的加上去：記住這一次的值、記住清單變成了什麼，然後立刻算一次。
+   *
+   * 兩份記憶都要寫，因為它們回答的是兩個問題：
+   * 「我習慣把這支調成幾」（下次挑一支新的時帶起始值）與
+   * 「圖上擺著哪幾筆」（下次打開時還原）。
+   */
   async function addToChart(appliedIndicator: AppliedIndicatorDto) {
     chartIndicatorApplication.rememberAppliedIndicatorParameters(appliedIndicator)
     appliedIndicators.value = [...appliedIndicators.value, appliedIndicator]
+    // 加得進來的值必然用得了（有旋鈕的先驗過才上圖，沒旋鈕的沒有值可驗）。
+    lastUsableAppliedIndicators.set(appliedIndicator.id, appliedIndicator)
+    rememberAppliedIndicators()
     await calculateOne(appliedIndicator)
   }
 
@@ -282,8 +368,22 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
     current.value = { chart, range }
 
-    // 還沒有任何一支在別的區間下算過，就沒有東西需要跟上。
-    if (isUnchanged || wasNeverSet) {
+    if (isUnchanged) {
+      return
+    }
+
+    // 第一次擺好位置：還沒有任何一支在別的區間下算過，所以沒有東西需要「跟上」——
+    // 但清單上可能已經有東西了。還原回來的那幾筆在行情之前就進了清單，
+    // 而它們當時算不動（沒有「算哪一段」可用），這一刻才第一次有。
+    //
+    // 這條判斷原本只是「什麼都不做」，前提是「清單此刻必然是空的」（清單不留存）。
+    // 留存讓那個前提消失了；規則沒有錯，是它的前提不在了。
+    if (wasNeverSet) {
+      if (appliedIndicators.value.length > 0) {
+        // **不等停手**：第一次擺好位置不是拖動，等 300 毫秒只是讓圖空著。
+        void recalculateEveryApplied()
+      }
+
       return
     }
 
@@ -454,6 +554,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     pendingParameterFields,
     pendingParametersMessage,
     selectableStrategies,
+    restoreAppliedIndicators,
     applyIndicator,
     changePendingParameterValue,
     confirmPendingIndicator,

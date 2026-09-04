@@ -1,3 +1,4 @@
+import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
@@ -7,6 +8,7 @@ import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
+import { RememberedAppliedIndicatorsDomain } from '~/domain/models/domains/remembered-applied-indicators-domain'
 import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
 import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
 import { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
@@ -26,7 +28,42 @@ export class ChartIndicatorService {
     private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
     private readonly strategyParameterValuePreferenceProxy:
     IStrategyParameterValuePreferenceProxy,
+    private readonly appliedChartIndicatorPreferenceProxy:
+    IAppliedChartIndicatorPreferenceProxy,
   ) {}
+
+  /**
+   * 上次圖上擺著的那幾支，對照**現在**的策略清單之後交出來。
+   *
+   * 呼叫端只說「把上次那幾支還原回來」。讀留存、對回一支現在的策略、
+   * 丟掉刪掉的與畫不成線的、依宣告重建那幾格、給序號，五件事都在這裡面——
+   * **呼叫端不知道留存存在，也不該知道**。
+   *
+   * 收「現在的策略清單」而不自己去取：那份清單是畫面本來就會取的東西
+   * （取不到時圖表照畫），為了還原再打一趟等於讓一個附加功能多花一次往返。
+   */
+  restoreAppliedIndicators(
+    strategies: readonly StrategyDto[], lastAppliedIndicatorId: number,
+  ): AppliedIndicatorDto[] {
+    return new RememberedAppliedIndicatorsDomain(
+      this.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators(),
+      strategies,
+    ).toAppliedIndicatorDtos(lastAppliedIndicatorId)
+  }
+
+  /**
+   * 把圖上現在擺著的那幾筆記下來，**整份**。
+   *
+   * 記的是「他要哪幾支、各配什麼值」，不是圖上長什麼樣——算失敗、正在算、
+   * 挑了什麼顏色都不在裡面（顏色有自己的記憶）。
+   *
+   * 整份寫而不是逐筆改：清單的每一次改動（加入、移除、改值）都讓它變成新的一份，
+   * 而「第幾筆放在哪裡」這件事一旦讓外面也知道，兩邊算得不一樣時記憶會**安靜地**錯位。
+   */
+  rememberAppliedIndicators(appliedIndicatorDtos: readonly AppliedIndicatorDto[]): void {
+    this.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators(
+      appliedIndicatorDtos.map(appliedIndicatorDto => appliedIndicatorDto.toRememberedVo()))
+  }
 
   /**
    * 準備一次套用：交出這一支這一次要用的那幾格。

@@ -235,6 +235,11 @@ onMounted(async () => {
 
   try {
     strategies.value = await strategyApplication.listStrategies()
+
+    // 上次擺著的那幾支自己回來。**要等策略清單到手**——那份清單是還原時唯一的真相：
+    // 留存的是「他要哪幾支」，而那幾支可能已經被刪、改了宣告，或者現在畫不成線。
+    // 取不到清單時就還原不了，那與「上次一支都沒擺」對使用者是同一件事：清單是空的。
+    await chartIndicators.restoreAppliedIndicators(strategies.value)
   }
   catch {
     // 取不到策略清單只代表這一次沒有東西可挑，圖表本身照畫——
