@@ -107,6 +107,13 @@ describe('AssistantComposer 的輸入框', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['問一句'])
   })
 
+  it('輸入框是無框的那一種——框是外面那一枚膠囊', () => {
+    // 這一條是那顆送出鍵跑位的修法：`bare` 之下輸入框把寬度交給膠囊分配，
+    // 否則它會宣稱要佔滿整條，把不肯縮的送出鍵推到框外面去。
+    expect(mountComposer({ draft: '' }).get('[data-testid="assistant-composer-input"]').classes())
+      .toContain('app-textarea--bare')
+  })
+
   it('下方說出助手可能會出錯', () => {
     // 這一句不是免責話術：它要讓人在把數字拿去下單之前多看一眼。
     expect(mountComposer({ draft: '' }).text()).toContain('請自行覆核')

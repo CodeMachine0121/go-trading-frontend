@@ -13,12 +13,18 @@ import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButto
 const { open, openDrawer, closeDrawer } = useAssistantDrawer()
 const {
   suggestedPrompts,
+  conversationId,
   messages,
   draft,
   pending,
   rejectionMessage,
+  conversations,
+  conversationsErrorMessage,
   ask,
   retry,
+  startNewConversation,
+  selectConversation,
+  loadConversations,
 } = useAssistantConversation()
 const { selectedTimeZone } = useSelectedTimeZone()
 
@@ -87,8 +93,14 @@ onBeforeUnmount(() => {
     :rejection-message="rejectionMessage"
     :suggested-prompts="suggestedPrompts"
     :time-zone="selectedTimeZone"
+    :conversations="conversations"
+    :active-conversation-id="conversationId"
+    :conversations-error-message="conversationsErrorMessage"
     @close-drawer="closeDrawer()"
     @send="question => ask(question)"
     @retry="retry()"
+    @start-new="startNewConversation()"
+    @select-conversation="id => selectConversation(id)"
+    @open-history="loadConversations()"
   />
 </template>

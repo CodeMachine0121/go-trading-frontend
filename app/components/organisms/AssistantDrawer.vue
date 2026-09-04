@@ -2,8 +2,10 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantComposer from '~/components/molecules/AssistantComposer.vue'
+import AssistantConversationList from '~/components/organisms/AssistantConversationList.vue'
 import AssistantConversationThread from '~/components/organisms/AssistantConversationThread.vue'
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
+import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 有機體：任何畫面都叫得出來的助手抽屜。
@@ -20,8 +22,10 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 而這一塊要顯示對話。叫出它的鍵因此長在它自己身上（畫面右下的浮動鍵），
 // 這也讓四個既有畫面一行都不必改。
 //
-// **它不放對話清單。** 420 像素硬塞兩欄的結果是兩邊都難用，而換對話是低頻動作——
-// 標頭的展開帶著同一段對話跳到整頁，在那裡換。
+// **開新對話與回到舊對話都在這裡辦得到。** 清單不是常駐的第二欄（420 像素硬塞兩欄
+// 的結果是兩邊都難用），而是**標頭按一下才蓋上來的一層**：開新對話在最上面、
+// 歷史列在下面，這是窄面板裡的既有順序（Bard、Copilot、ChatGPT、Grok 都是這樣）。
+// 挑了一段就把那一層收起來，因為挑完要看的是對話本身。
 //
 // 對話串與輸入區都是與整頁共用的那兩個元件，所以兩邊不可能講不同的話。
 // 資料一律由上往下傳、事件由下往上 emit——拿資料是接線那一層的事。
@@ -32,6 +36,9 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
   rejectionMessage: string | null
   suggestedPrompts: readonly string[]
   timeZone: TimeZoneDto
+  conversations: readonly ConversationSummaryDto[]
+  activeConversationId: number | null
+  conversationsErrorMessage: string | null
 }>()
 
 const draft = defineModel<string>('draft', { required: true })
@@ -40,7 +47,46 @@ const emit = defineEmits<{
   closeDrawer: []
   send: [question: string]
   retry: []
+  startNew: []
+  selectConversation: [id: number]
+  openHistory: []
 }>()
+
+/**
+ * 那一層歷史蓋上來了沒有。
+ *
+ * 它是純粹的畫面開關，只活在這一次打開抽屜的期間，所以是本地狀態——
+ * 收起抽屜再打開時回到對話本身，那是使用者要看的東西。
+ */
+const historyOpen = ref(false)
+
+/** 打開歷史時才去讀清單：沒有人翻歷史的時候，那是一次白打的請求。 */
+function toggleHistory(): void {
+  historyOpen.value = !historyOpen.value
+
+  if (historyOpen.value) {
+    emit('openHistory')
+  }
+}
+
+/** 挑了一段就把那一層收起來——挑完要看的是對話。 */
+function selectConversation(id: number): void {
+  historyOpen.value = false
+  emit('selectConversation', id)
+}
+
+/** 開了新的一段也一樣收起來，然後那個空對話就在眼前等著被問。 */
+function startNewConversation(): void {
+  historyOpen.value = false
+  emit('startNew')
+}
+
+/** 抽屜整個收起來時，下次打開先看到對話而不是上次翻到一半的歷史。 */
+watch(() => open, (isOpen) => {
+  if (!isOpen) {
+    historyOpen.value = false
+  }
+})
 </script>
 
 <template>
@@ -66,6 +112,34 @@ const emit = defineEmits<{
         </span>
 
         <span class="assistant-drawer__actions">
+          <AppButton
+            variant="ghost"
+            size="small"
+            shape="circle"
+            label="開新對話"
+            data-testid="assistant-drawer-start-new"
+            @click="startNewConversation()"
+          >
+            <AppIcon
+              name="new"
+              size="small"
+            />
+          </AppButton>
+
+          <AppButton
+            variant="ghost"
+            size="small"
+            shape="circle"
+            :label="historyOpen ? '收起歷史對話' : '歷史對話'"
+            data-testid="assistant-drawer-history-toggle"
+            @click="toggleHistory()"
+          >
+            <AppIcon
+              name="library"
+              size="small"
+            />
+          </AppButton>
+
           <!-- 展開是抽屜裡換對話的唯一去處：清單在整頁那邊 -->
           <NuxtLink
             to="/chat"
@@ -95,7 +169,20 @@ const emit = defineEmits<{
         </span>
       </header>
 
+      <AssistantConversationList
+        v-if="historyOpen"
+        class="assistant-drawer__history"
+        :conversations="conversations"
+        :active-conversation-id="activeConversationId"
+        :error-message="conversationsErrorMessage"
+        :time-zone="timeZone"
+        :show-start-new="false"
+        @select="selectConversation"
+        @reload="emit('openHistory')"
+      />
+
       <AssistantConversationThread
+        v-else
         :messages="messages"
         :pending="pending"
         :rejection-message="rejectionMessage"
@@ -105,7 +192,10 @@ const emit = defineEmits<{
         @select-prompt="prompt => emit('send', prompt)"
       />
 
-      <div class="assistant-drawer__composer">
+      <div
+        v-if="!historyOpen"
+        class="assistant-drawer__composer"
+      >
         <AssistantComposer
           v-model="draft"
           :pending="pending"
@@ -195,6 +285,15 @@ $drawer-inset: 0.75rem;
       background-color: color('surface-muted');
       color: color('text-strong');
     }
+  }
+
+  // 那一層歷史蓋掉對話，而不是擠在它旁邊：420 像素放不下兩欄。
+  // 它自己捲動，所以圓角卡片的邊不會被列表撐開。
+  &__history {
+    flex: 1;
+    border: 0;
+    border-radius: 0;
+    min-height: 0;
   }
 
   &__composer {

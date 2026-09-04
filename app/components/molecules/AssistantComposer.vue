@@ -126,6 +126,10 @@ onMounted(() => {
 
   &__send {
     flex-shrink: 0;
+
+    // 明講對齊哪裡，不靠外面那一行的 align-items：輸入框長到兩三行時，
+    // 送出鍵要留在最後一行旁邊，而不是跟著跑到中間。
+    align-self: flex-end;
   }
 
   &__disclaimer {

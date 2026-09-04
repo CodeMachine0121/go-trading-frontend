@@ -12,11 +12,18 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 //
 // 每一列說出最後有動靜的時刻與有幾則訊息，因為後端不讓對話取名字——
 // 這兩個數字是唯一能用來認出「這是哪一段」的東西。
-const { conversations, activeConversationId, errorMessage, timeZone } = defineProps<{
+const { conversations, activeConversationId, errorMessage, timeZone, showStartNew = true } = defineProps<{
   conversations: readonly ConversationSummaryDto[]
   activeConversationId: number | null
   errorMessage: string | null
   timeZone: TimeZoneDto
+  /**
+   * 這份清單自己要不要帶「開新的」。
+   *
+   * 抽屜的標頭已經有一顆了，那裡按得到而且一直看得到；清單裡再放一顆，
+   * 同一個動作就有兩個入口，而兩個入口遲早會有一個被改壞。
+   */
+  showStartNew?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +39,7 @@ const emit = defineEmits<{
       <span class="assistant-conversation-list__title">對話</span>
 
       <AppButton
+        v-if="showStartNew"
         variant="ghost"
         size="small"
         shape="pill"

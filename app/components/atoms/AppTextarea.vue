@@ -105,10 +105,19 @@ defineExpose({
   }
 
   // 住在別人框裡的樣子：自己不畫邊界、不畫底色，連焦點框都讓給外面那一枚膠囊。
+  //
+  // 寬度也交出去。上面那個 `width: 100%` 是給「自己就是一整條」的情況用的，
+  // 但在別人的橫向排版裡，它的意思變成「我要佔滿整條」——旁邊那顆不肯縮的送出鍵
+  // 於是被推到框外面去。住在框裡就該由框決定分到多少寬。
   &--bare {
+    flex: 1;
     border-color: transparent;
     background-color: transparent;
     padding: spacing('2xs') 0;
+    width: auto;
+
+    // 讓它縮得比內容還小，否則長字串會把整列撐開、又把送出鍵推出去。
+    min-width: 0;
 
     &:hover:not(:disabled),
     &:focus-visible {

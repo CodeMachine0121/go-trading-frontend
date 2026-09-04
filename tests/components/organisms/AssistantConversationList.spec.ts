@@ -8,6 +8,7 @@ function mountList(props: {
   conversations?: ReturnType<typeof buildSummary>[]
   activeConversationId?: number | null
   errorMessage?: string | null
+  showStartNew?: boolean
 }) {
   return mount(AssistantConversationList, {
     props: {
@@ -15,6 +16,7 @@ function mountList(props: {
       activeConversationId: props.activeConversationId ?? null,
       errorMessage: props.errorMessage ?? null,
       timeZone: buildTimeZone(),
+      showStartNew: props.showStartNew ?? true,
     },
     global: { stubs: { NuxtLink: true } },
   })
@@ -81,5 +83,13 @@ describe('AssistantConversationList', () => {
     await wrapper.get('[data-testid="assistant-list-start-new"]').trigger('click')
 
     expect(wrapper.emitted('startNew')).toHaveLength(1)
+  })
+
+  it('用在標頭已經有開新對話的地方時，自己就不再放一顆', () => {
+    // 同一個動作兩個入口，遲早會有一個被改壞。
+    const wrapper = mountList({ conversations: [buildSummary(7)], showStartNew: false })
+
+    expect(wrapper.find('[data-testid="assistant-list-start-new"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="assistant-list-item-7"]').exists()).toBe(true)
   })
 })
