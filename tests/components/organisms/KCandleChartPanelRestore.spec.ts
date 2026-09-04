@@ -381,6 +381,49 @@ describe('行情與策略清單誰先回來都算得出來', () => {
   })
 })
 
+describe('留存的必須是能用的那一份', () => {
+  it('填了用不了的值之後移除另一筆，留存的仍是能用的那個值', async () => {
+    // 值用不了的那一次不寫（既有規則），但清單的下一次改動寫的是**整份**——
+    // 若那一份帶著用不了的值，下次打開時它會退回策略的預設值，
+    // 而使用者自己調過的那個值就這樣消失了，沒有任何地方報錯。
+    const { wrapper, writeAppliedChartIndicators } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 45 }), rememberedOf(7, { 期數: 60 })],
+    })
+
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+    await removeIndicator(wrapper, 2)
+
+    expect(writeAppliedChartIndicators)
+      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 45 })])
+  })
+
+  it('填了用不了的值之後再加一筆，留存的仍是能用的那個值', async () => {
+    const { wrapper, writeAppliedChartIndicators } = await mountPanel({
+      strategies: [strategyWithLookback(7, '均線'),
+        buildStoredStrategy(9, '無旋鈕', { resultType: 'float' })],
+      remembered: [rememberedOf(7, { 期數: 45 })],
+    })
+
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+    await pickStrategy(wrapper, 9)
+
+    expect(writeAppliedChartIndicators)
+      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 45 }), rememberedOf(9)])
+  })
+
+  it('把用不了的值改回能用的之後，留存的是新的那個值', async () => {
+    const { wrapper, writeAppliedChartIndicators } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 45 })],
+    })
+
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+    await changeAppliedValue(wrapper, 1, '期數', '30')
+
+    expect(writeAppliedChartIndicators)
+      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 30 })])
+  })
+})
+
 describe('還原後每一筆只算一次', () => {
   it.each([0, 1, 2, 3])('行情延後 %i 個微任務回來時也只算一次', async (ticks) => {
     // 還原是「附加整份、然後逐筆 await」，而每一個 await 都是一個空檔。

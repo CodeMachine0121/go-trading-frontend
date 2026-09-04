@@ -58,6 +58,21 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   let lastAppliedIndicatorId = 0
 
   /**
+   * 每一筆**最後一次「值用得了」**的樣子。
+   *
+   * 畫面上那一份（`appliedIndicators`）可能帶著使用者剛打、但用不了的值——
+   * 那是刻意的，畫面必須顯示他剛剛打的東西。但**留存的不能是那一份**，
+   * 而清單的下一次改動（移除、加入）寫的是**整份**：
+   * 少了這裡，那一次改動就會把用不了的值一起寫下去，
+   * 下次打開時它退回策略的預設值，**使用者自己調過的那個值就這樣消失了**——
+   * 而從頭到尾沒有任何地方報錯。
+   *
+   * 它是一張以序號為鍵的查詢表，不是第二份清單：要寫下去的那一份永遠**由畫面上那一份推導**
+   * （順序與成員一律照它），所以兩者不會漂移。
+   */
+  const lastUsableAppliedIndicators = new Map<number, AppliedIndicatorDto>()
+
+  /**
    * 目前在算的是哪一張圖的哪一段。
    *
    * 兩者是同一件事的兩面，所以一起存：圖給的是交易標的與彙總刻度，
@@ -170,6 +185,11 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
     lastAppliedIndicatorId += restored.length
     appliedIndicators.value = [...appliedIndicators.value, ...restored]
+    // 回來的那幾筆的值都是能用的（用不了的在還原時就退回了預設值）——
+    // 記著它們，之後清單的任何一次改動才寫得出能用的那一份。
+    for (const appliedIndicator of restored) {
+      lastUsableAppliedIndicators.set(appliedIndicator.id, appliedIndicator)
+    }
 
     // **在這裡就決定要不要算，而不是邊算邊等。**
     // 行情還沒回來時算不動（`calculateOne` 會安靜地回頭），而第一次擺好位置時會補算。
@@ -267,11 +287,22 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     }
 
     chartIndicatorApplication.rememberAppliedIndicatorParameters(changed)
-    // 清單變成新的一份了。**值用不了的那一次不寫**（上面已經回頭）——
-    // 畫面必須顯示使用者剛打的東西，但留存的必須是能用的那一份，
-    // 否則下次打開時圖上少一條線，而旁邊那行說明講的是他昨天打錯的東西。
-    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value)
+    // 這個值用得了，所以它就是這一筆最後一次能用的樣子。
+    // **值用不了的那一次走不到這裡**（上面已經回頭），於是留存的仍是上一個能用的值。
+    lastUsableAppliedIndicators.set(appliedIndicatorId, changed)
+    rememberAppliedIndicators()
     await calculateOne(changed)
+  }
+
+  /**
+   * 把「圖上擺著哪幾筆」寫下來——**唯一的寫入點**。
+   *
+   * 寫的是**能用的那一份**：成員與順序照畫面上那一份，但每一筆的值取它最後一次用得了的樣子。
+   * 兩者只有在使用者正把一個用不了的值留在某一格裡時才不同。
+   */
+  function rememberAppliedIndicators() {
+    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
+      applied => lastUsableAppliedIndicators.get(applied.id) ?? applied))
   }
 
   /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
@@ -299,8 +330,9 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       indicator => indicator.appliedIndicatorId !== appliedIndicatorId)
     forgetFailure(appliedIndicatorId)
     parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, null)
+    lastUsableAppliedIndicators.delete(appliedIndicatorId)
     // 不寫的話它明天會回來，而使用者明明已經把它拿下來了。
-    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value)
+    rememberAppliedIndicators()
   }
 
   /**
@@ -313,7 +345,9 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   async function addToChart(appliedIndicator: AppliedIndicatorDto) {
     chartIndicatorApplication.rememberAppliedIndicatorParameters(appliedIndicator)
     appliedIndicators.value = [...appliedIndicators.value, appliedIndicator]
-    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value)
+    // 加得進來的值必然用得了（有旋鈕的先驗過才上圖，沒旋鈕的沒有值可驗）。
+    lastUsableAppliedIndicators.set(appliedIndicator.id, appliedIndicator)
+    rememberAppliedIndicators()
     await calculateOne(appliedIndicator)
   }
 
