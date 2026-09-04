@@ -19,20 +19,12 @@ import type { StrategyApplication } from '~/application/strategy-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
-import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
-import {
-  IndicatorCalculationFieldError,
-  type IndicatorCalculationField,
-} from '~/domain/errors/indicator-calculation-field-error'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
-import type { StrategyParameterDto, StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
 import StrategyParameterList from '~/components/molecules/StrategyParameterList.vue'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
-import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
-import { BackendServerError } from '~/domain/errors/backend-server-error'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { readNumberInput } from '~/utilities/number-input-reading'
+import { useStrategyParameters } from '~/composables/use-strategy-parameters'
+import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
 //
@@ -73,7 +65,8 @@ const span = ref(indicatorCalculationApplication.defaultCalculationSpan())
 const scriptBody = ref(blankStrategyContent.scriptBody)
 // 旋鈕是**策略內容**，與算式內容、指標值種類同一層：載入時跟著換，
 // 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
-const parameters = ref<readonly StrategyParameterDto[]>(blankStrategyContent.parameters)
+const strategyParameters = useStrategyParameters(
+  indicatorCalculationApplication, blankStrategyContent.parameters)
 // 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
 const resultType = ref<string>(blankStrategyContent.resultType)
 
@@ -81,11 +74,6 @@ const aggregationIntervalOptions
   = indicatorCalculationApplication.listAggregationIntervalOptions()
 
 const spanUnitOptions = indicatorCalculationApplication.listCalculationSpanUnitOptions()
-const parameterKindOptions = indicatorCalculationApplication.listStrategyParameterKindOptions()
-
-// 每一列該長什麼樣子由領域回答——「回看根數要整數鍵盤」是業務規則，不是版面問題。
-const parameterFields = computed(
-  () => indicatorCalculationApplication.describeStrategyParameters(parameters.value))
 
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
 // 算式收到的每一根 K 線有哪些欄位。它不會變，取一次就好。
@@ -93,32 +81,7 @@ const kCandleFields = indicatorCalculationApplication.listKCandleFields()
 const scriptTemplate = computed(
   () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
 
-const calculating = ref(false)
-const result = ref<IndicatorCalculationResultDto | null>(null)
-const fieldError = ref<{ field: IndicatorCalculationField, message: string } | null>(null)
-const requestRejectedMessage = ref<string | null>(null)
-const scriptFailedMessage = ref<string | null>(null)
-/** 算式取用了一個沒有宣告的旋鈕名字。它與「算式跑不動」是兩件事。 */
-const parameterNotDeclaredMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
-
-/**
- * 把上一次計算留下的東西全部清掉——結果與四種失敗訊息。
- *
- * 它們是同一次計算的產物，所以永遠一起清。少清一個就會出現對不上的畫面：
- * 換了一份算式之後，欄位已經是新的預設值，旁邊卻還紅著上一次那句
- * 「計算根數必須是正整數」。
- */
-function clearLastCalculation() {
-  result.value = null
-  fieldError.value = null
-  requestRejectedMessage.value = null
-  scriptFailedMessage.value = null
-  parameterNotDeclaredMessage.value = null
-  serverErrorMessage.value = null
-  backendUnreachable.value = false
-}
+const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplication)
 
 // 策略庫拿畫面上這三樣東西當它的輸入，也負責把載入的那一份寫回來。
 // 「這三樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto——
@@ -127,13 +90,14 @@ function clearLastCalculation() {
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
-  () => new StrategyContentDto(scriptBody.value, resultType.value, parameters.value),
+  () => new StrategyContentDto(
+    scriptBody.value, resultType.value, strategyParameters.parameters.value),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType
-    parameters.value = content.parameters
+    strategyParameters.replaceAll(content.parameters)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
-    clearLastCalculation()
+    calculationRun.clear()
   },
   blankStrategyContent)
 
@@ -141,34 +105,10 @@ onMounted(() => {
   void strategyLibrary.refreshStrategies()
 })
 
-function addParameter() {
-  parameters.value = indicatorCalculationApplication.addStrategyParameter(parameters.value)
-}
-
-function removeParameter(index: number) {
-  parameters.value = indicatorCalculationApplication.removeStrategyParameter(
-    parameters.value, index)
-}
-
-function renameParameter(index: number, name: string) {
-  parameters.value = indicatorCalculationApplication.renameStrategyParameter(
-    parameters.value, index, name)
-}
-
-function changeParameterKind(index: number, kind: StrategyParameterKind) {
-  parameters.value = indicatorCalculationApplication.changeStrategyParameterKind(
-    parameters.value, index, kind)
-}
-
-function changeParameterValue(index: number, value: number) {
-  parameters.value = indicatorCalculationApplication.changeStrategyParameterValue(
-    parameters.value, index, value)
-}
-
-/** 同上：數字框交出來的可能已經是數字，也可能是還沒讀成數字的那一段文字。 */
+/** 同上：打到一半的東西不往下送。 */
 function changeSpanAmount(raw: string | number) {
-  const amount = typeof raw === 'number' ? raw : Number(raw.trim())
-  if (raw !== '' && Number.isFinite(amount)) {
+  const amount = readNumberInput(raw)
+  if (amount !== null) {
     span.value = new CalculationSpanDto(amount, span.value.unit)
   }
 }
@@ -177,57 +117,18 @@ function changeSpanUnit(unit: string) {
   span.value = new CalculationSpanDto(span.value.amount, unit as CalculationSpanUnit)
 }
 
-function messageFor(field: IndicatorCalculationField): string | null {
-  return fieldError.value?.field === field ? fieldError.value.message : null
-}
-
 function fillExampleScriptBody() {
   scriptBody.value = scriptTemplate.value.exampleBody
 }
 
 async function calculateIndicator() {
-  calculating.value = true
-  clearLastCalculation()
-
-  try {
-    result.value = await indicatorCalculationApplication.calculateIndicator(
-      new IndicatorCalculationRequestDto(
-        symbol.value,
-        aggregationInterval.value,
-        indicatorCalculationApplication.kCandleCountFor(span.value, aggregationInterval.value),
-        scriptBody.value,
-        resultType.value,
-        parameters.value))
-  }
-  catch (error: unknown) {
-    // 每一種失敗各有各的下一步，而分開它們的判準只有一個：**使用者要去改哪裡**。
-    // 名字對不上要去改參數那一列或算式那一行；算式跑不動要去改算法本身。
-    // 把前者說成後者，會讓人盯著一段其實沒有問題的程式碼看很久。
-    if (error instanceof StrategyParameterNotDeclaredError) {
-      parameterNotDeclaredMessage.value = error.message
-    }
-    else if (error instanceof IndicatorCalculationFieldError) {
-      fieldError.value = { field: error.field, message: error.message }
-    }
-    else if (error instanceof IndicatorScriptFailedError) {
-      scriptFailedMessage.value = error.message
-    }
-    else if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
-    }
-    else if (error instanceof BackendRequestRejectedError) {
-      requestRejectedMessage.value = error.message
-    }
-    else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
-    }
-    else {
-      requestRejectedMessage.value = '執行計算時發生未預期的錯誤。'
-    }
-  }
-  finally {
-    calculating.value = false
-  }
+  await calculationRun.run(() => new IndicatorCalculationRequestDto(
+    symbol.value,
+    aggregationInterval.value,
+    indicatorCalculationApplication.kCandleCountFor(span.value, aggregationInterval.value),
+    scriptBody.value,
+    resultType.value,
+    strategyParameters.parameters.value))
 }
 </script>
 
@@ -317,7 +218,7 @@ async function calculateIndicator() {
         v-model="scriptBody"
         class="indicator-calculation-panel__editor"
         :script-template="scriptTemplate"
-        :error-message="messageFor('scriptBody')"
+        :error-message="calculationRun.messageFor('scriptBody')"
       >
         <template #toolbar>
           <AppSelect
@@ -361,21 +262,21 @@ async function calculateIndicator() {
         </template>
 
         <StrategyParameterList
-          :fields="parameterFields"
-          :kind-options="parameterKindOptions"
-          @add="addParameter"
-          @remove="removeParameter"
-          @rename="renameParameter"
-          @change-kind="changeParameterKind"
-          @change-value="changeParameterValue"
+          :fields="strategyParameters.fields.value"
+          :kind-options="strategyParameters.kindOptions"
+          @add="strategyParameters.add"
+          @remove="strategyParameters.remove"
+          @rename="strategyParameters.rename"
+          @change-kind="strategyParameters.changeKind"
+          @change-value="strategyParameters.changeValue"
         />
 
         <AppAlert
-          v-if="messageFor('parameters')"
+          v-if="calculationRun.messageFor('parameters')"
           tone="danger"
           data-testid="parameters-alert"
         >
-          {{ messageFor('parameters') }}
+          {{ calculationRun.messageFor('parameters') }}
         </AppAlert>
       </AppPanel>
 
@@ -388,20 +289,20 @@ async function calculateIndicator() {
           <SymbolField
             v-model="symbol"
             :trading-symbol-application="tradingSymbolApplication"
-            :error-message="messageFor('symbol')"
+            :error-message="calculationRun.messageFor('symbol')"
           />
 
           <FormField
             label="要看多長"
             hint="這一次要涵蓋多長一段。要幾根 K 線由系統自己算——包含算式回看要用的那些。"
-            :error-message="messageFor('span')"
+            :error-message="calculationRun.messageFor('span')"
           >
             <div class="indicator-calculation-panel__span">
               <AppInput
                 :model-value="String(span.amount)"
                 type="number"
                 inputmode="numeric"
-                :invalid="Boolean(messageFor('span'))"
+                :invalid="Boolean(calculationRun.messageFor('span'))"
                 data-testid="span-amount-input"
                 @update:model-value="changeSpanAmount"
               />
@@ -442,10 +343,10 @@ async function calculateIndicator() {
           <AppButton
             type="submit"
             block
-            :disabled="calculating"
+            :disabled="calculationRun.calculating.value"
             data-testid="calculate-button"
           >
-            {{ calculating ? '計算中…' : '執行計算' }}
+            {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
           </AppButton>
 
           <p
@@ -456,40 +357,40 @@ async function calculateIndicator() {
           </p>
 
           <AppAlert
-            v-if="parameterNotDeclaredMessage"
+            v-if="calculationRun.parameterNotDeclaredMessage.value"
             tone="danger"
             data-testid="parameter-not-declared-alert"
           >
-            參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ parameterNotDeclaredMessage }}
+            參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ calculationRun.parameterNotDeclaredMessage.value }}
           </AppAlert>
 
           <AppAlert
-            v-if="scriptFailedMessage"
+            v-if="calculationRun.scriptFailedMessage.value"
             tone="danger"
             data-testid="script-failed-alert"
           >
-            算式的問題（要改的是算式）：{{ scriptFailedMessage }}
+            算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
           </AppAlert>
 
           <AppAlert
-            v-else-if="requestRejectedMessage"
+            v-else-if="calculationRun.requestRejectedMessage.value"
             tone="warning"
             data-testid="request-rejected-alert"
           >
-            請求的問題：{{ requestRejectedMessage }}
+            請求的問題：{{ calculationRun.requestRejectedMessage.value }}
           </AppAlert>
 
           <AppAlert
-            v-else-if="serverErrorMessage"
+            v-else-if="calculationRun.serverErrorMessage.value"
             tone="danger"
             data-testid="server-error-alert"
           >
-            後端出錯了（不是你的請求有問題），請稍後重試：{{ serverErrorMessage }}
+            後端出錯了（不是你的請求有問題），請稍後重試：{{ calculationRun.serverErrorMessage.value }}
             <template #action>
               <AppButton
                 variant="secondary"
                 size="small"
-                :disabled="calculating"
+                :disabled="calculationRun.calculating.value"
                 @click="calculateIndicator"
               >
                 重試
@@ -498,7 +399,7 @@ async function calculateIndicator() {
           </AppAlert>
 
           <AppAlert
-            v-else-if="backendUnreachable"
+            v-else-if="calculationRun.backendUnreachable.value"
             tone="danger"
             data-testid="unreachable-alert"
           >
@@ -507,7 +408,7 @@ async function calculateIndicator() {
               <AppButton
                 variant="secondary"
                 size="small"
-                :disabled="calculating"
+                :disabled="calculationRun.calculating.value"
                 @click="calculateIndicator"
               >
                 重試
@@ -516,7 +417,7 @@ async function calculateIndicator() {
           </AppAlert>
 
           <AppAlert
-            v-else-if="calculating"
+            v-else-if="calculationRun.calculating.value"
             tone="info"
             data-testid="calculating-alert"
           >
@@ -530,7 +431,7 @@ async function calculateIndicator() {
     </div>
 
     <AppPanel
-      v-if="result"
+      v-if="calculationRun.result.value"
       title="計算結果"
       flush
       class="indicator-calculation-panel__result"
@@ -540,21 +441,21 @@ async function calculateIndicator() {
            所以它必須看得見，而不是靠信任。 -->
       <template #meta>
         <span data-testid="used-candle-count">
-          實際採用 {{ result.usedCandleCount }} 根
+          實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
           <AppBadge
             variant="info"
             data-testid="used-interval"
           >
-            每根涵蓋 {{ result.intervalLabel }}
+            每根涵蓋 {{ calculationRun.result.value.intervalLabel }}
           </AppBadge>
           <AppBadge variant="info">
-            {{ result.resultTypeLabel }}
+            {{ calculationRun.result.value.resultTypeLabel }}
           </AppBadge>
         </span>
       </template>
 
       <p
-        v-if="result.isEmpty"
+        v-if="calculationRun.result.value.isEmpty"
         class="indicator-calculation-panel__empty"
         data-testid="empty-result"
       >
@@ -578,7 +479,7 @@ async function calculateIndicator() {
           </thead>
           <tbody>
             <tr
-              v-for="indicatorValue in result.indicatorValues"
+              v-for="indicatorValue in calculationRun.result.value.indicatorValues"
               :key="indicatorValue.name"
               data-testid="indicator-row"
             >

@@ -5,6 +5,7 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
 import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import { readNumberInput } from '~/utilities/number-input-reading'
 
 // 分子：一支算式的旋鈕這一整塊——宣告、值、新增與移除。
 //
@@ -27,16 +28,10 @@ const emit = defineEmits<{
   changeValue: [index: number, value: number]
 }>()
 
-/**
- * 數字輸入框交出來的可能是數字、也可能是還沒讀成數字的那一段文字
- * （`type="number"` 的框由框架轉過，空白或打到一半的則原樣交出）。
- *
- * 打到一半的東西不往下送：它會被讀成 0，而 0 在回看根數那一種不合法，
- * 使用者會在還沒打完時就看到一則錯誤。
- */
+/** 打到一半的東西不往下送——讀不成數字就當作使用者還沒打完。 */
 function onValueInput(index: number, raw: string | number) {
-  const value = typeof raw === 'number' ? raw : Number(raw.trim())
-  if (raw !== '' && Number.isFinite(value)) {
+  const value = readNumberInput(raw)
+  if (value !== null) {
     emit('changeValue', index, value)
   }
 }
