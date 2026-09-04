@@ -8,9 +8,21 @@
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type ButtonSize = 'small' | 'medium' | 'large'
 
-const { variant = 'primary', size = 'medium', block = false, label } = defineProps<{
+/**
+ * 這顆按鈕的外形。
+ *
+ * `default` 是這個操作台的角——收得很緊，因為它是一台儀器。
+ * `pill` 與 `circle` 是給**對話介面**用的：一句可以點的建議提問是一枚籌碼、
+ * 一顆浮在畫面上叫出助手的鍵是一個圓，那兩個東西方方正正會很硬。
+ *
+ * 它是互斥的外觀，所以是一組列舉而不是幾個布林——`pill` 與 `circle` 同時為真是無意義狀態。
+ */
+type ButtonShape = 'default' | 'pill' | 'circle'
+
+const { variant = 'primary', size = 'medium', shape = 'default', block = false, label } = defineProps<{
   variant?: ButtonVariant
   size?: ButtonSize
+  shape?: ButtonShape
   block?: boolean
   /**
    * 只放圖示、沒有文字時，這顆按鈕叫什麼。
@@ -31,6 +43,7 @@ const { variant = 'primary', size = 'medium', block = false, label } = definePro
     :class="[
       `app-button--${variant}`,
       `app-button--${size}`,
+      `app-button--${shape}`,
       { 'app-button--block': block, 'app-button--labelled': label !== undefined },
     ]"
     type="button"
@@ -88,6 +101,17 @@ const { variant = 'primary', size = 'medium', block = false, label } = definePro
   &--labelled {
     aspect-ratio: 1;
     padding: spacing('xs');
+  }
+
+  // 對話介面的兩種外形。圓形與「只放圖示」相乘才是一個正圓：
+  // 前者給圓角、後者給等寬高，兩個都要。
+  &--pill {
+    border-radius: radius('pill');
+  }
+
+  &--circle {
+    aspect-ratio: 1;
+    border-radius: radius('pill');
   }
 
   // 實心的強調色只留給「這個畫面上要按的那一顆」。

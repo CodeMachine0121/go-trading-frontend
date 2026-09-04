@@ -101,9 +101,14 @@ $list-width: 260px;
   display: grid;
   grid-template-columns: $list-width minmax(0, 1fr);
 
+  // 兩塊圓角的面板之間留一道縫，而不是靠一條直線把它們切開——
+  // 直線讀起來是「同一張表格的兩欄」，留縫讀起來是「兩塊各自的東西」。
+  gap: spacing('sm');
+
   // 兩欄各自捲動，不讓整頁一起捲——輸入框必須一直在原地。
   min-height: 0;
   height: 100%;
+  padding: spacing('sm');
 
   &__list {
     min-height: 0;
@@ -112,7 +117,13 @@ $list-width: 260px;
   &__conversation {
     display: flex;
     flex-direction: column;
+    border: 1px solid color('border');
+    border-radius: radius('2xl');
+    background-color: color('surface');
     min-height: 0;
+
+    // 圓角要吃到裡面捲動的對話串，否則它的直角會戳出面板的邊。
+    overflow: hidden;
   }
 
   &__composer {

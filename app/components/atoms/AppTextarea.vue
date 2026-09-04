@@ -9,8 +9,15 @@
 // 再高下去就開始擠壓它上面的內容了。
 //
 // 它不認識任何領域概念：幾行、有沒有問題，都由使用端決定。
-const { invalid = false, maxRows = 6 } = defineProps<{
+const { invalid = false, bare = false, maxRows = 6 } = defineProps<{
   invalid?: boolean
+  /**
+   * 它已經住在別人的框裡了，所以不再自己畫一個框。
+   *
+   * 對話的輸入區是一整枚膠囊，裡面有輸入框與一顆送出鍵；那枚膠囊才是框。
+   * 讓裡面的輸入框再畫一次邊界，看起來就是一個框套著另一個框。
+   */
+  bare?: boolean
   /** 最多長到幾行，超過就在裡面捲。 */
   maxRows?: number
 }>()
@@ -57,7 +64,7 @@ defineExpose({
     ref="control"
     v-model="modelValue"
     class="app-textarea"
-    :class="{ 'app-textarea--invalid': invalid }"
+    :class="{ 'app-textarea--invalid': invalid, 'app-textarea--bare': bare }"
     :aria-invalid="invalid"
     rows="1"
     @input="resize"
@@ -95,6 +102,20 @@ defineExpose({
 
   &--invalid {
     border-color: color('danger');
+  }
+
+  // 住在別人框裡的樣子：自己不畫邊界、不畫底色，連焦點框都讓給外面那一枚膠囊。
+  &--bare {
+    border-color: transparent;
+    background-color: transparent;
+    padding: spacing('2xs') 0;
+
+    &:hover:not(:disabled),
+    &:focus-visible {
+      border-color: transparent;
+      outline: none;
+      box-shadow: none;
+    }
   }
 
   &::placeholder {

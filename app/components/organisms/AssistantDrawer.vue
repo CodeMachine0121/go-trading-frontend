@@ -8,6 +8,14 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 有機體：任何畫面都叫得出來的助手抽屜。
 //
+// 叫出它的那一顆鍵**不在這裡**（見 AssistantTriggerButton）：它可以被拖到畫面上
+// 任何地方，而抽屜永遠靠右——一塊 420 像素的面板跟著一顆鍵到處跑，
+// 會在半數位置把它自己推出視窗。兩者因此是兩個元件。
+//
+// 抽屜本身不貼齊視窗邊緣，而是**浮在畫面上的一塊圓角卡片**。貼齊邊緣的直角面板
+// 看起來像介面的一部分（於是使用者會找它的關閉在哪、會以為它一直都在），
+// 浮起來的圓角卡片一眼就知道是暫時叫出來的東西。
+//
 // 它掛在 app.vue 而不是塞進 ConsoleLayout：樣板**不得綁任何資料**，
 // 而這一塊要顯示對話。叫出它的鍵因此長在它自己身上（畫面右下的浮動鍵），
 // 這也讓四個既有畫面一行都不必改。
@@ -29,7 +37,6 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
 const draft = defineModel<string>('draft', { required: true })
 
 const emit = defineEmits<{
-  openDrawer: []
   closeDrawer: []
   send: [question: string]
   retry: []
@@ -38,18 +45,6 @@ const emit = defineEmits<{
 
 <template>
   <div class="assistant-drawer">
-    <AppButton
-      v-if="!open"
-      variant="primary"
-      label="問助手"
-      class="assistant-drawer__trigger"
-      data-testid="assistant-drawer-trigger"
-      @click="emit('openDrawer')"
-    >
-      <AppIcon name="assistant" />
-      問助手
-    </AppButton>
-
     <aside
       v-if="open"
       class="assistant-drawer__panel"
@@ -58,10 +53,15 @@ const emit = defineEmits<{
     >
       <header class="assistant-drawer__head">
         <span class="assistant-drawer__title">
-          <AppIcon
-            name="assistant"
-            size="small"
-          />
+          <span
+            class="assistant-drawer__mark"
+            aria-hidden="true"
+          >
+            <AppIcon
+              name="robot"
+              size="small"
+            />
+          </span>
           行情助手
         </span>
 
@@ -122,28 +122,27 @@ const emit = defineEmits<{
 // 420 像素放得下有小標與條列的回答，又不至於遮住半張圖。
 $drawer-width: 420px;
 
-.assistant-drawer {
-  &__trigger {
-    position: fixed;
-    right: spacing('md');
-    bottom: spacing('md');
-    z-index: z-index('modal');
-    box-shadow: shadow('lg');
-  }
+// 浮起來的卡片與視窗邊緣之間留一圈，讓它看得出是「疊在上面」而不是「介面的一部分」。
+$drawer-inset: 0.75rem;
 
+.assistant-drawer {
   &__panel {
     display: flex;
     position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
+    top: $drawer-inset;
+    right: $drawer-inset;
+    bottom: $drawer-inset;
     flex-direction: column;
     z-index: z-index('modal');
     box-shadow: shadow('lg');
-    border-left: 1px solid color('border-strong');
+    border: 1px solid color('border-strong');
+    border-radius: radius('2xl');
     background-color: color('surface');
     width: $drawer-width;
-    max-width: 100vw;
+    max-width: calc(100vw - #{$drawer-inset} * 2);
+
+    // 圓角要吃到裡面的標題列與輸入區，否則它們的直角會戳出卡片的邊。
+    overflow: hidden;
   }
 
   &__head {
@@ -165,6 +164,18 @@ $drawer-width: 420px;
     font-size: font-size('sm');
   }
 
+  // 標題旁那顆頭像與對話串裡回答的頭像是同一個圓，所以一眼看得出是同一位。
+  &__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: radius('pill');
+    background-color: color('primary-soft');
+    width: 1.5rem;
+    height: 1.5rem;
+    color: color('primary');
+  }
+
   &__actions {
     display: inline-flex;
     align-items: center;
@@ -174,7 +185,7 @@ $drawer-width: 420px;
   &__expand {
     display: inline-flex;
     align-items: center;
-    border-radius: radius('sm');
+    border-radius: radius('pill');
     padding: spacing('xs');
     color: color('text-muted');
 

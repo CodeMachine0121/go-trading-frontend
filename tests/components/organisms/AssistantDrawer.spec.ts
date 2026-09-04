@@ -26,32 +26,23 @@ function mountDrawer(props: {
 }
 
 describe('AssistantDrawer 收起來的時候', () => {
-  it('只留一顆叫出它的鍵', () => {
-    // 那顆鍵長在抽屜自己身上（畫面右下的浮動鍵），所以四個既有畫面一行都不必改。
+  it('什麼都不畫', () => {
+    // 叫出它的那一顆鍵不在這裡：它可以被拖到任何地方，而抽屜永遠靠右——
+    // 一塊 420 像素的面板跟著一顆鍵到處跑，會在半數位置把它自己推出視窗。
     const wrapper = mountDrawer({ open: false })
 
-    expect(wrapper.find('[data-testid="assistant-drawer-trigger"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="assistant-drawer-panel"]').exists()).toBe(false)
-  })
-
-  it('按下去就要求打開', async () => {
-    const wrapper = mountDrawer({ open: false })
-
-    await wrapper.get('[data-testid="assistant-drawer-trigger"]').trigger('click')
-
-    expect(wrapper.emitted('openDrawer')).toHaveLength(1)
   })
 })
 
 describe('AssistantDrawer 打開的時候', () => {
-  it('顯示對話串與輸入框，而那顆浮動鍵讓位', () => {
+  it('顯示對話串與輸入框', () => {
     const wrapper = mountDrawer({
       open: true,
       messages: [buildMessage('answer', '在盤整。', buildNote())],
     })
 
     expect(wrapper.find('[data-testid="assistant-drawer-panel"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="assistant-drawer-trigger"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="assistant-message-answer"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="assistant-composer-input"]').exists()).toBe(true)
   })

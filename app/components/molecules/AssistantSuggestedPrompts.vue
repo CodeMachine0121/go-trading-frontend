@@ -8,6 +8,9 @@ import AppButton from '~/components/atoms/AppButton.vue'
 // 猜錯幾次之後他就不再用這個功能了。
 //
 // 點一下直接送出，不必再按送出鍵——它的重點是「看到就能試」。
+//
+// 外形是膠囊：一句可以點的話是一枚籌碼，方形會讓它看起來像四顆按鈕排在那裡，
+// 而按鈕讀起來是「動作」，籌碼讀起來是「選一個」。
 const { prompts } = defineProps<{
   prompts: readonly string[]
 }>()
@@ -32,6 +35,7 @@ const emit = defineEmits<{ select: [prompt: string] }>()
         <AppButton
           variant="secondary"
           size="small"
+          shape="pill"
           data-testid="assistant-suggested-prompt"
           @click="emit('select', prompt)"
         >

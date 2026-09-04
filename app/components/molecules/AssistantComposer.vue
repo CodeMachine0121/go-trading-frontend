@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 
 // 分子：輸入區。抽屜與整頁**共用這一個**——兩個地方的差別是寬度，不是行為。
+//
+// 外形是一整枚膠囊，裡面是輸入框與一顆圓形的送出鍵。這是對話輸入的既有慣例
+// （Base44、Substack、Teams 都是這個形狀），而它之所以不是一個方框加一顆方鍵：
+// 對話是人在講話，方方正正的框讓人以為自己在填表單。
 //
 // 送出鍵的可按與否接的是「這一句送不送得出去」，那個判定在 domain。
 // 這裡不自己判斷空白：判斷寫兩份的話，畫面與後端會在某一天對空白有不同的看法。
@@ -63,6 +68,7 @@ onMounted(() => {
       <AppTextarea
         ref="textarea"
         v-model="draft"
+        bare
         :disabled="pending"
         placeholder="問一句行情，例如：BTCUSDT 最近一天每小時的走勢如何？"
         aria-label="問助手"
@@ -72,13 +78,16 @@ onMounted(() => {
 
       <AppButton
         type="submit"
-        size="small"
+        shape="circle"
         :disabled="!canSend"
         label="送出"
         class="assistant-composer__send"
         data-testid="assistant-composer-send"
       >
-        送出
+        <AppIcon
+          name="send"
+          size="small"
+        />
       </AppButton>
     </div>
 
@@ -94,10 +103,25 @@ onMounted(() => {
   flex-direction: column;
   gap: spacing('xs');
 
+  // 一整枚膠囊：輸入框與送出鍵住在裡面，框只有這一個。
+  // 焦點框畫在膠囊上而不是裡面的輸入框上，所以打字時亮起來的是整枚。
   &__field {
     display: flex;
     align-items: flex-end;
     gap: spacing('xs');
+    transition: border-color duration('fast') ease;
+    border: 1px solid color('border-strong');
+    border-radius: radius('2xl');
+    background-color: color('background');
+    padding: spacing('2xs') spacing('2xs') spacing('2xs') spacing('sm');
+
+    &:hover {
+      border-color: color('text-faint');
+    }
+
+    &:focus-within {
+      border-color: color('primary');
+    }
   }
 
   &__send {
@@ -105,7 +129,7 @@ onMounted(() => {
   }
 
   &__disclaimer {
-    margin: 0;
+    margin: 0 spacing('sm');
     color: color('text-faint');
     font-size: font-size('xs');
   }

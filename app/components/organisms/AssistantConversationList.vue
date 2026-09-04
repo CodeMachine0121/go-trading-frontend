@@ -34,6 +34,7 @@ const emit = defineEmits<{
       <AppButton
         variant="ghost"
         size="small"
+        shape="pill"
         label="開新對話"
         data-testid="assistant-list-start-new"
         @click="emit('startNew')"
@@ -59,6 +60,7 @@ const emit = defineEmits<{
       <AppButton
         variant="ghost"
         size="small"
+        shape="pill"
         data-testid="assistant-list-reload"
         @click="emit('reload')"
       >
@@ -113,7 +115,9 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
-  border-right: 1px solid color('border');
+  border: 1px solid color('border');
+  border-radius: radius('2xl');
+  background-color: color('surface');
   padding: spacing('sm');
   overflow-y: auto;
 
@@ -155,10 +159,10 @@ const emit = defineEmits<{
     gap: 2px;
     transition: background-color duration('fast') ease;
     border: 1px solid transparent;
-    border-radius: radius('sm');
+    border-radius: radius('xl');
     background-color: transparent;
     cursor: pointer;
-    padding: spacing('xs');
+    padding: spacing('xs') spacing('sm');
     width: 100%;
     text-align: left;
 

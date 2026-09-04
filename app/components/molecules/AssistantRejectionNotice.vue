@@ -36,6 +36,7 @@ const emit = defineEmits<{ retry: [] }>()
       v-if="retryable"
       variant="ghost"
       size="small"
+      shape="pill"
       data-testid="assistant-rejection-retry"
       @click="emit('retry')"
     >
@@ -50,6 +51,9 @@ const emit = defineEmits<{ retry: [] }>()
 
 <style scoped lang="scss">
 .assistant-rejection-notice {
+  // 這一塊住在對話串裡，所以它的角要跟泡泡一樣圓，而不是跟表單的警示一樣方。
+  border-radius: radius('2xl');
+
   &__message {
     margin: 0 0 spacing('xs');
     line-height: line-height('relaxed');

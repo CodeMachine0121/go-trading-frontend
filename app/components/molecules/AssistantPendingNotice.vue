@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import AppIcon from '~/components/atoms/AppIcon.vue'
+
 // 分子：送出之後、回答回來之前那一塊。
 //
 // 它長在提問下面而不是蓋住整頁，因為使用者要看得到自己問了什麼——
-// 一片遮罩會讓那兩分鐘變成「什麼都看不到的兩分鐘」。
+// 一片遮罩會讓那兩分鐘變成「什麼都看不到的兩分鐘」。它的外形與一則回答一樣
+// （圓頭像加一枚圓角泡泡），所以回答回來時是**換內容**，不是換一個形狀。
 //
 // 助手一次回答可能來回查好幾次，因此比操作台任何既有操作都久。等超過門檻
 // 就補一句說明：太早講顯得系統很慢，完全不講則讓人以為畫面壞了而去重整——
@@ -28,19 +31,31 @@ onMounted(() => {
     role="status"
     data-testid="assistant-pending"
   >
-    <span class="assistant-pending-notice__dots">
-      <span />
-      <span />
-      <span />
+    <span
+      class="assistant-pending-notice__avatar"
+      aria-hidden="true"
+    >
+      <AppIcon
+        name="robot"
+        size="small"
+      />
     </span>
 
-    <span class="assistant-pending-notice__label">
-      助手正在查…
-      <span
-        v-if="waitedLong"
-        class="assistant-pending-notice__patience"
-        data-testid="assistant-pending-patience"
-      >這一題查得比較久，最長會等兩分鐘。</span>
+    <span class="assistant-pending-notice__bubble">
+      <span class="assistant-pending-notice__dots">
+        <span />
+        <span />
+        <span />
+      </span>
+
+      <span class="assistant-pending-notice__label">
+        助手正在查…
+        <span
+          v-if="waitedLong"
+          class="assistant-pending-notice__patience"
+          data-testid="assistant-pending-patience"
+        >這一題查得比較久，最長會等兩分鐘。</span>
+      </span>
     </span>
   </div>
 </template>
@@ -48,10 +63,31 @@ onMounted(() => {
 <style scoped lang="scss">
 .assistant-pending-notice {
   display: flex;
-  align-items: baseline;
   gap: spacing('xs');
-  color: color('text-muted');
-  font-size: font-size('sm');
+
+  &__avatar {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: radius('pill');
+    background-color: color('primary-soft');
+    width: 1.75rem;
+    height: 1.75rem;
+    color: color('primary');
+  }
+
+  &__bubble {
+    display: inline-flex;
+    align-items: baseline;
+    gap: spacing('xs');
+    border-radius: radius('2xl');
+    border-bottom-left-radius: radius('sm');
+    background-color: color('surface-muted');
+    padding: spacing('xs') spacing('md');
+    color: color('text-muted');
+    font-size: font-size('sm');
+  }
 
   &__dots {
     display: inline-flex;

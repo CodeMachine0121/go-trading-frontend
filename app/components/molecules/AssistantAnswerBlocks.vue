@@ -119,8 +119,8 @@ function rawTextOf(block: AnswerBlockVo): string {
 
   &__preformatted {
     margin: 0;
-    border-radius: radius('sm');
-    background-color: color('surface-muted');
+    border-radius: radius('xl');
+    background-color: color('surface-raised');
     padding: spacing('xs');
     overflow-x: auto;
 

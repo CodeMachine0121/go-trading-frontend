@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantMessage from '~/components/molecules/AssistantMessage.vue'
 import AssistantPendingNotice from '~/components/molecules/AssistantPendingNotice.vue'
 import AssistantRejectionNotice from '~/components/molecules/AssistantRejectionNotice.vue'
@@ -58,6 +59,13 @@ onMounted(scrollToBottom)
       class="assistant-conversation-thread__empty"
       data-testid="assistant-thread-empty"
     >
+      <span
+        class="assistant-conversation-thread__mark"
+        aria-hidden="true"
+      >
+        <AppIcon name="robot" />
+      </span>
+
       <p class="assistant-conversation-thread__lead">
         用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略，再用一段話回答。
       </p>
@@ -102,6 +110,18 @@ onMounted(scrollToBottom)
     flex-direction: column;
     gap: spacing('md');
     margin: auto 0;
+  }
+
+  // 空的時候先看到那顆頭像，一眼知道這裡是在跟誰講話。
+  &__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: radius('pill');
+    background-color: color('primary-soft');
+    width: 2.75rem;
+    height: 2.75rem;
+    color: color('primary');
   }
 
   &__lead {
