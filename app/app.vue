@@ -23,6 +23,7 @@ const {
 const { selectedTimeZone } = useSelectedTimeZone()
 
 const {
+  triggerSize,
   position,
   dragging,
   loadTriggerPosition,
@@ -73,6 +74,7 @@ onBeforeUnmount(() => {
   <AssistantTriggerButton
     v-if="!open"
     :position="position"
+    :size="triggerSize"
     :dragging="dragging"
     @drag-start="onDragStart"
   />

@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest'
 import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButton.vue'
 import { AssistantTriggerPositionDto } from '~/domain/models/dto/assistant-trigger-position-dto'
 
-function mountTrigger(props: { right?: number, bottom?: number, dragging?: boolean } = {}) {
+function mountTrigger(
+  props: { right?: number, bottom?: number, size?: number, dragging?: boolean } = {},
+) {
   return mount(AssistantTriggerButton, {
     props: {
       position: new AssistantTriggerPositionDto(props.right ?? 20, props.bottom ?? 20),
+      size: props.size ?? 64,
       dragging: props.dragging ?? false,
     },
   })
@@ -19,6 +22,16 @@ describe('AssistantTriggerButton', () => {
     const style = wrapper.get('[data-testid="assistant-drawer-trigger"]').attributes('style')
     expect(style).toContain('right: 300px')
     expect(style).toContain('bottom: 120px')
+  })
+
+  it('畫成外面說的那麼大', () => {
+    // 大小不寫在樣式裡：夾回看得見的範圍那條規則要用到同一個數字，
+    // 兩邊各寫一份的話，那顆鍵靠邊時會露出去一點或差一點。
+    const style = mountTrigger({ size: 64 })
+      .get('[data-testid="assistant-drawer-trigger"]').attributes('style')
+
+    expect(style).toContain('width: 64px')
+    expect(style).toContain('height: 64px')
   })
 
   it('是一顆圓的、只放圖示的鍵', () => {

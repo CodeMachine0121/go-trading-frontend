@@ -136,7 +136,11 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
 
 const { name, size = 'medium' } = defineProps<{
   name: IconName
-  size?: 'small' | 'medium'
+  /**
+   * 三種大小。`large` 是給「一整顆鍵就是這個圖示」的地方用的——
+   * 一顆手指大小的圓鍵配一個字級大小的圖示，看起來會像圖示掉在鍵裡面。
+   */
+  size?: 'small' | 'medium' | 'large'
 }>()
 
 const paths = computed(() => ICON_PATHS[name])
@@ -175,6 +179,11 @@ const paths = computed(() => ICON_PATHS[name])
   &--medium {
     width: font-size('lg');
     height: font-size('lg');
+  }
+
+  &--large {
+    width: font-size('2xl');
+    height: font-size('2xl');
   }
 }
 </style>

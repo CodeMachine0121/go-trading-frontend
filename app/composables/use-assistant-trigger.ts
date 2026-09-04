@@ -2,8 +2,16 @@ import { AssistantTriggerBoundsDto } from '~/domain/models/dto/assistant-trigger
 import { AssistantTriggerPositionDto } from '~/domain/models/dto/assistant-trigger-position-dto'
 import type { AssistantTriggerApplication } from '~/application/assistant-trigger-application'
 
-/** 那顆鍵多大、邊緣留多少。與元件的樣式對得上，所以只寫在這裡一次。 */
-const TRIGGER_SIZE_PIXELS = 52
+/**
+ * 那顆鍵多大、邊緣留多少。
+ *
+ * 大小是**一個數字，寫在這裡**，並由元件照著畫（不是 CSS 一份、這裡再抄一份）。
+ * 夾回範圍的算式要用到它，而算式用的數字與畫出來的大小一旦對不上，
+ * 那顆鍵就會在靠邊的時候露出去一點或差一點——那種差距沒有人會想到要去查。
+ *
+ * 64 像素是一顆手指按得舒服的圓鍵，也還不至於在小視窗上擋掉太多東西。
+ */
+const TRIGGER_SIZE_PIXELS = 64
 const TRIGGER_MARGIN_PIXELS = 12
 
 /**
@@ -118,6 +126,7 @@ export function useAssistantTrigger(
   }
 
   return {
+    triggerSize: TRIGGER_SIZE_PIXELS,
     position,
     dragging,
     loadTriggerPosition,

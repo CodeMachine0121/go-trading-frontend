@@ -39,6 +39,12 @@ beforeEach(() => {
   window.innerHeight = 800
 })
 
+describe('useAssistantTrigger', () => {
+  it('說得出那顆鍵多大——夾回範圍與畫出來的大小用的是同一個數字', () => {
+    expect(triggerUnderTest().triggerSize).toBe(64)
+  })
+})
+
 describe('useAssistantTrigger 讀回位置', () => {
   it('沒擺過就在右下角', () => {
     const { position, loadTriggerPosition } = triggerUnderTest()
@@ -66,7 +72,7 @@ describe('useAssistantTrigger 讀回位置', () => {
     window.innerHeight = 400
     keepTriggerInView()
 
-    expect(position.value).toEqual(new AssistantTriggerPositionDto(336, 336))
+    expect(position.value).toEqual(new AssistantTriggerPositionDto(324, 324))
   })
 })
 
@@ -87,7 +93,7 @@ describe('useAssistantTrigger 拖曳', () => {
     startDrag(900, 700)
     moveDrag(-5000, -5000)
 
-    expect(position.value).toEqual(new AssistantTriggerPositionDto(936, 736))
+    expect(position.value).toEqual(new AssistantTriggerPositionDto(924, 724))
   })
 
   it('拖曳中看得出正在拖，放下就不是了', () => {

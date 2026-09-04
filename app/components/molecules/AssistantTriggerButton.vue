@@ -14,8 +14,16 @@ import type { AssistantTriggerPositionDto } from '~/domain/models/dto/assistant-
 //
 // 這裡只負責「按下去了」與「往哪裡畫」：拖曳中的 pointer 事件掛在 window 上
 // （手一快就會離開這顆鍵），那是接線那一層的事。
-const { position, dragging = false } = defineProps<{
+const { position, size, dragging = false } = defineProps<{
   position: AssistantTriggerPositionDto
+  /**
+   * 這顆鍵多大（像素）。
+   *
+   * 它從外面來而不是寫在下面的樣式裡，因為**夾回看得見的範圍**那條規則也要用到
+   * 同一個數字。兩邊各寫一份的話，那顆鍵靠邊時會露出去一點或差一點，
+   * 而那種差距沒有人會想到要去查。
+   */
+  size: number
   dragging?: boolean
 }>()
 
@@ -31,6 +39,8 @@ function onPointerDown(event: PointerEvent): void {
 const placement = computed(() => ({
   right: `${position.right}px`,
   bottom: `${position.bottom}px`,
+  width: `${size}px`,
+  height: `${size}px`,
 }))
 </script>
 
@@ -46,7 +56,10 @@ const placement = computed(() => ({
     data-testid="assistant-drawer-trigger"
     @pointerdown="onPointerDown"
   >
-    <AppIcon name="robot" />
+    <AppIcon
+      name="robot"
+      size="large"
+    />
   </AppButton>
 </template>
 
