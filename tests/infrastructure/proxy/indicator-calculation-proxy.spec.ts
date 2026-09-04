@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
+import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
@@ -57,8 +58,53 @@ describe('IndicatorCalculationProxy', () => {
         candleCount: 3,
         resultType: 'float',
         script: REQUEST.script,
+        parameters: [],
+        parameterValues: [],
       },
     })
+  })
+
+  it('宣告的旋鈕與這一次的值都送出去——少了它們，算式取用時會說名字沒有宣告', async () => {
+    // 這條測試是後來補的，補的原因是它漏掉的那一格造成了一個真的失敗：
+    // 參數在畫面上宣告好了、也傳到了 proxy，卻沒有進到送出去的 body，
+    // 於是每一次計算後端都收到零個參數，而腳本裡**第一個**取用參數的那一行失敗。
+    // 被指名的因此是「腳本先用到的那一個」，看起來像宣告順序有影響——其實沒有。
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+      new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', 3, SCRIPT_BODY, 'float', [
+          new StrategyParameterDto('期數', 'lookbackCount', 20),
+          new StrategyParameterDto('倍數', 'number', 1.5),
+        ])))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.parameters).toEqual([
+      { name: '期數', kind: 'lookbackCount', defaultValue: 20 },
+      { name: '倍數', kind: 'number', defaultValue: 1.5 },
+    ])
+    expect(body.parameterValues).toEqual([
+      { name: '期數', value: 20 },
+      { name: '倍數', value: 1.5 },
+    ])
+  })
+
+  it('一個旋鈕都沒宣告時送出空的兩份，而不是整個欄位不見', async () => {
+    // 「沒有宣告任何旋鈕」與「忘了送」在收的那一端長得一模一樣，
+    // 所以永遠送出一份清單——空的也是一個答案。
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.parameters).toEqual([])
+    expect(body.parameterValues).toEqual([])
   })
 
   it('送出的指標值種類就是這次挑的那一種', async () => {
