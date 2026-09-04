@@ -17,7 +17,9 @@ export default defineVitestConfig({
     coverage: {
       provider: 'v8',
       include: ['app/**/*.ts', 'app/**/*.vue'],
-      exclude: ['app/plugins/**', 'app/pages/**', 'app/**/*.d.ts'],
+      // 組裝根、頁面與應用程式的根都只做接線：取得 Application 後往下傳。
+      // 互動邏輯一律住在 organism 與 composable，那些才是覆蓋率要看的地方。
+      exclude: ['app/plugins/**', 'app/pages/**', 'app/app.vue', 'app/**/*.d.ts'],
     },
   },
   css: {

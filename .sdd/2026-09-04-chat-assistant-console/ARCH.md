@@ -1,6 +1,6 @@
 # 行情對話助手上操作台 — Architecture Design
 
-**Status:** Draft
+**Status:** Confirmed（實作完成，下方 §9 記錄實作時與本設計的差異）
 **Source PRD:** `.sdd/2026-09-04-chat-assistant-console/PRD.md`
 **Tech context:** Nuxt 3 + Vue 3 · Clean / Onion（前端版）· Atomic Design · SCSS token · Vitest
 
@@ -352,3 +352,64 @@ sequenceDiagram
 - 抽屜叫出鍵的確切位置與圖示（右下浮動鍵）。
 - 對話串捲到底的時機（新訊息、切換對話、開新對話各自要不要捲）。
 - 免責那一句的文案。
+
+---
+
+## 9. 實作與本設計的差異（實作後補記）
+
+七處值得記下來的落差。
+
+### 9.1 `AnswerContentDomain` 改名 `MessageContentDomain`
+
+原設計只想到回答要拆。實作時發現**提問也該走同一條路**——否則對話串會多出
+「這一則要不要拆」這個沒有好答案的分支。名字跟著改成「訊息」而不是「回答」。
+
+### 9.2 多了 `AssistantAnswerLine` 這個分子
+
+原設計只有 `AssistantAnswerBlocks`。寫下去才發現段落、條列、編號的每一行**都是同一件事**：
+幾段行內文字接起來。寫在每一種結構裡會有四份「一段強調長什麼樣」，而四份會慢慢走鐘。
+
+### 9.3 抽屜是 props 驅動的，接線在 `app.vue`
+
+原設計讓 `AssistantDrawer` 自己呼叫 composable。那樣它就掛不起來測（composable 需要
+Nuxt runtime），而抽屜的行為（收起時只留一顆鍵、展開通往哪裡、不放清單）正是要測的東西。
+改成資料由上往下傳、事件由下往上 emit，`app.vue` 做那十幾行接線。
+這也讓它符合專案既有的分層習慣：拿資料是接線那一層的事。
+
+### 9.4 `useAssistantConversation` 收一個可注入的 application
+
+原設計直接在裡面 `useNuxtApp()`。那樣這支 composable 的編排——樂觀先上提問、
+再試一次不重複放一則、被拒絕時那一句回到輸入框、那一段不在了就退回新對話——
+全都測不到（換掉 `useNuxtApp` 會連測試環境自己的路由同步一起弄壞）。
+
+改成參數帶預設值：畫面端照樣一個參數都不必給，測試把替身傳進去。
+**這是專案第一支有測試的 composable**（既有的六支都是 0% 覆蓋）。
+
+### 9.5 `BackendServerError` 多帶一個狀態碼
+
+後端用 503 表示「助手沒回應」、502 表示「它自己讀不到資料庫」，兩者都是五百開頭，
+原本一律變成 `BackendServerError` 而分不出來。加一個 `status`（比照
+`BackendRequestRejectedError` 早就帶著它），才說得出「等一位其實好好的助手」與
+「後端自己壞了」的差別。這是對既有錯誤型別的加欄位，不改任何既有行為。
+
+### 9.6 `ask` 在畫面這一側也擋一次空白
+
+原設計把「不可送」完全交給 domain。但提問**會先上對話串**，不擋的話一句空白會在畫面上
+留下一個空的泡泡——這是實作時被測試抓到的真 bug。真正的把關仍在 domain
+（不可送的一句連呼叫都不會發生），畫面這一道與送出鍵的可按與否是同一層的第一道。
+
+### 9.7 `app/app.vue` 加進覆蓋率排除
+
+它與 `app/pages/**` 是同一種東西：只做接線。既有設定已經排除 pages 與 plugins，
+這裡沿用同一個理由。
+
+### 未做到的三件事
+
+- **`AppTextarea` 的自動長高沒有被測到那條分支**（94.4% / 66.7%）。
+  `scrollHeight` 在測試環境裡恆為 0，長高與內部捲動的判斷跳不進去。
+  可測的部分（雙向綁定、原生屬性、對外的 `focus`）都測了。
+- **`MessageContentDomain` 有幾條分支測不到**（分支 89.5%）：
+  正則抓到之後那幾個 `?? ''` 的退路，以正則的寫法而言取不到 `undefined`。
+  留著是因為型別上它是可能的。
+- **`useAssistantConversation` 的 `answerDto === null` 那一條測不到**（分支 82.3%）：
+  §9.6 那一道擋在前面之後它就到不了了。留著是因為 application 的契約允許回 `null`。
