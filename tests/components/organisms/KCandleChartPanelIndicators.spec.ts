@@ -231,8 +231,10 @@ describe('圖表上的指標：什麼時候重算', () => {
     expect(calculateIndicator).toHaveBeenCalledTimes(2)
   })
 
-  it('算的是使用者正在看的那一段，不是手上那一整批', async () => {
+  it('根數算的是使用者正在看的那一段，不是手上那一整批', async () => {
     // 取資料時前後各多取了半段，拿整批去算等於回答一段他沒在看的行情。
+    // 這一段看得到最新那一根（它在 10:00，區間到 11:00），所以算到的是「現在」，
+    // 由「算到哪一刻」那一組釘住；這裡只管根數。
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyStrategy(wrapper, 7)
 
@@ -244,7 +246,6 @@ describe('圖表上的指標：什麼時候重算', () => {
     await settle()
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      endTime: new Date('2026-09-02T11:00:00.000Z'),
       // 09:00 到 11:00 是兩小時；以五分鐘一根算就是 24 根。
       candleCount: 24,
     }))
@@ -275,7 +276,6 @@ describe('圖表上的指標：什麼時候重算', () => {
     // 三小時、同樣五分鐘一根 → 36 根。
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
       candleCount: 36,
-      endTime: new Date('2026-09-02T11:00:00.000Z'),
     }))
   })
 

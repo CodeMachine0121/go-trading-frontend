@@ -108,7 +108,6 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         chart.value = chartView.reloadedChart
-        followTheMarket(chartView.reloadedChart)
       }
 
       // **指標算的是使用者正在看的那一段**，不是手上那一整批（後者兩側各多取了半段）。
@@ -119,6 +118,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
         chartIndicators.recalculateForRange(
           chart.value,
           new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime))
+      }
+
+      // 跟盤放在記下顯示區間**之後**：跟盤一開始，更新隨時可能進來，
+      // 而處理一則更新的第一件事就是問「這一段看得到最新那一根嗎」。
+      if (chartView.reloadedChart !== null) {
+        followTheMarket(chartView.reloadedChart)
       }
     }
   }

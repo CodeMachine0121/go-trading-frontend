@@ -23,4 +23,12 @@ export class KCandleChartDto {
   get isEmpty(): boolean {
     return this.kCandles.length === 0
   }
+
+  /**
+   * 最新那一根是幾點開始的。空的時候是 `null`——與 `isEmpty` 是同一件事的兩種問法。
+   * 它是判斷「使用者看的是不是現在」的另一半資料。
+   */
+  get latestKCandleOpenTime(): Date | null {
+    return this.kCandles[this.kCandles.length - 1]?.openTime ?? null
+  }
 }
