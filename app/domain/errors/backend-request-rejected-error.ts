@@ -20,13 +20,23 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly parameterName: string | undefined
 
+  /**
+   * 這次拒絕是關於**哪一格輸入**，如果它指得出來的話。
+   *
+   * 同樣以一個欄位存在，理由與上面那個相同。後端用它自己的詞彙指名
+   * （例如根數），對應到畫面上的哪一格，是 proxy 的翻譯工作——
+   * 後端沒有理由知道這個畫面把它畫成了「要看多長」。
+   */
+  readonly field: string | undefined
+
   constructor(
     message: string,
-    options?: { cause?: unknown, status?: number, parameterName?: string },
+    options?: { cause?: unknown, status?: number, parameterName?: string, field?: string },
   ) {
     super(message, { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
     this.status = options?.status
     this.parameterName = options?.parameterName
+    this.field = options?.field
   }
 }

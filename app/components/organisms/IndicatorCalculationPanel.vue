@@ -529,7 +529,7 @@ async function calculateIndicator() {
     <StrategyNameDialog
       :open="strategyLibrary.openDialog.value === 'name'"
       title="另存為新策略"
-      hint="其餘內容取自畫面上目前的算式與指標值種類。"
+      hint="其餘內容取自畫面上目前的算式、指標值種類與參數。"
       :error-message="strategyLibrary.nameErrorMessage.value"
       :submitting="strategyLibrary.saving.value"
       @submit="strategyLibrary.createStrategy"

@@ -178,9 +178,12 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
   })
 
+  // 「超過單次上限」曾經也在這一排。它離開了，因為系統那一側現在會指名是哪一格，
+  // 於是它落在「要看多長」旁邊而不是這裡——見 IndicatorCalculationPanelParameters 那一條。
+  // 這一排剩下的是**指不出哪一格**的那些拒絕：它們只能如實轉達。
   it.each([
     { description: 'K 線不足', message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' },
-    { description: '超過單次上限', message: '超過單次可用的最大根數（最多 1000 根）' },
+    { description: '這一段沒有資料', message: '這一段時間內沒有任何 K 線' },
   ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockRejectedValue(new BackendRequestRejectedError(message)),

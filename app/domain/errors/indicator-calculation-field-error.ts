@@ -12,8 +12,9 @@ export class IndicatorCalculationFieldError extends Error {
   constructor(
     public readonly field: IndicatorCalculationField,
     message: string,
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, { cause: options?.cause })
     this.name = 'IndicatorCalculationFieldError'
   }
 }

@@ -8,7 +8,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
  */
 type BackendFailure = {
   response?: { status: number }
-  data?: { message?: string, parameterName?: string }
+  data?: { message?: string, parameterName?: string, field?: string }
 }
 
 /** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
@@ -65,6 +65,7 @@ export abstract class BackendApiProxy {
               cause: error,
               status: backendFailure.response.status,
               parameterName: backendFailure.data?.parameterName,
+              field: backendFailure.data?.field,
             },
           )
         }

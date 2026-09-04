@@ -5,6 +5,7 @@ import { IndicatorCalculationApplication } from '~/application/indicator-calcula
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
@@ -212,5 +213,27 @@ describe('名字對不上時，畫面不能說算式壞了', () => {
 
     expect(wrapper.find('[data-testid="parameter-not-declared-alert"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="script-failed-alert"]').text()).toContain('index out of range')
+  })
+})
+
+describe('要的太多了，說明要落在改得動的那一格旁邊', () => {
+  it('是「要看多長」那一格的問題，不是一則籠統的請求錯誤', async () => {
+    // 一則籠統的「請求的問題」說了什麼都對，卻指不出下一步。
+    const wrapper = mountPanel(buildProxy(vi.fn().mockRejectedValue(
+      new IndicatorCalculationFieldError(
+        'span',
+        '這一段配上回看根數要用到 105120 根，超過單次可用的最大根數（最多 1000 根）。'
+        + '請縮短要看的區間，或換粗一點的彙總刻度。'))))
+    await flushPromises()
+    await typeScriptBody(wrapper, SCRIPT_BODY)
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const fieldErrors = wrapper.findAll('[data-testid="field-error"]')
+      .map(fieldError => fieldError.text())
+    expect(fieldErrors.some(text => text.includes('超過單次可用的最大根數'))).toBe(true)
+    expect(fieldErrors.some(text => text.includes('縮短') && text.includes('粗一點'))).toBe(true)
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
   })
 })

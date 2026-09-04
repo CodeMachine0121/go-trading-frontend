@@ -5,6 +5,7 @@ import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indic
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -219,7 +220,8 @@ describe('名字對不上與算式跑不動是兩件事', () => {
   // 把它說成「算式壞了」，人會盯著一段其實沒有問題的程式碼看很久。
   it('回應帶了參數名稱時，說的是那個名字對不上', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
-      rejectionOf(400, '算式取用了參數 "期數"，但這一次沒有宣告這個名字', '期數')))
+      rejectionOf(400, '算式取用了參數 "期數"，但這一次沒有宣告這個名字',
+        { parameterName: '期數' })))
 
     const failure = await calculationFailure()
 
@@ -250,10 +252,40 @@ describe('名字對不上與算式跑不動是兩件事', () => {
 })
 
 /** 後端拒絕時 $fetch 丟出來的形狀。 */
-function rejectionOf(status: number, message: string, parameterName?: string) {
+describe('要的太多了：這一則要落在使用者改得動的那一格旁邊', () => {
+  it('系統指名是根數那一格時，說的是「要看多長」的問題，並給出兩條出路', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400,
+      '這一段配上回看根數要用到 105120 根，超過單次可用的最大根數（最多 1000 根）',
+      { field: 'candleCount' })))
+
+    const failure = await calculationFailure()
+
+    // 系統說的是「根數」——那是它的量詞；這個畫面把同一件事畫成「要看多長」。
+    expect(failure).toBeInstanceOf(IndicatorCalculationFieldError)
+    expect((failure as IndicatorCalculationFieldError).field).toBe('span')
+    expect((failure as Error).message).toContain('超過單次可用的最大根數')
+    expect((failure as Error).message).toContain('縮短')
+    expect((failure as Error).message).toContain('粗一點')
+  })
+
+  it('沒有指名任何一格的拒絕照舊，不會被說成是哪一格的問題', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      rejectionOf(400, '這一段沒有足夠的 K 線')))
+
+    const failure = await calculationFailure()
+
+    expect(failure).not.toBeInstanceOf(IndicatorCalculationFieldError)
+    expect(failure).toBeInstanceOf(BackendRequestRejectedError)
+  })
+})
+
+function rejectionOf(
+  status: number, message: string, named?: { parameterName?: string, field?: string },
+) {
   return Object.assign(new Error(message), {
     response: { status },
-    data: parameterName === undefined ? { message } : { message, parameterName },
+    data: { message, ...named },
   })
 }
 

@@ -26,7 +26,7 @@ const selectedValue = computed(() => (activeStrategyId === null ? '' : String(ac
 
 const hint = computed(() => (strategies.length === 0
   ? '寫好算式之後按「另存為新策略」就會留下第一支。'
-  : '挑一支會把它的算式、指標值種類、彙總刻度與計算根數一起帶進來。'))
+  : '挑一支會把它的算式、指標值種類與參數一起帶進來。'))
 
 function selectStrategy(value: string) {
   if (value !== '') {
