@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
 import AssistantAnswerLine from '~/components/molecules/AssistantAnswerLine.vue'
+import CopyTextButton from '~/components/molecules/CopyTextButton.vue'
 import type { AnswerBlockVo } from '~/domain/models/vo/answer-block-vo'
 
 // 分子：把一則訊息拆好的那幾塊畫出來。
@@ -79,11 +80,24 @@ function rawTextOf(block: AnswerBlockVo): string {
         class="assistant-answer-blocks__code-block"
         data-testid="assistant-answer-code"
       >
-        <span
-          v-if="block.language !== ''"
-          class="assistant-answer-blocks__code-language"
-          data-testid="assistant-answer-code-language"
-        >{{ block.language }}</span>
+        <!--
+          語言在左、複製在右——這是程式碼區塊的既有位置（Cohere、Grok、Gemini）。
+          那顆複製鍵存在的理由很直接：這段東西是要貼進算式編輯器的，
+          而在一個唯讀的圓角小卡片裡用滑鼠拖曳選取特別難選。
+        -->
+        <div class="assistant-answer-blocks__code-head">
+          <span
+            v-if="block.language !== ''"
+            class="assistant-answer-blocks__code-language"
+            data-testid="assistant-answer-code-language"
+          >{{ block.language }}</span>
+
+          <CopyTextButton
+            :text="rawTextOf(block)"
+            label="複製這段程式碼"
+            class="assistant-answer-blocks__code-copy"
+          />
+        </div>
 
         <AppCodeEditor
           readonly
@@ -156,16 +170,33 @@ function rawTextOf(block: AnswerBlockVo): string {
     overflow: hidden;
   }
 
-  // 語言標在右上角，小而暗。它是那份 Go 味著色的誠實對照——
-  // 助手貼一段 JSON 進來時，顏色是 Go 的，但這裡說得出那其實是 JSON。
-  &__code-language {
+  // 語言與複製鍵疊在程式碼的上緣。它們不佔版面（程式碼從第一行就開始），
+  // 所以那一條是浮在上面的。
+  &__code-head {
+    display: flex;
     position: absolute;
     top: spacing('2xs');
-    right: spacing('xs');
+    right: spacing('2xs');
+    left: spacing('xs');
+    align-items: center;
+    justify-content: space-between;
+    gap: spacing('xs');
     z-index: 1;
+    pointer-events: none;
+  }
+
+  // 語言小而暗。它是那份 Go 味著色的誠實對照——
+  // 助手貼一段 JSON 進來時，顏色是 Go 的，但這裡說得出那其實是 JSON。
+  &__code-language {
     color: color('text-faint');
 
     @include dense-label;
+  }
+
+  // 上面那一條不吃指標（免得擋住程式碼的第一行），但這一顆要吃。
+  &__code-copy {
+    margin-left: auto;
+    pointer-events: auto;
   }
 
   &__preformatted {

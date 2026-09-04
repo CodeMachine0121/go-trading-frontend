@@ -23,6 +23,7 @@ export class AssistantAskDto {
   toMessageDto(askedAt: Date): ConversationMessageDto {
     return new ConversationMessageDto(
       'ask',
+      this.question,
       new MessageContentDomain(this.question).toBlocks(),
       askedAt,
     )

@@ -27,6 +27,7 @@ export class ConversationDomain {
   private messageDtoOf(message: ConversationMessage): ConversationMessageDto {
     return new ConversationMessageDto(
       message.role,
+      message.content,
       new MessageContentDomain(message.content).toBlocks(),
       message.createdAt,
     )

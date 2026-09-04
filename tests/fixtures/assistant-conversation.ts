@@ -16,7 +16,7 @@ export function buildMessage(
   note: AssistantAnswerNoteDto | null = null,
 ): ConversationMessageDto {
   return new ConversationMessageDto(
-    role, new MessageContentDomain(content).toBlocks(), MESSAGE_AT, note)
+    role, content, new MessageContentDomain(content).toBlocks(), MESSAGE_AT, note)
 }
 
 /** 剛收到的那一則回答會帶的附註。 */

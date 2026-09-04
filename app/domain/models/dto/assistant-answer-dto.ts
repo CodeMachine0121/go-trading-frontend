@@ -11,6 +11,8 @@ import type { AnswerBlockVo } from '~/domain/models/vo/answer-block-vo'
 export class AssistantAnswerDto {
   constructor(
     public readonly conversationId: number,
+    /** 這則回答原本的樣子，供複製用——見 ConversationMessageDto 上那段。 */
+    public readonly content: string,
     public readonly blocks: readonly AnswerBlockVo[],
     public readonly queryCount: number,
     public readonly stoppedAtQueryLimit: boolean,
@@ -26,6 +28,7 @@ export class AssistantAnswerDto {
   toMessageDto(answeredAt: Date): ConversationMessageDto {
     return new ConversationMessageDto(
       'answer',
+      this.content,
       this.blocks,
       answeredAt,
       new AssistantAnswerNoteDto(this.queryCount, this.usage, this.stoppedAtQueryLimit),

@@ -1,3 +1,5 @@
+// @vitest-environment nuxt
+// 訊息底下那顆複製鍵問的是組裝根注入的剪貼簿，所以這一份要跑在 Nuxt runtime 裡。
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import AssistantDrawer from '~/components/organisms/AssistantDrawer.vue'

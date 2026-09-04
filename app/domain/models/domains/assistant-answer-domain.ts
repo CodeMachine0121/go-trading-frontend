@@ -14,6 +14,7 @@ export class AssistantAnswerDomain {
   toDto(): AssistantAnswerDto {
     return new AssistantAnswerDto(
       this.assistantAnswer.conversationId,
+      this.assistantAnswer.answer,
       new MessageContentDomain(this.assistantAnswer.answer).toBlocks(),
       this.assistantAnswer.queryCount,
       this.assistantAnswer.stoppedAtQueryLimit,

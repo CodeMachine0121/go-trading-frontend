@@ -29,7 +29,7 @@ function conversationUnderTest() {
 
 function answerOf(conversationId = 7, content = '在盤整。'): AssistantAnswerDto {
   return new AssistantAnswerDto(
-    conversationId, new MessageContentDomain(content).toBlocks(), 2, false, 3184)
+    conversationId, content, new MessageContentDomain(content).toBlocks(), 2, false, 3184)
 }
 
 /**
@@ -218,8 +218,8 @@ describe('useAssistantConversation 等待狀態', () => {
 describe('useAssistantConversation 換對話', () => {
   it('挑一段就把它的每一則讀回來', async () => {
     applicationMock.getConversation.mockResolvedValue(new ConversationDto(7, MOMENT, [
-      new ConversationMessageDto('ask', new MessageContentDomain('問 1').toBlocks(), MOMENT),
-      new ConversationMessageDto('answer', new MessageContentDomain('答 1').toBlocks(), MOMENT),
+      new ConversationMessageDto('ask', '問 1', new MessageContentDomain('問 1').toBlocks(), MOMENT),
+      new ConversationMessageDto('answer', '答 1', new MessageContentDomain('答 1').toBlocks(), MOMENT),
     ]))
     const { conversationId, messages, selectConversation } = conversationUnderTest()
 

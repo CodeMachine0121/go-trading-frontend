@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantAnswerBlocks from '~/components/molecules/AssistantAnswerBlocks.vue'
+import CopyTextButton from '~/components/molecules/CopyTextButton.vue'
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
@@ -51,13 +52,25 @@ const { message, timeZone } = defineProps<{
         {{ message.note.stoppedAtQueryLimitLabel }}
       </p>
 
-      <p
-        class="assistant-message__meta"
-        data-testid="assistant-message-meta"
-      >
-        <span>{{ timeZone.formatDateTime(message.createdAt) }}</span>
-        <span v-if="message.note"> · {{ message.note.label }}</span>
-      </p>
+      <div class="assistant-message__footer">
+        <p
+          class="assistant-message__meta"
+          data-testid="assistant-message-meta"
+        >
+          <span>{{ timeZone.formatDateTime(message.createdAt) }}</span>
+          <span v-if="message.note"> · {{ message.note.label }}</span>
+        </p>
+
+        <!--
+          整段複製只給回答那一側：使用者自己問的那句話，他手上本來就有。
+          位置在訊息下方一條低調的動作列，那是這類動作的既有位置（Gemini、Grok）。
+        -->
+        <CopyTextButton
+          v-if="message.role === 'answer'"
+          :text="message.content"
+          label="複製這則回答"
+        />
+      </div>
     </div>
   </article>
 </template>
@@ -105,8 +118,8 @@ const { message, timeZone } = defineProps<{
       background-color: color('primary-soft');
     }
 
-    .assistant-message__meta {
-      text-align: right;
+    .assistant-message__footer {
+      justify-content: flex-end;
     }
   }
 
@@ -134,6 +147,12 @@ const { message, timeZone } = defineProps<{
     color: color('warning');
     font-size: font-size('xs');
     line-height: line-height('relaxed');
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: spacing('xs');
   }
 
   &__meta {

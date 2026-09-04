@@ -1,5 +1,7 @@
+// @vitest-environment nuxt
+// 程式碼區塊角上那顆複製鍵問的是組裝根注入的剪貼簿，所以這一份要跑在 Nuxt runtime 裡。
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AssistantAnswerBlocks from '~/components/molecules/AssistantAnswerBlocks.vue'
 import { MessageContentDomain } from '~/domain/models/domains/message-content-domain'
 
@@ -88,6 +90,18 @@ async function mountCode(content: string) {
 }
 
 describe('AssistantAnswerBlocks 的程式碼區塊', () => {
+  const writeText = vi.fn()
+
+  beforeEach(() => {
+    writeText.mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
   it('用的是操作台同一個程式碼區塊元件', async () => {
     // 使用者會把那段東西貼進算式編輯器。兩邊長得一樣，他才認得出那是同一種東西。
     const wrapper = await mountCode('```go\nsum := 0.0\n```')
@@ -145,6 +159,26 @@ describe('AssistantAnswerBlocks 的程式碼區塊', () => {
     const wrapper = await mountCode('```\nsum := 0.0\n```')
 
     expect(wrapper.find('[data-testid="assistant-answer-code-language"]').exists()).toBe(false)
+  })
+
+  it('角上那顆鍵複製的是那段程式碼本身', async () => {
+    // 圍欄那三個反引號不該跟著進剪貼簿——貼進算式編輯器就是三個多出來的字元。
+    const wrapper = await mountCode('```go\nsum := 0.0\nreturn nil\n```')
+
+    await wrapper.get('[data-testid="copy-text-button"]').trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('sum := 0.0\nreturn nil')
+  })
+
+  it('沒說語言的區塊照樣複製得走', async () => {
+    // 那顆鍵跟語言標註同住一條，別讓它跟著標註一起消失。
+    const wrapper = await mountCode('```\nsum := 0.0\n```')
+
+    await wrapper.get('[data-testid="copy-text-button"]').trigger('click')
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith('sum := 0.0')
   })
 })
 

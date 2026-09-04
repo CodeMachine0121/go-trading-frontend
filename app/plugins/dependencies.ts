@@ -35,6 +35,9 @@ import { AssistantTriggerApplication } from '~/application/assistant-trigger-app
 import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
 import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
 import { AssistantDrawerWidthApplication } from '~/application/assistant-drawer-width-application'
+import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
+import { ClipboardService } from '~/domain/service/clipboard-service'
+import { ClipboardApplication } from '~/application/clipboard-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -108,6 +111,12 @@ export default defineNuxtPlugin(() => {
     new AssistantDrawerWidthService(new AssistantDrawerWidthPreferenceProxy()),
   )
 
+  // 剪貼簿是第三種外部資源（另外是後端與瀏覽器儲存），所以一樣收在 proxy 裡——
+  // 元件不直接碰 navigator，理由與不直接碰 $fetch 相同。
+  const clipboardApplication = new ClipboardApplication(
+    new ClipboardService(new ClipboardProxy()),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -127,6 +136,7 @@ export default defineNuxtPlugin(() => {
       assistantConversationApplication,
       assistantTriggerApplication,
       assistantDrawerWidthApplication,
+      clipboardApplication,
     },
   }
 })

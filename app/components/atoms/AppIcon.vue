@@ -26,6 +26,8 @@ type IconName
     | 'info'
     | 'robot'
     | 'send'
+    | 'copy'
+    | 'copied'
     | 'expand'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
@@ -113,6 +115,15 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M9.5 12h.01M14.5 12h.01',
     'M9.5 15.5h5',
     'M2 11v4M22 11v4',
+  ],
+  // 兩張疊著的紙——把它複製走
+  'copy': [
+    'M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2Z',
+    'M5 15H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1',
+  ],
+  // 一個勾——複製好了
+  'copied': [
+    'm4 13 5 5L20 6',
   ],
   // 往上的箭頭——把這一句送出去
   'send': [
