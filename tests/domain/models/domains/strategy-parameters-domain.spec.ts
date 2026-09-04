@@ -113,18 +113,28 @@ describe('是非：仍然是一個數字，只是換一種讀法', () => {
       .toBe(expected)
   })
 
-  it('用勾的，不是用打的', () => {
+  it('用挑的，不是用打的', () => {
     // 一個「填 0 或 1」的數字框等於要使用者記住一個系統內部的約定。
     expect(new StrategyParameterDomain(booleanParameter('只看多方', 1)).control())
-      .toBe('toggle')
+      .toBe('options')
+  })
+
+  it('挑得到的是算式裡真正會寫的那兩個字', () => {
+    // 這一格填的是要餵給 Go bool 的東西，而寫算式的人在編輯區裡打的就是 true / false。
+    // 挑得到哪幾個、每一個叫什麼，是領域的答案——畫面把它接上選單就好。
+    expect(new StrategyParameterDomain(booleanParameter('只看多方', 1)).valueOptions()
+      .map(option => [option.label, option.value]))
+      .toEqual([['True', 1], ['False', 0]])
   })
 
   it.each([
     { kind: 'lookbackCount' as const },
     { kind: 'number' as const },
-  ])('$kind 用打的', ({ kind }) => {
-    expect(new StrategyParameterDomain(new StrategyParameterDto('期數', kind, 20)).control())
-      .toBe('number')
+  ])('$kind 用打的，沒有東西可挑', ({ kind }) => {
+    const parameter = new StrategyParameterDomain(new StrategyParameterDto('期數', kind, 20))
+
+    expect(parameter.control()).toBe('number')
+    expect(parameter.valueOptions()).toEqual([])
   })
 
   it.each([

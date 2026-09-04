@@ -1,4 +1,17 @@
 import { StrategyParameterDto, type StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyParameterValueOptionDto } from '~/domain/models/dto/strategy-parameter-value-option-dto'
+
+/**
+ * 是非挑得到的那兩個。
+ *
+ * 用的是算式裡真正會寫的那兩個字——這一格填的是要餵給 Go `bool` 的東西，
+ * 而寫算式的人在編輯區裡打的就是 `true` / `false`。
+ * （指標**值**那一側顯示的是「是」／「否」：那是讀結果的人在看的，不是寫算式的人。）
+ */
+const BOOLEAN_VALUE_OPTIONS: StrategyParameterValueOptionDto[] = [
+  new StrategyParameterValueOptionDto(1, 'True'),
+  new StrategyParameterValueOptionDto(0, 'False'),
+]
 
 /**
  * Domain Model：一個策略參數，以及畫面要問它的每一個問題。
@@ -12,11 +25,16 @@ export class StrategyParameterDomain {
   /**
    * 這一格要用哪一種控制項。
    *
-   * 是非用勾的，不是打字的——一個「填 0 或 1」的數字框等於要使用者記住一個約定，
+   * 是非用挑的，不是打字的——一個「填 0 或 1」的數字框等於要使用者記住一個約定，
    * 而那個約定是系統內部的事，不該漏到畫面上。
    */
-  control(): 'number' | 'toggle' {
-    return this.parameter.kind === 'boolean' ? 'toggle' : 'number'
+  control(): 'number' | 'options' {
+    return this.parameter.kind === 'boolean' ? 'options' : 'number'
+  }
+
+  /** 挑得到哪幾個值。只有用挑的那一種有東西可挑。 */
+  valueOptions(): StrategyParameterValueOptionDto[] {
+    return this.parameter.kind === 'boolean' ? [...BOOLEAN_VALUE_OPTIONS] : []
   }
 
   /** 回看根數要整數鍵盤，數值要能打小數點。 */

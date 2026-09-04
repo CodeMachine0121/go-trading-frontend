@@ -1,4 +1,5 @@
 import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import type { StrategyParameterValueOptionDto } from '~/domain/models/dto/strategy-parameter-value-option-dto'
 
 /**
  * DTO：一個旋鈕，連同它在畫面上該長什麼樣子。
@@ -13,10 +14,10 @@ import type { StrategyParameterDto } from '~/domain/models/dto/strategy-paramete
 export class StrategyParameterFieldDto {
   constructor(
     public readonly parameter: StrategyParameterDto,
-    /** 用打的還是用勾的。是非用勾的——「填 0 或 1」是系統內部的約定，不該漏到畫面上。 */
-    public readonly control: 'number' | 'toggle',
-    /** 這一格現在是不是「是」。只有勾的那一種在意它。 */
-    public readonly isTrue: boolean,
+    /** 用打的還是用挑的。是非用挑的——「填 0 或 1」是系統內部的約定，不該漏到畫面上。 */
+    public readonly control: 'number' | 'options',
+    /** 用挑的那一種挑得到哪幾個。用打的那一種是空的。 */
+    public readonly valueOptions: readonly StrategyParameterValueOptionDto[],
     public readonly inputMode: 'numeric' | 'decimal',
     public readonly step: number,
     public readonly isInvalid: boolean,

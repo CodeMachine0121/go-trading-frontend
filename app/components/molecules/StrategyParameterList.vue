@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
-import AppCheckbox from '~/components/atoms/AppCheckbox.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
@@ -89,13 +88,21 @@ function onValueInput(index: number, raw: string | number) {
             </option>
           </AppSelect>
 
-          <!-- 是非用勾的：一個「填 0 或 1」的數字框是把系統內部的約定漏到畫面上。 -->
-          <AppCheckbox
-            v-if="field.control === 'toggle'"
-            :model-value="field.isTrue"
+          <!-- 是非用挑的：一個「填 0 或 1」的數字框是把系統內部的約定漏到畫面上。 -->
+          <AppSelect
+            v-if="field.control === 'options'"
+            :model-value="String(field.parameter.value)"
             data-testid="parameter-value-input"
-            @update:model-value="isTrue => emit('changeValue', index, isTrue ? 1 : 0)"
-          />
+            @update:model-value="emit('changeValue', index, Number($event))"
+          >
+            <option
+              v-for="valueOption in field.valueOptions"
+              :key="valueOption.value"
+              :value="String(valueOption.value)"
+            >
+              {{ valueOption.label }}
+            </option>
+          </AppSelect>
           <AppInput
             v-else
             :model-value="String(field.parameter.value)"

@@ -223,7 +223,7 @@ describe('指標計算畫面上的參數', () => {
       .toContain('app-button--danger')
   })
 
-  it('挑成「是非」時那一格變成用勾的，勾起來送出去的是一', async () => {
+  it('挑成「是非」時那一格變成選單，挑 True 送出去的是一', async () => {
     // 使用者交出來的仍然是一個數字——零是否、非零是是。不同的只有他怎麼交。
     const calculateIndicator = vi.fn().mockResolvedValue(
       new IndicatorCalculation('BTCUSDT', '5m', 12, 'float', []))
@@ -234,10 +234,11 @@ describe('指標計算畫面上的參數', () => {
 
     await wrapper.get('[data-testid="parameter-kind-select"]').setValue('boolean')
     await flushPromises()
-    const toggle = wrapper.get<HTMLInputElement>('[data-testid="parameter-value-input"]')
-    expect(toggle.element.type).toBe('checkbox')
+    const valueField = wrapper.get('[data-testid="parameter-value-input"]')
+    expect(valueField.element.tagName).toBe('SELECT')
+    expect(valueField.findAll('option').map(option => option.text())).toEqual(['True', 'False'])
 
-    await toggle.setValue(true)
+    await valueField.setValue('1')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
