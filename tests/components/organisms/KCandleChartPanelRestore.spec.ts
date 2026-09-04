@@ -209,6 +209,20 @@ describe('打開畫面時上次那幾支自己回來', () => {
 
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(2)
   })
+
+  it('有筆被跳過時後續挑的那一支也不撞號——跳過的那幾筆不佔號', async () => {
+    // 跳過的那一筆若佔掉一個號，回來的那一筆會拿到序號 2，而下一次手動加入的也是 2。
+    // 撞號之後移除任何一筆，**兩筆會一起消失**，而且不會有任何地方報錯。
+    const { wrapper } = await mountPanel({
+      strategies: [buildStoredStrategy(9, '無旋鈕', { resultType: 'float' })],
+      remembered: [rememberedOf(404), rememberedOf(9)],
+    })
+
+    await pickStrategy(wrapper, 9)
+    await removeIndicator(wrapper, 2)
+
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
+  })
 })
 
 describe('打開畫面時對不上的那幾筆不回來', () => {

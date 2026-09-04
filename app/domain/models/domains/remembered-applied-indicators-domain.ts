@@ -32,34 +32,42 @@ export class RememberedAppliedIndicatorsDomain {
    * **序號由外面給**：「這一次套用」的序號由 `useChartIndicators` 一處產生，
    * 還原只是接在它後面繼續數。自己從 1 開始數會讓還原之後手動加入的那一筆撞號，
    * 而撞號的後果是移除一筆時**兩筆一起消失**。
+   *
+   * **回不來的那幾筆不佔號**——所以先濾掉它們，再依剩下的順序發號。
+   * 讓它們佔號的後果與自己從 1 開始數一樣：跳過一筆之後，回來的那一筆會拿到
+   * 呼叫端接著要用的那個號，而呼叫端只知道「回來了幾筆」。
    */
   toAppliedIndicatorDtos(lastAppliedIndicatorId: number): AppliedIndicatorDto[] {
-    return this.rememberedAppliedIndicatorVos.flatMap(
-      (remembered, order) => this.toAppliedIndicatorDto(
-        remembered, lastAppliedIndicatorId + order + 1))
+    return this.rememberedAppliedIndicatorVos
+      .filter(remembered => this.restorableStrategiesOf(remembered).length > 0)
+      .flatMap((remembered, order) => this.restorableStrategiesOf(remembered).map(
+        // 那一支現在的樣子——名稱改過就用現在的名字：留存的是它是哪一支，不是它叫什麼。
+        strategy => new AppliedIndicatorDto(
+          lastAppliedIndicatorId + order + 1,
+          strategy,
+          strategy.content.parameters.map(
+            declared => this.toParameter(declared, remembered.parameterValues)),
+        )))
   }
 
   /**
-   * 一筆對得上就交出一個，對不上就交出零個。
+   * 這一筆回得來嗎——**對得上一支現在的策略，而且那一支現在畫得成線**。
+   * 回得來就交出那一支（一個），回不來就交出零個。
    *
-   * 對不上的那兩種情況**都不出聲**：
+   * 判斷只寫在這裡一次：發號要先知道回得來的有哪幾筆，重建那幾格又要拿到那一支，
+   * 兩處各判斷一次就會漂移——而漂移的後果是清單上多一筆、或者少一筆的號被吃掉。
+   *
+   * 回不來的那兩種情況**都不出聲**：
    * - **策略被刪了**——使用者刪掉它時就知道自己刪了什麼，一則講著他上個月操作的說明只會擋在畫面上。
    * - **現在畫不成線**（改成了是非）——它在可挑清單裡本來就列得出來但挑不到，
    *   讓它自己回到圖上等於繞過那道刻意留下的擋。
    */
-  private toAppliedIndicatorDto(
-    rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo, appliedIndicatorId: number,
-  ): AppliedIndicatorDto[] {
-    return this.strategies
-      .filter(strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId)
-      .filter(strategy => strategy.drawableOnChart)
-      .map(strategy => new AppliedIndicatorDto(
-        appliedIndicatorId,
-        // 那一支現在的樣子——名稱改過就用現在的名字：留存的是它是哪一支，不是它叫什麼。
-        strategy,
-        strategy.content.parameters.map(
-          declared => this.toParameter(declared, rememberedAppliedIndicatorVo.parameterValues)),
-      ))
+  private restorableStrategiesOf(
+    rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
+  ): StrategyDto[] {
+    return this.strategies.filter(
+      strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId
+        && strategy.drawableOnChart)
   }
 
   /**

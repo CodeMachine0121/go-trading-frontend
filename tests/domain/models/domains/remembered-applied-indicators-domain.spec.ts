@@ -77,12 +77,18 @@ describe('RememberedAppliedIndicatorsDomain：序號接在既有的後面繼續�
     expect(restored.map(one => one.id)).toEqual([6, 7])
   })
 
-  it('跳過的那幾筆不佔號——回來的那幾筆序號連續', () => {
+  it.each([
+    { name: '第一筆', remembered: [404, 7, 9] },
+    { name: '中間那一筆', remembered: [7, 404, 9] },
+    { name: '最後一筆', remembered: [7, 9, 404] },
+  ])('回不來的是$name 時也不佔號——回來的那幾筆從交出來的那一號之後連續', ({ remembered }) => {
+    // 佔了號的後果是呼叫端接著發的號會撞上其中一筆，而它只知道「回來了幾筆」。
+    // 撞號之後移除任何一筆，兩筆會一起消失，而且不會有任何地方報錯。
     const restored = restore(
-      [rememberedOf(404), rememberedOf(7), rememberedOf(9)],
+      remembered.map(strategyId => rememberedOf(strategyId)),
       [strategyOf(7, '均線'), strategyOf(9, '布林')])
 
-    expect(restored.map(one => one.id)).toEqual([2, 3])
+    expect(restored.map(one => one.id)).toEqual([1, 2])
   })
 })
 
