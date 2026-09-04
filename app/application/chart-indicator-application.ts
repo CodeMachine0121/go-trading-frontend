@@ -15,6 +15,16 @@ export class ChartIndicatorApplication {
     return this.chartIndicatorService.prepareAppliedIndicator(strategy, appliedIndicatorId)
   }
 
+  restoreAppliedIndicators(
+    strategies: readonly StrategyDto[], lastAppliedIndicatorId: number,
+  ): AppliedIndicatorDto[] {
+    return this.chartIndicatorService.restoreAppliedIndicators(strategies, lastAppliedIndicatorId)
+  }
+
+  rememberAppliedIndicators(appliedIndicatorDtos: readonly AppliedIndicatorDto[]): void {
+    this.chartIndicatorService.rememberAppliedIndicators(appliedIndicatorDtos)
+  }
+
   rememberAppliedIndicatorParameters(appliedIndicatorDto: AppliedIndicatorDto): void {
     this.chartIndicatorService.rememberAppliedIndicatorParameters(appliedIndicatorDto)
   }

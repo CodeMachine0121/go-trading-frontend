@@ -10,6 +10,9 @@ import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
+import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
+import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
 const CHART_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 
@@ -36,6 +39,7 @@ function buildService(
     'BTCUSDT', '1h', 24, 'float', [new IndicatorValueVo('均價', [115])]),
   colorPreference: Partial<IChartLineColorPreferenceProxy> = {},
   parameterValuePreference: Partial<IStrategyParameterValuePreferenceProxy> = {},
+  appliedIndicatorPreference: Partial<IAppliedChartIndicatorPreferenceProxy> = {},
 ) {
   const indicatorCalculationProxy: IIndicatorCalculationProxy = {
     calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation),
@@ -52,14 +56,22 @@ function buildService(
     ...parameterValuePreference,
   }
 
+  const appliedChartIndicatorPreferenceProxy: IAppliedChartIndicatorPreferenceProxy = {
+    readAppliedChartIndicators: vi.fn().mockReturnValue([]),
+    writeAppliedChartIndicators: vi.fn(),
+    ...appliedIndicatorPreference,
+  }
+
   return {
     chartIndicatorService: new ChartIndicatorService(
       indicatorCalculationProxy,
       chartLineColorPreferenceProxy,
-      strategyParameterValuePreferenceProxy),
+      strategyParameterValuePreferenceProxy,
+      appliedChartIndicatorPreferenceProxy),
     indicatorCalculationProxy,
     chartLineColorPreferenceProxy,
     strategyParameterValuePreferenceProxy,
+    appliedChartIndicatorPreferenceProxy,
   }
 }
 
@@ -148,7 +160,11 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
     const failing = new ChartIndicatorService(
       { calculateIndicator: vi.fn().mockRejectedValue(scriptFailure) },
       { readColorToken: vi.fn().mockReturnValue(null), writeColorToken: vi.fn() },
-      { readValue: vi.fn().mockReturnValue(null), writeValue: vi.fn() })
+      { readValue: vi.fn().mockReturnValue(null), writeValue: vi.fn() },
+      {
+        readAppliedChartIndicators: vi.fn().mockReturnValue([]),
+        writeAppliedChartIndicators: vi.fn(),
+      })
 
     await expect(failing.calculateChartIndicator(requestOf())).rejects.toBe(scriptFailure)
   })
@@ -238,5 +254,75 @@ describe('ChartIndicatorService：曲線那一半也一樣', () => {
       [chartIndicator], '7:不存在的線', '--color-chart-line-6')
 
     expect(recoloured[0]?.series[0]?.colorToken).toBe('--color-chart-line-1')
+  })
+})
+
+describe('ChartIndicatorService.restoreAppliedIndicators', () => {
+  it('讀留存的那幾筆，對照現在的策略清單交出來', () => {
+    // 呼叫端只說「把上次那幾支還原回來」——它不知道留存存在，也不該知道。
+    const fixture = buildService(undefined, {}, {}, {
+      readAppliedChartIndicators: vi.fn().mockReturnValue([
+        new RememberedAppliedIndicatorVo(7, new Map([['期數', 60]]))]),
+    })
+    const strategy = new StrategyDto(
+      7, '均線',
+      new StrategyContentDto('sum := 0.0', 'float', [
+        new StrategyParameterDto('期數', 'lookbackCount', 20)]),
+      true, true)
+
+    const restored = fixture.chartIndicatorService.restoreAppliedIndicators([strategy], 0)
+
+    expect(restored.map(one => [one.id, one.strategy.name, one.parameterSummary]))
+      .toEqual([[1, '均線', '期數 60']])
+  })
+
+  it('一筆都沒留存時交出空的一份', () => {
+    const fixture = buildService()
+
+    expect(fixture.chartIndicatorService.restoreAppliedIndicators([strategyOf()], 0)).toEqual([])
+  })
+
+  it('不為了還原多打一趟後端——策略清單是收進來的', () => {
+    const fixture = buildService(undefined, {}, {}, {
+      readAppliedChartIndicators: vi.fn().mockReturnValue([
+        new RememberedAppliedIndicatorVo(7, new Map())]),
+    })
+
+    fixture.chartIndicatorService.restoreAppliedIndicators([strategyOf()], 0)
+
+    expect(fixture.indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
+  })
+})
+
+describe('ChartIndicatorService.rememberAppliedIndicators', () => {
+  it('整份寫下來，依清單的順序', () => {
+    const fixture = buildService()
+    const strategy = new StrategyDto(
+      7, '均線',
+      new StrategyContentDto('sum := 0.0', 'float', [
+        new StrategyParameterDto('期數', 'lookbackCount', 20)]),
+      true, true)
+
+    fixture.chartIndicatorService.rememberAppliedIndicators([
+      new AppliedIndicatorDto(1, strategy, [
+        new StrategyParameterDto('期數', 'lookbackCount', 20)]),
+      new AppliedIndicatorDto(2, strategy, [
+        new StrategyParameterDto('期數', 'lookbackCount', 60)]),
+    ])
+
+    expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)
+      .toHaveBeenCalledWith([
+        new RememberedAppliedIndicatorVo(7, new Map([['期數', 20]])),
+        new RememberedAppliedIndicatorVo(7, new Map([['期數', 60]])),
+      ])
+  })
+
+  it('清空清單時寫下空的一份——不寫的話它明天會回來', () => {
+    const fixture = buildService()
+
+    fixture.chartIndicatorService.rememberAppliedIndicators([])
+
+    expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)
+      .toHaveBeenCalledWith([])
   })
 })
