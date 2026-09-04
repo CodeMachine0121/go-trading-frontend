@@ -2,6 +2,7 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
@@ -9,6 +10,7 @@ import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-
 import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
 import AppliedIndicatorParameterFields from '~/components/molecules/AppliedIndicatorParameterFields.vue'
+import AppliedIndicatorDialog from '~/components/molecules/AppliedIndicatorDialog.vue'
 
 /**
  * 分子：圖表上「已套用的指標」這一塊——挑一支、調它的旋鈕、加進來、
@@ -44,6 +46,22 @@ const emit = defineEmits<{
 
 /** 選單永遠停在「挑一支加進來」——挑完就加進去了，它不代表任何持續的狀態。 */
 const pickerValue = ref('')
+
+/**
+ * 正在設定哪一筆。**這是純粹的呈現狀態**——哪一個對話框開著不影響圖上任何東西，
+ * 所以它住在這裡，不必一路傳到上面去。
+ */
+const openedAppliedIndicatorId = ref<number | null>(null)
+
+/**
+ * 對話框要顯示的那一筆，**每次都從清單裡重新找**。
+ *
+ * 不把那一筆存起來，是因為它會過期：重算之後線與狀態都是新的一份，
+ * 而存起來的那一份會繼續顯示上一輪的顏色。順帶也處理掉「開著的時候被移除」——
+ * 找不到就是沒有，對話框自己關上。
+ */
+const openedRow = computed(() => appliedIndicatorRows.find(
+  row => row.appliedIndicator.id === openedAppliedIndicatorId.value) ?? null)
 
 function applyPicked(value: string) {
   // 選單永遠停回「套用一支策略…」：挑完就加進去了，它不代表任何持續的狀態。
@@ -147,16 +165,49 @@ function applyPicked(value: string) {
         class="chart-indicator-panel__item"
         data-testid="applied-indicator"
       >
-        <div class="chart-indicator-panel__item-header">
-          <span class="chart-indicator-panel__name">
-            {{ row.appliedIndicator.strategy.name }}
-            <!-- 同一支擺好幾筆時靠這一句分辨：值本身就是它們唯一的差別。 -->
+        <!--
+          一筆就是一列：它畫了哪幾條線（顏色）、它是誰、這一次的值是多少。
+          **要改東西就點這一列**——參數與線色都在後面那個對話框裡。
+          它們是偶爾才動一次的東西，攤在清單上會讓每一筆長高好幾倍，
+          而使用者多數時候只是在看「圖上現在有哪幾條」。
+        -->
+        <div class="chart-indicator-panel__item-row">
+          <button
+            type="button"
+            class="chart-indicator-panel__open"
+            :data-testid="`open-indicator-${row.appliedIndicator.id}`"
+            @click="openedAppliedIndicatorId = row.appliedIndicator.id"
+          >
             <span
-              v-if="row.appliedIndicator.parameterSummary"
-              class="chart-indicator-panel__summary"
-              data-testid="applied-indicator-summary"
-            >{{ row.appliedIndicator.parameterSummary }}</span>
-          </span>
+              v-if="row.lines.length > 0"
+              class="chart-indicator-panel__swatches"
+            >
+              <span
+                v-for="line in row.lines"
+                :key="line.lineKey"
+                class="chart-indicator-panel__swatch"
+                :style="{ backgroundColor: `var(${line.colorToken})` }"
+              />
+            </span>
+
+            <span class="chart-indicator-panel__name">
+              {{ row.appliedIndicator.strategy.name }}
+              <!-- 同一支擺好幾筆時靠這一句分辨：值本身就是它們唯一的差別。 -->
+              <span
+                v-if="row.appliedIndicator.parameterSummary"
+                class="chart-indicator-panel__summary"
+                data-testid="applied-indicator-summary"
+              >{{ row.appliedIndicator.parameterSummary }}</span>
+            </span>
+
+            <AppBadge
+              v-if="row.isCalculating"
+              variant="info"
+            >
+              計算中
+            </AppBadge>
+          </button>
+
           <AppButton
             type="button"
             variant="ghost"
@@ -169,13 +220,10 @@ function applyPicked(value: string) {
           </AppButton>
         </div>
 
-        <AppliedIndicatorParameterFields
-          v-if="row.parameterFields.length > 0"
-          :fields="row.parameterFields"
-          @change-value="(name, value) =>
-            emit('changeAppliedParameterValue', row.appliedIndicator.id, name, value)"
-        />
-
+        <!--
+          這三則留在清單上，不進對話框：它們講的是「這一筆現在怎麼了」，
+          而那是使用者掃過清單時就該看到的事，不是點開才發現的事。
+        -->
         <p
           v-if="row.isCalculating"
           class="chart-indicator-panel__note"
@@ -199,35 +247,17 @@ function applyPicked(value: string) {
         >
           算完了，但這支算式沒有放進任何指標，所以圖上沒有線。
         </p>
-
-        <div
-          v-for="line in row.lines"
-          :key="line.lineKey"
-          class="chart-indicator-panel__line"
-          data-testid="indicator-line"
-        >
-          <span
-            class="chart-indicator-panel__swatch"
-            :style="{ backgroundColor: `var(${line.colorToken})` }"
-          />
-          <span class="chart-indicator-panel__line-name">{{ line.indicatorName }}</span>
-          <AppSelect
-            :model-value="line.colorToken"
-            class="chart-indicator-panel__color-select"
-            :data-testid="`line-color-${line.lineKey}`"
-            @update:model-value="token => emit('changeLineColor', line.lineKey, token)"
-          >
-            <option
-              v-for="colorOption in colorOptions"
-              :key="colorOption.token"
-              :value="colorOption.token"
-            >
-              {{ colorOption.label }}
-            </option>
-          </AppSelect>
-        </div>
       </li>
     </ul>
+
+    <AppliedIndicatorDialog
+      :row="openedRow"
+      :color-options="colorOptions"
+      @close="openedAppliedIndicatorId = null"
+      @change-parameter-value="(name, value) => openedRow
+        && emit('changeAppliedParameterValue', openedRow.appliedIndicator.id, name, value)"
+      @change-line-color="(lineKey, token) => emit('changeLineColor', lineKey, token)"
+    />
   </div>
 </template>
 
@@ -301,19 +331,52 @@ function applyPicked(value: string) {
     border: 1px solid color('border');
     border-radius: radius('sm');
     background-color: color('surface-muted');
+    padding-bottom: spacing('3xs');
+
+    // 沒有狀態要說的時候，那一列自己就是整筆——不留一條空的下緣。
+    &:not(:has(.chart-indicator-panel__note, .app-alert)) {
+      padding-bottom: 0;
+    }
+  }
+
+  &__item-row {
+    display: flex;
+    gap: spacing('2xs');
+    align-items: center;
     padding: spacing('2xs');
   }
 
-  &__item-header {
+  // 整列都可以點——要改東西的人不必去瞄準一顆小按鈕。
+  // 它是一顆按鈕而不是一個掛了 click 的 div：鍵盤走得到，讀螢幕的人也聽得出它可以按。
+  &__open {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex: 1;
     gap: spacing('2xs');
+    align-items: center;
+    cursor: pointer;
+    border: 0;
+    background: none;
+    padding: 0;
+    min-width: 0;
+    text-align: left;
+
+    @include focus-ring;
   }
 
+  // 名字吃掉中間所有剩下的寬度，右邊那幾樣（狀態、移除）才會貼齊右緣。
   &__name {
+    flex: 1;
+    min-width: 0;
     color: color('text-strong');
     font-size: font-size('xs');
+  }
+
+  // 收起來也看得到它畫了哪幾條線——顏色是這幾筆之間唯一的視覺分別。
+  &__swatches {
+    display: flex;
+    flex: none;
+    gap: spacing('3xs');
+    align-items: center;
   }
 
   &__note {

@@ -110,6 +110,42 @@ async function confirmPending(wrapper: Panel) {
   await flushPromises()
 }
 
+/**
+ * 點開某一筆的設定。
+ *
+ * 參數值與線色都在那裡面——清單上一列只說「它是誰、畫了什麼顏色、這一次的值」，
+ * 要改東西就點那一列。
+ */
+async function openSettings(wrapper: Panel, appliedIndicatorId: number) {
+  await wrapper.get(`[data-testid="open-indicator-${appliedIndicatorId}"]`).trigger('click')
+  await flushPromises()
+}
+
+async function closeSettings(wrapper: Panel) {
+  await wrapper.get('[data-testid="close-applied-indicator-button"]').trigger('click')
+  await flushPromises()
+}
+
+/** 那一筆畫出來的線是什麼顏色。一次只開得了一個對話框，所以看完就關上。 */
+async function lineColorsOf(wrapper: Panel, appliedIndicatorId: number) {
+  await openSettings(wrapper, appliedIndicatorId)
+  const colors = wrapper.findAll('[data-testid="indicator-line"] select')
+    .map(select => (select.element as HTMLSelectElement).value)
+  await closeSettings(wrapper)
+
+  return colors
+}
+
+/** 改已經在圖上那一筆的某一格。 */
+async function changeAppliedValue(
+  wrapper: Panel, appliedIndicatorId: number, name: string, value: string,
+) {
+  await openSettings(wrapper, appliedIndicatorId)
+  await wrapper.get(`[data-testid="applied-parameter-${name}"]`).setValue(value)
+  await flushPromises()
+  await closeSettings(wrapper)
+}
+
 /** 挑一支、把期數調成某個值、加進來——三步併成使用者眼中的一件事。 */
 async function applyWithLookback(wrapper: Panel, id: number, value: string) {
   await pickStrategy(wrapper, id)
@@ -286,10 +322,10 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
     await applyWithLookback(wrapper, 7, '20')
     await applyWithLookback(wrapper, 7, '60')
 
-    const colors = wrapper.findAll('[data-testid="indicator-line"] select')
-      .map(select => (select.element as HTMLSelectElement).value)
-    expect(colors).toHaveLength(2)
-    expect(colors[0]).not.toBe(colors[1])
+    const [first] = await lineColorsOf(wrapper, 1)
+    const [second] = await lineColorsOf(wrapper, 2)
+    expect(first).toBeDefined()
+    expect(second).not.toBe(first)
   })
 
   it('挑過顏色的那條線，第二次擺上來時不沿用它', async () => {
@@ -302,10 +338,8 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
     await applyWithLookback(wrapper, 7, '20')
     await applyWithLookback(wrapper, 7, '60')
 
-    const colors = wrapper.findAll('[data-testid="indicator-line"] select')
-      .map(select => (select.element as HTMLSelectElement).value)
-    expect(colors[0]).toBe(remembered)
-    expect(colors[1]).not.toBe(remembered)
+    expect((await lineColorsOf(wrapper, 1))[0]).toBe(remembered)
+    expect((await lineColorsOf(wrapper, 2))[0]).not.toBe(remembered)
   })
 
   it('移除第一筆之後再擺一次，記住的顏色回來了', async () => {
@@ -319,8 +353,7 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
     await flushPromises()
     await applyWithLookback(wrapper, 7, '60')
 
-    expect((wrapper.get('[data-testid="indicator-line"] select')
-      .element as HTMLSelectElement).value).toBe(remembered)
+    expect((await lineColorsOf(wrapper, 2))[0]).toBe(remembered)
   })
 })
 
@@ -333,10 +366,7 @@ describe('圖表上的旋鈕：調完之後', () => {
     await applyWithLookback(wrapper, 8, '2')
     calculateIndicator.mockClear()
 
-    await wrapper.get(
-      '[data-testid="applied-indicator"] [data-testid="applied-parameter-期數"]')
-      .setValue('60')
-    await flushPromises()
+    await changeAppliedValue(wrapper, 1, '期數', '60')
 
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
     expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({
@@ -351,10 +381,7 @@ describe('圖表上的旋鈕：調完之後', () => {
     await applyWithLookback(wrapper, 7, '20')
     writeValue.mockClear()
 
-    await wrapper.get(
-      '[data-testid="applied-indicator"] [data-testid="applied-parameter-期數"]')
-      .setValue('60')
-    await flushPromises()
+    await changeAppliedValue(wrapper, 1, '期數', '60')
 
     expect(writeValue).toHaveBeenCalledWith(7, '期數', 60)
   })
@@ -394,7 +421,8 @@ describe('圖表上的旋鈕：算不出來的時候', () => {
 
     expect(wrapper.findAll('[data-testid="indicator-error-1"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="indicator-error-2"]').text()).toContain('算式執行失敗')
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
+    expect(await lineColorsOf(wrapper, 1)).toHaveLength(1)
+    expect(await lineColorsOf(wrapper, 2)).toHaveLength(0)
   })
 })
 
@@ -406,9 +434,7 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
     await applyWithLookback(wrapper, 7, '20')
     calculateIndicator.mockClear()
 
-    await wrapper.get(
-      '[data-testid="applied-indicator"] [data-testid="applied-parameter-期數"]').setValue('')
-    await flushPromises()
+    await changeAppliedValue(wrapper, 1, '期數', '')
 
     expect(calculateIndicator).not.toHaveBeenCalled()
   })
@@ -418,9 +444,7 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
     await applyWithLookback(wrapper, 7, '20')
     calculateIndicator.mockClear()
 
-    await wrapper.get(
-      '[data-testid="applied-indicator"] [data-testid="applied-parameter-期數"]').setValue('0')
-    await flushPromises()
+    await changeAppliedValue(wrapper, 1, '期數', '0')
 
     expect(calculateIndicator).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="applied-indicator-summary"]').text()).toBe('期數 20')
@@ -467,9 +491,79 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
     await applyWithLookback(wrapper, 7, '20')
     await applyWithLookback(wrapper, 7, '60')
 
-    const colors = wrapper.findAll('[data-testid="indicator-line"] select')
-      .map(select => (select.element as HTMLSelectElement).value)
-    expect(colors).toHaveLength(2)
-    expect(colors[0]).not.toBe(colors[1])
+    const [first] = await lineColorsOf(wrapper, 1)
+    const [second] = await lineColorsOf(wrapper, 2)
+    expect(first).toBeDefined()
+    expect(second).not.toBe(first)
+  })
+})
+
+describe('圖表上的指標：一列一筆，點下去設定', () => {
+  it('清單上一列就說完它是誰、畫了什麼顏色、這一次的值', async () => {
+    const { wrapper } = await mountPanel()
+
+    await applyWithLookback(wrapper, 7, '60')
+
+    const row = wrapper.get('[data-testid="open-indicator-1"]')
+    expect(row.text()).toContain('均線')
+    expect(row.text()).toContain('期數 60')
+    expect(row.findAll('.chart-indicator-panel__swatch').length).toBeGreaterThan(0)
+  })
+
+  it('沒點開的時候，可以改的東西一個都不佔清單的版面', async () => {
+    // 改值與換色都是偶爾才做一次的事。攤在清單上會讓每一筆長高好幾倍，
+    // 而使用者多數時候只是在看圖上現在有哪幾條。
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+
+    expect(wrapper.findAll('[data-testid="applied-parameter-期數"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(0)
+  })
+
+  it('點那一列就開得出它的參數與線色', async () => {
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+
+    await openSettings(wrapper, 1)
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="applied-parameter-期數"]').element.value)
+      .toBe('20')
+    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
+  })
+
+  it('開著的時候被重算，看到的是新的那一份而不是開啟當下那一份', async () => {
+    // 對話框每次都從清單裡重新找那一筆。存起來的話，重算之後它會繼續顯示上一輪的東西。
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+    await openSettings(wrapper, 1)
+
+    await wrapper.get('[data-testid="applied-parameter-期數"]').setValue('60')
+    await flushPromises()
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="applied-parameter-期數"]').element.value)
+      .toBe('60')
+  })
+
+  it('開著的那一筆被移除時，對話框自己關上', async () => {
+    // 找不到就是沒有——留著一個對著已經不存在那一筆的設定畫面，改什麼都不會有事發生。
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+    await openSettings(wrapper, 1)
+
+    await wrapper.get('[data-testid="remove-indicator-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="close-applied-indicator-button"]').exists()).toBe(false)
+  })
+
+  it('按移除不會順手把設定打開——它們在同一列上', async () => {
+    const { wrapper } = await mountPanel()
+    await applyWithLookback(wrapper, 7, '20')
+
+    await wrapper.get('[data-testid="remove-indicator-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="close-applied-indicator-button"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(0)
   })
 })

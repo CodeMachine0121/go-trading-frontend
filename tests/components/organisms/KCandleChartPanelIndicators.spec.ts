@@ -79,6 +79,29 @@ async function applyStrategy(wrapper: Awaited<ReturnType<typeof mountPanel>>['wr
 }
 
 /**
+ * 點開某一筆的設定。線的顏色在那裡面——清單上一列只說「它是誰、畫了什麼顏色」，
+ * 要改東西就點那一列。
+ */
+async function openSettings(
+  wrapper: Awaited<ReturnType<typeof mountPanel>>['wrapper'], appliedIndicatorId: number,
+) {
+  await wrapper.get(`[data-testid="open-indicator-${appliedIndicatorId}"]`).trigger('click')
+  await flushPromises()
+}
+
+/** 那一筆畫出來的線。找不到那一列時就是它已經不在圖上了。 */
+async function linesOf(
+  wrapper: Awaited<ReturnType<typeof mountPanel>>['wrapper'], appliedIndicatorId: number,
+) {
+  if (!wrapper.find(`[data-testid="open-indicator-${appliedIndicatorId}"]`).exists()) {
+    return []
+  }
+  await openSettings(wrapper, appliedIndicatorId)
+
+  return wrapper.findAll('[data-testid="indicator-line"]')
+}
+
+/**
  * 等使用者「停手」。指標重算不在顯示區間變動的當下發生——拖動一次會產生幾十個
  * 中間狀態，每一個都算等於把同一份工作做幾十遍。停下來之後才算那一次。
  */
@@ -104,7 +127,7 @@ describe('圖表上的指標：挑一支套上去', () => {
 
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
+    expect(await linesOf(wrapper, 1)).toHaveLength(1)
   })
 
   it('算的是圖上這一檔、這個彙總刻度', async () => {
@@ -434,6 +457,7 @@ describe('圖表上的指標：線的顏色', () => {
     await applyStrategy(wrapper, 7)
     const before = wrapper.findComponent(KCandleChart).props('indicators')
 
+    await openSettings(wrapper, 1)
     await wrapper.get('[data-testid="line-color-7:均價"]').setValue('--color-chart-line-5')
     await flushPromises()
 
@@ -613,7 +637,7 @@ describe('圖表上的指標：邊界', () => {
 
     await applyStrategy(wrapper, 7)
 
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(2)
+    expect(await linesOf(wrapper, 1)).toHaveLength(2)
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
     expect(indicators[0]?.series[0]?.colorToken)
       .not.toBe(indicators[0]?.series[1]?.colorToken)
@@ -698,7 +722,7 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
+    expect(await linesOf(wrapper, 1)).toHaveLength(1)
   })
 
   it('上一輪全部失敗之後重算，它們仍然拿到不同的顏色', async () => {
@@ -757,7 +781,9 @@ describe('圖表上的指標：圖沒了的時候', () => {
     await flushPromises()
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(1)
+    expect(await linesOf(wrapper, 1)).toHaveLength(1)
+    await wrapper.get('[data-testid="close-applied-indicator-button"]').trigger('click')
+    await flushPromises()
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
@@ -765,7 +791,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
 
     // 圖沒了，上一批算出來的線也不能留——它們畫的是另一段行情。
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(0)
+    expect(await linesOf(wrapper, 1)).toHaveLength(0)
     // 清單留著——使用者沒有取消掛任何一支，等圖回來它們會跟著重算。
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
   })
