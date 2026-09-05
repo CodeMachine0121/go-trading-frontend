@@ -3,6 +3,7 @@ import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
+import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 
 // 頁面只做接線：取用跨畫面共用的畫面狀態，往下傳給要說它的元件。
 //
@@ -11,6 +12,10 @@ import BackendHealthCard from '~/components/molecules/BackendHealthCard.vue'
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
+
+// 側欄底下那一行：現在是誰在用。它與那顆連線燈一樣是「這條線路的狀態」，
+// 所以同樣由頁面填進樣板的插槽——樣板不綁任何資料。
+const { currentUser, signOut } = useUserSession()
 </script>
 
 <template>
@@ -32,6 +37,14 @@ const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTim
         :checking="checking"
         :error-message="errorMessage"
         @recheck="checkBackendHealth"
+      />
+    </template>
+
+    <template #account>
+      <SignedInUserBadge
+        v-if="currentUser"
+        :user="currentUser"
+        @sign-out="signOut"
       />
     </template>
 

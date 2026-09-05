@@ -22,6 +22,15 @@ type BackendRequestOptions = {
    * 但仍然逐項具名——沒有一個「什麼都能裝」的位置。
    */
   body?: Record<string, string | number | readonly Record<string, string | number>[]>
+  /**
+   * 這一次請求要多帶的標頭。
+   *
+   * 目前只有「我是誰」用得到它（帶登入憑證）。它是**一個選項**而不是「每一次都自動附上
+   * 憑證」，因為後端目前只有那一條路要憑證——其餘端點一律不問來者是誰。
+   * 等後端把門也裝到那些端點上，這裡就是那件事該落地的地方：注入記住憑證的那個 proxy，
+   * 在下面統一附上，九個 proxy 一個都不必改。
+   */
+  headers?: Record<string, string>
 }
 
 /**

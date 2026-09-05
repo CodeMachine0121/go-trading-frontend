@@ -11,6 +11,11 @@ import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButto
 // 這裡與 /chat 那一頁取用的是**同一份共用狀態**，所以在抽屜問完展開過去，
 // 剛才那一則還在。
 const { open, openDrawer, closeDrawer } = useAssistantDrawer()
+
+// 助手要花錢，而且它讀得到行情——沒登入的人不該叫得出它。
+// 那顆鍵與抽屜因此跟著「現在是誰在用」出現與消失，而不是永遠掛在那裡。
+const { currentUser } = useUserSession()
+
 const {
   suggestedPrompts,
   conversationId,
@@ -113,7 +118,7 @@ onBeforeUnmount(() => {
   <NuxtPage />
 
   <AssistantTriggerButton
-    v-if="!open"
+    v-if="currentUser && !open"
     :position="position"
     :size="triggerSize"
     :dragging="dragging"
@@ -121,6 +126,7 @@ onBeforeUnmount(() => {
   />
 
   <AssistantDrawer
+    v-if="currentUser"
     v-model:draft="draft"
     :open="open"
     :messages="messages"

@@ -35,6 +35,10 @@ import { AssistantTriggerApplication } from '~/application/assistant-trigger-app
 import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
 import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
 import { AssistantDrawerWidthApplication } from '~/application/assistant-drawer-width-application'
+import { UserProxy } from '~/infrastructure/proxy/user-proxy'
+import { SessionStorageProxy } from '~/infrastructure/proxy/session-storage-proxy'
+import { UserSessionService } from '~/domain/service/user-session-service'
+import { UserSessionApplication } from '~/application/user-session-application'
 import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
@@ -117,6 +121,14 @@ export default defineNuxtPlugin(() => {
     new ClipboardService(new ClipboardProxy()),
   )
 
+  // 「現在是誰在用」同時要打後端（建帳號、登入、續用、登出、我是誰）與碰瀏覽器儲存
+  // （記住那一對憑證），
+  // 所以它吃兩個 proxy。記憶那一側刻意是獨立的一個能力，而不是塞進打後端的那一個：
+  // 憑證改記在 cookie（好讓伺服器端也判斷得出來）的那一天，換的是它，不是後端那一條。
+  const userSessionApplication = new UserSessionApplication(
+    new UserSessionService(new UserProxy(backendBaseUrl), new SessionStorageProxy()),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -137,6 +149,7 @@ export default defineNuxtPlugin(() => {
       assistantTriggerApplication,
       assistantDrawerWidthApplication,
       clipboardApplication,
+      userSessionApplication,
     },
   }
 })
