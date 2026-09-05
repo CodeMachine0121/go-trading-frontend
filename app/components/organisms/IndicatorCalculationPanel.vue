@@ -22,6 +22,10 @@ import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-ca
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
 import StrategyParameterDialog from '~/components/molecules/StrategyParameterDialog.vue'
+import AppTabs from '~/components/atoms/AppTabs.vue'
+import StrategyBacktestPane from '~/components/organisms/StrategyBacktestPane.vue'
+import type { BacktestApplication } from '~/application/backtest-application'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 import { useStrategyParameters } from '~/composables/use-strategy-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
@@ -38,12 +42,41 @@ import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculat
 // **執行條件是一條橫列，不是一根側欄。** 側欄得跟編輯區一樣高，
 // 於是三個欄位下面永遠空著一大塊；而編輯區——這個畫面上唯一需要空間的東西——
 // 反而被那根用不到的欄子擠窄。
-const { indicatorCalculationApplication, strategyApplication, tradingSymbolApplication }
-  = defineProps<{
-    indicatorCalculationApplication: IndicatorCalculationApplication
-    strategyApplication: StrategyApplication
-    tradingSymbolApplication: TradingSymbolApplication
-  }>()
+const {
+  indicatorCalculationApplication,
+  strategyApplication,
+  tradingSymbolApplication,
+  backtestApplication,
+  timeZone,
+} = defineProps<{
+  indicatorCalculationApplication: IndicatorCalculationApplication
+  strategyApplication: StrategyApplication
+  tradingSymbolApplication: TradingSymbolApplication
+  backtestApplication: BacktestApplication
+  /** 這一頁說時間的地方一律照它——回測的資金曲線與交易明細也不例外。 */
+  timeZone: TimeZoneDto
+}>()
+
+/**
+ * 這一頁有兩個去處，共用同一份工作區。
+ *
+ * 打開時停在指標預覽，那是這一頁原本就在做的事。切換不清空任何東西：
+ * 兩邊都還掛在畫面上，只是其中一邊此刻看得見——填到一半的回測條件因此不會掉。
+ */
+const WORKBENCH_DESTINATIONS = [
+  { value: 'indicatorPreview', label: '指標預覽' },
+  { value: 'backtest', label: '回測' },
+] as const
+
+const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
+
+/**
+ * 工作區被整份換掉了幾次。
+ *
+ * 回測那一側看著它決定何時把上一次的成績單清掉。它是一個數字而不是算式的內容，
+ * 因為後者每敲一個字都會變——而敲字不是「換了一支策略」。
+ */
+const workspaceGeneration = ref(0)
 
 /**
  * 一份空白的策略內容——「空白長什麼樣」在這個畫面上只有這一個定義。
@@ -111,6 +144,8 @@ const strategyLibrary = useStrategyLibrary(
     strategyParameters.replaceAll(content.parameters)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
     calculationRun.clear()
+    // 回測那一側同理，但它有自己的一次，所以由它自己清——這裡只說「換過了」。
+    workspaceGeneration.value += 1
   },
   blankStrategyContent)
 
@@ -146,10 +181,7 @@ async function calculateIndicator() {
 </script>
 
 <template>
-  <form
-    class="indicator-calculation-panel"
-    @submit.prevent="calculateIndicator"
-  >
+  <div class="indicator-calculation-panel">
     <!-- 策略那一列收成一塊面板，才不會一整排控制項懸在工作區的底色上。
          它不必有標題列——「策略」兩個字就寫在它自己的欄位標籤上了。 -->
     <AppPanel class="indicator-calculation-panel__strategy">
@@ -226,182 +258,6 @@ async function calculateIndicator() {
       </p>
     </AppPanel>
 
-    <!--
-      執行條件是一條**貼在頂上的橫列**，不是一根高高的側欄。
-      它描述的是「這一次要算什麼」——交易標的、看多長、多粗——三件事各一格，
-      按下去的那顆在最右邊。做過這件事的工具（Databricks、Neon、Supabase）都是這樣擺：
-      設定與動作連在同一條帶子上，寫東西的地方獨佔下面那一整片。
-      擺成側欄的代價很具體：它得跟編輯區一樣高，於是三個欄位下面永遠空著一大塊。
-    -->
-    <!--
-      這一頁只有一個分別要記住：**什麼跟著策略走，什麼只屬於這一次**。
-      它以前被拆成三句小灰字散在三個地方，於是沒有人讀——一句永遠掛著、
-      每次都讀到的話，讀的人很快就會學會不讀它。
-      改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
-    -->
-    <AppPanel
-      title="執行條件"
-      class="indicator-calculation-panel__run"
-    >
-      <template #meta>
-        <AppBadge variant="info">
-          只影響這一次
-        </AppBadge>
-      </template>
-
-      <div class="indicator-calculation-panel__run-fields">
-        <SymbolField
-          v-model="symbol"
-          :trading-symbol-application="tradingSymbolApplication"
-          :error-message="calculationRun.messageFor('symbol')"
-        />
-
-        <FormField
-          label="要看多長"
-          :error-message="calculationRun.messageFor('span')"
-        >
-          <div class="indicator-calculation-panel__span">
-            <AppInput
-              :model-value="String(span.amount)"
-              type="number"
-              inputmode="numeric"
-              :invalid="Boolean(calculationRun.messageFor('span'))"
-              data-testid="span-amount-input"
-              @update:model-value="changeSpanAmount"
-            />
-            <AppSelect
-              :model-value="span.unit"
-              data-testid="span-unit-select"
-              @update:model-value="changeSpanUnit"
-            >
-              <option
-                v-for="unitOption in spanUnitOptions"
-                :key="unitOption.value"
-                :value="unitOption.value"
-              >
-                {{ unitOption.label }}
-              </option>
-            </AppSelect>
-          </div>
-        </FormField>
-
-        <FormField
-          label="彙總刻度"
-        >
-          <AppSelect
-            v-model="aggregationInterval"
-            data-testid="aggregation-interval-select"
-          >
-            <option
-              v-for="intervalOption in aggregationIntervalOptions"
-              :key="intervalOption.value"
-              :value="intervalOption.value"
-            >
-              {{ intervalOption.label }}
-            </option>
-          </AppSelect>
-        </FormField>
-
-        <AppButton
-          type="submit"
-          class="indicator-calculation-panel__run-action"
-          :disabled="calculationRun.calculating.value"
-          data-testid="calculate-button"
-        >
-          {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
-        </AppButton>
-      </div>
-    </AppPanel>
-
-    <!--
-      說明橫跨整個寬度：它講的是剛剛那一次計算，不屬於左右任何一欄。
-      刻意不包一層外框——包了，沒有任何說明的時候那個空盒子照樣吃掉一個間距，
-      而 Vue 為沒渲染的東西留下的是註解節點，`:empty` 選不到它。
-    -->
-    <AppAlert
-      v-if="calculationRun.parameterNotDeclaredMessage.value"
-      tone="danger"
-      data-testid="parameter-not-declared-alert"
-    >
-      參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ calculationRun.parameterNotDeclaredMessage.value }}
-    </AppAlert>
-
-    <AppAlert
-      v-if="calculationRun.scriptFailedMessage.value"
-      tone="danger"
-      data-testid="script-failed-alert"
-    >
-      算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
-      <!--
-        「沙箱裡沒有這個名字」是這一則最常見的原因，而訊息只說得出少了什麼，
-        說不出有什麼——那份清單在工具列那顆 ⓘ 後面。
-        這裡不去解讀訊息的文字：那是直譯器的措辭，它會隨版本改。
-        指路對每一種算式問題都成立，所以它一律出現。
-      -->
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          data-testid="script-failed-guide-button"
-          @click="guideOpen = true"
-        >
-          算式裡可以用什麼
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="calculationRun.requestRejectedMessage.value"
-      tone="warning"
-      data-testid="request-rejected-alert"
-    >
-      請求的問題：{{ calculationRun.requestRejectedMessage.value }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="calculationRun.serverErrorMessage.value"
-      tone="danger"
-      data-testid="server-error-alert"
-    >
-      後端出錯了（不是你的請求有問題），請稍後重試：{{ calculationRun.serverErrorMessage.value }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="calculationRun.calculating.value"
-          @click="calculateIndicator"
-        >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="calculationRun.backendUnreachable.value"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="calculationRun.calculating.value"
-          @click="calculateIndicator"
-        >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="calculationRun.calculating.value"
-      tone="info"
-      data-testid="calculating-alert"
-    >
-      計算中…算式最長可能跑上數十秒。
-    </AppAlert>
-
     <!-- 這一整片是「這支算法」：算式、它自己的旋鈕，以及寫的時候翻一下的那份清單。 -->
     <div class="indicator-calculation-panel__workbench">
       <IndicatorScriptEditor
@@ -468,100 +324,311 @@ async function calculateIndicator() {
       </IndicatorScriptEditor>
     </div>
 
-    <AppPanel
-      v-if="calculationRun.result.value"
-      title="計算結果"
-      flush
-      class="indicator-calculation-panel__result"
+    <!--
+      去處切換擺在工作區**底下**：工作區是兩個去處共用的那一份，
+      擺進其中一邊就得選一邊，而它不屬於任何一邊。擺在上面還換來一件更要緊的事——
+      切換去處時算式編輯器完全不受影響，而那正是這一整塊要保證的：不會弄丟他剛寫的東西。
+    -->
+    <AppTabs
+      v-model="destination"
+      :options="WORKBENCH_DESTINATIONS"
+    />
+
+    <!--
+      兩個去處都掛著，只有一個看得見。用 v-show 而不是 v-if，
+      是因為填到一半的回測條件與已經算出來的結果都必須留著——
+      切過去再切回來，畫面與離開時一樣。
+    -->
+    <form
+      v-show="destination === 'indicatorPreview'"
+      class="indicator-calculation-panel__destination"
+      @submit.prevent="calculateIndicator"
     >
-      <!-- 「這次用了多粗」與「用了幾根」是同一句話的兩半，所以並列。
+      <!--
+      執行條件是一條**貼在頂上的橫列**，不是一根高高的側欄。
+      它描述的是「這一次要算什麼」——交易標的、看多長、多粗——三件事各一格，
+      按下去的那顆在最右邊。做過這件事的工具（Databricks、Neon、Supabase）都是這樣擺：
+      設定與動作連在同一條帶子上，寫東西的地方獨佔下面那一整片。
+      擺成側欄的代價很具體：它得跟編輯區一樣高，於是三個欄位下面永遠空著一大塊。
+    -->
+      <!--
+      這一頁只有一個分別要記住：**什麼跟著策略走，什麼只屬於這一次**。
+      它以前被拆成三句小灰字散在三個地方，於是沒有人讀——一句永遠掛著、
+      每次都讀到的話，讀的人很快就會學會不讀它。
+      改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
+    -->
+      <AppPanel
+        title="執行條件"
+        class="indicator-calculation-panel__run"
+      >
+        <template #meta>
+          <AppBadge variant="info">
+            只影響這一次
+          </AppBadge>
+        </template>
+
+        <div class="indicator-calculation-panel__run-fields">
+          <SymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            :error-message="calculationRun.messageFor('symbol')"
+          />
+
+          <FormField
+            label="要看多長"
+            :error-message="calculationRun.messageFor('span')"
+          >
+            <div class="indicator-calculation-panel__span">
+              <AppInput
+                :model-value="String(span.amount)"
+                type="number"
+                inputmode="numeric"
+                :invalid="Boolean(calculationRun.messageFor('span'))"
+                data-testid="span-amount-input"
+                @update:model-value="changeSpanAmount"
+              />
+              <AppSelect
+                :model-value="span.unit"
+                data-testid="span-unit-select"
+                @update:model-value="changeSpanUnit"
+              >
+                <option
+                  v-for="unitOption in spanUnitOptions"
+                  :key="unitOption.value"
+                  :value="unitOption.value"
+                >
+                  {{ unitOption.label }}
+                </option>
+              </AppSelect>
+            </div>
+          </FormField>
+
+          <FormField
+            label="彙總刻度"
+          >
+            <AppSelect
+              v-model="aggregationInterval"
+              data-testid="aggregation-interval-select"
+            >
+              <option
+                v-for="intervalOption in aggregationIntervalOptions"
+                :key="intervalOption.value"
+                :value="intervalOption.value"
+              >
+                {{ intervalOption.label }}
+              </option>
+            </AppSelect>
+          </FormField>
+
+          <AppButton
+            type="submit"
+            class="indicator-calculation-panel__run-action"
+            :disabled="calculationRun.calculating.value"
+            data-testid="calculate-button"
+          >
+            {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
+          </AppButton>
+        </div>
+      </AppPanel>
+
+      <!--
+      說明橫跨整個寬度：它講的是剛剛那一次計算，不屬於左右任何一欄。
+      刻意不包一層外框——包了，沒有任何說明的時候那個空盒子照樣吃掉一個間距，
+      而 Vue 為沒渲染的東西留下的是註解節點，`:empty` 選不到它。
+    -->
+      <AppAlert
+        v-if="calculationRun.parameterNotDeclaredMessage.value"
+        tone="danger"
+        data-testid="parameter-not-declared-alert"
+      >
+        參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ calculationRun.parameterNotDeclaredMessage.value }}
+      </AppAlert>
+
+      <AppAlert
+        v-if="calculationRun.scriptFailedMessage.value"
+        tone="danger"
+        data-testid="script-failed-alert"
+      >
+        算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
+        <!--
+        「沙箱裡沒有這個名字」是這一則最常見的原因，而訊息只說得出少了什麼，
+        說不出有什麼——那份清單在工具列那顆 ⓘ 後面。
+        這裡不去解讀訊息的文字：那是直譯器的措辭，它會隨版本改。
+        指路對每一種算式問題都成立，所以它一律出現。
+      -->
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            data-testid="script-failed-guide-button"
+            @click="guideOpen = true"
+          >
+            算式裡可以用什麼
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="calculationRun.requestRejectedMessage.value"
+        tone="warning"
+        data-testid="request-rejected-alert"
+      >
+        請求的問題：{{ calculationRun.requestRejectedMessage.value }}
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="calculationRun.serverErrorMessage.value"
+        tone="danger"
+        data-testid="server-error-alert"
+      >
+        後端出錯了（不是你的請求有問題），請稍後重試：{{ calculationRun.serverErrorMessage.value }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="calculationRun.calculating.value"
+            @click="calculateIndicator"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="calculationRun.backendUnreachable.value"
+        tone="danger"
+        data-testid="unreachable-alert"
+      >
+        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="calculationRun.calculating.value"
+            @click="calculateIndicator"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="calculationRun.calculating.value"
+        tone="info"
+        data-testid="calculating-alert"
+      >
+        計算中…算式最長可能跑上數十秒。
+      </AppAlert>
+
+      <AppPanel
+        v-if="calculationRun.result.value"
+        title="計算結果"
+        flush
+        class="indicator-calculation-panel__result"
+      >
+        <!-- 「這次用了多粗」與「用了幾根」是同一句話的兩半，所以並列。
            挑了一小時卻用五分鐘算出來的數字長得跟對的一模一樣，
            所以它必須看得見，而不是靠信任。 -->
-      <template #meta>
-        <!--
+        <template #meta>
+          <!--
           「為什麼是這個數字」與那個數字擺在一起。
           它以前是一行常駐在執行條件底下的細字——而使用者會問這件事的時刻，
           正是他看到「實際採用 24 根」卻要了 25 根的那一刻，不是他剛打開畫面的時候。
         -->
-        <span data-testid="used-candle-count">
-          實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
-          <AppBadge
-            variant="info"
-            data-testid="used-interval"
-          >
-            每根涵蓋 {{ calculationRun.result.value.intervalLabel }}
-          </AppBadge>
-          <AppBadge variant="info">
-            {{ calculationRun.result.value.resultTypeLabel }}
-          </AppBadge>
-          <span
-            class="indicator-calculation-panel__notice"
-            data-testid="calculation-notice"
-          >只採用已經走完的那幾格——還在走的那一格不算，它的數字還會變。</span>
-        </span>
-      </template>
-
-      <p
-        v-if="calculationRun.result.value.isEmpty"
-        class="indicator-calculation-panel__empty"
-        data-testid="empty-result"
-      >
-        這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
-      </p>
-
-      <div
-        v-else
-        class="indicator-calculation-panel__scroller"
-      >
-        <table class="indicator-calculation-panel__table">
-          <thead>
-            <tr>
-              <th scope="col">
-                指標名稱
-              </th>
-              <th scope="col">
-                數值
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="indicatorValue in calculationRun.result.value.indicatorValues"
-              :key="indicatorValue.name"
-              data-testid="indicator-row"
+          <span data-testid="used-candle-count">
+            實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
+            <AppBadge
+              variant="info"
+              data-testid="used-interval"
             >
-              <td class="indicator-calculation-panel__indicator-name">
-                {{ indicatorValue.name }}
-              </td>
-              <td>
-                <span
-                  v-if="indicatorValue.isEmptySeries"
-                  class="indicator-calculation-panel__empty-series"
-                  data-testid="empty-series"
-                >空的一串</span>
-                <ol
-                  v-else-if="indicatorValue.isSeries"
-                  class="indicator-calculation-panel__series"
-                >
-                  <li
-                    v-for="(displayValue, position) in indicatorValue.displayValues"
-                    :key="position"
-                    class="indicator-calculation-panel__series-item"
-                    data-testid="series-item"
+              每根涵蓋 {{ calculationRun.result.value.intervalLabel }}
+            </AppBadge>
+            <AppBadge variant="info">
+              {{ calculationRun.result.value.resultTypeLabel }}
+            </AppBadge>
+            <span
+              class="indicator-calculation-panel__notice"
+              data-testid="calculation-notice"
+            >只採用已經走完的那幾格——還在走的那一格不算，它的數字還會變。</span>
+          </span>
+        </template>
+
+        <p
+          v-if="calculationRun.result.value.isEmpty"
+          class="indicator-calculation-panel__empty"
+          data-testid="empty-result"
+        >
+          這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
+        </p>
+
+        <div
+          v-else
+          class="indicator-calculation-panel__scroller"
+        >
+          <table class="indicator-calculation-panel__table">
+            <thead>
+              <tr>
+                <th scope="col">
+                  指標名稱
+                </th>
+                <th scope="col">
+                  數值
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="indicatorValue in calculationRun.result.value.indicatorValues"
+                :key="indicatorValue.name"
+                data-testid="indicator-row"
+              >
+                <td class="indicator-calculation-panel__indicator-name">
+                  {{ indicatorValue.name }}
+                </td>
+                <td>
+                  <span
+                    v-if="indicatorValue.isEmptySeries"
+                    class="indicator-calculation-panel__empty-series"
+                    data-testid="empty-series"
+                  >空的一串</span>
+                  <ol
+                    v-else-if="indicatorValue.isSeries"
+                    class="indicator-calculation-panel__series"
                   >
-                    {{ displayValue }}
-                  </li>
-                </ol>
-                <span
-                  v-else
-                  class="indicator-calculation-panel__value"
-                >{{ indicatorValue.displayValues[0] }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </AppPanel>
+                    <li
+                      v-for="(displayValue, position) in indicatorValue.displayValues"
+                      :key="position"
+                      class="indicator-calculation-panel__series-item"
+                      data-testid="series-item"
+                    >
+                      {{ displayValue }}
+                    </li>
+                  </ol>
+                  <span
+                    v-else
+                    class="indicator-calculation-panel__value"
+                  >{{ indicatorValue.displayValues[0] }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </AppPanel>
+    </form>
+
+    <StrategyBacktestPane
+      v-show="destination === 'backtest'"
+      v-model:symbol="symbol"
+      v-model:aggregation-interval="aggregationInterval"
+      class="indicator-calculation-panel__destination"
+      :backtest-application="backtestApplication"
+      :trading-symbol-application="tradingSymbolApplication"
+      :time-zone="timeZone"
+      :aggregation-interval-options="aggregationIntervalOptions"
+      :script-body="scriptBody"
+      :parameters="strategyParameters.parameters.value"
+      :workspace-generation="workspaceGeneration"
+    />
 
     <StrategyParameterDialog
       :open="parametersOpen"
@@ -634,7 +701,7 @@ async function calculateIndicator() {
       @confirm="strategyLibrary.confirmDelete"
       @cancel="strategyLibrary.closeDialog"
     />
-  </form>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -644,6 +711,14 @@ async function calculateIndicator() {
   flex-direction: column;
   gap: spacing('sm');
   min-height: 0;
+
+  // 每一個去處自己是一疊由上而下的區塊，與這塊面板本身的排法相同——
+  // 多包了一層，但那一層不改變任何東西的位置。
+  &__destination {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+  }
 
   &__strategy {
     flex: none;

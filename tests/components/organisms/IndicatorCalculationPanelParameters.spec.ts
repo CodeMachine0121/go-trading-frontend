@@ -11,6 +11,8 @@ import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-para
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyApplication } from '../../fixtures/strategy-application'
+import { buildBacktestApplication } from '../../fixtures/backtest-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 
 const SCRIPT_BODY = 'return map[string]float64{"ma": 1}'
 
@@ -29,6 +31,8 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
         new IndicatorCalculationService(indicatorCalculationProxy)),
       strategyApplication: buildStrategyApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      backtestApplication: buildBacktestApplication(),
+      timeZone: buildTimeZone(),
     },
   })
 }
