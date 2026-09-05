@@ -20,7 +20,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const signedIn = currentUser.value !== null
 
-  if (!signedIn && to.path !== LOGIN_PATH) {
+  // 比對的是**這條路由是哪一條**，不是使用者打進網址列的那串字。
+  // 路由器認得 `/Login` 與 `/login/` 都是登入那一頁，卻把原本的拼法原樣留在 path 上——
+  // 拿字串直接比，就會出現「登入成功之後又被送回登入畫面」這種讀起來像失敗的結果。
+  const goingToLogin = to.matched.some(route => route.path === LOGIN_PATH)
+
+  if (!signedIn && !goingToLogin) {
     // 記下他本來要去哪，好在登入成功後把他放回那裡，而不是一律丟到首頁。
     rememberRedirectTo(to.fullPath)
 
@@ -28,7 +33,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // 已經進門的人不必再看一次門。
-  if (signedIn && to.path === LOGIN_PATH) {
+  if (signedIn && goingToLogin) {
     return navigateTo(HOME_PATH)
   }
 })

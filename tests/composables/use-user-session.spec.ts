@@ -10,7 +10,9 @@ import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 
 // 工廠會被提升，所以它要用到的東西也得跟著提升。
 const { navigateToSpy } = vi.hoisted(() => ({
-  navigateToSpy: vi.fn((path: string) => path),
+  // 回傳型別放寬成「字串或一個還沒完成的換頁」，因為有一則測試要把換頁停在半路上，
+  // 才看得出那顆鍵是在換頁完成之前還是之後被放開的。
+  navigateToSpy: vi.fn<(path: string) => string | Promise<void>>(path => path),
 }))
 
 mockNuxtImport('navigateTo', () => navigateToSpy)
@@ -35,10 +37,14 @@ const SIGNED_IN_USER = new SignedInUserDto(7, 'james@example.com')
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // clearAllMocks 只清呼叫紀錄，不清實作——沒有這一行，某一則測試裝上去的替身
+  // 會活到後面每一則裡面。
+  navigateToSpy.mockImplementation((path: string) => path)
   userSessionApplication.restoreSession.mockResolvedValue(null)
   // useState 在同一個測試檔內跨測試共用，所以每一則都從乾淨的狀態開始。
   useState('user-session', () => null).value = null
-  useState('user-session-restored', () => false).value = false
+  useState<Promise<void> | null>('user-session-restoration', () => null).value = null
+  useState('user-session-signing-out', () => false).value = false
   useState('user-session-pending', () => false).value = false
   useState<string | null>('user-session-error', () => null).value = null
   useState<CredentialsFieldErrorsDto | null>('user-session-field-errors', () => null).value = null
@@ -64,6 +70,46 @@ describe('useUserSession：確認「現在是誰在用」只做一次', () => {
     expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
   })
 
+  it('問不出答案時不留下「已經問過」——後端稍後啟動就該再問一次', async () => {
+    // 留著的話，一個只是「後端還沒啟動」的暫時狀況會變成這個分頁的永久狀態：
+    // 後端起來了，使用者按遍每一頁也回不去，只能整個重新載入。
+    userSessionApplication.restoreSession.mockRejectedValueOnce(
+      new BackendUnreachableError('http://localhost:8080'))
+    userSessionApplication.restoreSession.mockResolvedValueOnce(SIGNED_IN_USER)
+    const { currentUser, ensureSessionRestored } = sessionUnderTest()
+
+    await ensureSessionRestored()
+    expect(currentUser.value).toBeNull()
+
+    await ensureSessionRestored()
+
+    expect(currentUser.value?.email).toBe('james@example.com')
+  })
+
+  it('答案還沒回來時問的人會排在同一個答案後面，不會拿到一個很肯定的「沒登入」', async () => {
+    // 拿到的話，那個人會被帶到登入畫面——而真正的答案回來時已經沒有人在等它了。
+    let resolveRestore: (value: SignedInUserDto) => void = () => {}
+    userSessionApplication.restoreSession.mockReturnValue(
+      new Promise<SignedInUserDto>((resolve) => {
+        resolveRestore = resolve
+      }))
+    const { currentUser, ensureSessionRestored } = sessionUnderTest()
+
+    const first = ensureSessionRestored()
+    const second = ensureSessionRestored()
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
+
+    // 讓答案晚一個 macrotask 才回來。晚到的那一個若沒有真的在等，它會在這之前就結束，
+    // 而那時候答案還不在——這正是要守住的差別。
+    setTimeout(() => resolveRestore(SIGNED_IN_USER), 0)
+    await second
+
+    // 晚到的那一個**結束的時候答案必須已經在了**。它若提早結束，把關就會拿著一個
+    // 「沒登入」把人帶到登入畫面，而真正的答案回來時已經沒有人在等它了。
+    expect(currentUser.value?.email).toBe('james@example.com')
+    await first
+  })
+
   it('連不上後端時當作沒登入，並且說得出為什麼——不是白畫面', async () => {
     // 它不能拋：把關要靠它決定放不放行，而一個會拋的把關等於換頁到一半整個停住。
     userSessionApplication.restoreSession.mockRejectedValue(
@@ -78,6 +124,29 @@ describe('useUserSession：確認「現在是誰在用」只做一次', () => {
 })
 
 describe('useUserSession：送出那兩格', () => {
+  it('換頁完成之前不放開那顆鍵', async () => {
+    // 放開的話，換頁還在進行的那段時間畫面仍然是登入卡片，而那顆鍵已經能按了——
+    // 按一下 Enter 就會再送一次，開出第二段登入階段，而第一段沒有人撤得掉。
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { pending, submitCredentials } = sessionUnderTest()
+    let completeNavigation: () => void = () => {}
+    navigateToSpy.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      completeNavigation = () => resolve()
+    }))
+
+    const submission = submitCredentials('james@example.com', 'correct horse', 'signIn')
+    // 讓已經排隊的每一個 microtask 跑完，但換頁本身刻意還沒結束。
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(navigateToSpy).toHaveBeenCalled()
+    expect(pending.value).toBe(true)
+
+    completeNavigation()
+    await submission
+
+    expect(pending.value).toBe(false)
+  })
+
   it('登入成功就記住是誰', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { currentUser, submitCredentials } = sessionUnderTest()
@@ -192,6 +261,24 @@ describe('useUserSession：登入之後回到他本來要去的地方', () => {
 })
 
 describe('useUserSession：登出', () => {
+  it('連按兩下只送一次——同一份續用憑證被撤兩次會被後端讀成盜用', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { submitCredentials, signOut } = sessionUnderTest()
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+    let releaseSignOut: () => void = () => {}
+    userSessionApplication.signOut.mockReturnValue(
+      new Promise<void>((resolve) => {
+        releaseSignOut = resolve
+      }))
+
+    const first = signOut()
+    const second = signOut()
+    releaseSignOut()
+    await Promise.all([first, second])
+
+    expect(userSessionApplication.signOut).toHaveBeenCalledTimes(1)
+  })
+
   it('丟掉憑證、清乾淨共用狀態，然後回到登入畫面', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { currentUser, submitCredentials, rememberRedirectTo, signOut } = sessionUnderTest()

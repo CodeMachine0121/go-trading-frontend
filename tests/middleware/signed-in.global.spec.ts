@@ -18,18 +18,22 @@ const { session, navigateToSpy } = vi.hoisted(() => ({
 mockNuxtImport('useUserSession', () => () => session)
 mockNuxtImport('navigateTo', () => navigateToSpy)
 
-function routeTo(path: string) {
-  return { path, fullPath: path } as never
+/**
+ * 一條解析過的路由。`matched` 帶的是**路由器認出來的那一條**，而 `path` 是使用者
+ * 打進網址列的那串字——兩者會不一樣，而那正是這裡要守住的事。
+ */
+function routeTo(path: string, matchedPath = path) {
+  return { path, fullPath: path, matched: [{ path: matchedPath }] } as never
 }
 
-async function walkTo(path: string, signedInUser: SignedInUserDto | null) {
+async function walkTo(path: string, signedInUser: SignedInUserDto | null, matchedPath = path) {
   session.currentUser.value = signedInUser
   navigateToSpy.mockClear()
   session.rememberRedirectTo.mockClear()
 
   // 中介層的第三個參數在 Nuxt 裡是「從哪裡來」，這裡走到哪一頁與從哪裡來無關。
   return (signedInMiddleware as unknown as (
-    to: never, from: never) => Promise<unknown>)(routeTo(path), routeTo('/'))
+    to: never, from: never) => Promise<unknown>)(routeTo(path, matchedPath), routeTo('/'))
 }
 
 const SIGNED_IN_USER = { id: 7, email: 'james@example.com' } as SignedInUserDto
@@ -61,6 +65,23 @@ describe('把關：沒登入就只看得到登入畫面', () => {
 
   it('沒登入的人走到登入畫面就讓他待在那裡', async () => {
     await walkTo('/login', null)
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { name: '大小寫不同的網址', path: '/Login' },
+    { name: '結尾多一條斜線', path: '/login/' },
+  ])('已登入的人走到 $name 也會被帶回首頁', async ({ path }) => {
+    // 路由器認得這幾種寫法都是登入那一頁，卻把原本的拼法原樣留在 path 上。
+    // 拿字串直接比的話，登入成功之後會被送回登入畫面——讀起來像登入失敗。
+    await walkTo(path, SIGNED_IN_USER, '/login')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
+  })
+
+  it('沒登入的人走到大小寫不同的登入網址，就讓他待在那裡', async () => {
+    await walkTo('/Login', null, '/login')
 
     expect(navigateToSpy).not.toHaveBeenCalled()
   })

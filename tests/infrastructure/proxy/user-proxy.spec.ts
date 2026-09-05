@@ -115,6 +115,21 @@ describe('UserProxy.signIn', () => {
   })
 })
 
+describe('UserProxy：後端給的時刻', () => {
+  it.each([
+    { name: '登入憑證的到期時刻讀不出來', field: 'expiresAt' },
+    { name: '續用憑證的到期時刻讀不出來', field: 'refreshTokenExpiresAt' },
+  ])('$name 時當場拒絕，不往下傳一個壞掉的日期', async ({ field }) => {
+    // 往下傳的話：記住它時 toISOString() 會拋，而儲存那一側保證不拋、於是把它吞掉——
+    // 結果是登入看起來成功了卻什麼都沒記住，使用者每次重新整理都要重登，
+    // 而畫面上沒有任何一句話解釋為什麼。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ ...sessionWire(), [field]: 'not-a-date' }))
+
+    await expect(new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse'))
+      .rejects.toBeInstanceOf(BackendRequestRejectedError)
+  })
+})
+
 describe('UserProxy.renewSession', () => {
   it('帶著續用憑證去換，並把換回來的一對收乾淨', async () => {
     const fetchStub = vi.fn().mockResolvedValue(sessionWire())

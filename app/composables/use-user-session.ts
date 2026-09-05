@@ -36,12 +36,21 @@ export function useUserSession(
   userSessionApplication = useNuxtApp().$userSessionApplication,
 ) {
   const currentUser = useState<SignedInUserDto | null>('user-session', () => null)
-  const restored = useState('user-session-restored', () => false)
+  /**
+   * 正在進行（或已經完成）的那一次確認。
+   *
+   * 存的是**那個進行中的動作**而不是一個「問過了沒」的布林，因為布林有兩個各自會出事的空隙：
+   * 它必須在動作**開始**時就設起來（否則兩次同時的確認會各打一趟後端），而一旦這樣，
+   * 在答案回來之前問的人就會拿到一個很肯定的「沒登入」——然後被帶到登入畫面，
+   * 而真正的答案回來時已經沒有人在等它了。存下這個動作本身，晚到的人就會排在同一個答案後面。
+   */
+  const restoration = useState<Promise<void> | null>('user-session-restoration', () => null)
   const pending = useState('user-session-pending', () => false)
   const errorMessage = useState<string | null>('user-session-error', () => null)
   const fieldErrors = useState<CredentialsFieldErrorsDto | null>(
     'user-session-field-errors', () => null)
   const redirectTo = useState<string | null>('user-session-redirect-to', () => null)
+  const signingOut = useState('user-session-signing-out', () => false)
 
   /**
    * 確認這台瀏覽器記著的憑證認不認得出人來，**一個分頁只做一次**。
@@ -50,18 +59,26 @@ export function useUserSession(
    * 後端沒開的時候，正確的行為是把人帶到登入畫面並在那裡說明，不是白畫面。
    */
   async function ensureSessionRestored(): Promise<void> {
-    if (restored.value) {
-      return
-    }
+    restoration.value ??= restoreOnce()
 
-    restored.value = true
+    await restoration.value
+  }
 
+  /**
+   * 真正去確認一次。
+   *
+   * 問不出答案時**把這次確認忘掉**，讓下一次換頁重新問一次。留著的話，一個只是
+   * 「後端還沒啟動」的暫時狀況會變成這個分頁的永久狀態：後端起來了，使用者按遍每一頁
+   * 也回不去，只能整個重新載入——而畫面上那句話只叫他去啟動後端，沒說還要重新整理。
+   */
+  async function restoreOnce(): Promise<void> {
     try {
       currentUser.value = await userSessionApplication.restoreSession(new Date())
     }
     catch (error: unknown) {
       currentUser.value = null
       errorMessage.value = messageFor(error)
+      restoration.value = null
     }
   }
 
@@ -88,6 +105,13 @@ export function useUserSession(
       currentUser.value = mode === 'register'
         ? await userSessionApplication.registerUser(credentialsDto)
         : await userSessionApplication.signIn(credentialsDto)
+
+      // 被門擋下來的人想去的是門後面的某個地方，不是門廳。
+      //
+      // 換頁**在放開那顆鍵之前**完成。反過來的話，換頁還在進行的那段時間裡畫面仍然是
+      // 登入卡片，而那顆鍵已經能按了——按一下 Enter 就會再送一次，開出第二段登入階段，
+      // 而第一段的續用憑證從此沒有人撤得掉。
+      await navigateTo(takeRedirectTo())
     }
     catch (error: unknown) {
       if (error instanceof CredentialsFieldError) {
@@ -96,15 +120,10 @@ export function useUserSession(
       else {
         errorMessage.value = messageFor(error)
       }
-
-      return
     }
     finally {
       pending.value = false
     }
-
-    // 被門擋下來的人想去的是門後面的某個地方，不是門廳。
-    await navigateTo(takeRedirectTo())
   }
 
   /** 記下他本來要去哪，好在登入成功後把他放回那裡。 */
@@ -139,12 +158,22 @@ export function useUserSession(
    * 看起來像登出失敗了。
    */
   async function signOut(): Promise<void> {
+    // 連按兩下不能送出兩次。第二次會從儲存讀到**同一份**續用憑證（第一次還沒清掉），
+    // 於是同一份憑證被送去撤銷兩次——而後端把「同一份出現兩次」讀成盜用。
+    if (signingOut.value) {
+      return
+    }
+
+    signingOut.value = true
+
     // 登出現在要跑一趟後端（去撤掉這台裝置的登入階段）。它不會失敗——
     // 後端沒開時 service 會吞掉，因為登出在畫面上一定要成功。
     await userSessionApplication.signOut()
     currentUser.value = null
     redirectTo.value = null
     clearSubmissionFeedback()
+    restoration.value = null
+    signingOut.value = false
 
     await navigateTo(LOGIN_PATH)
   }

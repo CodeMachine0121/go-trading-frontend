@@ -146,13 +146,27 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
   /**
    * 兩個時刻在這裡就從字串收成日期。晚一步收的話，「這份憑證還有效嗎」這個判斷
    * 就得在領域裡處理字串——那是 wire 格式漏進來的樣子。
+   *
+   * 讀不出來的時刻**當場就是一次拒絕**，不是一個 `Invalid Date` 往下傳。往下傳的話，
+   * 記住它時 `toISOString()` 會拋，而儲存那一側保證不拋、於是把它吞掉——
+   * 結果是登入看起來成功了，卻什麼都沒被記住，使用者每次重新整理都要重登，
+   * 而畫面上沒有任何一句話解釋為什麼。
    */
   private toSession(sessionWire: SessionWire): Session {
     return new Session(
       sessionWire.accessToken,
-      new Date(sessionWire.expiresAt),
+      this.momentIn(sessionWire.expiresAt),
       sessionWire.refreshToken,
-      new Date(sessionWire.refreshTokenExpiresAt),
+      this.momentIn(sessionWire.refreshTokenExpiresAt),
     )
+  }
+
+  private momentIn(value: string): Date {
+    const moment = new Date(value)
+    if (Number.isNaN(moment.getTime())) {
+      throw new BackendRequestRejectedError(`後端給了一個讀不出來的時刻：「${value}」`)
+    }
+
+    return moment
   }
 }
