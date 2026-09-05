@@ -38,5 +38,12 @@ export class AppliedIndicatorRowDto {
     public readonly lines: readonly AppliedIndicatorLineDto[],
     /** 算完了，但這支算式沒有放進任何指標。**這不是失敗。** */
     public readonly drawsNothing: boolean,
+    /**
+     * 這一列現在畫在圖上嗎。
+     *
+     * 它與「算不算」是兩件事：收起來的那一支照樣跟著重算，只是不畫出來——
+     * 所以它的顏色仍然被佔著，再打開時線是同一條，不會換一個顏色回來。
+     */
+    public readonly isVisible: boolean,
   ) {}
 }

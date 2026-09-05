@@ -145,8 +145,34 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           oneSeries.lineKey, oneSeries.indicatorName, oneSeries.colorToken)),
       ],
       drawn?.drawsNothing ?? false,
+      appliedIndicator.shownOnChart,
     )
   }))
+
+  /**
+   * 圖上真的畫出來的那幾筆。
+   *
+   * 與 `chartIndicators` 分開，因為它們回答的是兩個問題：那個是「算出了什麼」，
+   * 這個是「現在看得到什麼」。避開顏色、判斷誰畫過哪條線一律問前者——
+   * 收起來的那一支仍然佔著它的顏色，否則再打開時線會換一個顏色回來。
+   */
+  const visibleChartIndicators = computed(() => chartIndicators.value.filter(
+    indicator => appliedIndicators.value.some(
+      applied => applied.id === indicator.appliedIndicatorId && applied.shownOnChart)))
+
+  /**
+   * 收起這一筆的線，或把它拿回來。
+   *
+   * **不重算**——算出來的值一個字都不會變。**要記住**——收起來與否是這一筆的一部分，
+   * 與「他把那幾格調成什麼」同一份留存、同一個寫入點。
+   */
+  function toggleAppliedIndicatorVisibility(appliedIndicatorId: number) {
+    appliedIndicators.value = appliedIndicators.value.map(
+      applied => (applied.id === appliedIndicatorId
+        ? applied.withShownOnChart(!applied.shownOnChart)
+        : applied))
+    rememberAppliedIndicators()
+  }
 
   /** 還沒上圖那一筆的那幾格。同一個問法，只是問的是還沒上圖的那一筆。 */
   const pendingParameterFields = computed(
@@ -299,10 +325,15 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    *
    * 寫的是**能用的那一份**：成員與順序照畫面上那一份，但每一筆的值取它最後一次用得了的樣子。
    * 兩者只有在使用者正把一個用不了的值留在某一格裡時才不同。
+   *
+   * **收起來與否一律取畫面上那一份。** 那份「最後一次用得了的樣子」是為了值而留的快照，
+   * 它上面的眼睛可能是好幾次操作之前的：拿它去寫，使用者在某一格填著用不了的值時
+   * 按下的每一次眼睛都會安靜地寫回舊的樣子——而畫面上那隻眼睛明明是新的。
    */
   function rememberAppliedIndicators() {
     chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
-      applied => lastUsableAppliedIndicators.get(applied.id) ?? applied))
+      applied => (lastUsableAppliedIndicators.get(applied.id) ?? applied)
+        .withShownOnChart(applied.shownOnChart)))
   }
 
   /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
@@ -549,6 +580,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     appliedIndicators,
     appliedIndicatorRows,
     chartIndicators,
+    visibleChartIndicators,
     colorOptions,
     pendingAppliedIndicator,
     pendingParameterFields,
@@ -561,6 +593,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     cancelPendingIndicator,
     changeAppliedParameterValue,
     removeAppliedIndicator,
+    toggleAppliedIndicatorVisibility,
     recalculateForRange,
     recalculateAfterKCandleClosed,
     clearLines,

@@ -228,6 +228,81 @@ describe('圖表上的指標：挑一支套上去', () => {
   })
 })
 
+describe('圖表上的指標：把一支先收起來', () => {
+  it('收起來的那一支不畫在圖上，但仍然留在清單上', async () => {
+    // 收的是那條線，不是那一支指標——要真的拿掉它，清單上另有一顆按鈕。
+    const { wrapper } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toEqual([])
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
+  })
+
+  it('收起來的只有它自己，另一支照樣畫著', async () => {
+    const { wrapper } = await mountPanel({
+      strategies: [
+        buildStoredStrategy(7, '要收起來的', { resultType: 'float' }),
+        buildStoredStrategy(8, '要留著的', { resultType: 'float' }),
+      ],
+      calculateIndicator: vi.fn()
+        .mockResolvedValueOnce(aCalculation('甲'))
+        .mockResolvedValueOnce(aCalculation('乙')),
+    })
+    await applyStrategy(wrapper, 7)
+    await applyStrategy(wrapper, 8)
+
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+
+    const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
+    expect(indicators.map(indicator => indicator.appliedIndicatorId)).toEqual([2])
+  })
+
+  it('再按一下就畫回來，而且是同一個顏色的同一條線', async () => {
+    // 收起來的那一支仍然佔著它的顏色。不然拿回來時會換一個顏色，
+    // 看起來像是另一條線——而使用者只是把眼睛按了兩下。
+    const { wrapper } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+    const before = wrapper.findComponent(KCandleChart).props('indicators') ?? []
+
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toEqual(before)
+  })
+
+  it('收起來時不重算——算出來的值一個字都不會變', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+
+    // 套用時算過的那一次，就是全部——按眼睛沒有再算一次。
+    expect(calculateIndicator).toHaveBeenCalledTimes(1)
+  })
+
+  it('收起來的那一支照樣跟著重算，拿回來時線就是最新的', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledTimes(2)
+    expect(calculateIndicator).toHaveBeenLastCalledWith(
+      expect.objectContaining({ symbol: 'ETHUSDT' }))
+  })
+})
+
 describe('圖表上的指標：什麼時候重算', () => {
   it('換交易標的就重算一次', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()

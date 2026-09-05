@@ -14,6 +14,7 @@ const APPLIED_CHART_INDICATORS_STORAGE_KEY = 'go-trading:chart-applied-indicator
 type AppliedChartIndicatorWire = {
   strategyId: unknown
   parameterValues: unknown
+  shownOnChart: unknown
 }
 
 /**
@@ -72,14 +73,19 @@ implements IAppliedChartIndicatorPreferenceProxy {
       return []
     }
 
-    const { strategyId, parameterValues } = wire as AppliedChartIndicatorWire
+    const { strategyId, parameterValues, shownOnChart } = wire as AppliedChartIndicatorWire
     // 識別碼是拿去對回一支策略的鑰匙。它不是整數就沒有任何策略對得上。
     if (typeof strategyId !== 'number' || !Number.isInteger(strategyId)) {
       return []
     }
 
     return [new RememberedAppliedIndicatorVo(
-      strategyId, this.toParameterValues(parameterValues))]
+      strategyId,
+      this.toParameterValues(parameterValues),
+      // 讀不出一個是非就是「看得見」：這一項是後來才加的，先前存下去的那幾筆沒有它，
+      // 而它們當時就是看得見的。壞掉的值落在同一個答案上，剛好也是安全的那一個。
+      typeof shownOnChart === 'boolean' ? shownOnChart : true,
+    )]
   }
 
   /**
@@ -108,6 +114,7 @@ implements IAppliedChartIndicatorPreferenceProxy {
     return {
       strategyId: rememberedAppliedIndicatorVo.strategyId,
       parameterValues: Object.fromEntries(rememberedAppliedIndicatorVo.parameterValues),
+      shownOnChart: rememberedAppliedIndicatorVo.shownOnChart,
     }
   }
 }

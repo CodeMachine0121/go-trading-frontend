@@ -25,6 +25,17 @@ export class AppliedIndicatorDto {
     public readonly strategy: StrategyDto,
     /** 這一次要用的那幾格。名稱與種類照策略的宣告，值是這一次的。 */
     public readonly parameters: readonly StrategyParameterDto[],
+    /**
+     * 這一筆現在畫在圖上嗎。
+     *
+     * **它是這一次套用的一部分，不是畫面另外記的一件事**——所以它跟著
+     * `toRememberedVo()` 一起留存，下次打開時收著的那幾筆仍然收著。
+     * 曾經有一份「哪幾筆收起來了」的序號清單住在畫面那一側，但序號只在這個畫面活著，
+     * 那份清單因此**不可能**留存得下來：它記的是一組下次就不存在的號碼。
+     *
+     * 預設看得見：剛挑一支上圖的人要的就是看到它。
+     */
+    public readonly shownOnChart: boolean = true,
   ) {}
 
   /**
@@ -56,12 +67,14 @@ export class AppliedIndicatorDto {
    *
    * **序號不帶走**：它只在這個畫面活著，下次打開時圖上那幾筆會拿到新的序號。
    * **種類也不帶走**：種類是宣告說的，留存它只會讓一份過期的種類贏過宣告。
-   * 帶走的是使用者真正要求過的那兩樣：他要哪一支，以及他把那幾格調成什麼。
+   * 帶走的是使用者真正要求過的那三樣：他要哪一支、把那幾格調成什麼，
+   * 以及他有沒有把它收起來。
    */
   toRememberedVo(): RememberedAppliedIndicatorVo {
     return new RememberedAppliedIndicatorVo(
       this.strategy.id,
       new Map(this.parameters.map(parameter => [parameter.name, parameter.value])),
+      this.shownOnChart,
     )
   }
 
@@ -73,6 +86,12 @@ export class AppliedIndicatorDto {
       this.parameters.map(parameter => (parameter.name === parameterName
         ? new StrategyParameterDto(parameter.name, parameter.kind, value)
         : parameter)),
+      this.shownOnChart,
     )
+  }
+
+  /** 把它收起來或畫回去，交出改過之後的自己。**值一個字都不動。** */
+  withShownOnChart(shownOnChart: boolean): AppliedIndicatorDto {
+    return new AppliedIndicatorDto(this.id, this.strategy, this.parameters, shownOnChart)
   }
 }

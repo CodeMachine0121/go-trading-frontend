@@ -307,6 +307,18 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
   })
 
+  it('把控制項收起來，一則「連不上後端」照樣看得見', async () => {
+    // 收起「看什麼」的人收的是控制項。一則說「圖現在怎麼了」的訊息跟著被收走，
+    // 正好是在他最需要看到它的時候把它藏起來。
+    const wrapper = await mountPanel(buildProxy({
+      findKCandleSeries: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles/series')),
+    }))
+
+    await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="unreachable-alert"]').text()).toContain('連不上後端')
+  })
+
   it('前一次失敗、這一次成功時，先前的錯誤訊息消失', async () => {
     const findKCandleSeries = vi.fn()
       .mockRejectedValueOnce(new BackendUnreachableError('/k-candles/series'))

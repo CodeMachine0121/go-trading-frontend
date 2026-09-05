@@ -11,11 +11,21 @@
  *
  * **值用 `Map` 而不是第二個 VO**：還原時對它做的唯一一件事就是「按名稱查」，
  * 而那正是 `Map` 的形狀。
+ *
+ * **收起來與否在裡面**，理由與值一樣：它是使用者要求過的東西。
+ * 反過來說，「哪幾筆收起來了」不可能記成一份序號清單——序號只在那一次瀏覽活著。
  */
 export class RememberedAppliedIndicatorVo {
   constructor(
     public readonly strategyId: number,
     /** 名稱 → 那一次調成的值。留存裡沒有那個名字時，還原會用宣告的預設值。 */
     public readonly parameterValues: ReadonlyMap<string, number>,
+    /**
+     * 他有沒有把它畫在圖上。
+     *
+     * **預設看得見**，而且這個預設是有用的：先前存下來的那幾筆裡沒有這一項，
+     * 讀回來時它們一律是看得見的——那正是它們被存下去時的樣子。
+     */
+    public readonly shownOnChart: boolean = true,
   ) {}
 }

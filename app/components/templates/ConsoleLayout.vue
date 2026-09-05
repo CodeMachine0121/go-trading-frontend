@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
 
 // 樣板：全站共用的版面骨架，只有結構與插槽，不綁任何資料。
 //
@@ -22,10 +23,25 @@ defineProps<{
   title: string
   subtitle?: string
 }>()
+
+/**
+ * 側欄收起來了沒有。
+ *
+ * **收起來的是那幾個字，不是那幾個地方**：側欄縮成一條只剩圖示的窄邊，
+ * 五個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
+ * 而他多數時候只是想讓圖寬一點。
+ *
+ * 它是跨畫面共用的狀態（`useState`）而不是這個元件裡的一個 `ref`：
+ * 每換一個畫面，樣板就重新掛載一次，而使用者收起來的側欄不該在他走到下一頁時彈回來。
+ */
+const railStowed = useState('console-rail-stowed', () => false)
 </script>
 
 <template>
-  <div class="console-layout">
+  <div
+    class="console-layout"
+    :class="{ 'console-layout--stowed': railStowed }"
+  >
     <nav
       class="console-layout__rail"
       aria-label="操作台"
@@ -33,6 +49,25 @@ defineProps<{
       <div class="console-layout__brand">
         <span class="console-layout__brand-mark" />
         <span class="console-layout__brand-name">go-trading</span>
+
+        <!--
+          收起來那顆鍵釘在標記旁邊：收起來之後那裡只剩一個點，
+          而使用者要把側欄拿回來，就得知道去哪裡按——那個位置不能跟著字一起消失。
+        -->
+        <AppButton
+          variant="ghost"
+          size="small"
+          class="console-layout__stow"
+          :label="railStowed ? '展開側欄' : '收起側欄'"
+          data-testid="toggle-rail"
+          @click="railStowed = !railStowed"
+        >
+          <AppIcon
+            name="chevron"
+            size="small"
+            class="console-layout__stow-chevron"
+          />
+        </AppButton>
       </div>
 
       <ul class="console-layout__destinations">
@@ -40,15 +75,20 @@ defineProps<{
           v-for="destination in DESTINATIONS"
           :key="destination.to"
         >
+          <!--
+            收起來時名字仍然在 DOM 裡，只是看不見：拿掉它，讀螢幕的人聽到的
+            就是五條沒有名字的連結；停在上面的人則靠 title 讀出它是哪一個。
+          -->
           <NuxtLink
             :to="destination.to"
             class="console-layout__link"
+            :title="destination.label"
           >
             <AppIcon
               :name="destination.icon"
               size="small"
             />
-            {{ destination.label }}
+            <span class="console-layout__link-label">{{ destination.label }}</span>
           </NuxtLink>
         </li>
       </ul>
@@ -107,6 +147,14 @@ defineProps<{
     grid-template-columns: 13rem minmax(0, 1fr);
   }
 
+  // 收起來只在側欄真的是一條側欄時才成立。窄螢幕上它躺平成頂上一條，
+  // 那時候收起來的是「一條窄帶的高度」——省不到什麼，卻讓五個畫面變得難按。
+  &--stowed {
+    @include respond-to('lg') {
+      grid-template-columns: 3rem minmax(0, 1fr);
+    }
+  }
+
   &__rail {
     display: flex;
     gap: spacing('md');
@@ -135,6 +183,31 @@ defineProps<{
     padding: 0 spacing('2xs');
   }
 
+  // 收起來那顆鍵只在側欄真的是一條側欄時才畫得出來——見上面 --stowed 的理由。
+  &__stow {
+    display: none;
+
+    @include respond-to('lg') {
+      display: inline-flex;
+      margin-left: auto;
+      color: color('text-faint');
+    }
+  }
+
+  // 那個角指著它按下去會往哪裡走：開著時往左（收過去），收著時往右（拉回來）。
+  &__stow-chevron {
+    transition: transform duration('fast') ease;
+    transform: rotate(90deg);
+  }
+
+  &--stowed &__stow {
+    margin-left: 0;
+  }
+
+  &--stowed &__stow-chevron {
+    transform: rotate(-90deg);
+  }
+
   &__brand-mark {
     flex: none;
     border-radius: radius('pill');
@@ -149,6 +222,51 @@ defineProps<{
     font-size: font-size('sm');
     font-family: font-family('mono');
     white-space: nowrap;
+  }
+
+  // 收起來時那幾個字退到看不見，**但留在 DOM 裡**：拿掉它們，
+  // 讀螢幕的人聽到的就是五條沒有名字的連結，而那條側欄等於壞了。
+  &--stowed &__brand-name {
+    @include respond-to('lg') {
+      @include visually-hidden;
+    }
+  }
+
+  // 名字不見了，那顆點就不再是標記而只是一個點——三公分寬的邊上，
+  // 它佔的是那顆「把側欄拿回來」的鍵需要的位置。
+  &--stowed &__brand-mark {
+    @include respond-to('lg') {
+      display: none;
+    }
+  }
+
+  &--stowed &__link-label {
+    @include respond-to('lg') {
+      @include visually-hidden;
+    }
+  }
+
+  // 只剩圖示時，一條左邊留著字距的連結會讓那排圖示歪在一邊。
+  &--stowed &__link {
+    @include respond-to('lg') {
+      justify-content: center;
+      padding: spacing('xs') 0;
+    }
+  }
+
+  // 側欄自己也收窄：留著給文字的內距，那條邊就不是三公分而是四公分。
+  &--stowed &__rail {
+    @include respond-to('lg') {
+      padding-right: spacing('2xs');
+      padding-left: spacing('2xs');
+    }
+  }
+
+  &--stowed &__brand {
+    @include respond-to('lg') {
+      justify-content: center;
+      padding: 0;
+    }
   }
 
   &__destinations {
