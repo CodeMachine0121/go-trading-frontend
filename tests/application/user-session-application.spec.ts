@@ -265,6 +265,21 @@ describe('UserSessionApplication.restoreSession', () => {
     expect(fixture.sessionStorageProxy.clearSession).toHaveBeenCalled()
   })
 
+  it('剛換過一份全新的還是被拒絕時，不會再拿已經作廢的那一份去換', async () => {
+    // 這一步做錯的代價很具體：手上原本那份續用憑證在剛才的換發裡已經作廢了，
+    // 再送一次會被後端判定為盜用，把這台裝置整條登入階段撤掉——
+    // 使用者從「重登一次」變成「連另一台也被登出」。
+    const fixture = buildFixture({
+      readSession: vi.fn().mockReturnValue(STALE_ACCESS_SESSION),
+      fetchSignedInUser: vi.fn().mockRejectedValue(new AuthenticationRequiredError('請重新登入')),
+    })
+
+    await expect(fixture.application.restoreSession(NOW)).resolves.toBeNull()
+    expect(fixture.userProxy.renewSession).toHaveBeenCalledTimes(1)
+    expect(fixture.userProxy.fetchSignedInUser).toHaveBeenCalledTimes(1)
+    expect(fixture.sessionStorageProxy.clearSession).toHaveBeenCalled()
+  })
+
   it('登入憑證過期、換發又被拒絕就當作沒登入，而且問都不問', async () => {
     const fixture = buildFixture({
       readSession: vi.fn().mockReturnValue(STALE_ACCESS_SESSION),

@@ -71,20 +71,26 @@ export class UserSessionService {
       return null
     }
 
-    const usableSession = session.accessTokenUsable(now)
-      ? session
-      : await this.renewedSession(session)
+    // 這一趟有沒有換過，決定了被拒絕時還有沒有下一步。它必須先記下來：
+    // 換過之後手上這一份就是全新的，而「全新的也被拒絕」是完全不同的一件事。
+    const renewedUpFront = !session.accessTokenUsable(now)
+    const usableSession = renewedUpFront ? await this.renewedSession(session) : session
     if (usableSession === null) {
       return null
     }
 
-    try {
-      return await this.signedInUserFor(usableSession)
+    const signedInUser = await this.signedInUserOrRefused(usableSession)
+    if (signedInUser !== null) {
+      return signedInUser
     }
-    catch (error: unknown) {
-      if (!(error instanceof AuthenticationRequiredError)) {
-        throw error
-      }
+
+    // 剛才才換過一份全新的，後端還是不認得它——那就不是憑證過期的問題了。
+    // 而且**手上那一份原本的續用憑證已經在剛才的換發裡被作廢了**：再拿它去換一次，
+    // 後端會判定為盜用，把這台裝置整條登入階段撤掉。重登一次遠比那個便宜。
+    if (renewedUpFront) {
+      this.sessionStorageProxy.clearSession()
+
+      return null
     }
 
     const renewedSession = await this.renewedSession(session)
@@ -92,20 +98,13 @@ export class UserSessionService {
       return null
     }
 
-    try {
-      return await this.signedInUserFor(renewedSession)
+    const signedInUserAfterRenewal = await this.signedInUserOrRefused(renewedSession)
+    if (signedInUserAfterRenewal === null) {
+      // 換到了全新的憑證，後端還是不認得。再換一次只會得到同樣的答案。
+      this.sessionStorageProxy.clearSession()
     }
-    catch (error: unknown) {
-      if (error instanceof AuthenticationRequiredError) {
-        // 換到了一份全新的憑證，後端還是不認得它——這已經不是憑證過期了。
-        // 再換一次只會得到同樣的答案，外加一次踩到盜用偵測的機會。
-        this.sessionStorageProxy.clearSession()
 
-        return null
-      }
-
-      throw error
-    }
+    return signedInUserAfterRenewal
   }
 
   /**
@@ -186,5 +185,28 @@ export class UserSessionService {
     const signedInUser = await this.userProxy.fetchSignedInUser(session.accessToken())
 
     return signedInUser.toDto()
+  }
+
+  /**
+   * 同上，但「後端說這份憑證不算數」回 `null` 而不是拋出。
+   *
+   * 之所以把那一種失敗變成一個值：`restoreSession` 有兩個地方會問這件事，
+   * 而兩個地方對「被拒絕」的下一步不同（一個還能換一次，一個沒得換了）。
+   * 用回傳值表達，那兩步就攤在同一層看得完；用例外表達，就會變成兩段幾乎一樣的
+   * try/catch，而它們之間唯一的差別會藏在各自的 catch 裡。
+   *
+   * 其餘的失敗（例如連不上後端）照樣往上拋——那不是「不算數」，是根本沒問到。
+   */
+  private async signedInUserOrRefused(session: SessionDomain): Promise<SignedInUserDto | null> {
+    try {
+      return await this.signedInUserFor(session)
+    }
+    catch (error: unknown) {
+      if (error instanceof AuthenticationRequiredError) {
+        return null
+      }
+
+      throw error
+    }
   }
 }

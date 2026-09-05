@@ -44,6 +44,11 @@
 | R8 | 登入憑證過期，`renewSession` 拋 `BackendUnreachableError` | **拋出**該錯誤；**`clearSession` 不被呼叫** |
 | R9 | 兩份都有效，`fetchSignedInUser` 拋 `BackendUnreachableError` | **拋出**該錯誤；`renewSession` 不被呼叫；`clearSession` 不被呼叫 |
 | R10 | 換發成功但 `writeSession` 什麼都沒做（記不住） | 這一次仍然回得出目前登入者 |
+| R11 | 登入憑證過期 → 換了一對 → 拿**新的**去問卻仍被拒絕 | 回 `null`；`clearSession` 被呼叫；**`renewSession` 只被呼叫過一次**——手上原本那份續用憑證在剛才的換發裡已經作廢，再送一次會被後端判定為盜用，把整條鏈撤掉 |
+
+> R11 是實作階段補上的：原本的 ORACLE 沒有涵蓋「先換過再被拒絕」這條路，
+> 而第一版實作在那條路上會拿已經作廢的續用憑證再換一次。
+> **這是補一個漏掉的案例，不是放寬既有的標準。**
 
 ## UserSessionApplication.signIn / registerUser（US-01）
 
