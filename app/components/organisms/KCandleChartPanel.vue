@@ -278,6 +278,7 @@ onMounted(async () => {
         @confirm-pending="chartIndicators.confirmPendingIndicator"
         @cancel-pending="chartIndicators.cancelPendingIndicator"
         @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
+        @toggle-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
         @remove="chartIndicators.removeAppliedIndicator"
         @change-line-color="chartIndicators.changeLineColor"
       />
@@ -395,7 +396,7 @@ onMounted(async () => {
         :visible-start-time="visibleStartTime"
         :visible-end-time="visibleEndTime"
         :time-zone="timeZone"
-        :indicators="chartIndicators.chartIndicators.value"
+        :indicators="chartIndicators.visibleChartIndicators.value"
         @range-change="showRange"
       />
 

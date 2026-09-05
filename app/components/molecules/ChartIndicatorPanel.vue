@@ -40,6 +40,7 @@ const emit = defineEmits<{
   confirmPending: []
   cancelPending: []
   changeAppliedParameterValue: [appliedIndicatorId: number, parameterName: string, value: number]
+  toggleVisibility: [appliedIndicatorId: number]
   remove: [appliedIndicatorId: number]
   changeLineColor: [lineKey: string, colorToken: string]
 }>()
@@ -172,9 +173,25 @@ function applyPicked(value: string) {
           而使用者多數時候只是在看「圖上現在有哪幾條」。
         -->
         <div class="chart-indicator-panel__item-row">
+          <!--
+            眼睛收的是**那條線**，不是那一支指標：它照樣在清單上、照樣跟著重算。
+            要真的拿掉它，旁邊那顆垃圾桶才是。
+          -->
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="small"
+            :label="row.isVisible ? '在圖上收起來' : '畫回圖上'"
+            :data-testid="`toggle-indicator-visibility-${row.appliedIndicator.id}`"
+            @click="emit('toggleVisibility', row.appliedIndicator.id)"
+          >
+            <AppIcon :name="row.isVisible ? 'shown' : 'hidden'" />
+          </AppButton>
+
           <button
             type="button"
             class="chart-indicator-panel__open"
+            :class="{ 'chart-indicator-panel__open--hidden': !row.isVisible }"
             :data-testid="`open-indicator-${row.appliedIndicator.id}`"
             @click="openedAppliedIndicatorId = row.appliedIndicator.id"
           >
@@ -373,6 +390,11 @@ function applyPicked(value: string) {
     text-align: left;
 
     @include focus-ring;
+
+    // 收起來的那一列要看得出「它在，只是圖上沒有」——所以是暗下來，不是消失。
+    &--hidden {
+      opacity: 0.45;
+    }
   }
 
   // 名字吃掉中間所有剩下的寬度，右邊那幾樣（狀態、移除）才會貼齊右緣。

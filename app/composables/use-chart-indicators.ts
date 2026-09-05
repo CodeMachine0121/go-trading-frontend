@@ -41,6 +41,18 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const parameterMessages = ref<Map<number, string>>(new Map())
 
   /**
+   * 使用者暫時收起來的那幾筆——**收起來的是那條線，不是那一支指標**。
+   *
+   * 它們仍然在清單上、仍然跟著重算、仍然佔著自己的顏色：使用者要的是
+   * 「先讓開一下，我要看蠟燭」，不是「拿掉它」——後者清單上已經有一顆按鈕了。
+   * 照樣算是刻意的：再打開時圖上立刻就有線，而不是等一次計算。
+   *
+   * 它只活在這一次瀏覽裡，不留存：留存的是「他要哪幾支」，
+   * 而「這一刻先讓開一下」是這一刻的事。
+   */
+  const hiddenAppliedIndicatorIds = ref<number[]>([])
+
+  /**
    * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略，正在調它的值。
    *
    * 它與已經在圖上的那幾筆是不同的東西——**還沒有人算過它**，
@@ -145,8 +157,27 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           oneSeries.lineKey, oneSeries.indicatorName, oneSeries.colorToken)),
       ],
       drawn?.drawsNothing ?? false,
+      !hiddenAppliedIndicatorIds.value.includes(appliedIndicator.id),
     )
   }))
+
+  /**
+   * 圖上真的畫出來的那幾筆。
+   *
+   * 與 `chartIndicators` 分開，因為它們回答的是兩個問題：那個是「算出了什麼」，
+   * 這個是「現在看得到什麼」。避開顏色、判斷誰畫過哪條線一律問前者——
+   * 收起來的那一支仍然佔著它的顏色，否則再打開時線會換一個顏色回來。
+   */
+  const visibleChartIndicators = computed(() => chartIndicators.value.filter(
+    indicator => !hiddenAppliedIndicatorIds.value.includes(indicator.appliedIndicatorId)))
+
+  /** 收起這一筆的線，或把它拿回來。**不重算**——算出來的值一個字都不會變。 */
+  function toggleAppliedIndicatorVisibility(appliedIndicatorId: number) {
+    hiddenAppliedIndicatorIds.value
+      = hiddenAppliedIndicatorIds.value.includes(appliedIndicatorId)
+        ? hiddenAppliedIndicatorIds.value.filter(id => id !== appliedIndicatorId)
+        : [...hiddenAppliedIndicatorIds.value, appliedIndicatorId]
+  }
 
   /** 還沒上圖那一筆的那幾格。同一個問法，只是問的是還沒上圖的那一筆。 */
   const pendingParameterFields = computed(
@@ -331,6 +362,9 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     forgetFailure(appliedIndicatorId)
     parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, null)
     lastUsableAppliedIndicators.delete(appliedIndicatorId)
+    // 那一筆不在了，「它收著」也就不再是任何問題的答案。
+    hiddenAppliedIndicatorIds.value = hiddenAppliedIndicatorIds.value.filter(
+      id => id !== appliedIndicatorId)
     // 不寫的話它明天會回來，而使用者明明已經把它拿下來了。
     rememberAppliedIndicators()
   }
@@ -549,6 +583,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     appliedIndicators,
     appliedIndicatorRows,
     chartIndicators,
+    visibleChartIndicators,
     colorOptions,
     pendingAppliedIndicator,
     pendingParameterFields,
@@ -561,6 +596,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     cancelPendingIndicator,
     changeAppliedParameterValue,
     removeAppliedIndicator,
+    toggleAppliedIndicatorVisibility,
     recalculateForRange,
     recalculateAfterKCandleClosed,
     clearLines,
