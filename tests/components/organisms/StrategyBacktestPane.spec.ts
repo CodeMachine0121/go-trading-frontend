@@ -214,6 +214,30 @@ describe('StrategyBacktestPane', () => {
   })
 
   describe('按下去之後的每一種狀態', () => {
+    it('算的時候顯示進行中，執行鍵停用', async () => {
+      // 避免他以為沒反應而按第二次。
+      let finishRun: (backtest: Backtest) => void = () => {}
+      const wrapper = mountPane(buildProxy({
+        runBacktest: vi.fn(() => new Promise<Backtest>((resolve) => {
+          finishRun = resolve
+        })),
+      }))
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="backtest-running-alert"]').exists()).toBe(true)
+      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
+        .toBeDefined()
+
+      finishRun(completedBacktest())
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="backtest-running-alert"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
+        .toBeUndefined()
+    })
+
     it('後端連不上時執行鍵停用——按了也沒用', async () => {
       const wrapper = mountPane(buildProxy({
         runBacktest: vi.fn().mockRejectedValue(new BackendUnreachableError('連不上')),

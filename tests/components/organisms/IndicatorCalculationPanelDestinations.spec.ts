@@ -100,6 +100,26 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
       .querySelector('.cm-content')?.textContent).toContain(SCRIPT_BODY)
   })
 
+  it('切過去再切回來，填到一半的回測條件一格都沒掉', async () => {
+    // 他為了看一眼指標而離開，回來時不該發現自己得重填。
+    const wrapper = mountPanel()
+    await settle()
+
+    await wrapper.get('[data-testid="tab-backtest"]').trigger('click')
+    await wrapper.get('[data-testid="backtest-initial-capital-input"]').setValue('54321')
+    await wrapper.get('[data-testid="backtest-start-time-input"]').setValue('2026-07-01T00:00')
+
+    await wrapper.get('[data-testid="tab-indicatorPreview"]').trigger('click')
+    await wrapper.get('[data-testid="tab-backtest"]').trigger('click')
+
+    const capital = wrapper.get('[data-testid="backtest-initial-capital-input"]')
+      .element as HTMLInputElement
+    const start = wrapper.get('[data-testid="backtest-start-time-input"]')
+      .element as HTMLInputElement
+    expect(capital.value).toBe('54321')
+    expect(start.value).toBe('2026-07-01T00:00')
+  })
+
   it('算式是共用的那一份，回測看到的就是編輯區裡那一段', async () => {
     const wrapper = mountPanel()
     await typeScriptBody(wrapper, SCRIPT_BODY)
