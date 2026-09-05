@@ -17,9 +17,10 @@ function strategyOf(
 }
 
 function rememberedOf(
-  strategyId: number, parameterValues: Record<string, number> = {},
+  strategyId: number, parameterValues: Record<string, number> = {}, shownOnChart = true,
 ): RememberedAppliedIndicatorVo {
-  return new RememberedAppliedIndicatorVo(strategyId, new Map(Object.entries(parameterValues)))
+  return new RememberedAppliedIndicatorVo(
+    strategyId, new Map(Object.entries(parameterValues)), shownOnChart)
 }
 
 function restore(
@@ -37,6 +38,15 @@ describe('RememberedAppliedIndicatorsDomain：上次那幾支自己回來', () =
 
     expect(restored.map(one => [one.strategy.name, one.parameterSummary]))
       .toEqual([['均線', '期數 60']])
+  })
+
+  it('收起來的那一筆回來時仍然收著，其餘照樣看得見', () => {
+    const restored = restore(
+      [rememberedOf(7, {}, false), rememberedOf(9, {}, true)],
+      [strategyOf(7, '均線'), strategyOf(9, '布林')])
+
+    expect(restored.map(one => [one.strategy.name, one.shownOnChart]))
+      .toEqual([['均線', false], ['布林', true]])
   })
 
   it('好幾筆依留存的順序回來——順序決定沒挑過顏色時誰先拿到哪個顏色', () => {

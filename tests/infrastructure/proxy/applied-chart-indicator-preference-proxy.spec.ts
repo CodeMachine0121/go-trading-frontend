@@ -10,9 +10,10 @@ afterEach(() => {
 })
 
 function rememberedOf(
-  strategyId: number, parameterValues: Record<string, number> = {},
+  strategyId: number, parameterValues: Record<string, number> = {}, shownOnChart = true,
 ): RememberedAppliedIndicatorVo {
-  return new RememberedAppliedIndicatorVo(strategyId, new Map(Object.entries(parameterValues)))
+  return new RememberedAppliedIndicatorVo(
+    strategyId, new Map(Object.entries(parameterValues)), shownOnChart)
 }
 
 /** 讀回來的那幾筆攤成好比對的形狀。 */
@@ -69,6 +70,18 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
     expect(proxy.readAppliedChartIndicators()).toEqual([])
   })
 
+  it('收起來的那一筆下次回來時仍然收著', () => {
+    // 眼睛按下去的是「我現在不想看到這條線」，而那個意思不會因為他關掉分頁就過期。
+    const proxy = new AppliedChartIndicatorPreferenceProxy()
+
+    proxy.writeAppliedChartIndicators([
+      rememberedOf(7, {}, false),
+      rememberedOf(9, {}, true),
+    ])
+
+    expect(proxy.readAppliedChartIndicators().map(one => one.shownOnChart)).toEqual([false, true])
+  })
+
   it('種類不寫進去——種類是宣告說的，留存它只會讓過期的種類贏過宣告', () => {
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
@@ -114,6 +127,19 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
 
     expect(readAsPlain(new AppliedChartIndicatorPreferenceProxy()))
       .toEqual([{ strategyId: 7, parameterValues: {} }])
+  })
+
+  it.each([
+    { name: '整個不存在（先前存下去的那幾筆沒有它）', stored: '{"strategyId":7}' },
+    { name: '不是一個是非', stored: '{"strategyId":7,"shownOnChart":"false"}' },
+    { name: '是 null', stored: '{"strategyId":7,"shownOnChart":null}' },
+  ])('收起來與否$name：當成看得見', ({ stored }) => {
+    // 「看得見」是先前存下去的那幾筆當時的樣子，也是壞掉時安全的那一個答案——
+    // 猜錯成「收起來」的話，使用者會看到一份少了幾條線的圖而找不出原因。
+    localStorage.setItem(STORAGE_KEY, `[${stored}]`)
+
+    expect(new AppliedChartIndicatorPreferenceProxy()
+      .readAppliedChartIndicators().map(one => one.shownOnChart)).toEqual([true])
   })
 
   it.each([

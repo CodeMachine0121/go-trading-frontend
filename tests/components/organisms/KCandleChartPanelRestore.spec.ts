@@ -57,9 +57,10 @@ function strategyWithLookback(id = 7, name = '均線') {
 
 /** 留存下來的一筆。 */
 function rememberedOf(
-  strategyId: number, parameterValues: Record<string, number> = {},
+  strategyId: number, parameterValues: Record<string, number> = {}, shownOnChart = true,
 ): RememberedAppliedIndicatorVo {
-  return new RememberedAppliedIndicatorVo(strategyId, new Map(Object.entries(parameterValues)))
+  return new RememberedAppliedIndicatorVo(
+    strategyId, new Map(Object.entries(parameterValues)), shownOnChart)
 }
 
 async function mountPanel(overrides: {
@@ -127,6 +128,18 @@ async function pickStrategy(wrapper: Panel, id: number) {
 async function removeIndicator(wrapper: Panel, appliedIndicatorId: number) {
   await wrapper.get(`[data-testid="remove-indicator-${appliedIndicatorId}"]`).trigger('click')
   await flushPromises()
+}
+
+async function toggleVisibility(wrapper: Panel, appliedIndicatorId: number) {
+  await wrapper.get(`[data-testid="toggle-indicator-visibility-${appliedIndicatorId}"]`)
+    .trigger('click')
+  await flushPromises()
+}
+
+/** 那一列的眼睛現在說它是收著還是畫著。 */
+function visibilityLabelOf(wrapper: Panel, appliedIndicatorId: number) {
+  return wrapper.get(`[data-testid="toggle-indicator-visibility-${appliedIndicatorId}"]`)
+    .attributes('aria-label')
 }
 
 async function changeAppliedValue(
@@ -267,6 +280,32 @@ describe('打開畫面時對不上的那幾筆不回來', () => {
   })
 })
 
+describe('收起來的那幾筆下次仍然收著', () => {
+  it('留存說收著的那一筆回來時仍然收著', async () => {
+    const { wrapper } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 20 }, false)],
+    })
+
+    expect(visibilityLabelOf(wrapper, 1)).toBe('畫回圖上')
+  })
+
+  it('留存說畫著的那一筆回來時畫著', async () => {
+    const { wrapper } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 20 }, true)],
+    })
+
+    expect(visibilityLabelOf(wrapper, 1)).toBe('在圖上收起來')
+  })
+
+  it('收著的那一筆照樣算——拿回它時要的是一條現在的線，不是等一次計算', async () => {
+    const { calculateIndicator } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 60 }, false)],
+    })
+
+    expect(usedLookbackCountsOf(calculateIndicator)).toEqual([[60]])
+  })
+})
+
 describe('清單一改動就寫下來', () => {
   it('加入一筆之後留存的是那一筆', async () => {
     const { wrapper, writeAppliedChartIndicators } = await mountPanel({
@@ -321,6 +360,32 @@ describe('清單一改動就寫下來', () => {
     })
 
     expect(writeAppliedChartIndicators).not.toHaveBeenCalled()
+  })
+
+  it('按一下眼睛就寫下來——收起來與否與那幾格的值同一份留存', async () => {
+    const { wrapper, writeAppliedChartIndicators } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 20 })],
+    })
+
+    await toggleVisibility(wrapper, 1)
+
+    expect(writeAppliedChartIndicators)
+      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 20 }, false)])
+  })
+
+  it('某一格填著用不了的值時，按下的眼睛照樣記得住', async () => {
+    // 留存寫的是「最後一次值用得了的樣子」，而那份快照上的眼睛可能是好幾次操作之前的。
+    // 拿它去寫，這一次按下的眼睛會安靜地被寫回舊的樣子——而畫面上那隻眼睛明明是新的。
+    const { wrapper, writeAppliedChartIndicators } = await mountPanel({
+      remembered: [rememberedOf(7, { 期數: 20 })],
+    })
+    await changeAppliedValue(wrapper, 1, '期數', '0')
+
+    await toggleVisibility(wrapper, 1)
+
+    // 值仍然是最後一次用得了的那個（20，不是用不了的 0），眼睛是剛按下的那一個。
+    expect(writeAppliedChartIndicators)
+      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 20 }, false)])
   })
 
   it('還在調旋鈕、還沒按加入的那一筆不寫', async () => {

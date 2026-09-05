@@ -41,18 +41,6 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const parameterMessages = ref<Map<number, string>>(new Map())
 
   /**
-   * 使用者暫時收起來的那幾筆——**收起來的是那條線，不是那一支指標**。
-   *
-   * 它們仍然在清單上、仍然跟著重算、仍然佔著自己的顏色：使用者要的是
-   * 「先讓開一下，我要看蠟燭」，不是「拿掉它」——後者清單上已經有一顆按鈕了。
-   * 照樣算是刻意的：再打開時圖上立刻就有線，而不是等一次計算。
-   *
-   * 它只活在這一次瀏覽裡，不留存：留存的是「他要哪幾支」，
-   * 而「這一刻先讓開一下」是這一刻的事。
-   */
-  const hiddenAppliedIndicatorIds = ref<number[]>([])
-
-  /**
    * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略，正在調它的值。
    *
    * 它與已經在圖上的那幾筆是不同的東西——**還沒有人算過它**，
@@ -157,7 +145,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           oneSeries.lineKey, oneSeries.indicatorName, oneSeries.colorToken)),
       ],
       drawn?.drawsNothing ?? false,
-      !hiddenAppliedIndicatorIds.value.includes(appliedIndicator.id),
+      appliedIndicator.shownOnChart,
     )
   }))
 
@@ -169,14 +157,21 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 收起來的那一支仍然佔著它的顏色，否則再打開時線會換一個顏色回來。
    */
   const visibleChartIndicators = computed(() => chartIndicators.value.filter(
-    indicator => !hiddenAppliedIndicatorIds.value.includes(indicator.appliedIndicatorId)))
+    indicator => appliedIndicators.value.some(
+      applied => applied.id === indicator.appliedIndicatorId && applied.shownOnChart)))
 
-  /** 收起這一筆的線，或把它拿回來。**不重算**——算出來的值一個字都不會變。 */
+  /**
+   * 收起這一筆的線，或把它拿回來。
+   *
+   * **不重算**——算出來的值一個字都不會變。**要記住**——收起來與否是這一筆的一部分，
+   * 與「他把那幾格調成什麼」同一份留存、同一個寫入點。
+   */
   function toggleAppliedIndicatorVisibility(appliedIndicatorId: number) {
-    hiddenAppliedIndicatorIds.value
-      = hiddenAppliedIndicatorIds.value.includes(appliedIndicatorId)
-        ? hiddenAppliedIndicatorIds.value.filter(id => id !== appliedIndicatorId)
-        : [...hiddenAppliedIndicatorIds.value, appliedIndicatorId]
+    appliedIndicators.value = appliedIndicators.value.map(
+      applied => (applied.id === appliedIndicatorId
+        ? applied.withShownOnChart(!applied.shownOnChart)
+        : applied))
+    rememberAppliedIndicators()
   }
 
   /** 還沒上圖那一筆的那幾格。同一個問法，只是問的是還沒上圖的那一筆。 */
@@ -330,10 +325,15 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    *
    * 寫的是**能用的那一份**：成員與順序照畫面上那一份，但每一筆的值取它最後一次用得了的樣子。
    * 兩者只有在使用者正把一個用不了的值留在某一格裡時才不同。
+   *
+   * **收起來與否一律取畫面上那一份。** 那份「最後一次用得了的樣子」是為了值而留的快照，
+   * 它上面的眼睛可能是好幾次操作之前的：拿它去寫，使用者在某一格填著用不了的值時
+   * 按下的每一次眼睛都會安靜地寫回舊的樣子——而畫面上那隻眼睛明明是新的。
    */
   function rememberAppliedIndicators() {
     chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
-      applied => lastUsableAppliedIndicators.get(applied.id) ?? applied))
+      applied => (lastUsableAppliedIndicators.get(applied.id) ?? applied)
+        .withShownOnChart(applied.shownOnChart)))
   }
 
   /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
@@ -362,9 +362,6 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     forgetFailure(appliedIndicatorId)
     parameterMessages.value = withMessage(parameterMessages.value, appliedIndicatorId, null)
     lastUsableAppliedIndicators.delete(appliedIndicatorId)
-    // 那一筆不在了，「它收著」也就不再是任何問題的答案。
-    hiddenAppliedIndicatorIds.value = hiddenAppliedIndicatorIds.value.filter(
-      id => id !== appliedIndicatorId)
     // 不寫的話它明天會回來，而使用者明明已經把它拿下來了。
     rememberAppliedIndicators()
   }

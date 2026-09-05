@@ -47,6 +47,9 @@ export class RememberedAppliedIndicatorsDomain {
           strategy,
           strategy.content.parameters.map(
             declared => this.toParameter(declared, remembered.parameterValues)),
+          // 收起來的那幾筆回來時仍然收著。**照樣算**（誰算不算不歸這裡管）——
+          // 收起來的是那條線，而使用者按眼睛拿回它時要的是一條現在的線。
+          remembered.shownOnChart,
         )))
   }
 
