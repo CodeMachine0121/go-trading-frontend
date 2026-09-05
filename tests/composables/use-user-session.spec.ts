@@ -78,11 +78,12 @@ describe('useUserSession：確認「現在是誰在用」只做一次', () => {
 })
 
 describe('useUserSession：送出那兩格', () => {
-  it('登入成功就記住是誰，並回報成功', async () => {
+  it('登入成功就記住是誰', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { currentUser, submitCredentials } = sessionUnderTest()
 
-    await expect(submitCredentials('james@example.com', 'correct horse', 'signIn')).resolves.toBe(true)
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
     expect(currentUser.value?.email).toBe('james@example.com')
   })
 
@@ -111,8 +112,10 @@ describe('useUserSession：送出那兩格', () => {
     userSessionApplication.signIn.mockRejectedValue(failure)
     const { errorMessage, submitCredentials } = sessionUnderTest()
 
-    await expect(submitCredentials('james@example.com', 'wrong horse', 'signIn')).resolves.toBe(false)
+    await submitCredentials('james@example.com', 'wrong horse', 'signIn')
+
     expect(errorMessage.value).toContain(expected)
+    expect(navigateToSpy).not.toHaveBeenCalled()
   })
 
   it('沒見過的失敗也要說一句人看得懂的話，而不是把原始訊息丟出去', async () => {
@@ -139,7 +142,8 @@ describe('useUserSession：送出那兩格', () => {
     const { pending, submitCredentials } = sessionUnderTest()
     pending.value = true
 
-    await expect(submitCredentials('james@example.com', 'correct horse', 'signIn')).resolves.toBe(false)
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
     expect(userSessionApplication.signIn).not.toHaveBeenCalled()
   })
 
@@ -155,31 +159,42 @@ describe('useUserSession：送出那兩格', () => {
 })
 
 describe('useUserSession：登入之後回到他本來要去的地方', () => {
-  it('記下來的那一頁就是他被擋下來時想去的地方', () => {
-    const { rememberRedirectTo, takeRedirectTo } = sessionUnderTest()
-
+  it('回到他被擋下來時想去的那一頁，而不是門廳', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { rememberRedirectTo, submitCredentials } = sessionUnderTest()
     rememberRedirectTo('/k-candles')
 
-    expect(takeRedirectTo()).toBe('/k-candles')
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles')
   })
 
-  it('沒有記下任何地方就回首頁', () => {
-    expect(sessionUnderTest().takeRedirectTo()).toBe('/')
+  it('沒有被擋下來過就去首頁', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
   })
 
-  it('用過就忘記——下一次登入不該被上一次的目的地牽著走', () => {
-    const { rememberRedirectTo, takeRedirectTo } = sessionUnderTest()
+  it('用過就忘記——下一次登入不該被上一次的目的地牽著走', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { rememberRedirectTo, submitCredentials } = sessionUnderTest()
     rememberRedirectTo('/k-candles')
-    takeRedirectTo()
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+    navigateToSpy.mockClear()
 
-    expect(takeRedirectTo()).toBe('/')
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
   })
 })
 
 describe('useUserSession：登出', () => {
   it('丟掉憑證、清乾淨共用狀態，然後回到登入畫面', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
-    const { currentUser, submitCredentials, rememberRedirectTo, takeRedirectTo, signOut } = sessionUnderTest()
+    const { currentUser, submitCredentials, rememberRedirectTo, signOut } = sessionUnderTest()
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
     rememberRedirectTo('/k-candles')
 
@@ -188,7 +203,11 @@ describe('useUserSession：登出', () => {
     expect(userSessionApplication.signOut).toHaveBeenCalledTimes(1)
     // 留著上一個人的電子郵件，側欄就會繼續顯示他。
     expect(currentUser.value).toBeNull()
-    expect(takeRedirectTo()).toBe('/')
-    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+    expect(navigateToSpy).toHaveBeenLastCalledWith('/login')
+
+    // 上一個人被擋下來時想去的地方也得忘掉，否則下一個人一登入就被送去那裡。
+    navigateToSpy.mockClear()
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
   })
 })

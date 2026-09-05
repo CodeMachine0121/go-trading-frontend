@@ -10,17 +10,8 @@ const {
   errorMessage,
   fieldErrors,
   submitCredentials,
-  takeRedirectTo,
   clearSubmissionFeedback,
 } = useUserSession()
-
-async function submit(email: string, password: string, mode: 'signIn' | 'register'): Promise<void> {
-  if (await submitCredentials(email, password, mode)) {
-    // 回到他本來要去的那一頁，而不是一律丟到首頁——被門擋下來的人
-    // 想去的是門後面的某個地方，不是門廳。
-    await navigateTo(takeRedirectTo())
-  }
-}
 </script>
 
 <template>
@@ -30,7 +21,7 @@ async function submit(email: string, password: string, mode: 'signIn' | 'registe
       :error-message="errorMessage"
       :email-error="fieldErrors?.email ?? null"
       :password-error="fieldErrors?.password ?? null"
-      @submit="submit"
+      @submit="submitCredentials"
       @mode-change="clearSubmissionFeedback"
     />
   </main>

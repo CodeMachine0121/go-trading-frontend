@@ -64,7 +64,7 @@
 | :--- | :--- | :--- |
 | `CredentialsDomain` | 帳密的把關。建構子收下兩格與**現在是哪一個模式**，算出**每一格各自的錯誤**（而不是「合不合格」一個布林）——訊息要寫在該格底下，所以它得說得出是哪一格 | US-02 |
 | `AccessTokenDomain` | 一份憑證還算不算數：拿它的到期時刻跟現在比 | US-05 |
-| `SignedInUserDomain` | 目前登入者對畫面的形狀 | US-07 |
+| ~~`SignedInUserDomain`~~ | **沒有做**——這份資料沒有任何規則要保護，一個什麼都不做的 Domain Model 只是多一個要讀的檔案。`SignedInUser` 直接 `toDto()`（換一種形狀不算業務邏輯，見 architecture.md），與 `TradingSymbol` 同一個做法 | US-07 |
 
 - **`CredentialsDomain` 為什麼收模式**：長度規則**只在建立帳號時套用**。
   登入時套用它，會對一個密碼確實比較短的既有帳號說「你格式填錯了」，
@@ -80,6 +80,7 @@
 | `CredentialsDto` | 元件交給 application 的兩格內容與模式 |
 | `CredentialsFieldErrorsDto` | 每一格各自的錯誤訊息（`null` 代表這一格沒問題） |
 | `SignedInUserDto` | 目前登入者對元件的形狀：識別碼與電子郵件 |
+
 
 ### 3.4 Domain — Interfaces
 
@@ -122,7 +123,7 @@
 
 | Name | Kind | Responsibility |
 | :--- | :--- | :--- |
-| `useUserSession` | composable | **那一份共用的答案**：目前登入者、正在確認、剛才失敗的原因、每一格的錯誤。第一次被問到才確認一次 |
+| `useUserSession` | composable | **那一份共用的答案**：目前登入者、正在確認、剛才失敗的原因、每一格的錯誤。第一次被問到才確認一次。**送出與登出都自己換頁**——見下方 |
 | `SignInPanel` | organism | 那張卡片。兩種模式、送出、擋掉明顯填錯的、顯示錯誤——**互動全在這裡** |
 | `SignedInUserBadge` | molecule | 側欄那一行：電子郵件 + 登出。純展示，資料由 page 餵 |
 | `pages/login.vue` | page | 只做接線 |
@@ -130,6 +131,10 @@
 
 - **`SignInPanel` 是 organism 不是 molecule**：它是畫面上獨立存在的一整塊，
   而且它自己就是那一頁的全部。
+- **`submitCredentials` 與 `signOut` 自己換頁，不回傳「成功了沒有」讓呼叫端再換一次。**
+  一個業務動作要呼叫端排兩次呼叫才完成，是介面太淺的訊號：漏掉第二次的畫面會停在原地，
+  看起來像什麼都沒發生。因此「回到他本來要去的那一頁」是這一份共用狀態自己的事，
+  `takeRedirectTo` 也就不必出現在對外的那張清單上。
 - **把關為什麼在中介層而不是每一頁**：一頁忘了寫就是一個洞，而洞不會有人發現。
 - **把關只在瀏覽器端跑**：伺服器算頁面時碰不到瀏覽器的儲存，在那裡判斷會得到
   「一律沒登入」，於是每一次載入都先閃一下登入畫面再跳回來。

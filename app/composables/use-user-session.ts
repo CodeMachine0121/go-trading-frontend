@@ -66,16 +66,17 @@ export function useUserSession(
   }
 
   /**
-   * 送出登入畫面那兩格。模式決定送去建立帳號還是登入，兩者成功之後都是登入狀態。
+   * 送出登入畫面那兩格，成功就把人放回他本來要去的地方。
    *
-   * 回傳「成功了沒有」，因為呼叫端接下來要做的事（換頁）只在成功時才發生，
-   * 而失敗的原因已經放在 errorMessage 與 fieldErrors 上了。
+   * 換頁包在裡面，而不是交給呼叫端「成功的話再自己換一次」：那樣的話
+   * 「登入」這一件事會被拆成兩次呼叫，而漏掉第二次的畫面會停在原地，
+   * 看起來像什麼都沒發生。失敗的原因留在 errorMessage 與 fieldErrors 上。
    */
   async function submitCredentials(
     email: string, password: string, mode: SignInMode,
-  ): Promise<boolean> {
+  ): Promise<void> {
     if (pending.value) {
-      return false
+      return
     }
 
     pending.value = true
@@ -87,8 +88,6 @@ export function useUserSession(
       currentUser.value = mode === 'register'
         ? await userSessionApplication.registerUser(credentialsDto)
         : await userSessionApplication.signIn(credentialsDto)
-
-      return true
     }
     catch (error: unknown) {
       if (error instanceof CredentialsFieldError) {
@@ -98,11 +97,14 @@ export function useUserSession(
         errorMessage.value = messageFor(error)
       }
 
-      return false
+      return
     }
     finally {
       pending.value = false
     }
+
+    // 被門擋下來的人想去的是門後面的某個地方，不是門廳。
+    await navigateTo(takeRedirectTo())
   }
 
   /** 記下他本來要去哪，好在登入成功後把他放回那裡。 */
@@ -110,7 +112,10 @@ export function useUserSession(
     redirectTo.value = path
   }
 
-  /** 取出並用掉「原本想去的那一頁」；沒有就回首頁。用掉之後就忘記。 */
+  /**
+   * 取出並用掉「原本想去的那一頁」；沒有就回首頁。用掉之後就忘記，
+   * 否則下一次登入會被上一次的目的地牽著走。
+   */
   function takeRedirectTo(): string {
     const path = redirectTo.value ?? HOME_PATH
     redirectTo.value = null
@@ -150,7 +155,6 @@ export function useUserSession(
     ensureSessionRestored,
     submitCredentials,
     rememberRedirectTo,
-    takeRedirectTo,
     clearSubmissionFeedback,
     signOut,
   }

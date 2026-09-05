@@ -64,7 +64,7 @@ export class UserSessionService {
 
     try {
       const signedInUser = await this.userProxy.fetchSignedInUser(accessToken.value())
-      return signedInUser.toDomain().toDto()
+      return signedInUser.toDto()
     }
     catch (error: unknown) {
       if (error instanceof AuthenticationRequiredError) {
@@ -106,6 +106,6 @@ export class UserSessionService {
 
     const signedInUser = await this.userProxy.fetchSignedInUser(accessToken.toDomain().value())
 
-    return signedInUser.toDomain().toDto()
+    return signedInUser.toDto()
   }
 }
