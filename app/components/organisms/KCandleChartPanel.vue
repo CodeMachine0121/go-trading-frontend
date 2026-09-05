@@ -282,71 +282,76 @@ onMounted(async () => {
         @remove="chartIndicators.removeAppliedIndicator"
         @change-line-color="chartIndicators.changeLineColor"
       />
-
-      <!--
-        即時停掉是「這一層停了」，不是「圖表壞了」——所以它與那幾則錯誤各自獨立，
-        不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
-      -->
-      <AppAlert
-        v-if="liveUpdateStalled"
-        tone="warning"
-        data-testid="live-update-stalled-alert"
-      >
-        即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。
-      </AppAlert>
-
-      <AppAlert
-        v-if="rejectedMessage"
-        tone="danger"
-        data-testid="rejected-alert"
-      >
-        {{ rejectedMessage }}
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="serverErrorMessage"
-        tone="danger"
-        data-testid="server-error-alert"
-      >
-        後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="backendUnreachable"
-        tone="danger"
-        data-testid="unreachable-alert"
-      >
-        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="loading"
-        tone="info"
-        data-testid="loading-alert"
-      >
-        取行情中…
-      </AppAlert>
     </AppPanel>
+
+    <!--
+      這幾則說的是**圖現在怎麼了**，不是控制項怎麼了，所以它們住在面板外面：
+      收起「看什麼」的人收的是控制項，而一則「連不上後端」不該跟著被收走——
+      那正是他最需要看到它的時候。
+    -->
+    <!--
+      即時停掉是「這一層停了」，不是「圖表壞了」——所以它與那幾則錯誤各自獨立，
+      不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+    -->
+    <AppAlert
+      v-if="liveUpdateStalled"
+      tone="warning"
+      data-testid="live-update-stalled-alert"
+    >
+      即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。
+    </AppAlert>
+
+    <AppAlert
+      v-if="rejectedMessage"
+      tone="danger"
+      data-testid="rejected-alert"
+    >
+      {{ rejectedMessage }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="serverErrorMessage"
+      tone="danger"
+      data-testid="server-error-alert"
+    >
+      後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="loading"
+          @click="reload"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="backendUnreachable"
+      tone="danger"
+      data-testid="unreachable-alert"
+    >
+      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="loading"
+          @click="reload"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="loading"
+      tone="info"
+      data-testid="loading-alert"
+    >
+      取行情中…
+    </AppAlert>
 
     <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
          換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
