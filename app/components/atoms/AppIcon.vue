@@ -32,6 +32,7 @@ type IconName
     | 'chevron'
     | 'shown'
     | 'hidden'
+    | 'sign-out'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -162,6 +163,12 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
     'M12 16v-5',
     'M12 8h.01',
+  ],
+  // 一扇門加一支往外的箭頭——離開
+  'sign-out': [
+    'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4',
+    'M16 17l5-5-5-5',
+    'M21 12H9',
   ],
 }
 

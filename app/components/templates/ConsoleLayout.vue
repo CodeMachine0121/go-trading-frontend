@@ -97,6 +97,14 @@ const railStowed = useState('console-rail-stowed', () => false)
       <div class="console-layout__status">
         <slot name="status" />
       </div>
+
+      <!--
+        現在是誰在用，同樣由頁面填進來。它釘在那顆燈下面：
+        「線路狀態」與「是誰在線上」是同一類東西，都屬於這條側欄的底部。
+      -->
+      <div class="console-layout__account">
+        <slot name="account" />
+      </div>
     </nav>
 
     <div class="console-layout__frame">
@@ -307,6 +315,23 @@ const railStowed = useState('console-rail-stowed', () => false)
       margin-top: auto;
       border-top: 1px solid color('border');
       padding: spacing('sm') spacing('2xs') 0;
+    }
+  }
+
+  &__account {
+    flex: none;
+
+    @include respond-to('lg') {
+      padding: spacing('2xs') spacing('2xs') 0;
+    }
+  }
+
+  // 側欄收起來時那一行電子郵件沒有地方站——三公分寬的邊上，它只會被切成
+  // 兩個字。那顆離開仍然在，因為它是一個動作，而動作只需要一個圖示。
+  &--stowed &__account {
+    @include respond-to('lg') {
+      padding-right: 0;
+      padding-left: 0;
     }
   }
 
