@@ -6,8 +6,12 @@ import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculati
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $indicatorCalculationApplication, $strategyApplication, $tradingSymbolApplication }
-  = useNuxtApp()
+const {
+  $indicatorCalculationApplication,
+  $strategyApplication,
+  $tradingSymbolApplication,
+  $backtestApplication,
+} = useNuxtApp()
 
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
@@ -54,6 +58,8 @@ const { currentUser, signOut } = useUserSession()
       :indicator-calculation-application="$indicatorCalculationApplication"
       :strategy-application="$strategyApplication"
       :trading-symbol-application="$tradingSymbolApplication"
+      :backtest-application="$backtestApplication"
+      :time-zone="selectedTimeZone"
     />
   </ConsoleLayout>
 </template>
