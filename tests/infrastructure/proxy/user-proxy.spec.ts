@@ -63,17 +63,26 @@ describe('UserProxy.registerUser', () => {
   })
 })
 
+/** 後端回的那一對憑證。 */
+function sessionWire() {
+  return {
+    accessToken: 'a-signed-token',
+    expiresAt: '2026-09-05T08:15:00Z',
+    refreshToken: 'a-refresh-token',
+    refreshTokenExpiresAt: '2026-10-05T08:00:00Z',
+  }
+}
+
 describe('UserProxy.signIn', () => {
-  it('把憑證與到期時刻收成領域看得懂的形狀', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
-      accessToken: 'a-signed-token',
-      expiresAt: '2026-09-06T08:00:00Z',
-    }))
+  it('把一對憑證與兩個到期時刻收成領域看得懂的形狀', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(sessionWire()))
 
-    const accessToken = await new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse')
+    const session = await new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse')
 
-    expect(accessToken.accessToken).toBe('a-signed-token')
-    expect(accessToken.expiresAt.toISOString()).toBe('2026-09-06T08:00:00.000Z')
+    expect(session.accessToken).toBe('a-signed-token')
+    expect(session.accessTokenExpiresAt.toISOString()).toBe('2026-09-05T08:15:00.000Z')
+    expect(session.refreshToken).toBe('a-refresh-token')
+    expect(session.refreshTokenExpiresAt.toISOString()).toBe('2026-10-05T08:00:00.000Z')
   })
 
   it('帳密對不上是自己一種拒絕，訊息原文轉達', async () => {
@@ -102,6 +111,74 @@ describe('UserProxy.signIn', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
     await expect(new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse'))
+      .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+})
+
+describe('UserProxy.renewSession', () => {
+  it('帶著續用憑證去換，並把換回來的一對收乾淨', async () => {
+    const fetchStub = vi.fn().mockResolvedValue(sessionWire())
+    vi.stubGlobal('$fetch', fetchStub)
+
+    const session = await new UserProxy(BASE_URL).renewSession('an-older-token')
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      `${BASE_URL}/sessions/renewal`,
+      expect.objectContaining({ method: 'POST', body: { refreshToken: 'an-older-token' } }),
+    )
+    expect(session.refreshToken).toBe('a-refresh-token')
+  })
+
+  it('換發被拒絕與憑證不算數是同一種——分成兩種只會逼每個呼叫端寫兩次同樣的處理', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 401, message: '請重新登入' })))
+
+    const failure = await new UserProxy(BASE_URL)
+      .renewSession('a-stale-token').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AuthenticationRequiredError)
+    expect(failure).not.toBeInstanceOf(CredentialsRejectedError)
+  })
+
+  it('後端簽不出憑證時說的是那件事，不是憑證不算數', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 503, message: '尚未設定憑證簽章鑰匙' })))
+
+    const failure = await new UserProxy(BASE_URL)
+      .renewSession('a-refresh-token').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AccessTokenUnavailableError)
+  })
+
+  it('後端沒啟動仍然是連不上——那不代表這份續用憑證壞了', async () => {
+    // 說錯的代價很具體：後端一啟動，使用者就得重登一次。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
+
+    const failure = await new UserProxy(BASE_URL)
+      .renewSession('a-refresh-token').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BackendUnreachableError)
+    expect(failure).not.toBeInstanceOf(AuthenticationRequiredError)
+  })
+})
+
+describe('UserProxy.revokeSession', () => {
+  it('請後端撤掉這台裝置的登入階段', async () => {
+    const fetchStub = vi.fn().mockResolvedValue(null)
+    vi.stubGlobal('$fetch', fetchStub)
+
+    await new UserProxy(BASE_URL).revokeSession('a-refresh-token')
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      `${BASE_URL}/sessions/revocation`,
+      expect.objectContaining({ method: 'POST', body: { refreshToken: 'a-refresh-token' } }),
+    )
+  })
+
+  it('後端連不上時如實拋出——要不要吞掉是呼叫端的決定，不是這一層的', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
+
+    await expect(new UserProxy(BASE_URL).revokeSession('a-refresh-token'))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })

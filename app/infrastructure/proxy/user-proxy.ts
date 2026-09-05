@@ -1,5 +1,5 @@
 import type { IUserProxy } from '~/domain/interface/i-user-proxy'
-import { AccessToken } from '~/domain/models/entities/access-token'
+import { Session } from '~/domain/models/entities/session'
 import { SignedInUser } from '~/domain/models/entities/signed-in-user'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -11,6 +11,8 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const USERS_ENDPOINT = '/users'
 const SESSIONS_ENDPOINT = '/sessions'
+const SESSION_RENEWAL_ENDPOINT = '/sessions/renewal'
+const SESSION_REVOCATION_ENDPOINT = '/sessions/revocation'
 const SIGNED_IN_USER_ENDPOINT = '/users/me'
 
 /** 後端用這三個狀態碼分別表示這三件事。只有這裡需要知道。 */
@@ -24,9 +26,11 @@ type SignedInUserWire = {
   email: string
 }
 
-type AccessTokenWire = {
+type SessionWire = {
   accessToken: string
   expiresAt: string
+  refreshToken: string
+  refreshTokenExpiresAt: string
 }
 
 /**
@@ -51,18 +55,42 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
     }
   }
 
-  async signIn(email: string, password: string): Promise<AccessToken> {
+  async signIn(email: string, password: string): Promise<Session> {
     try {
-      const accessTokenWire = await this.requestBackend<AccessTokenWire>(SESSIONS_ENDPOINT, {
+      return this.toSession(await this.requestBackend<SessionWire>(SESSIONS_ENDPOINT, {
         method: 'POST',
         body: { email, password },
-      })
-
-      return new AccessToken(accessTokenWire.accessToken, new Date(accessTokenWire.expiresAt))
+      }))
     }
     catch (error: unknown) {
       throw this.signInFailureOf(error)
     }
+  }
+
+  async renewSession(refreshToken: string): Promise<Session> {
+    try {
+      return this.toSession(await this.requestBackend<SessionWire>(SESSION_RENEWAL_ENDPOINT, {
+        method: 'POST',
+        body: { refreshToken },
+      }))
+    }
+    catch (error: unknown) {
+      // 換發被拒絕與「我是誰」被拒絕是同一件事：這一段不算數了，得重新登入。
+      // 分成兩種錯誤只會逼每個呼叫端都寫兩次同樣的處理。
+      if (error instanceof BackendRequestRejectedError
+        && error.status === CREDENTIALS_REJECTED_STATUS) {
+        throw new AuthenticationRequiredError(error.message, { cause: error })
+      }
+
+      throw this.signInFailureOf(error)
+    }
+  }
+
+  async revokeSession(refreshToken: string): Promise<void> {
+    await this.requestBackend<null>(SESSION_REVOCATION_ENDPOINT, {
+      method: 'POST',
+      body: { refreshToken },
+    })
   }
 
   async fetchSignedInUser(accessToken: string): Promise<SignedInUser> {
@@ -113,5 +141,18 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
 
   private toSignedInUser(signedInUserWire: SignedInUserWire): SignedInUser {
     return new SignedInUser(signedInUserWire.id, signedInUserWire.email)
+  }
+
+  /**
+   * 兩個時刻在這裡就從字串收成日期。晚一步收的話，「這份憑證還有效嗎」這個判斷
+   * 就得在領域裡處理字串——那是 wire 格式漏進來的樣子。
+   */
+  private toSession(sessionWire: SessionWire): Session {
+    return new Session(
+      sessionWire.accessToken,
+      new Date(sessionWire.expiresAt),
+      sessionWire.refreshToken,
+      new Date(sessionWire.refreshTokenExpiresAt),
+    )
   }
 }
