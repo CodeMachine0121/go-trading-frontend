@@ -22,6 +22,7 @@
 | C11 | `register` / `james@example.com` / 73 個 `a`（73 位元組） | password 錯誤含「72」，不可送出 |
 | C12 | `register` / `james@example.com` / 24 個中文字（72 位元組） | 兩格皆 `null`，可以送出 |
 | C13 | `register` / `james@example.com` / 25 個中文字（75 位元組） | password 錯誤含「72」，不可送出 |
+| C17 | `register` / `james@example.com` / 5 個表情符號 | password 錯誤含「8」，不可送出——下限數的是**字元**，而表情符號在 JavaScript 裡佔兩個「長度」，數錯就會放行一組後端會退回來的密碼 |
 | C14 | `register` / `not-an-email` / `correct horse` | 兩格皆 `null`，**可以送出**——格式交給後端判，不在這裡抄一份 |
 | C15 | `signIn` / `  james@example.com  ` / `correct horse` | 可以送出；`toCredentialsDto()` 的 email **不含前後空白** |
 | C16 | 任一模式 / 任意 / `"   "`（三個空白） | password 皆 `null`——**密碼不去空白**，空白是密碼的一部分（`register` 時再被長度規則擋下） |
@@ -43,9 +44,9 @@
 
 | # | 情境 | 預期結果 |
 |---|---|---|
-| S1 | 帳密送得出去且後端接受 | `IUserProxy.signIn` 收到的 email 是**去前後空白後**的；憑證被 `writeAccessToken` 記住；回覆目前登入者 |
+| S1 | 帳密送得出去且後端接受 | `IUserProxy.signIn` 收到的 email 是**去前後空白後**的；憑證被 `writeAccessToken` 記住；接著以該憑證呼叫一次 `fetchSignedInUser`（登入只回憑證，識別碼得跟後端要，順帶當場證明這份憑證真的有效）；回覆目前登入者 |
 | S2 | 後端回 `CredentialsRejectedError` | 原樣拋出；**`writeAccessToken` 一次都沒被呼叫** |
-| S3 | 記不住憑證（`writeAccessToken` 拋出） | **登入仍然成功**——這一次操作得起來，只是下次打開要重登 |
+| S3 | 記不住憑證（記憶那一側什麼都沒做） | **登入仍然成功**——這一次操作得起來，只是下次打開要重登。「記不住時不拋」這個前提本身由 `AccessTokenStorageProxy` 的 G4 守著，不在這一層重測 |
 | S4 | 後端回 `AccessTokenUnavailableError` | 原樣拋出；不記任何東西 |
 | S5 | 送出前把關就不過（C9 那種） | **不打後端**，拋出帶著每一格錯誤的失敗 |
 
@@ -53,7 +54,7 @@
 
 | # | 情境 | 預期結果 |
 |---|---|---|
-| R1 | 合格輸入且後端接受 | `IUserProxy.registerUser` 被呼叫**一次**、`IUserProxy.signIn` 也被呼叫一次（建完直接就是登入狀態）；憑證被記住；回覆目前登入者 |
+| R1 | 合格輸入且後端接受 | `IUserProxy.registerUser` 被呼叫**一次**、`IUserProxy.signIn` 也被呼叫一次（建完直接就是登入狀態，後端的建立不發憑證）；憑證被記住；回覆目前登入者 |
 | R2 | 後端回 `EmailAlreadyRegisteredError` | 原樣拋出；`signIn` 不被呼叫；不記任何東西 |
 | R3 | 密碼 7 個字元 | **不打後端**，拋出帶著 password 錯誤的失敗 |
 
@@ -105,7 +106,7 @@
 | V1 | 初次顯示 | 標題是「登入」，主要動作那顆鍵寫著「登入」 |
 | V2 | 按下切換 | 標題變成「建立帳號」，主要動作寫著「建立帳號」 |
 | V3 | 填好兩格再切換模式 | 兩格內容**都還在** |
-| V4 | 有錯誤訊息時切換模式 | 訊息**消失** |
+| V4 | 切換模式 | 發出 `modeChange`，好讓頁面清掉上一次的訊息。訊息本身是 prop（它從共用狀態來），所以「消失」是頁面接線的結果，元件負責的是說出「換了」 |
 | V5 | 兩格都填好，按主要動作 | 對外送出一次，帶著兩格內容與目前模式 |
 | V6 | `pending` 為真 | 主要動作那顆鍵 `disabled`；**兩格輸入不 `disabled`** |
 | V7 | `pending` 為真時按主要動作 | **不送出** |
