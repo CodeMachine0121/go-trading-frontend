@@ -1,0 +1,141 @@
+import { createFetchError, type FetchContext } from 'ofetch'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { UserProxy } from '~/infrastructure/proxy/user-proxy'
+import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
+import { AuthenticationRequiredError } from '~/domain/errors/authentication-required-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
+import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
+
+const BASE_URL = 'http://localhost:8080'
+
+/** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
+function buildFetchError(failure: { status?: number, message?: string }) {
+  const context = failure.status === undefined
+    ? { request: BASE_URL, options: {}, error: new Error('fetch failed') }
+    : {
+        request: BASE_URL,
+        options: {},
+        response: {
+          status: failure.status,
+          statusText: 'rejected',
+          _data: failure.message === undefined ? undefined : { message: failure.message },
+        },
+      }
+
+  return createFetchError(context as unknown as FetchContext)
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('UserProxy.registerUser', () => {
+  it('把後端給的那一位收成領域看得懂的形狀', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ id: 7, email: 'james@example.com' }))
+
+    const signedInUser = await new UserProxy(BASE_URL).registerUser('james@example.com', 'correct horse')
+
+    expect(signedInUser.id).toBe(7)
+    expect(signedInUser.email).toBe('james@example.com')
+  })
+
+  it('電子郵件被佔用是自己一種拒絕，不是一般的拒絕', async () => {
+    // 畫面對它的反應不同：內容沒有錯，只是這個位址有人用了——
+    // 兩格內容要留著，讓人改一個位址再送一次。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 409, message: '電子郵件「james@example.com」已經有人用了' })))
+
+    await expect(new UserProxy(BASE_URL).registerUser('james@example.com', 'correct horse'))
+      .rejects.toBeInstanceOf(EmailAlreadyRegisteredError)
+  })
+
+  it('其餘的拒絕維持一般的拒絕', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 400, message: '密碼至少要 8 個字元' })))
+
+    const failure = await new UserProxy(BASE_URL)
+      .registerUser('james@example.com', 'short').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BackendRequestRejectedError)
+    expect(failure).not.toBeInstanceOf(EmailAlreadyRegisteredError)
+  })
+})
+
+describe('UserProxy.signIn', () => {
+  it('把憑證與到期時刻收成領域看得懂的形狀', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      accessToken: 'a-signed-token',
+      expiresAt: '2026-09-06T08:00:00Z',
+    }))
+
+    const accessToken = await new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse')
+
+    expect(accessToken.accessToken).toBe('a-signed-token')
+    expect(accessToken.expiresAt.toISOString()).toBe('2026-09-06T08:00:00.000Z')
+  })
+
+  it('帳密對不上是自己一種拒絕，訊息原文轉達', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 401, message: '電子郵件或密碼不正確' })))
+
+    const failure = await new UserProxy(BASE_URL)
+      .signIn('james@example.com', 'wrong horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CredentialsRejectedError)
+    expect((failure as Error).message).toBe('電子郵件或密碼不正確')
+  })
+
+  it('後端簽不出憑證是另外一種——使用者改什麼都沒用', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 503, message: '尚未設定憑證簽章鑰匙' })))
+
+    const failure = await new UserProxy(BASE_URL)
+      .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AccessTokenUnavailableError)
+    expect(failure).not.toBeInstanceOf(CredentialsRejectedError)
+  })
+
+  it('後端沒啟動仍然是連不上，不會被當成帳密不正確', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
+
+    await expect(new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse'))
+      .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+})
+
+describe('UserProxy.fetchSignedInUser', () => {
+  it('帶著憑證去問，並把答案收成領域看得懂的形狀', async () => {
+    const fetchStub = vi.fn().mockResolvedValue({ id: 7, email: 'james@example.com' })
+    vi.stubGlobal('$fetch', fetchStub)
+
+    const signedInUser = await new UserProxy(BASE_URL).fetchSignedInUser('a-signed-token')
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      `${BASE_URL}/users/me`,
+      expect.objectContaining({ headers: { Authorization: 'Bearer a-signed-token' } }),
+    )
+    expect(signedInUser.email).toBe('james@example.com')
+  })
+
+  it('憑證不算數時說的是「當作沒登入」，不是一般的拒絕', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 401, message: '請重新登入' })))
+
+    await expect(new UserProxy(BASE_URL).fetchSignedInUser('a-stale-token'))
+      .rejects.toBeInstanceOf(AuthenticationRequiredError)
+  })
+
+  it('連不上後端不代表這份憑證壞了', async () => {
+    // 這個差別是有代價的：說成憑證壞了，後端一啟動使用者就得重登一次。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
+
+    const failure = await new UserProxy(BASE_URL)
+      .fetchSignedInUser('a-signed-token').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BackendUnreachableError)
+    expect(failure).not.toBeInstanceOf(AuthenticationRequiredError)
+  })
+})
