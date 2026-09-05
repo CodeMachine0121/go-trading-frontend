@@ -139,7 +139,9 @@ export function useUserSession(
    * 看起來像登出失敗了。
    */
   async function signOut(): Promise<void> {
-    userSessionApplication.signOut()
+    // 登出現在要跑一趟後端（去撤掉這台裝置的登入階段）。它不會失敗——
+    // 後端沒開時 service 會吞掉，因為登出在畫面上一定要成功。
+    await userSessionApplication.signOut()
     currentUser.value = null
     redirectTo.value = null
     clearSubmissionFeedback()

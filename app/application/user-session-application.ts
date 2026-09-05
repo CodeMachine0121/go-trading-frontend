@@ -21,7 +21,7 @@ export class UserSessionApplication {
     return this.userSessionService.restoreSession(now)
   }
 
-  signOut(): void {
-    this.userSessionService.signOut()
+  async signOut(): Promise<void> {
+    return this.userSessionService.signOut()
   }
 }
