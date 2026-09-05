@@ -251,7 +251,10 @@ onMounted(async () => {
 
 <template>
   <section class="k-candle-chart-panel">
-    <AppPanel title="看什麼">
+    <AppPanel
+      title="看什麼"
+      collapsible
+    >
       <KCandleChartToolbar
         v-model:symbol="symbol"
         v-model:drawing="drawing"
