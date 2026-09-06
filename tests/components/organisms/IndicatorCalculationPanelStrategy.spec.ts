@@ -10,6 +10,8 @@ import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildBacktestApplication } from '../../fixtures/backtest-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
@@ -30,6 +32,8 @@ function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
         })),
       strategyApplication: buildStrategyApplication(strategyProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      backtestApplication: buildBacktestApplication(),
+      timeZone: buildTimeZone(),
     },
   })
 }

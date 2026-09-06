@@ -3,6 +3,9 @@ import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
+import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
+import { BacktestService } from '~/domain/service/backtest-service'
+import { BacktestApplication } from '~/application/backtest-application'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-parameter-value-preference-proxy'
@@ -76,6 +79,13 @@ export default defineNuxtPlugin(() => {
     new StrategyService(new StrategyProxy(backendBaseUrl)),
   )
 
+  // 重演一支策略是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
+  // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
+  // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
+  const backtestApplication = new BacktestApplication(
+    new BacktestService(new BacktestProxy(backendBaseUrl)),
+  )
+
   // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼、
   // 記住圖上擺著哪幾支）——前者是行情，後三者是這台機器上的習慣，所以它吃四個 proxy。
   // 三種記憶各有各的 proxy 而不是合成一個「偏好」：它們的鍵不同、生命週期不同，
@@ -142,6 +152,7 @@ export default defineNuxtPlugin(() => {
       tradingSymbolApplication,
       indicatorCalculationApplication,
       strategyApplication,
+      backtestApplication,
       chartIndicatorApplication,
       liveKCandleApplication,
       timeZoneApplication,

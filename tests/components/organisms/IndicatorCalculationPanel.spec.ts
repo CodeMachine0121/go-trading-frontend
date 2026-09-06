@@ -5,6 +5,8 @@ import SymbolField from '~/components/molecules/SymbolField.vue'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyApplication } from '../../fixtures/strategy-application'
+import { buildBacktestApplication } from '../../fixtures/backtest-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -63,6 +65,8 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
         new IndicatorCalculationService(indicatorCalculationProxy)),
       strategyApplication: buildStrategyApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
+      backtestApplication: buildBacktestApplication(),
+      timeZone: buildTimeZone(),
     },
   })
 }
@@ -99,14 +103,18 @@ async function fillAndSubmit(
 }
 
 describe('IndicatorCalculationPanel', () => {
-  it('只有一顆執行計算', () => {
+  it('每個去處只有一顆執行鍵', () => {
     // 這一條是補的：把執行條件從側欄改成橫列時，欄位整組搬了過來——
     // 而那一組裡本來就有一顆送出鈕，於是畫面上同時站著兩顆。
     // 測試沒紅，因為兩顆共用同一個識別字，而取第一個相符的從來不會抱怨有第二個。
+    //
+    // 多了回測那個去處之後，畫面上本來就會有兩顆送出鈕——一個去處一顆。
+    // 所以這一條改成**逐個去處**數：同一個去處裡冒出第二顆，仍然會紅。
     const wrapper = mountPanel(buildProxy())
 
     expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
-    expect(wrapper.findAll('button[type="submit"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-testid="run-backtest-button"]')).toHaveLength(1)
+    expect(wrapper.findAll('button[type="submit"]')).toHaveLength(2)
   })
 
   it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {

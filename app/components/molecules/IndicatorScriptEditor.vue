@@ -152,6 +152,7 @@ function continueWriting() {
     flex-direction: column;
 
     // 上下疊起來的窄螢幕上沒有「剩下的高度」可以吃，所以仍然留一塊夠大的底線。
+    // 寬螢幕上它只是地板：真正決定高度的是這一欄還剩多少，由外面的 flex 給。
     min-height: 24rem;
     overflow: auto;
   }
