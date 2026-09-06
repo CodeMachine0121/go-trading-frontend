@@ -48,12 +48,27 @@ describe('BacktestDomain', () => {
     it('把六個數字都寫成可以直接畫的樣子', () => {
       const summary = backtestOf().toDomain().toDto().summary
 
-      expect(summary.initialCapital).toBe('10000')
-      expect(summary.finalEquity).toBe('12500')
+      expect(summary.initialCapital).toBe('10000.00')
+      expect(summary.finalEquity).toBe('12500.00')
       expect(summary.totalReturnRate).toBe('+25.00%')
       expect(summary.maximumDrawdown).toBe('10.00%')
       expect(summary.winRate).toBe('75.0%')
       expect(summary.tradeCount).toBe(0)
+    })
+
+    it('把算出來的一長串小數進位成一個看得完的金額', () => {
+      // 口數是押注金額除以進場價，除出來十幾位小數；「最後剩多少」是它乘回價格。
+      // 那個數字撐破自己那一格，還會蓋掉隔壁那一欄——精確小數是算用的，不是看用的。
+      const summary = backtestOf({ finalEquity: '10219.284790870572819' })
+        .toDomain().toDto().summary
+
+      expect(summary.finalEquity).toBe('10219.28')
+    })
+
+    it('剛好整數的金額也寫兩位小數——一整欄要對得齊', () => {
+      const summary = backtestOf({ finalEquity: '12500' }).toDomain().toDto().summary
+
+      expect(summary.finalEquity).toBe('12500.00')
     })
 
     it('賺的總報酬率寫出正號，色調是綠的', () => {
@@ -117,9 +132,9 @@ describe('BacktestDomain', () => {
         closedTrades: [closedTradeOf('long', '300'), closedTradeOf('short', '-120')],
       }).toDomain().toDto()
 
-      expect(result.closedTrades[0]!.profit).toBe('300')
+      expect(result.closedTrades[0]!.profit).toBe('300.00')
       expect(result.closedTrades[0]!.profitTone).toBe('positive')
-      expect(result.closedTrades[1]!.profit).toBe('-120')
+      expect(result.closedTrades[1]!.profit).toBe('-120.00')
       expect(result.closedTrades[1]!.profitTone).toBe('negative')
     })
 
@@ -127,6 +142,17 @@ describe('BacktestDomain', () => {
       const result = backtestOf({ closedTrades: [closedTradeOf('long', '0')] }).toDomain().toDto()
 
       expect(result.closedTrades[0]!.profitTone).toBe('neutral')
+    })
+
+    it('價格寫得比金額細，而且不寫出一串沒有意義的零', () => {
+      // 帳戶餘額兩位小數綽綽有餘；一個標的的報價可能是 0.00001234，
+      // 用兩位小數寫它會得到 0.00。
+      const result = backtestOf({
+        closedTrades: [closedTradeOf('long', '1', '0.000012345678901', '110.5')],
+      }).toDomain().toDto()
+
+      expect(result.closedTrades[0]!.entryPrice).toBe('0.00001235')
+      expect(result.closedTrades[0]!.exitPrice).toBe('110.5')
     })
 
     it('兩端的時間留成時間值，交給畫面照顯示時區寫出來', () => {

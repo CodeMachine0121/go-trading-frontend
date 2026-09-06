@@ -82,6 +82,14 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
     font-weight: font-weight('medium');
     font-size: font-size('lg');
 
+    // 一個長到超出自己那一格的數字要**換行**，不是溢出去蓋掉隔壁那一欄。
+    // 這裡的每一格都是數字，沒有空白可以斷，所以斷在哪裡都行——
+    // 比起讀不出來的一行，折成兩行是好的那一種難看。
+    //
+    // 金額本身已經在 domain 進位過了，正常情況輪不到這一條；
+    // 它擋的是「本金填了一兆」那種真的裝不下的時候。
+    overflow-wrap: anywhere;
+
     @include numeric;
   }
 

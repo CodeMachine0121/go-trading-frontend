@@ -380,9 +380,9 @@ describe('StrategyBacktestPane', () => {
       await runBacktest(wrapper)
 
       const profits = wrapper.findAll('[data-testid="trade-profit"]')
-      expect(profits[0]!.text()).toBe('300')
+      expect(profits[0]!.text()).toBe('300.00')
       expect(profits[0]!.classes().some(name => name.endsWith('--positive'))).toBe(true)
-      expect(profits[1]!.text()).toBe('-120')
+      expect(profits[1]!.text()).toBe('-120.00')
       expect(profits[1]!.classes().some(name => name.endsWith('--negative'))).toBe(true)
     })
 

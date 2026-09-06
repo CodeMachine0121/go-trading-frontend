@@ -11,6 +11,26 @@ import { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
 /** 比率寫到小數點後兩位：再細一位對「這支策略好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
 
+/**
+ * 金額寫到小數點後兩位。
+ *
+ * 精確小數是**算**用的，不是**看**用的：口數是押注金額除以進場價，除出來動輒十幾位小數，
+ * 而「最後剩多少」是它乘回價格再加上現金——於是一個帳戶餘額長成
+ * `10219.284790870572...`，它會撐破自己那一格，還會蓋掉隔壁那一欄。
+ *
+ * 進位只發生在**寫出來**的這一刻。算的時候一位都不能少：
+ * 上百根 K 線一路乘除下來，每一步都進位兩位，錯的就不只是最後一位。
+ */
+const AMOUNT_FRACTION_DIGITS = 2
+
+/**
+ * 價格最多寫到小數點後八位，尾端的零去掉。
+ *
+ * 它與金額分開，因為兩者的量級天差地遠：帳戶餘額是幾萬塊，兩位小數綽綽有餘；
+ * 而一個標的的報價可能是 `0.00001234`——用兩位小數寫它，會得到 `0.00`。
+ */
+const PRICE_FRACTION_DIGITS = 8
+
 /** 勝率寫到小數點後一位：它天生是幾分之幾，兩位小數只是假的精確。 */
 const WIN_RATE_FRACTION_DIGITS = 1
 
@@ -48,8 +68,8 @@ export class BacktestDomain {
 
   private summaryDto(): BacktestSummaryDto {
     return new BacktestSummaryDto(
-      this.backtest.initialCapital.toString(),
-      this.backtest.finalEquity.toString(),
+      this.amount(this.backtest.initialCapital),
+      this.amount(this.backtest.finalEquity),
       this.signedPercentage(this.backtest.totalReturnRate),
       this.toneOfNumber(this.backtest.totalReturnRate),
       this.percentage(this.backtest.maximumDrawdown, RATE_FRACTION_DIGITS),
@@ -64,12 +84,22 @@ export class BacktestDomain {
     return new ClosedTradeDto(
       POSITION_DIRECTION_LABELS[closedTrade.direction],
       closedTrade.entryTime,
-      closedTrade.entryPrice.toString(),
+      this.price(closedTrade.entryPrice),
       closedTrade.exitTime,
-      closedTrade.exitPrice.toString(),
-      closedTrade.profit.toString(),
+      this.price(closedTrade.exitPrice),
+      this.amount(closedTrade.profit),
       this.toneOfDecimal(closedTrade.profit),
     )
+  }
+
+  /** 一筆錢寫出來的樣子。 */
+  private amount(value: Decimal): string {
+    return value.toFixed(AMOUNT_FRACTION_DIGITS)
+  }
+
+  /** 一個價格寫出來的樣子：夠細，但不會細到寫出一串沒有意義的零。 */
+  private price(value: Decimal): string {
+    return value.toDecimalPlaces(PRICE_FRACTION_DIGITS).toString()
   }
 
   /**
