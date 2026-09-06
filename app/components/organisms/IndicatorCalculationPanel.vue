@@ -808,8 +808,16 @@ async function calculateIndicator() {
     min-height: 18rem;
   }
 
+  // 編輯區吃掉左欄剩下的所有高度。
+  //
+  // 它一度只寫了 min-width，於是編輯區長到自己的內容高度就停住，
+  // 底下那一大塊灰是「沒有人要的高度」——而這一欄裡除了它沒有別的東西，
+  // 那塊空白不屬於任何人。多出來的高度落在檔尾（見編輯器自己的 __filler），
+  // 點下去就是接著往下寫。
   &__editor {
+    flex: 1;
     min-width: 0;
+    min-height: 0;
   }
 
   &__result-type {
