@@ -104,10 +104,10 @@ describe('IndicatorScriptDomain', () => {
   })
 
   it('每一種種類的外框行數都一樣，只有簽章那一行不同', () => {
-    const lineCounts = ['float', 'floatList', 'bool', 'boolList']
+    const lineCounts = ['float', 'floatList', 'bool', 'boolList', 'signal']
       .map(resultType => scriptOf(resultType).toTemplateDto().frameHeaderLineCount)
 
-    expect(lineCounts).toEqual([9, 9, 9, 9])
+    expect(lineCounts).toEqual([9, 9, 9, 9, 9])
   })
 
   it('化成樣板時，外框頭尾與範例內容一次拿齊', () => {

@@ -456,6 +456,18 @@ describe('StrategyBacktestPane', () => {
       expect(readings.some(text => text.includes('大於 0'))).toBe(false)
     })
 
+    it('規則講的是信號種類，不是「多放一個叫 signal 的名稱、看正負號」', async () => {
+      const wrapper = mountPane(buildProxy())
+
+      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
+
+      const titles = wrapper.findAll('[data-testid="backtest-rule-title"]').map(node => node.text())
+      expect(titles).toContain('只跑「一個信號」的算式')
+      const text = wrapper.text()
+      expect(text).toContain('指標值種類選「一個信號」')
+      expect(text).not.toContain('看正負號')
+    })
+
     it('明講這一版不算手續費——不然那張成績單會被當成真的', async () => {
       const wrapper = mountPane(buildProxy())
 

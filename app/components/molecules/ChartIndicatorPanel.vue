@@ -105,7 +105,7 @@ function applyPicked(value: string) {
           :value="String(strategy.id)"
           :disabled="!strategy.drawableOnChart"
         >
-          {{ strategy.drawableOnChart ? strategy.name : `${strategy.name}（是非，畫不成線）` }}
+          {{ strategy.drawableOnChart ? strategy.name : `${strategy.name}（畫不成線）` }}
         </option>
       </AppSelect>
     </label>
