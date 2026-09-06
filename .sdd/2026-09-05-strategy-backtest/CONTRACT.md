@@ -3,7 +3,7 @@
 Contract: `PRD.md`（同一資料夾）
 Design map: `ARCH.md`（同一資料夾）
 Implementation: `app/domain/models/domains/backtest-*.ts`、`app/domain/models/domains/position-sizing-domain.ts`、`app/domain/service/backtest-service.ts`、`app/infrastructure/proxy/backtest-proxy.ts`、`app/composables/use-latest-run.ts`、`app/components/organisms/StrategyBacktestPane.vue`、`app/components/organisms/IndicatorCalculationPanel.vue`
-Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business Rules、6 條 Non-Functional Requirements（共 52 clauses）
+Oracle: Acceptance Criteria — 38 個 Gherkin scenario、12 條 Core Business Rules、6 條 Non-Functional Requirements（共 56 clauses）
 
 > **Ceiling.** 這是一份**靜態一致性稽核**：它拿 PRD 的預期結果去讀測試斷言與程式路徑，
 > 不撰寫新的探針、也不執行自己發明的情境。判定來自「與 oracle 比對」，不是來自跑測試看綠燈。
@@ -31,6 +31,8 @@ Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business R
 | AC-10 | 選了百分比 → 旁邊出現百分比格 | 那一格出現 | `position-sizing-domain.ts`（`requiresValue`）＋`BacktestConditionFields.vue` | `StrategyBacktestPane.spec.ts`（選了百分比就出現一格） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-11 | 選了固定金額 → 旁邊出現金額格 | 那一格出現 | 同上 | `StrategyBacktestPane.spec.ts`（選了固定金額也出現一格） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-12 | 選了全押 → 那一格不出現 | 那一格不存在 | 同上 | `StrategyBacktestPane.spec.ts`（預設押注方式旁邊沒有那一格）＋`position-sizing-domain.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12b | 剛打開回測 → 那份規則沒有攤在版面上 | 畫面上沒有任何一條規則 | `StrategyBacktestPane.vue`（`ruleGuideOpen` 預設關） | `StrategyBacktestPane.spec.ts`（那份規則一開始是收著的） | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12c | 按下說明鍵 → 看得到信號怎麼讀與「不算手續費」 | 規則攤開；含「沒放這個名字」與「手續費」 | `BacktestRuleGuideDialog.vue`＋`BACKTEST_RULES`／`SIGNAL_READINGS` | `StrategyBacktestPane.spec.ts`（按下那顆鍵就把規則攤開來／說得出信號怎麼讀／明講這一版不算手續費） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-13 | 百分比填 50 → 改全押 → 改回百分比 → 仍是 50 | 那一格仍是 50 | `BacktestConditionFields.vue`（數字留在自己的 ref 裡） | `StrategyBacktestPane.spec.ts`（切去全押再切回來，填過的數字還在） | asserts-oracle | produces-oracle | ✅ conforms |
 
 ## Clauses — US-03 送出之前就地把關
@@ -44,6 +46,7 @@ Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business R
 | AC-18 | 算式空白 → 不送出，與指標預覽同一句話 | 沒有請求打出去；出現「請填寫算式內容」 | `backtest-request-domain.ts`（與 `IndicatorCalculationRequestDomain` 同一句） | `StrategyBacktestPane.spec.ts`（算式空白時說在算式那裡） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-19 | 百分比填 0 → 不送出，那格說明範圍 | 出現「百分比要大於零且不超過一百」 | `position-sizing-domain.ts:validate` | `StrategyBacktestPane.spec.ts`（百分比填零時說在那一格）＋`position-sizing-domain.spec.ts`（0／-1／101／150） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-20 | 固定金額填 0 → 不送出，那格說明 | 出現「固定金額要大於零」 | 同上 | `position-sizing-domain.spec.ts`＋`backtest-application.spec.ts`（固定金額為零） | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-20b | 種類是「一串數字」→ 不送出，說明要去改那個種類 | 沒有請求打出去；訊息同時提到「一個數字」「一串數字」與 `signal` | `backtest-request-domain.ts`（`BACKTEST_RESULT_TYPE` 檢查） | `StrategyBacktestPane.spec.ts`（算式宣告的不是「一個數字」時當場說清楚） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-21 | 說明留在出問題的那一格旁邊，不是頁面頂端 | 訊息渲染在該欄位的 `FormField` 內 | `BacktestConditionFields.vue`（逐格 `error-message`）＋`use-latest-run.ts`（`messageFor`） | `StrategyBacktestPane.spec.ts` AC-14…AC-19 各條（斷言的是欄位旁的文字） | asserts-oracle | produces-oracle | ✅ conforms |
 
 ## Clauses — US-04 按下去之後的每一種狀態
@@ -86,6 +89,7 @@ Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business R
 | BR-9 | 勝率不適用 | 見 AC-31 | `backtest-domain.ts` | 三處 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-10 | 沒有交易也要說話 | 見 AC-35 | `BacktestTradeTable.vue` | `BacktestTradeTable.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-11 | 時間一律照使用者選的顯示時區 | 見 AC-36 | 明細：`timeZone.formatDateTime`；曲線：當地時鐘讀數 | 兩邊都有專屬斷言（見 AC-36） | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-12 | 回測只跑「一個數字」的算式，種類不對就在送出前說清楚 | 見 AC-20b | `backtest-request-domain.ts` | `StrategyBacktestPane.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
 
 ## Clauses — Non-Functional Requirements
 
@@ -115,7 +119,7 @@ Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business R
 
 ## Summary
 
-- **Conforms: 51 / 52 clauses ✅（98%）**
+- **Conforms: 55 / 56 clauses ✅（98%）**
 - Violations: 無
 - Mis-asserted: `NFR-5` 🟠 —— 行為是對的，但測試沒有把它釘死：測到的是「切換後內容還在」，
   不是「編輯器沒有重新掛載」。如果哪天有人把工作區搬進其中一個去處，內容仍然會在
@@ -130,7 +134,18 @@ Oracle: Acceptance Criteria — 35 個 Gherkin scenario、11 條 Core Business R
 1. **NFR-5**：若要真的釘死，測試要斷言編輯器元件實例在切換前後是同一個。
    目前的間接證據（內容還在）夠用，但它會在錯誤的設計下仍然通過。以本文件記錄此一取捨。
 
-### 這一輪稽核已經修掉的
+### 這一輪之後補上的
+
+- **回測預設了「一個數字」卻沒說**（本輪修掉的 bug）：工作區是共用的，回測卻自己假定種類，
+  於是一支「一串數字」的算式被硬套上不相容的外框，使用者收到的是直譯器的 `mapT vs mapT`。
+  現在種類跟著請求走、送出前就檢查，並補上 `AC-20b` / `BR-12`。
+- **版面改成兩個直欄**（左欄工作區、右欄去處）。「編輯器不屬於任何一個去處」這條設計
+  現在由 `IndicatorCalculationPanelDestinations.spec.ts` 的巢狀結構斷言釘住，
+  而不只是靠「切換後內容還在」的間接證據——這也讓 `NFR-5` 的那條備註不再是唯一的保護。
+- **回測規則收進一顆 ⓘ 鍵後面**（`AC-12b` / `AC-12c`）。字住在 domain，
+  所以行為改了那份說明不會安靜地開始說謊。
+
+### 更早一輪稽核已經修掉的
 
 - 稽核找出五條沒有測試的規則（AC-3、AC-22、AC-28，以及 AC-36 的明細與曲線兩半），已全數補齊——最後一條在寫完本文件的第一版後才補上，因為它一開始被判成「留待下次」，而它其實是三行斷言。
 - 前端 proxy 原本以**訊息文字**判斷「這一段重演不了」，違反專案「不比對寫給人看的文字」的規則。已改為後端指名欄位、前端翻譯——後端因此新增了 `field` 欄位（見後端切片的同名 commit）。

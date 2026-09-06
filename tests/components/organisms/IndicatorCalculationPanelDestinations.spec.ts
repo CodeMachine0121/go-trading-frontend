@@ -100,6 +100,24 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
       .querySelector('.cm-content')?.textContent).toContain(SCRIPT_BODY)
   })
 
+  it('工作區在左欄，去處在右欄——切換換掉的只有右邊那一欄', async () => {
+    // 這是版面的那個決定本身：編輯器不在任何一個去處底下，所以切換碰不到它。
+    // 驗的是巢狀結構而不是樣式——寬度是 CSS 的事，「誰包著誰」才是這個設計。
+    const wrapper = mountPanel()
+    await settle()
+
+    const workbench = wrapper.get('.indicator-calculation-panel__workbench')
+    const outcome = wrapper.get('.indicator-calculation-panel__outcome')
+
+    expect(workbench.find('[data-testid="script-body"]').exists()).toBe(true)
+    expect(workbench.find('[data-testid="tab-backtest"]').exists()).toBe(false)
+
+    expect(outcome.find('[data-testid="tab-backtest"]').exists()).toBe(true)
+    expect(outcome.find('[data-testid="calculate-button"]').exists()).toBe(true)
+    expect(outcome.find('[data-testid="run-backtest-button"]').exists()).toBe(true)
+    expect(outcome.find('[data-testid="script-body"]').exists()).toBe(false)
+  })
+
   it('切過去再切回來，填到一半的回測條件一格都沒掉', async () => {
     // 他為了看一眼指標而離開，回來時不該發現自己得重填。
     const wrapper = mountPanel()
