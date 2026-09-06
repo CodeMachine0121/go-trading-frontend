@@ -9,6 +9,11 @@ import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-v
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
+import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
+import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
+import { BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
+import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
+import { SIGNAL_INDICATOR_NAME } from '~/domain/models/vo/signal-vo'
 
 /**
  * 沒特別填時一開始有多少錢。
@@ -52,6 +57,27 @@ export class BacktestService {
   /** 沒特別挑時押多少。同上——畫面不自己指定預設值。 */
   defaultPositionSizingMode(): PositionSizingMode {
     return POSITION_SIZING_MODES[0] as PositionSizingMode
+  }
+
+  /**
+   * 回測照什麼規則走，以及那個叫信號的數字怎麼讀。
+   *
+   * 畫面問這個而不是自己寫幾段說明，理由與「算式裡可以用什麼」相同：這些字描述的是
+   * 系統真正的行為。寫在對話框裡的話，行為改了沒有人會知道要回頭改它們，
+   * 於是那份說明會安靜地開始說謊——而說明一旦說謊，讀的人比沒看還糟。
+   */
+  listBacktestRules(): BacktestRuleDto[] {
+    return BACKTEST_RULES.map(rule => rule.toDto())
+  }
+
+  /** 信號的每一種讀法，排成一張對照表。 */
+  listSignalReadings(): SignalReadingDto[] {
+    return SIGNAL_READINGS.map(reading => reading.toDto())
+  }
+
+  /** 算式要放的那個指標名稱。畫面不自己寫死這個字。 */
+  signalIndicatorName(): string {
+    return SIGNAL_INDICATOR_NAME
   }
 
   /**

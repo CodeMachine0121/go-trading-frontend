@@ -76,6 +76,7 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       timeZone: buildTimeZone(),
       aggregationIntervalOptions: [new AggregationIntervalDomain('1h').toOptionDto()],
       scriptBody: SCRIPT_BODY,
+      resultType: 'float',
       parameters: [] as StrategyParameterDto[],
       workspaceGeneration: 0,
       symbol: 'BTCUSDT',
@@ -199,6 +200,20 @@ describe('StrategyBacktestPane', () => {
 
       expect(proxy.runBacktest).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('百分比要大於零且不超過一百')
+    })
+
+    it('算式宣告的不是「一個數字」時當場說清楚，而不是硬送出去', async () => {
+      // 使用者什麼都沒改，卻收到一句直譯器的型別抱怨——那句話不會告訴他該按哪個下拉選單。
+      const proxy = buildProxy()
+      const wrapper = mountPane(proxy, { resultType: 'floatList' })
+
+      await runBacktest(wrapper)
+
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      const message = wrapper.get('[data-testid="backtest-script-body-error"]').text()
+      expect(message).toContain('一個數字')
+      expect(message).toContain('一串數字')
+      expect(message).toContain('signal')
     })
 
     it('算式空白時說在算式那裡——與指標預覽同一條規則', async () => {
@@ -407,6 +422,54 @@ describe('StrategyBacktestPane', () => {
       expect(drawn).toHaveLength(2)
       expect(drawn![0]!.value).toBe(10000)
       expect(drawn![1]!.value).toBe(12500)
+    })
+  })
+
+  describe('回測照什麼規則走', () => {
+    it('那份規則一開始是收著的', () => {
+      // 使用者九成的時間並不在讀它，攤在版面上只會跟真正要看的東西搶寬度。
+      const wrapper = mountPane(buildProxy())
+
+      expect(wrapper.text()).not.toContain('回測照什麼規則走的說明')
+      expect(wrapper.findAll('[data-testid="backtest-rule-title"]')).toHaveLength(0)
+    })
+
+    it('按下那顆鍵就把規則攤開來', async () => {
+      const wrapper = mountPane(buildProxy())
+
+      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
+
+      expect(wrapper.findAll('[data-testid="backtest-rule-title"]').length)
+        .toBeGreaterThan(0)
+    })
+
+    it('說得出信號怎麼讀，包含「沒放這個名字」那一種', async () => {
+      // 那一列是最容易被忽略、也最重要的一列：它是既有算式不必改的理由。
+      const wrapper = mountPane(buildProxy())
+
+      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
+
+      const readings = wrapper.findAll('[data-testid="signal-reading-row"]')
+        .map(row => row.text())
+      expect(readings.some(text => text.includes('大於 0') && text.includes('買入'))).toBe(true)
+      expect(readings.some(text => text.includes('小於 0') && text.includes('賣出'))).toBe(true)
+      expect(readings.some(text => text.includes('沒有這個名字'))).toBe(true)
+    })
+
+    it('說得出那個名字叫什麼，而不是由畫面自己寫死', async () => {
+      const wrapper = mountPane(buildProxy())
+
+      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
+
+      expect(wrapper.text()).toContain('signal')
+    })
+
+    it('明講這一版不算手續費——不然那張成績單會被當成真的', async () => {
+      const wrapper = mountPane(buildProxy())
+
+      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
+
+      expect(wrapper.text()).toContain('手續費')
     })
   })
 

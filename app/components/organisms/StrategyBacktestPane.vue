@@ -5,6 +5,8 @@ import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
+import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import BacktestEquityCurveChart from '~/components/molecules/BacktestEquityCurveChart.vue'
 import BacktestSummaryCard from '~/components/molecules/BacktestSummaryCard.vue'
 import BacktestTradeTable from '~/components/molecules/BacktestTradeTable.vue'
@@ -28,6 +30,7 @@ const {
   timeZone,
   aggregationIntervalOptions,
   scriptBody,
+  resultType,
   parameters,
   workspaceGeneration,
   backendUnreachable = false,
@@ -37,6 +40,8 @@ const {
   timeZone: TimeZoneDto
   aggregationIntervalOptions: readonly AggregationIntervalOptionDto[]
   scriptBody: string
+  /** 工作區宣告的指標值種類。回測只跑「一個數字」，不對就當場說清楚。 */
+  resultType: string
   parameters: readonly StrategyParameterDto[]
   /**
    * 工作區被換掉了幾次。
@@ -57,6 +62,13 @@ const aggregationInterval = defineModel<string>('aggregationInterval', { require
 const backtestRun = useBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
+
+// 回測照什麼規則走。三份都不會變，取一次就好——它們描述的是系統的行為，不是這一次的資料。
+const signalIndicatorName = backtestApplication.signalIndicatorName()
+const signalReadings = backtestApplication.listSignalReadings()
+const backtestRules = backtestApplication.listBacktestRules()
+/** 那份規則開著沒有。它是第一次用時讀一遍的東西，所以擺在一顆鍵後面。 */
+const ruleGuideOpen = ref(false)
 
 /**
  * 一打開就填好的那一段。時間選擇器吃的是當地讀數，所以在這裡就換成使用者的時區——
@@ -82,6 +94,7 @@ async function runBacktest() {
     timeZone.parseMinuteInput(startTime.value),
     timeZone.parseMinuteInput(endTime.value),
     scriptBody,
+    resultType,
     parameters,
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
@@ -100,6 +113,20 @@ async function runBacktest() {
         <AppBadge variant="info">
           只影響這一次
         </AppBadge>
+        <!--
+          規則擺在一顆鍵後面而不是攤在版面上：使用者會想讀它的時刻只有兩個——
+          第一次用，以及看到一張不如預期的成績單時。其餘時候它只是在佔寬度。
+        -->
+        <AppButton
+          type="button"
+          variant="ghost"
+          size="small"
+          label="回測照什麼規則走"
+          data-testid="backtest-rule-guide-button"
+          @click="ruleGuideOpen = true"
+        >
+          <AppIcon name="info" />
+        </AppButton>
       </template>
 
       <BacktestConditionFields
@@ -225,6 +252,14 @@ async function runBacktest() {
         />
       </AppPanel>
     </template>
+
+    <BacktestRuleGuideDialog
+      :open="ruleGuideOpen"
+      :signal-indicator-name="signalIndicatorName"
+      :signal-readings="signalReadings"
+      :rules="backtestRules"
+      @close="ruleGuideOpen = false"
+    />
   </form>
 </template>
 

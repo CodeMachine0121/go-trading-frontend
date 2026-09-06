@@ -626,6 +626,7 @@ async function calculateIndicator() {
       :time-zone="timeZone"
       :aggregation-interval-options="aggregationIntervalOptions"
       :script-body="scriptBody"
+      :result-type="resultType"
       :parameters="strategyParameters.parameters.value"
       :workspace-generation="workspaceGeneration"
     />

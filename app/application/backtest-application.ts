@@ -4,6 +4,8 @@ import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dt
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
+import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
+import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 
 /** Application：回測的用例編排，全程只碰 DTO。 */
@@ -28,5 +30,17 @@ export class BacktestApplication {
 
   listPositionSizingModeOptions(): PositionSizingModeOptionDto[] {
     return this.backtestService.listPositionSizingModeOptions()
+  }
+
+  listBacktestRules(): BacktestRuleDto[] {
+    return this.backtestService.listBacktestRules()
+  }
+
+  listSignalReadings(): SignalReadingDto[] {
+    return this.backtestService.listSignalReadings()
+  }
+
+  signalIndicatorName(): string {
+    return this.backtestService.signalIndicatorName()
   }
 }

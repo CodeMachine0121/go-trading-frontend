@@ -1,6 +1,8 @@
 import type Decimal from 'decimal.js'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
+import { SIGNAL_INDICATOR_NAME } from '~/domain/models/vo/signal-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
@@ -10,10 +12,13 @@ import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /**
- * 重演一律以「一個數字」的種類執行算式：讀的是信號，而信號是一個數字。
- * 使用者在工作區挑的那個種類只管指標預覽——重演這一邊沒有東西要他宣告。
+ * 重演只吃「一個數字」的算式。
+ *
+ * 這不是限制，是重演的形狀本身：算式**一根 K 線跑一次**，每一次只被問一個問題——
+ * 這一棒要做什麼。答案是一個數字。一支回傳一串數字的算式，重演也不知道該讀哪一格
+ * 當這一棒的意見。
  */
-const BACKTEST_RESULT_TYPE = 'float'
+const BACKTEST_RESULT_TYPE: IndicatorResultType = 'float'
 
 /**
  * Domain Model：一次回測的請求，建構當下即驗證。
@@ -57,14 +62,25 @@ export class BacktestRequestDomain {
     new PositionSizingDomain(
       backtestRequestDto.positionSizingMode, backtestRequestDto.positionSizingValue).validate()
 
+    // 種類不對就當場說清楚，而不是硬套一個「一個數字」的外框送出去。
+    // 硬套的代價是：使用者什麼都沒改，卻收到一句直譯器的型別抱怨——
+    // 那句話不會告訴他該去按哪一個下拉選單。
+    const resultType = new IndicatorResultTypeDomain(backtestRequestDto.resultType)
+    if (resultType.value !== BACKTEST_RESULT_TYPE) {
+      throw new BacktestFieldError(
+        'scriptBody',
+        `回測只跑「一個數字」的算式：它一根 K 線問一次，每一次讀一個叫 `
+        + `${SIGNAL_INDICATOR_NAME} 的數字。這支目前宣告的是「${resultType.label()}」，`
+        + `請把指標值種類改成「一個數字」。`)
+    }
+
     this.symbol = normalizedSymbol
     // 刻度不做合法性拒絕：使用者是從清單挑的，挑不出非法值。與指標預覽同一套處理。
     this.aggregationInterval
       = new AggregationIntervalDomain(backtestRequestDto.aggregationInterval)
     this.startTime = backtestRequestDto.startTime
     this.endTime = backtestRequestDto.endTime
-    this.script = new IndicatorScriptDomain(
-      new IndicatorResultTypeDomain(BACKTEST_RESULT_TYPE)).assemble(normalizedScriptBody)
+    this.script = new IndicatorScriptDomain(resultType).assemble(normalizedScriptBody)
     this.initialCapital = backtestRequestDto.initialCapital
     this.positionSizingMode = backtestRequestDto.positionSizingMode
     this.positionSizingValue = backtestRequestDto.positionSizingValue

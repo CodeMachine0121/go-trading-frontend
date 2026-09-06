@@ -16,7 +16,7 @@ const END_TIME = new Date('2026-09-04T23:59:59Z')
 
 function requestOf(parameters: StrategyParameterDto[] = []): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
-    'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, parameters,
+    'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'float', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50')))
 }
 

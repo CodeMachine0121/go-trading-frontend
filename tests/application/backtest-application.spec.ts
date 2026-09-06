@@ -41,6 +41,7 @@ function backtestRequest(overrides: Partial<{
   startTime: Date
   endTime: Date
   scriptBody: string
+  resultType: string
   parameters: StrategyParameterDto[]
   initialCapital: Decimal
   positionSizingMode: 'allIn' | 'percentage' | 'fixedAmount'
@@ -52,6 +53,7 @@ function backtestRequest(overrides: Partial<{
     overrides.startTime ?? START_TIME,
     overrides.endTime ?? END_TIME,
     overrides.scriptBody ?? SCRIPT_BODY,
+    overrides.resultType ?? 'float',
     overrides.parameters ?? [],
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
