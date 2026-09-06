@@ -25,6 +25,8 @@ import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type
 import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
 import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
+import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
+import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 
 /**
  * 沒特別填時要餵給算式幾根 K 線。
@@ -224,5 +226,15 @@ export class IndicatorCalculationService {
    */
   listScriptParameterAccesses(): ScriptParameterAccessDto[] {
     return SCRIPT_PARAMETER_ACCESSES.map(access => access.toDto())
+  }
+
+  /**
+   * 「一個信號」種類之下，算式能回傳的三個值——排成一張對照表。
+   *
+   * 它也是同一份沙箱契約的一部分：`indicator.Buy` / `Sell` / `Hold` 是系統注入的，
+   * 種類選信號時算式就 `return` 其中一個。回測那一側讀的是同一張表。
+   */
+  listSignalReadings(): SignalReadingDto[] {
+    return SIGNAL_READINGS.map(reading => reading.toDto())
   }
 }

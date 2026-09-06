@@ -3,6 +3,7 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
+import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 
 /**
  * 分子：寫算式時會查的兩件事——**每一根 K 線有什麼**，以及**參數怎麼讀**。
@@ -21,6 +22,8 @@ defineProps<{
   open: boolean
   fields: readonly KCandleFieldDto[]
   parameterAccesses: readonly ScriptParameterAccessDto[]
+  /** 「一個信號」種類之下，算式能回傳的三個值。 */
+  signalReadings: readonly SignalReadingDto[]
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -114,6 +117,44 @@ const emit = defineEmits<{ close: [] }>()
           </ul>
         </div>
       </section>
+
+      <section class="indicator-script-guide-dialog__section">
+        <h3 class="indicator-script-guide-dialog__heading">
+          說出這一棒的意見（種類選「一個信號」時）
+        </h3>
+
+        <p class="indicator-script-guide-dialog__kind-usage">
+          指標值種類挑「一個信號」時，外框的進入點回傳一個信號。用系統提供的三個值選一個
+          <code>return</code> 出去，沒有第四種、也不能自己組一個。回測讀的就是它。
+        </p>
+
+        <table class="indicator-script-guide-dialog__signals">
+          <thead>
+            <tr>
+              <th scope="col">
+                算式回傳
+              </th>
+              <th scope="col">
+                意思
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="reading in signalReadings"
+              :key="reading.value"
+              data-testid="signal-reading-row"
+            >
+              <td class="indicator-script-guide-dialog__name">
+                {{ reading.value }}
+              </td>
+              <td class="indicator-script-guide-dialog__meaning">
+                {{ reading.meaning }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
 
     <template #actions>
@@ -185,6 +226,25 @@ const emit = defineEmits<{ close: [] }>()
     margin: 0;
     color: color('text-muted');
     font-size: font-size('2xs');
+  }
+
+  &__signals {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: font-size('2xs');
+
+    th,
+    td {
+      border-bottom: 1px solid color('border');
+      padding: spacing('3xs') spacing('xs');
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: color('text-faint');
+      font-weight: font-weight('medium');
+    }
   }
 
   &__steps {

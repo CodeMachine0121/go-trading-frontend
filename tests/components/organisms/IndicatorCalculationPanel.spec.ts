@@ -514,6 +514,16 @@ describe('指標計算畫面：算式裡可以用什麼', () => {
     expect(wrapper.text()).toContain('同一個名字')
     expect(wrapper.text()).toContain('失敗並指名')
   })
+
+  it('也說出「一個信號」種類的算式能回傳哪三個值', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const readings = wrapper.findAll('[data-testid="signal-reading-row"]').map(row => row.text())
+    expect(readings.some(text => text.includes('indicator.Buy') && text.includes('買入'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Sell') && text.includes('賣出'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Hold') && text.includes('持有'))).toBe(true)
+    expect(wrapper.text()).not.toContain('看正負號')
+  })
 })
 
 describe('指標計算畫面：這次用了多粗', () => {

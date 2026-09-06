@@ -97,6 +97,14 @@ describe('IndicatorCalculationService', () => {
     expect(templateDto.exampleBody).not.toContain('map[string]')
     expect(templateDto.exampleBody).not.toContain('func Calculate')
   })
+
+  it('說得出「一個信號」種類的算式能回傳哪三個值', () => {
+    const readings = new IndicatorCalculationService(buildProxy()).listSignalReadings()
+
+    expect(readings.map(reading => reading.value))
+      .toEqual(['return indicator.Buy', 'return indicator.Sell', 'return indicator.Hold'])
+    expect(readings.map(reading => reading.meaning)).toEqual(['買入', '賣出', '持有，倉位不動'])
+  })
 })
 
 describe('IndicatorCalculationService 交出的 K 線欄位說明', () => {

@@ -120,6 +120,7 @@ const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions(
 // 兩份都是沙箱契約的一部分，都不會變，取一次就好。
 const kCandleFields = indicatorCalculationApplication.listKCandleFields()
 const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
+const signalReadings = indicatorCalculationApplication.listSignalReadings()
 /** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
 const guideOpen = ref(false)
 /** 宣告旋鈕的那一份開著沒有。同理——它是偶爾做一次的事。 */
@@ -671,6 +672,7 @@ async function calculateIndicator() {
       :open="guideOpen"
       :fields="kCandleFields"
       :parameter-accesses="scriptParameterAccesses"
+      :signal-readings="signalReadings"
       @close="guideOpen = false"
     />
 
