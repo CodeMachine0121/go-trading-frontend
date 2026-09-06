@@ -23,6 +23,11 @@ export class IndicatorCalculation {
      * 整條線就會錯位，而錯位的線看起來完全正常。
      */
     public readonly openTimes: readonly Date[] = [],
+    /**
+     * 「一個信號」種類下後端回報的那一個信號值（`buy` / `sell` / `hold`），
+     * 其餘四種種類下為 `null`。它沒有指標名稱，所以不在 indicatorValues 裡。
+     */
+    public readonly signal: string | null = null,
   ) {}
 
   toDomain(): IndicatorCalculationDomain {

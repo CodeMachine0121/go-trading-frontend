@@ -39,8 +39,4 @@ export class BacktestApplication {
   listSignalReadings(): SignalReadingDto[] {
     return this.backtestService.listSignalReadings()
   }
-
-  signalIndicatorName(): string {
-    return this.backtestService.signalIndicatorName()
-  }
 }

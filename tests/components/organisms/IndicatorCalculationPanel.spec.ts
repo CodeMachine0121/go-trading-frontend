@@ -151,6 +151,21 @@ describe('IndicatorCalculationPanel', () => {
     expect(rows[1]?.text()).toContain('最高')
   })
 
+  it('信號種類算出來時呈現一個結論，不是名稱-數值表', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'signal', [], [], 'buy')),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'signal' })
+
+    const verdict = wrapper.get('[data-testid="signal-verdict"]')
+    expect(verdict.text()).toBe('買入')
+    expect(verdict.classes()).toContain('indicator-calculation-panel__signal--positive')
+    expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+  })
+
   it('一個指標都沒算出來時說明清楚，且不呈現為錯誤', async () => {
     const wrapper = mountPanel(buildProxy())
 
@@ -307,12 +322,12 @@ describe('IndicatorCalculationPanel', () => {
     expect(editorText).not.toContain('package main')
   })
 
-  it('指標值種類就是領域給的那四種', async () => {
+  it('指標值種類就是領域給的那五種', async () => {
     const wrapper = mountPanel(buildProxy())
 
     const options = wrapper.get('[data-testid="result-type-select"]').findAll('option')
     expect(options.map(option => option.text()))
-      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
   })
 
   it.each([
@@ -320,6 +335,7 @@ describe('IndicatorCalculationPanel', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
+    { resultType: 'signal', valueShape: 'indicator.Signal' },
   ])('挑了 $resultType，外框就產出 $valueShape', async ({ resultType, valueShape }) => {
     const wrapper = mountPanel(buildProxy())
     await settle()

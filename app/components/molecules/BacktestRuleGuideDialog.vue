@@ -15,7 +15,6 @@ import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
  */
 defineProps<{
   open: boolean
-  signalIndicatorName: string
   signalReadings: readonly SignalReadingDto[]
   rules: readonly BacktestRuleDto[]
 }>()
@@ -35,16 +34,16 @@ const emit = defineEmits<{ close: [] }>()
           算式怎麼說出這一棒的意見
         </h3>
 
-        <pre class="backtest-rule-guide-dialog__code"><code>return map[string]float64{"{{ signalIndicatorName }}": 1}</code></pre>
+        <pre class="backtest-rule-guide-dialog__code"><code>return indicator.Buy</code></pre>
 
         <table class="backtest-rule-guide-dialog__table">
           <thead>
             <tr>
               <th scope="col">
-                {{ signalIndicatorName }} 的值
+                算式回傳
               </th>
               <th scope="col">
-                回測讀作
+                意思
               </th>
             </tr>
           </thead>

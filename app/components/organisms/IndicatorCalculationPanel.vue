@@ -572,6 +572,15 @@ async function calculateIndicator() {
               這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
             </p>
 
+            <p
+              v-else-if="calculationRun.result.value.isSignal"
+              class="indicator-calculation-panel__signal"
+              :class="`indicator-calculation-panel__signal--${calculationRun.result.value.signalTone}`"
+              data-testid="signal-verdict"
+            >
+              {{ calculationRun.result.value.signalLabel }}
+            </p>
+
             <div
               v-else
               class="indicator-calculation-panel__scroller"
@@ -844,6 +853,26 @@ async function calculateIndicator() {
     color: color('text-faint');
     font-size: font-size('xs');
     text-align: center;
+  }
+
+  &__signal {
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    font-size: font-size('2xl');
+    font-weight: font-weight('bold');
+    text-align: center;
+
+    &--positive {
+      color: color('success');
+    }
+
+    &--negative {
+      color: color('danger');
+    }
+
+    &--neutral {
+      color: color('text-strong');
+    }
   }
 
   &__series {

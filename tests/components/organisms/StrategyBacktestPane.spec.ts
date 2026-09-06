@@ -36,7 +36,7 @@ vi.mock('lightweight-charts', () => ({
   LineSeries: 'LineSeries',
 }))
 
-const SCRIPT_BODY = 'return map[string]float64{"signal": 1}'
+const SCRIPT_BODY = 'return indicator.Buy'
 const REPLAY_START = new Date('2026-08-06T00:00:00Z')
 const REPLAY_END = new Date('2026-09-04T23:00:00Z')
 
@@ -76,7 +76,7 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       timeZone: buildTimeZone(),
       aggregationIntervalOptions: [new AggregationIntervalDomain('1h').toOptionDto()],
       scriptBody: SCRIPT_BODY,
-      resultType: 'float',
+      resultType: 'signal',
       parameters: [] as StrategyParameterDto[],
       workspaceGeneration: 0,
       symbol: 'BTCUSDT',
@@ -202,7 +202,7 @@ describe('StrategyBacktestPane', () => {
       expect(wrapper.text()).toContain('百分比要大於零且不超過一百')
     })
 
-    it('算式宣告的不是「一個數字」時當場說清楚，而不是硬送出去', async () => {
+    it('算式宣告的不是「一個信號」時當場說清楚，而不是硬送出去', async () => {
       // 使用者什麼都沒改，卻收到一句直譯器的型別抱怨——那句話不會告訴他該按哪個下拉選單。
       const proxy = buildProxy()
       const wrapper = mountPane(proxy, { resultType: 'floatList' })
@@ -211,9 +211,8 @@ describe('StrategyBacktestPane', () => {
 
       expect(proxy.runBacktest).not.toHaveBeenCalled()
       const message = wrapper.get('[data-testid="backtest-script-body-error"]').text()
-      expect(message).toContain('一個數字')
+      expect(message).toContain('一個信號')
       expect(message).toContain('一串數字')
-      expect(message).toContain('signal')
     })
 
     it('算式空白時說在算式那裡——與指標預覽同一條規則', async () => {
@@ -443,25 +442,18 @@ describe('StrategyBacktestPane', () => {
         .toBeGreaterThan(0)
     })
 
-    it('說得出信號怎麼讀，包含「沒放這個名字」那一種', async () => {
-      // 那一列是最容易被忽略、也最重要的一列：它是既有算式不必改的理由。
+    it('說得出信號種類的算式能回傳哪三個值', async () => {
       const wrapper = mountPane(buildProxy())
 
       await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
 
       const readings = wrapper.findAll('[data-testid="signal-reading-row"]')
         .map(row => row.text())
-      expect(readings.some(text => text.includes('大於 0') && text.includes('買入'))).toBe(true)
-      expect(readings.some(text => text.includes('小於 0') && text.includes('賣出'))).toBe(true)
-      expect(readings.some(text => text.includes('沒有這個名字'))).toBe(true)
-    })
-
-    it('說得出那個名字叫什麼，而不是由畫面自己寫死', async () => {
-      const wrapper = mountPane(buildProxy())
-
-      await wrapper.get('[data-testid="backtest-rule-guide-button"]').trigger('click')
-
-      expect(wrapper.text()).toContain('signal')
+      expect(readings.some(text => text.includes('indicator.Buy') && text.includes('買入'))).toBe(true)
+      expect(readings.some(text => text.includes('indicator.Sell') && text.includes('賣出'))).toBe(true)
+      expect(readings.some(text => text.includes('indicator.Hold') && text.includes('持有'))).toBe(true)
+      // 過時的「看正負號」讀法不該再出現。
+      expect(readings.some(text => text.includes('大於 0'))).toBe(false)
     })
 
     it('明講這一版不算手續費——不然那張成績單會被當成真的', async () => {

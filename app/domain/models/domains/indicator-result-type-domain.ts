@@ -7,12 +7,16 @@ import { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-resu
  * 不是在任何地方多一個 if。
  */
 const INDICATOR_RESULT_TYPE_DESCRIPTIONS: Readonly<
-  Record<IndicatorResultType, { label: string, isList: boolean, holdsNumbers: boolean }>
+  Record<
+    IndicatorResultType,
+    { label: string, isList: boolean, holdsNumbers: boolean, isSignal: boolean }
+  >
 > = {
-  float: { label: '一個數字', isList: false, holdsNumbers: true },
-  floatList: { label: '一串數字', isList: true, holdsNumbers: true },
-  bool: { label: '一個是非', isList: false, holdsNumbers: false },
-  boolList: { label: '一串是非', isList: true, holdsNumbers: false },
+  float: { label: '一個數字', isList: false, holdsNumbers: true, isSignal: false },
+  floatList: { label: '一串數字', isList: true, holdsNumbers: true, isSignal: false },
+  bool: { label: '一個是非', isList: false, holdsNumbers: false, isSignal: false },
+  boolList: { label: '一串是非', isList: true, holdsNumbers: false, isSignal: false },
+  signal: { label: '一個信號', isList: false, holdsNumbers: false, isSignal: true },
 }
 
 /** 沒有宣告、或宣告了不認得的種類時的歸屬。與後端的預設一致。 */
@@ -43,6 +47,14 @@ export class IndicatorResultTypeDomain {
   /** 這個種類裝的是數字，而不是是非。 */
   holdsNumbers(): boolean {
     return INDICATOR_RESULT_TYPE_DESCRIPTIONS[this.value].holdsNumbers
+  }
+
+  /**
+   * 這個種類的產出是一個信號（買入／賣出／持有），沒有指標名稱。
+   * 外框與結果解讀都用它分頂層分支：信號回傳的不是一組 map。
+   */
+  isSignal(): boolean {
+    return INDICATOR_RESULT_TYPE_DESCRIPTIONS[this.value].isSignal
   }
 
   /** 給使用者看的名字。畫面不自己翻譯種類。 */

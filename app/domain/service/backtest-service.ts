@@ -13,7 +13,6 @@ import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 import { BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
-import { SIGNAL_INDICATOR_NAME } from '~/domain/models/vo/signal-vo'
 
 /**
  * 沒特別填時一開始有多少錢。
@@ -70,14 +69,9 @@ export class BacktestService {
     return BACKTEST_RULES.map(rule => rule.toDto())
   }
 
-  /** 信號的每一種讀法，排成一張對照表。 */
+  /** 信號種類的算式能回傳什麼——三個值，排成一張對照表。 */
   listSignalReadings(): SignalReadingDto[] {
     return SIGNAL_READINGS.map(reading => reading.toDto())
-  }
-
-  /** 算式要放的那個指標名稱。畫面不自己寫死這個字。 */
-  signalIndicatorName(): string {
-    return SIGNAL_INDICATOR_NAME
   }
 
   /**

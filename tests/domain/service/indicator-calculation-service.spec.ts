@@ -79,13 +79,23 @@ describe('IndicatorCalculationService', () => {
     expect(new IndicatorCalculationService(buildProxy()).defaultResultType()).toBe('float')
   })
 
-  it('可以挑的指標值種類就是那四種，帶著給人看的名字', () => {
+  it('可以挑的指標值種類就是那五種，帶著給人看的名字', () => {
     const optionDtos = new IndicatorCalculationService(buildProxy()).listResultTypeOptions()
 
     expect(optionDtos.map(optionDto => optionDto.value))
-      .toEqual(['float', 'floatList', 'bool', 'boolList'])
+      .toEqual(['float', 'floatList', 'bool', 'boolList', 'signal'])
     expect(optionDtos.map(optionDto => optionDto.label))
-      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
+  })
+
+  it('信號種類的算式樣板：外框回傳一個信號，範例用系統提供的方式選一個', () => {
+    const templateDto = new IndicatorCalculationService(buildProxy()).describeIndicatorScript('signal')
+
+    expect(templateDto.frameHeader)
+      .toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(templateDto.exampleBody).toContain('indicator.Buy')
+    expect(templateDto.exampleBody).not.toContain('map[string]')
+    expect(templateDto.exampleBody).not.toContain('func Calculate')
   })
 })
 

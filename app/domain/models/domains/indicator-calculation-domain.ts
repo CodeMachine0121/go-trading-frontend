@@ -2,6 +2,7 @@ import type { IndicatorCalculation } from '~/domain/models/entities/indicator-ca
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { SignalDomain } from '~/domain/models/domains/signal-domain'
 import { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import { IndicatorValueDto } from '~/domain/models/dto/indicator-value-dto'
 
@@ -33,10 +34,27 @@ export class IndicatorCalculationDomain {
 
   toDto(): IndicatorCalculationResultDto {
     const resultType = new IndicatorResultTypeDomain(this.indicatorCalculation.resultType)
+    const intervalLabel = new AggregationIntervalDomain(this.indicatorCalculation.interval).label()
+
+    // 「一個信號」種類的產出是一個結論，沒有指標名稱——所以它走 signalLabel，
+    // 不進 indicatorValues。中文與語氣由信號自己給。
+    if (resultType.isSignal()) {
+      const signal = new SignalDomain(this.indicatorCalculation.signal)
+
+      return new IndicatorCalculationResultDto(
+        this.indicatorCalculation.symbol,
+        intervalLabel,
+        this.indicatorCalculation.usedCandleCount,
+        resultType.label(),
+        [],
+        signal.label(),
+        signal.tone(),
+      )
+    }
 
     return new IndicatorCalculationResultDto(
       this.indicatorCalculation.symbol,
-      new AggregationIntervalDomain(this.indicatorCalculation.interval).label(),
+      intervalLabel,
       this.indicatorCalculation.usedCandleCount,
       resultType.label(),
       this.sortedIndicatorValues().map(indicatorValue => new IndicatorValueDto(

@@ -13,21 +13,15 @@ export class SignalReadingVo {
 }
 
 /**
- * 回測怎麼讀那個叫 `signal` 的數字——**看正負號**，而不是只認 1、-1、0。
+ * 「一個信號」種類的算式能回傳什麼——三個值，沒有第四種。
  *
- * 看正負號的好處是每一個數字都有明確意義：算式想用強弱表達信心（0.5 也是買入）不必特別處理，
- * 而「合法但無解」的值不存在。
+ * 由系統提供的方式選出（`indicator.Buy` / `indicator.Sell` / `indicator.Hold`），
+ * 算式不必、也不能自己組一個信號出來。
  *
- * 後兩列是最容易被忽略、也最重要的兩列：**沒放這個名字等同持平**，
- * 所以既有的算式拿去回測是「零交易」而不是報錯；而算壞掉的數字也讀作持平——
- * 一個算術意外不是下注的指示。
- *
- * 順序照「會發生什麼」由強到弱排：先講兩種會動作的，再講三種不動作的。
+ * 順序照「會發生什麼」由強到弱排：先講兩種會動作的，再講不動作的那一種。
  */
 export const SIGNAL_READINGS: SignalReadingVo[] = [
-  new SignalReadingVo('大於 0（例如 1、0.5、42）', '買入'),
-  new SignalReadingVo('小於 0（例如 -1、-2）', '賣出'),
-  new SignalReadingVo('等於 0', '持平，不動作'),
-  new SignalReadingVo('結果裡沒有這個名字', '持平——所以既有的算式不必改一個字'),
-  new SignalReadingVo('算不出有限數字（0/0、除以零）', '持平，重演不中斷'),
+  new SignalReadingVo('return indicator.Buy', '買入'),
+  new SignalReadingVo('return indicator.Sell', '賣出'),
+  new SignalReadingVo('return indicator.Hold', '持有，倉位不動'),
 ]

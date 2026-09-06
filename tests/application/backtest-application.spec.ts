@@ -10,7 +10,7 @@ import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
-const SCRIPT_BODY = 'return map[string]float64{"signal": 1}'
+const SCRIPT_BODY = 'return indicator.Buy'
 
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
@@ -53,7 +53,7 @@ function backtestRequest(overrides: Partial<{
     overrides.startTime ?? START_TIME,
     overrides.endTime ?? END_TIME,
     overrides.scriptBody ?? SCRIPT_BODY,
-    overrides.resultType ?? 'float',
+    overrides.resultType ?? 'signal',
     overrides.parameters ?? [],
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
@@ -122,6 +122,35 @@ describe('BacktestApplication', () => {
       await buildApplication(proxy).runBacktest(backtestRequest(overrides)).catch(
         (error: BacktestFieldError) => expect(error.field).toBe(expectedField))
       expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('指標值種類不是「一個信號」時擋在算式那一格，說出目前的種類', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'floatList' })).catch(
+        (error: BacktestFieldError) => {
+          expect(error.field).toBe('scriptBody')
+          expect(error.message).toContain('一個信號')
+          expect(error.message).toContain('一串數字')
+        })
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('種類是「一個信號」但本金不合法時，擋的是本金那一格，不是種類', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy)
+        .runBacktest(backtestRequest({ resultType: 'signal', initialCapital: new Decimal(0) }))
+        .catch((error: BacktestFieldError) => expect(error.field).toBe('initialCapital'))
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('種類是「一個信號」時正常送出', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'signal' }))
+
+      expect(proxy.runBacktest).toHaveBeenCalled()
     })
 
     it('全押時那一格填什麼都不影響', async () => {

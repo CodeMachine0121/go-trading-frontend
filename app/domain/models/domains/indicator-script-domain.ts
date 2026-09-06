@@ -38,6 +38,15 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
     '',
     'return map[string][]bool{"收紅": answers}',
   ].join('\n'),
+  signal: [
+    'first := data[0].Close',
+    'last := data[len(data)-1].Close',
+    '',
+    'if last > first {',
+    '\treturn indicator.Buy',
+    '}',
+    'return indicator.Hold',
+  ].join('\n'),
 }
 
 /** 算式內容在外框裡的縮排——它整段住在進入點內。 */
@@ -60,10 +69,16 @@ export class IndicatorScriptDomain {
   /**
    * 外框的開頭。三個匯入一律備妥，使用者在內容裡直接用得到常見的數學與排序運算，
    * 不必自己張羅——執行算式的直譯器不介意沒用到的匯入。
+   *
+   * 進入點的回傳是外框唯一隨種類變的一行：信號種類回傳一個信號，
+   * 其餘四種回傳一組「名稱對應值」，值的形狀跟著「是不是一串、裝的是不是數字」走。
    */
   frameHeader(): string {
     const elementShape = this.resultType.holdsNumbers() ? 'float64' : 'bool'
-    const valueShape = this.resultType.isList() ? `[]${elementShape}` : elementShape
+    const mapValueShape = this.resultType.isList() ? `[]${elementShape}` : elementShape
+    const returnShape = this.resultType.isSignal()
+      ? 'indicator.Signal'
+      : `map[string]${mapValueShape}`
 
     return [
       'package main',
@@ -74,7 +89,7 @@ export class IndicatorScriptDomain {
       '\t"sort"',
       ')',
       '',
-      `func Calculate(data []indicator.KCandle) map[string]${valueShape} {`,
+      `func Calculate(data []indicator.KCandle) ${returnShape} {`,
     ].join('\n')
   }
 

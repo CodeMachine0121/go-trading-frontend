@@ -12,9 +12,17 @@ describe('IndicatorScriptDomain', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
+    { resultType: 'signal', valueShape: 'indicator.Signal' },
   ])('$resultType 的外框宣告產出 $valueShape', ({ resultType, valueShape }) => {
     expect(scriptOf(resultType).frameHeader())
       .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
+  })
+
+  it('信號種類的外框回傳一個信號，不是一組 map', () => {
+    const frameHeader = scriptOf('signal').frameHeader()
+
+    expect(frameHeader).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(frameHeader).not.toContain('map[string]')
   })
 
   it('外框備妥常用的匯入，使用者不必自己張羅', () => {
@@ -40,6 +48,15 @@ describe('IndicatorScriptDomain', () => {
 
     expect(exampleBody).toContain(expectedReturn)
     expect(exampleBody).not.toContain('package main')
+    expect(exampleBody).not.toContain('func Calculate')
+  })
+
+  it('信號種類的範例內容用系統提供的方式選一個信號', () => {
+    const exampleBody = scriptOf('signal').exampleBody()
+
+    expect(exampleBody).toContain('return indicator.Buy')
+    expect(exampleBody).toContain('return indicator.Hold')
+    expect(exampleBody).not.toContain('map[string]')
     expect(exampleBody).not.toContain('func Calculate')
   })
 

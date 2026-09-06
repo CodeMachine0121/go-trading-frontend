@@ -93,10 +93,27 @@ describe('IndicatorCalculationDomain', () => {
     { resultType: 'floatList', label: '一串數字' },
     { resultType: 'bool', label: '一個是非' },
     { resultType: 'boolList', label: '一串是非' },
+    { resultType: 'signal', label: '一個信號' },
   ])('結果說明自己是「$label」', ({ resultType, label }) => {
-    const resultDto = new IndicatorCalculation('BTCUSDT', '5m', 3, resultType, []).toDomain().toDto()
+    const resultDto = new IndicatorCalculation('BTCUSDT', '5m', 3, resultType, [], [], 'buy')
+      .toDomain().toDto()
 
     expect(resultDto.resultTypeLabel).toBe(label)
+  })
+
+  it.each([
+    { signal: 'buy', signalLabel: '買入', signalTone: 'positive' },
+    { signal: 'sell', signalLabel: '賣出', signalTone: 'negative' },
+    { signal: 'hold', signalLabel: '持有', signalTone: 'neutral' },
+  ])('信號種類的結果是一個「$signalLabel」結論，沒有指標名稱', ({ signal, signalLabel, signalTone }) => {
+    const resultDto = new IndicatorCalculation('BTCUSDT', '5m', 3, 'signal', [], [], signal)
+      .toDomain().toDto()
+
+    expect(resultDto.isSignal).toBe(true)
+    expect(resultDto.signalLabel).toBe(signalLabel)
+    expect(resultDto.signalTone).toBe(signalTone)
+    expect(resultDto.indicatorValues).toHaveLength(0)
+    expect(resultDto.isEmpty).toBe(false)
   })
 
   it('後端回報了不認得的種類時，仍以一個數字呈現而不是壞掉', () => {

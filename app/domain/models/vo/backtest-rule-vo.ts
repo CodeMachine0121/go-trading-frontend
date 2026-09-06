@@ -1,5 +1,4 @@
 import { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
-import { SIGNAL_INDICATOR_NAME } from '~/domain/models/vo/signal-vo'
 
 /** VO：回測的一條規則。不可變、無行為。 */
 export class BacktestRuleVo {
@@ -23,12 +22,12 @@ export class BacktestRuleVo {
 export const BACKTEST_RULES: BacktestRuleVo[] = [
   new BacktestRuleVo(
     '算式要說出這一棒的意見',
-    `在結果裡多放一個叫 ${SIGNAL_INDICATOR_NAME} 的名稱。它就是這一棒要買、要賣、還是不動。`
-    + '其他名稱回測一概不看。'),
+    '指標值種類選「一個信號」。算式每一棒回傳一個信號——'
+    + '`return indicator.Buy`、`indicator.Sell` 或 `indicator.Hold`，三選一，沒有第四種。'),
   new BacktestRuleVo(
-    '只跑「一個數字」的算式',
-    '回測一根 K 線問一次，每一次只讀一個數字。所以指標值種類必須是「一個數字」——'
-    + '一串數字的算式，回測不知道該讀哪一格。'),
+    '只跑「一個信號」的算式',
+    '回測一根 K 線問一次，每一次讀一個信號。所以指標值種類必須是「一個信號」——'
+    + '回傳數字或是非的算式，回測讀不出這一棒的意見。'),
   new BacktestRuleVo(
     '一根 K 線跑一次，愈往後看得愈長',
     '第 N 次執行時，算式看得到第 1 根到第 N 根（含）。它看不到未來，'
