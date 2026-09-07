@@ -160,3 +160,18 @@ describe('SymbolField 的市場篩選', () => {
     expect(wrapper.text()).toContain('這個市場目前沒有任何交易標的')
   })
 })
+
+describe('SymbolField 那一行說明', () => {
+  it('一切正常時說的是這份清單是什麼，而不是替所有標的下一個結論', async () => {
+    // 每一檔的市場與有沒有即時更新寫在選項自己身上。這一句若說成
+    // 「沒有即時更新的標的…」，讀起來就是全部都沒有——而那不是真的。
+    const wrapper = await mountField({
+      findTradingSymbols: vi.fn().mockResolvedValue([
+        buildTradingSymbol('2330', { market: 'taiwanStock' }),
+      ]),
+    }, '2330')
+
+    expect(wrapper.text()).toContain('後端認得的每一個交易標的')
+    expect(wrapper.text()).not.toContain('沒有即時更新的標的')
+  })
+})
