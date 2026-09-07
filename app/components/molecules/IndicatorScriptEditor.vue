@@ -4,9 +4,12 @@ import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-s
 
 // 分子：一整塊「看起來就是一份 Go 檔案」的編輯區。
 //
-// 唯讀的外框、可編輯的內容、收尾的括號是同一個原子的三份，因此著色、行號欄與字體行高
-// 天生一致，讀起來是一份連續的程式碼，而不是三個上下疊著的元件。行號也是連續的：
-// 外框從第一行開始，內容接在後面——後端說「第 12 行出錯」時，畫面上就是那一行。
+// 唯讀的外框（package 與 import）與可編輯的檔案主體是同一個原子的兩份，因此著色、
+// 行號欄與字體行高天生一致，讀起來是一份連續的程式碼。行號也是連續的：外框從第一行
+// 開始，主體接在一個空行之後——後端說「第 12 行出錯」時，畫面上就是那一行。
+//
+// **進入點與收尾的括號都在可編輯區裡**：使用者可以自訂進入點的長相、也可以在它旁邊
+// 寫 helper 函式。外框只固定最上面那七行——它不隨指標值種類變。
 const { scriptTemplate } = defineProps<{
   scriptTemplate: IndicatorScriptTemplateDto
   errorMessage?: string | null
@@ -14,8 +17,8 @@ const { scriptTemplate } = defineProps<{
 
 const scriptBody = defineModel<string>({ required: true })
 
-const footerLineNumber = computed(
-  () => scriptTemplate.bodyStartLineNumber + scriptBody.value.split('\n').length)
+// 外框之後留一個空行（Go 慣例），主體接在它下面。
+const frameWithSeparator = computed(() => `${scriptTemplate.frameHeader}\n`)
 
 const bodyEditor = useTemplateRef('bodyEditor')
 
@@ -35,7 +38,7 @@ function continueWriting() {
       <div class="indicator-script-editor__identity">
         <span class="indicator-script-editor__filename">indicator.go</span>
         <span class="indicator-script-editor__hint">
-          只寫進入點裡面那幾行，外框由畫面備妥並跟著指標值種類變
+          在 import 底下寫，至少要有一個 Calculate 進入點；換指標值種類會改它的回傳型別
         </span>
       </div>
       <div class="indicator-script-editor__tools">
@@ -45,7 +48,7 @@ function continueWriting() {
 
     <div class="indicator-script-editor__file">
       <AppCodeEditor
-        :model-value="scriptTemplate.frameHeader"
+        :model-value="frameWithSeparator"
         class="indicator-script-editor__frame"
         readonly
         data-testid="script-frame-header"
@@ -56,17 +59,8 @@ function continueWriting() {
         v-model="scriptBody"
         class="indicator-script-editor__body"
         data-testid="script-body"
-        indented
         :start-line-number="scriptTemplate.bodyStartLineNumber"
         :invalid="Boolean(errorMessage)"
-      />
-
-      <AppCodeEditor
-        :model-value="scriptTemplate.frameFooter"
-        class="indicator-script-editor__frame"
-        readonly
-        :start-line-number="footerLineNumber"
-        data-testid="script-frame-footer"
       />
 
       <div

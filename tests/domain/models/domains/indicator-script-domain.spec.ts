@@ -6,28 +6,36 @@ function scriptOf(resultType: string): IndicatorScriptDomain {
   return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
 }
 
+const FIXED_FRAME_HEADER = [
+  'package main',
+  '',
+  'import (',
+  '\t"indicator"',
+  '\t"math"',
+  '\t"sort"',
+  ')',
+].join('\n')
+
 describe('IndicatorScriptDomain', () => {
+  it('唯讀外框就是那七行，不含進入點', () => {
+    expect(scriptOf('float').frameHeader()).toBe(FIXED_FRAME_HEADER)
+    expect(scriptOf('float').frameHeader()).not.toContain('func Calculate')
+  })
+
+  it.each(['float', 'floatList', 'bool', 'boolList', 'signal'])(
+    '唯讀外框不隨指標值種類變：%s',
+    (resultType) => {
+      expect(scriptOf(resultType).frameHeader()).toBe(FIXED_FRAME_HEADER)
+    })
+
   it.each([
-    { resultType: 'float', valueShape: 'map[string]float64' },
-    { resultType: 'floatList', valueShape: 'map[string][]float64' },
-    { resultType: 'bool', valueShape: 'map[string]bool' },
-    { resultType: 'boolList', valueShape: 'map[string][]bool' },
-  ])('$resultType 的外框宣告產出 $valueShape', ({ resultType, valueShape }) => {
-    expect(scriptOf(resultType).frameHeader())
-      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
-  })
-
-  it('外框備妥常用的匯入，使用者不必自己張羅', () => {
-    const frameHeader = scriptOf('float').frameHeader()
-
-    expect(frameHeader).toContain('package main')
-    expect(frameHeader).toContain('"indicator"')
-    expect(frameHeader).toContain('"math"')
-    expect(frameHeader).toContain('"sort"')
-  })
-
-  it('外框的結尾收掉進入點', () => {
-    expect(scriptOf('float').frameFooter()).toBe('}')
+    { resultType: 'float', signature: 'func Calculate(data []indicator.KCandle) map[string]float64 {' },
+    { resultType: 'floatList', signature: 'func Calculate(data []indicator.KCandle) map[string][]float64 {' },
+    { resultType: 'bool', signature: 'func Calculate(data []indicator.KCandle) map[string]bool {' },
+    { resultType: 'boolList', signature: 'func Calculate(data []indicator.KCandle) map[string][]bool {' },
+    { resultType: 'signal', signature: 'func Calculate(data []indicator.KCandle) indicator.Signal {' },
+  ])('$resultType 的空白 stub 是一個空的 Calculate，簽章帶對應的回傳型別', ({ resultType, signature }) => {
+    expect(scriptOf(resultType).blankBody()).toBe(`${signature}\n\t\n}`)
   })
 
   it.each([
@@ -35,16 +43,63 @@ describe('IndicatorScriptDomain', () => {
     { resultType: 'floatList', expectedReturn: 'return map[string][]float64{' },
     { resultType: 'bool', expectedReturn: 'return map[string]bool{' },
     { resultType: 'boolList', expectedReturn: 'return map[string][]bool{' },
-  ])('$resultType 的範例內容回傳對應的形狀', ({ resultType, expectedReturn }) => {
+  ])('$resultType 的範例主體是一整個 Calculate 函式', ({ resultType, expectedReturn }) => {
     const exampleBody = scriptOf(resultType).exampleBody()
 
-    expect(exampleBody).toContain(expectedReturn)
+    expect(exampleBody.startsWith('func Calculate(data []indicator.KCandle) ')).toBe(true)
+    expect(exampleBody.endsWith('\n}')).toBe(true)
+    expect(exampleBody).toContain(`\t${expectedReturn}`)
     expect(exampleBody).not.toContain('package main')
-    expect(exampleBody).not.toContain('func Calculate')
   })
 
-  it('組出來的算式是外框夾著內容', () => {
-    const assembled = scriptOf('float').assemble('return map[string]float64{"一": 1}')
+  it('信號種類的範例主體用系統提供的方式選一個信號', () => {
+    const exampleBody = scriptOf('signal').exampleBody()
+
+    expect(exampleBody).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(exampleBody).toContain('\treturn indicator.Buy')
+    expect(exampleBody).toContain('\treturn indicator.Hold')
+    expect(exampleBody).not.toContain('map[string]')
+  })
+})
+
+describe('IndicatorScriptDomain.retargetReturnType', () => {
+  it('把第一個 Calculate 進入點的回傳型別換成新種類的，函式主體不動', () => {
+    const body = 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\tsum := 0.0\n\treturn nil\n}'
+
+    const retargeted = scriptOf('signal').retargetReturnType(body)
+
+    expect(retargeted).toBe(
+      'func Calculate(data []indicator.KCandle) indicator.Signal {\n\tsum := 0.0\n\treturn nil\n}')
+  })
+
+  it('進入點之前的 helper 函式不受影響', () => {
+    const body = [
+      'func average(data []indicator.KCandle) float64 {',
+      '\treturn 0',
+      '}',
+      '',
+      'func Calculate(data []indicator.KCandle) map[string]float64 {',
+      '\treturn nil',
+      '}',
+    ].join('\n')
+
+    const retargeted = scriptOf('floatList').retargetReturnType(body)
+
+    expect(retargeted).toContain('func average(data []indicator.KCandle) float64 {')
+    expect(retargeted).toContain('func Calculate(data []indicator.KCandle) map[string][]float64 {')
+  })
+
+  it('主體裡沒有符合的進入點那一行時，一字不動', () => {
+    const body = 'func Compute(rows []indicator.KCandle) map[string]float64 {\n\treturn nil\n}'
+
+    expect(scriptOf('signal').retargetReturnType(body)).toBe(body)
+  })
+})
+
+describe('IndicatorScriptDomain.assemble', () => {
+  it('把主體接在唯讀外框後面，中間留一個空行，不縮排、不加收尾', () => {
+    const assembled = scriptOf('float').assemble(
+      'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}')
 
     expect(assembled).toBe([
       'package main',
@@ -56,90 +111,49 @@ describe('IndicatorScriptDomain', () => {
       ')',
       '',
       'func Calculate(data []indicator.KCandle) map[string]float64 {',
-      '\treturn map[string]float64{"一": 1}',
+      '\treturn nil',
       '}',
       '',
     ].join('\n'))
   })
 
-  it('內容整段縮排一層，但行數一行不多一行不少', () => {
-    const body = 'sum := 0.0\nfor _, candle := range data {\n\tsum += candle.Close\n}'
+  it('主體是頂層 Go，原樣接上——helper 函式也一起送出去', () => {
+    const body = [
+      'func helper() int { return 1 }',
+      '',
+      'func Calculate(data []indicator.KCandle) indicator.Signal {',
+      '\treturn indicator.Hold',
+      '}',
+    ].join('\n')
 
-    const assembled = scriptOf('float').assemble(body)
+    const assembled = scriptOf('signal').assemble(body)
 
-    expect(assembled).toContain('\tsum := 0.0\n\tfor _, candle := range data {\n\t\tsum += candle.Close\n\t}')
-    expect(assembled.split('\n')).toHaveLength(
-      scriptOf('float').frameHeader().split('\n').length + body.split('\n').length + 2)
-  })
-
-  it('內容裡的空行不會被塞進沒有意義的縮排', () => {
-    const assembled = scriptOf('float').assemble('sum := 0.0\n\nreturn nil')
-
-    expect(assembled).toContain('\tsum := 0.0\n\n\treturn nil')
-  })
-
-  it('樣板說得出使用者寫的第一行是整段算式的第幾行', () => {
-    const templateDto = scriptOf('float').toTemplateDto()
-
-    // 外框開頭九行（package、空行、import 三行加頭尾、空行、簽章），內容從第十行開始。
-    expect(templateDto.frameHeaderLineCount).toBe(9)
-    expect(templateDto.bodyStartLineNumber).toBe(10)
-  })
-
-  it('每一種種類的外框行數都一樣，只有簽章那一行不同', () => {
-    const lineCounts = ['float', 'floatList', 'bool', 'boolList']
-      .map(resultType => scriptOf(resultType).toTemplateDto().frameHeaderLineCount)
-
-    expect(lineCounts).toEqual([9, 9, 9, 9])
-  })
-
-  it('化成樣板時，外框頭尾與範例內容一次拿齊', () => {
-    const templateDto = scriptOf('boolList').toTemplateDto()
-
-    expect(templateDto.frameHeader).toContain('map[string][]bool')
-    expect(templateDto.frameFooter).toBe('}')
-    expect(templateDto.exampleBody).toContain('return map[string][]bool{')
+    expect(assembled).toContain('func helper() int { return 1 }')
+    expect(assembled).toContain(`${FIXED_FRAME_HEADER}\n\nfunc helper() int`)
   })
 })
 
 describe('IndicatorScriptDomain.disassemble', () => {
-  it.each(['float', 'floatList', 'bool', 'boolList'])(
-    '%s 的算式拆得回當初寫的內容',
+  it.each(['float', 'floatList', 'bool', 'boolList', 'signal'])(
+    '%s 的算式拆得回當初寫的主體',
     (resultType) => {
-      const scriptBody = 'sum := 0.0\nreturn nil'
-      const script = scriptOf(resultType).assemble(scriptBody)
+      const body = scriptOf(resultType).blankBody()
+      const script = scriptOf(resultType).assemble(body)
 
       const disassembled = scriptOf(resultType).disassemble(script)
 
-      expect(disassembled.body).toBe(scriptBody)
+      expect(disassembled.body).toBe(body)
       expect(disassembled.frameRecognised).toBe(true)
     })
 
-  it('內容本來就有的縮排原樣取回，不多一層也不少一層', () => {
-    const scriptBody = 'for _, candle := range data {\n\tsum += candle.Close\n}'
-    const script = scriptOf('float').assemble(scriptBody)
-
-    expect(scriptOf('float').disassemble(script).body).toBe(scriptBody)
-  })
-
-  it('內容裡的空行仍然是空行', () => {
-    const scriptBody = 'sum := 0.0\n\nreturn map[string]float64{"均價": sum}'
-    const script = scriptOf('float').assemble(scriptBody)
-
-    expect(scriptOf('float').disassemble(script).body).toBe(scriptBody)
-  })
-
-  it('外框日後多一個匯入，既有的算式仍然拆得開', () => {
-    // 拆解錨定的是進入點與收尾，不是外框的字面。逐字比對的話，
-    // 外框只要動一個字，所有既有的算式就會一起認不出來。
-    const script = [
+  it('舊編輯器存的算式（外框含 func Calculate 那一行）認得，主體剛好是整個函式', () => {
+    const oldStyleScript = [
       'package main',
       '',
       'import (',
       '\t"indicator"',
       '\t"math"',
       '\t"sort"',
-      '\t"strings"',
       ')',
       '',
       'func Calculate(data []indicator.KCandle) map[string]float64 {',
@@ -149,59 +163,68 @@ describe('IndicatorScriptDomain.disassemble', () => {
       '',
     ].join('\n')
 
-    const disassembled = scriptOf('float').disassemble(script)
+    const disassembled = scriptOf('float').disassemble(oldStyleScript)
 
-    expect(disassembled.body).toBe('sum := 0.0\nreturn nil')
     expect(disassembled.frameRecognised).toBe(true)
-  })
-
-  it('外框日後改了進入點的參數名，既有的算式仍然拆得開', () => {
-    // 錨定的是「這一行是進入點」，不是「這一行長得跟現在的外框一模一樣」。
-    const script = [
-      'package main',
-      '',
-      'func Calculate(candles []indicator.KCandle) map[string]float64 {',
-      '\tsum := 0.0',
-      '\treturn nil',
-      '}',
-      '',
-    ].join('\n')
-
-    const disassembled = scriptOf('float').disassemble(script)
-
-    expect(disassembled.body).toBe('sum := 0.0\nreturn nil')
-    expect(disassembled.frameRecognised).toBe(true)
+    expect(disassembled.body).toBe(
+      'func Calculate(data []indicator.KCandle) map[string]float64 {\n\tsum := 0.0\n\treturn nil\n}')
   })
 
   it.each([
-    { name: '沒有進入點那一行', script: 'sum := 0.0\nreturn nil' },
+    { name: '最上面那一塊不是那七行', script: 'package main\n\nfunc Calculate() {}\n' },
+    { name: '多了一個匯入', script: 'package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n\t"strings"\n)\n\nfunc Calculate() {}\n' },
     { name: '空字串', script: '' },
-    { name: '有進入點卻沒有收尾', script: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\tsum := 0.0' },
-  ])('認不出外框時整段原樣交還：$name', ({ script }) => {
-    // 硬拆的代價太高——使用者可能過很久才發現程式碼被剪壞，而那時原稿已經沒了。
+  ])('認不出最上面那一塊時整段原樣交還：$name', ({ script }) => {
     const disassembled = scriptOf('float').disassemble(script)
 
     expect(disassembled.body).toBe(script)
     expect(disassembled.frameRecognised).toBe(false)
   })
 
+  it('認得的算式沒有尾端換行時，主體照樣完整取回', () => {
+    const script = `${FIXED_FRAME_HEADER}\n\nfunc Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}`
+
+    const disassembled = scriptOf('float').disassemble(script)
+
+    expect(disassembled.frameRecognised).toBe(true)
+    expect(disassembled.body).toBe(
+      'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}')
+  })
+
   it('包起來再拆開再包起來，與第一次包的完全相同', () => {
     const scriptDomain = scriptOf('floatList')
-    const scriptBody = 'closePrices := []float64{}\nfor _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n\nreturn map[string][]float64{"收盤價": closePrices}'
+    const body = scriptDomain.exampleBody()
 
-    const firstAssembly = scriptDomain.assemble(scriptBody)
+    const firstAssembly = scriptDomain.assemble(body)
     const roundTripped = scriptDomain.assemble(scriptDomain.disassemble(firstAssembly).body)
 
     expect(roundTripped).toBe(firstAssembly)
   })
 
   it('拆開再包起來再拆開，與第一次拆的完全相同', () => {
-    const scriptDomain = scriptOf('float')
-    const script = scriptDomain.assemble('sum := 0.0\nreturn nil')
+    const scriptDomain = scriptOf('signal')
+    const script = scriptDomain.assemble(scriptDomain.blankBody())
 
     const firstBody = scriptDomain.disassemble(script).body
     const roundTrippedBody = scriptDomain.disassemble(scriptDomain.assemble(firstBody)).body
 
     expect(roundTrippedBody).toBe(firstBody)
+  })
+})
+
+describe('IndicatorScriptDomain template DTO', () => {
+  it('外框七行，主體從第九行開始（外框加一個分隔的空行）', () => {
+    const templateDto = scriptOf('float').toTemplateDto()
+
+    expect(templateDto.frameHeaderLineCount).toBe(7)
+    expect(templateDto.bodyStartLineNumber).toBe(9)
+  })
+
+  it('化成樣板時，外框、範例主體、空白 stub 一次拿齊', () => {
+    const templateDto = scriptOf('signal').toTemplateDto()
+
+    expect(templateDto.frameHeader).toBe(FIXED_FRAME_HEADER)
+    expect(templateDto.exampleBody).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(templateDto.blankBody).toBe('func Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}')
   })
 })

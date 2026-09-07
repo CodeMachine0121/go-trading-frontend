@@ -8,6 +8,7 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
+import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
@@ -26,6 +27,10 @@ export class IndicatorCalculationApplication {
 
   describeIndicatorScript(resultType: string): IndicatorScriptTemplateDto {
     return this.indicatorCalculationService.describeIndicatorScript(resultType)
+  }
+
+  retargetScriptReturnType(scriptBody: string, resultType: string): string {
+    return this.indicatorCalculationService.retargetScriptReturnType(scriptBody, resultType)
   }
 
   defaultResultType(): IndicatorResultType {
@@ -102,5 +107,9 @@ export class IndicatorCalculationApplication {
 
   listKCandleFields(): KCandleFieldDto[] {
     return this.indicatorCalculationService.listKCandleFields()
+  }
+
+  listSignalReadings(): SignalReadingDto[] {
+    return this.indicatorCalculationService.listSignalReadings()
   }
 }

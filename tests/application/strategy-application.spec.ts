@@ -30,7 +30,13 @@ function storedStrategy(id: number, name: string, scriptBody = 'sum := 0.0'): St
   return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList')
 }
 
-function contentOf(scriptBody = 'sum := 0.0'): StrategyContentDto {
+const CALCULATE_BODY = [
+  'func Calculate(data []indicator.KCandle) map[string][]float64 {',
+  '\treturn nil',
+  '}',
+].join('\n')
+
+function contentOf(scriptBody = CALCULATE_BODY): StrategyContentDto {
   return new StrategyContentDto(scriptBody, 'floatList')
 }
 
@@ -108,7 +114,7 @@ describe('StrategyApplication.saveStrategy', () => {
     await strategyApplication.saveStrategy(new StrategyWriteDto('二十根均線', contentOf()))
 
     expect(createStrategy.mock.calls[0]?.[0].script).toContain('package main')
-    expect(createStrategy.mock.calls[0]?.[0].script).toContain('\tsum := 0.0')
+    expect(createStrategy.mock.calls[0]?.[0].script).toContain(`)\n\n${CALCULATE_BODY}`)
   })
 
   it.each([

@@ -37,6 +37,11 @@ type IndicatorCalculationWire = {
   openTimes: string[] | null
   resultType: string
   values: Record<string, IndicatorWireValue> | null
+  /**
+   * 「一個信號」種類下的產出：一個 `buy` / `sell` / `hold`，沒有指標名稱。
+   * 其餘四種種類下後端不給這個欄位（`undefined`）。
+   */
+  signal?: string | null
 }
 
 /** Proxy：打指標計算端點，並把「算式的問題」從一般的拒絕裡分出來。 */
@@ -90,6 +95,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           name,
           Array.isArray(value) ? (value as IndicatorScalarValue[]) : [value])),
         (wire.openTimes ?? []).map(openTime => new Date(openTime)),
+        wire.signal ?? null,
       )
     }
     catch (error: unknown) {

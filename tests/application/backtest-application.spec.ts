@@ -10,7 +10,11 @@ import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
-const SCRIPT_BODY = 'return map[string]float64{"signal": 1}'
+const SCRIPT_BODY = [
+  'func Calculate(data []indicator.KCandle) indicator.Signal {',
+  '\treturn indicator.Buy',
+  '}',
+].join('\n')
 
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
@@ -53,7 +57,7 @@ function backtestRequest(overrides: Partial<{
     overrides.startTime ?? START_TIME,
     overrides.endTime ?? END_TIME,
     overrides.scriptBody ?? SCRIPT_BODY,
-    overrides.resultType ?? 'float',
+    overrides.resultType ?? 'signal',
     overrides.parameters ?? [],
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
@@ -72,15 +76,15 @@ describe('BacktestApplication', () => {
       expect(result.equityCurve).toHaveLength(1)
     })
 
-    it('把算式內容包進外框之後才送出去', async () => {
-      // 使用者只寫內容；兩個去處讀的是同一份算式，所以走的也是同一條組裝路徑。
+    it('把算式主體接上固定外框之後才送出去', async () => {
+      // 兩個去處讀的是同一份算式，所以走的也是同一條組裝路徑。
       const proxy = buildProxy()
 
       await buildApplication(proxy).runBacktest(backtestRequest())
 
       const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
-      expect(sent.script).toContain(SCRIPT_BODY)
-      expect(sent.script).toContain('func Calculate')
+      expect(sent.script).toContain('package main')
+      expect(sent.script).toContain(`)\n\n${SCRIPT_BODY}`)
     })
 
     it('宣告的旋鈕跟著一起送出去', async () => {
@@ -122,6 +126,35 @@ describe('BacktestApplication', () => {
       await buildApplication(proxy).runBacktest(backtestRequest(overrides)).catch(
         (error: BacktestFieldError) => expect(error.field).toBe(expectedField))
       expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('指標值種類不是「一個信號」時擋在算式那一格，說出目前的種類', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'floatList' })).catch(
+        (error: BacktestFieldError) => {
+          expect(error.field).toBe('scriptBody')
+          expect(error.message).toContain('一個信號')
+          expect(error.message).toContain('一串數字')
+        })
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('種類是「一個信號」但本金不合法時，擋的是本金那一格，不是種類', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy)
+        .runBacktest(backtestRequest({ resultType: 'signal', initialCapital: new Decimal(0) }))
+        .catch((error: BacktestFieldError) => expect(error.field).toBe('initialCapital'))
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
+    })
+
+    it('種類是「一個信號」時正常送出', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'signal' }))
+
+      expect(proxy.runBacktest).toHaveBeenCalled()
     })
 
     it('全押時那一格填什麼都不影響', async () => {

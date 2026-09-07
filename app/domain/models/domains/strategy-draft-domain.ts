@@ -1,5 +1,7 @@
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
+import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 
 /**
  * Domain Model：畫面上這一份東西，跟載入當下那一份比，改過了沒有。
@@ -21,13 +23,28 @@ export class StrategyDraftDomain {
 
   hasUnsavedChanges(): boolean {
     if (this.loadedContent === null) {
-      return this.currentContent.scriptBody.trim() !== ''
-        || this.currentContent.parameters.length > 0
+      return !this.isUntouchedDraft() || this.currentContent.parameters.length > 0
     }
 
     return this.currentContent.scriptBody !== this.loadedContent.scriptBody
       || this.currentContent.resultType !== this.loadedContent.resultType
       || !new StrategyParametersDomain(this.currentContent.parameters)
         .isSameAs(new StrategyParametersDomain(this.loadedContent.parameters))
+  }
+
+  /**
+   * 還沒載入過策略時，「沒有東西可弄丟」的兩種樣子：完全空白，或該種類**未改動**的
+   * 空白 stub。stub 是系統填的，不是使用者寫的——一個字都還沒改就再按一次不必問。
+   */
+  private isUntouchedDraft(): boolean {
+    const trimmedBody = this.currentContent.scriptBody.trim()
+    if (trimmedBody === '') {
+      return true
+    }
+
+    const blankBody = new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(this.currentContent.resultType)).blankBody()
+
+    return trimmedBody === blankBody.trim()
   }
 }

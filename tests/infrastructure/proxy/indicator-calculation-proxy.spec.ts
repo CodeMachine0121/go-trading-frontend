@@ -124,6 +124,23 @@ describe('IndicatorCalculationProxy', () => {
       expect.objectContaining({ body: expect.objectContaining({ resultType: 'boolList' }) }))
   })
 
+  it('信號種類的回應：把那一個信號帶進 entity，沒有指標名稱', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT',
+      usedCandleCount: 4,
+      resultType: 'signal',
+      values: null,
+      signal: 'sell',
+    }))
+
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL)
+      .calculateIndicator(requestOf('signal'))
+
+    expect(indicatorCalculation.resultType).toBe('signal')
+    expect(indicatorCalculation.signal).toBe('sell')
+    expect(indicatorCalculation.indicatorValues).toHaveLength(0)
+  })
+
   it('把回來的指標攤成一組名稱與值', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       symbol: 'BTCUSDT',

@@ -7,7 +7,11 @@ import { IndicatorCalculationService } from '~/domain/service/indicator-calculat
 import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
-const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
+const SCRIPT_BODY = [
+  'func Calculate(data []indicator.KCandle) map[string]float64 {',
+  '\treturn map[string]float64{"均價": 110}',
+  '}',
+].join('\n')
 
 function buildProxy(
   indicatorCalculation = new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []),
@@ -37,7 +41,7 @@ describe('IndicatorCalculationService', () => {
       .toEqual(['均價', '最高'])
   })
 
-  it('交出去的算式是外框加上使用者寫的內容', async () => {
+  it('交出去的算式是固定外框加上使用者寫的檔案主體', async () => {
     const indicatorCalculationProxy = buildProxy()
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
@@ -46,7 +50,7 @@ describe('IndicatorCalculationService', () => {
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
-        script: expect.stringContaining(`\t${SCRIPT_BODY}`),
+        script: expect.stringContaining(`)\n\n${SCRIPT_BODY}`),
       }))
   })
 
@@ -65,27 +69,57 @@ describe('IndicatorCalculationService', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
-  ])('$resultType 的算式樣板：外框產出 $valueShape，範例內容跟著對', ({ resultType, valueShape }) => {
+  ])('$resultType 的算式樣板：外框固定，範例主體與空白 stub 帶對應的簽章', ({ resultType, valueShape }) => {
     const templateDto = new IndicatorCalculationService(buildProxy())
       .describeIndicatorScript(resultType)
 
-    expect(templateDto.frameHeader).toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
-    expect(templateDto.frameFooter).toBe('}')
+    expect(templateDto.frameHeader).toBe('package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)')
+    expect(templateDto.exampleBody)
+      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
     expect(templateDto.exampleBody).toContain(`return ${valueShape}{`)
-    expect(templateDto.exampleBody).not.toContain('func Calculate')
+    expect(templateDto.blankBody)
+      .toBe(`func Calculate(data []indicator.KCandle) ${valueShape} {\n\t\n}`)
+  })
+
+  it('改指標值種類：把第一個 Calculate 的回傳型別換成新選的', () => {
+    const service = new IndicatorCalculationService(buildProxy())
+    const body = 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}'
+
+    expect(service.retargetScriptReturnType(body, 'signal'))
+      .toBe('func Calculate(data []indicator.KCandle) indicator.Signal {\n\treturn nil\n}')
   })
 
   it('沒有特別挑時算的是一個數字', () => {
     expect(new IndicatorCalculationService(buildProxy()).defaultResultType()).toBe('float')
   })
 
-  it('可以挑的指標值種類就是那四種，帶著給人看的名字', () => {
+  it('可以挑的指標值種類就是那五種，帶著給人看的名字', () => {
     const optionDtos = new IndicatorCalculationService(buildProxy()).listResultTypeOptions()
 
     expect(optionDtos.map(optionDto => optionDto.value))
-      .toEqual(['float', 'floatList', 'bool', 'boolList'])
+      .toEqual(['float', 'floatList', 'bool', 'boolList', 'signal'])
     expect(optionDtos.map(optionDto => optionDto.label))
-      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
+  })
+
+  it('信號種類的算式樣板：範例主體回傳一個信號，用系統提供的方式選一個', () => {
+    const templateDto = new IndicatorCalculationService(buildProxy()).describeIndicatorScript('signal')
+
+    expect(templateDto.frameHeader).not.toContain('func Calculate')
+    expect(templateDto.exampleBody)
+      .toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(templateDto.exampleBody).toContain('\treturn indicator.Buy')
+    expect(templateDto.exampleBody).not.toContain('map[string]')
+    expect(templateDto.blankBody)
+      .toBe('func Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}')
+  })
+
+  it('說得出「一個信號」種類的算式能回傳哪三個值', () => {
+    const readings = new IndicatorCalculationService(buildProxy()).listSignalReadings()
+
+    expect(readings.map(reading => reading.value))
+      .toEqual(['return indicator.Buy', 'return indicator.Sell', 'return indicator.Hold'])
+    expect(readings.map(reading => reading.meaning)).toEqual(['買入', '賣出', '持有，倉位不動'])
   })
 })
 

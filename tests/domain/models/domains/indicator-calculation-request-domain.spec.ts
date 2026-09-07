@@ -3,7 +3,11 @@ import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indic
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
-const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
+const SCRIPT_BODY = [
+  'func Calculate(data []indicator.KCandle) map[string]float64 {',
+  '\treturn map[string]float64{"均價": 110}',
+  '}',
+].join('\n')
 
 function buildRequest(
   overrides: {
@@ -45,34 +49,33 @@ describe('IndicatorCalculationRequestDomain', () => {
     expect(requestDomain.candleCount).toBe(30)
   })
 
-  it('送出的是外框夾著內容的一整段算式，不是使用者打的那幾行', () => {
+  it('送出的是固定外框加上使用者寫的檔案主體', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(buildRequest())
 
     expect(requestDomain.script).toContain('package main')
-    expect(requestDomain.script).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
-    expect(requestDomain.script).toContain(`\t${SCRIPT_BODY}`)
+    expect(requestDomain.script).toContain(`)\n\n${SCRIPT_BODY}`)
   })
 
-  it('外框跟著指標值種類走', () => {
+  it('指標值種類是分開帶著的，不由請求域改主體', () => {
+    // 改種類會改主體的那件事發生在畫面上；請求域只是把主體接上固定外框。
     const requestDomain = new IndicatorCalculationRequestDomain(
-      buildRequest({ resultType: 'boolList', scriptBody: 'return nil' }))
+      buildRequest({ resultType: 'boolList' }))
 
     expect(requestDomain.resultType.value).toBe('boolList')
-    expect(requestDomain.script).toContain('map[string][]bool')
+    expect(requestDomain.script).toContain(SCRIPT_BODY)
   })
 
   it('沒有宣告種類時當作一個數字', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(buildRequest({ resultType: '' }))
 
     expect(requestDomain.resultType.value).toBe('float')
-    expect(requestDomain.script).toContain('map[string]float64')
   })
 
   it('內容前後多餘的空白不影響組出來的算式', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(
-      buildRequest({ scriptBody: `\n\n  ${SCRIPT_BODY}  \n\n` }))
+      buildRequest({ scriptBody: `\n\n${SCRIPT_BODY}\n\n` }))
 
-    expect(requestDomain.script).toContain(`\t${SCRIPT_BODY}`)
+    expect(requestDomain.script).toContain(`)\n\n${SCRIPT_BODY}\n`)
     expect(requestDomain.script.split('\n').filter(line => line.trim() !== ''))
       .toHaveLength(9)
   })

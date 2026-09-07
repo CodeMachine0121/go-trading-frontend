@@ -4,19 +4,24 @@ import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 import { StrategyFieldError } from '~/domain/errors/strategy-field-error'
 
-function contentOf(scriptBody = 'sum := 0.0'): StrategyContentDto {
+const CALCULATE = [
+  'func Calculate(data []indicator.KCandle) map[string][]float64 {',
+  '\treturn nil',
+  '}',
+].join('\n')
+
+function contentOf(scriptBody = CALCULATE): StrategyContentDto {
   return new StrategyContentDto(scriptBody, 'floatList')
 }
 
 describe('StrategyWriteDomain', () => {
-  it('把使用者寫的內容包回外框，成為一整段能跑的算式', () => {
+  it('把使用者寫的檔案主體接上固定外框，成為一整段能跑的算式', () => {
     const strategyWriteDomain = new StrategyWriteDomain(
-      new StrategyWriteDto('二十根均線', contentOf('sum := 0.0')))
+      new StrategyWriteDto('二十根均線', contentOf()))
 
     expect(strategyWriteDomain.name).toBe('二十根均線')
     expect(strategyWriteDomain.script).toContain('package main')
-    expect(strategyWriteDomain.script).toContain('func Calculate(data []indicator.KCandle) map[string][]float64 {')
-    expect(strategyWriteDomain.script).toContain('\tsum := 0.0')
+    expect(strategyWriteDomain.script).toContain(`)\n\n${CALCULATE}`)
     expect(strategyWriteDomain.resultType).toBe('floatList')
   })
 
@@ -69,10 +74,11 @@ describe('StrategyWriteDomain', () => {
     expect(strategyWriteDomain.id).toBe(expectedId)
   })
 
-  it('外框的產出形狀跟著指標值種類走', () => {
+  it('主體原樣接上外框——進入點的形狀是使用者自己寫在主體裡的', () => {
+    const calculate = 'func Calculate(data []indicator.KCandle) map[string]bool {\n\treturn nil\n}'
     const strategyWriteDomain = new StrategyWriteDomain(
-      new StrategyWriteDto('是非題', new StrategyContentDto('return nil', 'bool')))
+      new StrategyWriteDto('是非題', new StrategyContentDto(calculate, 'bool')))
 
-    expect(strategyWriteDomain.script).toContain('map[string]bool {')
+    expect(strategyWriteDomain.script).toContain(`)\n\n${calculate}`)
   })
 })

@@ -17,7 +17,7 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
-const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
+const SCRIPT_BODY = 'func Calculate(data []indicator.KCandle) map[string]float64 { return map[string]float64{"均價": 110} }'
 
 function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
   return {
@@ -32,17 +32,16 @@ async function settle() {
   await flushPromises()
 }
 
-/** 從畫面上把算式內容打進去——走的是使用者真正會走的那條路。 */
+/** 從畫面上把算式主體整段換掉——走的是使用者真正會走的那條路。 */
 async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody: string) {
   await settle()
-  const editor = wrapper.get('[data-testid="script-body"]').element
-  const firstLine = editor.querySelector('.cm-line')
-  if (firstLine === null) {
+  const content = wrapper.get('[data-testid="script-body"]').element.querySelector('.cm-content')
+  if (content === null) {
     throw new Error('編輯區還沒準備好')
   }
 
-  firstLine.textContent = scriptBody
-  editor.querySelector('.cm-content')!.dispatchEvent(new Event('input', { bubbles: true }))
+  content.textContent = scriptBody
+  content.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
 }
 
@@ -149,6 +148,21 @@ describe('IndicatorCalculationPanel', () => {
     expect(rows[0]?.text()).toContain('均價')
     expect(rows[0]?.text()).toContain('110')
     expect(rows[1]?.text()).toContain('最高')
+  })
+
+  it('信號種類算出來時呈現一個結論，不是名稱-數值表', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'signal', [], [], 'buy')),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'signal' })
+
+    const verdict = wrapper.get('[data-testid="signal-verdict"]')
+    expect(verdict.text()).toBe('買入')
+    expect(verdict.classes()).toContain('indicator-calculation-panel__signal--positive')
+    expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
   })
 
   it('一個指標都沒算出來時說明清楚，且不呈現為錯誤', async () => {
@@ -294,7 +308,7 @@ describe('IndicatorCalculationPanel', () => {
     expect(wrapper.get('[data-testid="calculate-button"]').attributes('disabled')).toBeDefined()
   })
 
-  it('按下帶入範例內容會填入一段可直接執行的內容，而不是整段算式', async () => {
+  it('按下帶入範例內容會填入一整個 Calculate 函式，但不含固定外框', async () => {
     const wrapper = mountPanel(buildProxy())
     await settle()
 
@@ -303,16 +317,38 @@ describe('IndicatorCalculationPanel', () => {
 
     const editorText = scriptBodyText(wrapper)
     expect(editorText).toContain('均價')
-    expect(editorText).not.toContain('func Calculate')
+    expect(editorText).toContain('func Calculate(data []indicator.KCandle)')
     expect(editorText).not.toContain('package main')
+    expect(editorText).not.toContain('import (')
   })
 
-  it('指標值種類就是領域給的那四種', async () => {
+  it('指標值種類就是領域給的那五種', async () => {
     const wrapper = mountPanel(buildProxy())
 
     const options = wrapper.get('[data-testid="result-type-select"]').findAll('option')
     expect(options.map(option => option.text()))
-      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非'])
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
+  })
+
+  it('第一次進畫面時，可編輯區已經有一個空的 Calculate stub', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    const body = scriptBodyText(wrapper)
+    expect(body).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+    expect(body).not.toContain('package main')
+  })
+
+  it('唯讀外框固定是那七行，不隨種類變', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('signal')
+    await settle()
+
+    const frame = frameHeaderText(wrapper)
+    expect(frame).toContain('package main')
+    expect(frame).not.toContain('func Calculate')
   })
 
   it.each([
@@ -320,25 +356,29 @@ describe('IndicatorCalculationPanel', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
-  ])('挑了 $resultType，外框就產出 $valueShape', async ({ resultType, valueShape }) => {
+    { resultType: 'signal', valueShape: 'indicator.Signal' },
+  ])('挑了 $resultType，可編輯區的 Calculate 簽章跟著換成 $valueShape', async ({ resultType, valueShape }) => {
     const wrapper = mountPanel(buildProxy())
     await settle()
 
     await wrapper.get('[data-testid="result-type-select"]').setValue(resultType)
     await settle()
 
-    expect(frameHeaderText(wrapper)).toContain(valueShape)
+    expect(scriptBodyText(wrapper))
+      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
   })
 
-  it('切換種類不會弄丟已經寫好的內容', async () => {
+  it('改種類只換 Calculate 的簽章，函式主體與其他行不動', async () => {
     const wrapper = mountPanel(buildProxy())
-    await typeScriptBody(wrapper, 'sum := 0.0')
+    await typeScriptBody(
+      wrapper, 'func Calculate(data []indicator.KCandle) map[string]float64 { sum := 42; return nil }')
 
     await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
     await settle()
 
-    expect(frameHeaderText(wrapper)).toContain('map[string][]bool')
-    expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
+    const body = scriptBodyText(wrapper)
+    expect(body).toContain('func Calculate(data []indicator.KCandle) map[string][]bool {')
+    expect(body).toContain('sum := 42')
   })
 
   it('沒有特別挑時送出的是一個數字', async () => {
@@ -351,11 +391,14 @@ describe('IndicatorCalculationPanel', () => {
       expect.objectContaining({ resultType: expect.objectContaining({ value: 'float' }) }))
   })
 
-  it('挑了哪一種就送哪一種，且送出的是外框加內容', async () => {
+  it('挑了哪一種就送哪一種，且送出的是外框加主體', async () => {
     const indicatorCalculationProxy = buildProxy()
     const wrapper = mountPanel(indicatorCalculationProxy)
 
-    await fillAndSubmit(wrapper, { resultType: 'boolList', scriptBody: 'return nil' })
+    await fillAndSubmit(wrapper, {
+      resultType: 'boolList',
+      scriptBody: 'func Calculate(data []indicator.KCandle) map[string][]bool { return nil }',
+    })
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -497,6 +540,16 @@ describe('指標計算畫面：算式裡可以用什麼', () => {
     expect(wrapper.text()).toContain('新增參數')
     expect(wrapper.text()).toContain('同一個名字')
     expect(wrapper.text()).toContain('失敗並指名')
+  })
+
+  it('也說出「一個信號」種類的算式能回傳哪三個值', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const readings = wrapper.findAll('[data-testid="signal-reading-row"]').map(row => row.text())
+    expect(readings.some(text => text.includes('indicator.Buy') && text.includes('買入'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Sell') && text.includes('賣出'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Hold') && text.includes('持有'))).toBe(true)
+    expect(wrapper.text()).not.toContain('看正負號')
   })
 })
 

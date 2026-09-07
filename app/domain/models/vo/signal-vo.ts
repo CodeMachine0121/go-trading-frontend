@@ -1,8 +1,11 @@
 /**
- * 回測讀作「這一棒的意見」的那一個指標名稱。
+ * 信號的三個合法值——「一個信號」種類唯一能產出的東西。
  *
- * 它是與後端的一份約定：算式在結果裡放這個名字，回測才看得到它的意見。
- * 寫成常數而不是散在各處的字面值，是因為它同時出現在說明文字、範例算式與驗證訊息裡——
- * 哪天後端改了這個名字，這裡改一次，那三個地方一起跟上。
+ * 有限的字面量聯合，是規範允許使用 `type` 的唯一情形：它描述一組固定取值，
+ * 不是一份資料的形狀。中文結論與上色語氣（行為）住在 SignalDomain。
+ * 沿用後端：`buy` / `sell` / `hold`。
  */
-export const SIGNAL_INDICATOR_NAME = 'signal'
+export type SignalVo = 'buy' | 'sell' | 'hold'
+
+/** 判斷後端回報的字串認不認得時比對用。 */
+export const SIGNAL_VALUES: readonly SignalVo[] = ['buy', 'sell', 'hold']

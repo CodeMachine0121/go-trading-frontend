@@ -182,16 +182,19 @@ describe('圖表上的指標：挑一支套上去', () => {
     expect(options.some(option => option.includes('二十根均線'))).toBe(true)
   })
 
-  it('是非類型的策略列得出來但挑不到', async () => {
+  it.each([
+    { kind: 'bool', name: '是非題' },
+    { kind: 'signal', name: '信號策略' },
+  ])('$kind 類型的策略列得出來但挑不到', async ({ kind, name }) => {
     // 直接讓它消失會讓使用者以為策略不見了；挑了才失敗又太晚。
     const { wrapper } = await mountPanel({
-      strategies: [buildStoredStrategy(9, '是非題', { resultType: 'bool' })],
+      strategies: [buildStoredStrategy(9, name, { resultType: kind })],
     })
 
-    const boolOption = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
-      .find(option => option.text().includes('是非題'))
-    expect(boolOption?.attributes('disabled')).toBeDefined()
-    expect(boolOption?.text()).toContain('畫不成線')
+    const option = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
+      .find(node => node.text().includes(name))
+    expect(option?.attributes('disabled')).toBeDefined()
+    expect(option?.text()).toContain('畫不成線')
   })
 
   it('移除一支時只移除它，另一支照樣留在圖上', async () => {

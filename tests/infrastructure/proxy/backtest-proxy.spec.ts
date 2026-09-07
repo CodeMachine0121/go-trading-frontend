@@ -10,13 +10,13 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 
 const BASE_URL = 'http://localhost:8080'
-const SCRIPT_BODY = 'return map[string]float64{"signal": 1}'
+const SCRIPT_BODY = 'return indicator.Buy'
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
 
 function requestOf(parameters: StrategyParameterDto[] = []): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
-    'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'float', parameters,
+    'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50')))
 }
 

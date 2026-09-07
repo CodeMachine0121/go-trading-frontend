@@ -64,7 +64,6 @@ const backtestRun = useBacktestRun(backtestApplication)
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
 
 // 回測照什麼規則走。三份都不會變，取一次就好——它們描述的是系統的行為，不是這一次的資料。
-const signalIndicatorName = backtestApplication.signalIndicatorName()
 const signalReadings = backtestApplication.listSignalReadings()
 const backtestRules = backtestApplication.listBacktestRules()
 /** 那份規則開著沒有。它是第一次用時讀一遍的東西，所以擺在一顆鍵後面。 */
@@ -255,7 +254,6 @@ async function runBacktest() {
 
     <BacktestRuleGuideDialog
       :open="ruleGuideOpen"
-      :signal-indicator-name="signalIndicatorName"
       :signal-readings="signalReadings"
       :rules="backtestRules"
       @close="ruleGuideOpen = false"
