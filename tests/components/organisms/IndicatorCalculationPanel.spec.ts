@@ -330,6 +330,15 @@ describe('IndicatorCalculationPanel', () => {
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
   })
 
+  it('第一次進畫面時，可編輯區已經有一個空的 Calculate stub', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    const body = scriptBodyText(wrapper)
+    expect(body).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+    expect(body).not.toContain('package main')
+  })
+
   it('唯讀外框固定是那七行，不隨種類變', async () => {
     const wrapper = mountPanel(buildProxy())
     await settle()
