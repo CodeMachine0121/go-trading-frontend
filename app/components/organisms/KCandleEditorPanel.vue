@@ -64,9 +64,11 @@ onMounted(() => {
   low.value = editingKCandle.low.toString()
   close.value = editingKCandle.close.toString()
   volume.value = editingKCandle.volume.toString()
-  quoteVolume.value = editingKCandle.quoteVolume.toString()
-  takerBuyBaseVolume.value = editingKCandle.takerBuyBaseVolume.toString()
-  takerBuyQuoteVolume.value = editingKCandle.takerBuyQuoteVolume.toString()
+  // 這個市場不報的數字沒有東西可以填進去，欄位就留白——填一個 0 進去，
+  // 一按儲存就把「這個市場沒有這一項」寫成了「它是零」。
+  quoteVolume.value = editingKCandle.quoteVolume?.toString() ?? ''
+  takerBuyBaseVolume.value = editingKCandle.takerBuyBaseVolume?.toString() ?? ''
+  takerBuyQuoteVolume.value = editingKCandle.takerBuyQuoteVolume?.toString() ?? ''
 })
 
 // 換時區只是換一種說法：欄位裡指的仍是同一個瞬間，以舊時區讀回、以新時區寫出。

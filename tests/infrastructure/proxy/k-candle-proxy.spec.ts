@@ -106,8 +106,8 @@ describe('KCandleProxy', () => {
     expect(kCandles[0]?.symbol).toBe('BTCUSDT')
     expect(kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
     expect(kCandles[0]?.open.toString()).toBe('100.5')
-    expect(kCandles[0]?.quoteVolume.toString()).toBe('1200.25')
-    expect(kCandles[0]?.takerBuyQuoteVolume.toString()).toBe('600')
+    expect(kCandles[0]?.quoteVolume?.toString()).toBe('1200.25')
+    expect(kCandles[0]?.takerBuyQuoteVolume?.toString()).toBe('600')
   })
 
   it('取彙總 K 線時，把要取的那一段與彙總刻度一起問出去', async () => {
@@ -279,6 +279,32 @@ describe('KCandleProxy', () => {
 
       await expect(new KCandleProxy(BASE_URL).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)))
         .rejects.toThrow('找不到該根 K 線')
+    })
+  })
+})
+
+describe('KCandleProxy 對這個市場不報的數字', () => {
+  it('後端不帶那一項時原樣傳成沒有值，不換成零', () => {
+    // 換成 0 的話，「這個市場不報它」與「這五分鐘沒有成交」就再也分不開了。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      symbol: '2330',
+      openTime: '2026-09-08T02:00:00.000Z',
+      open: '574',
+      high: '576',
+      low: '572',
+      close: '575',
+      volume: '0',
+      quoteVolume: null,
+      takerBuyBaseVolume: null,
+      takerBuyQuoteVolume: null,
+    }]))
+
+    return new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY).then((kCandles) => {
+      expect(kCandles[0]?.quoteVolume).toBeNull()
+      expect(kCandles[0]?.takerBuyBaseVolume).toBeNull()
+      expect(kCandles[0]?.takerBuyQuoteVolume).toBeNull()
+      // 成交量真的是零：它有值，只是那個值是零。
+      expect(kCandles[0]?.volume.toString()).toBe('0')
     })
   })
 })

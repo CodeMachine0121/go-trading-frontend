@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import { KCandle } from '~/domain/models/entities/k-candle'
+import { OptionalFigureDomain } from '~/domain/models/domains/optional-figure-domain'
 import type { LiveKCandleUpdate } from '~/domain/models/entities/live-k-candle-update'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
@@ -116,9 +117,12 @@ export class LiveKCandleChartDomain {
       this.lower(bucket.low, liveKCandle.low),
       liveKCandle.close,
       bucket.volume.plus(liveKCandle.volume),
-      bucket.quoteVolume.plus(liveKCandle.quoteVolume),
-      bucket.takerBuyBaseVolume.plus(liveKCandle.takerBuyBaseVolume),
-      bucket.takerBuyQuoteVolume.plus(liveKCandle.takerBuyQuoteVolume),
+      // 這三個市場可能根本不報。沒有加上沒有還是沒有——合併不該憑空生出一個數字。
+      new OptionalFigureDomain(bucket.quoteVolume).plus(liveKCandle.quoteVolume).toValue(),
+      new OptionalFigureDomain(bucket.takerBuyBaseVolume)
+        .plus(liveKCandle.takerBuyBaseVolume).toValue(),
+      new OptionalFigureDomain(bucket.takerBuyQuoteVolume)
+        .plus(liveKCandle.takerBuyQuoteVolume).toValue(),
     ).toDomain().toDto()
   }
 

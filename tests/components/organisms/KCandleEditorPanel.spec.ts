@@ -36,11 +36,13 @@ function buildKCandle(): KCandle {
   )
 }
 
-function buildEditingKCandleDto(): KCandleDto {
+function buildEditingKCandleDto(reportsEveryFigure = true): KCandleDto {
+  const optional = (value: string) => reportsEveryFigure ? new Decimal(value) : null
+
   return new KCandleDto(
     'BTCUSDT', EDITING_OPEN_TIME,
     new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
-    new Decimal('11'), new Decimal('1200'), new Decimal('5'), new Decimal('600'),
+    new Decimal('11'), optional('1200'), optional('5'), optional('600'),
     new KCandleTrendVo('up', '上漲', 'success'),
   )
 }
@@ -390,6 +392,21 @@ describe('KCandleEditorPanel', () => {
 
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
         .toBe('2026-08-30T17:00')
+    })
+  })
+})
+
+describe('修改一根這個市場不報那三項的 K 線', () => {
+  it('沒有值的那三格留白，不預先填一個 0', () => {
+    // 填 0 進去，一按儲存就把「這個市場沒有這一項」寫成了「它是零」。
+    return mountPanel(buildProxy(), buildEditingKCandleDto(false)).then((wrapper) => {
+      expect(wrapper.find('[data-testid="form-quoteVolume"]')
+        .element.getAttribute('value') ?? '').toBe('')
+      expect(wrapper.find('[data-testid="form-takerBuyBaseVolume"]')
+        .element.getAttribute('value') ?? '').toBe('')
+      // 有值的那幾格照常帶進來。
+      expect((wrapper.find('[data-testid="form-volume"]').element as HTMLInputElement).value)
+        .toBe('11')
     })
   })
 })
