@@ -64,3 +64,60 @@ describe('TradingSymbolProxy', () => {
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 })
+
+describe('TradingSymbolProxy 讀後端隨標的送來的四件事', () => {
+  it('把市場正規化成一個帶標籤的值', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([
+      {
+        symbol: '2330',
+        market: 'taiwanStock',
+        isWatched: true,
+        isWithinTradingSession: true,
+        hasLiveUpdates: true,
+      },
+    ]))
+
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+
+    expect(tradingSymbols[0]!.market.value).toBe('taiwanStock')
+    expect(tradingSymbols[0]!.market.label).toBe('台股')
+  })
+
+  it('把後端說的三件事原樣帶進來，不自己推算', async () => {
+    // 畫面不知道哪幾天休市，也不知道後端把即時名額給了誰。自己算的結果會把
+    // 國定假日說成故障，或替一張永遠不動的圖保證即時更新。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([
+      {
+        symbol: '2454',
+        market: 'taiwanStock',
+        isWatched: false,
+        isWithinTradingSession: false,
+        hasLiveUpdates: false,
+      },
+    ]))
+
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+
+    expect(tradingSymbols[0]!.isWatched).toBe(false)
+    expect(tradingSymbols[0]!.isWithinTradingSession).toBe(false)
+    expect(tradingSymbols[0]!.hasLiveUpdates).toBe(false)
+  })
+
+  it('認不得的市場名稱不讓那一檔消失', async () => {
+    // 它仍然挑得到，只是暫時歸在預設的那個市場。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([
+      {
+        symbol: 'AAPL',
+        market: 'nasdaq',
+        isWatched: true,
+        isWithinTradingSession: true,
+        hasLiveUpdates: true,
+      },
+    ]))
+
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+
+    expect(tradingSymbols.map(tradingSymbol => tradingSymbol.symbol)).toEqual(['AAPL'])
+    expect(tradingSymbols[0]!.market.value).toBe('crypto')
+  })
+})

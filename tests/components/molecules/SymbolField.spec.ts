@@ -4,7 +4,7 @@ import SymbolField from '~/components/molecules/SymbolField.vue'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import type { ITradingSymbolProxy } from '~/domain/interface/i-trading-symbol-proxy'
-import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
+import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 entity 都是真的。
@@ -14,7 +14,7 @@ function buildApplication(tradingSymbolProxy: ITradingSymbolProxy): TradingSymbo
 
 function proxyListing(...symbols: string[]): ITradingSymbolProxy {
   return {
-    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
+    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => buildTradingSymbol(symbol))),
   }
 }
 
