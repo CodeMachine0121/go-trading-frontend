@@ -73,7 +73,18 @@
 卻剛好還沒收到值的 K 線再也補不上去；「留白＝沒有這一項」達成同一個目的——防止 0 被寫進去——
 而且沒有把門鎖死。這一條建議回頭修 PRD 的措辭。
 
-## 7. Clauses — 業務規則（第 4 節）
+## 7. Clauses — US-07 會收盤的市場可以要求立刻更新
+
+| ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
+|---|---|---|---|---|---|---|---|
+| AC-07.1 | 會收盤的市場給這顆按鈕 | 台股的圖上有「立刻更新」 | `KCandleChartPanel.vue:canCatchUp`（讀 `hasTradingSession`） | `會收盤的市場才給這顆按鈕` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-07.2 | 不收盤的市場不給 | 加密貨幣的圖上沒有 | 同上 | `不收盤的市場不給這顆按鈕` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-07.3 | 按下去補回來，說補到幾根，圖上出現那幾根 | 出現「補回 N 根」；重新取過一次 | `catchUp()` → `KCandleChartApplication.catchUpSymbol`；補完以 `loadedChart: null` 強制重取 | `按下去就要後端補這一檔，補完說補回幾根`、`補完之後重新取一次…`、`k-candle-proxy.spec.ts` 兩條 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-07.4 | 已經是最新的也說出來，不呈現成錯誤 | 出現「已經是最新的了」 | 同上（零根有自己的說法） | `一根都沒補到也說出來…` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-07.5 | 補不回來時說出原因，圖照樣留著 | 出現後端說的原因；圖仍在 | `catchUp()` 的 catch | `補不回來時說出原因，圖照樣留著`、`連原因都說不出來時…` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-07.6 | 補的時候按不出第二次 | 按鈕停用 | `catchingUp` | `補的時候按不出第二次` | asserts-oracle | produces-oracle | ✅ conforms |
+
+## 8. Clauses — 業務規則（第 4 節）
 
 | ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
 |---|---|---|---|---|---|---|---|
@@ -86,9 +97,12 @@
 | BR-7 | 加入失敗要分得出是哪一種 | 同 AC-02.2／02.3 | `watchlist-proxy.ts` | 同上＋`後端自己壞掉不說成行情來源不在` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-8 | 改動不是立刻生效；**不顯示倒數** | 有常駐說明，且沒有任何倒數 | `WatchlistPanel.vue` | `說得出改動不是立刻生效的`（沒有倒數這件事由「程式中沒有那段」保證） | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-9 | 市場鍵決定看哪個市場：切過去就換到該市場的標的上 | 同 AC-01.3 | `trading-symbol-options-domain.ts:selectionFor` | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-11 | 立刻更新只給會收盤的市場，判準是「會不會收盤」而非「現在開著沒」 | 同 AC-07.1／07.2 | `KCandleChartPanel.vue:canCatchUp` | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-12 | 補完一定要重畫 | 同 AC-07.3 | 補完以 `loadedChart: null` 強制重取 | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-13 | 補到零根也要說 | 同 AC-07.4 | 同上 | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-10 | 加入時不即時查詢，只在送出時問一次 | 打字期間後端未被呼叫 | `WatchlistEntryForm.vue`（只在 submit 時 emit） | 無專屬測試：`代號空白就地擋下` 驗的是空白那一條，不是「打字不查詢」 | no-test | produces-oracle | 🟡 partial |
 
-## 8. Clauses — 非功能需求（第 6 節）
+## 9. Clauses — 非功能需求（第 6 節）
 
 | ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
 |---|---|---|---|---|---|---|---|
@@ -113,7 +127,7 @@
 
 稽核跑了兩輪：第一輪的判定，以及修掉之後的重新判定。下表是**修正後**的狀態。
 
-- **Conforms:** 33 / 41 條 ✅（80%）
+- **Conforms:** 42 / 50 條 ✅（84%）
 - **Violations:** 無（原有的兩條已修，見下）
 - **Mis-asserted:** 無
 - **Partial:** `AC-02.4`、`AC-03.4`、`AC-04.6`、`BR-10`、`NFR-1`、`NFR-2`、`NFR-4`
@@ -171,6 +185,15 @@
 就把代號那一欄撐高，市場選單與「加入」按鈕跟著被拉到底部、與輸入框錯開。
 訊息本來就長（「請稍後再試，這與代號對不對無關」），窄欄位也裝不下。
 改成自己一整列。
+
+### 稽核之後追加的一片
+
+**`US-07` 立刻更新**（六條）與 **`BR-11`～`BR-13`**（三條）是使用者在稽核之後提出的：
+台股收盤後每五分鐘一輪已經沒有東西可收，而那正是最想看今天資料的時候。
+九條全部 conforms，每一條都有一個會因為對應實作被打壞而變紅的測試——
+其中一條測試（「補完之後重新取一次」）在寫的當下就抓到一個真的錯誤：
+沿用平常那條重取的路，它會判定「手上那批還夠用」而不重取，
+於是剛補回來的那幾根一根都不會出現，按了跟沒按看起來一模一樣。
 
 **附帶發現（已一併修掉）**：`README.md` 的即時跟盤章節仍寫「`status` 是三者之一」，
 也仍以 `KCANDLE_INGESTION_SYMBOLS` 說明跟盤與觀察清單無關——那個環境變數在本切片已被移除，

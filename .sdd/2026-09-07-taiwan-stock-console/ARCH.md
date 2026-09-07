@@ -199,6 +199,12 @@ flowchart TD
 | US-06.1／US-06.3 那三欄沒有值／照常顯示 | `KCandleDto` 可空 + `KCandleTable.vue` |
 | US-06.2 成交量真的是零時仍顯示 0 | 同上（零是有值） |
 | US-06.4 修改時那三格不讓人填 | `KCandleForm.vue` |
+| US-07.1／US-07.2 誰有這顆按鈕 | `TradingSymbolDto.hasTradingSession`（後端回答）+ `KCandleChartPanel.vue` 的 `canCatchUp` |
+| US-07.3 按下去就補回來並說補到幾根 | `KCandleChartApplication.catchUpSymbol` → `KCandleChartService` → `IKCandleProxy.catchUpSymbol` |
+| US-07.3 圖上出現剛補回來的那幾根 | `KCandleChartPanel.vue` 補完後以 `loadedChart: null` 強制重取 |
+| US-07.4 已經是最新的 | 同上（補到零根也說出來，不呈現成錯誤） |
+| US-07.5 補不回來 | 沿用既有的後端錯誤翻譯（`BackendServerError` 等），圖不清空 |
+| US-07.6 補的時候按不出第二次 | `KCandleChartPanel.vue` 的 `catchingUp` |
 
 ---
 
