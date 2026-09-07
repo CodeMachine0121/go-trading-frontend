@@ -15,6 +15,7 @@ const DESTINATIONS = [
   { to: '/', label: '連線狀態', icon: 'connection' },
   { to: '/k-candles', label: 'K 線瀏覽', icon: 'table' },
   { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles' },
+  { to: '/watchlist', label: '觀察清單', icon: 'table' },
   { to: '/indicator-calculations', label: '指標計算', icon: 'formula' },
   { to: '/chat', label: '行情助手', icon: 'robot' },
 ] as const

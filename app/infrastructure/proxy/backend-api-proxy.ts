@@ -20,8 +20,11 @@ type BackendRequestOptions = {
   /**
    * 送出去的內容。值可以是一個巢狀的清單（例如策略的那一份旋鈕），
    * 但仍然逐項具名——沒有一個「什麼都能裝」的位置。
+   *
+   * null 是一個真的值而不是「沒填」：後端有幾個欄位可以是**沒有這一項**，
+   * 而那與送 0 或整個省略都不是同一件事。
    */
-  body?: Record<string, string | number | readonly Record<string, string | number>[]>
+  body?: Record<string, string | number | null | readonly Record<string, string | number>[]>
   /**
    * 這一次請求要多帶的標頭。
    *

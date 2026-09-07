@@ -29,7 +29,7 @@ class FakeEventSource {
   }
 }
 
-function aWireUpdate(status: string, overrides: Record<string, string> = {}) {
+function aWireUpdate(status: string, overrides: Record<string, string | null> = {}) {
   return JSON.stringify({
     symbol: 'BTCUSDT',
     status,
@@ -99,7 +99,7 @@ describe('把送來的一則收乾淨再往內傳', () => {
     expect(update?.kCandle?.open.toString()).toBe('100.5')
     expect(update?.kCandle?.close.toString()).toBe('118.25')
     expect(update?.kCandle?.volume.toString()).toBe('12.5')
-    expect(update?.kCandle?.takerBuyQuoteVolume.toString()).toBe('800.5')
+    expect(update?.kCandle?.takerBuyQuoteVolume?.toString()).toBe('800.5')
   })
 
   it('走完的那一根照樣往內傳，狀態如實保留', () => {
@@ -148,5 +148,47 @@ describe('通道自己掉了', () => {
 
     expect(received[0]?.status).toBe('stalled')
     expect(received[0]?.symbol).toBe('BTCUSDT')
+  })
+})
+
+describe('即時通道對這個市場不報的數字', () => {
+  it('後端不帶那一項時原樣傳成沒有值，不換成零', () => {
+    // 換成 0 的話，「這個市場不報它」與「這五分鐘沒有成交」就再也分不開了。
+    const { received, source } = follow()
+
+    source.send(aWireUpdate('forming', {
+      quoteVolume: null,
+      takerBuyBaseVolume: null,
+      takerBuyQuoteVolume: null,
+      volume: '0',
+    }))
+
+    const update = received[0]
+    expect(update?.kCandle?.quoteVolume).toBeNull()
+    expect(update?.kCandle?.takerBuyBaseVolume).toBeNull()
+    expect(update?.kCandle?.takerBuyQuoteVolume).toBeNull()
+    // 成交量真的是零：它有值，只是那個值是零。
+    expect(update?.kCandle?.volume.toString()).toBe('0')
+  })
+
+  it('這一檔沒有即時更新可給時，那一則沒有 K 線可談', () => {
+    // 它與「停了」是不同的兩件事：這一種不會自己好。
+    const { received, source } = follow()
+
+    source.send(aWireUpdate('unavailable'))
+
+    expect(received[0]?.status).toBe('unavailable')
+    expect(received[0]?.kCandle).toBeNull()
+  })
+
+  it('市場收盤的那一則原樣帶進來，不被當成認不得而說成停了', () => {
+    // 認不得的狀態會被當成「停了」。收盤若落進那一條路，畫面就會承諾一個
+    // 要等到明天才會發生的恢復。
+    const { received, source } = follow()
+
+    source.send(aWireUpdate('marketClosed'))
+
+    expect(received[0]?.status).toBe('marketClosed')
+    expect(received[0]?.kCandle).toBeNull()
   })
 })

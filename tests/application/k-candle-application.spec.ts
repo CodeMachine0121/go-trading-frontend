@@ -39,6 +39,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
@@ -177,6 +178,7 @@ describe('KCandleApplication', () => {
     it('刪除時連不上後端，以連線錯誤往上傳', async () => {
       const kCandleApplication = buildApplication(buildProxy({
         deleteKCandle: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles')),
+        catchUpSymbol: vi.fn().mockResolvedValue(0),
       }))
 
       await expect(kCandleApplication.deleteKCandle(new KCandleIdentityDto('BTCUSDT', OPEN_TIME)))

@@ -27,4 +27,12 @@ export interface IKCandleProxy {
 
   /** 刪除指名的那一根 K 線；不存在時由後端拒絕。 */
   deleteKCandle(kCandleIdentityVo: KCandleIdentityVo): Promise<void>
+
+  /**
+   * 要後端立刻去把這一檔缺的 K 線補回來，回報這一次補到幾根。
+   *
+   * 補到多久以前是後端的設定，不是這裡挑的——由呼叫端指定的話，同一顆按鈕會因為
+   * 誰按而做不同的事。
+   */
+  catchUpSymbol(symbol: string): Promise<number>
 }

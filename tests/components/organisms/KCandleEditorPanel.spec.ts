@@ -24,6 +24,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     saveKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     updateKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     deleteKCandle: vi.fn().mockResolvedValue(undefined),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
@@ -36,11 +37,13 @@ function buildKCandle(): KCandle {
   )
 }
 
-function buildEditingKCandleDto(): KCandleDto {
+function buildEditingKCandleDto(reportsEveryFigure = true): KCandleDto {
+  const optional = (value: string) => reportsEveryFigure ? new Decimal(value) : null
+
   return new KCandleDto(
     'BTCUSDT', EDITING_OPEN_TIME,
     new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
-    new Decimal('11'), new Decimal('1200'), new Decimal('5'), new Decimal('600'),
+    new Decimal('11'), optional('1200'), optional('5'), optional('600'),
     new KCandleTrendVo('up', '上漲', 'success'),
   )
 }
@@ -316,6 +319,7 @@ describe('KCandleEditorPanel', () => {
     it('要刪的那根已經不存在時，整塊轉達後端說的原因', async () => {
       const kCandleProxy = buildProxy({
         deleteKCandle: vi.fn().mockRejectedValue(new BackendRequestRejectedError('找不到該根 K 線')),
+        catchUpSymbol: vi.fn().mockResolvedValue(0),
       })
       const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
 
@@ -391,5 +395,45 @@ describe('KCandleEditorPanel', () => {
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
         .toBe('2026-08-30T17:00')
     })
+  })
+})
+
+describe('修改一根這個市場不報那三項的 K 線', () => {
+  it('沒有值的那三格留白，不預先填一個 0', () => {
+    // 填 0 進去，一按儲存就把「這個市場沒有這一項」寫成了「它是零」。
+    return mountPanel(buildProxy(), buildEditingKCandleDto(false)).then((wrapper) => {
+      expect(wrapper.find('[data-testid="form-quoteVolume"]')
+        .element.getAttribute('value') ?? '').toBe('')
+      expect(wrapper.find('[data-testid="form-takerBuyBaseVolume"]')
+        .element.getAttribute('value') ?? '').toBe('')
+      // 有值的那幾格照常帶進來。
+      expect((wrapper.find('[data-testid="form-volume"]').element as HTMLInputElement).value)
+        .toBe('11')
+    })
+  })
+
+  it('那三格說得出為什麼可以空著', async () => {
+    const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto(false))
+
+    expect(wrapper.text()).toContain('這個市場不報就留白')
+  })
+
+  it('那三格空著就存得起來，而且存進去的是沒有這一項，不是零', async () => {
+    const updateKCandle = vi.fn().mockResolvedValue(buildKCandle())
+    const wrapper = await mountPanel(
+      buildProxy({ updateKCandle }), buildEditingKCandleDto(false))
+
+    await wrapper.get('[data-testid="form-submit"]').trigger('submit')
+    await flushPromises()
+
+    // 沒有被擋在「請填寫成交額」這一關——不報這一項的市場本來就填不出來。
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+    expect(updateKCandle).toHaveBeenCalledTimes(1)
+
+    const kCandleWriteDomain = updateKCandle.mock.calls[0]?.[0]
+    expect(kCandleWriteDomain.quoteVolume).toBeNull()
+    expect(kCandleWriteDomain.takerBuyBaseVolume).toBeNull()
+    expect(kCandleWriteDomain.takerBuyQuoteVolume).toBeNull()
+    expect(kCandleWriteDomain.volume.toString()).toBe('11')
   })
 })

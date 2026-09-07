@@ -42,16 +42,17 @@ describe('ConsoleLayout', () => {
     expect(wrapper.text()).toContain('指標計算')
   })
 
-  it('側欄收得起來，而且收起來之後五個畫面都還在', () => {
+  it('側欄收得起來，而且收起來之後每個畫面都還在', () => {
     // 收起來的是那幾個字，不是那幾個地方——整條藏起來會逼使用者為了回去而先展開。
     const wrapper = mountLayout('K 線圖表')
 
     wrapper.get('[data-testid="toggle-rail"]').trigger('click')
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
-    // 就是五條沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(5)
+    // 就是一排沒有名字的連結，而那條側欄等於壞了。
+    expect(wrapper.findAll('a')).toHaveLength(6)
     expect(wrapper.text()).toContain('指標計算')
+    expect(wrapper.text()).toContain('觀察清單')
   })
 
   it('收起來的側欄在走到下一個畫面時不會自己彈回來', async () => {

@@ -20,6 +20,11 @@ export class KCandleChartApplication {
     return this.kCandleChartService.loadKCandleChart(kCandleChartViewportDto)
   }
 
+  /** 要後端立刻去補齊這一檔，回報補到幾根。 */
+  async catchUpSymbol(symbol: string): Promise<number> {
+    return this.kCandleChartService.catchUpSymbol(symbol)
+  }
+
   listRangePresets(): KCandleChartRangePresetDto[] {
     return this.kCandleChartService.listRangePresets()
   }

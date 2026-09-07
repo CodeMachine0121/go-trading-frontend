@@ -36,6 +36,7 @@ function buildKCandleProxy(): IKCandleProxy {
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
   }
 }
 
@@ -52,9 +53,10 @@ function controllableFeed() {
   }
 
   function report(status: LiveKCandleStatus, closePrice = '118') {
-    const kCandle = status === 'stalled'
-      ? null
-      : buildKCandle('2026-09-03T12:00:00.000Z', closePrice)
+    const carriesACandle = status === 'forming' || status === 'closed'
+    const kCandle = carriesACandle
+      ? buildKCandle('2026-09-03T12:00:00.000Z', closePrice)
+      : null
     for (const listener of listeners) {
       listener(new LiveKCandleUpdate('BTCUSDT', status, kCandle))
     }
@@ -66,6 +68,7 @@ function controllableFeed() {
 async function mountPanel(
   feed: ReturnType<typeof controllableFeed>,
   kCandleProxy: Partial<IKCandleProxy> = {},
+  tradingSymbolApplication = buildTradingSymbolApplication(),
 ) {
   const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
@@ -74,7 +77,7 @@ async function mountPanel(
     props: {
       kCandleChartApplication: new KCandleChartApplication(
         new KCandleChartService({ ...buildKCandleProxy(), ...kCandleProxy })),
-      tradingSymbolApplication: buildTradingSymbolApplication(),
+      tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(
         { followKCandles: feed.followKCandles }),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
@@ -253,5 +256,123 @@ describe('即時更新停掉的時候', () => {
     expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
     const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
     expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
+  })
+})
+
+describe('圖表上那一句話：三種原因共用一個位置，一次只說一句', () => {
+  it('這一檔沒有即時更新時，說的是它不會自己好', async () => {
+    // 「等到明天也一樣」與「等一下會自己好」是兩句話。給錯那一句，
+    // 看的人會一直等一件不會發生的事。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+
+    feed.report('unavailable')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('每五分鐘更新一次')
+  })
+
+  it('市場收盤時說收盤，而不是那幾則故障', async () => {
+    // 收盤時沒有新資料是正常的。說成故障，等於每天晚上謊報一次。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: false }))
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('收盤中')
+  })
+
+  it('收盤時不再多說一次即時已停止', async () => {
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: false }))
+
+    feed.report('stalled')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+  })
+
+  it('一切正常時一句話都不說', async () => {
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+
+    feed.report('forming')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+  })
+
+  it('看著市場收盤的那一刻，說的是收盤，不是即時已停止', async () => {
+    // 這一刻的收盤只有更新說得出來：進畫面時問到的那一份說的是「還在交易時段內」。
+    // 讀不出這一則的話，畫面會說「正在重新連上」——承諾一個要等到明天的恢復。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: true }))
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
+
+    feed.report('marketClosed')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('收盤中')
+  })
+
+  it('收盤那一刻，圖照樣顯示收盤前的最後那一根', async () => {
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+    feed.report('closed', '118')
+    await flushPromises()
+
+    feed.report('marketClosed')
+    await flushPromises()
+
+    const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
+    expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
+  })
+
+  it('開盤之後那一句自己消失，不必重新整理', async () => {
+    // 進畫面那一刻問到的那一份不會自己更新。少了這一條，八點五十打開圖表的人
+    // 會在九點之後繼續看到「收盤中」——一邊看著最後那一根在旁邊跳。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: false }))
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+
+    feed.report('forming')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
+  })
+
+  it('拿到名額之後那一句自己消失', async () => {
+    // 同一個道理：名額也是那一刻問到的，而它會變。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { hasLiveUpdates: false }))
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(true)
+
+    feed.report('forming')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
+  })
+
+  it('沒有即時更新時圖照樣顯示手上有的', async () => {
+    // 沒有的是「即時」，不是「圖表」。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+
+    feed.report('unavailable')
+    await flushPromises()
+
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 })

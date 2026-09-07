@@ -6,7 +6,7 @@ import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
-import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildTradingSymbol, buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildStrategyApplication } from '../../fixtures/strategy-application'
@@ -37,15 +37,19 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
 
-async function mountPanel(kCandleProxy: IKCandleProxy) {
+async function mountPanel(
+  kCandleProxy: IKCandleProxy,
+  tradingSymbolApplication = buildTradingSymbolApplication(),
+) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
-      tradingSymbolApplication: buildTradingSymbolApplication(),
+      tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication(),
       strategyApplication: buildStrategyApplication(),
@@ -205,17 +209,19 @@ describe('KCandleChartPanel', () => {
     expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('line')
   })
 
-  it('未指定交易標的時不去取，並把原因標在欄位旁', async () => {
+  it('一檔都沒選著時不去取，也不怪使用者沒填', async () => {
+    // 這個畫面只能從選單挑，沒有「填」這個動作可做。一檔都沒選著的原因
+    // （這個市場目前沒有標的）挑標的那個欄位已經說了，這裡再標一句
+    // 「請指定交易標的」，等於把系統的狀況說成使用者的疏忽。
     const findKCandleSeries = vi.fn().mockResolvedValue([])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
-    // 直接讓欄位交出一個空的標的，驗畫面確實把原因標回欄位旁。
-    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '   ')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '')
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請指定交易標的')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="idle-chart"]').text()).toContain('還沒有行情可以畫')
   })
 
   it('這段區間內沒有任何 K 線時說「查無 K 線」，不畫空白的圖', async () => {
@@ -398,5 +404,144 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+  })
+})
+
+describe('KCandleChartPanel 標題唸出哪一檔', () => {
+  it('唸得出公司的名字，不是只有四位數字', async () => {
+    const wrapper = await mountPanel(
+      buildProxy(),
+      buildTradingSymbolApplication(['BTCUSDT'], { displayName: '台積電' }))
+
+    expect(wrapper.text()).toContain('BTCUSDT 台積電')
+  })
+
+  it('圖上還是舊的那一檔時，不掛上新那一檔的名字', async () => {
+    // 換標的到取回來之間有一段空窗。直接接上去會用新公司的名字標著舊公司的線。
+    const wrapper = await mountPanel(
+      buildProxy(),
+      buildTradingSymbolApplication(['BTCUSDT'], { displayName: '台積電' }))
+
+    wrapper.findComponent(SymbolField).vm.$emit('selected', buildTradingSymbol(
+      '2330', { market: 'taiwanStock', displayName: '鴻海' }).toDto())
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain('鴻海')
+  })
+})
+
+describe('KCandleChartPanel 立刻更新', () => {
+  /** 一檔屬於會收盤的市場的標的，也就是唯一需要這顆按鈕的那種。 */
+  function marketThatCloses() {
+    return buildTradingSymbolApplication(['BTCUSDT'], { hasTradingSession: true })
+  }
+
+  it('會收盤的市場才給這顆按鈕', async () => {
+    // 永不收盤的市場永遠只差一輪就跟上了，給它一顆「立刻更新」只是讓人多按一次
+    // 去做本來就會發生的事。
+    const wrapper = await mountPanel(buildProxy(), marketThatCloses())
+
+    expect(wrapper.find('[data-testid="catch-up-button"]').exists()).toBe(true)
+  })
+
+  it('不收盤的市場不給這顆按鈕', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.find('[data-testid="catch-up-button"]').exists()).toBe(false)
+  })
+
+  it('按下去就要後端補這一檔，補完說補回幾根', async () => {
+    const catchUpSymbol = vi.fn().mockResolvedValue(3)
+    const wrapper = await mountPanel(buildProxy({ catchUpSymbol }), marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(catchUpSymbol).toHaveBeenCalledWith('BTCUSDT')
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('補回 3 根')
+  })
+
+  it('補完之後重新取一次，否則剛補回來的那幾根一根都不會出現', async () => {
+    // 補齊寫的是後端的資料，畫面手上那批是補齊之前取的。不重取的話，
+    // 按了跟沒按看起來一模一樣。
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
+    const wrapper = await mountPanel(
+      buildProxy({ findKCandleSeries, catchUpSymbol: vi.fn().mockResolvedValue(3) }),
+      marketThatCloses())
+    const beforeCatchUp = findKCandleSeries.mock.calls.length
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(findKCandleSeries.mock.calls.length).toBeGreaterThan(beforeCatchUp)
+  })
+
+  it('補到一半換了標的，就不再拿補回來的東西去重畫新的那一檔', async () => {
+    // 補的是 A、重畫的是 B 的話，畫面會用 B 的名字標著一批為了 A 才去取的資料。
+    let finishCatchUp: (collected: number) => void = () => {}
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
+    const wrapper = await mountPanel(
+      buildProxy({
+        findKCandleSeries,
+        catchUpSymbol: vi.fn().mockReturnValue(
+          new Promise<number>((resolve) => { finishCatchUp = resolve })),
+      }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', 'ETHUSDT')
+    await flushPromises()
+    const afterSwitching = findKCandleSeries.mock.calls.length
+    finishCatchUp(3)
+    await flushPromises()
+
+    expect(findKCandleSeries.mock.calls.length).toBe(afterSwitching)
+  })
+
+  it('一根都沒補到也說出來，那是常見的答案而不是沒反應', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockResolvedValue(0) }), marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('已經是最新的了')
+  })
+
+  it('補不回來時說出原因，圖照樣留著', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({
+        catchUpSymbol: vi.fn().mockRejectedValue(new BackendServerError('行情來源問不到')),
+      }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('行情來源問不到')
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
+  })
+
+  it('連原因都說不出來時，仍然說一句「補不回來」', async () => {
+    // 什麼都不說的話，看的人會以為按了沒反應，然後一直按。
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockRejectedValue('說不清楚的東西') }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('補不回來')
+  })
+
+  it('補的時候按不出第二次', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockReturnValue(new Promise(() => {})) }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="catch-up-button"]').attributes('disabled')).toBeDefined()
   })
 })

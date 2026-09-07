@@ -10,12 +10,14 @@ import type { ChartIndicatorApplication } from '~/application/chart-indicator-ap
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import type { StrategyApplication } from '~/application/strategy-application'
+import type { LiveUpdateNoticeValue } from '~/domain/models/vo/live-update-notice-vo'
+import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
+import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
-import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -55,7 +57,6 @@ const visibleStartTime = ref(new Date())
 const visibleEndTime = ref(new Date())
 
 const loading = ref(false)
-const symbolError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const serverErrorMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
@@ -74,8 +75,101 @@ const strategies = ref<StrategyDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
-/** 即時更新停掉了。圖照常顯示，只是不再跟著市場動——所以要明說。 */
-const liveUpdateStalled = ref(false)
+/**
+ * 圖的標題：畫出來的那一檔，能說出名字就連名字一起說。
+ *
+ * 名字只在它確實屬於**畫出來的那一檔**時才接上去。換標的到取回來之間有一段空窗，
+ * 那段時間挑標的那邊已經換人了、圖上還是舊的——直接接上去會用新公司的名字
+ * 標著舊公司的線。
+ */
+const chartTitle = computed(() => {
+  const drawnSymbol = chart.value?.symbol ?? symbol.value
+  const selected = selectedTradingSymbol.value
+
+  return selected?.symbol === drawnSymbol ? selected.label : drawnSymbol
+})
+
+/** 最近一則即時更新說了什麼。還沒有任何一則時是 null。 */
+const latestLiveReport = ref<LiveKCandleReportDto | null>(null)
+/** 目前選著的那一檔完整的樣子，由挑標的那個欄位交過來。 */
+const selectedTradingSymbol = ref<TradingSymbolDto | null>(null)
+
+/**
+ * 圖表上該說的那一句話，至多一句。
+ *
+ * 該說哪一句是一條有優先序的業務規則，所以由 domain 判、這裡只問。
+ * 寫成三個 v-if 的話，加第四種說法就得回頭重讀所有排列。
+ */
+const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
+  selectedTradingSymbol.value, latestLiveReport.value))
+
+/**
+ * 每一種說法在畫面上是哪一句中文。
+ *
+ * 「沒有名額」與「停了」的措辭刻意不像：一句要人接受現況，一句要人稍等——
+ * 讀起來像同一件事的話，這兩句就等於只有一句。
+ */
+const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
+  marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
+  noLivePlace: '這一檔沒有即時更新，資料每五分鐘更新一次。',
+  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
+}
+/**
+ * 這個市場會收盤，所以「等下一輪」不見得等得到東西——手動要求更新才有意義。
+ *
+ * 判準是**這個市場會不會收盤**，不是「現在有沒有開」：後者在收盤的每個夜裡都成立，
+ * 卻也在加密貨幣身上永遠不成立，於是按鈕會在錯的地方出現、又在錯的地方消失。
+ */
+const canCatchUp = computed(() => selectedTradingSymbol.value?.hasTradingSession === true)
+
+/** 正在補齊。補的時候不讓人再按一次——第二次要的是同一批東西。 */
+const catchingUp = ref(false)
+/** 上一次補齊的結果，補完才有話說。 */
+const catchUpMessage = ref<string | null>(null)
+
+/**
+ * 去把這一檔缺的補回來，補完重畫。
+ *
+ * 補完一定要重畫：補齊寫的是後端的資料，畫面手上那批是**補齊之前**取的，
+ * 不重取的話，剛補回來的那幾根一根都不會出現，看起來就像按了沒有用。
+ */
+async function catchUp() {
+  catchingUp.value = true
+  catchUpMessage.value = null
+
+  // 記下這一次補的是誰。等回來時使用者可能已經換了標的，那時候拿 symbol.value
+  // 會變成「補 A、重畫 B」。
+  const caughtUpSymbol = symbol.value
+
+  try {
+    const collected = await kCandleChartApplication.catchUpSymbol(caughtUpSymbol)
+    // 補到零根也是一個答案，而且是常見的那一個（手上已經是最新的）。
+    // 不說出來的話，看的人分不出「按了沒事」與「按了沒反應」。
+    catchUpMessage.value = collected === 0
+      ? '已經是最新的了，沒有可補的 K 線。'
+      : `補回 ${collected} 根 K 線。`
+
+    // 手上那批「還夠用」的判斷是拿涵蓋範圍算的，而補齊填的是**範圍之內**的洞——
+    // 照平常那條路重取，它會說不必取，於是剛補回來的那幾根一根都不會出現。
+    // 所以這裡明說：忘了手上那批，重新取一次。
+    // 換過標的就不必重畫了：那一檔的資料已經在換的時候取過，而這一次補的不是它。
+    if (caughtUpSymbol !== symbol.value) {
+      return
+    }
+
+    await showViewport(new KCandleChartViewportDto(
+      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null))
+  }
+  catch (error: unknown) {
+    catchUpMessage.value = error instanceof Error
+      ? `補不回來：${error.message}`
+      : '補不回來。'
+  }
+  finally {
+    catchingUp.value = false
+  }
+}
+
 /** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
 let stopFollowing: (() => void) | null = null
 /**
@@ -92,10 +186,20 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   const requestNumber = latestRequestNumber
 
   loading.value = true
-  symbolError.value = null
   rejectedMessage.value = null
   serverErrorMessage.value = null
   backendUnreachable.value = false
+
+  // 一檔都沒選著——這個市場目前沒有東西可挑。沒有東西可問，也沒有人做錯什麼，
+  // 所以這裡既不送出請求，也不標一句「請指定交易標的」：那是在怪使用者沒填，
+  // 但這個畫面只能從選單挑，他根本沒有「填」這個動作可做，真正的原因挑標的
+  // 那個欄位已經說了。
+  if (kCandleChartViewportDto.symbol.trim() === '') {
+    forgetTheChart()
+    loading.value = false
+
+    return
+  }
 
   try {
     const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
@@ -132,11 +236,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       return
     }
 
-    // 哨兵錯誤分流：使用者可自行修正的標在欄位旁，其餘整塊呈現。
-    if (error instanceof KCandleQueryValidationError) {
-      symbolError.value = error.message
-    }
-    else if (error instanceof BackendServerError) {
+    // 哨兵錯誤分流。這裡沒有「請使用者自己修正」的那一種：標的只能從選單挑，
+    // 而一檔都沒選著在上面就先攔下了——剩下的每一種都是後端那頭的事。
+    if (error instanceof BackendServerError) {
       serverErrorMessage.value = error.message
     }
     else if (error instanceof BackendRequestRejectedError) {
@@ -149,22 +251,29 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       rejectedMessage.value = '取行情時發生未預期的錯誤。'
     }
 
-    chart.value = null
-    // 圖沒了，跟盤也得停。留著它，上一檔的下一則更新就會把圖「復活」——
-    // 而畫面上同時還顯示著取行情失敗，看到的人會以為那張圖是這一檔的。
-    stopFollowing?.()
-    stopFollowing = null
-    followGeneration += 1
-    liveUpdateStalled.value = false
-    // 上一批算出來的線也不能留——它們畫的是另一段行情，
-    // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
-    chartIndicators.clearLines()
+    forgetTheChart()
   }
   finally {
     if (requestNumber === latestRequestNumber) {
       loading.value = false
     }
   }
+}
+
+/**
+ * 把手上這張圖整個放掉：圖、跟盤、最近那一則更新、算出來的線。
+ *
+ * 四件事必須一起放掉。留著跟盤，上一檔的下一則更新就會把圖「復活」，而畫面上
+ * 同時還說著取行情失敗，看到的人會以為那張圖是這一檔的；留著線，它們畫的是另一段
+ * 行情，還會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
+ */
+function forgetTheChart() {
+  chart.value = null
+  stopFollowing?.()
+  stopFollowing = null
+  followGeneration += 1
+  latestLiveReport.value = null
+  chartIndicators.clearLines()
 }
 
 /**
@@ -183,9 +292,10 @@ function followTheMarket(followedChart: KCandleChartDto) {
         return
       }
 
-      // 跟不動了：明說，但圖照樣顯示手上有的——停的是「即時」，不是「圖表」。
-      liveUpdateStalled.value = report.isStalled
-      if (report.isStalled) {
+      // 跟不動了、這一檔本來就沒有即時更新、或市場收盤了：三者都明說，
+      // 但圖照樣顯示手上有的——沒有的是「即時」，不是「圖表」。
+      latestLiveReport.value = report
+      if (report.isStalled || report.hasNoLivePlace || report.isMarketClosed) {
         return
       }
 
@@ -225,7 +335,13 @@ function reload() {
 }
 
 // 換交易標的等於換一批資料，正在看的那一段不變。
-watch(symbol, reload)
+watch(symbol, () => {
+  // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
+  // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
+  catchUpMessage.value = null
+
+  return reload()
+})
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(async () => {
@@ -262,7 +378,7 @@ onMounted(async () => {
         :presets="presets"
         :active-preset-label="activePresetLabel"
         :loading="loading"
-        :symbol-error="symbolError"
+        @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
       />
 
@@ -290,15 +406,16 @@ onMounted(async () => {
       那正是他最需要看到它的時候。
     -->
     <!--
-      即時停掉是「這一層停了」，不是「圖表壞了」——所以它與那幾則錯誤各自獨立，
+      即時這一層沒有東西動，不代表「圖表壞了」——所以它與那幾則錯誤各自獨立，
       不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+      三種原因共用這一個位置，一次只說一句，哪一句由 domain model 決定。
     -->
     <AppAlert
-      v-if="liveUpdateStalled"
-      tone="warning"
-      data-testid="live-update-stalled-alert"
+      v-if="liveUpdateNotice"
+      :tone="liveUpdateNotice.tone"
+      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
     >
-      即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。
+      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
     </AppAlert>
 
     <AppAlert
@@ -357,7 +474,7 @@ onMounted(async () => {
          換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
          畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
     <AppPanel
-      :title="chart?.symbol ?? symbol"
+      :title="chartTitle"
       flush
       class="k-candle-chart-panel__chart"
     >
@@ -371,6 +488,28 @@ onMounted(async () => {
         >
           {{ intervalLabel }}
         </AppBadge>
+
+        <!--
+          只有會收盤的市場給這顆按鈕。永不收盤的市場永遠只差一輪就跟上了，
+          給它一顆「立刻更新」只是讓人多按一次去做本來就會發生的事。
+        -->
+        <AppButton
+          v-if="canCatchUp"
+          variant="secondary"
+          size="small"
+          :disabled="catchingUp || loading"
+          data-testid="catch-up-button"
+          @click="catchUp"
+        >
+          {{ catchingUp ? '補齊中…' : '立刻更新' }}
+        </AppButton>
+        <span
+          v-if="catchUpMessage"
+          class="k-candle-chart-panel__catch-up-message"
+          data-testid="catch-up-message"
+        >
+          {{ catchUpMessage }}
+        </span>
       </template>
 
       <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
@@ -430,6 +569,11 @@ onMounted(async () => {
   &__chart {
     flex: 1;
     min-height: 20rem;
+  }
+
+  &__catch-up-message {
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   &__empty {

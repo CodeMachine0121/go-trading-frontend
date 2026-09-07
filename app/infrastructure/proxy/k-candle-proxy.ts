@@ -9,6 +9,7 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const K_CANDLES_ENDPOINT = '/k-candles'
 const K_CANDLE_SERIES_ENDPOINT = '/k-candles/series'
+const K_CANDLE_BACKFILL_ENDPOINT = '/k-candles/backfill'
 
 /**
  * 後端回傳的原始 wire 形狀，只存在於本檔內，不外流進 domain。
@@ -22,9 +23,9 @@ type KCandleWire = {
   low: string
   close: string
   volume: string
-  quoteVolume: string
-  takerBuyBaseVolume: string
-  takerBuyQuoteVolume: string
+  quoteVolume: string | null
+  takerBuyBaseVolume: string | null
+  takerBuyQuoteVolume: string | null
 }
 
 /**
@@ -36,8 +37,19 @@ type KCandleSeriesWire = {
   kCandles: KCandleWire[]
 }
 
-/** 送往後端時的 body 形狀：價量一律以字串傳遞以保留精確度。 */
-type KCandleRequest = Record<string, string>
+/**
+ * 補齊那一輪的回報。逐檔分開，因為那一輪本來就可能不只補一檔——
+ * 這裡一次只要一檔，但讀的是同一個形狀，不另外要求後端為這個按鈕變出別的答案。
+ */
+type KCandleBackfillReportWire = {
+  symbolReports: { storedCount: number }[]
+}
+
+/**
+ * 送往後端時的 body 形狀：價量一律以字串傳遞以保留精確度。
+ * 這個市場不報的那幾項送 null——送 '0' 的話它就變成一個真的成交數字了。
+ */
+type KCandleRequest = Record<string, string | null>
 
 /** Proxy：唯一允許出現 $fetch 的地方，負責把 wire 形狀收乾淨再往 domain 送。 */
 export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
@@ -89,6 +101,14 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
     await this.requestBackend<null>(this.identityPath(kCandleIdentityVo), { method: 'DELETE' })
   }
 
+  async catchUpSymbol(symbol: string): Promise<number> {
+    const report = await this.requestBackend<KCandleBackfillReportWire>(
+      K_CANDLE_BACKFILL_ENDPOINT, { method: 'POST', body: { symbol } })
+
+    return report.symbolReports.reduce(
+      (collected, symbolReport) => collected + symbolReport.storedCount, 0)
+  }
+
   /** 一根 K 線在後端的位址：以交易標的與起始時間指名。 */
   private identityPath(kCandleIdentityVo: KCandleIdentityVo): string {
     const symbol = encodeURIComponent(kCandleIdentityVo.symbol)
@@ -106,9 +126,9 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
       low: kCandleWriteDomain.low.toString(),
       close: kCandleWriteDomain.close.toString(),
       volume: kCandleWriteDomain.volume.toString(),
-      quoteVolume: kCandleWriteDomain.quoteVolume.toString(),
-      takerBuyBaseVolume: kCandleWriteDomain.takerBuyBaseVolume.toString(),
-      takerBuyQuoteVolume: kCandleWriteDomain.takerBuyQuoteVolume.toString(),
+      quoteVolume: kCandleWriteDomain.quoteVolume?.toString() ?? null,
+      takerBuyBaseVolume: kCandleWriteDomain.takerBuyBaseVolume?.toString() ?? null,
+      takerBuyQuoteVolume: kCandleWriteDomain.takerBuyQuoteVolume?.toString() ?? null,
     }
   }
 
@@ -121,9 +141,19 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
       new Decimal(kCandleWire.low),
       new Decimal(kCandleWire.close),
       new Decimal(kCandleWire.volume),
-      new Decimal(kCandleWire.quoteVolume),
-      new Decimal(kCandleWire.takerBuyBaseVolume),
-      new Decimal(kCandleWire.takerBuyQuoteVolume),
+      this.readOptionalFigure(kCandleWire.quoteVolume),
+      this.readOptionalFigure(kCandleWire.takerBuyBaseVolume),
+      this.readOptionalFigure(kCandleWire.takerBuyQuoteVolume),
     )
+  }
+
+  /**
+   * 一個市場可能根本不報的成交數字。
+   *
+   * 後端不帶這一項時它是 null，而 null 必須原樣往內傳——換成 0 的話，
+   * 「這個市場不報它」與「這五分鐘沒有成交」就再也分不開了。
+   */
+  private readOptionalFigure(reported: string | null): Decimal | null {
+    return reported === null ? null : new Decimal(reported)
   }
 }

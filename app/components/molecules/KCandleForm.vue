@@ -30,16 +30,37 @@ const quoteVolume = defineModel<string>('quoteVolume', { required: true })
 const takerBuyBaseVolume = defineModel<string>('takerBuyBaseVolume', { required: true })
 const takerBuyQuoteVolume = defineModel<string>('takerBuyQuoteVolume', { required: true })
 
+/**
+ * 不是每個市場都報這三項。留白就是「這個市場沒有這一項」，存進去仍然是沒有。
+ * 說出來是必要的：欄位空著而不解釋，看的人只會以為自己漏填了。
+ */
+const OPTIONAL_FIGURE_HINT = '這個市場不報就留白'
+
 /** 八個價量欄位長得一模一樣，逐欄複製一份 template 只會讓加欄位變成八處修改。 */
-const FIGURE_FIELDS: { field: KCandleWriteField, label: string, model: Ref<string> }[] = [
+const FIGURE_FIELDS: {
+  field: KCandleWriteField
+  label: string
+  model: Ref<string>
+  hint?: string
+}[] = [
   { field: 'open', label: '開盤價', model: open },
   { field: 'high', label: '最高價', model: high },
   { field: 'low', label: '最低價', model: low },
   { field: 'close', label: '收盤價', model: close },
   { field: 'volume', label: '成交量', model: volume },
-  { field: 'quoteVolume', label: '成交額', model: quoteVolume },
-  { field: 'takerBuyBaseVolume', label: '主動買入量', model: takerBuyBaseVolume },
-  { field: 'takerBuyQuoteVolume', label: '主動買入額', model: takerBuyQuoteVolume },
+  { field: 'quoteVolume', label: '成交額', model: quoteVolume, hint: OPTIONAL_FIGURE_HINT },
+  {
+    field: 'takerBuyBaseVolume',
+    label: '主動買入量',
+    model: takerBuyBaseVolume,
+    hint: OPTIONAL_FIGURE_HINT,
+  },
+  {
+    field: 'takerBuyQuoteVolume',
+    label: '主動買入額',
+    model: takerBuyQuoteVolume,
+    hint: OPTIONAL_FIGURE_HINT,
+  },
 ]
 
 function messageFor(field: KCandleWriteField): string | null {
@@ -93,6 +114,7 @@ function messageFor(field: KCandleWriteField): string | null {
         v-for="figureField in FIGURE_FIELDS"
         :key="figureField.field"
         :label="figureField.label"
+        :hint="figureField.hint"
         :error-message="messageFor(figureField.field)"
       >
         <AppInput

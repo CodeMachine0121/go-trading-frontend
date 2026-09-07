@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
+import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
 
 /**
  * 交易標的清單來自另一個外部資源，只 mock 它的介面；
@@ -12,8 +13,45 @@ import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
  */
 export function buildTradingSymbolApplication(
   symbols: string[] = ['BTCUSDT', 'ETHUSDT'],
+  overrides: TradingSymbolOverrides = {},
 ): TradingSymbolApplication {
   return new TradingSymbolApplication(new TradingSymbolService({
-    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => new TradingSymbol(symbol))),
+    findTradingSymbols: vi.fn().mockResolvedValue(
+      symbols.map(symbol => buildTradingSymbol(symbol, overrides))),
   }))
+}
+
+/** 一個案例真正在意的那幾個欄位；其餘交給中性的預設。 */
+export type TradingSymbolOverrides = {
+  displayName?: string
+  market?: MarketValue
+  isWatched?: boolean
+  isWithinTradingSession?: boolean
+  hasTradingSession?: boolean
+  hasLiveUpdates?: boolean
+}
+
+/**
+ * 一檔交易標的，只有這一個案例真正在意的欄位需要說出來。
+ *
+ * 其餘的給一個中性的預設：屬於既有那個市場、追蹤中、在交易時段內、有即時更新——
+ * 也就是「台股接進來之前這台終端機唯一見過的樣子」，所以既有的測試讀起來一如往常。
+ */
+export function buildTradingSymbol(
+  symbol: string,
+  overrides: TradingSymbolOverrides = {},
+): TradingSymbol {
+  const market = MARKETS.find(known => known.value === (overrides.market ?? 'crypto'))!
+
+  return new TradingSymbol(
+    symbol,
+    // 預設沒有名字——既有那個市場不取名字，所以既有的測試讀起來一如往常。
+    overrides.displayName ?? '',
+    market,
+    overrides.isWatched ?? true,
+    overrides.isWithinTradingSession ?? true,
+    // 預設是既有那個永不收盤的市場，所以既有的測試讀起來一如往常。
+    overrides.hasTradingSession ?? false,
+    overrides.hasLiveUpdates ?? true,
+  )
 }

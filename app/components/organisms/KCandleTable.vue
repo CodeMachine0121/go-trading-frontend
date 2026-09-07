@@ -15,6 +15,14 @@ defineProps<{
   result?: KCandleSearchResultDto | null
   timeZone: TimeZoneDto
 }>()
+
+/**
+ * 這個市場不報這個數字時，那一格畫的東西。
+ *
+ * 刻意不是 `0`：零是「這五分鐘沒有成交」，是一個真的讀數。兩者長得一樣的話，
+ * 看的人沒有任何辦法分辨，而且不會有任何地方報錯。
+ */
+const ABSENT_FIGURE = '—'
 </script>
 
 <template>
@@ -119,9 +127,20 @@ defineProps<{
             <td>{{ kCandle.low.toString() }}</td>
             <td>{{ kCandle.close.toString() }}</td>
             <td>{{ kCandle.volume.toString() }}</td>
-            <td>{{ kCandle.quoteVolume.toString() }}</td>
-            <td>{{ kCandle.takerBuyBaseVolume.toString() }}</td>
-            <td>{{ kCandle.takerBuyQuoteVolume.toString() }}</td>
+            <!--
+              這三格可能根本沒有值——不是每個市場都報這些數字。畫成 0 會讓
+              「這個市場不報它」與「這五分鐘沒有成交」長得一模一樣，而看的人
+              沒有任何辦法分辨。所以沒有值畫成一個破折號並淡化。
+            -->
+            <td :class="{ 'k-candle-table__absent': kCandle.quoteVolume === null }">
+              {{ kCandle.quoteVolume?.toString() ?? ABSENT_FIGURE }}
+            </td>
+            <td :class="{ 'k-candle-table__absent': kCandle.takerBuyBaseVolume === null }">
+              {{ kCandle.takerBuyBaseVolume?.toString() ?? ABSENT_FIGURE }}
+            </td>
+            <td :class="{ 'k-candle-table__absent': kCandle.takerBuyQuoteVolume === null }">
+              {{ kCandle.takerBuyQuoteVolume?.toString() ?? ABSENT_FIGURE }}
+            </td>
             <td v-if="$slots['row-actions']">
               <slot
                 name="row-actions"
@@ -140,6 +159,11 @@ defineProps<{
   // 表格是這個畫面的主體，剩下的高度全部給它；資料再多也在自己的框裡捲。
   flex: 1;
   min-height: 18rem;
+
+  // 沒有值的那一格：淡化，讓它與旁邊真的是 0 的數字一眼分得開。
+  &__absent {
+    color: color('text-faint');
+  }
 
   &__placeholder {
     margin: auto;

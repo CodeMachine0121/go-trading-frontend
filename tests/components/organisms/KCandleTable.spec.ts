@@ -7,7 +7,11 @@ import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-resu
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
-function buildKCandleDto(openTime: string, trend: KCandleTrendVo): KCandleDto {
+function buildKCandleDto(
+  openTime: string, trend: KCandleTrendVo, reportsEveryFigure = true,
+): KCandleDto {
+  const optional = (value: string) => reportsEveryFigure ? new Decimal(value) : null
+
   return new KCandleDto(
     'BTCUSDT',
     new Date(openTime),
@@ -15,10 +19,11 @@ function buildKCandleDto(openTime: string, trend: KCandleTrendVo): KCandleDto {
     new Decimal('120'),
     new Decimal('90'),
     new Decimal('110'),
-    new Decimal('11'),
-    new Decimal('1200'),
-    new Decimal('5'),
-    new Decimal('600'),
+    // 成交量永遠有值：零是一個真的讀數，這一格不會空著。
+    new Decimal('0'),
+    optional('1200'),
+    optional('5'),
+    optional('600'),
     trend,
   )
 }
@@ -123,5 +128,40 @@ describe('KCandleTable', () => {
     expect(rowActions).toHaveLength(2)
     expect(rowActions[0]?.text()).toBe('上漲')
     expect(rowActions[1]?.text()).toBe('下跌')
+  })
+})
+
+describe('KCandleTable 對這個市場不報的數字', () => {
+  function mountWith(kCandleDto: KCandleDto) {
+    return mount(KCandleTable, {
+      props: {
+        result: new KCandleSearchResultDto([kCandleDto]),
+        timeZone: buildTimeZone(),
+      },
+    })
+  }
+
+  it('這個市場不報的那三格畫成破折號，而不是 0', () => {
+    // 畫成 0 會讓「這個市場不報它」與「這五分鐘沒有成交」長得一模一樣，
+    // 而看的人沒有任何辦法分辨。
+    const wrapper = mountWith(buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND, false))
+
+    const cells = wrapper.findAll('tbody td').map(cell => cell.text())
+    expect(cells).toContain('—')
+    expect(cells.filter(text => text === '—')).toHaveLength(3)
+  })
+
+  it('真的是零的那一格仍然畫 0，且與破折號看起來不同', () => {
+    const wrapper = mountWith(buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND, false))
+
+    expect(wrapper.findAll('tbody td').map(cell => cell.text())).toContain('0')
+  })
+
+  it('有報的市場照常畫出數字', () => {
+    const wrapper = mountWith(buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND))
+
+    const cells = wrapper.findAll('tbody td').map(cell => cell.text())
+    expect(cells).toContain('1200')
+    expect(cells).not.toContain('—')
   })
 })

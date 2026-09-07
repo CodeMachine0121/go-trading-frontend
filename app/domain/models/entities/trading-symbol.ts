@@ -1,13 +1,44 @@
 import { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
+import type { MarketVo } from '~/domain/models/vo/market-vo'
+import {
+  LIVE_UPDATES_AVAILABLE,
+  LIVE_UPDATES_UNAVAILABLE,
+} from '~/domain/models/vo/live-update-availability-vo'
 
 /**
  * Entity：一個可查交易標的在 domain 內的本體形狀，只有欄位、沒有業務邏輯。
- * 它是後端**實際握有 K 線**的那些標的之一，不是設定上打算追蹤的。
+ * 它是後端認得的那些標的之一：已登錄的，加上實際有 K 線的。
+ *
+ * 後四個欄位由後端回答，畫面**不自己推算**：畫面不知道哪幾天休市，
+ * 不知道後端把即時名額給了誰，也分不出「這個市場收盤了」與「這個市場只是很安靜」。
+ * 自己算的結果會把國定假日說成故障，或替一張永遠不動的圖保證即時更新。
  */
 export class TradingSymbol {
-  constructor(public readonly symbol: string) {}
+  constructor(
+    public readonly symbol: string,
+    /** 這個市場怎麼稱呼它（2330 → 台積電）。不取名字的市場是空字串。 */
+    public readonly displayName: string,
+    public readonly market: MarketVo,
+    public readonly isWatched: boolean,
+    public readonly isWithinTradingSession: boolean,
+    /** 這個市場**會不會收盤**。與「現在開著沒」是兩件事。 */
+    public readonly hasTradingSession: boolean,
+    public readonly hasLiveUpdates: boolean,
+  ) {}
 
   toDto(): TradingSymbolDto {
-    return new TradingSymbolDto(this.symbol)
+    return new TradingSymbolDto(
+      this.symbol,
+      this.displayName,
+      // 「怎麼稱呼這一檔」在這裡決定一次。三個畫面都要唸出它，各自寫一份
+      // 「有名字就接上去、沒有就只有代號」，遲早會有一個沒跟上。
+      this.displayName === '' ? this.symbol : `${this.symbol} ${this.displayName}`,
+      this.market,
+      this.isWatched,
+      this.isWithinTradingSession,
+      this.hasTradingSession,
+      this.hasLiveUpdates,
+      this.hasLiveUpdates ? LIVE_UPDATES_AVAILABLE : LIVE_UPDATES_UNAVAILABLE,
+    )
   }
 }
