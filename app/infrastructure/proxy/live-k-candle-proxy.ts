@@ -24,8 +24,13 @@ type LiveKCandleUpdateWire = {
   }
 }
 
-/** 後端說得出的三種狀態。認不得的一律當成「即時已停止」——最保守的那一種。 */
-const LIVE_K_CANDLE_STATUSES: LiveKCandleStatus[] = ['forming', 'closed', 'stalled', 'unavailable']
+/** 後端說得出的五種狀態。認不得的一律當成「即時已停止」——最保守的那一種。 */
+const LIVE_K_CANDLE_STATUSES: LiveKCandleStatus[] = [
+  'forming', 'closed', 'stalled', 'unavailable', 'marketClosed',
+]
+
+/** 這幾種沒有 K 線可談。正面列出來，加一種狀態才不會被默默當成「帶著 K 線」。 */
+const CANDLELESS_STATUSES: LiveKCandleStatus[] = ['stalled', 'unavailable', 'marketClosed']
 
 /**
  * Proxy：唯一知道那條持續連著的通道長什麼樣子的地方。
@@ -63,7 +68,7 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
       // 認不得的說法一律當成「停了」而不是「沒有」：前者說的是等一下會自己好，
       // 而後端多出一種說法時，讓人多等一會兒遠好過叫他放棄一個其實會回來的畫面。
       const status = LIVE_K_CANDLE_STATUSES.find(known => known === wire.status) ?? 'stalled'
-      if (status === 'stalled' || status === 'unavailable') {
+      if (CANDLELESS_STATUSES.includes(status)) {
         return new LiveKCandleUpdate(wire.symbol, status, null)
       }
 

@@ -209,10 +209,10 @@ function followTheMarket(followedChart: KCandleChartDto) {
         return
       }
 
-      // 跟不動了、或這一檔本來就沒有即時更新：兩者都明說，但圖照樣顯示手上有的——
-      // 沒有的是「即時」，不是「圖表」。
+      // 跟不動了、這一檔本來就沒有即時更新、或市場收盤了：三者都明說，
+      // 但圖照樣顯示手上有的——沒有的是「即時」，不是「圖表」。
       latestLiveReport.value = report
-      if (report.isStalled || report.hasNoLivePlace) {
+      if (report.isStalled || report.hasNoLivePlace || report.isMarketClosed) {
         return
       }
 

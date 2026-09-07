@@ -37,6 +37,7 @@ export class LiveKCandleService {
         update.status === 'closed',
         update.status === 'stalled',
         update.status === 'unavailable',
+        update.status === 'marketClosed',
       ))
     })
   }
@@ -50,13 +51,17 @@ export class LiveKCandleService {
    *
    * 還沒挑到標的、或還沒有任何更新時，一律當作一切正常：那時什麼都還沒發生，
    * 先說一句只是在猜。
+   *
+   * 兩個來源都問：進畫面那一刻問到的那一份說得出「現在就已經收盤了」，
+   * 而市場也會在人看著的時候收盤——那一刻只有更新說得出來。少問哪一個，
+   * 都會有一種收盤說不出口。
    */
   liveUpdateNotice(
     tradingSymbol: TradingSymbolDto | null,
     report: LiveKCandleReportDto | null,
   ): LiveUpdateNoticeVo | null {
     return new LiveUpdateNoticeDomain(
-      tradingSymbol?.isWithinTradingSession ?? true,
+      (tradingSymbol?.isWithinTradingSession ?? true) && !(report?.isMarketClosed ?? false),
       (tradingSymbol?.hasLiveUpdates ?? true) && !(report?.hasNoLivePlace ?? false),
       report?.isStalled ?? false,
     ).notice()

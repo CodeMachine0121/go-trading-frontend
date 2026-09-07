@@ -52,9 +52,10 @@ function controllableFeed() {
   }
 
   function report(status: LiveKCandleStatus, closePrice = '118') {
-    const kCandle = status === 'stalled' || status === 'unavailable'
-      ? null
-      : buildKCandle('2026-09-03T12:00:00.000Z', closePrice)
+    const carriesACandle = status === 'forming' || status === 'closed'
+    const kCandle = carriesACandle
+      ? buildKCandle('2026-09-03T12:00:00.000Z', closePrice)
+      : null
     for (const listener of listeners) {
       listener(new LiveKCandleUpdate('BTCUSDT', status, kCandle))
     }
@@ -304,6 +305,36 @@ describe('圖表上那一句話：三種原因共用一個位置，一次只說�
     expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+  })
+
+  it('看著市場收盤的那一刻，說的是收盤，不是即時已停止', async () => {
+    // 這一刻的收盤只有更新說得出來：進畫面時問到的那一份說的是「還在交易時段內」。
+    // 讀不出這一則的話，畫面會說「正在重新連上」——承諾一個要等到明天的恢復。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: true }))
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
+
+    feed.report('marketClosed')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('收盤中')
+  })
+
+  it('收盤那一刻，圖照樣顯示收盤前的最後那一根', async () => {
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+    feed.report('closed', '118')
+    await flushPromises()
+
+    feed.report('marketClosed')
+    await flushPromises()
+
+    const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
+    expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
   })
 
   it('沒有即時更新時圖照樣顯示手上有的', async () => {

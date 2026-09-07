@@ -180,4 +180,15 @@ describe('即時通道對這個市場不報的數字', () => {
     expect(received[0]?.status).toBe('unavailable')
     expect(received[0]?.kCandle).toBeNull()
   })
+
+  it('市場收盤的那一則原樣帶進來，不被當成認不得而說成停了', () => {
+    // 認不得的狀態會被當成「停了」。收盤若落進那一條路，畫面就會承諾一個
+    // 要等到明天才會發生的恢復。
+    const { received, source } = follow()
+
+    source.send(aWireUpdate('marketClosed'))
+
+    expect(received[0]?.status).toBe('marketClosed')
+    expect(received[0]?.kCandle).toBeNull()
+  })
 })
