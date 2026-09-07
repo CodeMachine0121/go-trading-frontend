@@ -104,3 +104,59 @@ describe('SymbolField', () => {
     expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請指定交易標的')
   })
 })
+
+describe('SymbolField 的市場篩選', () => {
+  function proxyListingMarkets(): ITradingSymbolProxy {
+    return {
+      findTradingSymbols: vi.fn().mockResolvedValue([
+        buildTradingSymbol('2330', { market: 'taiwanStock' }),
+        buildTradingSymbol('2454', { market: 'taiwanStock', hasLiveUpdates: false }),
+        buildTradingSymbol('BTCUSDT', { market: 'crypto' }),
+      ]),
+    }
+  }
+
+  it('挑之前就看得出每一檔屬於哪個市場', async () => {
+    // 挑完才回頭理解畫面為什麼長這樣，比挑之前就知道貴得多。
+    const wrapper = await mountField(proxyListingMarkets())
+
+    expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('台股')
+    expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('加密貨幣')
+  })
+
+  it('挑之前就看得出哪一檔沒有即時更新', async () => {
+    // 挑完才發現這一檔不會動，那個資訊就來得太晚了。
+    const wrapper = await mountField(proxyListingMarkets())
+
+    expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('無即時更新')
+  })
+
+  it('只看某一個市場時，其餘的不再列出', async () => {
+    const wrapper = await mountField(proxyListingMarkets(), '2330')
+
+    await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
+
+    const optionValues = wrapper.findAll('option').map(option => option.element.value)
+    expect(optionValues).toEqual(['2330', '2454'])
+  })
+
+  it('篩掉目前選著的那一檔時，仍然看得見它是哪一檔', async () => {
+    // 他只是想換個角度看清單，不是想換一檔股票。
+    const wrapper = await mountField(proxyListingMarkets(), 'BTCUSDT')
+
+    await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
+
+    expect(wrapper.findAll('option').map(option => option.element.value)).toContain('BTCUSDT')
+    expect(wrapper.props('modelValue')).toBe('BTCUSDT')
+  })
+
+  it('這個市場一檔都沒有時說得出原因，而不是給一個空選單', async () => {
+    const wrapper = await mountField({
+      findTradingSymbols: vi.fn().mockResolvedValue([buildTradingSymbol('BTCUSDT')]),
+    }, 'BTCUSDT')
+
+    await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
+
+    expect(wrapper.text()).toContain('這個市場目前沒有任何交易標的')
+  })
+})

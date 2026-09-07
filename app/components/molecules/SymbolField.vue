@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import AppSelect from '~/components/atoms/AppSelect.vue'
+import AppTabs from '~/components/atoms/AppTabs.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
+import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
 
 /**
  * 分子：挑一個交易標的。
@@ -38,6 +40,32 @@ watch([symbol, tradingSymbols], () => {
 const loading = ref(true)
 const unavailable = ref(false)
 
+/**
+ * 只看哪一個市場。`ALL_MARKETS` 的意思是不篩。
+ *
+ * 它是這個欄位自己的狀態，不往外送：使用端要的是「選了哪一檔」，
+ * 而使用者用什麼角度找到它，是他自己的事。
+ */
+const ALL_MARKETS = 'all'
+const selectedMarket = ref<MarketValue | typeof ALL_MARKETS>(ALL_MARKETS)
+
+const MARKET_TABS = [
+  { value: ALL_MARKETS, label: '全部' },
+  ...MARKETS.map(market => ({ value: market.value, label: market.label })),
+]
+
+/**
+ * 這一次該列出來的那幾檔，以及這個市場是不是根本沒有東西。
+ *
+ * 篩選在這一側完成而不是重新向後端要一次：清單已經在手上了，
+ * 每按一次切換就再問一次，是同一份資料的第二個版本。
+ */
+const options = computed(() => tradingSymbolApplication.optionsFor(
+  tradingSymbols.value,
+  selectedMarket.value === ALL_MARKETS ? null : selectedMarket.value,
+  symbol.value,
+))
+
 const hint = computed(() => {
   if (loading.value) {
     return '取交易標的清單中…'
@@ -45,11 +73,14 @@ const hint = computed(() => {
   if (unavailable.value) {
     return '取不到交易標的清單，請確認後端已啟動'
   }
-  if (tradingSymbols.value.length === 0) {
-    return '後端目前沒有任何交易標的'
+  if (options.value.hasNoneInMarket) {
+    // 選單上可能還留著使用者原本選著的那一檔，但那不是這個市場給的選擇。
+    return selectedMarket.value === ALL_MARKETS
+      ? '後端目前沒有任何交易標的'
+      : '這個市場目前沒有任何交易標的'
   }
 
-  return '只列出後端已經有 K 線的交易標的'
+  return '沒有即時更新的標的，資料每五分鐘更新一次'
 })
 
 onMounted(async () => {
@@ -78,31 +109,64 @@ onMounted(async () => {
 </script>
 
 <template>
-  <FormField
-    label="交易標的"
-    :hint="hint"
-    :error-message="errorMessage"
-  >
-    <AppSelect
-      v-model="symbol"
-      :disabled="tradingSymbols.length === 0"
-      :invalid="Boolean(errorMessage)"
-      data-testid="symbol-select"
+  <div class="symbol-field">
+    <!--
+      切換鍵在欄位外面，不在裡面：FormField 用一個 <label> 把控制項包起來，
+      而一顆按鈕放進 <label> 就會連帶去操作那個被標示的控制項。
+      這幾顆按鈕決定的是「選單上有哪些選項」，本來就不屬於那個標示。
+    -->
+    <AppTabs
+      v-model="selectedMarket"
+      :options="MARKET_TABS"
+      class="symbol-field__markets"
+    />
+
+    <FormField
+      label="交易標的"
+      :hint="hint"
+      :error-message="errorMessage"
     >
-      <!-- 目前這一檔不在清單上（清單空的或取不到）時仍要看得見它是哪一檔 -->
-      <option
-        v-if="!tradingSymbols.some(tradingSymbol => tradingSymbol.symbol === symbol)"
-        :value="symbol"
+      <AppSelect
+        v-model="symbol"
+        :disabled="tradingSymbols.length === 0"
+        :invalid="Boolean(errorMessage)"
+        data-testid="symbol-select"
       >
-        {{ symbol }}
-      </option>
-      <option
-        v-for="tradingSymbol in tradingSymbols"
-        :key="tradingSymbol.symbol"
-        :value="tradingSymbol.symbol"
-      >
-        {{ tradingSymbol.symbol }}
-      </option>
-    </AppSelect>
-  </FormField>
+        <!-- 目前這一檔不在清單上（清單空的或取不到）時仍要看得見它是哪一檔 -->
+        <option
+          v-if="!options.options.some(tradingSymbol => tradingSymbol.symbol === symbol)"
+          :value="symbol"
+        >
+          {{ symbol }}
+        </option>
+        <!--
+          市場與有沒有即時更新都寫在選項文字裡：原生的 option 裝不下一個元件，
+          而這兩件事必須在**挑之前**就看得到——挑完才發現這一檔不會動，
+          那個資訊就來得太晚了。
+        -->
+        <option
+          v-for="tradingSymbol in options.options"
+          :key="tradingSymbol.symbol"
+          :value="tradingSymbol.symbol"
+        >
+          {{ tradingSymbol.symbol }}
+          · {{ tradingSymbol.market.label }}{{ tradingSymbol.hasLiveUpdates ? '' : '（無即時更新）' }}
+        </option>
+      </AppSelect>
+    </FormField>
+  </div>
 </template>
+
+<style scoped lang="scss">
+.symbol-field {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('3xs');
+  min-width: 0;
+
+  &__markets {
+    // 這一排是「看哪個市場」，底下那格是「看哪一檔」——兩件事，所以中間留一口氣。
+    margin-bottom: spacing('3xs');
+  }
+}
+</style>
