@@ -4,6 +4,7 @@ import SymbolField from '~/components/molecules/SymbolField.vue'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import type { ITradingSymbolProxy } from '~/domain/interface/i-trading-symbol-proxy'
+import type { TradingSymbol } from '~/domain/models/entities/trading-symbol'
 import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -166,6 +167,25 @@ describe('SymbolField 的市場篩選', () => {
     await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
 
     expect(wrapper.props('modelValue')).toBe('2454')
+  })
+
+  it('清單還在路上就先按了市場鍵，回來時挑的是那個市場的標的', async () => {
+    // 市場鍵一開始就按得動，清單卻還沒到。這裡若逕自挑「整份清單的第一檔」，
+    // 會挑到別的市場的標的，而分頁上寫著的是他按的那一個。
+    let handOverTheList: (symbols: TradingSymbol[]) => void = () => {}
+    const wrapper = await mountField({
+      findTradingSymbols: vi.fn().mockReturnValue(
+        new Promise<TradingSymbol[]>((resolve) => { handOverTheList = resolve })),
+    }, 'BTCUSDT')
+
+    await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
+    handOverTheList([
+      buildTradingSymbol('BTCUSDT'),
+      buildTradingSymbol('2330', { market: 'taiwanStock' }),
+    ])
+    await flushPromises()
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['2330'])
   })
 
   it('這個市場一檔都沒有時說得出原因，選單也不留一檔對不上的充數', async () => {

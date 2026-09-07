@@ -100,14 +100,17 @@ onMounted(async () => {
   try {
     tradingSymbols.value = await tradingSymbolApplication.listTradingSymbols()
 
-    // 目前這一檔不在清單上時改選第一個——盯著一個查不出東西、也選不掉的名字最沒有用。
+    // 目前這一檔不在清單上時改選一個——盯著一個查不出東西、也選不掉的名字最沒有用。
+    // 選誰的規則跟換市場時是同一條，所以問的是同一個地方：使用者可能在清單還在路上時
+    // 就按了市場鍵，這裡若逕自挑「整份清單的第一檔」，會挑到別的市場的標的，
+    // 而分頁上寫著的是他按的那一個。
+    //
     // 清單是空的則維持原樣：清空欄位會變成「請指定交易標的」，
     // 那是在怪使用者沒填，但真正的原因是後端還沒有任何資料。
-    const listed = tradingSymbols.value.some(
+    const listed = options.value.options.some(
       tradingSymbol => tradingSymbol.symbol === symbol.value)
-    const firstTradingSymbol = tradingSymbols.value[0]
-    if (!listed && firstTradingSymbol !== undefined) {
-      symbol.value = firstTradingSymbol.symbol
+    if (!listed && options.value.selectedSymbol !== '') {
+      symbol.value = options.value.selectedSymbol
     }
   }
   catch {
@@ -167,7 +170,8 @@ onMounted(async () => {
           :value="tradingSymbol.symbol"
         >
           {{ tradingSymbol.label }}
-          · {{ tradingSymbol.market.label }}{{ tradingSymbol.hasLiveUpdates ? '' : '（無即時更新）' }}
+          · {{ tradingSymbol.market.label
+          }}{{ tradingSymbol.hasLiveUpdates ? '' : `（${tradingSymbol.liveUpdateAvailability.label}）` }}
         </option>
       </AppSelect>
     </FormField>

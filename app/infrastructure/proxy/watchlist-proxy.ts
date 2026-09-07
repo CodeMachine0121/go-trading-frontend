@@ -9,6 +9,8 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 const WATCHLIST_ENDPOINT = '/watchlist'
 
 /** 後端說「我問不到那個市場」時用的狀態碼。它自己活著，是它後面那位不在。 */
+/** 後端讀懂了請求、認為代號不對時回的那一種。 */
+const SYMBOL_NOT_IN_MARKET_STATUS = 400
 const MARKET_UNREACHABLE_STATUS = 502
 
 /** Proxy：觀察清單的兩個寫入動作。 */
@@ -38,7 +40,11 @@ export class WatchlistProxy extends BackendApiProxy implements IWatchlistProxy {
    * 代號上反覆重打。
    */
   private watchlistFailureOf(error: unknown): unknown {
-    if (error instanceof BackendRequestRejectedError) {
+    // 只認那一種狀態碼，理由與底下那一條一模一樣：後端還有別的理由拒絕一個請求
+    // （沒登入、太頻繁），把那些一律說成「這個代號不對」，等於叫人反覆重打一個
+    // 本來就正確的代號。
+    if (error instanceof BackendRequestRejectedError
+      && error.status === SYMBOL_NOT_IN_MARKET_STATUS) {
       return new TradingSymbolNotInMarketError(error.message, { cause: error })
     }
     // 只認那一種狀態碼，不是所有的伺服器錯誤：後端自己壞掉是另一回事，

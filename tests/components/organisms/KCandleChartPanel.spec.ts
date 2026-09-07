@@ -476,6 +476,28 @@ describe('KCandleChartPanel 立刻更新', () => {
     expect(findKCandleSeries.mock.calls.length).toBeGreaterThan(beforeCatchUp)
   })
 
+  it('補到一半換了標的，就不再拿補回來的東西去重畫新的那一檔', async () => {
+    // 補的是 A、重畫的是 B 的話，畫面會用 B 的名字標著一批為了 A 才去取的資料。
+    let finishCatchUp: (collected: number) => void = () => {}
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
+    const wrapper = await mountPanel(
+      buildProxy({
+        findKCandleSeries,
+        catchUpSymbol: vi.fn().mockReturnValue(
+          new Promise<number>((resolve) => { finishCatchUp = resolve })),
+      }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', 'ETHUSDT')
+    await flushPromises()
+    const afterSwitching = findKCandleSeries.mock.calls.length
+    finishCatchUp(3)
+    await flushPromises()
+
+    expect(findKCandleSeries.mock.calls.length).toBe(afterSwitching)
+  })
+
   it('一根都沒補到也說出來，那是常見的答案而不是沒反應', async () => {
     const wrapper = await mountPanel(
       buildProxy({ catchUpSymbol: vi.fn().mockResolvedValue(0) }), marketThatCloses())

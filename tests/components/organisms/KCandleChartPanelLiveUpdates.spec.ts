@@ -338,6 +338,33 @@ describe('圖表上那一句話：三種原因共用一個位置，一次只說�
     expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
   })
 
+  it('開盤之後那一句自己消失，不必重新整理', async () => {
+    // 進畫面那一刻問到的那一份不會自己更新。少了這一條，八點五十打開圖表的人
+    // 會在九點之後繼續看到「收盤中」——一邊看著最後那一根在旁邊跳。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { isWithinTradingSession: false }))
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(true)
+
+    feed.report('forming')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-marketClosed-alert"]').exists()).toBe(false)
+  })
+
+  it('拿到名額之後那一句自己消失', async () => {
+    // 同一個道理：名額也是那一刻問到的，而它會變。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed, {}, buildTradingSymbolApplication(
+      ['BTCUSDT'], { hasLiveUpdates: false }))
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(true)
+
+    feed.report('forming')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(false)
+  })
+
   it('沒有即時更新時圖照樣顯示手上有的', async () => {
     // 沒有的是「即時」，不是「圖表」。
     const feed = controllableFeed()

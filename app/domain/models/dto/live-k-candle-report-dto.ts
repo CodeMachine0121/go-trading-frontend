@@ -13,6 +13,19 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
  * 那一刻唯一知道這件事的就是這則更新。
  */
 export class LiveKCandleReportDto {
+  /**
+   * 這一則是市場真的動了。
+   *
+   * 它是唯一能**撤回**「收盤中」與「沒有即時更新」的證據：那兩句只由進畫面那一刻
+   * 問到的那一份說出口，而那一份不會自己更新——沒有這個，開盤之後畫面會繼續說
+   * 收盤中，一邊說一邊讓最後那一根在旁邊跳。
+   *
+   * 這不是畫面自己推算的：後端只在真的跟得動的時候才送得出一根 K 線。
+   */
+  get isTrading(): boolean {
+    return !this.isStalled && !this.hasNoLivePlace && !this.isMarketClosed
+  }
+
   constructor(
     public readonly chart: KCandleChartDto,
     public readonly hasClosedAKCandle: boolean,

@@ -20,9 +20,17 @@ const { submitting = false, errorMessage = null } = defineProps<{
 
 const emit = defineEmits<{ add: [entry: WatchlistEntryDto] }>()
 
+/**
+ * 打進去的代號住在使用端，不住在這裡。
+ *
+ * 因為「什麼時候該清掉它」的答案是「加成功之後」，而只有使用端知道那件事。
+ * 送出當下就清的話，「請確認之後再送出」這句話便無從遵守——要確認的東西已經不在了；
+ * 而他再按一次加入，擋下空白的規則會把畫面換成「請填入代號」，把真正的原因蓋掉。
+ */
+const symbol = defineModel<string>('symbol', { required: true })
+
 const firstMarket = MARKETS[0]!
 const market = ref<MarketValue>(firstMarket.value)
-const symbol = ref('')
 const blankSymbol = ref(false)
 
 function submit() {
@@ -35,7 +43,6 @@ function submit() {
   }
 
   emit('add', new WatchlistEntryDto(trimmedSymbol, market.value))
-  symbol.value = ''
 }
 </script>
 

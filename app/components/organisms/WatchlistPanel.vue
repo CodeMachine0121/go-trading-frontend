@@ -27,6 +27,9 @@ const unavailable = ref(false)
 const submitting = ref(false)
 /** 加入失敗的原因。它就地標在代號旁邊，讓使用者當場改一個字再送一次。 */
 const addFailure = ref<string | null>(null)
+/** 使用者打在加入那一格裡的代號。加成功了才清掉它——失敗時他還要看著它改。 */
+const entrySymbol = ref('')
+const removeFailure = ref<string | null>(null)
 const removingSymbol = ref<string | null>(null)
 
 async function reload() {
@@ -50,6 +53,8 @@ async function add(entry: WatchlistEntryDto) {
 
   try {
     await watchlistApplication.addToWatchlist(entry)
+    // 成功了才清掉那一格。失敗時他還要看著自己打的東西改。
+    entrySymbol.value = ''
     await reload()
   }
   catch (error: unknown) {
@@ -71,9 +76,19 @@ async function add(entry: WatchlistEntryDto) {
 
 async function confirmRemove(symbol: string) {
   removingSymbol.value = null
+  removeFailure.value = null
 
-  await watchlistApplication.removeFromWatchlist(symbol)
-  await reload()
+  try {
+    await watchlistApplication.removeFromWatchlist(symbol)
+    await reload()
+  }
+  catch (error: unknown) {
+    // 拿不掉就要說。不說的話，剛按過「停止追蹤」的那一列還好端端待在清單上，
+    // 看的人只會再按一次，然後再一次。
+    removeFailure.value = error instanceof Error
+      ? `拿不掉這一檔：${error.message}`
+      : '拿不掉這一檔。'
+  }
 }
 
 onMounted(reload)
@@ -91,6 +106,7 @@ onMounted(reload)
       </p>
 
       <WatchlistEntryForm
+        v-model:symbol="entrySymbol"
         :submitting="submitting"
         :error-message="addFailure"
         @add="add"
@@ -98,6 +114,18 @@ onMounted(reload)
     </AppPanel>
 
     <AppPanel title="追蹤中">
+      <!--
+        拿不掉的說明放在清單這一塊，不放在加入那一塊：它說的是這份清單怎麼了，
+        而看的人正盯著那一列還在那裡。
+      -->
+      <AppAlert
+        v-if="removeFailure"
+        tone="danger"
+        data-testid="watchlist-remove-failure-alert"
+      >
+        {{ removeFailure }}
+      </AppAlert>
+
       <AppAlert
         v-if="unavailable"
         tone="danger"
@@ -134,8 +162,8 @@ onMounted(reload)
           <AppBadge tone="neutral">
             {{ tradingSymbol.market.label }}
           </AppBadge>
-          <AppBadge :tone="tradingSymbol.hasLiveUpdates ? 'success' : 'neutral'">
-            {{ tradingSymbol.hasLiveUpdates ? '即時更新中' : '無即時更新' }}
+          <AppBadge :tone="tradingSymbol.liveUpdateAvailability.tone">
+            {{ tradingSymbol.liveUpdateAvailability.label }}
           </AppBadge>
           <AppButton
             variant="danger"

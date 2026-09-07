@@ -212,7 +212,22 @@ describe('WatchlistPanel 把一檔拿掉', () => {
     expect(removeFromWatchlist).toHaveBeenCalledWith('2330')
   })
 
-  it('取消就什麼都沒發生', async () => {
+  it('拿不掉的時候說出來，而不是讓那一列安靜地留在原地', async () => {
+    // 不說的話，剛按過「停止追蹤」的那一列還好端端待在清單上，
+    // 看的人只會再按一次，然後再一次。
+    const wrapper = await mountPanel({
+      removeFromWatchlist: vi.fn().mockRejectedValue(new Error('後端沒回應')),
+    })
+
+    await wrapper.find('[data-testid="watchlist-remove-2330"]').trigger('click')
+    await clickButtonSaying(wrapper, '停止追蹤')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="watchlist-remove-failure-alert"]').text())
+      .toContain('後端沒回應')
+  })
+
+  it('取消就什麼都沒發生，而且那個確認也收起來了', async () => {
     const removeFromWatchlist = vi.fn()
     const wrapper = await mountPanel({ removeFromWatchlist })
     await wrapper.find('[data-testid="watchlist-remove-2330"]').trigger('click')
@@ -220,10 +235,33 @@ describe('WatchlistPanel 把一檔拿掉', () => {
     await clickButtonSaying(wrapper, '取消')
 
     expect(removeFromWatchlist).not.toHaveBeenCalled()
+    // 沒被呼叫，也可能是那顆按鈕根本不在了。確認真的收起來，這一條才擋得住東西。
+    expect(wrapper.text()).not.toContain('都會留著')
   })
 })
 
 describe('WatchlistPanel 其餘的失敗與狀態', () => {
+  it('加失敗時代號留在格子裡，讓他改得動', async () => {
+    // 「請確認之後再送出」這句話，要確認的東西不在了就無從遵守。
+    const wrapper = await mountPanel({
+      addToWatchlist: vi.fn().mockRejectedValue(new TradingSymbolNotInMarketError('找不到 9999')),
+    })
+
+    await fillAndSubmit(wrapper, '9999')
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="watchlist-symbol"]').element.value)
+      .toBe('9999')
+  })
+
+  it('加成功之後才把代號清掉', async () => {
+    const wrapper = await mountPanel()
+
+    await fillAndSubmit(wrapper, '2330')
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="watchlist-symbol"]').element.value)
+      .toBe('')
+  })
+
   it('說不出是哪一種的失敗，就把後端說的話原樣轉達', async () => {
     // 猜一個原因給使用者，比轉達一句他看得懂的話糟。
     const wrapper = await mountPanel({

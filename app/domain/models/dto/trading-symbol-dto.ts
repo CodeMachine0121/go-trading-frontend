@@ -1,4 +1,5 @@
 import type { MarketVo } from '~/domain/models/vo/market-vo'
+import type { LiveUpdateAvailabilityVo } from '~/domain/models/vo/live-update-availability-vo'
 
 /**
  * DTO：一個可查交易標的交給 application 與畫面的唯一形狀。
@@ -27,5 +28,13 @@ export class TradingSymbolDto {
      */
     public readonly hasTradingSession: boolean,
     public readonly hasLiveUpdates: boolean,
+    /**
+     * 「有沒有即時更新」在畫面上怎麼說、用什麼語氣。
+     *
+     * 它跟著值一起帶出來，因為「沒有即時更新所以是灰的」是業務判斷，不是樣式問題。
+     * 兩個畫面各寫一次三元運算的下場已經看得到了：一個寫「（無即時更新）」，
+     * 一個寫「無即時更新」。
+     */
+    public readonly liveUpdateAvailability: LiveUpdateAvailabilityVo,
   ) {}
 }

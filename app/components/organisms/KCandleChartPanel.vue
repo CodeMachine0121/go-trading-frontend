@@ -137,8 +137,12 @@ async function catchUp() {
   catchingUp.value = true
   catchUpMessage.value = null
 
+  // 記下這一次補的是誰。等回來時使用者可能已經換了標的，那時候拿 symbol.value
+  // 會變成「補 A、重畫 B」。
+  const caughtUpSymbol = symbol.value
+
   try {
-    const collected = await kCandleChartApplication.catchUpSymbol(symbol.value)
+    const collected = await kCandleChartApplication.catchUpSymbol(caughtUpSymbol)
     // 補到零根也是一個答案，而且是常見的那一個（手上已經是最新的）。
     // 不說出來的話，看的人分不出「按了沒事」與「按了沒反應」。
     catchUpMessage.value = collected === 0
@@ -148,8 +152,13 @@ async function catchUp() {
     // 手上那批「還夠用」的判斷是拿涵蓋範圍算的，而補齊填的是**範圍之內**的洞——
     // 照平常那條路重取，它會說不必取，於是剛補回來的那幾根一根都不會出現。
     // 所以這裡明說：忘了手上那批，重新取一次。
+    // 換過標的就不必重畫了：那一檔的資料已經在換的時候取過，而這一次補的不是它。
+    if (caughtUpSymbol !== symbol.value) {
+      return
+    }
+
     await showViewport(new KCandleChartViewportDto(
-      symbol.value, visibleStartTime.value, visibleEndTime.value, null))
+      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null))
   }
   catch (error: unknown) {
     catchUpMessage.value = error instanceof Error
@@ -326,7 +335,13 @@ function reload() {
 }
 
 // 換交易標的等於換一批資料，正在看的那一段不變。
-watch(symbol, reload)
+watch(symbol, () => {
+  // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
+  // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
+  catchUpMessage.value = null
+
+  return reload()
+})
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(async () => {

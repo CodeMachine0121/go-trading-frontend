@@ -55,14 +55,22 @@ export class LiveKCandleService {
    * 兩個來源都問：進畫面那一刻問到的那一份說得出「現在就已經收盤了」，
    * 而市場也會在人看著的時候收盤——那一刻只有更新說得出來。少問哪一個，
    * 都會有一種收盤說不出口。
+   *
+   * **市場真的動了就蓋過那一份。** 進畫面那一刻問到的東西不會自己更新，所以
+   * 在開盤前打開圖表的人，會在九點之後繼續看到「收盤中」——一邊看著最後那一根
+   * 在旁邊跳。一則帶著 K 線的更新是後端說它跟得動，那比一份放了半小時的答案新。
    */
   liveUpdateNotice(
     tradingSymbol: TradingSymbolDto | null,
     report: LiveKCandleReportDto | null,
   ): LiveUpdateNoticeVo | null {
+    const isTrading = report?.isTrading ?? false
+
     return new LiveUpdateNoticeDomain(
-      (tradingSymbol?.isWithinTradingSession ?? true) && !(report?.isMarketClosed ?? false),
-      (tradingSymbol?.hasLiveUpdates ?? true) && !(report?.hasNoLivePlace ?? false),
+      isTrading || ((tradingSymbol?.isWithinTradingSession ?? true)
+        && !(report?.isMarketClosed ?? false)),
+      isTrading || ((tradingSymbol?.hasLiveUpdates ?? true)
+        && !(report?.hasNoLivePlace ?? false)),
       report?.isStalled ?? false,
     ).notice()
   }

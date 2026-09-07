@@ -1,5 +1,9 @@
 import { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { MarketVo } from '~/domain/models/vo/market-vo'
+import {
+  LIVE_UPDATES_AVAILABLE,
+  LIVE_UPDATES_UNAVAILABLE,
+} from '~/domain/models/vo/live-update-availability-vo'
 
 /**
  * Entity：一個可查交易標的在 domain 內的本體形狀，只有欄位、沒有業務邏輯。
@@ -34,6 +38,7 @@ export class TradingSymbol {
       this.isWithinTradingSession,
       this.hasTradingSession,
       this.hasLiveUpdates,
+      this.hasLiveUpdates ? LIVE_UPDATES_AVAILABLE : LIVE_UPDATES_UNAVAILABLE,
     )
   }
 }
