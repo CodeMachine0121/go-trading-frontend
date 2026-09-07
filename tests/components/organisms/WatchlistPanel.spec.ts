@@ -66,6 +66,18 @@ describe('WatchlistPanel 列出追蹤中的', () => {
     expect(wrapper.text()).not.toContain('XRPUSDT')
   })
 
+  it('每一檔唸得出公司的名字，不是只有四位數字', async () => {
+    const wrapper = await mountPanel({}, {
+      findTradingSymbols: vi.fn().mockResolvedValue([
+        buildTradingSymbol('2330', {
+          market: 'taiwanStock', isWatched: true, displayName: '台積電',
+        }),
+      ]),
+    })
+
+    expect(wrapper.text()).toContain('2330 台積電')
+  })
+
   it('每一檔說得出市場與有沒有即時更新', async () => {
     const wrapper = await mountPanel()
 

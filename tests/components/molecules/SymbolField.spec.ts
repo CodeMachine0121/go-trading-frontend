@@ -124,6 +124,16 @@ describe('SymbolField 的市場篩選', () => {
     expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('加密貨幣')
   })
 
+  it('選單上唸得出公司的名字，不是只有四位數字', async () => {
+    const wrapper = await mountField({
+      findTradingSymbols: vi.fn().mockResolvedValue([
+        buildTradingSymbol('2330', { market: 'taiwanStock', displayName: '台積電' }),
+      ]),
+    }, '2330')
+
+    expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('2330 台積電')
+  })
+
   it('挑之前就看得出哪一檔沒有即時更新', async () => {
     // 挑完才發現這一檔不會動，那個資訊就來得太晚了。
     const wrapper = await mountField(proxyListingMarkets())

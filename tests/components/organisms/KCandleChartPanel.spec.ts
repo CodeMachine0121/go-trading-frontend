@@ -6,7 +6,7 @@ import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
-import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildTradingSymbol, buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildStrategyApplication } from '../../fixtures/strategy-application'
@@ -404,6 +404,29 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+  })
+})
+
+describe('KCandleChartPanel 標題唸出哪一檔', () => {
+  it('唸得出公司的名字，不是只有四位數字', async () => {
+    const wrapper = await mountPanel(
+      buildProxy(),
+      buildTradingSymbolApplication(['BTCUSDT'], { displayName: '台積電' }))
+
+    expect(wrapper.text()).toContain('BTCUSDT 台積電')
+  })
+
+  it('圖上還是舊的那一檔時，不掛上新那一檔的名字', async () => {
+    // 換標的到取回來之間有一段空窗。直接接上去會用新公司的名字標著舊公司的線。
+    const wrapper = await mountPanel(
+      buildProxy(),
+      buildTradingSymbolApplication(['BTCUSDT'], { displayName: '台積電' }))
+
+    wrapper.findComponent(SymbolField).vm.$emit('selected', buildTradingSymbol(
+      '2330', { market: 'taiwanStock', displayName: '鴻海' }).toDto())
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain('鴻海')
   })
 })
 

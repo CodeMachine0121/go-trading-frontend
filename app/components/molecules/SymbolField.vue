@@ -166,7 +166,7 @@ onMounted(async () => {
           :key="tradingSymbol.symbol"
           :value="tradingSymbol.symbol"
         >
-          {{ tradingSymbol.symbol }}
+          {{ tradingSymbol.label }}
           · {{ tradingSymbol.market.label }}{{ tradingSymbol.hasLiveUpdates ? '' : '（無即時更新）' }}
         </option>
       </AppSelect>

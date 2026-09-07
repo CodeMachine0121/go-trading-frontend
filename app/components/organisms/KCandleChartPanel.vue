@@ -75,6 +75,20 @@ const strategies = ref<StrategyDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
+/**
+ * 圖的標題：畫出來的那一檔，能說出名字就連名字一起說。
+ *
+ * 名字只在它確實屬於**畫出來的那一檔**時才接上去。換標的到取回來之間有一段空窗，
+ * 那段時間挑標的那邊已經換人了、圖上還是舊的——直接接上去會用新公司的名字
+ * 標著舊公司的線。
+ */
+const chartTitle = computed(() => {
+  const drawnSymbol = chart.value?.symbol ?? symbol.value
+  const selected = selectedTradingSymbol.value
+
+  return selected?.symbol === drawnSymbol ? selected.label : drawnSymbol
+})
+
 /** 最近一則即時更新說了什麼。還沒有任何一則時是 null。 */
 const latestLiveReport = ref<LiveKCandleReportDto | null>(null)
 /** 目前選著的那一檔完整的樣子，由挑標的那個欄位交過來。 */
@@ -445,7 +459,7 @@ onMounted(async () => {
          換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
          畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
     <AppPanel
-      :title="chart?.symbol ?? symbol"
+      :title="chartTitle"
       flush
       class="k-candle-chart-panel__chart"
     >

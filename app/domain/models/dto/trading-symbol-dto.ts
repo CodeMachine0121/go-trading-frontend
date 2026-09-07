@@ -9,6 +9,15 @@ import type { MarketVo } from '~/domain/models/vo/market-vo'
 export class TradingSymbolDto {
   constructor(
     public readonly symbol: string,
+    /** 這個市場怎麼稱呼它（2330 → 台積電）。不取名字的市場是空字串。 */
+    public readonly displayName: string,
+    /**
+     * 唸出這一檔時該說的整串：有名字就是「2330 台積電」，沒有就只有代號。
+     *
+     * 它在這裡算好，而不是讓每個畫面自己接——三個畫面都要唸它，
+     * 各自接一份的話，遲早會有一個在沒有名字的時候多一個空格。
+     */
+    public readonly label: string,
     public readonly market: MarketVo,
     public readonly isWatched: boolean,
     public readonly isWithinTradingSession: boolean,

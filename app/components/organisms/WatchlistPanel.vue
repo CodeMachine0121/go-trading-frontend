@@ -130,7 +130,7 @@ onMounted(reload)
           :key="tradingSymbol.symbol"
           class="watchlist-panel__item"
         >
-          <span class="watchlist-panel__symbol">{{ tradingSymbol.symbol }}</span>
+          <span class="watchlist-panel__symbol">{{ tradingSymbol.label }}</span>
           <AppBadge tone="neutral">
             {{ tradingSymbol.market.label }}
           </AppBadge>

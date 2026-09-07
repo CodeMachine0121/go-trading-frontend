@@ -12,6 +12,8 @@ import type { MarketVo } from '~/domain/models/vo/market-vo'
 export class TradingSymbol {
   constructor(
     public readonly symbol: string,
+    /** 這個市場怎麼稱呼它（2330 → 台積電）。不取名字的市場是空字串。 */
+    public readonly displayName: string,
     public readonly market: MarketVo,
     public readonly isWatched: boolean,
     public readonly isWithinTradingSession: boolean,
@@ -23,6 +25,10 @@ export class TradingSymbol {
   toDto(): TradingSymbolDto {
     return new TradingSymbolDto(
       this.symbol,
+      this.displayName,
+      // 「怎麼稱呼這一檔」在這裡決定一次。三個畫面都要唸出它，各自寫一份
+      // 「有名字就接上去、沒有就只有代號」，遲早會有一個沒跟上。
+      this.displayName === '' ? this.symbol : `${this.symbol} ${this.displayName}`,
       this.market,
       this.isWatched,
       this.isWithinTradingSession,

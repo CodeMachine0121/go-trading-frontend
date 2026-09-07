@@ -10,6 +10,7 @@ const TRADING_SYMBOLS_ENDPOINT = '/trading-symbols'
  */
 type TradingSymbolWire = {
   symbol: string
+  displayName: string
   market: string
   isWatched: boolean
   isWithinTradingSession: boolean
@@ -25,6 +26,8 @@ export class TradingSymbolProxy extends BackendApiProxy implements ITradingSymbo
 
     return tradingSymbolWires.map(tradingSymbolWire => new TradingSymbol(
       tradingSymbolWire.symbol,
+      // 後端沒回這一項（舊版本）時當成沒有名字，不是當成壞掉。
+      tradingSymbolWire.displayName ?? '',
       // 認不得的市場名稱不讓整檔消失——它仍然挑得到，只是暫時歸在預設的那個市場。
       MARKETS.find(market => market.value === tradingSymbolWire.market) ?? FALLBACK_MARKET,
       tradingSymbolWire.isWatched,

@@ -23,6 +23,7 @@ export function buildTradingSymbolApplication(
 
 /** 一個案例真正在意的那幾個欄位；其餘交給中性的預設。 */
 export type TradingSymbolOverrides = {
+  displayName?: string
   market?: MarketValue
   isWatched?: boolean
   isWithinTradingSession?: boolean
@@ -44,6 +45,8 @@ export function buildTradingSymbol(
 
   return new TradingSymbol(
     symbol,
+    // 預設沒有名字——既有那個市場不取名字，所以既有的測試讀起來一如往常。
+    overrides.displayName ?? '',
     market,
     overrides.isWatched ?? true,
     overrides.isWithinTradingSession ?? true,
