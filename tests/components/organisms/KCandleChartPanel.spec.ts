@@ -205,17 +205,19 @@ describe('KCandleChartPanel', () => {
     expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('line')
   })
 
-  it('未指定交易標的時不去取，並把原因標在欄位旁', async () => {
+  it('一檔都沒選著時不去取，也不怪使用者沒填', async () => {
+    // 這個畫面只能從選單挑，沒有「填」這個動作可做。一檔都沒選著的原因
+    // （這個市場目前沒有標的）挑標的那個欄位已經說了，這裡再標一句
+    // 「請指定交易標的」，等於把系統的狀況說成使用者的疏忽。
     const findKCandleSeries = vi.fn().mockResolvedValue([])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
-    // 直接讓欄位交出一個空的標的，驗畫面確實把原因標回欄位旁。
-    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '   ')
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '')
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請指定交易標的')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="idle-chart"]').text()).toContain('還沒有行情可以畫')
   })
 
   it('這段區間內沒有任何 K 線時說「查無 K 線」，不畫空白的圖', async () => {

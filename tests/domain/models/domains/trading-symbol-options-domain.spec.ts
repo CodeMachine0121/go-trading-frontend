@@ -25,12 +25,36 @@ describe('TradingSymbolOptionsDomain', () => {
     expect(namesOf(options)).toEqual(['2330', '2454'])
   })
 
-  it('被篩掉的那一檔如果正選著，仍然留在選單上', () => {
-    // 少了這一條，切換市場會把使用者正在看的那一檔從選單上抹掉，
-    // 而畫面就得替他改選一個他沒要的標的——他只是想換個角度看清單。
+  it('別的市場的那一檔即使正選著也不列出來', () => {
+    // 混一檔別的市場進來，這個市場鍵就不再是「只看台股」。
     const options = new TradingSymbolOptionsDomain(LISTING, 'BTCUSDT').optionsFor('taiwanStock')
 
-    expect(namesOf(options)).toEqual(['2330', '2454', 'BTCUSDT'])
+    expect(namesOf(options)).toEqual(['2330', '2454'])
+  })
+
+  it('選著的那一檔就在這個市場裡時不動它', () => {
+    // 他只是換個角度看同一份清單，沒有理由把他正在看的東西換掉。
+    const selected = new TradingSymbolOptionsDomain(LISTING, '2454').selectionFor('taiwanStock')
+
+    expect(selected).toBe('2454')
+  })
+
+  it('選著的那一檔不屬於這個市場時，改選這個市場的第一檔', () => {
+    const selected = new TradingSymbolOptionsDomain(LISTING, 'BTCUSDT').selectionFor('taiwanStock')
+
+    expect(selected).toBe('2330')
+  })
+
+  it('這個市場一檔都沒有時，一檔都不選', () => {
+    // 留著一檔對不上的，畫面就會說謊：分頁寫著台股，圖上畫的是比特幣。
+    const selected = new TradingSymbolOptionsDomain(
+      listing(['BTCUSDT', 'crypto']), 'BTCUSDT').selectionFor('taiwanStock')
+
+    expect(selected).toBe('')
+  })
+
+  it('不篩時，選著的那一檔照樣不動', () => {
+    expect(new TradingSymbolOptionsDomain(LISTING, 'BTCUSDT').selectionFor(null)).toBe('BTCUSDT')
   })
 
   it('這個市場一檔都沒有時說得出來', () => {
@@ -40,12 +64,11 @@ describe('TradingSymbolOptionsDomain', () => {
     expect(optionsDomain.hasNoneIn('taiwanStock')).toBe(true)
   })
 
-  it('只因為被選著才留下來的那一檔，不算這個市場有東西', () => {
-    // 選單上還有一個項目，但那是使用者原本就選著的，不是這個市場提供的選擇。
+  it('這個市場沒有東西時選單就是空的，不留下選著的那一檔充數', () => {
     const optionsDomain = new TradingSymbolOptionsDomain(
       listing(['BTCUSDT', 'crypto']), 'BTCUSDT')
 
-    expect(namesOf(optionsDomain.optionsFor('taiwanStock'))).toEqual(['BTCUSDT'])
+    expect(namesOf(optionsDomain.optionsFor('taiwanStock'))).toEqual([])
     expect(optionsDomain.hasNoneIn('taiwanStock')).toBe(true)
   })
 

@@ -9,10 +9,13 @@ import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 export class TradingSymbolOptionsDto {
   constructor(
     public readonly options: readonly TradingSymbolDto[],
-    /**
-     * 這個市場一檔都沒有——除了因為被選著才留下來的那一檔以外。
-     * 它與「選單是空的」不同，說「這個市場沒有任何標的」才是實話。
-     */
+    /** 這個市場一檔都沒有，所以選單是空的。 */
     public readonly hasNoneInMarket: boolean,
+    /**
+     * 換到這個市場之後該選著哪一檔。空字串代表這個市場沒得選。
+     *
+     * 它與選項一起交出去，因為分兩次問就有機會選出一個不在選單上的標的。
+     */
+    public readonly selectedSymbol: string,
   ) {}
 }

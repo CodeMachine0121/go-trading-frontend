@@ -37,7 +37,7 @@
 | `domain/models/domains/live-update-notice-domain.ts` | **Add** | **決定該說哪一句**：收下「在不在交易時段」「有沒有即時名額」「是不是斷了」，交出至多一個 notice |
 | `domain/models/entities/trading-symbol.ts` | **Modify** | 多帶所屬市場、是否追蹤中、是否在交易時段內、是否有即時更新 |
 | `domain/models/dto/trading-symbol-dto.ts` | **Modify** | 同上（外加市場的中文標籤，由 VO 帶著） |
-| `domain/models/domains/trading-symbol-options-domain.ts` | **Add** | **決定選單上該出現哪幾檔**：依市場篩選，且**目前選著的那一檔一定看得見** |
+| `domain/models/domains/trading-symbol-options-domain.ts` | **Add** | **決定選單上該出現哪幾檔、以及該選著哪一檔**：依市場篩選，並在選著的那一檔不屬於該市場時改選第一檔 |
 | `domain/models/entities/live-k-candle-update.ts` | **Modify** | 第四種狀態 `unavailable` |
 | `domain/models/dto/live-k-candle-report-dto.ts` | **Modify** | 多帶「這一檔沒有即時名額」這件事 |
 | `domain/models/entities/k-candle.ts`、`dto/k-candle-dto.ts` | **Modify** | 三個成交數字改為**可以沒有值** |
@@ -70,7 +70,7 @@
 | `MarketVo` | VO | 一個市場：值 + 給人看的標籤。不可變、無行為 | — | US-01 全部 |
 | `LiveUpdateNoticeVo` | VO | 圖表上那一句話：身分 + 語氣。值域封閉（收盤中／沒有即時名額／即時已停止） | — | US-04、US-05 |
 | `LiveUpdateNoticeDomain` | Domain Model | **決定該說哪一句**——收下三件事實，交出至多一個 notice。優先序住在這裡，不住在 `v-if` | `LiveUpdateNoticeVo` | US-04.3／US-04.4／US-04.5／US-05 全部 |
-| `TradingSymbolOptionsDomain` | Domain Model | **決定選單上該出現哪幾檔**——依市場篩選，並保證目前選著的那一檔一定在裡面 | `TradingSymbolDto`、`MarketVo` | US-01.2／US-01.3／US-01.4 |
+| `TradingSymbolOptionsDomain` | Domain Model | **決定選單上該出現哪幾檔、以及該選著哪一檔**——依市場篩選；選著的那一檔不屬於該市場時改選第一檔，該市場沒有標的時一檔都不選 | `TradingSymbolDto`、`MarketVo` | US-01.2／US-01.3／US-01.4 |
 | `IWatchlistProxy` | Interface | 觀察清單的兩個寫入動作。以能力命名 | — | US-02、US-03 |
 | `WatchlistProxy` | Proxy | 打後端；把「代號找不到」與「市場問不到」翻成兩種領域錯誤 | `BackendApiProxy` | US-02.2／US-02.3 |
 | `WatchlistService` | Domain Service | 觀察清單的三個用例：列出追蹤中的、加入、移除。三者互不呼叫 | `ITradingSymbolProxy`、`IWatchlistProxy` | US-02、US-03 |
@@ -83,7 +83,7 @@
 
 **深度檢查**：`LiveUpdateNoticeDomain` 把三個布林的排列組合收在一個問句後面——
 元件從「三個 `v-if` 加一組優先序」變成「有沒有 notice，有的話畫它」。
-`TradingSymbolOptionsDomain` 同理：元件不再自己寫「篩掉但要留下選著的那一檔」。
+`TradingSymbolOptionsDomain` 同理：元件不再自己寫「篩掉之後該選誰」。
 `WatchlistApplication` 是那一頁的唯一 collaborator，頁面不必自己編排三件事。
 以上都通過「呼叫端不需要自己排步驟」這一關。
 
@@ -176,7 +176,7 @@ flowchart TD
 | :--- | :--- |
 | US-01.1 兩個市場並排看得出差別 | `MarketVo` + `MarketBadge.vue` |
 | US-01.2 只看某一個市場 | `TradingSymbolOptionsDomain` + `SymbolField.vue` 的切換鍵 |
-| US-01.3 篩掉目前選著的那一檔時仍看得見 | `TradingSymbolOptionsDomain`（保證選著的那一檔在選項內） |
+| US-01.3 換到另一個市場就換到那個市場的標的 | `TradingSymbolOptionsDomain.selectionFor`＋`SymbolField` 換市場時套用 |
 | US-01.4 該市場一檔都沒有 | `SymbolField.vue` 的 hint（沿用既有四種狀態的說法） |
 | US-02.1 加一檔存在的台股 | `WatchlistApplication.addToWatchlist` + `WatchlistProxy` |
 | US-02.2 代號在那個市場找不到 | `TradingSymbolNotInMarketError` + `WatchlistPanel.vue` |

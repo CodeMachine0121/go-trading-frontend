@@ -16,8 +16,8 @@
 |---|---|---|---|---|---|---|---|
 | AC-01.1 | 兩個市場的標的並排時看得出差別 | 選單上 2330 標示台股、BTCUSDT 標示加密貨幣 | `SymbolField.vue`（選項文字帶市場標籤）＋`market-vo.ts`（標籤與值一起決定） | `SymbolField.spec.ts`／`挑之前就看得出每一檔屬於哪個市場` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-01.2 | 只看某一個市場 | 選單只剩那個市場的標的 | `trading-symbol-options-domain.ts:optionsFor` | `只看某一個市場時，其餘的不再列出` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-01.3 | 篩掉目前選著的那一檔時仍然看得見它，且沒有被默默改選 | 它仍在選項內；`modelValue` 未變 | `trading-symbol-options-domain.ts:optionsFor`（選著的一定留下） | `篩掉目前選著的那一檔時，仍然看得見它是哪一檔`（同時驗了 `modelValue`） | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-01.4 | 該市場一檔都沒有時說明原因，不呈現空白選單 | 出現「這個市場目前沒有任何交易標的」 | `trading-symbol-options-domain.ts:hasNoneIn`＋`SymbolField.vue` 的 hint | `這個市場一檔都沒有時說得出原因，而不是給一個空選單` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.3 | 換到另一個市場就換到那個市場的標的；本來就屬於該市場時不動它 | 選著的變成該市場第一檔；選單看不到別的市場的 | `trading-symbol-options-domain.ts:selectionFor`＋`SymbolField.vue` 換市場時套用 | `換到別的市場就換到那個市場的第一檔，不留著上一個市場的那一檔`、`選著的那一檔就屬於這個市場時不動它`、domain 四條 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.4 | 該市場一檔都沒有時說明原因、一檔都不選，圖表說還沒有行情可畫而不是指責使用者 | 出現「這個市場目前沒有任何交易標的」與「請先到觀察清單加入一檔」；選著的是空的；圖表顯示閒置說明 | `trading-symbol-options-domain.ts:hasNoneIn`＋`SymbolField.vue` 的 hint 與佔位選項＋`KCandleChartPanel.vue` 的空標的短路 | `這個市場一檔都沒有時說得出原因，選單也不留一檔對不上的充數`、`一檔都沒選著時不去取，也不怪使用者沒填` | asserts-oracle | produces-oracle | ✅ conforms |
 
 ## 2. Clauses — US-02 把交易標的加進觀察清單
 
@@ -85,7 +85,7 @@
 | BR-6 | 移除必須二次確認且說明資料會留著 | 同 AC-03.1 | `WatchlistPanel.vue` | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-7 | 加入失敗要分得出是哪一種 | 同 AC-02.2／02.3 | `watchlist-proxy.ts` | 同上＋`後端自己壞掉不說成行情來源不在` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-8 | 改動不是立刻生效；**不顯示倒數** | 有常駐說明，且沒有任何倒數 | `WatchlistPanel.vue` | `說得出改動不是立刻生效的`（沒有倒數這件事由「程式中沒有那段」保證） | asserts-oracle | produces-oracle | ✅ conforms |
-| BR-9 | 篩選不改變選擇 | 同 AC-01.3 | `trading-symbol-options-domain.ts` | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
+| BR-9 | 市場鍵決定看哪個市場：切過去就換到該市場的標的上 | 同 AC-01.3 | `trading-symbol-options-domain.ts:selectionFor` | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-10 | 加入時不即時查詢，只在送出時問一次 | 打字期間後端未被呼叫 | `WatchlistEntryForm.vue`（只在 submit 時 emit） | 無專屬測試：`代號空白就地擋下` 驗的是空白那一條，不是「打字不查詢」 | no-test | produces-oracle | 🟡 partial |
 
 ## 8. Clauses — 非功能需求（第 6 節）
@@ -155,6 +155,22 @@
 配合 SSE 的 `retry` 讓瀏覽器以較長的間隔自己回來問，或讓輪值主動把等著的觀看者接回跟盤。
 兩者都會動到即時通道的行為（也會讓「通道結束」與「斷線」需要再分一次），
 影響範圍超出「照 contract feedback 修一下」，因此留給人決定要走哪一條。
+
+### 稽核之後，使用者回報並一併修掉的兩件事
+
+**市場分頁沒有真的「只看那個市場」。** 原本的規則是「篩選不改變選擇」，
+於是切到台股之後，選單裡仍留著那一檔加密貨幣，圖上畫的也還是它——分頁寫著台股、
+畫面畫著比特幣。使用者確認後改成：市場鍵就是「我要看哪個市場」，切過去就換到那個
+市場的標的上；該市場沒有標的時一檔都不選，圖表說「還沒有行情可以畫」。
+`PRD` 的 AC-01.3／AC-01.4／BR-9、`ARCH` 與 `UL-MAP` 已同步改寫。
+
+順帶清掉一段因此變成死碼的分支：圖表面板原本會把「請指定交易標的」標在欄位旁，
+但這個畫面只能從選單挑，空標的在上游就被攔下了，那個分支再也走不到。
+
+**觀察清單出錯時整排跑版。** 那一排用 `align-items: flex-end` 對齊，錯誤訊息一出現
+就把代號那一欄撐高，市場選單與「加入」按鈕跟著被拉到底部、與輸入框錯開。
+訊息本來就長（「請稍後再試，這與代號對不對無關」），窄欄位也裝不下。
+改成自己一整列。
 
 **附帶發現（已一併修掉）**：`README.md` 的即時跟盤章節仍寫「`status` 是三者之一」，
 也仍以 `KCANDLE_INGESTION_SYMBOLS` 說明跟盤與觀察清單無關——那個環境變數在本切片已被移除，

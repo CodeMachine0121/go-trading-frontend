@@ -140,17 +140,25 @@ describe('SymbolField 的市場篩選', () => {
     expect(optionValues).toEqual(['2330', '2454'])
   })
 
-  it('篩掉目前選著的那一檔時，仍然看得見它是哪一檔', async () => {
-    // 他只是想換個角度看清單，不是想換一檔股票。
+  it('換到別的市場就換到那個市場的第一檔，不留著上一個市場的那一檔', async () => {
+    // 留著它，分頁寫著台股、圖上畫的卻是比特幣——畫面在說謊。
     const wrapper = await mountField(proxyListingMarkets(), 'BTCUSDT')
 
     await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
 
-    expect(wrapper.findAll('option').map(option => option.element.value)).toContain('BTCUSDT')
-    expect(wrapper.props('modelValue')).toBe('BTCUSDT')
+    expect(wrapper.findAll('option').map(option => option.element.value)).not.toContain('BTCUSDT')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['2330'])
   })
 
-  it('這個市場一檔都沒有時說得出原因，而不是給一個空選單', async () => {
+  it('選著的那一檔就屬於這個市場時不動它', async () => {
+    const wrapper = await mountField(proxyListingMarkets(), '2454')
+
+    await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
+
+    expect(wrapper.props('modelValue')).toBe('2454')
+  })
+
+  it('這個市場一檔都沒有時說得出原因，選單也不留一檔對不上的充數', async () => {
     const wrapper = await mountField({
       findTradingSymbols: vi.fn().mockResolvedValue([buildTradingSymbol('BTCUSDT')]),
     }, 'BTCUSDT')
@@ -158,6 +166,8 @@ describe('SymbolField 的市場篩選', () => {
     await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
 
     expect(wrapper.text()).toContain('這個市場目前沒有任何交易標的')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+    expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('沒有可選的標的')
   })
 })
 

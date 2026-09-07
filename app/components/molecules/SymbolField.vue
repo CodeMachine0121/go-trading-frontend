@@ -66,6 +66,19 @@ const options = computed(() => tradingSymbolApplication.optionsFor(
   symbol.value,
 ))
 
+/**
+ * 換市場就換到那個市場的標的上。
+ *
+ * 市場鍵的意思是「我現在要看哪個市場」，所以留著一檔別的市場的標的等於讓畫面
+ * 說謊：分頁寫著台股，圖上畫的是比特幣。那個市場沒得選時就空著——
+ * 空著看得出「這裡還沒有東西」，比留一檔對不上的誠實。
+ *
+ * 只在**使用者換市場**時動它。掛載時清單還在路上，那時動它會把預設那一檔清掉。
+ */
+watch(selectedMarket, () => {
+  symbol.value = options.value.selectedSymbol
+})
+
 const hint = computed(() => {
   if (loading.value) {
     return '取交易標的清單中…'
@@ -74,10 +87,9 @@ const hint = computed(() => {
     return '取不到交易標的清單，請確認後端已啟動'
   }
   if (options.value.hasNoneInMarket) {
-    // 選單上可能還留著使用者原本選著的那一檔，但那不是這個市場給的選擇。
     return selectedMarket.value === ALL_MARKETS
       ? '後端目前沒有任何交易標的'
-      : '這個市場目前沒有任何交易標的'
+      : '這個市場目前沒有任何交易標的，請先到觀察清單加入一檔'
   }
 
   // 每一檔的市場與有沒有即時更新寫在選項自己身上，這一句只說這份清單是什麼。
@@ -129,16 +141,20 @@ onMounted(async () => {
     >
       <AppSelect
         v-model="symbol"
-        :disabled="tradingSymbols.length === 0"
+        :disabled="options.options.length === 0"
         :invalid="Boolean(errorMessage)"
         data-testid="symbol-select"
       >
-        <!-- 目前這一檔不在清單上（清單空的或取不到）時仍要看得見它是哪一檔 -->
+        <!--
+          目前這一檔不在清單上（清單空的或取不到）時仍要看得見它是哪一檔；
+          連一檔都沒選著時，那一格要說出「這裡沒有東西可挑」，而不是留一片空白，
+          因為空白看起來像壞了。
+        -->
         <option
           v-if="!options.options.some(tradingSymbol => tradingSymbol.symbol === symbol)"
           :value="symbol"
         >
-          {{ symbol }}
+          {{ symbol === '' ? '（沒有可選的標的）' : symbol }}
         </option>
         <!--
           市場與有沒有即時更新都寫在選項文字裡：原生的 option 裝不下一個元件，

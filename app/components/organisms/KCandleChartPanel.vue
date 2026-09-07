@@ -18,7 +18,6 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
-import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -58,7 +57,6 @@ const visibleStartTime = ref(new Date())
 const visibleEndTime = ref(new Date())
 
 const loading = ref(false)
-const symbolError = ref<string | null>(null)
 const rejectedMessage = ref<string | null>(null)
 const serverErrorMessage = ref<string | null>(null)
 const backendUnreachable = ref(false)
@@ -118,10 +116,20 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   const requestNumber = latestRequestNumber
 
   loading.value = true
-  symbolError.value = null
   rejectedMessage.value = null
   serverErrorMessage.value = null
   backendUnreachable.value = false
+
+  // 一檔都沒選著——這個市場目前沒有東西可挑。沒有東西可問，也沒有人做錯什麼，
+  // 所以這裡既不送出請求，也不標一句「請指定交易標的」：那是在怪使用者沒填，
+  // 但這個畫面只能從選單挑，他根本沒有「填」這個動作可做，真正的原因挑標的
+  // 那個欄位已經說了。
+  if (kCandleChartViewportDto.symbol.trim() === '') {
+    forgetTheChart()
+    loading.value = false
+
+    return
+  }
 
   try {
     const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
@@ -158,11 +166,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       return
     }
 
-    // 哨兵錯誤分流：使用者可自行修正的標在欄位旁，其餘整塊呈現。
-    if (error instanceof KCandleQueryValidationError) {
-      symbolError.value = error.message
-    }
-    else if (error instanceof BackendServerError) {
+    // 哨兵錯誤分流。這裡沒有「請使用者自己修正」的那一種：標的只能從選單挑，
+    // 而一檔都沒選著在上面就先攔下了——剩下的每一種都是後端那頭的事。
+    if (error instanceof BackendServerError) {
       serverErrorMessage.value = error.message
     }
     else if (error instanceof BackendRequestRejectedError) {
@@ -175,22 +181,29 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       rejectedMessage.value = '取行情時發生未預期的錯誤。'
     }
 
-    chart.value = null
-    // 圖沒了，跟盤也得停。留著它，上一檔的下一則更新就會把圖「復活」——
-    // 而畫面上同時還顯示著取行情失敗，看到的人會以為那張圖是這一檔的。
-    stopFollowing?.()
-    stopFollowing = null
-    followGeneration += 1
-    latestLiveReport.value = null
-    // 上一批算出來的線也不能留——它們畫的是另一段行情，
-    // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
-    chartIndicators.clearLines()
+    forgetTheChart()
   }
   finally {
     if (requestNumber === latestRequestNumber) {
       loading.value = false
     }
   }
+}
+
+/**
+ * 把手上這張圖整個放掉：圖、跟盤、最近那一則更新、算出來的線。
+ *
+ * 四件事必須一起放掉。留著跟盤，上一檔的下一則更新就會把圖「復活」，而畫面上
+ * 同時還說著取行情失敗，看到的人會以為那張圖是這一檔的；留著線，它們畫的是另一段
+ * 行情，還會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
+ */
+function forgetTheChart() {
+  chart.value = null
+  stopFollowing?.()
+  stopFollowing = null
+  followGeneration += 1
+  latestLiveReport.value = null
+  chartIndicators.clearLines()
 }
 
 /**
@@ -289,7 +302,6 @@ onMounted(async () => {
         :presets="presets"
         :active-preset-label="activePresetLabel"
         :loading="loading"
-        :symbol-error="symbolError"
         @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
       />
