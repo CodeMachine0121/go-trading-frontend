@@ -36,8 +36,11 @@ type KCandleSeriesWire = {
   kCandles: KCandleWire[]
 }
 
-/** 送往後端時的 body 形狀：價量一律以字串傳遞以保留精確度。 */
-type KCandleRequest = Record<string, string>
+/**
+ * 送往後端時的 body 形狀：價量一律以字串傳遞以保留精確度。
+ * 這個市場不報的那幾項送 null——送 '0' 的話它就變成一個真的成交數字了。
+ */
+type KCandleRequest = Record<string, string | null>
 
 /** Proxy：唯一允許出現 $fetch 的地方，負責把 wire 形狀收乾淨再往 domain 送。 */
 export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
@@ -106,9 +109,9 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
       low: kCandleWriteDomain.low.toString(),
       close: kCandleWriteDomain.close.toString(),
       volume: kCandleWriteDomain.volume.toString(),
-      quoteVolume: kCandleWriteDomain.quoteVolume.toString(),
-      takerBuyBaseVolume: kCandleWriteDomain.takerBuyBaseVolume.toString(),
-      takerBuyQuoteVolume: kCandleWriteDomain.takerBuyQuoteVolume.toString(),
+      quoteVolume: kCandleWriteDomain.quoteVolume?.toString() ?? null,
+      takerBuyBaseVolume: kCandleWriteDomain.takerBuyBaseVolume?.toString() ?? null,
+      takerBuyQuoteVolume: kCandleWriteDomain.takerBuyQuoteVolume?.toString() ?? null,
     }
   }
 

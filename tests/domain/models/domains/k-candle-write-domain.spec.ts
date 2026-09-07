@@ -64,7 +64,7 @@ describe('KCandleWriteDomain', () => {
     expect(kCandleWriteDomain.identity.symbol).toBe('BTCUSDT')
     expect(kCandleWriteDomain.identity.openTime).toEqual(VALID_OPEN_TIME)
     expect(kCandleWriteDomain.open.toString()).toBe('100.5')
-    expect(kCandleWriteDomain.takerBuyQuoteVolume.toString()).toBe('600')
+    expect(kCandleWriteDomain.takerBuyQuoteVolume?.toString()).toBe('600')
   })
 
   it.each([
@@ -128,14 +128,32 @@ describe('KCandleWriteDomain', () => {
     { field: 'low', label: '最低價' },
     { field: 'close', label: '收盤價' },
     { field: 'volume', label: '成交量' },
-    { field: 'quoteVolume', label: '成交額' },
-    { field: 'takerBuyBaseVolume', label: '主動買入量' },
-    { field: 'takerBuyQuoteVolume', label: '主動買入額' },
   ])('$label 留空時拒絕並指名該欄位', ({ field, label }) => {
     const fieldError = fieldErrorOf(() => new KCandleWriteDomain(buildWriteDto({ [field]: '  ' })))
 
     expect(fieldError.field).toBe(field)
     expect(fieldError.message).toBe(`請填寫${label}`)
+  })
+
+  it.each([
+    { field: 'quoteVolume', label: '成交額' },
+    { field: 'takerBuyBaseVolume', label: '主動買入量' },
+    { field: 'takerBuyQuoteVolume', label: '主動買入額' },
+  ])('這個市場不報$label 時留空，存下來仍然是沒有這一項', ({ field }) => {
+    const kCandleWriteDomain = new KCandleWriteDomain(buildWriteDto({ [field]: '  ' }))
+
+    expect(kCandleWriteDomain[field as 'quoteVolume']).toBeNull()
+  })
+
+  it.each([
+    { field: 'quoteVolume', label: '成交額' },
+    { field: 'takerBuyBaseVolume', label: '主動買入量' },
+    { field: 'takerBuyQuoteVolume', label: '主動買入額' },
+  ])('$label 可以留空，但填了就照一般數字的規則檢查', ({ field, label }) => {
+    const fieldError = fieldErrorOf(() => new KCandleWriteDomain(buildWriteDto({ [field]: '一百' })))
+
+    expect(fieldError.field).toBe(field)
+    expect(fieldError.message).toBe(`${label}必須是數字`)
   })
 
   it.each([

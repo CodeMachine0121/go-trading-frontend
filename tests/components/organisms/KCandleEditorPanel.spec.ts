@@ -409,4 +409,29 @@ describe('修改一根這個市場不報那三項的 K 線', () => {
         .toBe('11')
     })
   })
+
+  it('那三格說得出為什麼可以空著', async () => {
+    const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto(false))
+
+    expect(wrapper.text()).toContain('這個市場不報就留白')
+  })
+
+  it('那三格空著就存得起來，而且存進去的是沒有這一項，不是零', async () => {
+    const updateKCandle = vi.fn().mockResolvedValue(buildKCandle())
+    const wrapper = await mountPanel(
+      buildProxy({ updateKCandle }), buildEditingKCandleDto(false))
+
+    await wrapper.get('[data-testid="form-submit"]').trigger('submit')
+    await flushPromises()
+
+    // 沒有被擋在「請填寫成交額」這一關——不報這一項的市場本來就填不出來。
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+    expect(updateKCandle).toHaveBeenCalledTimes(1)
+
+    const kCandleWriteDomain = updateKCandle.mock.calls[0]?.[0]
+    expect(kCandleWriteDomain.quoteVolume).toBeNull()
+    expect(kCandleWriteDomain.takerBuyBaseVolume).toBeNull()
+    expect(kCandleWriteDomain.takerBuyQuoteVolume).toBeNull()
+    expect(kCandleWriteDomain.volume.toString()).toBe('11')
+  })
 })

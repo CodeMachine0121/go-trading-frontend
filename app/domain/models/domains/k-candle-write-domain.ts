@@ -46,9 +46,15 @@ export class KCandleWriteDomain {
   readonly low: Decimal
   readonly close: Decimal
   readonly volume: Decimal
-  readonly quoteVolume: Decimal
-  readonly takerBuyBaseVolume: Decimal
-  readonly takerBuyQuoteVolume: Decimal
+  /**
+   * 三個不是每個市場都報的數字。**沒有**這一項時是 null，不是 0。
+   *
+   * 它們可留白，因為要求填一個數字等於逼人替一個不報這一項的市場編一個出來——
+   * 而那個編出來的數字進了資料庫之後，就再也分不出是市場報的還是人填的。
+   */
+  readonly quoteVolume: Decimal | null
+  readonly takerBuyBaseVolume: Decimal | null
+  readonly takerBuyQuoteVolume: Decimal | null
 
   constructor(kCandleWriteDto: KCandleWriteDto) {
     this.identity = new KCandleIdentityVo(kCandleWriteDto.symbol, kCandleWriteDto.openTime)
@@ -66,19 +72,35 @@ export class KCandleWriteDomain {
       throw new KCandleFieldError('openTime', '起始時間不得指向未來')
     }
 
-    // 八個欄位的解讀規則一模一樣，逐欄展開會是八份重複。
+    // 每個欄位的解讀規則一模一樣，逐欄展開會是八份重複。
     this.open = this.readFigure(kCandleWriteDto.open, 'open')
     this.high = this.readFigure(kCandleWriteDto.high, 'high')
     this.low = this.readFigure(kCandleWriteDto.low, 'low')
     this.close = this.readFigure(kCandleWriteDto.close, 'close')
     this.volume = this.readFigure(kCandleWriteDto.volume, 'volume')
-    this.quoteVolume = this.readFigure(kCandleWriteDto.quoteVolume, 'quoteVolume')
-    this.takerBuyBaseVolume = this.readFigure(kCandleWriteDto.takerBuyBaseVolume, 'takerBuyBaseVolume')
-    this.takerBuyQuoteVolume = this.readFigure(kCandleWriteDto.takerBuyQuoteVolume, 'takerBuyQuoteVolume')
+    this.quoteVolume = this.readOptionalFigure(kCandleWriteDto.quoteVolume, 'quoteVolume')
+    this.takerBuyBaseVolume = this.readOptionalFigure(
+      kCandleWriteDto.takerBuyBaseVolume, 'takerBuyBaseVolume')
+    this.takerBuyQuoteVolume = this.readOptionalFigure(
+      kCandleWriteDto.takerBuyQuoteVolume, 'takerBuyQuoteVolume')
 
     if (this.high.lessThan(this.low)) {
       throw new KCandleFieldError('high', '最高價不得低於最低價')
     }
+  }
+
+  /**
+   * 一個這個市場可能根本不報的數字：留白就是**沒有這一項**。
+   *
+   * 填了的話規則與其他數字一模一樣——留白是唯一多出來的答案，
+   * 所以它只多攔這一種情況，其餘一律交回去照原本的規則讀。
+   */
+  private readOptionalFigure(rawValue: string, field: KCandleWriteField): Decimal | null {
+    if (rawValue.trim() === '') {
+      return null
+    }
+
+    return this.readFigure(rawValue, field)
   }
 
   private readFigure(rawValue: string, field: KCandleWriteField): Decimal {

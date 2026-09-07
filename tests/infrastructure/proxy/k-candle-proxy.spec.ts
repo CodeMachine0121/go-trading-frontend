@@ -239,6 +239,29 @@ describe('KCandleProxy', () => {
       })
     })
 
+    it('這個市場不報的那幾項送出去是沒有，不是零', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-08-30T12:00:00.000Z'))
+      const kCandleWriteDomain = new KCandleWriteDomain(new KCandleWriteDto(
+        '2330', OPEN_TIME, '100.5', '120', '90', '110', '11', '', '', ''))
+      vi.useRealTimers()
+
+      await new KCandleProxy(BASE_URL).saveKCandle(kCandleWriteDomain)
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles', {
+        method: 'POST',
+        body: expect.objectContaining({
+          volume: '11',
+          quoteVolume: null,
+          takerBuyBaseVolume: null,
+          takerBuyQuoteVolume: null,
+        }),
+      })
+    })
+
     it('修改時以交易標的與起始時間指名那一根', async () => {
       const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
       vi.stubGlobal('$fetch', fetchMock)
