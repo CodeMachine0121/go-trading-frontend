@@ -160,6 +160,21 @@ describe('WatchlistPanel 加一檔進來', () => {
     expect(wrapper.text()).toContain('稍後再試')
     expect(wrapper.text()).toContain('與代號對不對無關')
   })
+
+  it('說明擠不進代號那一欄，所以它自己一整列', async () => {
+    // 擠進去的話它會把那一欄撐高，整排跟著被拉開，市場選單與按鈕就與輸入框錯開。
+    // 這幾句本來就長，窄欄位裝不下。
+    const wrapper = await mountPanel({
+      addToWatchlist: vi.fn().mockRejectedValue(
+        new MarketDataSourceUnavailableError('問不到台股')),
+    })
+
+    await fillAndSubmit(wrapper, '2330')
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toContain('稍後再試')
+    // FormField 用一個 <label> 把整欄包起來；訊息若在裡面，就是它把那一欄撐高的。
+    expect(wrapper.findAll('label [data-testid="field-error"]')).toHaveLength(0)
+  })
 })
 
 describe('WatchlistPanel 把一檔拿掉', () => {

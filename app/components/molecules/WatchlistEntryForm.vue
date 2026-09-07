@@ -59,10 +59,7 @@ function submit() {
       </AppSelect>
     </FormField>
 
-    <FormField
-      label="代號"
-      :error-message="blankSymbol ? '請填入代號' : errorMessage"
-    >
+    <FormField label="代號">
       <AppInput
         v-model="symbol"
         placeholder="2330"
@@ -78,6 +75,19 @@ function submit() {
     >
       {{ submitting ? '確認中…' : '加入' }}
     </AppButton>
+
+    <!--
+      訊息自己一整列，不擠在代號那一欄底下。
+      擠進去的話它會把那一欄撐高，整排跟著被拉開，市場選單與按鈕就與輸入框錯開——
+      而這幾句本來就長（「請稍後再試，這與代號對不對無關」），窄欄位裝不下。
+    -->
+    <p
+      v-if="blankSymbol || errorMessage"
+      class="watchlist-entry-form__error"
+      data-testid="field-error"
+    >
+      {{ blankSymbol ? '請填入代號' : errorMessage }}
+    </p>
   </form>
 </template>
 
@@ -87,5 +97,13 @@ function submit() {
   align-items: flex-end;
   gap: spacing('sm');
   flex-wrap: wrap;
+
+  &__error {
+    flex-basis: 100%;
+    margin: 0;
+    color: color('danger');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
+  }
 }
 </style>
