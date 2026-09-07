@@ -9,6 +9,7 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const K_CANDLES_ENDPOINT = '/k-candles'
 const K_CANDLE_SERIES_ENDPOINT = '/k-candles/series'
+const K_CANDLE_BACKFILL_ENDPOINT = '/k-candles/backfill'
 
 /**
  * 後端回傳的原始 wire 形狀，只存在於本檔內，不外流進 domain。
@@ -34,6 +35,14 @@ type KCandleWire = {
  */
 type KCandleSeriesWire = {
   kCandles: KCandleWire[]
+}
+
+/**
+ * 補齊那一輪的回報。逐檔分開，因為那一輪本來就可能不只補一檔——
+ * 這裡一次只要一檔，但讀的是同一個形狀，不另外要求後端為這個按鈕變出別的答案。
+ */
+type KCandleBackfillReportWire = {
+  symbolReports: { storedCount: number }[]
 }
 
 /**
@@ -90,6 +99,14 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
 
   async deleteKCandle(kCandleIdentityVo: KCandleIdentityVo): Promise<void> {
     await this.requestBackend<null>(this.identityPath(kCandleIdentityVo), { method: 'DELETE' })
+  }
+
+  async catchUpSymbol(symbol: string): Promise<number> {
+    const report = await this.requestBackend<KCandleBackfillReportWire>(
+      K_CANDLE_BACKFILL_ENDPOINT, { method: 'POST', body: { symbol } })
+
+    return report.symbolReports.reduce(
+      (collected, symbolReport) => collected + symbolReport.storedCount, 0)
   }
 
   /** 一根 K 線在後端的位址：以交易標的與起始時間指名。 */

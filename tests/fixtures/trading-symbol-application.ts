@@ -26,6 +26,7 @@ export type TradingSymbolOverrides = {
   market?: MarketValue
   isWatched?: boolean
   isWithinTradingSession?: boolean
+  hasTradingSession?: boolean
   hasLiveUpdates?: boolean
 }
 
@@ -46,6 +47,8 @@ export function buildTradingSymbol(
     market,
     overrides.isWatched ?? true,
     overrides.isWithinTradingSession ?? true,
+    // 預設是既有那個永不收盤的市場，所以既有的測試讀起來一如往常。
+    overrides.hasTradingSession ?? false,
     overrides.hasLiveUpdates ?? true,
   )
 }

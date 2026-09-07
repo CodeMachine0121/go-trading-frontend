@@ -24,6 +24,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     saveKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     updateKCandle: vi.fn().mockResolvedValue(buildKCandle()),
     deleteKCandle: vi.fn().mockResolvedValue(undefined),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
@@ -318,6 +319,7 @@ describe('KCandleEditorPanel', () => {
     it('要刪的那根已經不存在時，整塊轉達後端說的原因', async () => {
       const kCandleProxy = buildProxy({
         deleteKCandle: vi.fn().mockRejectedValue(new BackendRequestRejectedError('找不到該根 K 線')),
+        catchUpSymbol: vi.fn().mockResolvedValue(0),
       })
       const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto())
 

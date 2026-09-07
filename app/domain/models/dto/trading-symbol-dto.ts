@@ -12,6 +12,11 @@ export class TradingSymbolDto {
     public readonly market: MarketVo,
     public readonly isWatched: boolean,
     public readonly isWithinTradingSession: boolean,
+    /**
+     * 這個市場**會不會收盤**。與「現在開著沒」是兩件事：
+     * 一個永不收盤的市場永遠只差一輪就跟上了，手動要求更新對它沒有意義。
+     */
+    public readonly hasTradingSession: boolean,
     public readonly hasLiveUpdates: boolean,
   ) {}
 }

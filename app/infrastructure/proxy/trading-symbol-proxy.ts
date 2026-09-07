@@ -13,6 +13,7 @@ type TradingSymbolWire = {
   market: string
   isWatched: boolean
   isWithinTradingSession: boolean
+  hasTradingSession: boolean
   hasLiveUpdates: boolean
 }
 
@@ -28,6 +29,7 @@ export class TradingSymbolProxy extends BackendApiProxy implements ITradingSymbo
       MARKETS.find(market => market.value === tradingSymbolWire.market) ?? FALLBACK_MARKET,
       tradingSymbolWire.isWatched,
       tradingSymbolWire.isWithinTradingSession,
+      tradingSymbolWire.hasTradingSession,
       tradingSymbolWire.hasLiveUpdates,
     ))
   }

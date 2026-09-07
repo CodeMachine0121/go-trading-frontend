@@ -100,6 +100,53 @@ const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
   noLivePlace: '這一檔沒有即時更新，資料每五分鐘更新一次。',
   stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
 }
+/**
+ * 這個市場會收盤，所以「等下一輪」不見得等得到東西——手動要求更新才有意義。
+ *
+ * 判準是**這個市場會不會收盤**，不是「現在有沒有開」：後者在收盤的每個夜裡都成立，
+ * 卻也在加密貨幣身上永遠不成立，於是按鈕會在錯的地方出現、又在錯的地方消失。
+ */
+const canCatchUp = computed(() => selectedTradingSymbol.value?.hasTradingSession === true)
+
+/** 正在補齊。補的時候不讓人再按一次——第二次要的是同一批東西。 */
+const catchingUp = ref(false)
+/** 上一次補齊的結果，補完才有話說。 */
+const catchUpMessage = ref<string | null>(null)
+
+/**
+ * 去把這一檔缺的補回來，補完重畫。
+ *
+ * 補完一定要重畫：補齊寫的是後端的資料，畫面手上那批是**補齊之前**取的，
+ * 不重取的話，剛補回來的那幾根一根都不會出現，看起來就像按了沒有用。
+ */
+async function catchUp() {
+  catchingUp.value = true
+  catchUpMessage.value = null
+
+  try {
+    const collected = await kCandleChartApplication.catchUpSymbol(symbol.value)
+    // 補到零根也是一個答案，而且是常見的那一個（手上已經是最新的）。
+    // 不說出來的話，看的人分不出「按了沒事」與「按了沒反應」。
+    catchUpMessage.value = collected === 0
+      ? '已經是最新的了，沒有可補的 K 線。'
+      : `補回 ${collected} 根 K 線。`
+
+    // 手上那批「還夠用」的判斷是拿涵蓋範圍算的，而補齊填的是**範圍之內**的洞——
+    // 照平常那條路重取，它會說不必取，於是剛補回來的那幾根一根都不會出現。
+    // 所以這裡明說：忘了手上那批，重新取一次。
+    await showViewport(new KCandleChartViewportDto(
+      symbol.value, visibleStartTime.value, visibleEndTime.value, null))
+  }
+  catch (error: unknown) {
+    catchUpMessage.value = error instanceof Error
+      ? `補不回來：${error.message}`
+      : '補不回來。'
+  }
+  finally {
+    catchingUp.value = false
+  }
+}
+
 /** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
 let stopFollowing: (() => void) | null = null
 /**
@@ -412,6 +459,28 @@ onMounted(async () => {
         >
           {{ intervalLabel }}
         </AppBadge>
+
+        <!--
+          只有會收盤的市場給這顆按鈕。永不收盤的市場永遠只差一輪就跟上了，
+          給它一顆「立刻更新」只是讓人多按一次去做本來就會發生的事。
+        -->
+        <AppButton
+          v-if="canCatchUp"
+          variant="secondary"
+          size="small"
+          :disabled="catchingUp || loading"
+          data-testid="catch-up-button"
+          @click="catchUp"
+        >
+          {{ catchingUp ? '補齊中…' : '立刻更新' }}
+        </AppButton>
+        <span
+          v-if="catchUpMessage"
+          class="k-candle-chart-panel__catch-up-message"
+          data-testid="catch-up-message"
+        >
+          {{ catchUpMessage }}
+        </span>
       </template>
 
       <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
@@ -471,6 +540,11 @@ onMounted(async () => {
   &__chart {
     flex: 1;
     min-height: 20rem;
+  }
+
+  &__catch-up-message {
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   &__empty {

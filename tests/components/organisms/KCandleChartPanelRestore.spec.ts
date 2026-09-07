@@ -39,6 +39,7 @@ function buildKCandleProxy(
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
   }
 }
 

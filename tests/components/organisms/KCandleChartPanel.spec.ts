@@ -37,15 +37,19 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
+    catchUpSymbol: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
 
-async function mountPanel(kCandleProxy: IKCandleProxy) {
+async function mountPanel(
+  kCandleProxy: IKCandleProxy,
+  tradingSymbolApplication = buildTradingSymbolApplication(),
+) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
-      tradingSymbolApplication: buildTradingSymbolApplication(),
+      tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication(),
       strategyApplication: buildStrategyApplication(),
@@ -400,5 +404,99 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+  })
+})
+
+describe('KCandleChartPanel 立刻更新', () => {
+  /** 一檔屬於會收盤的市場的標的，也就是唯一需要這顆按鈕的那種。 */
+  function marketThatCloses() {
+    return buildTradingSymbolApplication(['BTCUSDT'], { hasTradingSession: true })
+  }
+
+  it('會收盤的市場才給這顆按鈕', async () => {
+    // 永不收盤的市場永遠只差一輪就跟上了，給它一顆「立刻更新」只是讓人多按一次
+    // 去做本來就會發生的事。
+    const wrapper = await mountPanel(buildProxy(), marketThatCloses())
+
+    expect(wrapper.find('[data-testid="catch-up-button"]').exists()).toBe(true)
+  })
+
+  it('不收盤的市場不給這顆按鈕', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.find('[data-testid="catch-up-button"]').exists()).toBe(false)
+  })
+
+  it('按下去就要後端補這一檔，補完說補回幾根', async () => {
+    const catchUpSymbol = vi.fn().mockResolvedValue(3)
+    const wrapper = await mountPanel(buildProxy({ catchUpSymbol }), marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(catchUpSymbol).toHaveBeenCalledWith('BTCUSDT')
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('補回 3 根')
+  })
+
+  it('補完之後重新取一次，否則剛補回來的那幾根一根都不會出現', async () => {
+    // 補齊寫的是後端的資料，畫面手上那批是補齊之前取的。不重取的話，
+    // 按了跟沒按看起來一模一樣。
+    const findKCandleSeries = vi.fn().mockResolvedValue([])
+    const wrapper = await mountPanel(
+      buildProxy({ findKCandleSeries, catchUpSymbol: vi.fn().mockResolvedValue(3) }),
+      marketThatCloses())
+    const beforeCatchUp = findKCandleSeries.mock.calls.length
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(findKCandleSeries.mock.calls.length).toBeGreaterThan(beforeCatchUp)
+  })
+
+  it('一根都沒補到也說出來，那是常見的答案而不是沒反應', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockResolvedValue(0) }), marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('已經是最新的了')
+  })
+
+  it('補不回來時說出原因，圖照樣留著', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({
+        catchUpSymbol: vi.fn().mockRejectedValue(new BackendServerError('行情來源問不到')),
+      }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('行情來源問不到')
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
+  })
+
+  it('連原因都說不出來時，仍然說一句「補不回來」', async () => {
+    // 什麼都不說的話，看的人會以為按了沒反應，然後一直按。
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockRejectedValue('說不清楚的東西') }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="catch-up-message"]').text()).toContain('補不回來')
+  })
+
+  it('補的時候按不出第二次', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockReturnValue(new Promise(() => {})) }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="catch-up-button"]').attributes('disabled')).toBeDefined()
   })
 })

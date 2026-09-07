@@ -262,6 +262,30 @@ describe('KCandleProxy', () => {
       })
     })
 
+    it('要後端補齊一檔，並把這一輪補到的根數算出來', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        symbolReports: [{ storedCount: 3 }],
+      })
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const collected = await new KCandleProxy(BASE_URL).catchUpSymbol('2330')
+
+      expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/backfill', {
+        method: 'POST',
+        body: { symbol: '2330' },
+      })
+      expect(collected).toBe(3)
+    })
+
+    it('這一輪一根都沒補到就是零，不是「沒有答案」', async () => {
+      // 零是常見的答案（手上已經是最新的），它與「問不到」完全不同。
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+        symbolReports: [{ storedCount: 0 }],
+      }))
+
+      expect(await new KCandleProxy(BASE_URL).catchUpSymbol('2330')).toBe(0)
+    })
+
     it('修改時以交易標的與起始時間指名那一根', async () => {
       const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
       vi.stubGlobal('$fetch', fetchMock)

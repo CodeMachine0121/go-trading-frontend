@@ -26,6 +26,16 @@ export class KCandleChartService {
   constructor(private readonly kCandleProxy: IKCandleProxy) {}
 
   /**
+   * 要後端立刻去補齊這一檔，回報補到幾根。
+   *
+   * 它與「載入圖表」是兩個用例，互不呼叫：補完之後要不要重畫、重畫哪一段，
+   * 是看的人正在看哪裡決定的，不是補齊這件事決定的。
+   */
+  async catchUpSymbol(symbol: string): Promise<number> {
+    return this.kCandleProxy.catchUpSymbol(symbol)
+  }
+
+  /**
    * 使用者正在看這一段，手上有這些——那接下來該畫什麼、該把位置擺到哪裡。
    *
    * 回來的一律帶著**應該看到的那一段**（可能已被收回上限），
