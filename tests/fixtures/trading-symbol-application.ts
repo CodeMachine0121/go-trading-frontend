@@ -13,10 +13,20 @@ import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
  */
 export function buildTradingSymbolApplication(
   symbols: string[] = ['BTCUSDT', 'ETHUSDT'],
+  overrides: TradingSymbolOverrides = {},
 ): TradingSymbolApplication {
   return new TradingSymbolApplication(new TradingSymbolService({
-    findTradingSymbols: vi.fn().mockResolvedValue(symbols.map(symbol => buildTradingSymbol(symbol))),
+    findTradingSymbols: vi.fn().mockResolvedValue(
+      symbols.map(symbol => buildTradingSymbol(symbol, overrides))),
   }))
+}
+
+/** 一個案例真正在意的那幾個欄位；其餘交給中性的預設。 */
+export type TradingSymbolOverrides = {
+  market?: MarketValue
+  isWatched?: boolean
+  isWithinTradingSession?: boolean
+  hasLiveUpdates?: boolean
 }
 
 /**
@@ -27,12 +37,7 @@ export function buildTradingSymbolApplication(
  */
 export function buildTradingSymbol(
   symbol: string,
-  overrides: {
-    market?: MarketValue
-    isWatched?: boolean
-    isWithinTradingSession?: boolean
-    hasLiveUpdates?: boolean
-  } = {},
+  overrides: TradingSymbolOverrides = {},
 ): TradingSymbol {
   const market = MARKETS.find(known => known.value === (overrides.market ?? 'crypto'))!
 

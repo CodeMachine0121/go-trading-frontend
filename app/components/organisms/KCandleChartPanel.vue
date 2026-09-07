@@ -10,6 +10,9 @@ import type { ChartIndicatorApplication } from '~/application/chart-indicator-ap
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import type { StrategyApplication } from '~/application/strategy-application'
+import type { LiveUpdateNoticeValue } from '~/domain/models/vo/live-update-notice-vo'
+import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
+import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
@@ -74,8 +77,31 @@ const strategies = ref<StrategyDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
-/** 即時更新停掉了。圖照常顯示，只是不再跟著市場動——所以要明說。 */
-const liveUpdateStalled = ref(false)
+/** 最近一則即時更新說了什麼。還沒有任何一則時是 null。 */
+const latestLiveReport = ref<LiveKCandleReportDto | null>(null)
+/** 目前選著的那一檔完整的樣子，由挑標的那個欄位交過來。 */
+const selectedTradingSymbol = ref<TradingSymbolDto | null>(null)
+
+/**
+ * 圖表上該說的那一句話，至多一句。
+ *
+ * 該說哪一句是一條有優先序的業務規則，所以由 domain 判、這裡只問。
+ * 寫成三個 v-if 的話，加第四種說法就得回頭重讀所有排列。
+ */
+const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
+  selectedTradingSymbol.value, latestLiveReport.value))
+
+/**
+ * 每一種說法在畫面上是哪一句中文。
+ *
+ * 「沒有名額」與「停了」的措辭刻意不像：一句要人接受現況，一句要人稍等——
+ * 讀起來像同一件事的話，這兩句就等於只有一句。
+ */
+const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
+  marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
+  noLivePlace: '這一檔沒有即時更新，資料每五分鐘更新一次。',
+  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
+}
 /** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
 let stopFollowing: (() => void) | null = null
 /**
@@ -155,7 +181,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     stopFollowing?.()
     stopFollowing = null
     followGeneration += 1
-    liveUpdateStalled.value = false
+    latestLiveReport.value = null
     // 上一批算出來的線也不能留——它們畫的是另一段行情，
     // 而且會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
     chartIndicators.clearLines()
@@ -183,9 +209,10 @@ function followTheMarket(followedChart: KCandleChartDto) {
         return
       }
 
-      // 跟不動了：明說，但圖照樣顯示手上有的——停的是「即時」，不是「圖表」。
-      liveUpdateStalled.value = report.isStalled
-      if (report.isStalled) {
+      // 跟不動了、或這一檔本來就沒有即時更新：兩者都明說，但圖照樣顯示手上有的——
+      // 沒有的是「即時」，不是「圖表」。
+      latestLiveReport.value = report
+      if (report.isStalled || report.hasNoLivePlace) {
         return
       }
 
@@ -263,6 +290,7 @@ onMounted(async () => {
         :active-preset-label="activePresetLabel"
         :loading="loading"
         :symbol-error="symbolError"
+        @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
       />
 
@@ -290,15 +318,16 @@ onMounted(async () => {
       那正是他最需要看到它的時候。
     -->
     <!--
-      即時停掉是「這一層停了」，不是「圖表壞了」——所以它與那幾則錯誤各自獨立，
+      即時這一層沒有東西動，不代表「圖表壞了」——所以它與那幾則錯誤各自獨立，
       不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+      三種原因共用這一個位置，一次只說一句，哪一句由 domain model 決定。
     -->
     <AppAlert
-      v-if="liveUpdateStalled"
-      tone="warning"
-      data-testid="live-update-stalled-alert"
+      v-if="liveUpdateNotice"
+      :tone="liveUpdateNotice.tone"
+      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
     >
-      即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。
+      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
     </AppAlert>
 
     <AppAlert

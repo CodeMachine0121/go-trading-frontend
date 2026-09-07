@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 
@@ -23,6 +24,9 @@ const {
 const emit = defineEmits<{
   'selectPreset': [preset: KCandleChartRangePresetDto]
   'update:drawing': [drawing: 'candlestick' | 'line']
+  // 挑標的那個欄位已經握有清單，選著的是哪一檔由它說；這裡只是轉一手，
+  // 因為圖表那一層才是需要知道「這一檔會不會收盤、有沒有即時更新」的人。
+  'selected': [tradingSymbol: TradingSymbolDto | null]
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -40,6 +44,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
       :trading-symbol-application="tradingSymbolApplication"
       :error-message="symbolError"
       class="k-candle-chart-toolbar__symbol"
+      @selected="emit('selected', $event)"
     />
 
     <div class="k-candle-chart-toolbar__group">

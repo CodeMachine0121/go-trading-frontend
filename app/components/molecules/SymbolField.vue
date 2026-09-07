@@ -22,6 +22,19 @@ const { tradingSymbolApplication, errorMessage = null } = defineProps<{
 const symbol = defineModel<string>({ required: true })
 
 const tradingSymbols = ref<TradingSymbolDto[]>([])
+
+/**
+ * 目前選著的那一檔的完整樣子，交給需要它的使用端。
+ *
+ * 它從這裡發出去，而不是讓使用端自己再取一次清單：清單已經在這個元件手上了，
+ * 取第二次是同一份資料的第二個版本，兩份遲早會對不起來。
+ */
+const emit = defineEmits<{ selected: [TradingSymbolDto | null] }>()
+
+watch([symbol, tradingSymbols], () => {
+  emit('selected', tradingSymbols.value.find(
+    tradingSymbol => tradingSymbol.symbol === symbol.value) ?? null)
+})
 const loading = ref(true)
 const unavailable = ref(false)
 

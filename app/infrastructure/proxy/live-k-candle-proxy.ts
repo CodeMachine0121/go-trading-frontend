@@ -25,7 +25,7 @@ type LiveKCandleUpdateWire = {
 }
 
 /** 後端說得出的三種狀態。認不得的一律當成「即時已停止」——最保守的那一種。 */
-const LIVE_K_CANDLE_STATUSES: LiveKCandleStatus[] = ['forming', 'closed', 'stalled']
+const LIVE_K_CANDLE_STATUSES: LiveKCandleStatus[] = ['forming', 'closed', 'stalled', 'unavailable']
 
 /**
  * Proxy：唯一知道那條持續連著的通道長什麼樣子的地方。
@@ -60,9 +60,11 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
   private toUpdate(body: string): LiveKCandleUpdate | null {
     try {
       const wire = JSON.parse(body) as LiveKCandleUpdateWire
+      // 認不得的說法一律當成「停了」而不是「沒有」：前者說的是等一下會自己好，
+      // 而後端多出一種說法時，讓人多等一會兒遠好過叫他放棄一個其實會回來的畫面。
       const status = LIVE_K_CANDLE_STATUSES.find(known => known === wire.status) ?? 'stalled'
-      if (status === 'stalled') {
-        return new LiveKCandleUpdate(wire.symbol, 'stalled', null)
+      if (status === 'stalled' || status === 'unavailable') {
+        return new LiveKCandleUpdate(wire.symbol, status, null)
       }
 
       return new LiveKCandleUpdate(wire.symbol, status, new KCandle(

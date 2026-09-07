@@ -1,5 +1,8 @@
 import type { ILiveKCandleProxy } from '~/domain/interface/i-live-k-candle-proxy'
 import { LiveKCandleChartDomain } from '~/domain/models/domains/live-k-candle-chart-domain'
+import { LiveUpdateNoticeDomain } from '~/domain/models/domains/live-update-notice-domain'
+import type { LiveUpdateNoticeVo } from '~/domain/models/vo/live-update-notice-vo'
+import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
 
@@ -33,7 +36,29 @@ export class LiveKCandleService {
         liveChart.toChartDto(),
         update.status === 'closed',
         update.status === 'stalled',
+        update.status === 'unavailable',
       ))
     })
+  }
+
+  /**
+   * 該對看的人說哪一句話，至多一句。
+   *
+   * 它與跟盤本身是兩個用例，互不呼叫：進到圖表的那一刻還沒有任何一則更新，
+   * 而「這個市場收盤中」在那一刻就該說了——把它綁在更新上，等於要人先等一則
+   * 永遠不會來的更新才知道市場關了。
+   *
+   * 還沒挑到標的、或還沒有任何更新時，一律當作一切正常：那時什麼都還沒發生，
+   * 先說一句只是在猜。
+   */
+  liveUpdateNotice(
+    tradingSymbol: TradingSymbolDto | null,
+    report: LiveKCandleReportDto | null,
+  ): LiveUpdateNoticeVo | null {
+    return new LiveUpdateNoticeDomain(
+      tradingSymbol?.isWithinTradingSession ?? true,
+      (tradingSymbol?.hasLiveUpdates ?? true) && !(report?.hasNoLivePlace ?? false),
+      report?.isStalled ?? false,
+    ).notice()
   }
 }
