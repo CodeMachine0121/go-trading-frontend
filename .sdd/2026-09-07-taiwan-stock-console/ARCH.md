@@ -199,6 +199,9 @@ flowchart TD
 | US-06.1／US-06.3 那三欄沒有值／照常顯示 | `KCandleDto` 可空 + `KCandleTable.vue` |
 | US-06.2 成交量真的是零時仍顯示 0 | 同上（零是有值） |
 | US-06.4 修改時那三格不讓人填 | `KCandleForm.vue` |
+| US-08.1／US-08.2／US-08.3 三個畫面都唸得出名字 | `TradingSymbol.toDto()` 算出 `label` + `WatchlistPanel`／`SymbolField`／`KCandleChartPanel` 照唸 |
+| US-08.4 沒有名字的只寫代號 | 同上（`label` 在無名時就是代號本身） |
+| US-08.5 圖還沒換過來時不掛新名字 | `KCandleChartPanel.vue:chartTitle`（只在名字屬於**畫出來的**那一檔時才接） |
 | US-07.1／US-07.2 誰有這顆按鈕 | `TradingSymbolDto.hasTradingSession`（後端回答）+ `KCandleChartPanel.vue` 的 `canCatchUp` |
 | US-07.3 按下去就補回來並說補到幾根 | `KCandleChartApplication.catchUpSymbol` → `KCandleChartService` → `IKCandleProxy.catchUpSymbol` |
 | US-07.3 圖上出現剛補回來的那幾根 | `KCandleChartPanel.vue` 補完後以 `loadedChart: null` 強制重取 |

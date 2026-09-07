@@ -84,7 +84,17 @@
 | AC-07.5 | 補不回來時說出原因，圖照樣留著 | 出現後端說的原因；圖仍在 | `catchUp()` 的 catch | `補不回來時說出原因，圖照樣留著`、`連原因都說不出來時…` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-07.6 | 補的時候按不出第二次 | 按鈕停用 | `catchingUp` | `補的時候按不出第二次` | asserts-oracle | produces-oracle | ✅ conforms |
 
-## 8. Clauses — 業務規則（第 4 節）
+## 8. Clauses — US-08 看得懂那是哪一家公司
+
+| ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
+|---|---|---|---|---|---|---|---|
+| AC-08.1 | 觀察清單唸得出公司名字 | 那一列出現「2330 台積電」 | `TradingSymbol.toDto():label` + `WatchlistPanel.vue` | `每一檔唸得出公司的名字，不是只有四位數字` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-08.2 | 挑標的的選單唸得出公司名字 | 選項出現「2330 台積電」 | 同上 + `SymbolField.vue` | `選單上唸得出公司的名字，不是只有四位數字` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-08.3 | 圖表標題唸得出公司名字 | 標題出現「2330 台積電」 | 同上 + `KCandleChartPanel.vue:chartTitle` | `唸得出公司的名字，不是只有四位數字` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-08.4 | 沒有名字的只寫代號，後面不多一個空格 | 就是「BTCUSDT」 | `TradingSymbol.toDto()`（無名時 label 即代號） | `trading-symbol.spec.ts/沒有名字就只有代號，不留一個多出來的空格` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-08.5 | 圖還沒換過來時不掛新那一檔的名字 | 標題不出現新公司的名字 | `KCandleChartPanel.vue:chartTitle` 的相符檢查 | `圖上還是舊的那一檔時，不掛上新那一檔的名字` | asserts-oracle | produces-oracle | ✅ conforms |
+
+## 9. Clauses — 業務規則（第 4 節）
 
 | ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
 |---|---|---|---|---|---|---|---|
@@ -102,7 +112,7 @@
 | BR-13 | 補到零根也要說 | 同 AC-07.4 | 同上 | 同上 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-10 | 加入時不即時查詢，只在送出時問一次 | 打字期間後端未被呼叫 | `WatchlistEntryForm.vue`（只在 submit 時 emit） | 無專屬測試：`代號空白就地擋下` 驗的是空白那一條，不是「打字不查詢」 | no-test | produces-oracle | 🟡 partial |
 
-## 9. Clauses — 非功能需求（第 6 節）
+## 10. Clauses — 非功能需求（第 6 節）
 
 | ID | 條款 | Oracle | 實作位置 | 測試 | 測試稽核 | 程式碼稽核 | 狀態 |
 |---|---|---|---|---|---|---|---|
@@ -127,7 +137,7 @@
 
 稽核跑了兩輪：第一輪的判定，以及修掉之後的重新判定。下表是**修正後**的狀態。
 
-- **Conforms:** 42 / 50 條 ✅（84%）
+- **Conforms:** 49 / 57 條 ✅（86%）
 - **Violations:** 無（原有的兩條已修，見下）
 - **Mis-asserted:** 無
 - **Partial:** `AC-02.4`、`AC-03.4`、`AC-04.6`、`BR-10`、`NFR-1`、`NFR-2`、`NFR-4`
@@ -185,6 +195,13 @@
 就把代號那一欄撐高，市場選單與「加入」按鈕跟著被拉到底部、與輸入框錯開。
 訊息本來就長（「請稍後再試，這與代號對不對無關」），窄欄位也裝不下。
 改成自己一整列。
+
+### 稽核之後追加的第二片
+
+**`US-08` 唸得出公司名字**（五條）與 **`BR-14`／`BR-15`**：後端從行情來源記下名稱，
+三個畫面照唸。七條全部 conforms，兩個 mutation 驗過。
+「怎麼唸一檔」只在交易標的轉成對外形狀時決定一次——三個畫面各接一份的話，
+遲早會有一個在沒有名字的時候多一個空格。
 
 ### 稽核之後追加的一片
 
