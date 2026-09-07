@@ -44,9 +44,19 @@ describe('StrategyDraftDomain', () => {
     expect(draft.hasUnsavedChanges()).toBe(false)
   })
 
-  it('還沒載入過任何策略，但已經寫了東西時要問', () => {
+  it.each([
+    { resultType: 'float' as const, stub: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}' },
+    { resultType: 'floatList' as const, stub: 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\t\n}' },
+  ])('還沒載入過任何策略，且內容還是 $resultType 未改動的空白 stub 時不必問', ({ resultType, stub }) => {
+    const draft = new StrategyDraftDomain(null, contentOf(stub, resultType))
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it('還沒載入過任何策略，但已經在 stub 裡寫了東西時要問', () => {
     // 那些字一樣是使用者寫的。該問卻不問會弄丟它們，不該問卻問只是煩人。
-    const draft = new StrategyDraftDomain(null, contentOf('sum := 0.0'))
+    const draft = new StrategyDraftDomain(null, contentOf(
+      'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\treturn nil\n}'))
 
     expect(draft.hasUnsavedChanges()).toBe(true)
   })

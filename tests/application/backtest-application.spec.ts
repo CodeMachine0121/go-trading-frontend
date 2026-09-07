@@ -10,7 +10,11 @@ import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
-const SCRIPT_BODY = 'return indicator.Buy'
+const SCRIPT_BODY = [
+  'func Calculate(data []indicator.KCandle) indicator.Signal {',
+  '\treturn indicator.Buy',
+  '}',
+].join('\n')
 
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
@@ -72,15 +76,15 @@ describe('BacktestApplication', () => {
       expect(result.equityCurve).toHaveLength(1)
     })
 
-    it('把算式內容包進外框之後才送出去', async () => {
-      // 使用者只寫內容；兩個去處讀的是同一份算式，所以走的也是同一條組裝路徑。
+    it('把算式主體接上固定外框之後才送出去', async () => {
+      // 兩個去處讀的是同一份算式，所以走的也是同一條組裝路徑。
       const proxy = buildProxy()
 
       await buildApplication(proxy).runBacktest(backtestRequest())
 
       const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
-      expect(sent.script).toContain(SCRIPT_BODY)
-      expect(sent.script).toContain('func Calculate')
+      expect(sent.script).toContain('package main')
+      expect(sent.script).toContain(`)\n\n${SCRIPT_BODY}`)
     })
 
     it('宣告的旋鈕跟著一起送出去', async () => {

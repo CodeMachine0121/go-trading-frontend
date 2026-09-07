@@ -84,9 +84,12 @@ const workspaceGeneration = ref(0)
  * 第一次進入畫面時是它，按下「新的空白策略」時也是它。各寫一份的話，
  * 哪天預設的種類改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
  */
+// 空白長什麼樣：一個空的 Calculate stub，回傳型別跟著預設的指標值種類。
+// 這個定義在這個畫面上只有這一個地方——第一次進來與按「新的空白策略」都用它。
+const defaultResultTypeValue = indicatorCalculationApplication.defaultResultType()
 const blankStrategyContent = new StrategyContentDto(
-  '',
-  indicatorCalculationApplication.defaultResultType(),
+  indicatorCalculationApplication.describeIndicatorScript(defaultResultTypeValue).blankBody,
+  defaultResultTypeValue,
 )
 
 /*
@@ -107,8 +110,16 @@ const scriptBody = ref(blankStrategyContent.scriptBody)
 // 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
 const strategyParameters = useStrategyParameters(
   indicatorCalculationApplication, blankStrategyContent.parameters)
-// 種類與內容是兩個各自獨立的狀態：換種類只換外框，使用者寫到一半的內容一字不動。
 const resultType = ref<string>(blankStrategyContent.resultType)
+
+// 換指標值種類時，把可編輯區裡第一個 Calculate 進入點的回傳型別換成新選的——
+// 使用者不必自己回去改簽章。函式主體、helper 一字不動；找不到 Calculate 那一行就整段不動。
+// 只在使用者親手改種類時做，載入策略時不做（那時內容與種類一起換）。
+function retargetResultType(nextResultType: string) {
+  resultType.value = nextResultType
+  scriptBody.value = indicatorCalculationApplication.retargetScriptReturnType(
+    scriptBody.value, nextResultType)
+}
 
 const aggregationIntervalOptions
   = indicatorCalculationApplication.listAggregationIntervalOptions()
@@ -291,9 +302,10 @@ async function calculateIndicator() {
             </AppBadge>
 
             <AppSelect
-              v-model="resultType"
+              :model-value="resultType"
               class="indicator-calculation-panel__result-type"
               data-testid="result-type-select"
+              @update:model-value="retargetResultType"
             >
               <option
                 v-for="resultTypeOption in resultTypeOptions"

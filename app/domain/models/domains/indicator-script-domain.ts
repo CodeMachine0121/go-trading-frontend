@@ -4,10 +4,10 @@ import { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script
 import { IndicatorScriptBodyVo } from '~/domain/models/vo/indicator-script-body-vo'
 
 /**
- * 每個種類一段可直接執行的範例內容——只有內容，沒有外框，因為使用者要寫的就只有內容。
- * 一併示範了那個種類該怎麼把值放進結果。
+ * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。簽章與收尾由 `exampleBody`
+ * 從 `calculateSignature()` 補上，進入點的長相因此只寫在這個檔案的一個地方。
  */
-const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
+const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly string[]>> = {
   float: [
     'sum := 0.0',
     'for _, candle := range data {',
@@ -15,7 +15,7 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
     '}',
     '',
     'return map[string]float64{"均價": sum / float64(len(data))}',
-  ].join('\n'),
+  ],
   floatList: [
     'closePrices := []float64{}',
     'for _, candle := range data {',
@@ -23,13 +23,13 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
     '}',
     '',
     'return map[string][]float64{"收盤價": closePrices}',
-  ].join('\n'),
+  ],
   bool: [
     'first := data[0].Close',
     'last := data[len(data)-1].Close',
     '',
     'return map[string]bool{"上漲": last > first}',
-  ].join('\n'),
+  ],
   boolList: [
     'answers := []bool{}',
     'for _, candle := range data {',
@@ -37,7 +37,7 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
     '}',
     '',
     'return map[string][]bool{"收紅": answers}',
-  ].join('\n'),
+  ],
   signal: [
     'first := data[0].Close',
     'last := data[len(data)-1].Close',
@@ -46,102 +46,121 @@ const EXAMPLE_SCRIPT_BODIES: Readonly<Record<IndicatorResultType, string>> = {
     '\treturn indicator.Buy',
     '}',
     'return indicator.Hold',
-  ].join('\n'),
+  ],
 }
 
-/** 算式內容在外框裡的縮排——它整段住在進入點內。 */
+/**
+ * 唯讀外框：package 宣告與三個匯入。**就這七行**，不隨指標值種類變。
+ * 進入點與收尾都住在可編輯的檔案主體裡。
+ */
+const FRAME_HEADER = [
+  'package main',
+  '',
+  'import (',
+  '\t"indicator"',
+  '\t"math"',
+  '\t"sort"',
+  ')',
+].join('\n')
+
+/** 一行縮排——`Calculate` 內部的每一行。 */
 const BODY_INDENT = '\t'
 
-/** 外框上那個進入點的名字。拆解時以它為錨，不逐字比對整個外框。 */
-const ENTRY_POINT_ANCHOR = 'func Calculate'
+/**
+ * 檔案主體裡「這一行是進入點」的樣子。改指標值種類時，第一個符合的這一行，
+ * 回傳型別會被重打。使用者把簽章拆成多行就認不出——那是刻意接受的取捨。
+ */
+const CALCULATE_SIGNATURE_PATTERN = /func Calculate\(data \[\]indicator\.KCandle\)[^{\n]*\{/
 
 /**
  * Domain Model：一段指標算式長什麼樣。
  *
- * **這是全前端唯一產生算式文字的地方，也是唯一拆解它的地方。** 外框的頭、外框的尾、
- * 每個種類的範例內容、內容如何變成一整段算式、以及一整段算式如何拆回內容，
- * 都只寫在這裡；後端哪天改了進入點的形式，要改的就只有這個檔案，
- * 也不可能有第二個地方組出、或認出不一樣的外框。
+ * **這是全前端唯一組出算式文字、也是唯一拆解它的地方。** 唯讀外框、每個種類的範例、
+ * 空白 stub、改種類時重打的簽章、主體如何接上外框、以及一整段算式如何拆回主體，
+ * 都只寫在這裡；進入點的字面只出現在 `calculateSignature()` 與拆解錨定的 `FRAME_HEADER`。
  */
 export class IndicatorScriptDomain {
   constructor(private readonly resultType: IndicatorResultTypeDomain) {}
 
   /**
-   * 外框的開頭。三個匯入一律備妥，使用者在內容裡直接用得到常見的數學與排序運算，
-   * 不必自己張羅——執行算式的直譯器不介意沒用到的匯入。
-   *
-   * 進入點的回傳是外框唯一隨種類變的一行：信號種類回傳一個信號，
-   * 其餘四種回傳一組「名稱對應值」，值的形狀跟著「是不是一串、裝的是不是數字」走。
+   * 唯讀外框——七行固定內容。三個匯入一律備妥，使用者在主體裡直接用得到常見的
+   * 數學與排序運算，不必自己張羅（直譯器不介意沒用到的匯入）。
    */
   frameHeader(): string {
+    return FRAME_HEADER
+  }
+
+  /**
+   * 進入點那一行。回傳型別是外框唯一隨種類變的東西：信號回傳一個信號，
+   * 其餘四種回傳一組「名稱對應值」，值的形狀跟著「是不是一串、裝的是不是數字」走。
+   */
+  private calculateSignature(): string {
     const elementShape = this.resultType.holdsNumbers() ? 'float64' : 'bool'
     const mapValueShape = this.resultType.isList() ? `[]${elementShape}` : elementShape
     const returnShape = this.resultType.isSignal()
       ? 'indicator.Signal'
       : `map[string]${mapValueShape}`
 
-    return [
-      'package main',
-      '',
-      'import (',
-      '\t"indicator"',
-      '\t"math"',
-      '\t"sort"',
-      ')',
-      '',
-      `func Calculate(data []indicator.KCandle) ${returnShape} {`,
-    ].join('\n')
+    return `func Calculate(data []indicator.KCandle) ${returnShape} {`
   }
 
-  frameFooter(): string {
-    return '}'
+  /** 新的空白策略的主體：一個空的 `Calculate`，回傳型別跟著目前的種類。 */
+  blankBody(): string {
+    return `${this.calculateSignature()}\n${BODY_INDENT}\n}`
   }
 
+  /** 這個種類的範例主體：整個 `Calculate` 函式，簽章頂格、內部縮一層。 */
   exampleBody(): string {
-    return EXAMPLE_SCRIPT_BODIES[this.resultType.value]
+    const innerLines = EXAMPLE_CALCULATE_INNER_LINES[this.resultType.value]
+      .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
+
+    return [this.calculateSignature(), ...innerLines, '}'].join('\n')
+  }
+
+  /**
+   * 改指標值種類時：把主體裡**第一個**符合進入點樣子的那一行，回傳型別換成新種類的。
+   * 主體裡沒有符合的那一行時原樣回傳——使用者把進入點寫成別的樣子是他的自由。
+   */
+  retargetReturnType(scriptBody: string): string {
+    if (!CALCULATE_SIGNATURE_PATTERN.test(scriptBody)) {
+      return scriptBody
+    }
+
+    return scriptBody.replace(CALCULATE_SIGNATURE_PATTERN, this.calculateSignature())
   }
 
   toTemplateDto(): IndicatorScriptTemplateDto {
-    return new IndicatorScriptTemplateDto(this.frameHeader(), this.frameFooter(), this.exampleBody())
+    return new IndicatorScriptTemplateDto(this.frameHeader(), this.exampleBody(), this.blankBody())
   }
 
   /**
-   * 把使用者寫的內容放進外框，成為一段可以送出的算式。
-   * 內容整段縮排一層但**不動它的行數**——後端回報第幾行出錯時，
-   * 使用者對著畫面上的外框數得出來是哪一行。
+   * 把使用者寫的主體接在唯讀外框後面，成為一段可以送出的算式。
+   * 主體是頂層 Go，**不縮排、不加收尾**——那兩樣現在也是使用者寫的。
+   * 中間留一個空行（Go 慣例，也讓行號對得上）。
    */
   assemble(scriptBody: string): string {
-    const indentedBody = scriptBody
-      .split('\n')
-      .map(line => (line.trim() === '' ? '' : `${BODY_INDENT}${line}`))
-      .join('\n')
-
-    return `${this.frameHeader()}\n${indentedBody}\n${this.frameFooter()}\n`
+    return `${FRAME_HEADER}\n\n${scriptBody.replace(/\s+$/, '')}\n`
   }
 
   /**
-   * `assemble` 的逆運算：從一整段算式取回使用者當初寫的內容。
+   * `assemble` 的逆運算：從一整段算式取回使用者寫的主體。
    *
-   * 它**錨定結構而不比對外框的文字**——從進入點那一行的下一行起，到最後一個收尾行為止，
-   * 整段退一層縮排。逐字比對外框的話，日後外框只要多一個匯入，
-   * 所有既有的算式就會一起認不出來。
+   * 錨定的是那七行固定的外框——它不隨種類變，也沒有理由漂移。以它開頭就認得，
+   * 主體是其後去掉緊接的空行與尾端多的那一個換行。舊編輯器存的算式因為前七行相同，
+   * 一樣認得，主體剛好是「整個 Calculate 函式」——不需要遷移。
    *
-   * **認不出來時整段原樣交還**，並說明沒認出來。硬拆的代價太高：
-   * 使用者可能過很久才發現程式碼被剪壞，而那時原稿已經沒了。
+   * **認不出來時整段原樣交還**，並說明沒認出來：硬拆的代價太高，使用者可能過很久
+   * 才發現程式碼被剪壞，而那時原稿已經沒了。
    */
   disassemble(script: string): IndicatorScriptBodyVo {
-    const lines = script.split('\n')
-    const entryPointIndex = lines.findIndex(line => line.trimStart().startsWith(ENTRY_POINT_ANCHOR))
-    const footerIndex = lines.findLastIndex(line => line.trim() === this.frameFooter())
-
-    if (entryPointIndex === -1 || footerIndex <= entryPointIndex) {
+    if (!script.startsWith(`${FRAME_HEADER}\n`)) {
       return new IndicatorScriptBodyVo(script, false)
     }
 
-    const body = lines
-      .slice(entryPointIndex + 1, footerIndex)
-      .map(line => (line.startsWith(BODY_INDENT) ? line.slice(BODY_INDENT.length) : line))
-      .join('\n')
+    let body = script.slice(FRAME_HEADER.length).replace(/^\n+/, '')
+    if (body.endsWith('\n')) {
+      body = body.slice(0, -1)
+    }
 
     return new IndicatorScriptBodyVo(body, true)
   }

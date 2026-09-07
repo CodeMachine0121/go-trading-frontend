@@ -53,9 +53,21 @@ export class IndicatorCalculationService {
     return indicatorCalculation.toDomain().toDto()
   }
 
-  /** 這個種類之下，算式長什麼樣：外框的頭尾，以及一段可直接執行的範例內容。 */
+  /**
+   * 這個種類之下，算式長什麼樣：唯讀外框、一段可直接執行的範例主體，
+   * 以及開新的空白策略時預填的那個 stub。
+   */
   describeIndicatorScript(resultType: string): IndicatorScriptTemplateDto {
     return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).toTemplateDto()
+  }
+
+  /**
+   * 改指標值種類時，把可編輯區裡第一個 `Calculate` 進入點的回傳型別換成新種類的。
+   * 沒有符合的那一行時原樣回傳。
+   */
+  retargetScriptReturnType(scriptBody: string, resultType: string): string {
+    return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
+      .retargetReturnType(scriptBody)
   }
 
   /** 沒有特別挑時算的是哪一種。畫面不自己指定預設值。 */
