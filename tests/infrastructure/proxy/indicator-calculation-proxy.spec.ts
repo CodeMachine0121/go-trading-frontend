@@ -208,14 +208,15 @@ describe('IndicatorCalculationProxy', () => {
   })
 
   it('請求本身有問題時，維持一般的拒絕', async () => {
+    // 一則指不出哪一格的拒絕：既沒帶那兩個根數，也沒指名欄位，所以它照原樣轉達。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
-      buildFetchError({ status: 400, message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' })))
+      buildFetchError({ status: 400, message: '找不到這個交易標的' })))
 
     const calculate = new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
 
     await expect(calculate).rejects.toBeInstanceOf(BackendRequestRejectedError)
     await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
-      .rejects.toThrow('K 線不足，排除最新一根後目前可用 9 根，但要求 30 根')
+      .rejects.toThrow('找不到這個交易標的')
   })
 
   it('連不上後端時維持連線錯誤', async () => {
@@ -334,6 +335,10 @@ describe('要的太多了：這一則要落在使用者改得動的那一格旁�
     expect((failure as Error).message).toContain('超過單次可用的最大根數')
     expect((failure as Error).message).toContain('縮短')
     expect((failure as Error).message).toContain('粗一點')
+    // 也不能提到相反的那個方向。兩種根數不足都調得動同一個旋鈕，所以一句話裡
+    // 同時出現兩個方向，等於沒有指出方向——使用者會挑錯的那一邊試。
+    expect((failure as Error).message).not.toContain('拉近')
+    expect((failure as Error).message).not.toContain('細')
   })
 
   it('沒有指名任何一格的拒絕照舊，不會被說成是哪一格的問題', async () => {
@@ -347,8 +352,76 @@ describe('要的太多了：這一則要落在使用者改得動的那一格旁�
   })
 })
 
+describe('填滿要幾根', () => {
+  it('照系統說的收下來', () => {
+    // 這個數字不能自己推算：那條式子（格數 ＋ 最大回看根數 − 1）是系統的規則，
+    // 抄一份到這裡，兩邊哪天算得不一樣時說出來的話會安靜地錯。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', requiredCandleCount: 119, usedCandleCount: 50,
+      resultType: 'float', values: {},
+    }))
+
+    return expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+      .resolves.toMatchObject({ candleCount: 119, usedCandleCount: 50 })
+  })
+
+  it('系統沒說的時候是「沒說」，不是零', () => {
+    // 舊版的系統不回這一項。收成 0 會讓「沒說」看起來像「填滿要 0 根」，
+    // 而後者會讓畫面說出一句它沒有依據的話。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 50, resultType: 'float', values: {},
+    }))
+
+    return expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+      .resolves.toMatchObject({ candleCount: null })
+  })
+})
+
+describe('走完的刻度區間連一個值都湊不出來', () => {
+  it('翻成標在「要看多長」旁邊的說明，並說出那兩個數字', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(400, '湊不出來',
+      { availableCandleCount: 19, minimumCandleCount: 20 })))
+
+    const failure = await calculationFailure()
+
+    expect(failure).toBeInstanceOf(IndicatorCalculationFieldError)
+    expect((failure as IndicatorCalculationFieldError).field).toBe('span')
+    expect((failure as Error).message).toContain('19')
+    expect((failure as Error).message).toContain('20')
+  })
+
+  it('出路與「要得太多」那一句相反', async () => {
+    // 兩者都是「根數不足」，但一個要更細的刻度、一個要更粗的。
+    // 講成同一句，使用者會照著往錯的方向調。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(400, '湊不出來',
+      { availableCandleCount: 19, minimumCandleCount: 20 })))
+
+    const failure = await calculationFailure()
+
+    expect((failure as Error).message).toContain('更細的彙總刻度')
+    expect((failure as Error).message).not.toContain('縮短')
+  })
+
+  it('只帶半組數字時不當成這一種——半組說不出那句話', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(400, '某種拒絕',
+      { availableCandleCount: 19 })))
+
+    const failure = await calculationFailure()
+
+    expect(failure).not.toBeInstanceOf(IndicatorCalculationFieldError)
+    expect(failure).toBeInstanceOf(BackendRequestRejectedError)
+  })
+})
+
 function rejectionOf(
-  status: number, message: string, named?: { parameterName?: string, field?: string },
+  status: number,
+  message: string,
+  named?: {
+    parameterName?: string
+    field?: string
+    availableCandleCount?: number
+    minimumCandleCount?: number
+  },
 ) {
   return Object.assign(new Error(message), {
     response: { status },

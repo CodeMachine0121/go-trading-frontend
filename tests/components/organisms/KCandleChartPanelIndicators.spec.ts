@@ -11,6 +11,7 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
@@ -44,6 +45,17 @@ function buildKCandleProxy(): IKCandleProxy {
 function aCalculation(indicatorName = '均價') {
   return new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo(indicatorName, [115])])
+}
+
+/**
+ * 一次**沒畫滿**的計算：這一段要 119 根，走完的刻度區間只湊得出這麼多。
+ *
+ * 它在圖表上與畫滿的那一次**必須完全一樣**地被對待——線照畫、什麼都不說。
+ */
+function aShortCalculation(usedCandleCount: number, indicatorName = '均價') {
+  return new IndicatorCalculation(
+    'BTCUSDT', '5m', usedCandleCount, 'float',
+    [new IndicatorValueVo(indicatorName, [115])], [], null, 119)
 }
 
 async function mountPanel(overrides: {
@@ -496,7 +508,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     // 失敗多半是暫時的：這一段區間根數不夠，換一段就夠了。
     // 把它踢掉會逼使用者重挑一次，而他什麼都沒做錯。
     const calculateIndicator = vi.fn()
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
       .mockResolvedValue(aCalculation())
     const { wrapper } = await mountPanel({ calculateIndicator })
     await applyStrategy(wrapper, 7)
@@ -515,7 +527,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     // 而那正是這整個切片在防的事。
     const calculateIndicator = vi.fn()
       .mockResolvedValueOnce(aCalculation())
-      .mockRejectedValue(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValue(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
     const { wrapper } = await mountPanel({ calculateIndicator })
     await applyStrategy(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -808,8 +820,8 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     // 「已經用掉的顏色」只看得到算完的那幾支。上一輪全滅時那份清單是空的，
     // 一起送出去就會全部拿到第一個顏色。
     const calculateIndicator = vi.fn()
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
       .mockResolvedValueOnce(aCalculation('甲'))
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({
@@ -873,5 +885,154 @@ describe('圖表上的指標：圖沒了的時候', () => {
     expect(await linesOf(wrapper, 1)).toHaveLength(0)
     // 清單留著——使用者沒有取消掛任何一支，等圖回來它們會跟著重算。
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
+  })
+})
+
+describe('畫不滿的時候，圖表上一個字都不說', () => {
+  // 拉遠拉近改變的是「這一段要幾根」，而那個數字不是使用者說的。
+  // 所以一段只有部分存下來的行情不是他做錯了什麼——線短一截就是誠實的答案，
+  // 而那件事眼睛看得到。多一句話會讓他以為出了事，然後去縮放摸索一個不存在的問題。
+  //
+  // 這幾個案例斷言的是**沉默**。它們看起來像什麼都沒測，但沉默正是這裡的需求：
+  // 少了它們，下一個人會「順手」把警示加回去，而沒有任何東西會變紅。
+
+  it('畫滿了：那一列沒有任何說明', async () => {
+    const { wrapper } = await mountPanel({
+      calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(119)),
+    })
+
+    await applyStrategy(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+
+  it('只畫得到一半：那一列照樣沒有任何說明', async () => {
+    const { wrapper } = await mountPanel({
+      calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(50)),
+    })
+
+    await applyStrategy(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+
+  it('線上只有一個點：照樣沒有任何說明，而它在圖上', async () => {
+    const { wrapper } = await mountPanel({
+      calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(20)),
+    })
+
+    await applyStrategy(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+
+  it('一支畫得滿、一支畫不滿：兩列都沒有說明，兩條線都在圖上', async () => {
+    const calculateIndicator = vi.fn()
+      .mockResolvedValueOnce(aShortCalculation(119, '畫得滿的'))
+      .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
+    const { wrapper } = await mountPanel({
+      strategies: [
+        buildStoredStrategy(7, '畫得滿的', { resultType: 'float' }),
+        buildStoredStrategy(8, '畫不滿的', { resultType: 'float' }),
+      ],
+      calculateIndicator,
+    })
+
+    await applyStrategy(wrapper, 7)
+    await applyStrategy(wrapper, 8)
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(2)
+  })
+
+  it('畫不滿的那一支後來畫得滿了：前後都沒有說明', async () => {
+    const calculateIndicator = vi.fn()
+      .mockResolvedValueOnce(aShortCalculation(50))
+      .mockResolvedValue(aShortCalculation(119))
+    const { wrapper } = await mountPanel({ calculateIndicator })
+    await applyStrategy(wrapper, 7)
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    await settle()
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+})
+
+describe('連一個值都算不出來的時候，那一列要說話', () => {
+  /** 系統認出「湊不出最少可算根數」之後，交到這一層的樣子。 */
+  const tooThin = new IndicatorCalculationFieldError(
+    'span', '這段區間只湊得出 19 根 K 線，而這支策略至少要 20 根才算得出一個值。')
+
+  it('那一列說出系統給的原因', async () => {
+    const { wrapper } = await mountPanel({
+      calculateIndicator: vi.fn().mockRejectedValue(tooThin),
+    })
+
+    await applyStrategy(wrapper, 7)
+
+    expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('19')
+    expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('20')
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
+  })
+
+  it('一支算不出來不影響畫不滿的那一支', async () => {
+    const calculateIndicator = vi.fn()
+      .mockRejectedValueOnce(tooThin)
+      .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
+    const { wrapper } = await mountPanel({
+      strategies: [
+        buildStoredStrategy(7, '算不出來的', { resultType: 'float' }),
+        buildStoredStrategy(8, '畫不滿的', { resultType: 'float' }),
+      ],
+      calculateIndicator,
+    })
+
+    await applyStrategy(wrapper, 7)
+    await applyStrategy(wrapper, 8)
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+
+  it('上一輪畫得到一半、這一輪算不出來：舊線收掉，換成說明', async () => {
+    // 留著它，圖上就會有一條屬於另一段行情、卻看起來完全正常的線。
+    const calculateIndicator = vi.fn()
+      .mockResolvedValueOnce(aShortCalculation(50))
+      .mockRejectedValue(tooThin)
+    const { wrapper } = await mountPanel({ calculateIndicator })
+    await applyStrategy(wrapper, 7)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    await settle()
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
+  })
+
+  it('算不出來的那一支留在清單上，換了資料就再試一次', async () => {
+    const calculateIndicator = vi.fn()
+      .mockRejectedValueOnce(tooThin)
+      .mockResolvedValue(aShortCalculation(119))
+    const { wrapper } = await mountPanel({ calculateIndicator })
+    await applyStrategy(wrapper, 7)
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+    await settle()
+
+    expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
   })
 })

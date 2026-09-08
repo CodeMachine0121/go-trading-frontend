@@ -1,3 +1,5 @@
+import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-coverage-shortfall-vo'
+
 /**
  * 哨兵錯誤：後端收到了請求，但以業務規則拒絕（例如區間過大、找不到指定的 K 線）。
  *
@@ -29,14 +31,29 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly field: string | undefined
 
+  /**
+   * 這次拒絕是因為走完的刻度區間**連一個值都湊不出來**時，系統交出來的那兩個根數。
+   *
+   * 同樣以值存在，理由與上面兩個相同。它以**一個**值物件掛在這裡而不是兩個欄位：
+   * 那兩個數字一起才說得出那句話，而分成兩個參數會讓這個建構選項每次需求都變長。
+   */
+  readonly candleCoverageShortfall: CandleCoverageShortfallVo | undefined
+
   constructor(
     message: string,
-    options?: { cause?: unknown, status?: number, parameterName?: string, field?: string },
+    options?: {
+      cause?: unknown
+      status?: number
+      parameterName?: string
+      field?: string
+      candleCoverageShortfall?: CandleCoverageShortfallVo
+    },
   ) {
     super(message, { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
     this.status = options?.status
     this.parameterName = options?.parameterName
     this.field = options?.field
+    this.candleCoverageShortfall = options?.candleCoverageShortfall
   }
 }

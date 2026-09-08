@@ -12,6 +12,7 @@ import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -224,9 +225,10 @@ describe('IndicatorCalculationPanel', () => {
 
   // 「超過單次上限」曾經也在這一排。它離開了，因為系統那一側現在會指名是哪一格，
   // 於是它落在「要看多長」旁邊而不是這裡——見 IndicatorCalculationPanelParameters 那一條。
+  // 「湊不出最少可算根數」同樣離開了：它現在帶著兩個數字，也落在「要看多長」旁邊。
   // 這一排剩下的是**指不出哪一格**的那些拒絕：它們只能如實轉達。
   it.each([
-    { description: 'K 線不足', message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' },
+    { description: '交易標的認不得', message: '找不到這個交易標的' },
     { description: '這一段沒有資料', message: '這一段時間內沒有任何 K 線' },
   ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
     const wrapper = mountPanel(buildProxy({
@@ -641,5 +643,69 @@ describe('指標計算畫面：這次用了多粗', () => {
 
     expect(wrapper.find('[data-testid="used-interval"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
+  })
+})
+
+describe('沒畫滿時，指標計算畫面要明講', () => {
+  // 這裡與圖表刻意相反。圖表上那個根數是拉遠拉近推出來的，使用者從來沒說過它，
+  // 所以沉默才對；這裡的根數是他自己打的，他有權知道沒拿到他要的量。
+  // 「實際採用 50 根」單獨擺著看不出 50 是不是他要的——所以要把分母也說出來。
+
+  function panelAnswering(usedCandleCount: number, candleCount: number | null) {
+    return mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation(
+        'BTCUSDT', '5m', usedCandleCount, 'float',
+        [new IndicatorValueVo('均價', [110])], [], null, candleCount)),
+    }))
+  }
+
+  it('沒畫滿時說出需要幾根與只湊得出幾根', async () => {
+    const wrapper = panelAnswering(50, 119)
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="short-coverage-alert"]')
+    expect(alert.text()).toContain('119')
+    expect(alert.text()).toContain('50')
+  })
+
+  it('結果照樣顯示——沒畫滿不是失敗', async () => {
+    const wrapper = panelAnswering(50, 119)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 50 根')
+  })
+
+  it('畫滿了就不出現那一句', async () => {
+    const wrapper = panelAnswering(119, 119)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="short-coverage-alert"]').exists()).toBe(false)
+  })
+
+  it('系統沒說填滿要幾根時不猜,那一句不出現', async () => {
+    const wrapper = panelAnswering(50, null)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="short-coverage-alert"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+  })
+
+  it('連一個值都算不出來時整次拒絕,不顯示任何結果', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError(
+        'span',
+        '這段區間只湊得出 19 根 K 線，而這支策略至少要 20 根才算得出一個值。')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('19')
+    expect(wrapper.text()).toContain('20')
   })
 })
