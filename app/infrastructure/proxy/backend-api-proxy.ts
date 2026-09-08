@@ -18,25 +18,6 @@ type BackendFailure = {
   }
 }
 
-/**
- * 拒絕內容裡的那兩個根數，收成一個值。
- *
- * **要兩個都在才成立。** 半組數字說不出那句話——只知道「湊得出 19」講不出差多少，
- * 只知道「至少要 20」講不出現在有幾根。所以缺一個就當它沒說，讓這次拒絕
- * 走一般的那條路，而不是帶著一個講不完的句子往內傳。
- */
-function candleCoverageShortfallOf(
-  backendFailure: BackendFailure,
-): CandleCoverageShortfallVo | undefined {
-  const availableCandleCount = backendFailure.data?.availableCandleCount
-  const minimumCandleCount = backendFailure.data?.minimumCandleCount
-  if (availableCandleCount === undefined || minimumCandleCount === undefined) {
-    return undefined
-  }
-
-  return new CandleCoverageShortfallVo(availableCandleCount, minimumCandleCount)
-}
-
 /** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
 const SERVER_ERROR_STATUS_FLOOR = 500
 
@@ -100,6 +81,16 @@ export abstract class BackendApiProxy {
             })
           }
 
+          // 那兩個根數**要兩個都在才成立**：半組數字說不出那句話——只知道
+          // 「湊得出 19」講不出差多少，只知道「至少要 20」講不出現在有幾根。
+          // 所以缺一個就當它沒說，讓這次拒絕走一般的那條路。
+          const availableCandleCount = backendFailure.data?.availableCandleCount
+          const minimumCandleCount = backendFailure.data?.minimumCandleCount
+          const candleCoverageShortfall
+            = availableCandleCount === undefined || minimumCandleCount === undefined
+              ? undefined
+              : new CandleCoverageShortfallVo(availableCandleCount, minimumCandleCount)
+
           throw new BackendRequestRejectedError(
             message,
             {
@@ -107,7 +98,7 @@ export abstract class BackendApiProxy {
               status: backendFailure.response.status,
               parameterName: backendFailure.data?.parameterName,
               field: backendFailure.data?.field,
-              candleCoverageShortfall: candleCoverageShortfallOf(backendFailure),
+              candleCoverageShortfall,
             },
           )
         }

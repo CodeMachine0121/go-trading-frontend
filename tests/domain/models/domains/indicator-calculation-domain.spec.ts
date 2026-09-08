@@ -142,10 +142,20 @@ describe('這一次有沒有畫滿', () => {
   it('沒畫滿時說出需要幾根與只湊得出幾根', () => {
     // 那裡的根數是使用者自己打的，所以他有權知道沒拿到他要的量——
     // 而「實際採用 50 根」單獨擺著，看不出 50 是不是他要的。
+    //
+    // **兩個數字各自綁在自己的那半句上。** 只檢查兩個數字有出現，
+    // 對「裝反」是瞎的——而裝反之後那句話讀起來完全通順。
     const message = resultOf(50, 119).shortCoverageMessage
 
-    expect(message).toContain('119')
-    expect(message).toContain('50')
+    expect(message).toMatch(/需要 119 根/)
+    expect(message).toMatch(/只湊得出 50 根/)
+  })
+
+  it('兩個數字裝反了要看得出來', () => {
+    const message = resultOf(19, 20).shortCoverageMessage
+
+    expect(message).toMatch(/需要 20 根/)
+    expect(message).toMatch(/只湊得出 19 根/)
   })
 
   it('兩個數字照抄，不自己算', () => {

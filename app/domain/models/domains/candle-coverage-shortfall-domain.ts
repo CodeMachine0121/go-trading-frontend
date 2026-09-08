@@ -12,6 +12,16 @@ import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-covera
  * （同一段時間就切出更多格）或把缺的歷史補回來；那裡是一次要得太多，出路是縮短區間
  * 或讓每一格涵蓋長一點。講成同一句，使用者會照著往錯的方向調——而兩個方向都調得動，
  * 所以他不會發現自己在往反方向走。
+ *
+ * **出路說的是要往哪個方向走，不是要按哪一顆按鈕。** 同一句話會出現在兩個畫面上：
+ * 圖表上靠拉近讓每一格變細，指標計算畫面上靠改那個選單，而「補歷史」在圖表上
+ * 是一顆按鈕、在那裡不是。指名任何一個控制項，就會在另一個畫面上叫使用者去按一個
+ * 不存在的東西——那比不指名更糟，因為他會先懷疑自己找不到。
+ *
+ * **方向一律用「細／粗」講，不用「縮短／拉長」。** 「縮短」有兩個受詞——
+ * 縮短每一格、還是縮短整段區間——而這兩件事指的正好是相反的方向，
+ * 而「要得太多」那一句已經用它講「縮短要看的區間」了。共用一個動詞，
+ * 兩句話就又分不開了。
  */
 export class CandleCoverageShortfallDomain {
   constructor(private readonly shortfall: CandleCoverageShortfallVo) {}
@@ -19,6 +29,7 @@ export class CandleCoverageShortfallDomain {
   message(): string {
     return `這段區間只湊得出 ${this.shortfall.availableCandleCount} 根 K 線，`
       + `而這支策略至少要 ${this.shortfall.minimumCandleCount} 根才算得出一個值。`
-      + '請拉近一點看（每根涵蓋的時間會變短），或先按「立刻更新」把缺的歷史補回來。'
+      + '請改用更細的彙總刻度（每根涵蓋的時間更短，同一段時間就切得出更多根），'
+      + '或先補上這段缺的歷史。'
   }
 }

@@ -37,8 +37,11 @@ type IndicatorCalculationWire = {
   /**
    * 填滿這一段要幾根。舊版的系統不回這一項，那時它是 `undefined`——
    * 收成 `null` 往內傳，讓「系統沒說」與「填滿要 0 根」分得開。
+   *
+   * 它**不叫** `candleCount`：送出去的那個 `candleCount` 是「要為幾個位置拿到值」，
+   * 這個已經含了回看根數，兩者本來就不會相等。同名會招來一個不存在的落差。
    */
-  candleCount?: number
+  requiredCandleCount?: number
   /** 這次讀了哪幾根，由早到晚；後端一律以世界標準時間的字串給。 */
   openTimes: string[] | null
   resultType: string
@@ -103,7 +106,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
         (wire.openTimes ?? []).map(openTime => new Date(openTime)),
         wire.signal ?? null,
         // 舊版的系統不回這一項；收成 null 讓「系統沒說」與「填滿要 0 根」分得開。
-        wire.candleCount ?? null,
+        wire.requiredCandleCount ?? null,
       )
     }
     catch (error: unknown) {

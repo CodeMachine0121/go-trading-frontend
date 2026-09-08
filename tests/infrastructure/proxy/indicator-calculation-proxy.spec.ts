@@ -357,7 +357,7 @@ describe('填滿要幾根', () => {
     // 這個數字不能自己推算：那條式子（格數 ＋ 最大回看根數 − 1）是系統的規則，
     // 抄一份到這裡，兩邊哪天算得不一樣時說出來的話會安靜地錯。
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
-      symbol: 'BTCUSDT', candleCount: 119, usedCandleCount: 50,
+      symbol: 'BTCUSDT', requiredCandleCount: 119, usedCandleCount: 50,
       resultType: 'float', values: {},
     }))
 
@@ -398,7 +398,7 @@ describe('走完的刻度區間連一個值都湊不出來', () => {
 
     const failure = await calculationFailure()
 
-    expect((failure as Error).message).toContain('拉近')
+    expect((failure as Error).message).toContain('更細的彙總刻度')
     expect((failure as Error).message).not.toContain('縮短')
   })
 
