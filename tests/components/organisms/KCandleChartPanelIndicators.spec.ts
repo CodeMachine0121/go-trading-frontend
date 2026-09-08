@@ -508,7 +508,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     // 失敗多半是暫時的：這一段區間根數不夠，換一段就夠了。
     // 把它踢掉會逼使用者重挑一次，而他什麼都沒做錯。
     const calculateIndicator = vi.fn()
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
       .mockResolvedValue(aCalculation())
     const { wrapper } = await mountPanel({ calculateIndicator })
     await applyStrategy(wrapper, 7)
@@ -527,7 +527,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     // 而那正是這整個切片在防的事。
     const calculateIndicator = vi.fn()
       .mockResolvedValueOnce(aCalculation())
-      .mockRejectedValue(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValue(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
     const { wrapper } = await mountPanel({ calculateIndicator })
     await applyStrategy(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -820,8 +820,8 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     // 「已經用掉的顏色」只看得到算完的那幾支。上一輪全滅時那份清單是空的，
     // 一起送出去就會全部拿到第一個顏色。
     const calculateIndicator = vi.fn()
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
-      .mockRejectedValueOnce(new IndicatorScriptFailedError('K 線不足'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
+      .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
       .mockResolvedValueOnce(aCalculation('甲'))
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({

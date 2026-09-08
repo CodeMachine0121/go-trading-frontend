@@ -225,9 +225,10 @@ describe('IndicatorCalculationPanel', () => {
 
   // 「超過單次上限」曾經也在這一排。它離開了，因為系統那一側現在會指名是哪一格，
   // 於是它落在「要看多長」旁邊而不是這裡——見 IndicatorCalculationPanelParameters 那一條。
+  // 「湊不出最少可算根數」同樣離開了：它現在帶著兩個數字，也落在「要看多長」旁邊。
   // 這一排剩下的是**指不出哪一格**的那些拒絕：它們只能如實轉達。
   it.each([
-    { description: 'K 線不足', message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' },
+    { description: '交易標的認不得', message: '找不到這個交易標的' },
     { description: '這一段沒有資料', message: '這一段時間內沒有任何 K 線' },
   ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
     const wrapper = mountPanel(buildProxy({

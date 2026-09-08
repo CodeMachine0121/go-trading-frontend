@@ -208,14 +208,15 @@ describe('IndicatorCalculationProxy', () => {
   })
 
   it('請求本身有問題時，維持一般的拒絕', async () => {
+    // 一則指不出哪一格的拒絕：既沒帶那兩個根數，也沒指名欄位，所以它照原樣轉達。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
-      buildFetchError({ status: 400, message: 'K 線不足，排除最新一根後目前可用 9 根，但要求 30 根' })))
+      buildFetchError({ status: 400, message: '找不到這個交易標的' })))
 
     const calculate = new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
 
     await expect(calculate).rejects.toBeInstanceOf(BackendRequestRejectedError)
     await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
-      .rejects.toThrow('K 線不足，排除最新一根後目前可用 9 根，但要求 30 根')
+      .rejects.toThrow('找不到這個交易標的')
   })
 
   it('連不上後端時維持連線錯誤', async () => {
