@@ -23,6 +23,15 @@ export class IndicatorCalculationResultDto {
     public readonly signalLabel: string | null = null,
     /** 供畫面決定結論的顏色：買入好、賣出壞、持有中性。 */
     public readonly signalTone: 'positive' | 'negative' | 'neutral' | null = null,
+    /**
+     * 這一次沒有畫滿，該說的那一句話；畫滿了、或系統沒說填滿要幾根時為 `null`。
+     *
+     * 交出去的是**那句話**而不是兩個數字，因為「有沒有畫滿」與「怎麼講」都是業務判斷。
+     * 畫面因此只剩一個是不是 `null` 的判斷，不必自己比大小、也不必自己組句子。
+     *
+     * **它不是一種失敗**：結果照樣顯示，這一句只是說那些數字是以較少的行情算出來的。
+     */
+    public readonly shortCoverageMessage: string | null = null,
   ) {}
 
   /** 這次算的是「一個信號」種類。畫面據此渲染一個結論而不是名稱-數值表。 */

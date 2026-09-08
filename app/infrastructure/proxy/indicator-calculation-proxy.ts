@@ -7,6 +7,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { CandleCoverageShortfallDomain } from '~/domain/models/domains/candle-coverage-shortfall-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const INDICATOR_CALCULATIONS_ENDPOINT = '/indicator-calculations'
@@ -33,6 +34,11 @@ type IndicatorCalculationWire = {
   symbol: string
   interval: string
   usedCandleCount: number
+  /**
+   * 填滿這一段要幾根。舊版的系統不回這一項，那時它是 `undefined`——
+   * 收成 `null` 往內傳，讓「系統沒說」與「填滿要 0 根」分得開。
+   */
+  candleCount?: number
   /** 這次讀了哪幾根，由早到晚；後端一律以世界標準時間的字串給。 */
   openTimes: string[] | null
   resultType: string
@@ -96,6 +102,8 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           Array.isArray(value) ? (value as IndicatorScalarValue[]) : [value])),
         (wire.openTimes ?? []).map(openTime => new Date(openTime)),
         wire.signal ?? null,
+        // 舊版的系統不回這一項；收成 null 讓「系統沒說」與「填滿要 0 根」分得開。
+        wire.candleCount ?? null,
       )
     }
     catch (error: unknown) {
@@ -105,6 +113,18 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
       if (error instanceof BackendRequestRejectedError && error.parameterName !== undefined) {
         throw new StrategyParameterNotDeclaredError(
           error.parameterName, error.message, { cause: error })
+      }
+
+      // 走完的刻度區間連一個值都湊不出來：與「要的太多」一樣有兩條具體的出路，
+      // 但**方向正好相反**，所以它是自己的一句話，不併進下面那一條。
+      // 判準是拒絕帶回來的那兩個數字，不是訊息的文字——文字是寫給人看的。
+      // 那句話由領域決定：這裡只負責認出是哪一種拒絕，不負責措辭。
+      if (error instanceof BackendRequestRejectedError
+        && error.candleCoverageShortfall !== undefined) {
+        throw new IndicatorCalculationFieldError(
+          'span',
+          new CandleCoverageShortfallDomain(error.candleCoverageShortfall).message(),
+          { cause: error })
       }
 
       // 要的太多了：這一種拒絕有兩條具體的出路，所以它要落在使用者改得動的那一格旁邊，

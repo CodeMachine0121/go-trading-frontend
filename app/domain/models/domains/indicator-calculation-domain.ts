@@ -49,6 +49,7 @@ export class IndicatorCalculationDomain {
         [],
         signal.label(),
         signal.tone(),
+        this.shortCoverageMessage(),
       )
     }
 
@@ -63,6 +64,32 @@ export class IndicatorCalculationDomain {
           item => (typeof item === 'boolean' ? (item ? TRUE_LABEL : FALSE_LABEL) : String(item))),
         resultType.isList(),
       )),
+      null,
+      null,
+      this.shortCoverageMessage(),
     )
+  }
+
+  /**
+   * 這一次沒有畫滿時該說的那一句話，畫滿了就是 `null`。
+   *
+   * 它與「湊不出最少可算根數」那一句刻意不像：那一句是拒絕（什麼都畫不出來、得動手），
+   * 這一句是通知（結果有效、只是以較少的行情算出來的）。讀起來像同一件事的話，
+   * 這兩句就等於只有一句。
+   *
+   * **系統沒說填滿要幾根時一律不說。** 不猜、也不從送出去的那個數字反推——
+   * 那條式子是系統的規則，抄一份到這裡，兩邊哪天算得不一樣時這句話會安靜地錯。
+   *
+   * 兩個分支都要它，所以它留成一個共用的 helper 而不是內聯兩份。
+   */
+  private shortCoverageMessage(): string | null {
+    const candleCount = this.indicatorCalculation.candleCount
+    if (candleCount === null || this.indicatorCalculation.usedCandleCount >= candleCount) {
+      return null
+    }
+
+    return `這一次需要 ${candleCount} 根才畫得滿，`
+      + `但走完的刻度區間只湊得出 ${this.indicatorCalculation.usedCandleCount} 根——`
+      + '下面的數字是以這段較短的行情算出來的。'
   }
 }

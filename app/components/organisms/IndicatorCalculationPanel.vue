@@ -577,6 +577,21 @@ async function calculateIndicator() {
               </span>
             </template>
 
+            <!--
+              沒畫滿時的那一句，緊貼在那兩個數字旁邊——使用者會問這件事的時刻，
+              正是他看到「實際採用 50 根」的那一刻。
+
+              它**不是錯誤**：結果是有效的，只是以較短的行情算出來的，所以用提醒的強度，
+              不用危險的紅色。要不要說、怎麼說都由領域決定，這裡只問它有沒有話講。
+            -->
+            <AppAlert
+              v-if="calculationRun.result.value.shortCoverageMessage"
+              tone="warning"
+              data-testid="short-coverage-alert"
+            >
+              {{ calculationRun.result.value.shortCoverageMessage }}
+            </AppAlert>
+
             <p
               v-if="calculationRun.result.value.isEmpty"
               class="indicator-calculation-panel__empty"

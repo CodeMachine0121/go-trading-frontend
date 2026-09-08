@@ -28,6 +28,19 @@ export class IndicatorCalculation {
      * 其餘四種種類下為 `null`。它沒有指標名稱，所以不在 indicatorValues 裡。
      */
     public readonly signal: string | null = null,
+    /**
+     * 填滿這一段要幾根。它的搭檔是 `usedCandleCount`——兩者同為彙總 K 線的根數，
+     * 所以並列說得出一句不混單位的話。
+     *
+     * **`null` 是一個答案，不是缺值**：系統這一次沒有說出這個數字（舊版的系統不回它）。
+     * 那時候一律不猜、也不自行推算——那條式子（格數 ＋ 最大回看根數 − 1）是系統的規則，
+     * 抄一份到這裡，兩邊哪天算得不一樣時，說出來的那句話會安靜地錯。
+     * 它與 `openTimes`、`signal` 一樣擺在最後並預設「沒說」，理由完全相同。
+     *
+     * 它與**送出去**的那個根數共用同一個技術名稱卻不是同一個數：
+     * 要看 100 格配上回看 20 根，送出去的是 100、回來的是 119。
+     */
+    public readonly candleCount: number | null = null,
   ) {}
 
   toDomain(): IndicatorCalculationDomain {

@@ -125,3 +125,54 @@ describe('IndicatorCalculationDomain', () => {
     expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['110'])
   })
 })
+
+describe('這一次有沒有畫滿', () => {
+  /** 一次結果，只給會影響「有沒有畫滿」的那兩個根數。 */
+  function resultOf(usedCandleCount: number, candleCount: number | null) {
+    return new IndicatorCalculation(
+      'BTCUSDT', '5m', usedCandleCount, 'float',
+      [new IndicatorValueVo('均價', [110])], [], null, candleCount,
+    ).toDomain().toDto()
+  }
+
+  it('畫滿了就不多說什麼', () => {
+    expect(resultOf(119, 119).shortCoverageMessage).toBeNull()
+  })
+
+  it('沒畫滿時說出需要幾根與只湊得出幾根', () => {
+    // 那裡的根數是使用者自己打的，所以他有權知道沒拿到他要的量——
+    // 而「實際採用 50 根」單獨擺著，看不出 50 是不是他要的。
+    const message = resultOf(50, 119).shortCoverageMessage
+
+    expect(message).toContain('119')
+    expect(message).toContain('50')
+  })
+
+  it('兩個數字照抄，不自己算', () => {
+    // 送出去的是格數、回來的已經含了回看根數，兩者不是同一個數。
+    // 這裡若自己推算，說出來的數字會少掉回看的那一段。
+    const message = resultOf(50, 119).shortCoverageMessage
+
+    expect(message).not.toContain('100')
+    expect(message).not.toContain('69')
+  })
+
+  it('系統沒說填滿要幾根時不猜，那句話就不出現', () => {
+    expect(resultOf(50, null).shortCoverageMessage).toBeNull()
+  })
+
+  it('實際採用比填滿要的還多時也不算沒畫滿', () => {
+    // 回看根數會讓實際餵進去的比要畫的格數多，那不是短，是正常。
+    expect(resultOf(119, 100).shortCoverageMessage).toBeNull()
+  })
+
+  it('「一個信號」種類下沒畫滿也照樣說', () => {
+    // 一個買賣結論由較短的行情推出來，比一串數字更需要說清楚。
+    const resultDto = new IndicatorCalculation(
+      'BTCUSDT', '5m', 50, 'signal', [], [], 'buy', 119,
+    ).toDomain().toDto()
+
+    expect(resultDto.signalLabel).not.toBeNull()
+    expect(resultDto.shortCoverageMessage).toContain('50')
+  })
+})
