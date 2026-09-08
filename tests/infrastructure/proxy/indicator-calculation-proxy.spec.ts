@@ -335,6 +335,10 @@ describe('要的太多了：這一則要落在使用者改得動的那一格旁�
     expect((failure as Error).message).toContain('超過單次可用的最大根數')
     expect((failure as Error).message).toContain('縮短')
     expect((failure as Error).message).toContain('粗一點')
+    // 也不能提到相反的那個方向。兩種根數不足都調得動同一個旋鈕，所以一句話裡
+    // 同時出現兩個方向，等於沒有指出方向——使用者會挑錯的那一邊試。
+    expect((failure as Error).message).not.toContain('拉近')
+    expect((failure as Error).message).not.toContain('細')
   })
 
   it('沒有指名任何一格的拒絕照舊，不會被說成是哪一格的問題', async () => {
