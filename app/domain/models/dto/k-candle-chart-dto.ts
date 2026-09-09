@@ -20,6 +20,17 @@ export class KCandleChartDto {
     return this.kCandles.length
   }
 
+  /**
+   * 這一批涵蓋了多長（毫秒）。
+   *
+   * 只說自己的事實。**當初使用者看的是多長不在這裡回答**——那要除以預取倍數，
+   * 而預取是加上去的那一側的規則；寫在這裡就變成兩個檔案共用一個沒有名字的除數，
+   * 哪天預取比例改了，這裡會安靜地開始說錯話。
+   */
+  get coveredSpanMilliseconds(): number {
+    return this.coveredEndTime.getTime() - this.coveredStartTime.getTime()
+  }
+
   get isEmpty(): boolean {
     return this.kCandles.length === 0
   }

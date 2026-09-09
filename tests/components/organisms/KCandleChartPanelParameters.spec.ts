@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { seriesOf } from '../../fixtures/k-candle-series'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,10 +30,10 @@ const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
 function buildKCandleProxy(): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
-    findKCandleSeries: vi.fn().mockResolvedValue([new KCandle(
+    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([new KCandle(
       'BTCUSDT', new Date('2026-09-02T10:00:00.000Z'),
       new Decimal('100'), new Decimal('130'), new Decimal('90'), new Decimal('110'),
-      new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'))]),
+      new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'))])),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),

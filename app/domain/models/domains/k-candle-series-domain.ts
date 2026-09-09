@@ -1,5 +1,5 @@
-import type { KCandle } from '~/domain/models/entities/k-candle'
 import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
+import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 
 /**
@@ -8,24 +8,27 @@ import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
  * 逐根的漲跌沿用既有的那一套（KCandleDomain），這裡不另訂——
  * 圖上一根是紅是綠，跟表格上那一根寫「上漲」還是「下跌」必須是同一個判斷。
  *
- * **交易標的與彙總刻度取自這次的取回計畫，不取自後端的回覆。**
- * 下一次要不要重新取，靠的就是拿手上這批的身分跟顯示區間想要的身分比對；
- * 若這裡改成採用後端回報的值，只要它與我們要求的不一致（升級刻度、正規化大小寫），
- * 那個比對就會永遠不相等，於是每一次拖曳都重新取——而且停不下來。
+ * **交易標的與涵蓋範圍取自這次的取回計畫；彙總刻度取自後端的回覆。**
+ * 兩個來源分工得很清楚：要哪一段是畫面說的，一根多粗是系統說的。
+ *
+ * 這裡曾經連刻度也取自取回計畫，理由是「下一次要不要重新取靠身分比對，
+ * 採用後端回報的值會讓比對永遠不相等、於是每次拖曳都重新取」。
+ * 那個顧慮隨著刻度離開取回計畫一起消失了：**現在的重新取條件裡沒有刻度**，
+ * 它比對的是交易標的、涵蓋範圍與顯示區間的長度變化。
  */
 export class KCandleSeriesDomain {
   constructor(
-    private readonly kCandles: KCandle[],
+    private readonly kCandleSeriesVo: KCandleSeriesVo,
     private readonly kCandleChartLoadPlanVo: KCandleChartLoadPlanVo,
   ) {}
 
   toDto(): KCandleChartDto {
     return new KCandleChartDto(
       this.kCandleChartLoadPlanVo.symbol,
-      this.kCandleChartLoadPlanVo.interval,
+      this.kCandleSeriesVo.interval,
       this.kCandleChartLoadPlanVo.fetchStartTime,
       this.kCandleChartLoadPlanVo.fetchEndTime,
-      this.kCandles.map(kCandle => kCandle.toDomain().toDto()),
+      this.kCandleSeriesVo.kCandles.map(kCandle => kCandle.toDomain().toDto()),
     )
   }
 }

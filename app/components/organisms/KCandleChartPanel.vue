@@ -301,8 +301,13 @@ function followTheMarket(followedChart: KCandleChartDto) {
 
       chart.value = report.chart
 
-      // 還在走的那一根怎麼動都不改變指標的答案（它本來就不算數），重算只是白算。
-      // 一根**走完**時才重算——那一刻指標可用的資料真的多了一根。
+      // 一根**走完**時才重算——還在走的那一根怎麼動都不改變指標的答案（它本來就不算數）。
+      //
+      // 走完的是**來源那一根（一分鐘）**，不是圖上那一根。刻度恆為一分鐘時兩者相同；
+      // 現在刻度由系統挑，圖上一根可能是一天，於是每一分鐘都會走到這裡，
+      // 而指標只採用走完的刻度區間，所以那幾次算出來的是同一個答案。
+      // 多算幾次不會畫錯，只是白算——真正要的是「圖上那一根換了」，
+      // 而那要拿新來的那一根所屬的刻度區間跟畫面上最新那一根比，屬於另一次改動。
       if (report.hasClosedAKCandle) {
         void chartIndicators.recalculateAfterKCandleClosed(report.chart)
       }

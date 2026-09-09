@@ -1,4 +1,6 @@
 import Decimal from 'decimal.js'
+import { seriesOf } from '../../fixtures/k-candle-series'
+import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +33,7 @@ function aKCandle() {
 }
 
 function buildKCandleProxy(
-  findKCandleSeries: Mock = vi.fn().mockResolvedValue([aKCandle()]),
+  findKCandleSeries: Mock = vi.fn().mockResolvedValue(seriesOf([aKCandle()])),
 ): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
@@ -403,8 +405,8 @@ describe('行情與策略清單誰先回來都算得出來', () => {
     // 還原時「算哪一段」還不存在，那幾筆當時算不動——這一刻才第一次有。
     // 不補算的後果是清單上有列、圖上永遠沒有線，而且不會有任何地方報錯。
     let releaseKCandles = (): void => {}
-    const kCandlesArrived = new Promise<KCandle[]>((resolve) => {
-      releaseKCandles = () => resolve([aKCandle()])
+    const kCandlesArrived = new Promise<KCandleSeriesVo>((resolve) => {
+      releaseKCandles = () => resolve(seriesOf([aKCandle()]))
     })
 
     const { wrapper, calculateIndicator } = await mountPanel({
@@ -424,8 +426,8 @@ describe('行情與策略清單誰先回來都算得出來', () => {
 
   it('行情到手時不等停手就補算——第一次擺好位置不是拖動', async () => {
     let releaseKCandles = (): void => {}
-    const kCandlesArrived = new Promise<KCandle[]>((resolve) => {
-      releaseKCandles = () => resolve([aKCandle()])
+    const kCandlesArrived = new Promise<KCandleSeriesVo>((resolve) => {
+      releaseKCandles = () => resolve(seriesOf([aKCandle()]))
     })
 
     const { calculateIndicator } = await mountPanel({
@@ -495,8 +497,8 @@ describe('還原後每一筆只算一次', () => {
     // 還原是「附加整份、然後逐筆 await」，而每一個 await 都是一個空檔。
     // 行情的續段若正好落在那個空檔裡，補算會與還原的迴圈同時跑，
     // 於是同一批被算兩遍——而兩次都畫得出線，圖上不會有任何異狀。
-    const kCandlesArrived = Array.from({ length: ticks }).reduce<Promise<KCandle[]>>(
-      previous => previous.then(candles => candles), Promise.resolve([aKCandle()]))
+    const kCandlesArrived = Array.from({ length: ticks }).reduce<Promise<KCandleSeriesVo>>(
+      previous => previous.then(series => series), Promise.resolve(seriesOf([aKCandle()])))
 
     const { calculateIndicator } = await mountPanel({
       strategies: [strategyWithLookback(7, '均線'), strategyWithLookback(9, '布林'),
