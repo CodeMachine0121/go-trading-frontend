@@ -44,17 +44,19 @@ function visibleMinutesOf(loadPlan: { visibleStartTime: Date, visibleEndTime: Da
     / MILLISECONDS_PER_MINUTE
 }
 
+/** 兩側各多取半段，所以已取回區間是當初顯示區間的兩倍。 */
+const FETCH_SPAN_MULTIPLIER = 2
+
 /**
  * 手上這批是「當初看這麼多分鐘」那一次取回來的。
  *
- * 兩側各多取半段，所以已取回區間恰好是當初顯示區間的兩倍——
- * 那也是畫面比對「長度變了沒有」時讀的東西，這裡照同一條關係造出來。
+ * 照預取那條關係造出來——畫面比對「長度變了沒有」時，讀的就是同一條關係。
  */
 function loadedChartFrom(
   visibleMinutes: number, { symbol = 'BTCUSDT', endTime = VISIBLE_END_TIME } = {},
 ): KCandleChartDto {
   const visibleMilliseconds = visibleMinutes * MILLISECONDS_PER_MINUTE
-  const prefetchMilliseconds = visibleMilliseconds / 2
+  const prefetchMilliseconds = visibleMilliseconds * (FETCH_SPAN_MULTIPLIER - 1) / 2
 
   return loadedChart({
     symbol,
@@ -86,7 +88,7 @@ describe('KCandleChartViewportDomain', () => {
     })
   })
 
-  describe('唯一的上限是一千天', () => {
+  describe('唯一的上限是五百天', () => {
     const MINUTES_PER_DAY = 24 * 60
 
     it.each([
@@ -98,19 +100,19 @@ describe('KCandleChartViewportDomain', () => {
         expectedVisibleMinutes: 365 * MINUTES_PER_DAY,
       },
       {
-        name: '看恰好一千天',
-        visibleMinutes: 1000 * MINUTES_PER_DAY,
-        expectedVisibleMinutes: 1000 * MINUTES_PER_DAY,
+        name: '看恰好五百天',
+        visibleMinutes: 500 * MINUTES_PER_DAY,
+        expectedVisibleMinutes: 500 * MINUTES_PER_DAY,
       },
       {
-        name: '看一千零一天:收回一千天',
-        visibleMinutes: 1001 * MINUTES_PER_DAY,
-        expectedVisibleMinutes: 1000 * MINUTES_PER_DAY,
+        name: '看五百零一天:收回五百天',
+        visibleMinutes: 501 * MINUTES_PER_DAY,
+        expectedVisibleMinutes: 500 * MINUTES_PER_DAY,
       },
       {
-        name: '看十年:一樣收回一千天',
+        name: '看十年:一樣收回五百天',
         visibleMinutes: 10 * 365 * MINUTES_PER_DAY,
-        expectedVisibleMinutes: 1000 * MINUTES_PER_DAY,
+        expectedVisibleMinutes: 500 * MINUTES_PER_DAY,
       },
     ])('$name', ({ visibleMinutes, expectedVisibleMinutes }) => {
       const loadPlan = viewportSpanning(visibleMinutes).toLoadPlan()
@@ -118,6 +120,24 @@ describe('KCandleChartViewportDomain', () => {
       expect(visibleMinutesOf(loadPlan)).toBe(expectedVisibleMinutes)
       // 收回時保留較晚的那一端
       expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+    })
+
+    it.each([
+      { name: '看一天', visibleMinutes: MINUTES_PER_DAY },
+      { name: '看一年', visibleMinutes: 365 * MINUTES_PER_DAY },
+      { name: '看恰好五百天', visibleMinutes: 500 * MINUTES_PER_DAY },
+      { name: '看十年（被收回之後）', visibleMinutes: 10 * 365 * MINUTES_PER_DAY },
+    ])('$name 時，問出去的那一段仍在系統答得出來的一千天之內', ({ visibleMinutes }) => {
+      // **上限收的是使用者看的那一段，問出去的卻是它的兩倍**（兩側各多取半段）。
+      // 少了這一條，上限寫成一千天也會通過——然後使用者拉到五百天以上就整張圖消失，
+      // 換成一句「區間過大」，而那正是那個上限存在的目的要避免的事。
+      const loadPlan = viewportSpanning(visibleMinutes).toLoadPlan()
+
+      const fetchedDays
+        = (loadPlan.fetchEndTime.getTime() - loadPlan.fetchStartTime.getTime())
+          / (MINUTES_PER_DAY * MILLISECONDS_PER_MINUTE)
+
+      expect(fetchedDays).toBeLessThanOrEqual(1000)
     })
   })
 

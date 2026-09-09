@@ -21,14 +21,14 @@ export class KCandleChartDto {
   }
 
   /**
-   * 當初取這一批時，使用者正在看的那一段有多長（毫秒）。
+   * 這一批涵蓋了多長（毫秒）。
    *
-   * 不必另外記下來：取的時候兩側各多取半段，所以涵蓋範圍恰好是當初顯示區間的兩倍。
-   * 那個關係寫在這裡而不是問的人身上——涵蓋範圍是這一批自己的事，
-   * 讓外面去減它的兩個端點再除以二，就是把一批資料的內部關係搬到別人家裡。
+   * 只說自己的事實。**當初使用者看的是多長不在這裡回答**——那要除以預取倍數，
+   * 而預取是加上去的那一側的規則；寫在這裡就變成兩個檔案共用一個沒有名字的除數，
+   * 哪天預取比例改了，這裡會安靜地開始說錯話。
    */
-  get visibleSpanMilliseconds(): number {
-    return (this.coveredEndTime.getTime() - this.coveredStartTime.getTime()) / 2
+  get coveredSpanMilliseconds(): number {
+    return this.coveredEndTime.getTime() - this.coveredStartTime.getTime()
   }
 
   get isEmpty(): boolean {

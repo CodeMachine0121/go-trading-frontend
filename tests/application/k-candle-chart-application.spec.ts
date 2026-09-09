@@ -150,15 +150,16 @@ describe('KCandleChartApplication', () => {
       expect(findKCandleSeries).not.toHaveBeenCalled()
     })
 
-    it('拉得比一千天還遠時，回覆的是被收回之後該看的那一段', async () => {
+    it('拉得比五百天還遠時，回覆的是被收回之後該看的那一段', async () => {
       const kCandleChartApplication = buildApplication(buildProxy())
 
       const chartView = await kCandleChartApplication.loadKCandleChart(
-        viewportSpanning(1001 * 24 * 60))
+        viewportSpanning(501 * 24 * 60))
 
-      // 問的是一千零一天，該看的被收回一千天，結束的那一端不變
+      // 問的是五百零一天，該看的被收回五百天，結束的那一端不變。
+      // 上限是五百而不是一千，因為問出去的那一段是它的兩倍
       expect(chartView.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
-      expect(chartView.visibleStartTime.toISOString()).toBe('2023-12-07T12:00:00.000Z')
+      expect(chartView.visibleStartTime.toISOString()).toBe('2025-04-20T12:00:00.000Z')
     })
 
     it('後端拒絕時如實往上拋，讓畫面轉達原因', async () => {

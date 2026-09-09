@@ -4,15 +4,32 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 
 /**
- * 正在看的那一段最長多少天。
- *
- * **這不是畫面的性質，是系統一次答得出多少的換算**：最粗的彙總刻度是一天一根，
- * 系統一次最多答一千根，所以一千天就是它答得出來的極限。守住它，
- * 使用者就永遠不會因為把圖拉遠而看到一句「區間過大」。
+ * 系統一次答得出幾根。最粗的彙總刻度是一天一根，所以拉到最遠時它同時也是「幾天」。
  *
  * 系統那一側的上限若調整，這裡要跟著改——它是兩份設定，不是一份。
  */
-const MAXIMUM_VISIBLE_DAYS = 1000
+const ANSWERABLE_CANDLE_COUNT = 1000
+
+/** 取資料時往前後各多取的比例——各多取正在看的那段長度的一半。 */
+const PREFETCH_RATIO = 0.5
+
+/**
+ * 要跟後端要的那一段是正在看的那一段的幾倍。兩側各多取半段，所以是兩倍。
+ *
+ * 它有名字是因為有兩處要用它：收上限的時候（**問出去的是這一段，不是使用者看的那一段**），
+ * 以及回頭從已取回區間推算「當初看的是多長」的時候。
+ */
+const FETCH_SPAN_MULTIPLIER = 1 + 2 * PREFETCH_RATIO
+
+/**
+ * 正在看的那一段最長多少天。
+ *
+ * **這不是畫面的性質，是系統一次答得出多少的換算**——而換算要除以預取倍數，
+ * 因為**問出去的不是使用者看的那一段**：兩側各多取半段之後，它是兩倍長。
+ * 把上限直接寫成一千天，使用者拉到五百天以上就會拿到一句「區間過大」，
+ * 而那正是這個常數存在的目的要避免的事。
+ */
+const MAXIMUM_VISIBLE_DAYS = ANSWERABLE_CANDLE_COUNT / FETCH_SPAN_MULTIPLIER
 
 /**
  * 正在看的那一段長度變了多少就要重新取。
@@ -27,9 +44,6 @@ const MAXIMUM_VISIBLE_DAYS = 1000
  * 取捨的方向是明確的：**寧可多取一次，也不要讓放大看起來沒有作用。**
  */
 const VISIBLE_SPAN_CHANGE_THRESHOLD = 0.25
-
-/** 取資料時往前後各多取的比例——各多取正在看的那段長度的一半。 */
-const PREFETCH_RATIO = 0.5
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -90,12 +104,15 @@ export class KCandleChartViewportDomain {
     // 才知道，畫面唯一比對得出來的就是**它看的那一段長度變了**。
     // 涵蓋不到任何時間的那一批單獨列成一個理由，因為拿它當分母會算出一個
     // 比不出大小的答案，於是永遠判定成「沒變」——圖就從此不再更新。
+    // 「當初看的是多長」由涵蓋範圍除以預取倍數推回來，而那個關係屬於這裡——
+    // 加上預取的是這個檔案，所以除掉它的也該是這個檔案。
     const needsReload = loadedChart === null
       || loadedChart.symbol !== this.symbol
       || loadedChart.coveredStartTime.getTime() > this.startTime.getTime()
       || loadedChart.coveredEndTime.getTime() < this.endTime.getTime()
-      || loadedChart.visibleSpanMilliseconds <= 0
-      || Math.abs(spanMilliseconds / loadedChart.visibleSpanMilliseconds - 1)
+      || loadedChart.coveredSpanMilliseconds <= 0
+      || Math.abs(
+        spanMilliseconds / (loadedChart.coveredSpanMilliseconds / FETCH_SPAN_MULTIPLIER) - 1)
       > VISIBLE_SPAN_CHANGE_THRESHOLD
 
     const prefetchMilliseconds = spanMilliseconds * PREFETCH_RATIO

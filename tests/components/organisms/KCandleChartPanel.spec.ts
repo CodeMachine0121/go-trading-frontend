@@ -144,7 +144,7 @@ describe('KCandleChartPanel', () => {
       .toContain('app-button--primary')
   })
 
-  it('拉出五百天不再被收回——唯一的上限是一千天', async () => {
+  it('拉出恰好五百天不被收回——以前這一段會被收成四百分鐘', async () => {
     const wrapper = await mountPanel(buildProxy())
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -160,7 +160,7 @@ describe('KCandleChartPanel', () => {
       .toEqual(new Date('2026-09-02T12:00:00.000Z'))
   })
 
-  it('拉得比一千天還遠時，交給圖的是被收回一千天之後的那一段', async () => {
+  it('拉得比五百天還遠時，交給圖的是被收回五百天之後的那一段', async () => {
     const wrapper = await mountPanel(buildProxy())
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -170,7 +170,7 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2023-12-07T12:00:00.000Z'))
+      .toEqual(new Date('2025-04-20T12:00:00.000Z'))
     expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
       .toEqual(new Date('2026-09-02T12:00:00.000Z'))
   })
