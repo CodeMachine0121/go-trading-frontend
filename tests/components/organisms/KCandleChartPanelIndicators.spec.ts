@@ -152,7 +152,7 @@ describe('圖表上的指標：挑一支套上去', () => {
 
     expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'BTCUSDT',
-      aggregationInterval: expect.objectContaining({ value: '5m' }),
+      aggregationInterval: expect.objectContaining({ value: '1m' }),
     }))
   })
 

@@ -272,9 +272,10 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
     })
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      // 交出去的是那三天本身,不是它有幾格——有幾格是系統照市場作息算的。
+      // 交出去的是圖上那一段本身，不是它有幾格——有幾格是系統照市場作息算的。
+      // 那三天被看得清楚的四百根收成四百分鐘，交出去的就是收完的那一段。
       observationWindow: expect.objectContaining({
-        startTime: new Date('2026-08-31T12:00:00.000Z'),
+        startTime: new Date('2026-09-03T05:20:00.000Z'),
         endTime: null,
       }),
     }))

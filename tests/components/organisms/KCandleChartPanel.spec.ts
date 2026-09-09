@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
+import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
@@ -28,6 +29,14 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
     new Decimal('100'), new Decimal('130'), new Decimal('90'), new Decimal(closePrice),
     new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
   )
+}
+
+/**
+ * 圖上畫的那一根收在多少。兩次取回的資料只差收盤價，
+ * 所以它就是「留在圖上的是哪一次的結果」這個問題的答案。
+ */
+function closePriceDrawnBy(wrapper: VueWrapper): string | undefined {
+  return wrapper.findComponent(KCandleChart).props('chart')?.kCandles[0]?.close.toString()
 }
 
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
@@ -72,7 +81,7 @@ afterEach(() => {
 })
 
 describe('KCandleChartPanel', () => {
-  it('進入畫面就以最近一天取一次行情，並標示每根涵蓋多久', async () => {
+  it('進入畫面就取一次行情，並標示每根涵蓋一分鐘', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(
       [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
@@ -80,8 +89,8 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
     const loadPlan = findKCandleSeries.mock.calls[0]?.[0]
     expect(loadPlan.symbol).toBe('BTCUSDT')
-    expect(loadPlan.interval.value).toBe('5m')
-    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('五分鐘')
+    expect(loadPlan.interval.value).toBe('1m')
+    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一分鐘')
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 
@@ -94,16 +103,15 @@ describe('KCandleChartPanel', () => {
     expect(presetButtons[0]?.classes()).toContain('app-button--primary')
   })
 
-  it('選一個月就以較粗的刻度重新取', async () => {
-    const findKCandleSeries = vi.fn().mockResolvedValue([])
-    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+  it('選一個月不再換成較粗的刻度，圖上仍是一分鐘一根', async () => {
+    const wrapper = await mountPanel(buildProxy())
 
     await wrapper.findAll('[data-testid="range-preset-button"]')[2]?.trigger('click')
     await flushPromises()
 
-    expect(findKCandleSeries).toHaveBeenCalledTimes(2)
-    expect(findKCandleSeries.mock.calls[1]?.[0].interval.value).toBe('4h')
-    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('四小時')
+    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一分鐘')
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[2]?.classes())
+      .toContain('app-button--primary')
   })
 
   it('不必重新取時，仍然把該看的那一段交給圖——按快捷區間不會像壞掉', async () => {
@@ -111,9 +119,9 @@ describe('KCandleChartPanel', () => {
       [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    // 先縮到一個仍在已取回範圍內、刻度也還是五分鐘的小段，再按回「一天」
+    // 先縮到一個仍在已取回範圍內的小段，再按回「一天」
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-09-02T00:00:00.000Z'),
+      startTime: new Date('2026-09-02T08:00:00.000Z'),
       endTime: new Date('2026-09-02T10:00:00.000Z'),
     })
     await flushPromises()
@@ -126,16 +134,16 @@ describe('KCandleChartPanel', () => {
 
     // 資料確實不必換
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    // 但圖一定要被告知回到那一整天
+    // 但圖一定要被告知回到那一天收出來的四百分鐘
     expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2026-09-01T12:00:00.000Z'))
+      .toEqual(new Date('2026-09-02T05:20:00.000Z'))
     expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
       .toEqual(new Date('2026-09-02T12:00:00.000Z'))
     expect(wrapper.findAll('[data-testid="range-preset-button"]')[0]?.classes())
       .toContain('app-button--primary')
   })
 
-  it('拉得太遠時，交給圖的是被收回四百天之後的那一段', async () => {
+  it('拉得太遠時，交給圖的是被收回四百分鐘之後的那一段', async () => {
     const wrapper = await mountPanel(buildProxy())
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -144,9 +152,9 @@ describe('KCandleChartPanel', () => {
     })
     await flushPromises()
 
-    // 問的是五百天，該看的被收回四百天，結束的那一端不變
+    // 問的是五百天，該看的被收回四百分鐘，結束的那一端不變
     expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2025-07-29T12:00:00.000Z'))
+      .toEqual(new Date('2026-09-02T05:20:00.000Z'))
     expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
       .toEqual(new Date('2026-09-02T12:00:00.000Z'))
   })
@@ -156,10 +164,10 @@ describe('KCandleChartPanel', () => {
       [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    // 拉出來的這一段夠長，推出來的仍是手上這批的五分鐘刻度——刻度變了就得重取，
+    // 拉出來的這一段整個落在已取回區間裡——拉到它外面就得重取，
     // 那是隔壁那個案例在驗的事。
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-09-02T00:00:00.000Z'),
+      startTime: new Date('2026-09-02T08:00:00.000Z'),
       endTime: new Date('2026-09-02T10:00:00.000Z'),
     })
     await flushPromises()
@@ -239,7 +247,7 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy())
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
-      .toBe('手上這批共 1 根，涵蓋 2026-09-01 00:00 ～ 2026-09-03 00:00（世界標準時間）')
+      .toBe('手上這批共 1 根，涵蓋 2026-09-02 02:00 ～ 2026-09-02 15:20（世界標準時間）')
   })
 
   it('換時區時，涵蓋的那一段改用新時區說，且不重新取', async () => {
@@ -250,7 +258,7 @@ describe('KCandleChartPanel', () => {
     await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
 
     expect(wrapper.get('[data-testid="covered-range"]').text())
-      .toBe('手上這批共 1 根，涵蓋 2026-09-01 08:00 ～ 2026-09-03 08:00（台北）')
+      .toBe('手上這批共 1 根，涵蓋 2026-09-02 10:00 ～ 2026-09-02 23:20（台北）')
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
   })
 
@@ -360,21 +368,22 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const chartComponent = wrapper.findComponent(KCandleChart)
 
+    // 兩段都落在已取回區間之外，所以兩段都真的去取了一次
     chartComponent.vm.$emit('rangeChange', {
-      startTime: new Date('2025-09-02T12:00:00.000Z'),
-      endTime: new Date('2026-09-02T12:00:00.000Z'),
+      startTime: new Date('2026-09-01T00:00:00.000Z'),
+      endTime: new Date('2026-09-01T04:00:00.000Z'),
     })
     await flushPromises()
     chartComponent.vm.$emit('rangeChange', {
-      startTime: new Date('2026-08-28T12:00:00.000Z'),
-      endTime: new Date('2026-09-02T12:00:00.000Z'),
+      startTime: new Date('2026-08-30T00:00:00.000Z'),
+      endTime: new Date('2026-08-30T04:00:00.000Z'),
     })
     await flushPromises()
     failSlowRequest()
     await flushPromises()
 
     expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+    expect(closePriceDrawnBy(wrapper)).toBe('222')
   })
 
   it('慢回來的那一次不覆蓋後送出的結果', async () => {
@@ -391,21 +400,21 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const chartComponent = wrapper.findComponent(KCandleChart)
 
-    // 先拉出一段會慢慢回來的（一年），還沒回來就再拉出一段立刻回來的（五天）
+    // 先拉出一段會慢慢回來的（前天），還沒回來就再拉出一段立刻回來的（更前一天）
     chartComponent.vm.$emit('rangeChange', {
-      startTime: new Date('2025-09-02T12:00:00.000Z'),
-      endTime: new Date('2026-09-02T12:00:00.000Z'),
+      startTime: new Date('2026-09-01T00:00:00.000Z'),
+      endTime: new Date('2026-09-01T04:00:00.000Z'),
     })
     await flushPromises()
     chartComponent.vm.$emit('rangeChange', {
-      startTime: new Date('2026-08-28T12:00:00.000Z'),
-      endTime: new Date('2026-09-02T12:00:00.000Z'),
+      startTime: new Date('2026-08-30T00:00:00.000Z'),
+      endTime: new Date('2026-08-30T04:00:00.000Z'),
     })
     await flushPromises()
     releaseSlowRequest()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+    expect(closePriceDrawnBy(wrapper)).toBe('222')
   })
 })
 

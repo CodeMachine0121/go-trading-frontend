@@ -2,10 +2,10 @@
 export type AggregationIntervalValue = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
 /**
- * VO：一種彙總刻度——圖表上一根 K 線涵蓋多久。不可變、無行為。
+ * VO：一種彙總刻度——一根 K 線涵蓋多久。不可變、無行為。
  *
- * 使用者不直接選它：它是「正在看的區間有多長」推出來的結果，
- * 推法住在 KCandleChartViewportDomain，不在這裡。
+ * 圖表不挑它：圖上一律畫最細的那一種，也就是後端存下來的一分鐘。
+ * 會挑的是指標計算，那裡由使用者自己指定。
  */
 export class AggregationIntervalVo {
   constructor(
@@ -18,7 +18,7 @@ export class AggregationIntervalVo {
 /**
  * 可選的彙總刻度，**由細到粗**。
  *
- * 順序是規則的一部分——挑刻度就是從頭走過這條清單、取第一個夠粗的，
+ * 順序是規則的一部分——「最細的那一種」是從頭讀出來的，指標計算的選單也照這個序排，
  * 所以多支援一種刻度就是在這裡多一列（前提是後端也認得同一個代號）。
  */
 export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
@@ -35,7 +35,3 @@ export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
  * 所以以它彙總等於不彙總。名字寫在這裡，用到的地方就不必各自記得「第一個就是預設」。
  */
 export const FINEST_AGGREGATION_INTERVAL = AGGREGATION_INTERVALS[0]
-
-/** 最粗的那一種。拉遠拉到連它都擺不下時，就是不能再遠了。 */
-export const COARSEST_AGGREGATION_INTERVAL
-  = AGGREGATION_INTERVALS[AGGREGATION_INTERVALS.length - 1]
