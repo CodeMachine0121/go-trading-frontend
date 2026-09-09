@@ -28,4 +28,8 @@ export class KCandleChartApplication {
   listRangePresets(): KCandleChartRangePresetDto[] {
     return this.kCandleChartService.listRangePresets()
   }
+
+  defaultRangePreset(): KCandleChartRangePresetDto {
+    return this.kCandleChartService.defaultRangePreset()
+  }
 }

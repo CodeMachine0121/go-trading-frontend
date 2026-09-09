@@ -5,17 +5,39 @@ import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-dom
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
 
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
+const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR
+
 /**
- * 一鍵可切換的幾個長度。固定的一組，不隨資料改變——
+ * 一進畫面先看哪一段。
+ *
+ * 它有自己的名字，而不是拿清單的第一個：那一排由短到長排，第一個是一小時，
+ * 於是「一進來看多長」會變成排序的副作用——改一次順序就靜靜換掉了預設。
+ * 一進來看一天是一個判斷，所以寫成一個判斷。
+ */
+const DEFAULT_K_CANDLE_CHART_RANGE_PRESET
+  = new KCandleChartRangePresetDto('一天', 1 * MILLISECONDS_PER_DAY)
+
+/**
+ * 一鍵可切換的幾個長度，由短到長。固定的一組，不隨資料改變——
  * 它們是「值得看的幾個長度」這個判斷，不是設定。
+ *
+ * 幾小時的那幾個與幾個月的那幾個是同一排、同一種選擇，只是長度不同，
+ * 所以不分成兩組：一條互斥的軌道才看得出「只能選一個」。
+ *
+ * 每根涵蓋多久仍然不在這裡。看一小時不等於要一分鐘一根——那是系統照它知道的
+ * 交易時段挑的，這一排只說使用者要看多長。
  */
 const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
-  new KCandleChartRangePresetDto('一天', 1),
-  new KCandleChartRangePresetDto('五天', 5),
-  new KCandleChartRangePresetDto('一個月', 30),
-  new KCandleChartRangePresetDto('三個月', 90),
-  new KCandleChartRangePresetDto('六個月', 180),
-  new KCandleChartRangePresetDto('一年', 365),
+  new KCandleChartRangePresetDto('一小時', 1 * MILLISECONDS_PER_HOUR),
+  new KCandleChartRangePresetDto('五小時', 5 * MILLISECONDS_PER_HOUR),
+  new KCandleChartRangePresetDto('十小時', 10 * MILLISECONDS_PER_HOUR),
+  DEFAULT_K_CANDLE_CHART_RANGE_PRESET,
+  new KCandleChartRangePresetDto('五天', 5 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto('一個月', 30 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto('三個月', 90 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto('六個月', 180 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto('一年', 365 * MILLISECONDS_PER_DAY),
 ]
 
 /**
@@ -68,8 +90,13 @@ export class KCandleChartService {
     )
   }
 
-  /** 畫面上一鍵可切換的幾個長度。 */
+  /** 畫面上一鍵可切換的幾個長度，由短到長。 */
   listRangePresets(): KCandleChartRangePresetDto[] {
     return K_CANDLE_CHART_RANGE_PRESETS
+  }
+
+  /** 一進畫面先看哪一段。 */
+  defaultRangePreset(): KCandleChartRangePresetDto {
+    return DEFAULT_K_CANDLE_CHART_RANGE_PRESET
   }
 }
