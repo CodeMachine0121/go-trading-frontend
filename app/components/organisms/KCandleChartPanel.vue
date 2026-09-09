@@ -352,7 +352,8 @@ watch(symbol, () => {
 onMounted(async () => {
   presets.value = kCandleChartApplication.listRangePresets()
 
-  void selectPreset(presets.value[0])
+  // 問「預設是哪一個」，不是拿清單的第一個：那一排由短到長排，第一個是最短的一段。
+  void selectPreset(kCandleChartApplication.defaultRangePreset())
 
   try {
     strategies.value = await strategyApplication.listStrategies()

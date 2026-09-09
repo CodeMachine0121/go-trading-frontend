@@ -174,16 +174,19 @@ describe('KCandleChartApplication', () => {
   })
 
   describe('listRangePresets', () => {
-    it('列出一鍵可切換的幾個長度', () => {
+    it('列出一鍵可切換的幾個長度，由短到長', () => {
       const presets = buildApplication(buildProxy()).listRangePresets()
 
       expect(presets.map(preset => preset.label))
-        .toEqual(['一天', '五天', '一個月', '三個月', '六個月', '一年'])
+        .toEqual([
+          '一小時', '五小時', '十小時',
+          '一天', '五天', '一個月', '三個月', '六個月', '一年',
+        ])
     })
 
     it('選一個長度就等於「以目前時間為結束、往前這麼長」', () => {
       const presets = buildApplication(buildProxy()).listRangePresets()
-      const oneMonth = presets[2]
+      const oneMonth = presets[5]
 
       const viewport = oneMonth?.toViewportDto('BTCUSDT', null)
 
@@ -191,6 +194,24 @@ describe('KCandleChartApplication', () => {
       expect(viewport?.visibleStartTime.toISOString()).toBe('2026-08-03T12:00:00.000Z')
       expect(viewport?.symbol).toBe('BTCUSDT')
       expect(viewport?.loadedChart).toBeNull()
+    })
+
+    it('不足一天的那幾個一樣是「往前這麼長」，不會被當成整天', () => {
+      const presets = buildApplication(buildProxy()).listRangePresets()
+
+      const viewport = presets[1]?.toViewportDto('BTCUSDT', null)
+
+      expect(viewport?.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(viewport?.visibleStartTime.toISOString()).toBe('2026-09-02T07:00:00.000Z')
+    })
+  })
+
+  describe('defaultRangePreset', () => {
+    it('一進畫面看的是一天，不是那一排最短的一段', () => {
+      const kCandleChartApplication = buildApplication(buildProxy())
+
+      expect(kCandleChartApplication.defaultRangePreset().label).toBe('一天')
+      expect(kCandleChartApplication.listRangePresets()[0]?.label).toBe('一小時')
     })
   })
 })

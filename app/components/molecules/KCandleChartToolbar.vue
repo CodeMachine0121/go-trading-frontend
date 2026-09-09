@@ -109,8 +109,10 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 
   // 一組互斥的選擇擺成一條連在一起的軌道，而不是幾顆各自獨立的按鈕——
   // 連在一起才看得出「只能選一個」，這也是每一台交易終端機講區間的方式。
+  // 這一排的選項多到窄螢幕擺不完，所以它折行，而不是把整條軌道推出畫面外。
   &__buttons {
     display: flex;
+    flex-wrap: wrap;
     gap: spacing('3xs');
     border: 1px solid color('border');
     border-radius: radius('md');

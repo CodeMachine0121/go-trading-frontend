@@ -101,18 +101,22 @@ describe('KCandleChartPanel', () => {
 
     const presetButtons = wrapper.findAll('[data-testid="range-preset-button"]')
     expect(presetButtons.map(button => button.text()))
-      .toEqual(['一天', '五天', '一個月', '三個月', '六個月', '一年'])
-    expect(presetButtons[0]?.classes()).toContain('app-button--primary')
+      .toEqual([
+        '一小時', '五小時', '十小時',
+        '一天', '五天', '一個月', '三個月', '六個月', '一年',
+      ])
+    // 一進畫面選的是一天，不是最短的那一段——它是一個判斷，不是排序的副作用
+    expect(presetButtons[3]?.classes()).toContain('app-button--primary')
   })
 
   it('選一個月不再換成較粗的刻度，圖上仍是一分鐘一根', async () => {
     const wrapper = await mountPanel(buildProxy())
 
-    await wrapper.findAll('[data-testid="range-preset-button"]')[2]?.trigger('click')
+    await wrapper.findAll('[data-testid="range-preset-button"]')[5]?.trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一分鐘')
-    expect(wrapper.findAll('[data-testid="range-preset-button"]')[2]?.classes())
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.classes())
       .toContain('app-button--primary')
   })
 
@@ -130,7 +134,7 @@ describe('KCandleChartPanel', () => {
     // （防抖的等待時間需要它）。按下去之前把時鐘釘回釘住的那一刻，
     // 斷言才是在驗那一天的邊界，不是在驗這幾行跑得夠不夠快。
     vi.setSystemTime(CURRENT_TIME)
-    await wrapper.findAll('[data-testid="range-preset-button"]')[0]?.trigger('click')
+    await wrapper.findAll('[data-testid="range-preset-button"]')[3]?.trigger('click')
     await flushPromises()
 
     // 資料確實不必換
@@ -140,7 +144,7 @@ describe('KCandleChartPanel', () => {
       .toEqual(new Date('2026-09-01T12:00:00.000Z'))
     expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
       .toEqual(new Date('2026-09-02T12:00:00.000Z'))
-    expect(wrapper.findAll('[data-testid="range-preset-button"]')[0]?.classes())
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[3]?.classes())
       .toContain('app-button--primary')
   })
 
