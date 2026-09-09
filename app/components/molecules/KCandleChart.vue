@@ -116,7 +116,7 @@ let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
  * 繪圖函式庫對**任何**區間變動都會通知，包含 `setData` 與我們自己發出的
  * `setVisibleRange`。把那些當成使用者拖曳的後果是：剛按下的快捷區間會自己失去反白，
  * 而且回報的區間會被對齊到真實資料上——資料稀疏時，「看一年」會被對齊成「看一天」，
- * 於是又推導出五分鐘刻度、再取一次。
+ * 於是又推導出一分鐘刻度、再取一次。
  */
 let selfIssuedRangeChange = false
 

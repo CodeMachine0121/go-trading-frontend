@@ -131,6 +131,6 @@ describe('IndicatorCalculationRequestDomain 的彙總刻度', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(
       buildRequest({ aggregationInterval: declared }))
 
-    expect(requestDomain.aggregationInterval.value).toBe('5m')
+    expect(requestDomain.aggregationInterval.value).toBe('1m')
   })
 })

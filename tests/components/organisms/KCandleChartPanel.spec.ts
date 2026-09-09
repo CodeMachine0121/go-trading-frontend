@@ -111,10 +111,10 @@ describe('KCandleChartPanel', () => {
       [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    // 先縮到一個仍在已取回範圍內的小段，再按回「一天」
+    // 先縮到一個仍在已取回範圍內、刻度也還是五分鐘的小段，再按回「一天」
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-09-02T10:00:00.000Z'),
-      endTime: new Date('2026-09-02T11:00:00.000Z'),
+      startTime: new Date('2026-09-02T00:00:00.000Z'),
+      endTime: new Date('2026-09-02T10:00:00.000Z'),
     })
     await flushPromises()
     // 快捷區間算的是「到現在為止的一天」，而這一組測試讓假時鐘跟著真實時間走
@@ -156,9 +156,11 @@ describe('KCandleChartPanel', () => {
       [buildKCandle('2026-09-02T10:00:00.000Z', '110')])
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
+    // 拉出來的這一段夠長，推出來的仍是手上這批的五分鐘刻度——刻度變了就得重取，
+    // 那是隔壁那個案例在驗的事。
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-09-02T09:00:00.000Z'),
-      endTime: new Date('2026-09-02T11:00:00.000Z'),
+      startTime: new Date('2026-09-02T00:00:00.000Z'),
+      endTime: new Date('2026-09-02T10:00:00.000Z'),
     })
     await flushPromises()
 

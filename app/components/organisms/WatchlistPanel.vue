@@ -102,7 +102,7 @@ onMounted(reload)
         刻意不顯示倒數——後端沒有告訴畫面下一輪何時到，算出來的數字會是編的。
       -->
       <p class="watchlist-panel__note">
-        清單改完最多等一輪（五分鐘）才生效，不必重新啟動後端。
+        清單改完最多等一輪（一分鐘）才生效，不必重新啟動後端。
       </p>
 
       <WatchlistEntryForm

@@ -571,16 +571,16 @@ describe('指標計算畫面：這次用了多粗', () => {
       }))
   })
 
-  it('什麼都沒挑時送出的是五分鐘', async () => {
+  it('什麼都沒挑時送出的是一分鐘', async () => {
     const calculateIndicator = vi.fn().mockResolvedValue(
-      new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []))
+      new IndicatorCalculation('BTCUSDT', '1m', 3, 'float', []))
     const wrapper = mountPanel(buildProxy({ calculateIndicator }))
 
     await fillAndSubmit(wrapper)
 
     expect(calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
-        aggregationInterval: expect.objectContaining({ value: '5m' }),
+        aggregationInterval: expect.objectContaining({ value: '1m' }),
       }))
   })
 

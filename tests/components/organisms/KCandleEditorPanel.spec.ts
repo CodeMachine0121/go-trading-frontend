@@ -87,11 +87,11 @@ afterEach(() => {
 
 describe('KCandleEditorPanel', () => {
   describe('新增', () => {
-    it('起始時間預設對齊到最近的五分鐘刻度', async () => {
+    it('起始時間預設對齊到最近的一分鐘刻度', async () => {
       const wrapper = await mountPanel(buildProxy())
 
       expect(wrapper.get<HTMLInputElement>('[data-testid="form-open-time"]').element.value)
-        .toBe('2026-08-30T12:05')
+        .toBe('2026-08-30T12:07')
       expect(wrapper.get('[data-testid="overwrite-notice"]').text()).toContain('覆蓋')
     })
 
@@ -115,7 +115,6 @@ describe('KCandleEditorPanel', () => {
     })
 
     it.each([
-      { description: '起始時間不在刻度上', field: 'form-open-time', value: '2026-08-30T12:03', expectedMessage: '起始時間必須落在5分鐘刻度上' },
       { description: '起始時間指向未來', field: 'form-open-time', value: '2026-08-30T12:10', expectedMessage: '起始時間不得指向未來' },
       { description: '交易標的留空', field: 'form-symbol', value: '', expectedMessage: '請指定交易標的' },
     ])('$description 時標在欄位旁且完全不寫入', async ({ field, value, expectedMessage }) => {

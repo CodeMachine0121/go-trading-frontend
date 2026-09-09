@@ -170,17 +170,17 @@ describe('IndicatorCalculationService 交出的 K 線欄位說明', () => {
 })
 
 describe('IndicatorCalculationService 的執行設定', () => {
-  it('五種彙總刻度都在，由細到粗，帶中文名字', () => {
+  it('六種彙總刻度都在，由細到粗，帶中文名字', () => {
     const options = new IndicatorCalculationService(buildProxy())
       .listAggregationIntervalOptions()
 
-    expect(options.map(option => option.value)).toEqual(['5m', '15m', '1h', '4h', '1d'])
+    expect(options.map(option => option.value)).toEqual(['1m', '5m', '15m', '1h', '4h', '1d'])
     expect(options.map(option => option.label))
-      .toEqual(['五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
+      .toEqual(['一分鐘', '五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
   })
 
-  it('沒特別挑時是五分鐘', () => {
-    expect(new IndicatorCalculationService(buildProxy()).defaultAggregationInterval()).toBe('5m')
+  it('沒特別挑時是一分鐘', () => {
+    expect(new IndicatorCalculationService(buildProxy()).defaultAggregationInterval()).toBe('1m')
   })
 
   it('挑好的彙總刻度真的被送出去執行', async () => {
