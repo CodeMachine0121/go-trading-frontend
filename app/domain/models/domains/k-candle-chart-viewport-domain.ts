@@ -82,15 +82,23 @@ export class KCandleChartViewportDomain {
    * 使用者小幅拖動時，新的一段仍然整個落在裡面。
    */
   toLoadPlan(): KCandleChartLoadPlanVo {
+    const spanMilliseconds = this.endTime.getTime() - this.startTime.getTime()
     const loadedChart = this.loadedChart
+
+    // 五個會讓手上這批不夠用的理由，擺在一起讀。最後兩個取代了以前的
+    // 「刻度變了就重新取」：以前畫面自己推導刻度，所以比對得出來；現在刻度要等取回
+    // 才知道，畫面唯一比對得出來的就是**它看的那一段長度變了**。
+    // 涵蓋不到任何時間的那一批單獨列成一個理由，因為拿它當分母會算出一個
+    // 比不出大小的答案，於是永遠判定成「沒變」——圖就從此不再更新。
     const needsReload = loadedChart === null
       || loadedChart.symbol !== this.symbol
       || loadedChart.coveredStartTime.getTime() > this.startTime.getTime()
       || loadedChart.coveredEndTime.getTime() < this.endTime.getTime()
-      || this.spanChangedSince(loadedChart)
+      || loadedChart.visibleSpanMilliseconds <= 0
+      || Math.abs(spanMilliseconds / loadedChart.visibleSpanMilliseconds - 1)
+      > VISIBLE_SPAN_CHANGE_THRESHOLD
 
-    const prefetchMilliseconds
-      = (this.endTime.getTime() - this.startTime.getTime()) * PREFETCH_RATIO
+    const prefetchMilliseconds = spanMilliseconds * PREFETCH_RATIO
 
     return new KCandleChartLoadPlanVo(
       needsReload,
@@ -100,28 +108,5 @@ export class KCandleChartViewportDomain {
       new Date(this.startTime.getTime() - prefetchMilliseconds),
       new Date(this.endTime.getTime() + prefetchMilliseconds),
     )
-  }
-
-  /**
-   * 正在看的那一段，與手上這批當初取的那一段相比，長度變了超過門檻沒有。
-   *
-   * 手上這批當初看的是多長不必另外記：取回時兩側各多取半段，
-   * 所以已取回區間的長度恰好是當初顯示區間的兩倍。
-   *
-   * 這一問取代了以前的「刻度變了就重新取」。以前畫面自己推導刻度，所以比對得出來；
-   * 現在刻度要等取回才知道，畫面手上唯一比對得出來的就是長度。
-   */
-  private spanChangedSince(loadedChart: KCandleChartDto): boolean {
-    const loadedSpanMilliseconds
-      = (loadedChart.coveredEndTime.getTime() - loadedChart.coveredStartTime.getTime())
-        / (1 + 2 * PREFETCH_RATIO)
-    if (loadedSpanMilliseconds <= 0) {
-      return true
-    }
-
-    const currentSpanMilliseconds = this.endTime.getTime() - this.startTime.getTime()
-
-    return Math.abs(currentSpanMilliseconds / loadedSpanMilliseconds - 1)
-      > VISIBLE_SPAN_CHANGE_THRESHOLD
   }
 }
