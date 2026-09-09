@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { seriesOf } from '../../fixtures/k-candle-series'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -30,8 +31,7 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
 
 function buildKCandleProxy(): IKCandleProxy {
   return {
-    findKCandleSeries: vi.fn().mockResolvedValue(
-      [buildKCandle('2026-09-03T11:55:00.000Z', '110')]),
+    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-03T11:55:00.000Z', '110')])),
     findKCandlesInRange: vi.fn(),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
@@ -163,7 +163,7 @@ describe('取行情失敗之後', () => {
     const feed = controllableFeed()
     const { wrapper } = await mountPanel(feed, {
       findKCandleSeries: vi.fn()
-        .mockResolvedValueOnce([buildKCandle('2026-09-03T11:55:00.000Z', '110')])
+        .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-03T11:55:00.000Z', '110')]))
         .mockRejectedValue(new BackendServerError('後端出錯了')),
     })
 

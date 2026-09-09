@@ -35,3 +35,18 @@ export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
  * 所以以它彙總等於不彙總。名字寫在這裡，用到的地方就不必各自記得「第一個就是預設」。
  */
 export const FINEST_AGGREGATION_INTERVAL = AGGREGATION_INTERVALS[0]
+
+/**
+ * 後端說它這一次用了哪一種刻度，換成我們認得的那一個值。
+ *
+ * 認不得的代號**退回最細的那一種**，而不是讓畫面壞掉：一個陌生字串換掉一張圖，
+ * 代價遠大於一張畫得稍微細一點的圖。後端多支援一種刻度而畫面還沒跟上時，
+ * 使用者看到的是圖，不是錯誤。
+ *
+ * 它是純函式而非某個物件的 method，因為它把一個**外部字串**變成一個值——
+ * 字串不是我們的物件，沒有「屬於誰」可搬。
+ */
+export function aggregationIntervalOf(value: string): AggregationIntervalVo {
+  return AGGREGATION_INTERVALS.find(aggregationInterval => aggregationInterval.value === value)
+    ?? FINEST_AGGREGATION_INTERVAL
+}

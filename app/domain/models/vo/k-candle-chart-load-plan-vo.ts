@@ -1,10 +1,12 @@
-import type { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
-
 /**
  * VO：對照過「正在看哪一段」與「手上有什麼」之後得出的結論。不可變、無行為。
  *
  * 它同時就是取資料時要帶的條件，所以不可能發生「判斷說不用取、卻還是取了」——
  * 要取什麼跟要不要取是同一個物件回答的。
+ *
+ * **它刻意沒有彙總刻度。** 一根該多粗需要交易時段與休市日才算得對，那是系統知道的事；
+ * 畫面說的只有「使用者正在看這一段」。型別上少掉那個欄位，
+ * 「畫面決定刻度」這件事就再也表達不出來——它曾經在這裡表達出來過三次，每次都是錯的。
  *
  * 兩組時間刻意分開命名：
  * - **visible** 是使用者**應該**看到的那一段，可能已經被收回上限，畫面要照它擺位置；
@@ -17,7 +19,6 @@ export class KCandleChartLoadPlanVo {
   constructor(
     public readonly needsReload: boolean,
     public readonly symbol: string,
-    public readonly interval: AggregationIntervalVo,
     public readonly visibleStartTime: Date,
     public readonly visibleEndTime: Date,
     public readonly fetchStartTime: Date,

@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { seriesOf } from '../../fixtures/k-candle-series'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -34,7 +35,7 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
 function buildKCandleProxy(): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
-    findKCandleSeries: vi.fn().mockResolvedValue([buildKCandle('2026-09-02T10:00:00.000Z', '110')]),
+    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')])),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),
@@ -632,7 +633,7 @@ describe('圖表上的指標：邊界', () => {
     const calculateIndicator = vi.fn()
     const emptyChartProxy: IKCandleProxy = {
       ...buildKCandleProxy(),
-      findKCandleSeries: vi.fn().mockResolvedValue([]),
+      findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([])),
     }
     const wrapper = mount(KCandleChartPanel, {
       props: {
@@ -855,7 +856,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
   it('取行情失敗時，上一批的線也一起收掉', async () => {
     // 留著它們，就是在一張空圖上畫另一段行情的線——而且還撐著價格軸。
     const findKCandleSeries = vi.fn()
-      .mockResolvedValueOnce([buildKCandle('2026-09-02T10:00:00.000Z', '110')])
+      .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
       .mockRejectedValue(new BackendServerError('後端出錯了'))
     const wrapper = mount(KCandleChartPanel, {
       props: {

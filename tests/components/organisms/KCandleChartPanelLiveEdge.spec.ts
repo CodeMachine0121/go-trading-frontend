@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { seriesOf } from '../../fixtures/k-candle-series'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -52,10 +53,10 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
 
 function buildKCandleProxy(): IKCandleProxy {
   return {
-    findKCandleSeries: vi.fn().mockResolvedValue([
+    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([
       buildKCandle(OLDEST_OPEN_TIME, '105'),
       buildKCandle(LATEST_OPEN_TIME, '110'),
-    ]),
+    ])),
     findKCandlesInRange: vi.fn(),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
@@ -272,10 +273,9 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
     })
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      // 交出去的是圖上那一段本身，不是它有幾格——有幾格是系統照市場作息算的。
-      // 那三天被看得清楚的四百根收成四百分鐘，交出去的就是收完的那一段。
+      // 交出去的是那三天本身，不是它有幾格——有幾格是系統照市場作息算的。
       observationWindow: expect.objectContaining({
-        startTime: new Date('2026-09-03T05:20:00.000Z'),
+        startTime: new Date('2026-08-31T12:00:00.000Z'),
         endTime: null,
       }),
     }))

@@ -4,6 +4,8 @@ import type { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-
 import type { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
 import type { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
 import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
+import { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
+import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
@@ -30,10 +32,13 @@ type KCandleWire = {
 
 /**
  * 彙總查詢的回覆形狀：一個物件，不是陣列。
- * 它也回報了交易標的與這批用的彙總刻度，但那兩個就是我們剛剛問出去的東西，
- * 這裡刻意不讀——把它們帶進 domain 只會讓「手上這批是誰」多一個來源。
+ *
+ * `interval` 是**必須讀的**：我們送出去的條件裡沒有它，一根多粗是系統挑的，
+ * 而畫面要照它標「每根涵蓋」、也要照它分格。交易標的仍然不讀——
+ * 那個是我們剛剛問出去的東西，讀它只會讓「手上這批是誰」多一個來源。
  */
 type KCandleSeriesWire = {
+  interval: string
   kCandles: KCandleWire[]
 }
 
@@ -65,18 +70,25 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
     return kCandleWires.map(kCandleWire => this.toKCandle(kCandleWire))
   }
 
-  async findKCandleSeries(kCandleChartLoadPlanVo: KCandleChartLoadPlanVo): Promise<KCandle[]> {
+  async findKCandleSeries(
+    kCandleChartLoadPlanVo: KCandleChartLoadPlanVo,
+  ): Promise<KCandleSeriesVo> {
+    // 送出去的只有交易標的與那一段的起訖時間。**刻意不送彙總刻度**——
+    // 一根該多粗需要交易時段與休市日才算得對，而那是後端知道的事；
+    // 說了一種，就等於在這裡長出第二份市場作息。
     const kCandleSeriesWire = await this.requestBackend<KCandleSeriesWire>(
       K_CANDLE_SERIES_ENDPOINT, {
         query: {
           symbol: kCandleChartLoadPlanVo.symbol,
           startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
           endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
-          interval: kCandleChartLoadPlanVo.interval.value,
         },
       })
 
-    return kCandleSeriesWire.kCandles.map(kCandleWire => this.toKCandle(kCandleWire))
+    return new KCandleSeriesVo(
+      kCandleSeriesWire.kCandles.map(kCandleWire => this.toKCandle(kCandleWire)),
+      aggregationIntervalOf(kCandleSeriesWire.interval),
+    )
   }
 
   async saveKCandle(kCandleWriteDomain: KCandleWriteDomain): Promise<KCandle> {

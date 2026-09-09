@@ -59,12 +59,12 @@ export class KCandleChartService {
       )
     }
 
-    const kCandles = await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo)
+    const kCandleSeriesVo = await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo)
 
     return new KCandleChartViewDto(
       kCandleChartLoadPlanVo.visibleStartTime,
       kCandleChartLoadPlanVo.visibleEndTime,
-      new KCandleSeriesDomain(kCandles, kCandleChartLoadPlanVo).toDto(),
+      new KCandleSeriesDomain(kCandleSeriesVo, kCandleChartLoadPlanVo).toDto(),
     )
   }
 
