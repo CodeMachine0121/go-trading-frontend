@@ -1,10 +1,11 @@
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
+import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /**
  * DTO：拿**一次套用**對圖上正在畫的那批 K 線算一次要給的東西。
  *
- * 交易標的、彙總刻度、根數與算到哪一刻全部來自圖表當下畫的那一批——
+ * 交易標的、彙總刻度與要算哪一段全部來自圖表當下畫的那一批——
  * 這是線與 K 線不會錯位的唯一理由。少給任何一樣，算出來的都是另一段行情的指標，
  * 而它畫在圖上看起來完全正常。
  *
@@ -19,13 +20,11 @@ export class ChartIndicatorRequestDto {
     public readonly appliedIndicator: AppliedIndicatorDto,
     public readonly symbol: string,
     public readonly aggregationInterval: string,
-    public readonly candleCount: number,
     /**
-     * 算到哪一刻。**`null` 是一個答案而不是缺值**——它的意思是「照系統的現在」，
-     * 而系統本來就規定未指定即視為現在。整條路上只有一處產生它、一處消費它，
-     * 中間每一層都只是搬運。
+     * 要算哪一段——就是使用者正在看的那一段，連同「算到哪一刻」的答案。
+     * 整條路上只有一處產生它、一處消費它，中間每一層都只是搬運。
      */
-    public readonly endTime: Date | null,
+    public readonly observationWindow: ObservationWindowVo,
     public readonly drawnLines: DrawnChartLinesVo = new DrawnChartLinesVo(),
   ) {}
 }

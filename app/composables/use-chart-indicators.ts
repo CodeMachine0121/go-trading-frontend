@@ -500,10 +500,10 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
           // 算的是使用者正在看的那一段，不是手上那一整批（後者兩側各多取了半段）。
           // 顯示區間是狀態不是參數，所以剛套用的那一支與早就套上的那幾支
           // 算的必然是同一段——沒有哪個呼叫點可以忘記帶它。
-          range.kCandleCountAt(chart.interval),
-          // 算到哪一刻由顯示區間回答：看得到最新那一根就不指定（照系統的現在），
-          // 看不到就是這一段的右端。
-          range.calculationEndTime(chart.latestKCandleOpenTime),
+          //
+          // 交出去的是那一段本身，不是它有幾格：一段裡有幾格取決於那個市場在這段時間
+          // 裡實際開了多久，會收盤的市場照時間除下去會多出好幾倍。
+          range.toObservationWindow(chart.latestKCandleOpenTime),
           drawnLinesExcept(appliedIndicator.id),
         ))
 

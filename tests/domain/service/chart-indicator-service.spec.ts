@@ -13,8 +13,11 @@ import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
-const CHART_END_TIME = new Date('2026-09-02T12:00:00.000Z')
+/** 圖上正在看的那一段。少帶它，算出來的就是另一段行情的指標。 */
+const CHART_WINDOW = new ObservationWindowVo(
+  new Date('2026-09-02T00:00:00.000Z'), new Date('2026-09-02T12:00:00.000Z'))
 
 function strategyOf(resultType = 'float'): StrategyDto {
   return new StrategyDto(
@@ -30,7 +33,7 @@ function requestOf(
   strategy = strategyOf(), takenColorTokens: string[] = [], drawnLineKeys: string[] = [],
 ): ChartIndicatorRequestDto {
   return new ChartIndicatorRequestDto(
-    appliedIndicatorOf(strategy), 'BTCUSDT', '1h', 24, CHART_END_TIME,
+    appliedIndicatorOf(strategy), 'BTCUSDT', '1h', CHART_WINDOW,
     new DrawnChartLinesVo(takenColorTokens, drawnLineKeys))
 }
 
@@ -85,8 +88,7 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
     expect(fixture.indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
         symbol: 'BTCUSDT',
-        candleCount: 24,
-        endTime: CHART_END_TIME,
+        observationWindow: CHART_WINDOW,
         aggregationInterval: expect.objectContaining({ value: '1h' }),
       }))
   })

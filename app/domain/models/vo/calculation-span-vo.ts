@@ -1,5 +1,9 @@
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
+
 /** 「多長」的單位。有限的三種，所以是字面量聯合而不是自由字串。 */
 export type CalculationSpanUnit = 'minute' | 'hour' | 'day'
+
+const MILLISECONDS_PER_MINUTE = 60 * 1000
 
 const MINUTES_PER_UNIT: Record<CalculationSpanUnit, number> = {
   minute: 1,
@@ -35,11 +39,18 @@ export class CalculationSpanVo {
   }
 
   /**
-   * 這一段裡有幾格。至少一格：一段短到不滿一根的區間仍然看得見一根，
-   * 而要求算零格是沒有意義的問法。
+   * 這麼長一段，從某一刻往回推出來的那一段行情。
+   *
+   * 終點是 `null`——這個畫面問的一律是「最近多久」，而「最近」的右端就是現在，
+   * 那正是系統在未指定時採用的答案。送一個算出來的此刻過去，只會多一個會過期的數字。
+   *
+   * **這裡刻意不回答「這一段有幾格」。** 那取決於這段時間裡市場實際開了多久：
+   * 同樣的「最近一天」，全天候市場是一整天，會收盤的市場只有一個交易日的四個半小時。
+   * 有幾格是系統的答案，不是一道除法。
    */
-  kCandleCountAt(intervalMinutes: number): number {
-    return Math.max(1, Math.floor(this.minutes / intervalMinutes))
+  toObservationWindow(now: Date): ObservationWindowVo {
+    return new ObservationWindowVo(
+      new Date(now.getTime() - this.minutes * MILLISECONDS_PER_MINUTE), null)
   }
 
   /** 這一段哪裡不對——沒有就是 `null`。 */

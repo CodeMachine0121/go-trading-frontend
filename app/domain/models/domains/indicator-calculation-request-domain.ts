@@ -4,6 +4,7 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /**
  * Domain Model：一次指標計算的請求，建構當下即驗證。
@@ -17,10 +18,9 @@ import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-
 export class IndicatorCalculationRequestDomain {
   readonly symbol: string
   readonly aggregationInterval: AggregationIntervalDomain
-  readonly candleCount: number
+  readonly observationWindow: ObservationWindowVo
   readonly resultType: IndicatorResultTypeDomain
   readonly script: string
-  readonly endTime: Date | null
   readonly parameters: StrategyParametersDomain
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
@@ -39,11 +39,9 @@ export class IndicatorCalculationRequestDomain {
     // 認不得的代號一律退回最細的那一種，與指標值種類同一套處理。
     this.aggregationInterval
       = new AggregationIntervalDomain(indicatorCalculationRequestDto.aggregationInterval)
-    this.candleCount = indicatorCalculationRequestDto.candleCount
+    this.observationWindow = indicatorCalculationRequestDto.observationWindow
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.script = new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
-    // 不驗證它落在哪裡：指向未來由系統那頭視同現在，那是它的規則，抄一份下來只會有兩套。
-    this.endTime = indicatorCalculationRequestDto.endTime
 
     // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話：
     // 錯的是「參數」那一塊，不是算式、也不是任何一個執行條件。

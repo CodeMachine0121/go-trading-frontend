@@ -14,6 +14,7 @@ import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
+import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /** Application：指標計算的用例編排，全程只碰 DTO。 */
 export class IndicatorCalculationApplication {
@@ -53,8 +54,8 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.defaultCalculationSpan()
   }
 
-  kCandleCountFor(span: CalculationSpanDto, aggregationInterval: string): number {
-    return this.indicatorCalculationService.kCandleCountFor(span, aggregationInterval)
+  observationWindowFor(span: CalculationSpanDto): ObservationWindowVo {
+    return this.indicatorCalculationService.observationWindowFor(span)
   }
 
   listStrategyParameterKindOptions(): StrategyParameterKindOptionDto[] {

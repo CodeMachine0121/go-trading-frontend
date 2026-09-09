@@ -9,15 +9,19 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 const BASE_URL = 'http://localhost:8080'
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
+/** 要看的那一段，終點不指定——大部分案例問的是「到現在為止」。 */
+const OBSERVATION_WINDOW = new ObservationWindowVo(
+  new Date('2026-09-02T09:00:00.000Z'), null)
 const REQUEST = new IndicatorCalculationRequestDomain(
-  new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'float'))
+  new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
 
 function requestOf(resultType: string): IndicatorCalculationRequestDomain {
   return new IndicatorCalculationRequestDomain(
-    new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, resultType))
+    new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, resultType))
 }
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
@@ -55,7 +59,7 @@ describe('IndicatorCalculationProxy', () => {
       body: {
         symbol: 'BTCUSDT',
         aggregationInterval: '5m',
-        candleCount: 3,
+        startTime: '2026-09-02T09:00:00.000Z',
         resultType: 'float',
         script: REQUEST.script,
         parameters: [],
@@ -76,7 +80,7 @@ describe('IndicatorCalculationProxy', () => {
 
     await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
       new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
-        'BTCUSDT', '5m', 3, SCRIPT_BODY, 'float', [
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [
           new StrategyParameterDto('期數', 'lookbackCount', 20),
           new StrategyParameterDto('倍數', 'number', 1.5),
           new StrategyParameterDto('只看多方', 'boolean', 0),
@@ -245,11 +249,12 @@ describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => 
       symbol: 'BTCUSDT', interval: '1h', usedCandleCount: 3, openTimes: [], resultType: 'float', values: {},
     })
     vi.stubGlobal('$fetch', fetchMock)
-    const endTime = new Date('2026-09-02T12:00:00.000Z')
+    const windowEndingInThePast = new ObservationWindowVo(
+      new Date('2026-09-02T09:00:00.000Z'), new Date('2026-09-02T12:00:00.000Z'))
 
     await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
-      new IndicatorCalculationRequestDomain(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 3, SCRIPT_BODY, 'float', [], endTime)))
+      new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
+        'BTCUSDT', '1h', windowEndingInThePast, SCRIPT_BODY, 'float')))
 
     const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
     expect(options.body.endTime).toBe('2026-09-02T12:00:00.000Z')
@@ -321,15 +326,16 @@ describe('名字對不上與算式跑不動是兩件事', () => {
 
 /** 後端拒絕時 $fetch 丟出來的形狀。 */
 describe('要的太多了：這一則要落在使用者改得動的那一格旁邊', () => {
-  it('系統指名是根數那一格時，說的是「要看多長」的問題，並給出兩條出路', async () => {
+  it('系統指名是那一段的起點時，說的是「要看多長」的問題，並給出兩條出路', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
       400,
       '這一段配上回看根數要用到 105120 根，超過單次可用的最大根數（最多 1000 根）',
-      { field: 'candleCount' })))
+      { field: 'startTime' })))
 
     const failure = await calculationFailure()
 
-    // 系統說的是「根數」——那是它的量詞；這個畫面把同一件事畫成「要看多長」。
+    // 系統指名的是「要看哪一段的起點」——那是它的說法；這個畫面把同一件事畫成「要看多長」。
+    // 這個判準換過一次名字（曾經是根數）；漏改的話這一句不會消失，只會從欄位旁邊掉下來。
     expect(failure).toBeInstanceOf(IndicatorCalculationFieldError)
     expect((failure as IndicatorCalculationFieldError).field).toBe('span')
     expect((failure as Error).message).toContain('超過單次可用的最大根數')
@@ -421,6 +427,7 @@ function rejectionOf(
     field?: string
     availableCandleCount?: number
     minimumCandleCount?: number
+    observationWindowHoldsNoTrading?: boolean
   },
 ) {
   return Object.assign(new Error(message), {
@@ -433,7 +440,7 @@ async function calculationFailure(): Promise<unknown> {
   try {
     await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
       new IndicatorCalculationRequestDomain(
-        new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'float')))
+        new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float')))
   }
   catch (error: unknown) {
     return error
@@ -441,3 +448,55 @@ async function calculationFailure(): Promise<unknown> {
 
   throw new Error('這次計算應該要失敗才對')
 }
+
+// 第三種算不出來。它與另外兩種的差別不在嚴重程度，在**出路的方向**：
+// 那兩種都是「調某個數字」，這一種調什麼都沒有用——週六不會長出成交。
+describe('這一段時間市場沒有交易：第三種算不出來', () => {
+  it('系統說這一段沒有交易時，那一句落在「要看多長」旁邊', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400,
+      '要看的這一段時間裡，taiwanStock 沒有交易',
+      { observationWindowHoldsNoTrading: true })))
+
+    const failure = await calculationFailure()
+
+    expect(failure).toBeInstanceOf(IndicatorCalculationFieldError)
+    expect((failure as IndicatorCalculationFieldError).field).toBe('span')
+    expect((failure as Error).message).toContain('這一段時間市場沒有交易')
+    expect((failure as Error).message).toContain('有交易的時間')
+  })
+
+  it('那句話不指向另外兩種的出路——調了也沒有用', async () => {
+    // 換刻度、縮短或拉長區間都不會讓週六長出成交。三句話共用一個動詞，
+    // 使用者就會照著去調一個調得動、但一點用都沒有的地方。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, '要看的這一段時間裡沒有交易', { observationWindowHoldsNoTrading: true })))
+
+    const message = ((await calculationFailure()) as Error).message
+
+    expect(message).not.toContain('刻度')
+    expect(message).not.toContain('縮短')
+    expect(message).not.toContain('拉長')
+    expect(message).not.toContain('補')
+  })
+
+  it('沒帶那個值的拒絕不會被誤認成這一種', async () => {
+    // 辨識靠的是系統交出來的那個值，不是訊息的文字。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, '這一段時間市場沒有交易——但這一則沒有指名它是哪一種')))
+
+    const failure = await calculationFailure()
+
+    expect((failure as Error).message).not.toContain('有交易的時間')
+  })
+
+  it('它與「湊不出最少可算根數」分得開', async () => {
+    // 兩者的出路正好相反：那一種要更細的刻度或補歷史，這一種兩條都沒有用。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, '要看的這一段時間裡沒有交易', { observationWindowHoldsNoTrading: true })))
+
+    const message = ((await calculationFailure()) as Error).message
+
+    expect(message).not.toContain('至少要')
+  })
+})

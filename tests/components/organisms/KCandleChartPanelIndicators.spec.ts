@@ -348,10 +348,10 @@ describe('圖表上的指標：什麼時候重算', () => {
     expect(calculateIndicator).toHaveBeenCalledTimes(2)
   })
 
-  it('根數算的是使用者正在看的那一段，不是手上那一整批', async () => {
+  it('算的是使用者正在看的那一段，不是手上那一整批', async () => {
     // 取資料時前後各多取了半段，拿整批去算等於回答一段他沒在看的行情。
     // 這一段看得到最新那一根（它在 10:00，區間到 11:00），所以算到的是「現在」，
-    // 由「算到哪一刻」那一組釘住；這裡只管根數。
+    // 由「算到哪一刻」那一組釘住；這裡只管起點是不是他看的那一段。
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyStrategy(wrapper, 7)
 
@@ -363,13 +363,14 @@ describe('圖表上的指標：什麼時候重算', () => {
     await settle()
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      // 09:00 到 11:00 是兩小時；以一分鐘一根算就是 120 根。
-      candleCount: 120,
+      observationWindow: expect.objectContaining({
+        startTime: new Date('2026-09-02T09:00:00.000Z'),
+      }),
     }))
   })
 
-  it('拉遠時以新的區間與新的根數重算', async () => {
-    // 拉遠改變的不只是起訖，還有那一段裡放得下幾根。
+  it('拉遠時以新的那一段重算', async () => {
+    // 拉遠換掉的是要算哪一段行情；那一段裡有幾格由系統照市場的作息回答。
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyStrategy(wrapper, 7)
 
@@ -379,9 +380,12 @@ describe('圖表上的指標：什麼時候重算', () => {
     })
     await flushPromises()
     await settle()
-    // 一小時、一分鐘一根 → 60 根。
-    expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ candleCount: 60 }))
+
+    expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
+      observationWindow: expect.objectContaining({
+        startTime: new Date('2026-09-02T10:00:00.000Z'),
+      }),
+    }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-02T08:00:00.000Z'),
@@ -390,9 +394,10 @@ describe('圖表上的指標：什麼時候重算', () => {
     await flushPromises()
     await settle()
 
-    // 三小時、同樣一分鐘一根 → 180 根。
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      candleCount: 180,
+      observationWindow: expect.objectContaining({
+        startTime: new Date('2026-09-02T08:00:00.000Z'),
+      }),
     }))
   })
 

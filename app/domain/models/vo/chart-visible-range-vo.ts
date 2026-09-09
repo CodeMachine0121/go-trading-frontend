@@ -1,6 +1,4 @@
-import type { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
-
-const MILLISECONDS_PER_MINUTE = 60 * 1000
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /**
  * VO：使用者正在看的那一段時間。不可變。
@@ -53,28 +51,19 @@ export class ChartVisibleRangeVo {
   }
 
   /**
-   * 這一次要算到哪一刻。
+   * 這一段拿去算指標時是哪一段——也就是它自己，配上一個算到哪一刻的答案。
    *
-   * 看得到最新那一根就**不指定**——`null` 在這裡是一個答案（「照系統的現在」），
-   * 不是缺值；系統本來就規定未指定即視為現在。看不到就是這一段的右端：
-   * 一段已經過去的行情，答案不該因為現在又走完一根而改變。
+   * 終點的規則住在這裡而不是呼叫端：看得到最新那一根就**不指定**（`null` 在這裡是一個
+   * 答案——「照系統的現在」，而系統本來就規定未指定即視為現在），看不到就是這一段的右端，
+   * 因為一段已經過去的行情，答案不該因為現在又走完一根而改變。
    *
-   * 它自己把「看不看得到」用掉了，呼叫端因此不必把兩件事兜起來。
+   * **這裡刻意不回答「這一段有幾根」。** 那個數字取決於這段時間裡市場實際開了多久，
+   * 而一段的兩端說不出那件事：會收盤的市場一天只成交四個半小時，照時間除下去會多出
+   * 五倍的格子，然後由更早的交易日去填。有幾格是系統的答案。
    */
-  calculationEndTime(latestKCandleOpenTime: Date | null): Date | null {
-    return this.showsTheLatestKCandle(latestKCandleOpenTime) ? null : this.endTime
-  }
-
-  /**
-   * 這一段裡有幾根。
-   *
-   * 至少一根：一段短到不滿一根的區間，仍然看得見一根 K 線，
-   * 而要求算零根是沒有意義的問法。
-   */
-  kCandleCountAt(interval: AggregationIntervalVo): number {
-    const spanMinutes
-      = (this.endTime.getTime() - this.startTime.getTime()) / MILLISECONDS_PER_MINUTE
-
-    return Math.max(1, Math.floor(spanMinutes / interval.minutes))
+  toObservationWindow(latestKCandleOpenTime: Date | null): ObservationWindowVo {
+    return new ObservationWindowVo(
+      this.startTime,
+      this.showsTheLatestKCandle(latestKCandleOpenTime) ? null : this.endTime)
   }
 }

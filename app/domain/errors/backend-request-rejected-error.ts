@@ -39,6 +39,14 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly candleCoverageShortfall: CandleCoverageShortfallVo | undefined
 
+  /**
+   * 這次拒絕是因為**要看的那一段裡，那個市場根本沒有開過**。
+   *
+   * 同樣以一個值存在，理由與上面三個相同。它是布林而不是一組數字，因為這一種說得完的
+   * 只有「是這一種」——沒有任何一個數字調一調就會讓週六長出成交。
+   */
+  readonly marketClosedThroughout: boolean
+
   constructor(
     message: string,
     options?: {
@@ -47,6 +55,7 @@ export class BackendRequestRejectedError extends Error {
       parameterName?: string
       field?: string
       candleCoverageShortfall?: CandleCoverageShortfallVo
+      marketClosedThroughout?: boolean
     },
   ) {
     super(message, { cause: options?.cause })
@@ -55,5 +64,6 @@ export class BackendRequestRejectedError extends Error {
     this.parameterName = options?.parameterName
     this.field = options?.field
     this.candleCoverageShortfall = options?.candleCoverageShortfall
+    this.marketClosedThroughout = options?.marketClosedThroughout ?? false
   }
 }

@@ -15,6 +15,7 @@ type BackendFailure = {
     field?: string
     availableCandleCount?: number
     minimumCandleCount?: number
+    observationWindowHoldsNoTrading?: boolean
   }
 }
 
@@ -99,6 +100,9 @@ export abstract class BackendApiProxy {
               parameterName: backendFailure.data?.parameterName,
               field: backendFailure.data?.field,
               candleCoverageShortfall,
+              // 一個布林就說得完：這一種拒絕沒有任何數字調得動。
+              marketClosedThroughout:
+                backendFailure.data?.observationWindowHoldsNoTrading ?? false,
             },
           )
         }

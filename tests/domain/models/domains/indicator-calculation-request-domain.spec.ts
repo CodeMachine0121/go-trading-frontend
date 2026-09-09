@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
 const SCRIPT_BODY = [
@@ -9,11 +10,15 @@ const SCRIPT_BODY = [
   '}',
 ].join('\n')
 
+/** 要看的那一段。這一份測試不關心它多長，只關心它原封不動地被帶著走。 */
+const OBSERVATION_WINDOW = new ObservationWindowVo(
+  new Date('2026-09-03T09:00:00.000Z'), new Date('2026-09-03T12:00:00.000Z'))
+
 function buildRequest(
   overrides: {
     symbol?: string
     aggregationInterval?: string
-    candleCount?: number
+    observationWindow?: ObservationWindowVo
     scriptBody?: string
     resultType?: string
   } = {},
@@ -21,7 +26,7 @@ function buildRequest(
   return new IndicatorCalculationRequestDto(
     overrides.symbol ?? 'BTCUSDT',
     overrides.aggregationInterval ?? '5m',
-    overrides.candleCount ?? 3,
+    overrides.observationWindow ?? OBSERVATION_WINDOW,
     overrides.scriptBody ?? SCRIPT_BODY,
     overrides.resultType ?? 'float',
   )
@@ -43,10 +48,10 @@ function fieldErrorOf(build: () => IndicatorCalculationRequestDomain): Indicator
 describe('IndicatorCalculationRequestDomain', () => {
   it('條件都合法時，去掉交易標的前後的空白', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(
-      buildRequest({ symbol: '  BTCUSDT  ', candleCount: 30 }))
+      buildRequest({ symbol: '  BTCUSDT  ' }))
 
     expect(requestDomain.symbol).toBe('BTCUSDT')
-    expect(requestDomain.candleCount).toBe(30)
+    expect(requestDomain.observationWindow).toBe(OBSERVATION_WINDOW)
   })
 
   it('送出的是固定外框加上使用者寫的檔案主體', () => {
@@ -95,9 +100,11 @@ describe('IndicatorCalculationRequestDomain', () => {
   // 這是刻意的行為變更，不是把驗證弄丟了。
 
   it('只要一格也照常算', () => {
-    const requestDomain = new IndicatorCalculationRequestDomain(buildRequest({ candleCount: 1 }))
+    const anotherWindow = new ObservationWindowVo(new Date('2026-09-03T11:00:00.000Z'), null)
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ observationWindow: anotherWindow }))
 
-    expect(requestDomain.candleCount).toBe(1)
+    expect(requestDomain.observationWindow).toBe(anotherWindow)
   })
 
   it.each([
