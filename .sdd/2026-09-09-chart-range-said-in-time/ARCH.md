@@ -24,7 +24,7 @@
 
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
-| `domain/models/domains/k-candle-chart-viewport-domain.ts` | **Modify** | 刪掉刻度（不再持有、不再推導）；上限從「根數 × 刻度長度」改成**一千天**；重新取的條件多一條「長度變化超過兩成半」 |
+| `domain/models/domains/k-candle-chart-viewport-domain.ts` | **Modify** | 刪掉刻度（不再持有、不再推導）；上限從「根數 × 刻度長度」改成**五百天**（由系統答得出的一千根 ÷ 預取倍數推導）；重新取的條件多一條「長度變化超過兩成半」 |
 | `domain/models/vo/k-candle-chart-load-plan-vo.ts` | **Modify** | 刪掉 `interval`。取回計畫不再說用哪一種刻度——那不是畫面決定的事 |
 | `domain/models/dto/k-candle-chart-dto.ts` | **Modify** | `interval` 保留，但它的來源從「取回計畫」變成**後端回覆** |
 | `domain/service/k-candle-chart-service.ts` | **Modify** | 組 `KCandleChartDto` 時，刻度取自 proxy 回傳的那一個 |
@@ -55,7 +55,7 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `KCandleChartViewportDomain` | 圖表唯一在做判斷的地方 | **刪掉刻度**；上限改成一千天（`MAXIMUM_VISIBLE_DAYS`）；`toLoadPlan()` 的重新取條件從四條變成四條，但**其中「刻度變了」換成「長度變化超過兩成半」** |
+| `KCandleChartViewportDomain` | 圖表唯一在做判斷的地方 | **刪掉刻度**；上限改成五百天（`MAXIMUM_VISIBLE_DAYS`，由 `ANSWERABLE_CANDLE_COUNT / FETCH_SPAN_MULTIPLIER` 推導）；`toLoadPlan()` 的重新取條件從四條變成四條，但**其中「刻度變了」換成「長度變化超過兩成半」** |
 | `KCandleChartLoadPlanVo` | 取回計畫 | 少一個欄位（`interval`）。少了它，「畫面決定刻度」在型別上就不再表達得出來 |
 | `KCandleChartDto` | 圖表這次要畫的東西 | `interval` 的**來源**變了，欄位不變。畫面兩個消費者（標題列的標籤、繪圖的分格）都不必改 |
 | `IKCandleProxy.findKCandleSeries` | 取一批彙總 K 線 | 回傳 `KCandleSeriesVo`。**這是唯一的介面變更**，而它是必要的：回覆裡多了一個畫面非讀不可的事實 |
@@ -123,14 +123,16 @@ flowchart TD
   那條式子讀的是牆上的鐘，而會收盤的市場不照牆上的鐘走——這是同一個 bug 的第四處，
   拿掉之後不要讓它長回來。
 
-- **Do not hardcode:** 一千天那個上限**必須**寫在一個具名常數上，並註明它是
-  「系統一次答一千根 × 最粗的刻度是一天一根」換算出來的，而不是一個手感數字。
-  系統那一側的上限若調整，這裡要跟著改。
+- **Do not hardcode:** 那個上限**必須推導**，不能寫死一個數字。它是
+  「系統一次答一千根（最粗的刻度是一天一根）」**除以預取倍數**——
+  因為**問出去的不是使用者看的那一段**，而是它加上兩側預取之後的兩倍。
+  第一版把它寫成一千天，於是使用者拉到五百天以上整張圖就消失、換成一句「區間過大」，
+  而那正是這個常數存在的目的要避免的事。系統那一側的上限若調整，這裡要跟著改。
 
 - **Known debt / deferred:**
   - **兩成半是代理指標**，不是精確判斷。真正精確的做法是讓系統告訴畫面「這一段該用哪一種刻度」
     而不必取資料，但那要多一個往返，而放大縮小是高頻動作。目前接受多取一次。
-  - **一千天與系統那側的一千根是兩份設定。** 兩邊都改才對得上；
+  - **這裡的答得出的根數與系統那側的單次上限是兩份設定。** 兩邊都改才對得上；
     目前刻意不從系統取回這個數字（那要多一個端點，為一個幾乎不會變的常數）。
 
 ---

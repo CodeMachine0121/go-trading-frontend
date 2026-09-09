@@ -36,14 +36,15 @@
 | AC-10 | 盤後按一天看得到當天盤中 | 同上 | 同上 | **無專屬測試**，同 AC-09 | 🟡 partial |
 | AC-11 | 拉出整個週六呈現「查無 K 線」，不是錯誤 | 呈現「查無 K 線」；非錯誤 | 既有空狀態（不改） | 既有 `KCandleChartPanel.spec.ts` "這段區間內沒有任何 K 線時說「查無 K 線」" | ✅ conforms |
 
-### US-04 — 拉遠只有一千天這一個極限
+### US-04 — 拉遠只有五百天這一個極限
 
 | ID | Clause | Oracle | Impl | Test | Status |
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | AC-12 | 拉出一年不被收回 | 顯示區間就是那一年 | `MAXIMUM_VISIBLE_DAYS`（`k-candle-chart-viewport-domain.ts`） | `k-candle-chart-viewport-domain.spec.ts` 上限表格 ＋ `KCandleChartPanel.spec.ts` "拉出五百天不再被收回" | ✅ conforms |
-| AC-13 | 恰好一千天不被收回 | 顯示區間就是那一千天 | 同上（邊界為 `>`） | 上限表格 "看恰好一千天" | ✅ conforms |
-| AC-14 | 一千零一天收回一千天，結束端不變 | 顯示區間 1000 天；結束端不變 | 同上 | 上限表格 "看一千零一天:收回一千天"（同時斷言結束端） | ✅ conforms |
-| AC-15 | 十年也只是收回一千天 | 同上 | 同上 | 上限表格 "看十年:一樣收回一千天" ＋ `KCandleChartPanel.spec.ts` "拉得比一千天還遠時" | ✅ conforms |
+| AC-13 | 恰好五百天不被收回 | 顯示區間就是那五百天 | 同上（邊界為 `>`） | 上限表格 "看恰好五百天" | ✅ conforms |
+| AC-14 | 五百零一天收回五百天，結束端不變 | 顯示區間 500 天；結束端不變 | 同上 | 上限表格 "看五百零一天:收回五百天"（同時斷言結束端） | ✅ conforms |
+| AC-15 | 十年也只是收回五百天 | 同上 | 同上 | 上限表格 "看十年:一樣收回五百天" ＋ `KCandleChartPanel.spec.ts` "拉得比五百天還遠時" | ✅ conforms |
+| AC-16 | 不論拉多遠，問出去的那一段都在系統答得出來的範圍內 | 交出去的那一段 ≤ 1000 天；不呈現「區間過大」 | `MAXIMUM_VISIBLE_DAYS = ANSWERABLE_CANDLE_COUNT / FETCH_SPAN_MULTIPLIER` | 上限那一組的第二張表 "問出去的那一段仍在系統答得出來的一千天之內" | ✅ conforms |
 
 ### US-05 — 放大之後看到更細的 K 線
 
@@ -96,8 +97,12 @@
 Contract verification complete for "圖表只說使用者在看哪一段".
 Oracle: PRD Acceptance Criteria ＋ Business Rules ＋ NFR — 29 clauses.
 
-✅ 27 conforms · 🔴 0 violations · 🟠 0 mis-asserted · 🟡 2 partial · ❌ 0 gaps · ❔ 0 unclear · ⚠️ 0 orphans
+✅ 28 conforms · 🔴 0 violations · 🟠 0 mis-asserted · 🟡 2 partial · ❌ 0 gaps · ❔ 0 unclear · ⚠️ 0 orphans
 Conformance: 93%
+
+Review 之後補了一條 AC（AC-16：問出去的那一段必須答得出來）並修正了上限的推導。
+第一版把上限寫成一千天，而問出去的是使用者看的那一段的兩倍——
+所有既有斷言都只驗取回計畫，所以沒有一條會紅。
 ```
 
 **🟡 Partial：AC-09 與 AC-10**（台股週六按五天／盤後按一天看得到 K 線）。
@@ -120,8 +125,11 @@ Conformance: 93%
    要等到有人真的把它送出去，才會被 `k-candle-proxy.spec.ts` 那個整包 query 的斷言抓到。
    那個斷言是這條規則唯一的哨兵，**不要把它改成只檢查其中幾個欄位**。
 
-2. **兩成半是代理指標，一千天是換算值。**
-   前者代理的是「系統挑的刻度變沒變」，而畫面算不出那件事；
-   後者是「系統一次答一千根 × 最粗的刻度一天一根」。
-   **一千天與系統那側的一千根是兩份設定**，系統那邊調了，這裡要跟著改；
-   忘了改的症狀是使用者拉遠時看到一句「區間過大」。
+2. **兩成半是代理指標，五百天是推導值。**
+   前者代理的是「系統挑的刻度變沒變」，而畫面算不出那件事。
+   後者是「系統一次答一千根（最粗的刻度一天一根）」**除以預取倍數**——
+   那個除法是 review 抓出來的：第一版寫成一千天，而**問出去的是使用者看的那一段的兩倍**，
+   於是拉到五百天以上整張圖就消失、換成一句「區間過大」。
+   釘住它的是「問出去的那一段仍在一千天之內」那一組測試，
+   其餘每一條斷言都只驗取回計畫，而計畫可以形式正確卻答不出來。
+   **這裡的一千根與系統那側的單次上限是兩份設定**，系統那邊調了這裡要跟著改。
