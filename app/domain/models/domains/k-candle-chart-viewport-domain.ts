@@ -47,12 +47,12 @@ export class KCandleChartViewportDomain {
     // 因此退成五分鐘一根——這個系統存的一分鐘線，一根都沒被畫過。
     this.interval = FINEST_AGGREGATION_INTERVAL
 
-    // 收回上限時保留較晚的那一端：看行情在意的是靠近現在的那一頭。
     const requestedSpanMinutes = (
       kCandleChartViewportDto.visibleEndTime.getTime()
       - kCandleChartViewportDto.visibleStartTime.getTime()
     ) / MILLISECONDS_PER_MINUTE
     const maximumSpanMinutes = this.interval.minutes * READABLE_KCANDLE_COUNT
+    // 收回上限時保留較晚的那一端：看行情在意的是靠近現在的那一頭。
     this.startTime = requestedSpanMinutes > maximumSpanMinutes
       ? new Date(kCandleChartViewportDto.visibleEndTime.getTime()
         - maximumSpanMinutes * MILLISECONDS_PER_MINUTE)
@@ -65,12 +65,15 @@ export class KCandleChartViewportDomain {
 
   /**
    * 這一段接下來該怎麼辦：使用者應該看到哪一段（可能已被收回上限）、
-   * 要不要重新取，以及要取哪一段、用哪一種刻度。
+   * 要不要重新取，以及要取哪一段。
    *
    * 手上那批之所以可能還夠用，是因為取的時候兩側各多取了半段——
    * 使用者小幅拖動時，新的一段仍然整個落在裡面。
    */
   toLoadPlan(): KCandleChartLoadPlanVo {
+    // 刻度那一條目前恆為真後的否——圖上那批的刻度只可能來自取回計畫，而取回計畫
+    // 一律是一分鐘。留著它是因為「刻度換了就得重取」這條規則沒有變，只是暫時沒有
+    // 第二種刻度去觸發它；讓後端挑刻度之後它就會重新活過來。
     const loadedChart = this.loadedChart
     const needsReload = loadedChart === null
       || loadedChart.symbol !== this.symbol
