@@ -56,45 +56,41 @@ function viewportSpanning(
 }
 
 describe('KCandleChartViewportDomain', () => {
-  describe('看多長，決定每一根涵蓋多久', () => {
+  describe('每一根都涵蓋一分鐘', () => {
     it.each([
-      { name: '看三十分鐘：一分鐘一根，三十根', visibleMinutes: 30, expectedInterval: '1m', expectedCandleCount: 30 },
-      { name: '看四百分鐘：一分鐘一根恰好 400 根', visibleMinutes: 400, expectedInterval: '1m', expectedCandleCount: 400 },
-      { name: '看四百零五分鐘：一分鐘會 405 根，太擠', visibleMinutes: 405, expectedInterval: '5m', expectedCandleCount: 81 },
-      { name: '看一天：一分鐘擺不下，五分鐘剛好 288 根', visibleMinutes: 24 * 60, expectedInterval: '5m', expectedCandleCount: 288 },
-      { name: '看兩天：五分鐘會 576 根，太擠', visibleMinutes: 2 * 24 * 60, expectedInterval: '15m', expectedCandleCount: 192 },
-      { name: '看五天：十五分鐘會 480 根，仍太擠', visibleMinutes: 5 * 24 * 60, expectedInterval: '1h', expectedCandleCount: 120 },
-      { name: '看一年', visibleMinutes: 365 * 24 * 60, expectedInterval: '1d', expectedCandleCount: 365 },
-      { name: '看四百天：一天一根恰好 400 根', visibleMinutes: 400 * 24 * 60, expectedInterval: '1d', expectedCandleCount: 400 },
-      { name: '看五百天：連一天一根都擺不下，收回四百天', visibleMinutes: 500 * 24 * 60, expectedInterval: '1d', expectedCandleCount: 400 },
-    ])('$name', ({ visibleMinutes, expectedInterval, expectedCandleCount }) => {
+      { name: '看三十分鐘：三十根', visibleMinutes: 30, expectedCandleCount: 30 },
+      { name: '看四百分鐘：恰好 400 根', visibleMinutes: 400, expectedCandleCount: 400 },
+      { name: '看四百零五分鐘：太擠，收回四百分鐘', visibleMinutes: 405, expectedCandleCount: 400 },
+      { name: '看一天：收回四百分鐘，不改用更粗的刻度', visibleMinutes: 24 * 60, expectedCandleCount: 400 },
+      { name: '看一年：一樣收回四百分鐘', visibleMinutes: 365 * 24 * 60, expectedCandleCount: 400 },
+    ])('$name', ({ visibleMinutes, expectedCandleCount }) => {
       const loadPlan = viewportSpanning(visibleMinutes).toLoadPlan()
 
-      expect(loadPlan.interval.value).toBe(expectedInterval)
+      expect(loadPlan.interval.value).toBe('1m')
       expect(visibleCandleCountOf(loadPlan)).toBe(expectedCandleCount)
     })
 
-    it('恰好落在上限的四百天不被收回', () => {
-      const loadPlan = viewportSpanning(400 * 24 * 60).toLoadPlan()
+    it('恰好落在上限的四百分鐘不被收回', () => {
+      const loadPlan = viewportSpanning(400).toLoadPlan()
 
-      // 該看的仍是問的那四百天，一分鐘都沒被收
-      expect(loadPlan.visibleStartTime.toISOString()).toBe('2025-07-29T12:00:00.000Z')
+      // 該看的仍是問的那四百分鐘，一分鐘都沒被收
+      expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-02T05:20:00.000Z')
       expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
       expect(visibleCandleCountOf(loadPlan)).toBe(400)
-      // 前後各多取兩百天
-      expect(loadPlan.fetchStartTime.toISOString()).toBe('2025-01-10T12:00:00.000Z')
-      expect(loadPlan.fetchEndTime.toISOString()).toBe('2027-03-21T12:00:00.000Z')
+      // 前後各多取兩百分鐘
+      expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-02T02:00:00.000Z')
+      expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-02T15:20:00.000Z')
     })
 
-    it('拉遠到五百天時，該看的那一段被收回四百天，結束的那一端不變', () => {
-      const loadPlan = viewportSpanning(500 * 24 * 60).toLoadPlan()
+    it('拉遠到五百分鐘時，該看的那一段被收回四百分鐘，結束的那一端不變', () => {
+      const loadPlan = viewportSpanning(500).toLoadPlan()
 
-      // 問的是五百天（2025-04-20 起），收回後該看的與四百天那次完全相同
-      expect(loadPlan.visibleStartTime.toISOString()).toBe('2025-07-29T12:00:00.000Z')
+      // 問的是五百分鐘（03:40 起），收回後該看的與四百分鐘那次完全相同
+      expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-02T05:20:00.000Z')
       expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
       expect(visibleCandleCountOf(loadPlan)).toBe(400)
-      expect(loadPlan.fetchStartTime.toISOString()).toBe('2025-01-10T12:00:00.000Z')
-      expect(loadPlan.fetchEndTime.toISOString()).toBe('2027-03-21T12:00:00.000Z')
+      expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-02T02:00:00.000Z')
+      expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-02T15:20:00.000Z')
     })
   })
 

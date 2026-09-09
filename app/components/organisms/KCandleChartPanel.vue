@@ -478,7 +478,7 @@ onMounted(async () => {
       flush
       class="k-candle-chart-panel__chart"
     >
-      <!-- 每根涵蓋多久寫在圖的標題列上：它是「正在看多長」推出來的結果，
+      <!-- 每根涵蓋多久寫在圖的標題列上：它說的是圖上那批 K 線多粗，
            所以它跟著圖，不跟著控制項。 -->
       <template #meta>
         <span>每根涵蓋</span>
