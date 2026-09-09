@@ -185,7 +185,7 @@ async function calculateIndicator() {
   await calculationRun.run(() => new IndicatorCalculationRequestDto(
     symbol.value,
     aggregationInterval.value,
-    indicatorCalculationApplication.kCandleCountFor(span.value, aggregationInterval.value),
+    indicatorCalculationApplication.observationWindowFor(span.value),
     scriptBody.value,
     resultType.value,
     strategyParameters.parameters.value))

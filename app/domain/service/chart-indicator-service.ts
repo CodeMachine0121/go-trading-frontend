@@ -140,13 +140,12 @@ export class ChartIndicatorService {
       new IndicatorCalculationRequestDto(
         chartIndicatorRequestDto.symbol,
         chartIndicatorRequestDto.aggregationInterval,
-        chartIndicatorRequestDto.candleCount,
+        chartIndicatorRequestDto.observationWindow,
         appliedIndicator.strategy.content.scriptBody,
         appliedIndicator.strategy.content.resultType,
         // **這一次**的值，不是策略記著的預設值。同一支策略的另一筆套用
         // 可能填著完全不同的數字，而它們必須各自算各自的。
         appliedIndicator.parameters,
-        chartIndicatorRequestDto.endTime,
       ))
 
     const indicatorCalculation

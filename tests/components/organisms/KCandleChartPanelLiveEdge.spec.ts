@@ -145,7 +145,9 @@ describe('在看現在，就算到現在', () => {
 
     expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar + 1)
     expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ endTime: null }))
+      expect.objectContaining({
+        observationWindow: expect.objectContaining({ endTime: null }),
+      }))
   })
 
   it('連續走完好幾根都一直跟著走', async () => {
@@ -176,7 +178,9 @@ describe('在看現在，就算到現在', () => {
 
     expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar + 1)
     expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ endTime: null }))
+      expect.objectContaining({
+        observationWindow: expect.objectContaining({ endTime: null }),
+      }))
   })
 })
 
@@ -211,20 +215,23 @@ describe('在看過去，就停在那一段', () => {
     await look(wrapper, SHOWING_THE_PAST)
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      endTime: SHOWING_THE_PAST.endTime,
+      observationWindow: expect.objectContaining({ endTime: SHOWING_THE_PAST.endTime }),
     }))
   })
 
   it('拖回來看得見最新那一根時，重新算到現在', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
     await look(wrapper, SHOWING_THE_PAST)
-    expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ endTime: SHOWING_THE_PAST.endTime }))
+    expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
+      observationWindow: expect.objectContaining({ endTime: SHOWING_THE_PAST.endTime }),
+    }))
 
     await look(wrapper, SHOWING_NOW)
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ endTime: null }))
+      expect.objectContaining({
+        observationWindow: expect.objectContaining({ endTime: null }),
+      }))
   })
 })
 
@@ -265,9 +272,11 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
     })
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      endTime: null,
-      // 三天、一天最多 400 根看得清，因此挑到的是十五分鐘一根 → 288 根。
-      candleCount: 288,
+      // 交出去的是那三天本身,不是它有幾格——有幾格是系統照市場作息算的。
+      observationWindow: expect.objectContaining({
+        startTime: new Date('2026-08-31T12:00:00.000Z'),
+        endTime: null,
+      }),
     }))
   })
 

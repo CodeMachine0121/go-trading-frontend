@@ -8,6 +8,7 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import { CalculationSpanVo, DEFAULT_CALCULATION_SPAN } from '~/domain/models/vo/calculation-span-vo'
+import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
@@ -114,20 +115,21 @@ export class IndicatorCalculationService {
   }
 
   /**
-   * 這麼長一段、以這個刻度看是幾格；那一段本身不合理時說出來。
+   * 「最近這麼久」是哪一段行情；那一段本身不合理時說出來。
    *
-   * 畫面問這個而不是自己算，因為「至少一格」、怎麼取整、多長才算合理，
-   * 每一條都是規則——而規則不住在畫面上。
+   * 畫面問這個而不是自己算，因為「多長才算合理」是規則，而規則不住在畫面上。
+   *
+   * **它不再需要知道彙總刻度**：一段裡有幾格取決於那個市場在這段時間裡開了多久，
+   * 那是系統的答案。這個方法少掉一個參數，正是這次改動的整個重點。
    */
-  kCandleCountFor(span: CalculationSpanDto, aggregationInterval: string): number {
+  observationWindowFor(span: CalculationSpanDto): ObservationWindowVo {
     const spanVo = new CalculationSpanVo(span.amount, span.unit)
     const message = spanVo.validationMessage()
     if (message !== null) {
       throw new IndicatorCalculationFieldError('span', message)
     }
 
-    return spanVo.kCandleCountAt(
-      new AggregationIntervalDomain(aggregationInterval).intervalMinutes)
+    return spanVo.toObservationWindow(new Date())
   }
 
   /** 種類選單上可以挑的每一個。 */

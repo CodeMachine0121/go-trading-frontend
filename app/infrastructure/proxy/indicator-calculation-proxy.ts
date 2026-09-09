@@ -8,6 +8,7 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
 import { CandleCoverageShortfallDomain } from '~/domain/models/domains/candle-coverage-shortfall-domain'
+import { MarketClosedThroughoutDomain } from '~/domain/models/domains/market-closed-throughout-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const INDICATOR_CALCULATIONS_ENDPOINT = '/indicator-calculations'
@@ -16,11 +17,15 @@ const INDICATOR_CALCULATIONS_ENDPOINT = '/indicator-calculations'
 const SCRIPT_FAILED_STATUS = 422
 
 /**
- * 後端指名這一格時用的詞彙。它說的是「根數」——那是它的量詞；
+ * 後端指名這一格時用的詞彙。它說的是「要看哪一段的起點」——那是它的說法；
  * 這個畫面把同一件事畫成「要看多長」，所以翻譯發生在這裡。
  * 後端沒有理由知道畫面把它畫成了什麼。
+ *
+ * **這個常數換過一次名字。** 後端曾經指名「根數」，改成收一段區間之後改指起點。
+ * 沒跟著改的話那一句不會消失，只會從欄位旁邊掉下來變成一則籠統的錯誤——
+ * 壞得很安靜，所以它有一個直接釘住它的測試。
  */
-const CANDLE_COUNT_FIELD = 'candleCount'
+const OBSERVATION_WINDOW_START_FIELD = 'startTime'
 
 /**
  * 後端回傳的原始 wire 形狀，只存在於本檔內。
@@ -66,11 +71,14 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           body: {
             symbol: indicatorCalculationRequestDomain.symbol,
             aggregationInterval: indicatorCalculationRequestDomain.aggregationInterval.value,
-            candleCount: indicatorCalculationRequestDomain.candleCount,
+            startTime: indicatorCalculationRequestDomain.observationWindow.startTime.toISOString(),
             // 省略等同「算到現在」，那正是沒指定時後端的預設，因此不必送一個假的現在。
-            ...(indicatorCalculationRequestDomain.endTime === null
+            ...(indicatorCalculationRequestDomain.observationWindow.endTime === null
               ? {}
-              : { endTime: indicatorCalculationRequestDomain.endTime.toISOString() }),
+              : {
+                  endTime: indicatorCalculationRequestDomain.observationWindow
+                    .endTime.toISOString(),
+                }),
             resultType: indicatorCalculationRequestDomain.resultType.value,
             script: indicatorCalculationRequestDomain.script,
             // 宣告與這一次的值分兩份送：系統要先知道這支算式**宣告**了哪些名字，
@@ -130,9 +138,18 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
           { cause: error })
       }
 
+      // 那一段裡市場根本沒開過：第三種算不出來，而它的出路與另外兩種**都不同**——
+      // 換刻度、縮短或拉長區間都不會讓週六長出成交。認它靠系統交出來的那個值，
+      // 不靠訊息的文字；那句話由領域決定，這裡只負責認出是哪一種。
+      if (error instanceof BackendRequestRejectedError && error.marketClosedThroughout) {
+        throw new IndicatorCalculationFieldError(
+          'span', new MarketClosedThroughoutDomain().message(), { cause: error })
+      }
+
       // 要的太多了：這一種拒絕有兩條具體的出路，所以它要落在使用者改得動的那一格旁邊，
       // 而不是變成一則籠統的「請求的問題」——後者說了什麼都對，卻指不出下一步。
-      if (error instanceof BackendRequestRejectedError && error.field === CANDLE_COUNT_FIELD) {
+      if (error instanceof BackendRequestRejectedError
+        && error.field === OBSERVATION_WINDOW_START_FIELD) {
         throw new IndicatorCalculationFieldError(
           'span',
           `${error.message}。請縮短要看的區間，或換粗一點的彙總刻度。`,

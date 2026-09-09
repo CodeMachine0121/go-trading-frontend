@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-
-function intervalOf(value: string) {
-  const interval = AGGREGATION_INTERVALS.find(candidate => candidate.value === value)
-  if (interval === undefined) {
-    throw new Error(`找不到彙總刻度 ${value}`)
-  }
-
-  return interval
-}
 
 function rangeOf(startTime: string, endTime: string) {
   return new ChartVisibleRangeVo(new Date(startTime), new Date(endTime))
@@ -44,21 +34,6 @@ describe('顯示區間：跟另一段是不是同一段', () => {
     // 沒比過就沒有理由跳過——第一次一定要算。
     expect(rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z')
       .isSameAs(null)).toBe(false)
-  })
-})
-
-describe('顯示區間：這一段裡有幾根', () => {
-  it.each([
-    { name: '兩小時、五分鐘一根 → 24 根', from: '09:00', to: '11:00', interval: '5m', expected: 24 },
-    { name: '兩小時、一小時一根 → 2 根', from: '09:00', to: '11:00', interval: '1h', expected: 2 },
-    { name: '一天、四小時一根 → 6 根', from: '00:00', to: '24:00', interval: '4h', expected: 6 },
-    { name: '不滿一根的一段仍然是一根', from: '09:00', to: '09:02', interval: '5m', expected: 1 },
-    { name: '長度為零的一段仍然是一根', from: '09:00', to: '09:00', interval: '5m', expected: 1 },
-  ])('$name', ({ from, to, interval, expected }) => {
-    const endHour = to === '24:00' ? '2026-09-04T00:00:00.000Z' : `2026-09-03T${to}:00.000Z`
-
-    expect(rangeOf(`2026-09-03T${from}:00.000Z`, endHour)
-      .kCandleCountAt(intervalOf(interval))).toBe(expected)
   })
 })
 
@@ -101,25 +76,42 @@ describe('顯示區間：看得到最新那一根嗎', () => {
   })
 })
 
-describe('顯示區間：這一次要算到哪一刻', () => {
-  it('看得到最新那一根就不指定——交給系統的「現在」', () => {
-    // 系統本來就規定未指定即視為現在，所以「跟著市場走」是不要去指定它。
+describe('顯示區間：拿去算指標時是哪一段', () => {
+  it('起點就是這一段的左端', () => {
     const range = rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z')
 
-    expect(range.calculationEndTime(new Date('2026-09-03T11:55:00.000Z'))).toBeNull()
-  })
-
-  it('看不到最新那一根就算到這一段的右端', () => {
-    // 一段已經過去的行情，答案不該因為現在又走完一根而改變。
-    const range = rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z')
-
-    expect(range.calculationEndTime(new Date('2026-09-03T11:55:00.000Z')))
+    expect(range.toObservationWindow(null).startTime)
       .toEqual(new Date('2026-09-03T09:00:00.000Z'))
   })
 
-  it('圖上一根都沒有時算到這一段的右端', () => {
+  it('看得到最新那一根,終點就不指定——交給系統的「現在」', () => {
+    // 系統本來就規定未指定即視為現在，所以「跟著市場走」是不要去指定它。
+    const range = rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z')
+
+    expect(range.toObservationWindow(new Date('2026-09-03T11:55:00.000Z')).endTime).toBeNull()
+  })
+
+  it('看不到最新那一根,終點就是這一段的右端', () => {
+    // 一段已經過去的行情，答案不該因為現在又走完一根而改變。
     const range = rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z')
 
-    expect(range.calculationEndTime(null)).toEqual(new Date('2026-09-03T09:00:00.000Z'))
+    expect(range.toObservationWindow(new Date('2026-09-03T11:55:00.000Z')).endTime)
+      .toEqual(new Date('2026-09-03T09:00:00.000Z'))
+  })
+
+  it('圖上一根都沒有時,終點是這一段的右端', () => {
+    const range = rangeOf('2026-09-03T06:00:00.000Z', '2026-09-03T09:00:00.000Z')
+
+    expect(range.toObservationWindow(null).endTime)
+      .toEqual(new Date('2026-09-03T09:00:00.000Z'))
+  })
+
+  it('交出去的是一段行情,不是它有幾格', () => {
+    // 一段裡有幾格取決於那個市場在這段時間裡實際開了多久——那是系統的答案，
+    // 而顯示區間答不出來：它只知道自己從哪裡到哪裡。
+    const window = rangeOf('2026-09-03T09:00:00.000Z', '2026-09-03T12:00:00.000Z')
+      .toObservationWindow(null)
+
+    expect(Object.keys(window)).toEqual(['startTime', 'endTime'])
   })
 })

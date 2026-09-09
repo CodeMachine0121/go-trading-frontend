@@ -1,11 +1,17 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
+import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
+
+/** 要看的那一段。這一份測試不關心它多長，只關心它原封不動地到達邊界。 */
+const OBSERVATION_WINDOW = new ObservationWindowVo(
+  new Date('2026-09-03T09:00:00.000Z'), null)
 
 const SCRIPT_BODY = [
   'func Calculate(data []indicator.KCandle) map[string]float64 {',
@@ -28,12 +34,12 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     const resultDto = await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
         symbol: 'BTCUSDT',
-        candleCount: 3,
+        observationWindow: OBSERVATION_WINDOW,
         script: expect.stringContaining('func Calculate(data []indicator.KCandle) map[string]float64 {'),
       }))
     expect(resultDto.usedCandleCount).toBe(3)
@@ -46,7 +52,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', 3, SCRIPT_BODY, 'boolList'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'boolList'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -59,7 +65,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await expect(indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('', '5m', 3, SCRIPT_BODY, 'float'),
+      new IndicatorCalculationRequestDto('', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'),
     )).rejects.toBeInstanceOf(IndicatorCalculationFieldError)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -188,12 +194,12 @@ describe('IndicatorCalculationService 的執行設定', () => {
     const indicatorCalculationProxy = buildProxy()
 
     await new IndicatorCalculationService(indicatorCalculationProxy).calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
         aggregationInterval: expect.objectContaining({ value: '1h' }),
-        candleCount: 24,
+        observationWindow: OBSERVATION_WINDOW,
       }))
   })
 
@@ -205,7 +211,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 3, SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
 
     expect(resultDto.intervalLabel).toBe('五分鐘')
   })
@@ -216,7 +222,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', 24, SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
 
     expect(resultDto.isEmpty).toBe(true)
     expect(resultDto.intervalLabel).toBe('一小時')
@@ -283,5 +289,51 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
 
     expect(access?.example).toContain(secondLine)
     expect(access?.example.split('\n')).toHaveLength(2)
+  })
+})
+
+// 使用者說得出口的是「最近兩小時」。畫面把它交給領域換算，因為「多長才算合理」是規則。
+describe('IndicatorCalculationService：「要看多長」是哪一段行情', () => {
+  const NOW = new Date('2026-09-03T12:00:00.000Z')
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function windowFor(amount: number, unit: 'minute' | 'hour' | 'day') {
+    return new IndicatorCalculationService(buildProxy())
+      .observationWindowFor(new CalculationSpanDto(amount, unit))
+  }
+
+  it.each([
+    { name: '最近兩小時', amount: 2, unit: 'hour' as const, expectedStart: '2026-09-03T10:00:00.000Z' },
+    { name: '最近三十分鐘', amount: 30, unit: 'minute' as const, expectedStart: '2026-09-03T11:30:00.000Z' },
+    { name: '最近一天', amount: 1, unit: 'day' as const, expectedStart: '2026-09-02T12:00:00.000Z' },
+  ])('$name 是從現在往回推的那一段', ({ amount, unit, expectedStart }) => {
+    expect(windowFor(amount, unit).startTime).toEqual(new Date(expectedStart))
+  })
+
+  it('終點不指定——「最近」的右端就是現在,交給系統判斷', () => {
+    expect(windowFor(2, 'hour').endTime).toBeNull()
+  })
+
+  it.each([
+    { name: '零', amount: 0 },
+    { name: '負數', amount: -3 },
+    { name: '小數', amount: 2.5 },
+  ])('$name 時擋在那一格旁邊,不換算成任何一段', ({ amount }) => {
+    // 規則不住在畫面上：畫面問這個而不是自己判斷多長才算合理。
+    expect(() => windowFor(amount, 'hour')).toThrowError(IndicatorCalculationFieldError)
+    try {
+      windowFor(amount, 'hour')
+    }
+    catch (error: unknown) {
+      expect((error as IndicatorCalculationFieldError).field).toBe('span')
+    }
   })
 })
