@@ -1,5 +1,5 @@
-/** 五種可選的彙總刻度，與後端同名。 */
-export type AggregationIntervalValue = '5m' | '15m' | '1h' | '4h' | '1d'
+/** 六種可選的彙總刻度，與後端同名。 */
+export type AggregationIntervalValue = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
 /**
  * VO：一種彙總刻度——圖表上一根 K 線涵蓋多久。不可變、無行為。
@@ -22,6 +22,7 @@ export class AggregationIntervalVo {
  * 所以多支援一種刻度就是在這裡多一列（前提是後端也認得同一個代號）。
  */
 export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
+  new AggregationIntervalVo('1m', '一分鐘', 1),
   new AggregationIntervalVo('5m', '五分鐘', 5),
   new AggregationIntervalVo('15m', '十五分鐘', 15),
   new AggregationIntervalVo('1h', '一小時', 60),

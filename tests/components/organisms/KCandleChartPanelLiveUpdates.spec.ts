@@ -271,7 +271,7 @@ describe('圖表上那一句話：三種原因共用一個位置，一次只說�
 
     expect(wrapper.find('[data-testid="live-update-noLivePlace-alert"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('每五分鐘更新一次')
+    expect(wrapper.text()).toContain('每分鐘更新一次')
   })
 
   it('市場收盤時說收盤，而不是那幾則故障', async () => {

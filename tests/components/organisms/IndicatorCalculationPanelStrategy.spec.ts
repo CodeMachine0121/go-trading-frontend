@@ -691,12 +691,12 @@ describe('指標計算畫面上的策略：彙總刻度', () => {
     expect(wrapper.text()).not.toContain('目前計算仍以五分鐘執行')
   })
 
-  it('沒挑時是五分鐘', async () => {
+  it('沒挑時是一分鐘', async () => {
     const wrapper = mountPanel()
     await settle()
 
     expect(wrapper.get<HTMLSelectElement>('[data-testid="aggregation-interval-select"]').element.value)
-      .toBe('5m')
+      .toBe('1m')
   })
 })
 

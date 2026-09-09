@@ -21,7 +21,7 @@ function intervalFor(value: string) {
 
 /** 只給會影響行為的資料：手上這批的交易標的、刻度與涵蓋範圍。 */
 function loadedChart(
-  { symbol = 'BTCUSDT', interval = '5m', coveredStartTime, coveredEndTime }:
+  { symbol = 'BTCUSDT', interval = '1m', coveredStartTime, coveredEndTime }:
   { symbol?: string, interval?: string, coveredStartTime: string, coveredEndTime: string },
 ): KCandleChartDto {
   return new KCandleChartDto(
@@ -58,8 +58,10 @@ function viewportSpanning(
 describe('KCandleChartViewportDomain', () => {
   describe('看多長，決定每一根涵蓋多久', () => {
     it.each([
-      { name: '看三十分鐘：沒有比五分鐘更細的', visibleMinutes: 30, expectedInterval: '5m', expectedCandleCount: 6 },
-      { name: '看一天：五分鐘剛好 288 根', visibleMinutes: 24 * 60, expectedInterval: '5m', expectedCandleCount: 288 },
+      { name: '看三十分鐘：一分鐘一根，三十根', visibleMinutes: 30, expectedInterval: '1m', expectedCandleCount: 30 },
+      { name: '看四百分鐘：一分鐘一根恰好 400 根', visibleMinutes: 400, expectedInterval: '1m', expectedCandleCount: 400 },
+      { name: '看四百零五分鐘：一分鐘會 405 根，太擠', visibleMinutes: 405, expectedInterval: '5m', expectedCandleCount: 81 },
+      { name: '看一天：一分鐘擺不下，五分鐘剛好 288 根', visibleMinutes: 24 * 60, expectedInterval: '5m', expectedCandleCount: 288 },
       { name: '看兩天：五分鐘會 576 根，太擠', visibleMinutes: 2 * 24 * 60, expectedInterval: '15m', expectedCandleCount: 192 },
       { name: '看五天：十五分鐘會 480 根，仍太擠', visibleMinutes: 5 * 24 * 60, expectedInterval: '1h', expectedCandleCount: 120 },
       { name: '看一年', visibleMinutes: 365 * 24 * 60, expectedInterval: '1d', expectedCandleCount: 365 },

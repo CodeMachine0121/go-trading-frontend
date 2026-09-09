@@ -363,8 +363,8 @@ describe('圖表上的指標：什麼時候重算', () => {
     await settle()
 
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      // 09:00 到 11:00 是兩小時；以五分鐘一根算就是 24 根。
-      candleCount: 24,
+      // 09:00 到 11:00 是兩小時；以一分鐘一根算就是 120 根。
+      candleCount: 120,
     }))
   })
 
@@ -379,9 +379,9 @@ describe('圖表上的指標：什麼時候重算', () => {
     })
     await flushPromises()
     await settle()
-    // 一小時、五分鐘一根 → 12 根。
+    // 一小時、一分鐘一根 → 60 根。
     expect(calculateIndicator).toHaveBeenLastCalledWith(
-      expect.objectContaining({ candleCount: 12 }))
+      expect.objectContaining({ candleCount: 60 }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-02T08:00:00.000Z'),
@@ -390,9 +390,9 @@ describe('圖表上的指標：什麼時候重算', () => {
     await flushPromises()
     await settle()
 
-    // 三小時、同樣五分鐘一根 → 36 根。
+    // 三小時、同樣一分鐘一根 → 180 根。
     expect(calculateIndicator).toHaveBeenLastCalledWith(expect.objectContaining({
-      candleCount: 36,
+      candleCount: 180,
     }))
   })
 

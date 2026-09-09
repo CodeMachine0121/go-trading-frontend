@@ -111,7 +111,7 @@ const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
  */
 const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
   marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
-  noLivePlace: '這一檔沒有即時更新，資料每五分鐘更新一次。',
+  noLivePlace: '這一檔沒有即時更新，資料每分鐘更新一次。',
   stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
 }
 /**

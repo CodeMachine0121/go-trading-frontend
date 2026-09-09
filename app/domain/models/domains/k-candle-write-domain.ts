@@ -7,7 +7,7 @@ import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
  * 一根 K 線涵蓋的分鐘數。起始時間唯一合法的取值就是這個長度的刻度。
  * 這是全前端唯一寫下這個長度的地方——要支援其他長度時只改這裡。
  */
-export const K_CANDLE_INTERVAL_MINUTES = 5
+export const K_CANDLE_INTERVAL_MINUTES = 1
 
 /**
  * 使用者可能貼上任何東西，只有長得像十進位數字的才拿去解讀。

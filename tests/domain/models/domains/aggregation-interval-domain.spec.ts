@@ -3,6 +3,7 @@ import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-i
 
 describe('AggregationIntervalDomain', () => {
   it.each([
+    { declared: '1m', expected: '1m' },
     { declared: '5m', expected: '5m' },
     { declared: '15m', expected: '15m' },
     { declared: '1h', expected: '1h' },
@@ -27,12 +28,13 @@ describe('AggregationIntervalDomain', () => {
     { name: '根本不是代號', declared: '一小時' },
   ])('$name 時退回最細的那一種，而不是拒絕', ({ declared }) => {
     // 使用者從清單挑，挑不出非法值；真正會給出陌生字串的是後端，
-    // 而讓整個結果畫面因為一個沒見過的刻度壞掉，遠比當成五分鐘呈現更糟。
+    // 而讓整個結果畫面因為一個沒見過的刻度壞掉，遠比當成一分鐘呈現更糟。
     // 退回最細的那一種也剛好等於「不彙總」——那是「沒特別指定」最誠實的意思。
-    expect(new AggregationIntervalDomain(declared).value).toBe('5m')
+    expect(new AggregationIntervalDomain(declared).value).toBe('1m')
   })
 
   it.each([
+    { declared: '1m', expected: '一分鐘' },
     { declared: '5m', expected: '五分鐘' },
     { declared: '15m', expected: '十五分鐘' },
     { declared: '1h', expected: '一小時' },
@@ -44,7 +46,7 @@ describe('AggregationIntervalDomain', () => {
   })
 
   it('認不得的代號說出來的是最細那一種的名字', () => {
-    expect(new AggregationIntervalDomain('7m').label()).toBe('五分鐘')
+    expect(new AggregationIntervalDomain('7m').label()).toBe('一分鐘')
   })
 
   it('交出選項時代號與名字一起交，選單不必自己配對', () => {

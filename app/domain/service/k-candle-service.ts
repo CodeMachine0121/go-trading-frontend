@@ -75,7 +75,7 @@ export class KCandleService {
   }
 
   /**
-   * 新增表單的起點：起始時間預設對齊到最近的五分鐘刻度（因此必定合法、也必定不指向未來），
+   * 新增表單的起點：起始時間預設對齊到最近的一分鐘刻度（因此必定合法、也必定不指向未來），
    * 價量欄位留空等使用者填。
    */
   buildNewKCandleDraft(symbol: string): KCandleWriteDto {

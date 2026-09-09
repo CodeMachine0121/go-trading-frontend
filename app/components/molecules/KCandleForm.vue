@@ -98,7 +98,7 @@ function messageFor(field: KCandleWriteField): string | null {
 
       <FormField
         label="起始時間"
-        :hint="identityReadonly ? '修改時不得更換' : `${timeZone.label}，須落在五分鐘刻度`"
+        :hint="identityReadonly ? '修改時不得更換' : `${timeZone.label}，須落在一分鐘刻度`"
         :error-message="messageFor('openTime')"
       >
         <AppInput

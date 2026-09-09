@@ -96,7 +96,7 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
    * 一個市場可能根本不報的成交數字。
    *
    * 後端不帶這一項時它是 null，而 null 必須原樣往內傳——換成 0 的話，
-   * 「這個市場不報它」與「這五分鐘沒有成交」就再也分不開了。
+   * 「這個市場不報它」與「這一分鐘沒有成交」就再也分不開了。
    */
   private readOptionalFigure(reported: string | null): Decimal | null {
     return reported === null ? null : new Decimal(reported)

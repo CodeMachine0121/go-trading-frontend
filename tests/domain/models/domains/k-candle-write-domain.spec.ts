@@ -85,14 +85,20 @@ describe('KCandleWriteDomain', () => {
   })
 
   it.each([
-    { description: '分鐘不在刻度上', openTime: new Date('2026-08-30T09:03:00.000Z') },
+    { description: '不在五分鐘刻度上的整分鐘', openTime: new Date('2026-08-30T09:03:00.000Z') },
+    { description: '整點', openTime: new Date('2026-08-30T09:00:00.000Z') },
+  ])('起始時間是 $description 時接受——一根涵蓋一分鐘，整分鐘就是刻度', ({ openTime }) => {
+    expect(new KCandleWriteDomain(buildWriteDto({ openTime })).identity.openTime).toEqual(openTime)
+  })
+
+  it.each([
     { description: '帶了秒數', openTime: new Date('2026-08-30T09:05:30.000Z') },
     { description: '帶了毫秒', openTime: new Date('2026-08-30T09:05:00.500Z') },
   ])('起始時間 $description 時拒絕', ({ openTime }) => {
     const fieldError = fieldErrorOf(() => new KCandleWriteDomain(buildWriteDto({ openTime })))
 
     expect(fieldError.field).toBe('openTime')
-    expect(fieldError.message).toBe('起始時間必須落在5分鐘刻度上')
+    expect(fieldError.message).toBe('起始時間必須落在1分鐘刻度上')
   })
 
   it('起始時間指向未來時拒絕', () => {
