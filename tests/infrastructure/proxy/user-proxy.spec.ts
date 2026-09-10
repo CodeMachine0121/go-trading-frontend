@@ -7,6 +7,7 @@ import { AuthenticationRequiredError } from '~/domain/errors/authentication-requ
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
+import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 
 const BASE_URL = 'http://localhost:8080'
@@ -262,5 +263,53 @@ describe('UserProxy.fetchSignedInUser', () => {
 
     expect(failure).toBeInstanceOf(BackendUnreachableError)
     expect(failure).not.toBeInstanceOf(AuthenticationRequiredError)
+  })
+})
+
+describe('UserProxy.changePassword', () => {
+  it('把兩組密碼送去換密碼那一條路', async () => {
+    const fetchStub = vi.fn().mockResolvedValue(null)
+    vi.stubGlobal('$fetch', fetchStub)
+
+    await new UserProxy(BASE_URL, signedInSessionStorage())
+      .changePassword('correct horse', 'battery staple')
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      `${BASE_URL}/users/me/password`,
+      expect.objectContaining({
+        method: 'POST',
+        body: { currentPassword: 'correct horse', newPassword: 'battery staple' },
+      }))
+  })
+
+  it('目前的密碼不正確是自己一種拒絕，不是「請重新登入」', async () => {
+    // 後端刻意用 403 而不是 401 說這件事：這個人的登入好得很，錯的只是一格。
+    // 認成 401 的話，畫面會把他帶回登入畫面——那是最不該做的反應。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 403, message: '目前的密碼不正確' })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .changePassword('wrong horse', 'battery staple')
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CurrentPasswordRejectedError)
+    expect((failure as Error).message).toBe('目前的密碼不正確')
+  })
+
+  it('新密碼被後端擋下來維持一般的拒絕', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 400, message: '密碼至少要 8 個字元' })))
+
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage())
+      .changePassword('correct horse', 'short'))
+      .rejects.toBeInstanceOf(BackendRequestRejectedError)
+  })
+
+  it('連不上後端維持連不上', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
+
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage())
+      .changePassword('correct horse', 'battery staple'))
+      .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })

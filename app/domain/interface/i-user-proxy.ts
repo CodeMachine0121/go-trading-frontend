@@ -2,10 +2,10 @@ import type { Session } from '~/domain/models/entities/session'
 import type { SignedInUser } from '~/domain/models/entities/signed-in-user'
 
 /**
- * 介面以「能力」命名：這個能力是「向後端建立帳號、開一段登入階段、續用它、結束它，
- * 以及問出我是誰」。實作在 app/infrastructure/proxy/user-proxy.ts。
+ * 介面以「能力」命名：這個能力是「向後端建立帳號、開一段登入階段、續用它、結束它、
+ * 問出我是誰，以及換掉自己的密碼」。實作在 app/infrastructure/proxy/user-proxy.ts。
  *
- * 五件事收在同一個 proxy，因為它們是同一個後端資源的五條路——
+ * 六件事收在同一個 proxy，因為它們是同一個後端資源的六條路——
  * 一個外部資源一個 Proxy，不拆 reader / writer。
  */
 export interface IUserProxy {
@@ -34,4 +34,14 @@ export interface IUserProxy {
 
   /** 帶著登入憑證問「我是誰」。憑證不算數時拋 AuthenticationRequiredError。 */
   fetchSignedInUser(accessToken: string): Promise<SignedInUser>
+
+  /**
+   * 換掉目前登入者的密碼。成功之後**後端已經把這個人每一台裝置的登入階段都撤掉了**，
+   * 包含現在這一台——呼叫端接下來要做的是把人帶回登入畫面，不是繼續用手上那一份。
+   *
+   * 「目前的密碼」那一格填錯時拋 CurrentPasswordRejectedError，而不是與
+   * 「請重新登入」共用一種：後端刻意用不同的狀態碼說這件事，因為這個人的登入
+   * 好得很，把他帶回登入畫面是最不該做的反應。
+   */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>
 }

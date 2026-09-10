@@ -7,6 +7,7 @@ import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-e
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { AuthenticationRequiredError } from '~/domain/errors/authentication-required-error'
+import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const USERS_ENDPOINT = '/users'
@@ -14,11 +15,17 @@ const SESSIONS_ENDPOINT = '/sessions'
 const SESSION_RENEWAL_ENDPOINT = '/sessions/renewal'
 const SESSION_REVOCATION_ENDPOINT = '/sessions/revocation'
 const SIGNED_IN_USER_ENDPOINT = '/users/me'
+const PASSWORD_CHANGE_ENDPOINT = '/users/me/password'
 
 /** 後端用這三個狀態碼分別表示這三件事。只有這裡需要知道。 */
 const CREDENTIALS_REJECTED_STATUS = 401
 const EMAIL_ALREADY_REGISTERED_STATUS = 409
 const ACCESS_TOKEN_UNAVAILABLE_STATUS = 503
+/**
+ * 後端用 403 說「目前的密碼那一格填錯了」，刻意不用 401。401 在這個系統裡只有一個
+ * 意思——這一段登入不算數了——而共用出口一看到它就會把人帶回登入畫面。
+ */
+const CURRENT_PASSWORD_REJECTED_STATUS = 403
 
 /** 後端回傳的原始 wire 形狀，只存在於本檔內。 */
 type SignedInUserWire = {
@@ -34,11 +41,11 @@ type SessionWire = {
 }
 
 /**
- * Proxy：打使用者那三條路，並把三種「其實是業務答案」的拒絕從一般的拒絕裡分出來。
+ * Proxy：打使用者那幾條路，並把四種「其實是業務答案」的拒絕從一般的拒絕裡分出來。
  *
- * 三者非分開不可，因為使用者對它們該做的事完全不同：帳密不正確要重打一次、
- * 電子郵件被佔用要換一個位址或改去登入、後端簽不出憑證則什麼都不必改——
- * 那不是他的問題。
+ * 四者非分開不可，因為使用者對它們該做的事完全不同：帳密不正確要重打一次、
+ * 電子郵件被佔用要換一個位址或改去登入、目前的密碼填錯要修那一格（而且**留在原地**）、
+ * 後端簽不出憑證則什麼都不必改——那不是他的問題。
  */
 export class UserProxy extends BackendApiProxy implements IUserProxy {
   async registerUser(email: string, password: string): Promise<SignedInUser> {
@@ -118,6 +125,29 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
       if (error instanceof BackendRequestRejectedError
         && error.status === CREDENTIALS_REJECTED_STATUS) {
         throw new AuthenticationRequiredError(error.message, { cause: error })
+      }
+
+      throw error
+    }
+  }
+
+  /**
+   * 換掉密碼。後端成功時回 204，沒有內容——所以這裡也不回任何東西。
+   *
+   * 成功之後這一台的登入已經在後端被撤掉了，但這裡不動任何共用狀態：
+   * 「接下來把人帶去哪」是編排，不是發請求這一層的事。
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    try {
+      await this.requestBackend<null>(PASSWORD_CHANGE_ENDPOINT, {
+        method: 'POST',
+        body: { currentPassword, newPassword },
+      })
+    }
+    catch (error: unknown) {
+      if (error instanceof BackendRequestRejectedError
+        && error.status === CURRENT_PASSWORD_REJECTED_STATUS) {
+        throw new CurrentPasswordRejectedError(error.message, { cause: error })
       }
 
       throw error
