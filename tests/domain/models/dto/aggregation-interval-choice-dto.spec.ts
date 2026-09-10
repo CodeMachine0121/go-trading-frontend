@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-
-function intervalOf(value: string) {
-  const aggregationInterval = AGGREGATION_INTERVALS.find(candidate => candidate.value === value)
-  if (aggregationInterval === undefined) {
-    throw new Error(`測試用了一個不存在的彙總刻度：${value}`)
-  }
-
-  return aggregationInterval
-}
+import { aggregationIntervalNamed as intervalOf } from '../../../fixtures/aggregation-interval'
 
 describe('使用者挑的那一種粗細', () => {
   describe('挑了固定的一種', () => {

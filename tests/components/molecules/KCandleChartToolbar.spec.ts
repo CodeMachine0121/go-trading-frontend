@@ -3,17 +3,23 @@ import { describe, expect, it } from 'vitest'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-import { KCandleChartApplication } from '~/application/k-candle-chart-application'
-import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
-import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../../fixtures/aggregation-interval-choice'
 
-// 選單上有哪幾項是領域的判斷，所以測試也從領域拿——在這裡另抄一份，
-// 測的就變成「我抄對了嗎」，而不是「畫面照領域說的畫了嗎」。
-const AGGREGATION_INTERVAL_CHOICES = new KCandleChartApplication(
-  new KCandleChartService({} as IKCandleProxy)).listAggregationIntervalChoices()
+// 這是個分子，它只負責「照給它的那份清單畫，並把使用者點到的那一項交回去」。
+// **清單上該有哪幾項是領域的判斷，不由它決定**，所以這裡給的是一份測試自己的清單——
+// 換成真的那一份，這裡就會連帶測到領域，而那件事由圖表面板那組測試負責。
+const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = [
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+  aggregationIntervalChoiceOf('1m'),
+  aggregationIntervalChoiceOf('5m'),
+  aggregationIntervalChoiceOf('15m'),
+  aggregationIntervalChoiceOf('1h'),
+]
 
-const AUTOMATIC = choiceLabelled('自動')
+const AUTOMATIC = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE
 
 function choiceLabelled(label: string): AggregationIntervalChoiceDto {
   const choice = AGGREGATION_INTERVAL_CHOICES.find(candidate => candidate.label === label)
@@ -46,7 +52,7 @@ function intervalSelect(wrapper: ReturnType<typeof mountToolbar>) {
 }
 
 describe('圖表上挑一根 K 線涵蓋多久', () => {
-  it('列出五種可挑的粗細，由細到粗，第一項是自動', () => {
+  it('照給它的那份清單列出每一項', () => {
     const wrapper = mountToolbar()
 
     expect(intervalSelect(wrapper).findAll('option').map(option => option.text()))

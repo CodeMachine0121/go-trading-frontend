@@ -4,24 +4,16 @@ import { KCandleChartViewportDomain } from '~/domain/models/domains/k-candle-cha
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../../fixtures/aggregation-interval-choice'
+import { aggregationIntervalNamed as intervalFor } from '../../../fixtures/aggregation-interval'
 
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 const MILLISECONDS_PER_MINUTE = 60 * 1000
-
-function intervalFor(value: string) {
-  const aggregationInterval = AGGREGATION_INTERVALS.find(candidate => candidate.value === value)
-  if (aggregationInterval === undefined) {
-    throw new Error(`測試用了一個不存在的彙總刻度：${value}`)
-  }
-  return aggregationInterval
-}
 
 /** 只給會影響行為的資料：手上這批的交易標的、刻度與涵蓋範圍。 */
 function loadedChart(

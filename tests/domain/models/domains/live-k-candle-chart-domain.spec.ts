@@ -4,20 +4,11 @@ import { LiveKCandleChartDomain } from '~/domain/models/domains/live-k-candle-ch
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { LiveKCandleUpdate } from '~/domain/models/entities/live-k-candle-update'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../../fixtures/aggregation-interval-choice'
-
-function intervalOf(value: string) {
-  const interval = AGGREGATION_INTERVALS.find(candidate => candidate.value === value)
-  if (interval === undefined) {
-    throw new Error(`找不到彙總刻度 ${value}`)
-  }
-
-  return interval
-}
+import { aggregationIntervalNamed as intervalOf } from '../../../fixtures/aggregation-interval'
 
 function kCandleOf(
   openTime: string,

@@ -77,6 +77,13 @@ afterEach(() => {
 })
 
 describe('在圖表上挑一根 K 線涵蓋多久', () => {
+  it('選單上列的是領域說的那五項，畫面不自己寫死一份', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.find(INTERVAL_SELECT).findAll('option').map(option => option.text()))
+      .toEqual(['自動', '一分鐘', '五分鐘', '十五分鐘', '一小時'])
+  })
+
   it('一進畫面選著「自動」，取行情時什麼粗細都不說', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()]))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
