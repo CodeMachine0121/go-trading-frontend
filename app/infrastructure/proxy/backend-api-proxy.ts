@@ -1,6 +1,8 @@
+import type { ISessionStorageProxy } from '~/domain/interface/i-session-storage-proxy'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { SignedOutError } from '~/domain/errors/signed-out-error'
 import { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-coverage-shortfall-vo'
 
 /**
@@ -22,6 +24,9 @@ type BackendFailure = {
 /** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
 const SERVER_ERROR_STATUS_FLOOR = 500
 
+/** 後端用這個狀態碼說「這一次沒有帶著有效的身分」。 */
+const SIGNED_OUT_STATUS = 401
+
 type BackendRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   query?: Record<string, string>
@@ -36,12 +41,19 @@ type BackendRequestOptions = {
   /**
    * 這一次請求要多帶的標頭。
    *
-   * 目前只有「我是誰」用得到它（帶登入憑證）。它是**一個選項**而不是「每一次都自動附上
-   * 憑證」，因為後端目前只有那一條路要憑證——其餘端點一律不問來者是誰。
-   * 等後端把門也裝到那些端點上，這裡就是那件事該落地的地方：注入記住憑證的那個 proxy，
-   * 在下面統一附上，九個 proxy 一個都不必改。
+   * 身分**不再走這裡**：每一發都帶著它，統一由下面附上。這個選項留給真正只屬於某一次
+   * 請求的標頭；目前沒有人用得到。
    */
   headers?: Record<string, string>
+  /**
+   * 這一發被回「沒有帶著有效的身分」時，代表的是「這一次登入過期了」嗎？
+   *
+   * 預設是。唯一的例外是**建立身分的那幾條路**：登入被拒代表帳密對不上，
+   * 續用被拒代表那份續用憑證不算數了，問「我是誰」被拒代表這台記著的那一份不算數了——
+   * 三者都是那一次請求自己的答案，不是一段正在用的登入忽然失效。
+   * 把它們也當成過期，會在登入畫面上把「密碼打錯」演成一次被登出。
+   */
+  refusalMeansSignedOut?: boolean
 }
 
 /**
@@ -51,8 +63,25 @@ type BackendRequestOptions = {
  * 這條翻譯規則必須所有 proxy 一致；分散在各自的 try/catch 只會養出三份會漂移的複本。
  */
 export abstract class BackendApiProxy {
-  // abstract 類別本身無法被實例化，因此建構子維持公開，交給各 proxy 直接繼承使用。
-  constructor(private readonly baseUrl: string) {}
+  /**
+   * abstract 類別本身無法被實例化，因此建構子維持公開，交給各 proxy 直接繼承使用。
+   *
+   * 身分與「被登出時要做什麼」都在這裡收下，而不是每個 proxy 各自處理：後端現在每一條與
+   * 這個人有關的路都要身分，而「只要有一條路忘了帶」就是一個洞——洞不會有人發現，
+   * 因為那條路平常也很少走。寫在這裡，九個 proxy 一個都不必改，也一個都漏不掉。
+   */
+  constructor(
+    private readonly baseUrl: string,
+    private readonly sessionStorageProxy: ISessionStorageProxy,
+    /**
+     * 被登出時要做的事——通常是清掉全站共用的那份狀態並回到登入畫面。
+     *
+     * 它是一個回呼而不是一個介面，因為那不是一份資料，也不是一個外部資源：
+     * 它是**應用程式的編排**，而發請求的東西不該懂得導頁。由組裝根給進來，
+     * 那裡本來就是唯一知道全部具體型別的地方。
+     */
+    private readonly onSignedOut: () => void = () => {},
+  ) {}
 
   protected async requestBackend<TWire>(
     path: string,
@@ -61,7 +90,10 @@ export abstract class BackendApiProxy {
     const endpoint = `${this.baseUrl}${path}`
 
     try {
-      return await $fetch<TWire>(endpoint, options)
+      return await $fetch<TWire>(endpoint, {
+        ...options,
+        headers: { ...this.identityHeaders(), ...options.headers },
+      })
     }
     catch (error: unknown) {
       // 後端有回應（不論幾百）代表它活著，只是拒絕了這次請求；連回應都沒有才是連不上。
@@ -73,6 +105,19 @@ export abstract class BackendApiProxy {
         const backendFailure = error as BackendFailure
         if (backendFailure.response !== undefined) {
           const message = backendFailure.data?.message ?? error.message
+
+          // 「請重新登入」要在所有其他翻譯之前認出來，因為它是唯一一種**改請求也沒用**
+          // 的拒絕：使用者要做的是重新登入。混在一般拒絕裡，畫面就會請他去修一份
+          // 從來沒錯的請求。
+          if (backendFailure.response.status === SIGNED_OUT_STATUS
+            && (options.refusalMeansSignedOut ?? true)) {
+            // 記著的那一份已經不算數了。留著它，下一發還是會被擋，而把關那一道門
+            // 會繼續以為這個人登入著。
+            this.sessionStorageProxy.clearSession()
+            this.onSignedOut()
+
+            throw new SignedOutError(message, { cause: error })
+          }
 
           // 後端自己壞掉時，使用者改什麼都沒用——不能說成「你的請求有問題」。
           if (backendFailure.response.status >= SERVER_ERROR_STATUS_FLOOR) {
@@ -110,5 +155,19 @@ export abstract class BackendApiProxy {
 
       throw new BackendUnreachableError(endpoint, { cause: error })
     }
+  }
+
+  /**
+   * 這一發要帶的身分。沒有記著任何一段登入時**什麼都不帶**——那與帶一個空的憑證不同：
+   * 開放的那幾條路（K 線、交易標的）照樣答得出來，而需要身分的那幾條會拒絕，
+   * 這正是我們要的。
+   */
+  private identityHeaders(): Record<string, string> {
+    const session = this.sessionStorageProxy.readSession()
+    if (session === null) {
+      return {}
+    }
+
+    return { Authorization: `Bearer ${session.accessToken}` }
   }
 }

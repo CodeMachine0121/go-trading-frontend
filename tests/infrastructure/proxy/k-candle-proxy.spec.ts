@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
+import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import { KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
@@ -95,9 +96,10 @@ describe('KCandleProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue([])
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY)
+    await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY)
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles', {
+      headers: SIGNED_IN_HEADERS,
       query: {
         symbol: 'BTCUSDT',
         startTime: '2026-08-30T00:00:00.000Z',
@@ -109,7 +111,7 @@ describe('KCandleProxy', () => {
   it('把回來的原始資料正規化成 K 線：時間成為時間值、數字成為精確小數', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([K_CANDLE_WIRE]))
 
-    const kCandles = await new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY)
+    const kCandles = await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY)
 
     expect(kCandles).toHaveLength(1)
     expect(kCandles[0]?.symbol).toBe('BTCUSDT')
@@ -123,11 +125,12 @@ describe('KCandleProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '1h', kCandles: [] })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+    await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandleSeries(LOAD_PLAN)
 
     // 沒挑時條件裡**沒有** interval：一根該多粗需要交易時段與休市日才算得對，
     // 我們自己算一種就等於在畫面這一側長出第二份市場作息。
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
+      headers: SIGNED_IN_HEADERS,
       query: {
         symbol: 'BTCUSDT',
         startTime: '2026-08-30T00:00:00.000Z',
@@ -140,10 +143,11 @@ describe('KCandleProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '5m', kCandles: [] })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new KCandleProxy(BASE_URL)
+    await new KCandleProxy(BASE_URL, signedInSessionStorage())
       .findKCandleSeries(loadPlanChoosing(aggregationIntervalChoiceOf('5m')))
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
+      headers: SIGNED_IN_HEADERS,
       query: {
         symbol: 'BTCUSDT',
         startTime: '2026-08-30T00:00:00.000Z',
@@ -158,7 +162,7 @@ describe('KCandleProxy', () => {
       symbol: 'BTCUSDT', interval: '15m', kCandles: [K_CANDLE_WIRE],
     }))
 
-    const kCandleSeries = await new KCandleProxy(BASE_URL)
+    const kCandleSeries = await new KCandleProxy(BASE_URL, signedInSessionStorage())
       .findKCandleSeries(loadPlanChoosing(aggregationIntervalChoiceOf('1m')))
 
     // 看得出來比信任可靠：要了一分鐘、系統給十五分鐘，畫面要說十五分鐘。
@@ -170,7 +174,7 @@ describe('KCandleProxy', () => {
       symbol: 'BTCUSDT', interval: '1h', kCandles: [K_CANDLE_WIRE],
     }))
 
-    const kCandleSeries = await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+    const kCandleSeries = await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandleSeries(LOAD_PLAN)
 
     expect(kCandleSeries.kCandles).toHaveLength(1)
     expect(kCandleSeries.kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
@@ -184,7 +188,7 @@ describe('KCandleProxy', () => {
       symbol: 'BTCUSDT', interval: '7m', kCandles: [K_CANDLE_WIRE],
     }))
 
-    const kCandleSeries = await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
+    const kCandleSeries = await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandleSeries(LOAD_PLAN)
 
     // 後端多支援一種刻度而畫面還沒跟上時，使用者看到的要是圖，不是錯誤。
     expect(kCandleSeries.interval.value).toBe('1m')
@@ -199,7 +203,7 @@ describe('KCandleProxy', () => {
     })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
-    await expect(new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandleSeries(LOAD_PLAN))
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 
@@ -211,9 +215,9 @@ describe('KCandleProxy', () => {
     })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.toThrow('時間區間過大，請縮小區間（單次最多 1000 根）')
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 
@@ -221,7 +225,7 @@ describe('KCandleProxy', () => {
     const rejection = buildFetchError({ status: 400, statusText: 'Bad Request' })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.toThrow('400 Bad Request')
   })
 
@@ -229,10 +233,10 @@ describe('KCandleProxy', () => {
     const rejection = buildFetchError({ status: 502, statusText: 'Bad Gateway', message: '讀取 K 線失敗' })
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
-    const findKCandles = new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY)
+    const findKCandles = new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY)
 
     await expect(findKCandles).rejects.toBeInstanceOf(BackendServerError)
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.not.toBeInstanceOf(BackendRequestRejectedError)
   })
 
@@ -242,7 +246,7 @@ describe('KCandleProxy', () => {
     expect('response' in noResponse).toBe(true)
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(noResponse))
 
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 
@@ -252,7 +256,7 @@ describe('KCandleProxy', () => {
   ])('$description 也一樣視為連不上', async ({ rejection }) => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection))
 
-    await expect(new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY))
+    await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 
@@ -273,9 +277,10 @@ describe('KCandleProxy', () => {
       const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
       vi.stubGlobal('$fetch', fetchMock)
 
-      await new KCandleProxy(BASE_URL).saveKCandle(buildWriteDomain())
+      await new KCandleProxy(BASE_URL, signedInSessionStorage()).saveKCandle(buildWriteDomain())
 
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles', {
+        headers: SIGNED_IN_HEADERS,
         method: 'POST',
         body: {
           symbol: 'BTCUSDT',
@@ -302,9 +307,10 @@ describe('KCandleProxy', () => {
         '2330', OPEN_TIME, '100.5', '120', '90', '110', '11', '', '', ''))
       vi.useRealTimers()
 
-      await new KCandleProxy(BASE_URL).saveKCandle(kCandleWriteDomain)
+      await new KCandleProxy(BASE_URL, signedInSessionStorage()).saveKCandle(kCandleWriteDomain)
 
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles', {
+        headers: SIGNED_IN_HEADERS,
         method: 'POST',
         body: expect.objectContaining({
           volume: '11',
@@ -321,9 +327,10 @@ describe('KCandleProxy', () => {
       })
       vi.stubGlobal('$fetch', fetchMock)
 
-      const collected = await new KCandleProxy(BASE_URL).catchUpSymbol('2330')
+      const collected = await new KCandleProxy(BASE_URL, signedInSessionStorage()).catchUpSymbol('2330')
 
       expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/backfill', {
+        headers: SIGNED_IN_HEADERS,
         method: 'POST',
         body: { symbol: '2330' },
       })
@@ -336,14 +343,14 @@ describe('KCandleProxy', () => {
         symbolReports: [{ storedCount: 0 }],
       }))
 
-      expect(await new KCandleProxy(BASE_URL).catchUpSymbol('2330')).toBe(0)
+      expect(await new KCandleProxy(BASE_URL, signedInSessionStorage()).catchUpSymbol('2330')).toBe(0)
     })
 
     it('修改時以交易標的與起始時間指名那一根', async () => {
       const fetchMock = vi.fn().mockResolvedValue(K_CANDLE_WIRE)
       vi.stubGlobal('$fetch', fetchMock)
 
-      await new KCandleProxy(BASE_URL).updateKCandle(buildWriteDomain())
+      await new KCandleProxy(BASE_URL, signedInSessionStorage()).updateKCandle(buildWriteDomain())
 
       expect(fetchMock).toHaveBeenCalledWith(
         'http://localhost:8080/k-candles/BTCUSDT/2026-08-30T10%3A00%3A00.000Z',
@@ -355,18 +362,18 @@ describe('KCandleProxy', () => {
       const fetchMock = vi.fn().mockResolvedValue(null)
       vi.stubGlobal('$fetch', fetchMock)
 
-      await new KCandleProxy(BASE_URL).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME))
+      await new KCandleProxy(BASE_URL, signedInSessionStorage()).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME))
 
       expect(fetchMock).toHaveBeenCalledWith(
         'http://localhost:8080/k-candles/BTCUSDT/2026-08-30T10%3A00%3A00.000Z',
-        { method: 'DELETE' },
+        { headers: SIGNED_IN_HEADERS, method: 'DELETE' },
       )
     })
 
     it('寫入回來的資料一樣正規化成 K 線', async () => {
       vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(K_CANDLE_WIRE))
 
-      const savedKCandle = await new KCandleProxy(BASE_URL).saveKCandle(buildWriteDomain())
+      const savedKCandle = await new KCandleProxy(BASE_URL, signedInSessionStorage()).saveKCandle(buildWriteDomain())
 
       expect(savedKCandle.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
       expect(savedKCandle.open.toString()).toBe('100.5')
@@ -377,7 +384,7 @@ describe('KCandleProxy', () => {
         buildFetchError({ status: 404, statusText: 'Not Found', message: '找不到該根 K 線' }),
       ))
 
-      await expect(new KCandleProxy(BASE_URL).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)))
+      await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)))
         .rejects.toThrow('找不到該根 K 線')
     })
   })
@@ -399,7 +406,7 @@ describe('KCandleProxy 對這個市場不報的數字', () => {
       takerBuyQuoteVolume: null,
     }]))
 
-    return new KCandleProxy(BASE_URL).findKCandlesInRange(QUERY).then((kCandles) => {
+    return new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandlesInRange(QUERY).then((kCandles) => {
       expect(kCandles[0]?.quoteVolume).toBeNull()
       expect(kCandles[0]?.takerBuyBaseVolume).toBeNull()
       expect(kCandles[0]?.takerBuyQuoteVolume).toBeNull()

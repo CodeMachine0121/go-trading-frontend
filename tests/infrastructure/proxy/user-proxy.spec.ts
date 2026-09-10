@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UserProxy } from '~/infrastructure/proxy/user-proxy'
+import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { AuthenticationRequiredError } from '~/domain/errors/authentication-required-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
@@ -35,7 +36,7 @@ describe('UserProxy.registerUser', () => {
   it('把後端給的那一位收成領域看得懂的形狀', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ id: 7, email: 'james@example.com' }))
 
-    const signedInUser = await new UserProxy(BASE_URL).registerUser('james@example.com', 'correct horse')
+    const signedInUser = await new UserProxy(BASE_URL, signedInSessionStorage()).registerUser('james@example.com', 'correct horse')
 
     expect(signedInUser.id).toBe(7)
     expect(signedInUser.email).toBe('james@example.com')
@@ -47,7 +48,7 @@ describe('UserProxy.registerUser', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 409, message: '電子郵件「james@example.com」已經有人用了' })))
 
-    await expect(new UserProxy(BASE_URL).registerUser('james@example.com', 'correct horse'))
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage()).registerUser('james@example.com', 'correct horse'))
       .rejects.toBeInstanceOf(EmailAlreadyRegisteredError)
   })
 
@@ -55,7 +56,7 @@ describe('UserProxy.registerUser', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 400, message: '密碼至少要 8 個字元' })))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .registerUser('james@example.com', 'short').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BackendRequestRejectedError)
@@ -77,7 +78,7 @@ describe('UserProxy.signIn', () => {
   it('把一對憑證與兩個到期時刻收成領域看得懂的形狀', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(sessionWire()))
 
-    const session = await new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse')
+    const session = await new UserProxy(BASE_URL, signedInSessionStorage()).signIn('james@example.com', 'correct horse')
 
     expect(session.accessToken).toBe('a-signed-token')
     expect(session.accessTokenExpiresAt.toISOString()).toBe('2026-09-05T08:15:00.000Z')
@@ -85,11 +86,27 @@ describe('UserProxy.signIn', () => {
     expect(session.refreshTokenExpiresAt.toISOString()).toBe('2026-10-05T08:00:00.000Z')
   })
 
+  it('帳密對不上不算被登出——記著的那一份不動，也不通知任何人', async () => {
+    // 登入這條路上的「沒有帶著有效的身分」是它自己的答案。交給共同出口去解讀，
+    // 就會在登入畫面上把「密碼打錯」演成一次被登出。
+    const sessionStorageProxy = signedInSessionStorage()
+    const onSignedOut = vi.fn()
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 401, message: '電子郵件或密碼不正確' })))
+
+    const failure = await new UserProxy(BASE_URL, sessionStorageProxy, onSignedOut)
+      .signIn('james@example.com', 'wrong horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(CredentialsRejectedError)
+    expect(sessionStorageProxy.clearSession).not.toHaveBeenCalled()
+    expect(onSignedOut).not.toHaveBeenCalled()
+  })
+
   it('帳密對不上是自己一種拒絕，訊息原文轉達', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '電子郵件或密碼不正確' })))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .signIn('james@example.com', 'wrong horse').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(CredentialsRejectedError)
@@ -100,7 +117,7 @@ describe('UserProxy.signIn', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 503, message: '尚未設定憑證簽章鑰匙' })))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(AccessTokenUnavailableError)
@@ -110,7 +127,7 @@ describe('UserProxy.signIn', () => {
   it('後端沒啟動仍然是連不上，不會被當成帳密不正確', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    await expect(new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse'))
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage()).signIn('james@example.com', 'correct horse'))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -125,7 +142,7 @@ describe('UserProxy：後端給的時刻', () => {
     // 而畫面上沒有任何一句話解釋為什麼。
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ ...sessionWire(), [field]: 'not-a-date' }))
 
-    await expect(new UserProxy(BASE_URL).signIn('james@example.com', 'correct horse'))
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage()).signIn('james@example.com', 'correct horse'))
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 })
@@ -135,7 +152,7 @@ describe('UserProxy.renewSession', () => {
     const fetchStub = vi.fn().mockResolvedValue(sessionWire())
     vi.stubGlobal('$fetch', fetchStub)
 
-    const session = await new UserProxy(BASE_URL).renewSession('an-older-token')
+    const session = await new UserProxy(BASE_URL, signedInSessionStorage()).renewSession('an-older-token')
 
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/sessions/renewal`,
@@ -148,7 +165,7 @@ describe('UserProxy.renewSession', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '請重新登入' })))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .renewSession('a-stale-token').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(AuthenticationRequiredError)
@@ -159,7 +176,7 @@ describe('UserProxy.renewSession', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 503, message: '尚未設定憑證簽章鑰匙' })))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .renewSession('a-refresh-token').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(AccessTokenUnavailableError)
@@ -169,7 +186,7 @@ describe('UserProxy.renewSession', () => {
     // 說錯的代價很具體：後端一啟動，使用者就得重登一次。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .renewSession('a-refresh-token').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BackendUnreachableError)
@@ -182,7 +199,7 @@ describe('UserProxy.revokeSession', () => {
     const fetchStub = vi.fn().mockResolvedValue(null)
     vi.stubGlobal('$fetch', fetchStub)
 
-    await new UserProxy(BASE_URL).revokeSession('a-refresh-token')
+    await new UserProxy(BASE_URL, signedInSessionStorage()).revokeSession('a-refresh-token')
 
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/sessions/revocation`,
@@ -193,7 +210,7 @@ describe('UserProxy.revokeSession', () => {
   it('後端連不上時如實拋出——要不要吞掉是呼叫端的決定，不是這一層的', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    await expect(new UserProxy(BASE_URL).revokeSession('a-refresh-token'))
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage()).revokeSession('a-refresh-token'))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -203,7 +220,7 @@ describe('UserProxy.fetchSignedInUser', () => {
     const fetchStub = vi.fn().mockResolvedValue({ id: 7, email: 'james@example.com' })
     vi.stubGlobal('$fetch', fetchStub)
 
-    const signedInUser = await new UserProxy(BASE_URL).fetchSignedInUser('a-signed-token')
+    const signedInUser = await new UserProxy(BASE_URL, signedInSessionStorage()).fetchSignedInUser('a-signed-token')
 
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/users/me`,
@@ -216,7 +233,7 @@ describe('UserProxy.fetchSignedInUser', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '請重新登入' })))
 
-    await expect(new UserProxy(BASE_URL).fetchSignedInUser('a-stale-token'))
+    await expect(new UserProxy(BASE_URL, signedInSessionStorage()).fetchSignedInUser('a-stale-token'))
       .rejects.toBeInstanceOf(AuthenticationRequiredError)
   })
 
@@ -224,7 +241,7 @@ describe('UserProxy.fetchSignedInUser', () => {
     // 這個差別是有代價的：說成憑證壞了，後端一啟動使用者就得重登一次。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    const failure = await new UserProxy(BASE_URL)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
       .fetchSignedInUser('a-signed-token').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BackendUnreachableError)

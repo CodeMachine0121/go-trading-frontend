@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
+import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -61,7 +62,7 @@ function rejectionOf(status: number, message: string, named?: {
 
 async function backtestFailure(): Promise<unknown> {
   try {
-    await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
   }
   catch (error: unknown) {
     return error
@@ -79,7 +80,7 @@ describe('BacktestProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/backtests`,
@@ -101,7 +102,7 @@ describe('BacktestProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(typeof body.initialCapital).toBe('string')
@@ -113,7 +114,7 @@ describe('BacktestProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.parameters).toEqual([])
@@ -124,7 +125,7 @@ describe('BacktestProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
       requestOf([new StrategyParameterDto('period', 'lookbackCount', 20)]))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -135,7 +136,7 @@ describe('BacktestProxy', () => {
   it('把回來的東西正規化成 entity，金額不失精度', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
 
-    const backtest = await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     expect(backtest.symbol).toBe('BTCUSDT')
     expect(backtest.winRate).toBe(0.75)
@@ -151,7 +152,7 @@ describe('BacktestProxy', () => {
     wire.summary.winRate = null as unknown as number
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
 
-    const backtest = await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     expect(backtest.winRate).toBeNull()
   })
@@ -160,7 +161,7 @@ describe('BacktestProxy', () => {
     const wire = { ...completedWire(), closedTrades: null, equityCurve: null }
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
 
-    const backtest = await new BacktestProxy(BASE_URL).runBacktest(requestOf())
+    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
 
     expect(backtest.closedTrades).toEqual([])
     expect(backtest.equityCurve).toEqual([])
