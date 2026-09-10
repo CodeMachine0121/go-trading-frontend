@@ -153,32 +153,26 @@ describe('StrategyLibraryDialog：兩段清單', () => {
   })
 })
 
-describe('StrategyLibraryDialog：分享與收回', () => {
-  it('沒分享過的那一支給的是「分享」', () => {
-    const wrapper = mountLibrary({ strategies: [strategyOf(1, '我的')] })
-
-    expect(wrapper.find('[data-testid="strategy-library-publish-1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="strategy-library-withdraw-1"]').exists()).toBe(false)
-  })
-
-  it('分享過的那一支給的是「收回」', () => {
-    // 兩顆並排會有一顆永遠按不動，而看的人得自己判斷是哪一顆。
-    const wrapper = mountLibrary({ strategies: [publishedStrategyOf(1, '我的')] })
-
-    expect(wrapper.find('[data-testid="strategy-library-withdraw-1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="strategy-library-publish-1"]').exists()).toBe(false)
-  })
-
-  it('按分享與按收回都說出是哪一支', async () => {
+describe('StrategyLibraryDialog：分享狀態', () => {
+  it('分享過的那一支標出「已分享」', () => {
+    // 分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
+    // 但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
+    // 就只能一支一支載進來看那顆按鈕。
     const wrapper = mountLibrary({
       strategies: [strategyOf(1, '沒分享的'), publishedStrategyOf(2, '分享過的')],
     })
 
-    await wrapper.get('[data-testid="strategy-library-publish-1"]').trigger('click')
-    await wrapper.get('[data-testid="strategy-library-withdraw-2"]').trigger('click')
+    expect(wrapper.find('[data-testid="strategy-library-shared-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-library-shared-1"]').exists()).toBe(false)
+  })
 
-    expect(wrapper.emitted('publish')).toEqual([[1]])
-    expect(wrapper.emitted('withdraw')).toEqual([[2]])
+  it('清單上沒有分享或收回那兩顆——它們在主畫面那一排', () => {
+    const wrapper = mountLibrary({
+      strategies: [strategyOf(1, '沒分享的'), publishedStrategyOf(2, '分享過的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-library-publish-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-withdraw-2"]').exists()).toBe(false)
   })
 })
 

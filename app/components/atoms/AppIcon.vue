@@ -26,6 +26,8 @@ type IconName
     | 'info'
     | 'robot'
     | 'send'
+    | 'share'
+    | 'unshare'
     | 'copy'
     | 'copied'
     | 'expand'
@@ -133,6 +135,20 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   'send': [
     'M12 19V5',
     'm5 12 7-7 7 7',
+  ],
+  // 一個開口的框，加一支往外走的箭頭——把手上這一支放到外面去
+  'share': [
+    'M4 14v6h16v-6',
+    'M12 15V4',
+    'm8 8 4-4 4 4',
+  ],
+  // 同一個框，箭頭反過來走回框裡——把外面那一支收回來。
+  // 它與 share 刻意只差箭頭的方向：那兩件事是同一件事的兩個方向，
+  // 長得太不一樣反而看不出它們在同一個位置上互換。
+  'unshare': [
+    'M4 14v6h16v-6',
+    'M12 4v11',
+    'm8 11 4 4 4-4',
   ],
   // 往外指的兩個角——攤開到整頁
   'expand': [

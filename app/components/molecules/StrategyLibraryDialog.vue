@@ -34,8 +34,6 @@ const {
 const emit = defineEmits<{
   load: [id: number]
   remove: [id: number]
-  publish: [id: number]
-  withdraw: [id: number]
   abandon: [id: number]
   close: []
 }>()
@@ -86,6 +84,16 @@ const emit = defineEmits<{
             v-if="strategy.id === activeStrategyId"
             class="strategy-library__active"
           >使用中</span>
+          <!--
+            分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
+            但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
+            就只能一支一支載進來看那顆按鈕。
+          -->
+          <span
+            v-if="strategy.published"
+            class="strategy-library__shared"
+            :data-testid="`strategy-library-shared-${strategy.id}`"
+          >已分享</span>
         </span>
 
         <span class="strategy-library__actions">
@@ -100,30 +108,6 @@ const emit = defineEmits<{
               name="load"
               size="small"
             />
-          </AppButton>
-          <!--
-            發佈與收回是同一顆位置的兩個方向，字由「它現在在不在市集上」決定。
-            兩顆並排會有一顆永遠按不動，而看的人得自己判斷是哪一顆。
-          -->
-          <AppButton
-            v-if="!strategy.published"
-            variant="secondary"
-            size="small"
-            :label="`把「${strategy.name}」分享到市集`"
-            :data-testid="`strategy-library-publish-${strategy.id}`"
-            @click="emit('publish', strategy.id)"
-          >
-            分享
-          </AppButton>
-          <AppButton
-            v-else
-            variant="secondary"
-            size="small"
-            :label="`把「${strategy.name}」從市集收回`"
-            :data-testid="`strategy-library-withdraw-${strategy.id}`"
-            @click="emit('withdraw', strategy.id)"
-          >
-            收回
           </AppButton>
           <AppButton
             variant="danger"
@@ -205,6 +189,12 @@ const emit = defineEmits<{
     margin: spacing('sm') 0 spacing('2xs');
     color: color('text-faint');
     font-weight: font-weight('medium');
+    font-size: font-size('2xs');
+  }
+
+  &__shared {
+    margin-left: spacing('2xs');
+    color: color('text-faint');
     font-size: font-size('2xs');
   }
 

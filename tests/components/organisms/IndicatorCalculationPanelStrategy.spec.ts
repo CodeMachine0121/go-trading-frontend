@@ -1025,6 +1025,26 @@ describe('指標計算畫面上的策略：加入來的那些', () => {
 })
 
 describe('指標計算畫面上的策略：分享與收回', () => {
+  it('分享的是眼前那一支，不必先打開清單', async () => {
+    // 想分享的幾乎總是剛調對、剛存好的那一支。要為它多開一個對話框、
+    // 在一排列裡再找一次自己，是一段不必要的路。
+    const publishStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(publishStrategy).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('分享到市集')
+  })
+
   it('分享一支不先問——做錯了收回就好，中間沒有人失去東西', async () => {
     const publishStrategy = vi.fn().mockResolvedValue(undefined)
     const wrapper = mountPanel({
@@ -1034,49 +1054,83 @@ describe('指標計算畫面上的策略：分享與收回', () => {
       publishStrategy,
     })
     await settle()
-    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
     await settle()
 
-    await wrapper.get('[data-testid="strategy-library-publish-7"]').trigger('click')
+    expect(publishStrategy).toHaveBeenCalledOnce()
+    expect(wrapper.text()).not.toContain('都會失去它')
+  })
+
+  it('分享完不會彈出策略清單——那是使用者沒有要求的東西', async () => {
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy: vi.fn().mockResolvedValue(undefined),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
     await settle()
 
-    expect(publishStrategy).toHaveBeenCalledWith(7)
-    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('分享到市集')
+    expect(wrapper.find('[data-testid="strategy-library-row"]').exists()).toBe(false)
+  })
+
+  it('沒有使用中的那一支時按不下去——與「重新命名」同一條規則', async () => {
+    // 兩件事都需要先有一支。給一顆按下去只會撞牆的按鈕，比禁用它更糟。
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+    })
+    await settle()
+
+    expect(wrapper.get('[data-testid="share-strategy-button"]').attributes('disabled'))
+      .toBeDefined()
+  })
+
+  it('分享過的那一支，眼前那顆變成「收回」', async () => {
+    // 同一個位置的兩個方向。兩顆並排會有一顆永遠按不動，而看的人得自己判斷是哪一顆。
+    const wrapper = await mountPanelWithPublished()
+    await pickStrategy(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="share-strategy-button"]').exists()).toBe(false)
   })
 
   it('收回要先問，而且說清楚後果', async () => {
     const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
     const wrapper = await mountPanelWithPublished({ withdrawStrategy })
-    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
-    await settle()
+    await pickStrategy(wrapper, 7)
 
-    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
     await settle()
 
     expect(withdrawStrategy).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('都會失去它')
   })
 
-  it('確認之後才真的收回，而且那一列不再說它已分享', async () => {
-    // 收回之後清單要重讀一次，否則那一列還顯示「收回」，看的人只會再按一次。
+  it('確認之後才真的收回，而且那顆按鈕換回「分享」', async () => {
+    // 收回之後清單要重讀一次，否則那顆還顯示「收回」，看的人只會再按一次。
     const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
-    // 掛起時讀一次、打開清單時再讀一次，收回之後才是第三次——第三次起它不再是分享狀態。
+    // 掛起時讀一次，收回之後才是第二次——第二次起它不再是分享狀態。
     const listAvailableStrategies = vi.fn()
-      .mockResolvedValueOnce({ mine: [publishedStrategyRow()], adopted: [] })
       .mockResolvedValueOnce({ mine: [publishedStrategyRow()], adopted: [] })
       .mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] })
     const wrapper = mountPanel({ withdrawStrategy, listAvailableStrategies })
     await settle()
-    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
-    await settle()
-    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
-    await settle()
+    await pickStrategy(wrapper, 7)
 
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
+    await settle()
     await pressConfirm(wrapper, '收回')
 
     expect(withdrawStrategy).toHaveBeenCalledWith(7)
-    expect(wrapper.find('[data-testid="strategy-library-withdraw-7"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="strategy-library-publish-7"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="share-strategy-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(false)
   })
 
   it('分享過的策略仍然改得動，而且改完還是分享狀態', async () => {
@@ -1099,14 +1153,14 @@ describe('指標計算畫面上的策略：分享與收回', () => {
   it('取消之後什麼都沒發生', async () => {
     const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
     const wrapper = await mountPanelWithPublished({ withdrawStrategy })
-    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
-    await settle()
-    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
     await settle()
 
     await pressConfirm(wrapper, '取消')
 
     expect(withdrawStrategy).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(true)
   })
 })
 

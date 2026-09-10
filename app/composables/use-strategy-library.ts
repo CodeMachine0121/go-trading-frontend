@@ -74,11 +74,37 @@ export function useStrategyLibrary(
       const available = await strategyApplication.listAvailableStrategies()
       strategies.value = [...available.mine]
       adoptedStrategies.value = [...available.adopted]
+      refreshActiveStrategy()
     }
     catch (error: unknown) {
       // 取不到清單時**不清空手上這一份**——把它清空等於告訴使用者他什麼都沒存過。
       listErrorMessage.value = messageOf(error, '取得策略清單時發生未預期的錯誤。')
     }
+  }
+
+  /**
+   * 讓「使用中的那一支」跟上剛讀回來的那一份。
+   *
+   * 沒有這一步，關於那一支的每一件事都會停在載入當下的樣子——最明顯的是分享狀態：
+   * 剛按過收回，眼前那顆按鈕還寫著「收回」，而看的人只會再按一次。
+   *
+   * **只換那份紀錄，不動 `loadedContent`。** 那一份是「載入當下畫面上是什麼」，
+   * 拿新讀回來的內容覆蓋它，等於把使用者還沒存的修改當成已經存了。
+   *
+   * 清單裡找不到它時什麼都不做：那代表它在別的地方被刪掉了，而「刪掉正在用的那一支
+   * 只解除關聯、內容留著」是刪除那條路自己的規則，不該由一次重讀順手執行。
+   */
+  function refreshActiveStrategy() {
+    if (activeStrategy.value === null) {
+      return
+    }
+
+    const refreshed = strategies.value.find(candidate => candidate.id === activeStrategy.value?.id)
+    if (refreshed === undefined) {
+      return
+    }
+
+    activeStrategy.value = refreshed
   }
 
   function openLibrary() {
@@ -288,6 +314,10 @@ export function useStrategyLibrary(
   /**
    * 放上市集與收回走同一條路：兩者都是同一件事的兩個方向，
    * 所以「成功要說什麼、失敗要說什麼、之後要重讀清單」也只寫一次。
+   *
+   * 兩者都以**不開任何對話框**收尾。它們是從主畫面那一排按下來的，收回那一次頂多
+   * 開過一個確認框而那個框已經做完事了——收尾時把清單彈出來，等於替使用者打開一個
+   * 他沒有要求的東西。
    */
   async function changePublication(
     id: number, change: () => Promise<void>, successMessage: string,
@@ -297,13 +327,13 @@ export function useStrategyLibrary(
 
     try {
       await change()
-      openDialog.value = 'library'
+      openDialog.value = 'none'
       noticeMessage.value = successMessage
       await refreshStrategies()
     }
     catch (error: unknown) {
       errorMessage.value = messageOf(error, '變更分享狀態時發生未預期的錯誤。')
-      openDialog.value = 'library'
+      openDialog.value = 'none'
     }
     finally {
       saving.value = false

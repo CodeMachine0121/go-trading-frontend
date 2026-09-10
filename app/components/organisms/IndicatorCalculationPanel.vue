@@ -198,6 +198,31 @@ const pickableStrategies = computed(() => [
   ...strategyLibrary.adoptedStrategies.value.map(published => published.toChartApplicable()),
 ])
 
+/**
+ * 把使用中的那一支放到市集上。
+ *
+ * 「哪一支」不由呼叫端說——它就是眼前這一支。沒有使用中的那一支時按鈕是禁用的，
+ * 所以這裡讀到 null 是不會發生的事；讀到了就什麼都不做，而不是拿一個猜的識別碼去打後端。
+ */
+async function shareActiveStrategy() {
+  const active = strategyLibrary.activeStrategy.value
+  if (active === null) {
+    return
+  }
+
+  await strategyLibrary.publishStrategy(active.id)
+}
+
+/** 從市集收回使用中的那一支。收回一律先問——理由與那個確認框上寫的一樣。 */
+function withdrawActiveStrategy() {
+  const active = strategyLibrary.activeStrategy.value
+  if (active === null) {
+    return
+  }
+
+  strategyLibrary.askToWithdraw(active.id)
+}
+
 async function calculateIndicator() {
   await calculationRun.run(() => new IndicatorCalculationRequestDto(
     symbol.value,
@@ -258,6 +283,37 @@ async function calculateIndicator() {
             @click="strategyLibrary.openRenameDialog"
           >
             <AppIcon name="rename" />
+          </AppButton>
+          <!--
+            分享與收回就擺在這裡，而不是躲在清單裡：想分享的幾乎總是眼前這一支——
+            剛調對、剛存好的那一支。要為它多開一個對話框、在一排列裡再找一次自己，
+            是一段不必要的路。
+
+            它與旁邊那幾顆一樣，作用對象是**使用中的那一支**；沒有使用中的那一支時
+            它是禁用的，與「重新命名」同一條規則、同一個理由：那兩件事都需要先有一支。
+          -->
+          <AppButton
+            v-if="!strategyLibrary.activeStrategy.value?.published"
+            type="button"
+            variant="secondary"
+            :disabled="strategyLibrary.activeStrategy.value === null
+              || strategyLibrary.saving.value"
+            label="分享到市集"
+            data-testid="share-strategy-button"
+            @click="shareActiveStrategy"
+          >
+            <AppIcon name="share" />
+          </AppButton>
+          <AppButton
+            v-else
+            type="button"
+            variant="secondary"
+            :disabled="strategyLibrary.saving.value"
+            label="從市集收回"
+            data-testid="withdraw-strategy-button"
+            @click="withdrawActiveStrategy"
+          >
+            <AppIcon name="unshare" />
           </AppButton>
           <AppButton
             type="button"
@@ -728,8 +784,6 @@ async function calculateIndicator() {
       :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
       @load="strategyLibrary.selectStrategy"
       @remove="strategyLibrary.askToDelete"
-      @publish="strategyLibrary.publishStrategy"
-      @withdraw="strategyLibrary.askToWithdraw"
       @abandon="strategyLibrary.abandonStrategy"
       @close="strategyLibrary.closeDialog"
     />

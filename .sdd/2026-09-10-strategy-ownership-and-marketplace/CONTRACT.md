@@ -60,12 +60,15 @@
 
 | ID | Clause | Oracle | Implementation | Test | Test audit | Code audit | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| AC-05.1 | 發佈一支自己的策略 | 發佈成功，那一列標示為已分享 | `use-strategy-library.ts:publishStrategy`；`strategy-proxy.ts:publishStrategy` | `IndicatorCalculationPanelStrategy.spec.ts`（`分享一支不先問…`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
-| AC-05.2 | 已分享的那一列顯示的是收回 | 那顆按鈕是「收回」 | `StrategyLibraryDialog.vue`（由 `published` 決定） | `StrategyLibraryDialog.spec.ts`（`分享過的那一支給的是「收回」`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.1 | 分享的是使用中的那一支 | 發佈成功，同一顆換成「收回」 | `IndicatorCalculationPanel.vue:shareActiveStrategy`；`use-strategy-library.ts:publishStrategy` | `IndicatorCalculationPanelStrategy.spec.ts`（`分享的是眼前那一支，不必先打開清單`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.1a | 分享完不會彈出策略清單 | 策略清單沒有被打開 | `use-strategy-library.ts:changePublication`（收尾不開任何對話框） | `IndicatorCalculationPanelStrategy.spec.ts`（`分享完不會彈出策略清單`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.1b | 沒有使用中的那一支時按不下去 | 那一顆是禁用的 | `IndicatorCalculationPanel.vue`（與「重新命名」同一條 `disabled`） | `IndicatorCalculationPanelStrategy.spec.ts`（`沒有使用中的那一支時按不下去`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.2 | 已分享時那一顆是收回 | 那顆按鈕是「收回」，且沒有「分享」 | `IndicatorCalculationPanel.vue`（`published` 決定畫哪一顆） | `IndicatorCalculationPanelStrategy.spec.ts`（`分享過的那一支，眼前那顆變成「收回」`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.2a | 清單說得出哪幾支在外面 | 那一列標示「已分享」，且沒有那兩顆按鈕 | `StrategyLibraryDialog.vue`（只留標記） | `StrategyLibraryDialog.spec.ts`（`分享過的那一支標出「已分享」`／`清單上沒有分享或收回那兩顆`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-05.3 | 收回之前先問一次 | 出現確認，且寫明加入過它的人都會失去它 | `use-strategy-library.ts:askToWithdraw`；`IndicatorCalculationPanel.vue`（確認框文字） | `IndicatorCalculationPanelStrategy.spec.ts`（`收回要先問，而且說清楚後果`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
-| AC-05.4 | 確認之後收回 | 收回成功，那一列不再標示已分享 | `use-strategy-library.ts:confirmWithdraw` | `IndicatorCalculationPanelStrategy.spec.ts`（`確認之後才真的收回，而且那一列不再說它已分享`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.4 | 確認之後收回 | 收回成功，那顆按鈕換回「分享」 | `use-strategy-library.ts:confirmWithdraw`＋`refreshActiveStrategy`（讓使用中的那一支跟上剛讀回來的） | `IndicatorCalculationPanelStrategy.spec.ts`（`確認之後才真的收回，而且那顆按鈕換回「分享」`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-05.5 | 取消之後什麼都沒發生 | 那一列仍標示已分享，市集上仍然有它 | `closeDialog` | `IndicatorCalculationPanelStrategy.spec.ts`（`取消之後什麼都沒發生`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
-| AC-05.6 | 加入來的那一支不給發佈或收回 | 兩顆都沒有 | `StrategyLibraryDialog.vue`（那一節只畫「移除」） | `StrategyLibraryDialog.spec.ts`（AC-02.4 同一則，斷言 publish／withdraw 都不存在） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-05.6 | 加入來的那一支分享不了 | 它不會成為使用中的那一支，「分享」維持禁用 | `use-strategy-library.ts:selectStrategy`（加入來的不載入）＋那一顆的 `disabled` | `IndicatorCalculationPanelStrategy.spec.ts`（`挑加入來的那一支不會載入編輯器`＋`沒有使用中的那一支時按不下去`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-05.7 | 分享過的策略仍然改得動 | 儲存成功、仍標示已分享、編輯器沒被鎖住 | 儲存路徑不看 `published` | `IndicatorCalculationPanelStrategy.spec.ts`（`分享過的策略仍然改得動，而且改完還是分享狀態`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 
 ### US-06 — 沒存過的算式照舊算得動
@@ -86,7 +89,7 @@
 | BR-2 | 「請重新登入」與其他失敗分開處理 | 前者導頁，後者就地說明 | `signed-out-error.ts`；`use-user-session.ts:signOutBecauseSessionExpired` | 型別分開與導頁兩半都有測 | ✅ conforms |
 | BR-3 | 加入來的策略一律唯讀 | 沒有算式可以載，也沒有任何會改動它的動作 | `published-strategy-dto.ts`（沒有 `content`）；`StrategyLibraryDialog.vue` | `StrategyLibraryDialog.spec.ts`；`IndicatorCalculationPanelStrategy.spec.ts` | ✅ conforms |
 | BR-4 | 加入與移除只影響自己 | 移除之後它仍在市集上 | `strategy-marketplace-proxy.ts` | `StrategyMarketplacePanel.spec.ts` | ✅ conforms |
-| BR-5 | 發佈與收回只出現在自己的策略上 | 加入來的那一列沒有這兩顆 | `StrategyLibraryDialog.vue` | `StrategyLibraryDialog.spec.ts` | ✅ conforms |
+| BR-5 | 發佈與收回作用在使用中的那一支，而且只可能是自己的 | 加入來的載不進編輯器，所以永遠不是使用中的那一支 | `IndicatorCalculationPanel.vue`；`use-strategy-library.ts:selectStrategy` | `IndicatorCalculationPanelStrategy.spec.ts` | ✅ conforms |
 | BR-6 | 收回要先確認，發佈不用 | 發佈直接做；收回先問 | `use-strategy-library.ts`（兩者刻意不對稱） | `IndicatorCalculationPanelStrategy.spec.ts`（兩則各證一邊） | ✅ conforms |
 | BR-7 | 自己分享的留在市集上，但不給加入/移除 | 看得到、標明是自己的、沒有按鈕 | `marketplace-listing-domain.ts`；`MarketplaceStrategyCard.vue` | `marketplace-listing-domain.spec.ts`；`StrategyMarketplacePanel.spec.ts` | ✅ conforms |
 | BR-8 | 連不上與「一支都沒有」永遠分開講 | 兩種狀態互斥呈現 | 兩處空狀態（清單、市集） | 兩處各有一則 | ✅ conforms |
@@ -119,7 +122,7 @@
 
 | Status | Count |
 | :--- | ---: |
-| ✅ conforms | 39 |
+| ✅ conforms | 43 |
 | 🔴 violation | 0 |
 | 🟠 mis-asserted | 0 |
 | 🟡 partial | 1 |
@@ -127,7 +130,7 @@
 | ❔ unclear | 0 |
 | ⚠️ orphan | 0 |
 
-**Conformance: 98% (39 / 40)**，**0 個行為是錯的**。
+**Conformance: 98% (43 / 44)**，**0 個行為是錯的**。
 
 **第一次稽核找到、已經補上的五則 🟠（綠燈但沒有釘住那句話）：**
 - **AC-01.3／BR-2** — 證了「被登出時會通知」，沒有證那個通知會把人帶到登入畫面。
@@ -141,6 +144,13 @@
 
 **剩下的一則 🟡，刻意不補：** AC-03.4（改掉說明）——它與 AC-03.1 走同一條存檔路徑，
 差別只在那一格原本有字；再測一次只是換一個前置條件。
+
+**後續的一次調整（不是稽核結果，是位置改了）：** 分享與收回從策略清單搬到指標計算畫面那一排
+動作上，作用對象改為使用中的那一支——想分享的幾乎總是剛調對的那一支。
+搬的過程中找到一個實際缺口：重讀清單時「使用中的那一支」沒有跟著更新，
+所以剛按過收回，眼前那顆還寫著「收回」。那一步現在寫在重讀那一處，
+並且刻意不動 `loadedContent`（動了就等於把還沒存的修改當成已經存了）。
+上表的 AC-05.1a／05.1b／05.2a 是隨之新增的條款。
 
 **Ceiling:** 這是靜態一致性稽核——它讀測試斷言與程式碼路徑並與契約推導出的預期比對，
 不執行自己發明的情境。要動態證明某一則，走 `/tdd`。
