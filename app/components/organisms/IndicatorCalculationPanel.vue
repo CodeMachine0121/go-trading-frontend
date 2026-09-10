@@ -259,7 +259,7 @@ async function calculateIndicator() {
             type="button"
             variant="secondary"
             :disabled="strategyLibrary.saving.value"
-            label="儲存"
+            label="存回目前這一支"
             data-testid="save-strategy-button"
             @click="strategyLibrary.saveStrategy"
           >
@@ -268,7 +268,7 @@ async function calculateIndicator() {
           <AppButton
             type="button"
             variant="secondary"
-            label="另存為新策略"
+            label="另存為新的一支"
             data-testid="save-as-strategy-button"
             @click="strategyLibrary.openNameDialog"
           >
