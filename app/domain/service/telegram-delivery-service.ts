@@ -4,7 +4,7 @@ import { TelegramDeliveryWriteDto } from '~/domain/models/dto/telegram-delivery-
 import { TestMessageResultDto } from '~/domain/models/dto/test-message-result-dto'
 import { TelegramDeliveryDomain } from '~/domain/models/domains/telegram-delivery-domain'
 import { TestMessageDomain } from '~/domain/models/domains/test-message-domain'
-import { deliveryFailureSentence } from '~/domain/models/vo/delivery-failure-reason'
+import { DeliveryFailureDomain } from '~/domain/models/domains/delivery-failure-domain'
 
 /**
  * Domain Service：「這台系統要怎麼找到我」這件事的唯一入口。
@@ -57,6 +57,6 @@ export class TelegramDeliveryService {
       return new TestMessageResultDto(true, null)
     }
 
-    return new TestMessageResultDto(false, deliveryFailureSentence(failureReason))
+    return new TestMessageResultDto(false, new DeliveryFailureDomain(failureReason).sentence())
   }
 }
