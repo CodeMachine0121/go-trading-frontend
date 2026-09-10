@@ -50,7 +50,7 @@ describe('ConsoleLayout', () => {
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(6)
+    expect(wrapper.findAll('a')).toHaveLength(7)
     expect(wrapper.text()).toContain('指標計算')
     expect(wrapper.text()).toContain('觀察清單')
   })

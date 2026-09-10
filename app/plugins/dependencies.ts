@@ -30,6 +30,9 @@ import { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
+import { StrategyMarketplaceProxy } from '~/infrastructure/proxy/strategy-marketplace-proxy'
+import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
+import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
@@ -114,6 +117,14 @@ export default defineNuxtPlugin(() => {
     new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut)),
   )
 
+  // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略那一條：
+  // 那一條回答「我的東西」，這一條回答「外面有什麼」。市集日後長出搜尋、分類或使用次數時，
+  // 長的是這一條，而日常挑策略那條路一行都不會動。
+  const strategyMarketplaceApplication = new StrategyMarketplaceApplication(
+    new StrategyMarketplaceService(
+      new StrategyMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut)),
+  )
+
   // 重演一支策略是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
   // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
   // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
@@ -189,6 +200,7 @@ export default defineNuxtPlugin(() => {
       watchlistApplication,
       indicatorCalculationApplication,
       strategyApplication,
+      strategyMarketplaceApplication,
       backtestApplication,
       chartIndicatorApplication,
       liveKCandleApplication,
