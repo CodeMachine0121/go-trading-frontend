@@ -140,3 +140,17 @@ describe('SignInPanel：密碼那一格是密碼', () => {
       .toBe('password')
   })
 })
+
+describe('SignInPanel：上一個畫面留下的那一句話', () => {
+  it('說明為什麼這個人會在這裡，而且不是紅字', () => {
+    // 它講的不是這一次送出失敗了。用紅字說出來，看起來就像他剛才做的事出了錯。
+    const wrapper = mountPanel({ notice: '密碼已更換，請用新密碼重新登入。' })
+
+    expect(wrapper.get('[data-testid="sign-in-notice"]').text())
+      .toBe('密碼已更換，請用新密碼重新登入。')
+  })
+
+  it('沒有那句話時就不畫', () => {
+    expect(mountPanel().find('[data-testid="sign-in-notice"]').exists()).toBe(false)
+  })
+})

@@ -48,6 +48,11 @@ import { UserProxy } from '~/infrastructure/proxy/user-proxy'
 import { SessionStorageProxy } from '~/infrastructure/proxy/session-storage-proxy'
 import { UserSessionService } from '~/domain/service/user-session-service'
 import { UserSessionApplication } from '~/application/user-session-application'
+import { PasswordChangeService } from '~/domain/service/password-change-service'
+import { PasswordChangeApplication } from '~/application/password-change-application'
+import { TelegramDeliveryProxy } from '~/infrastructure/proxy/telegram-delivery-proxy'
+import { TelegramDeliveryService } from '~/domain/service/telegram-delivery-service'
+import { TelegramDeliveryApplication } from '~/application/telegram-delivery-application'
 import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
@@ -194,6 +199,23 @@ export default defineNuxtPlugin(() => {
       new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession), sessionStorageProxy),
   )
 
+  // 換密碼走的是同一個後端資源（使用者）的另一條路，所以它共用 UserProxy——
+  // 一個外部資源一個 Proxy。它有自己的 service 而不是掛在「現在是誰在用」上，
+  // 因為兩者為不同的理由改變：那一個管手上這一段登入還算不算數，這一個管換一組密碼
+  // 要過哪幾關。它也不碰記著的那一份憑證：換完之後那一份已經被後端撤掉了，
+  // 而「接下來把人帶去哪」是畫面那一層的編排。
+  const passwordChangeApplication = new PasswordChangeApplication(
+    new PasswordChangeService(
+      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  )
+
+  // 這台系統要怎麼找到一個人，是後端的另一項能力，所以它有自己的一條線。
+  // 這一條日後會長出「哪些事情要送出去」，而那時它長的仍然是這一條。
+  const telegramDeliveryApplication = new TelegramDeliveryApplication(
+    new TelegramDeliveryService(
+      new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -218,6 +240,8 @@ export default defineNuxtPlugin(() => {
       assistantDrawerWidthApplication,
       clipboardApplication,
       userSessionApplication,
+      passwordChangeApplication,
+      telegramDeliveryApplication,
     },
   }
 })

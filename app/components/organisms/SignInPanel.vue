@@ -13,11 +13,24 @@ import FormField from '~/components/molecules/FormField.vue'
 //
 // 送出之前的規則不在這裡：規則住在 CredentialsDomain，這裡只把兩格與模式往上送，
 // 再把回來的每一格錯誤畫在該格底下。元件不寫業務規則。
-const { pending = false, errorMessage = null, emailError = null, passwordError = null } = defineProps<{
+const {
+  pending = false,
+  errorMessage = null,
+  emailError = null,
+  passwordError = null,
+  notice = null,
+} = defineProps<{
   pending?: boolean
   errorMessage?: string | null
   emailError?: string | null
   passwordError?: string | null
+  /**
+   * 上一個畫面留下的一句話，例如「密碼已更換，請用新密碼重新登入」。
+   *
+   * 它與 errorMessage 分開，因為它講的不是這一次送出失敗了——它解釋的是
+   * **為什麼這個人會在這裡**。用紅字說出來，看起來就像他剛才做的事出了錯。
+   */
+  notice?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -115,6 +128,14 @@ function submit(): void {
         :invalid="passwordError !== null"
       />
     </FormField>
+
+    <AppAlert
+      v-if="notice"
+      tone="info"
+      data-testid="sign-in-notice"
+    >
+      {{ notice }}
+    </AppAlert>
 
     <AppAlert
       v-if="errorMessage"

@@ -19,6 +19,7 @@ const DESTINATIONS = [
   { to: '/indicator-calculations', label: '指標計算', icon: 'formula' },
   { to: '/marketplace', label: '策略市集', icon: 'library' },
   { to: '/chat', label: '行情助手', icon: 'robot' },
+  { to: '/settings', label: '設定', icon: 'settings' },
 ] as const
 
 defineProps<{
