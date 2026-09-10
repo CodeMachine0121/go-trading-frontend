@@ -1,4 +1,5 @@
 import type { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 
 /**
@@ -6,14 +7,26 @@ import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
  *
  * coveredStartTime / coveredEndTime 是這批資料涵蓋的範圍——比使用者正在看的那一段更寬，
  * 因為取的時候兩側各多取了半段。下次使用者小幅拖動時，就是靠它判斷不必重新取。
+ *
+ * **這裡有兩個關於粗細的東西，而且必須有兩個：**
+ * - `interval` 是**系統實際用了哪一種**，圖上那句「每根涵蓋」說的是它。
+ * - `aggregationIntervalChoice` 是**這一批當初以哪個選擇取回的**，
+ *   下一次比對「選擇換了沒」說的是它。
+ *
+ * 拿 `interval` 去比對會無限重取：挑「自動」、後端回「五分鐘」，
+ * 下一次的選擇仍然是「自動」，卻永遠不等於「五分鐘」，於是每一次都重取。
+ * 兩者型別不同（刻度 vs 選擇），拿錯不會編譯過。
  */
 export class KCandleChartDto {
   constructor(
     public readonly symbol: string,
+    /** 系統這一次**實際**用了哪一種。給標題列看的。 */
     public readonly interval: AggregationIntervalVo,
     public readonly coveredStartTime: Date,
     public readonly coveredEndTime: Date,
     public readonly kCandles: KCandleDto[],
+    /** 這一批當初以**哪個選擇**取回的。給下一次比對用的。 */
+    public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ) {}
 
   get count(): number {

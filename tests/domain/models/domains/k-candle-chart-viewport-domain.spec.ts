@@ -7,6 +7,10 @@ import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../../../fixtures/aggregation-interval-choice'
 
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 const MILLISECONDS_PER_MINUTE = 60 * 1000
@@ -21,8 +25,15 @@ function intervalFor(value: string) {
 
 /** 只給會影響行為的資料：手上這批的交易標的、刻度與涵蓋範圍。 */
 function loadedChart(
-  { symbol = 'BTCUSDT', interval = '1m', coveredStartTime, coveredEndTime }:
-  { symbol?: string, interval?: string, coveredStartTime: string, coveredEndTime: string },
+  { symbol = 'BTCUSDT', interval = '1m', coveredStartTime, coveredEndTime,
+    choice = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE }:
+  {
+    symbol?: string
+    interval?: string
+    coveredStartTime: string
+    coveredEndTime: string
+    choice?: AggregationIntervalChoiceDto
+  },
 ): KCandleChartDto {
   return new KCandleChartDto(
     symbol,
@@ -35,6 +46,7 @@ function loadedChart(
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
       new KCandleTrendVo('up', '上漲', 'success'),
     )],
+    choice,
   )
 }
 
@@ -53,13 +65,16 @@ const FETCH_SPAN_MULTIPLIER = 2
  * 照預取那條關係造出來——畫面比對「長度變了沒有」時，讀的就是同一條關係。
  */
 function loadedChartFrom(
-  visibleMinutes: number, { symbol = 'BTCUSDT', endTime = VISIBLE_END_TIME } = {},
+  visibleMinutes: number,
+  { symbol = 'BTCUSDT', endTime = VISIBLE_END_TIME,
+    choice = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } = {},
 ): KCandleChartDto {
   const visibleMilliseconds = visibleMinutes * MILLISECONDS_PER_MINUTE
   const prefetchMilliseconds = visibleMilliseconds * (FETCH_SPAN_MULTIPLIER - 1) / 2
 
   return loadedChart({
     symbol,
+    choice,
     coveredStartTime: new Date(
       endTime.getTime() - visibleMilliseconds - prefetchMilliseconds).toISOString(),
     coveredEndTime: new Date(endTime.getTime() + prefetchMilliseconds).toISOString(),
@@ -68,12 +83,14 @@ function loadedChartFrom(
 
 function viewportSpanning(
   visibleMinutes: number, loaded: KCandleChartDto | null = null, symbol = 'BTCUSDT',
+  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
 ): KCandleChartViewportDomain {
   return new KCandleChartViewportDomain(new KCandleChartViewportDto(
     symbol,
     new Date(VISIBLE_END_TIME.getTime() - visibleMinutes * MILLISECONDS_PER_MINUTE),
     VISIBLE_END_TIME,
     loaded,
+    choice,
   ))
 }
 
@@ -252,6 +269,76 @@ describe('KCandleChartViewportDomain', () => {
       })).toLoadPlan()
 
       expect(loadPlan.needsReload).toBe(true)
+    })
+  })
+
+  describe('使用者挑的粗細', () => {
+    it('換一種就重新取——手上這批是另一種粗細的，涵蓋得再廣都不算數', () => {
+      const loaded = loadedChartFrom(120, { choice: aggregationIntervalChoiceOf('5m') })
+
+      const loadPlan = viewportSpanning(
+        120, loaded, 'BTCUSDT', aggregationIntervalChoiceOf('1h')).toLoadPlan()
+
+      expect(loadPlan.needsReload).toBe(true)
+    })
+
+    it('挑到同一個就不重新取', () => {
+      const loaded = loadedChartFrom(120, { choice: aggregationIntervalChoiceOf('5m') })
+
+      const loadPlan = viewportSpanning(
+        120, loaded, 'BTCUSDT', aggregationIntervalChoiceOf('5m')).toLoadPlan()
+
+      expect(loadPlan.needsReload).toBe(false)
+    })
+
+    it('從自動換成固定的一種也要重新取', () => {
+      const loaded = loadedChartFrom(120)
+
+      const loadPlan = viewportSpanning(
+        120, loaded, 'BTCUSDT', aggregationIntervalChoiceOf('1m')).toLoadPlan()
+
+      // 挑一分鐘不是「維持現狀」：自動可能挑的是別種，而且下一次拉遠時它還會再變。
+      expect(loadPlan.needsReload).toBe(true)
+    })
+
+    it('一路都選著自動時不會每次都重新取', () => {
+      const loaded = loadedChartFrom(120)
+
+      const loadPlan = viewportSpanning(120, loaded).toLoadPlan()
+
+      expect(loadPlan.needsReload).toBe(false)
+    })
+
+    it('把使用者說的那一句原樣交出去給取資料的人', () => {
+      const loadPlan = viewportSpanning(
+        120, null, 'BTCUSDT', aggregationIntervalChoiceOf('15m')).toLoadPlan()
+
+      expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('15m')
+    })
+
+    it('沒挑時交出去的那個選擇說不出任何刻度', () => {
+      const loadPlan = viewportSpanning(120).toLoadPlan()
+
+      expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBeNull()
+    })
+
+    it('換粗細不改變該看的那一段', () => {
+      const loaded = loadedChartFrom(120, { choice: aggregationIntervalChoiceOf('5m') })
+
+      const loadPlan = viewportSpanning(
+        120, loaded, 'BTCUSDT', aggregationIntervalChoiceOf('1h')).toLoadPlan()
+
+      expect(visibleMinutesOf(loadPlan)).toBe(120)
+      expect(loadPlan.visibleEndTime).toEqual(VISIBLE_END_TIME)
+    })
+
+    it('挑了固定的一種也不改變看最遠五百天那個上限', () => {
+      const loadPlan = viewportSpanning(
+        501 * 24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('1m')).toLoadPlan()
+
+      // 那個上限守的是「自動」，而它照樣套用在每一種選擇上：
+      // 畫面能替使用者擋下的只有這一種過大，其餘由系統回話。
+      expect(visibleMinutesOf(loadPlan)).toBe(500 * 24 * 60)
     })
   })
 

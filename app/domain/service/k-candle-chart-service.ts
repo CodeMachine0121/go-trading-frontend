@@ -1,6 +1,9 @@
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandleChartViewportDomain } from '~/domain/models/domains/k-candle-chart-viewport-domain'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
+import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
+import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-domain'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
@@ -38,6 +41,48 @@ const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
   new KCandleChartRangePresetDto('三個月', 90 * MILLISECONDS_PER_DAY),
   new KCandleChartRangePresetDto('六個月', 180 * MILLISECONDS_PER_DAY),
   new KCandleChartRangePresetDto('一年', 365 * MILLISECONDS_PER_DAY),
+]
+
+/**
+ * 一進畫面每根涵蓋多久由誰說了算。
+ *
+ * 它有自己的名字，而不是拿清單的第一個：那一排由細到粗排，第一個剛好是「自動」，
+ * 於是「一進來由系統挑」會變成排序的副作用——改一次順序就靜靜換掉了預設。
+ * 一進來由系統挑是一個判斷，所以寫成一個判斷。
+ *
+ * **這裡也是「記住上次挑的那一種」將來要接上的地方**：那一天要換掉的是
+ * 這個判斷的內容，而不是每一個問「預設是哪一個」的呼叫端。
+ */
+const AUTOMATIC_AGGREGATION_INTERVAL_CHOICE = new AggregationIntervalChoiceDto('自動', null)
+
+/**
+ * 六種彙總刻度裡，圖表選單放哪幾種。
+ *
+ * 刻意不放**四小時與一天**：看那麼粗的人看的是好幾個月，而那種長度
+ * 「自動」本來就會挑出夠粗的一種。選單每多一項，五選一那個
+ * 「掃一眼就選完」的性質就少一點。
+ *
+ * 它列的是**代號**而不是整個刻度，因為型別會替我們把關：
+ * 打錯一個字是編譯錯誤，而不是一個安靜少掉一項的選單——少一項沒有人會發現，
+ * 那看起來就只是「我們沒支援那一種」。
+ */
+const CHOOSABLE_AGGREGATION_INTERVAL_VALUES: AggregationIntervalValue[]
+  = ['1m', '5m', '15m', '1h']
+
+/**
+ * 圖表上可挑的粗細，**由細到粗**，第一項是「自動」。
+ *
+ * 順序沿用 `AGGREGATION_INTERVALS` 的順序，而不是上面那一列的順序——
+ * 「由細到粗」是那份清單的性質，在這裡再排一次就是同一件事有兩個說法。
+ *
+ * 標籤與代號也一律取自那份清單，不各自新建：選單上寫「五分鐘」而送出去 `5m`，
+ * 兩者必須永遠是同一列說的。
+ */
+const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = [
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+  ...AGGREGATION_INTERVALS
+    .filter(interval => CHOOSABLE_AGGREGATION_INTERVAL_VALUES.includes(interval.value))
+    .map(interval => new AggregationIntervalChoiceDto(interval.label, interval)),
 ]
 
 /**
@@ -98,5 +143,15 @@ export class KCandleChartService {
   /** 一進畫面先看哪一段。 */
   defaultRangePreset(): KCandleChartRangePresetDto {
     return DEFAULT_K_CANDLE_CHART_RANGE_PRESET
+  }
+
+  /** 畫面上可挑的幾種粗細，由細到粗，第一項是「自動」。 */
+  listAggregationIntervalChoices(): AggregationIntervalChoiceDto[] {
+    return AGGREGATION_INTERVAL_CHOICES
+  }
+
+  /** 一進畫面每根涵蓋多久由誰說了算。 */
+  defaultAggregationIntervalChoice(): AggregationIntervalChoiceDto {
+    return AUTOMATIC_AGGREGATION_INTERVAL_CHOICE
   }
 }

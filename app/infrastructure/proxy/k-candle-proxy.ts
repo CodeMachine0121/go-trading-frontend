@@ -33,8 +33,9 @@ type KCandleWire = {
 /**
  * 彙總查詢的回覆形狀：一個物件，不是陣列。
  *
- * `interval` 是**必須讀的**：我們送出去的條件裡沒有它，一根多粗是系統挑的，
- * 而畫面要照它標「每根涵蓋」、也要照它分格。交易標的仍然不讀——
+ * `interval` 是**必須讀的**，即使我們剛剛才說出一種：畫面要標的是
+ * **系統實際用了哪一種**，而不是我們要求的那一種——看得出來比信任可靠。
+ * 挑「自動」時它更是唯一的來源。交易標的仍然不讀——
  * 那個是我們剛剛問出去的東西，讀它只會讓「手上這批是誰」多一個來源。
  */
 type KCandleSeriesWire = {
@@ -73,15 +74,23 @@ export class KCandleProxy extends BackendApiProxy implements IKCandleProxy {
   async findKCandleSeries(
     kCandleChartLoadPlanVo: KCandleChartLoadPlanVo,
   ): Promise<KCandleSeriesVo> {
-    // 送出去的只有交易標的與那一段的起訖時間。**刻意不送彙總刻度**——
-    // 一根該多粗需要交易時段與休市日才算得對，而那是後端知道的事；
-    // 說了一種，就等於在這裡長出第二份市場作息。
+    // 使用者挑了固定的一種時才說出彙總刻度，挑「自動」時**一個字都不說**。
+    //
+    // **刻意不推導它**：一根該多粗需要交易時段與休市日才算得對，而那是後端知道的事。
+    // 這裡轉述的是使用者說出口的話，不是我們算出來的答案——說一句我們自己算的，
+    // 就等於在這裡長出第二份市場作息。
+    //
+    // 沒挑時整個 key 都不放進去（而不是放一個空字串）：後端把空字串
+    // 與「沒說」視為同一件事，但一個送得出去的空值遲早會被誰讀成「一種刻度」。
+    const declaredInterval = kCandleChartLoadPlanVo.aggregationIntervalChoice.declaredInterval
+
     const kCandleSeriesWire = await this.requestBackend<KCandleSeriesWire>(
       K_CANDLE_SERIES_ENDPOINT, {
         query: {
           symbol: kCandleChartLoadPlanVo.symbol,
           startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
           endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
+          ...(declaredInterval === null ? {} : { interval: declaredInterval }),
         },
       })
 

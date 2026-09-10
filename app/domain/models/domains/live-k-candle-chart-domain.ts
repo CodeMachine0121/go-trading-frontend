@@ -69,6 +69,10 @@ export class LiveKCandleChartDomain {
       this.chart.coveredEndTime,
       [...byBucketStart.values()].sort(
         (earlier, later) => earlier.openTime.getTime() - later.openTime.getTime()),
+      // 併進即時的那幾根不會讓這一批換一個選擇：它仍然是那一次以那個選擇取回的
+      // 同一批。改寫它會讓下一次比對誤判成「使用者換了粗細」，於是每一則即時更新
+      // 都重取一次。
+      this.chart.aggregationIntervalChoice,
     )
   }
 

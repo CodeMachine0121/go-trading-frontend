@@ -1,4 +1,5 @@
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 
 /**
@@ -18,10 +19,19 @@ export class KCandleChartRangePresetDto {
     public readonly spanMilliseconds: number,
   ) {}
 
-  toViewportDto(symbol: string, loadedChart: KCandleChartDto | null): KCandleChartViewportDto {
+  /**
+   * 挑好的粗細只是**原樣帶過去**：按一個快捷區間換的是看多長，不是看多細。
+   * 兩件事在這裡相遇，只因為 viewport 要它們兩個才說得完整。
+   */
+  toViewportDto(
+    symbol: string,
+    loadedChart: KCandleChartDto | null,
+    aggregationIntervalChoice: AggregationIntervalChoiceDto,
+  ): KCandleChartViewportDto {
     const visibleEndTime = new Date()
     const visibleStartTime = new Date(visibleEndTime.getTime() - this.spanMilliseconds)
 
-    return new KCandleChartViewportDto(symbol, visibleStartTime, visibleEndTime, loadedChart)
+    return new KCandleChartViewportDto(
+      symbol, visibleStartTime, visibleEndTime, loadedChart, aggregationIntervalChoice)
   }
 }

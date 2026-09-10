@@ -16,6 +16,7 @@ import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
@@ -51,6 +52,17 @@ const drawing = ref<'candlestick' | 'line'>('candlestick')
 
 const presets = ref<KCandleChartRangePresetDto[]>([])
 const activePresetLabel = ref<string | null>(null)
+
+/**
+ * 使用者要多細。它與「看哪一段」是兩個獨立的意圖，所以住在自己的 ref 裡：
+ * 換標的、按快捷區間、拉遠拉近都只讀它、不寫它，於是挑好的那一種會一直用著。
+ *
+ * 預設**問 application 要**，不在這裡寫死——「一進來由系統挑」是一個判斷，
+ * 判斷住在 domain。進畫面前先擺一個空清單與一個佔位，理由與快捷區間相同。
+ */
+const aggregationIntervalChoices = ref<AggregationIntervalChoiceDto[]>([])
+const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
+  kCandleChartApplication.defaultAggregationIntervalChoice())
 
 const chart = ref<KCandleChartDto | null>(null)
 const visibleStartTime = ref(new Date())
@@ -158,7 +170,8 @@ async function catchUp() {
     }
 
     await showViewport(new KCandleChartViewportDto(
-      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null))
+      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null,
+      aggregationIntervalChoice.value))
   }
   catch (error: unknown) {
     catchUpMessage.value = error instanceof Error
@@ -323,7 +336,8 @@ onBeforeUnmount(() => {
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePresetLabel.value = preset.label
 
-  return showViewport(preset.toViewportDto(symbol.value, chart.value))
+  return showViewport(preset.toViewportDto(
+    symbol.value, chart.value, aggregationIntervalChoice.value))
 }
 
 function showRange(range: { startTime: Date, endTime: Date }) {
@@ -331,13 +345,28 @@ function showRange(range: { startTime: Date, endTime: Date }) {
   activePresetLabel.value = null
 
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, range.startTime, range.endTime, chart.value))
+    symbol.value, range.startTime, range.endTime, chart.value,
+    aggregationIntervalChoice.value))
 }
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, visibleStartTime.value, visibleEndTime.value, chart.value))
+    symbol.value, visibleStartTime.value, visibleEndTime.value, chart.value,
+    aggregationIntervalChoice.value))
 }
+
+/**
+ * 換一種粗細。看的那一段一個字都不動——他說的是「我要多細」，不是「我要看多長」。
+ *
+ * 重取由領域決定，這裡不判斷：手上那批是以另一個選擇取的，涵蓋得再廣都不算數，
+ * 而那條規則已經寫在顯示區間那個 domain model 裡了。挑到同一個時
+ * `watch` 根本不會醒來，所以「挑同一個不重取」也不必在這裡寫第二次。
+ */
+function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
+  aggregationIntervalChoice.value = choice
+}
+
+watch(aggregationIntervalChoice, () => reload())
 
 // 換交易標的等於換一批資料，正在看的那一段不變。
 watch(symbol, () => {
@@ -351,6 +380,7 @@ watch(symbol, () => {
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(async () => {
   presets.value = kCandleChartApplication.listRangePresets()
+  aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
 
   // 問「預設是哪一個」，不是拿清單的第一個：那一排由短到長排，第一個是最短的一段。
   void selectPreset(kCandleChartApplication.defaultRangePreset())
@@ -383,9 +413,12 @@ onMounted(async () => {
         :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
+        :aggregation-interval-choices="aggregationIntervalChoices"
+        :active-aggregation-interval-choice="aggregationIntervalChoice"
         :loading="loading"
         @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
+        @select-aggregation-interval-choice="selectAggregationIntervalChoice"
       />
 
       <ChartIndicatorPanel
