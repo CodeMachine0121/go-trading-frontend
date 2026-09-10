@@ -18,9 +18,9 @@ const { variant = 'neutral' } = defineProps<{ variant?: BadgeVariant }>()
 .app-badge {
   display: inline-block;
 
-  // 藥丸形收成方角的小牌子：它多半貼在一欄數字旁邊，
-  // 圓角越大越像一顆按鈕，看起來就越像可以按。
-  border-radius: radius('sm');
+  // 它比一顆按鈕小得多，所以用比按鈕小一級的角——同一個半徑放在一個 20px 高的
+  // 東西上會變成藥丸，而藥丸看起來像可以按。光學上等圓，數值上就不能相等。
+  border-radius: radius('xs');
   padding: 0 spacing('2xs');
   line-height: 1.6;
   font-weight: font-weight('medium');
