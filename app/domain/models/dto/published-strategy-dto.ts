@@ -22,6 +22,13 @@ export class PublishedStrategyDto {
      * 挑策略時就標明並擋下，比套用之後才失敗誠實。
      */
     public readonly drawableOnChart: boolean,
+    /**
+     * 「算出來的是什麼」那句給人看的話。
+     *
+     * 它在這裡而不是由畫面查一張表：那張表已經有一個地方在維護了，而畫面看不到那裡。
+     * 交出來的是話而不是代號，多一種種類的時候市集上就不會冒出一個沒人看得懂的字。
+     */
+    public readonly resultTypeLabel: string,
   ) {}
 
   /**

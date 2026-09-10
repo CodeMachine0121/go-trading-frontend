@@ -2,29 +2,23 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import MarketplaceStrategyCard from '~/components/molecules/MarketplaceStrategyCard.vue'
-import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
-import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
+import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 /**
  * 有機體：市集這一頁的全部。
  *
- * 它認識兩個 application，而那不是巧合：市集回答「外面有什麼」，
- * 而每一張卡要標出「這一支是不是我的」「我收下過了沒」——後兩個問題只有自己的清單答得出來。
- * 交給畫面自己去對照，比多讀一份清單糟：那會變成一段可以悄悄算錯的比對。
+ * 它只認識一個 application，而那一個交回來的每一列**已經知道它對現在這個人是什麼**——
+ * 這一頁因此完全不必比對任何識別碼。那個判斷是規則，不是接線；放在這裡，
+ * 它會在每一張卡上各算一次，而其中一次算錯就是一顆按不動的按鈕。
  */
-const { strategyMarketplaceApplication, strategyApplication } = defineProps<{
+const { strategyMarketplaceApplication } = defineProps<{
   strategyMarketplaceApplication: StrategyMarketplaceApplication
-  strategyApplication: StrategyApplication
 }>()
 
-const publishedStrategies = ref<PublishedStrategyDto[]>([])
-/** 自己的那幾支的識別碼——用來在市集上標出哪幾張是自己分享的。 */
-const ownStrategyIds = ref<number[]>([])
-/** 已經收下的那幾支的識別碼——決定那顆按鈕是「加入」還是「移除」。 */
-const adoptedStrategyIds = ref<number[]>([])
+const listingRows = ref<MarketplaceListingRowDto[]>([])
 
 const loading = ref(true)
 const unavailable = ref(false)
@@ -35,16 +29,7 @@ const noticeMessage = ref<string | null>(null)
 
 async function reload() {
   try {
-    // 兩份一起讀，而不是先讀市集再讀清單：兩者都到手才畫得出正確的按鈕，
-    // 分兩次讀只會讓畫面先閃一輪「全部都可以加入」。
-    const [outThere, available] = await Promise.all([
-      strategyMarketplaceApplication.browseMarketplace(),
-      strategyApplication.listAvailableStrategies(),
-    ])
-
-    publishedStrategies.value = outThere
-    ownStrategyIds.value = available.mine.map(strategy => strategy.id)
-    adoptedStrategyIds.value = available.adopted.map(published => published.id)
+    listingRows.value = await strategyMarketplaceApplication.listMarketplace()
     unavailable.value = false
   }
   catch {
@@ -146,7 +131,7 @@ onMounted(reload)
       </p>
 
       <p
-        v-else-if="publishedStrategies.length === 0"
+        v-else-if="listingRows.length === 0"
         class="strategy-marketplace-panel__placeholder"
         data-testid="marketplace-empty"
       >
@@ -158,12 +143,10 @@ onMounted(reload)
         class="strategy-marketplace-panel__list"
       >
         <MarketplaceStrategyCard
-          v-for="strategy in publishedStrategies"
-          :key="strategy.id"
-          :strategy="strategy"
-          :mine="ownStrategyIds.includes(strategy.id)"
-          :adopted="adoptedStrategyIds.includes(strategy.id)"
-          :busy="changingStrategyId === strategy.id"
+          v-for="row in listingRows"
+          :key="row.strategy.id"
+          :row="row"
+          :busy="changingStrategyId === row.strategy.id"
           @adopt="adopt"
           @abandon="abandon"
         />

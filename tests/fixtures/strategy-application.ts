@@ -77,11 +77,24 @@ export function buildAdoptedStrategy(
  */
 export function buildStrategyMarketplaceApplication(
   strategyMarketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+  strategyProxy: Partial<IStrategyProxy> = {},
 ): StrategyMarketplaceApplication {
-  return new StrategyMarketplaceApplication(new StrategyMarketplaceService({
-    browseMarketplace: vi.fn().mockResolvedValue([]),
-    adoptStrategy: vi.fn().mockResolvedValue(undefined),
-    abandonStrategy: vi.fn().mockResolvedValue(undefined),
-    ...strategyMarketplaceProxy,
-  }))
+  return new StrategyMarketplaceApplication(
+    new StrategyMarketplaceService({
+      browseMarketplace: vi.fn().mockResolvedValue([]),
+      adoptStrategy: vi.fn().mockResolvedValue(undefined),
+      abandonStrategy: vi.fn().mockResolvedValue(undefined),
+      ...strategyMarketplaceProxy,
+    }),
+    // 市集也要問「哪幾支是我的、哪幾支我收下過」，所以它同時吃自己清單那一條線。
+    new StrategyService({
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
+      createStrategy: vi.fn(),
+      updateStrategy: vi.fn(),
+      deleteStrategy: vi.fn(),
+      publishStrategy: vi.fn(),
+      withdrawStrategy: vi.fn(),
+      ...strategyProxy,
+    }),
+  )
 }

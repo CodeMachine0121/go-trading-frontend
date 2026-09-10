@@ -6,7 +6,7 @@ import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import StrategyMarketplacePanel from '~/components/organisms/StrategyMarketplacePanel.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $strategyMarketplaceApplication, $strategyApplication } = useNuxtApp()
+const { $strategyMarketplaceApplication } = useNuxtApp()
 
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
@@ -45,7 +45,6 @@ const { currentUser, signOut } = useUserSession()
 
     <StrategyMarketplacePanel
       :strategy-marketplace-application="$strategyMarketplaceApplication"
-      :strategy-application="$strategyApplication"
     />
   </ConsoleLayout>
 </template>

@@ -13,6 +13,8 @@ export class PublishedStrategyDomain {
   constructor(private readonly publishedStrategy: PublishedStrategy) {}
 
   toDto(): PublishedStrategyDto {
+    const resultType = new IndicatorResultTypeDomain(this.publishedStrategy.resultType)
+
     return new PublishedStrategyDto(
       this.publishedStrategy.id,
       this.publishedStrategy.name,
@@ -21,7 +23,8 @@ export class PublishedStrategyDomain {
       this.publishedStrategy.publisherEmail,
       this.publishedStrategy.publishedAt,
       this.publishedStrategy.parameters,
-      new IndicatorResultTypeDomain(this.publishedStrategy.resultType).holdsNumbers(),
+      resultType.holdsNumbers(),
+      resultType.label(),
     )
   }
 }

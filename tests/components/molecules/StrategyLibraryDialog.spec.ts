@@ -91,7 +91,7 @@ describe('StrategyLibraryDialog', () => {
 function adoptedStrategyOf(id: number, name: string): PublishedStrategyDto {
   return new PublishedStrategyDto(
     id, name, '抓短線轉折', 'floatList', 'someone@example.com',
-    new Date('2026-09-10T08:00:00.000Z'), [], true)
+    new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
 }
 
 describe('StrategyLibraryDialog：兩段清單', () => {

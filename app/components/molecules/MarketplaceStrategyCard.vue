@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
-import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
+import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 
 // 分子：市集上的一張卡，以及它唯一那顆動作按鈕。
 //
@@ -10,27 +10,21 @@ import type { PublishedStrategyDto } from '~/domain/models/dto/published-strateg
 // 給一顆按不出任何變化的按鈕比不給更糟。
 //
 // 卡上沒有算式，而那不是這裡藏起來的：交進來的那個形狀根本沒有算式這一欄。
-const { strategy, mine, adopted, busy = false } = defineProps<{
-  strategy: PublishedStrategyDto
-  /** 這一支是不是自己分享出去的。是的話不給加入或移除。 */
-  mine: boolean
-  /** 這一支已經在自己的清單上了嗎。 */
-  adopted: boolean
+const { row, busy = false } = defineProps<{
+  /**
+   * 這一列：那一支策略，加上它對現在這個人是什麼。
+   *
+   * 收的是一列而不是「一支策略加兩個布林」，因為那兩個布林會互相影響——
+   * 自己分享的那一支不管有沒有收下過都不給按鈕。讓使用端各自組合這三個值，
+   * 就是把那條規則交給每一個使用端各自記一次。
+   */
+  row: MarketplaceListingRowDto
   busy?: boolean
 }>()
 
 const emit = defineEmits<{ adopt: [id: number], abandon: [id: number] }>()
 
-/** 算出來的是哪一種值，用看得懂的話說。畫不成線的那幾種要先講，使用者才不會白套一次。 */
-const RESULT_TYPE_LABELS: Readonly<Record<string, string>> = {
-  float: '一個數字',
-  floatList: '一串數字',
-  bool: '一個是非',
-  boolList: '一串是非',
-  signal: '一個買賣信號',
-}
-
-const resultTypeLabel = computed(() => RESULT_TYPE_LABELS[strategy.resultType] ?? strategy.resultType)
+const strategy = computed(() => row.strategy)
 </script>
 
 <template>
@@ -44,14 +38,14 @@ const resultTypeLabel = computed(() => RESULT_TYPE_LABELS[strategy.resultType] ?
       </h3>
 
       <AppBadge
-        v-if="mine"
+        v-if="row.mine"
         variant="info"
         :data-testid="`marketplace-strategy-mine-${strategy.id}`"
       >
         我分享的
       </AppBadge>
       <AppBadge
-        v-else-if="adopted"
+        v-else-if="row.adopted"
         variant="success"
         :data-testid="`marketplace-strategy-adopted-${strategy.id}`"
       >
@@ -73,7 +67,7 @@ const resultTypeLabel = computed(() => RESULT_TYPE_LABELS[strategy.resultType] ?
       </div>
       <div>
         <dt>算出來的是</dt>
-        <dd>{{ resultTypeLabel }}</dd>
+        <dd>{{ strategy.resultTypeLabel }}</dd>
       </div>
       <div>
         <dt>可調的旋鈕</dt>
@@ -98,7 +92,7 @@ const resultTypeLabel = computed(() => RESULT_TYPE_LABELS[strategy.resultType] ?
 
     <footer class="marketplace-strategy-card__actions">
       <AppButton
-        v-if="!mine && !adopted"
+        v-if="!row.mine && !row.adopted"
         variant="primary"
         size="small"
         :disabled="busy"
@@ -109,7 +103,7 @@ const resultTypeLabel = computed(() => RESULT_TYPE_LABELS[strategy.resultType] ?
       </AppButton>
 
       <AppButton
-        v-else-if="!mine"
+        v-else-if="!row.mine"
         variant="danger"
         size="small"
         :disabled="busy"

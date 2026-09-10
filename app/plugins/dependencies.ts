@@ -123,6 +123,8 @@ export default defineNuxtPlugin(() => {
   const strategyMarketplaceApplication = new StrategyMarketplaceApplication(
     new StrategyMarketplaceService(
       new StrategyMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut)),
+    // 它也要問「哪幾支是我的、哪幾支我收下過」，而那只有自己的清單答得出來。
+    new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut)),
   )
 
   // 重演一支策略是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：

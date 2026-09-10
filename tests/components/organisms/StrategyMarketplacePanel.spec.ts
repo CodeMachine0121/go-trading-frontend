@@ -1,14 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyMarketplacePanel from '~/components/organisms/StrategyMarketplacePanel.vue'
-import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
-import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
 import type { IStrategyMarketplaceProxy } from '~/domain/interface/i-strategy-marketplace-proxy'
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { PublishedStrategy } from '~/domain/models/entities/published-strategy'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
-import { buildStrategyApplication, buildStoredStrategy, buildAdoptedStrategy }
+import { buildStrategyMarketplaceApplication, buildStoredStrategy, buildAdoptedStrategy }
   from '../../fixtures/strategy-application'
 
 /** 市集上的一支，如同後端交出來的樣子。**它沒有算式**。 */
@@ -35,15 +33,13 @@ async function mountPanel(
 ) {
   const wrapper = mount(StrategyMarketplacePanel, {
     props: {
-      strategyMarketplaceApplication: new StrategyMarketplaceApplication(
-        new StrategyMarketplaceService({
+      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(
+        {
           browseMarketplace: vi.fn().mockResolvedValue([publishedStrategyOf(9, '別人的')]),
-          adoptStrategy: vi.fn().mockResolvedValue(undefined),
-          abandonStrategy: vi.fn().mockResolvedValue(undefined),
           ...marketplaceProxy,
-        }),
+        },
+        strategyProxy,
       ),
-      strategyApplication: buildStrategyApplication(strategyProxy),
     },
   })
   await flushPromises()
