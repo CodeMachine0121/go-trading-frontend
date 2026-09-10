@@ -94,8 +94,12 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
     <!--
       這一組是下拉而不是連在一起的按鈕軌道：它與指標計算面板上那個挑粗細的選單
       是同一件事，用同一種形式，使用者不必學第二套。
+
+      它是 <label> 而不是 <div>，另外兩組不是：另外兩組裝的是一排按鈕，
+      每顆按鈕自己說得出自己叫什麼；下拉選單說不出來——包起來，
+      「每根涵蓋」才會成為它的名字（讀螢幕的人聽得到，點那四個字也能打開它）。
     -->
-    <div class="k-candle-chart-toolbar__group">
+    <label class="k-candle-chart-toolbar__group">
       <span class="k-candle-chart-toolbar__group-label">每根涵蓋</span>
       <AppSelect
         v-model="selectedAggregationIntervalValue"
@@ -111,7 +115,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
           {{ choice.label }}
         </option>
       </AppSelect>
-    </div>
+    </label>
 
     <div class="k-candle-chart-toolbar__group">
       <span class="k-candle-chart-toolbar__group-label">畫法</span>

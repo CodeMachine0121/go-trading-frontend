@@ -31,7 +31,7 @@
 | AC-17 | 換畫法不改變挑好的粗細，也不重新取 | 選單不變且請求次數不變 | 同 AC-14（換畫法本來就不進 `showViewport`） | `KCandleChartPanelCoarseness.spec.ts`「換一種畫法不改變挑好的那一種，也不重新取」 | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-18 | 台股看一天一分鐘一根照樣畫得出來 | 送得出去且畫面沒有預先擋下 | **刻意無程式碼**——畫面不做任何前置檢查（BR-6） | `k-candle-proxy.spec.ts`（條件確實送出）；`KCandleChartPanelCoarseness.spec.ts`（挑了就取） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-19 | 全天候市場看一年一分鐘一根被系統拒絕 | 呈現系統說的原因，含兩條出路 | `KCandleChartPanel.vue` 既有 `BackendRequestRejectedError` 分流 | `KCandleChartPanelCoarseness.spec.ts`「把系統說的原因原樣轉達」 | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-20 | 改用更粗的一種就畫得出來 | 重新取、圖畫出、拒絕消失 | 選擇 `watch` → `reload()`；`showViewport()` 進場清掉訊息 | `KCandleChartPanelCoarseness.spec.ts`「改用更粗的一種之後，那句拒絕就消失」 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-20 | 改用更粗的一種就畫得出來 | 重新取**他要求的那一段**、圖畫出、拒絕消失 | 選擇 `watch` → `reload()`（讀 `requestedStartTime/EndTime`）；`showViewport()` 進場清掉訊息 | `KCandleChartPanelCoarseness.spec.ts`「改用更粗的一種之後，那句拒絕就消失」＋「重試的是他要求的那一段」 | asserts-oracle | produces-oracle | ✅ conforms（**code review 判為 🟠 mis-asserted，已補強並修程式**，見下） |
 | AC-21 | 縮短看的那一段也畫得出來 | 同上 | 同 AC-20 | `KCandleChartPanelCoarseness.spec.ts`「改看短一點的一段之後，那句拒絕也會消失」 | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-22 | 選著自動的人看不到那句話 | 拉出十年 → 收回五百天、保留較晚那一端、圖畫得出來 | `k-candle-chart-viewport-domain.ts` `MAXIMUM_VISIBLE_DAYS`（未動） | `k-candle-chart-application.spec.ts`「拉得比五百天還遠」；`k-candle-chart-viewport-domain.spec.ts`「挑了固定的一種也不改變上限」 | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-23 | 還沒指定交易標的時挑粗細不取行情 | 不送出任何請求 | `KCandleChartPanel.vue` `showViewport()` 開頭的空標的早退（未動） | `KCandleChartPanelCoarseness.spec.ts`「還沒指定交易標的時，挑一種粗細也不去取」 | asserts-oracle | produces-oracle | ✅ conforms |
@@ -58,6 +58,24 @@
   通用語地圖第 156 列早就寫著「換彙總刻度時要重算」——是程式沒跟上文件，不是文件錯。
 - **修法：** 判定多比一項「系統實際用的粗細」。比實際用的而不是使用者挑的，
   是因為算式吃的是那一批 K 線：兩次挑法不同而系統給了同一種粗細時，答案本來就一樣。
+
+### Code review 之後補的兩條
+
+**AC-20 的斷言不夠強（🟠 mis-asserted），且底下的程式真的錯。**
+
+- 原本的測試只驗「拒絕消失」，而製造那次拒絕的正是換粗細本身——
+  那一次「上一次成功的範圍」與「他要求的範圍」剛好相同，於是測試綠燈、bug 藏著。
+- 真正的路徑是：看一天 → 挑一分鐘 → 按「一年」被拒絕 → 挑一小時救回來。
+  重試時沿用的是**上一次成功**的一天，使用者拿回一天的圖，而「一年」還亮著。
+- 修法：`KCandleChartPanel` 另記一對「使用者最後**要求**的那一段」，
+  在送出之前就寫（成功與失敗都留得下來），重試一律讀它。
+
+**補齊之後指標不重算（AC-12 的同一條規則、另一個觸發點）。**
+
+- 補齊填的是涵蓋範圍**之內**的洞：交易標的、粗細、看的那一段全都沒變，
+  只有那批 K 線多了幾根。原本靠比對這三個欄位判斷「有沒有換一批」，看不出來。
+- 修法：改由呼叫端直接說出「這一次有沒有換一批」——那是取資料那一側本來就
+  知道的事實。順帶把三個比對縮成一個，那份「還有哪些欄位會變」的清單也不必再維護。
 
 ---
 

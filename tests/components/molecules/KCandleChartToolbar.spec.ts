@@ -91,6 +91,15 @@ describe('圖表上挑一根 K 線涵蓋多久', () => {
     expect((emitted?.[0]?.[0] as AggregationIntervalChoiceDto).declaredInterval).toBeNull()
   })
 
+  it('「每根涵蓋」那四個字就是這個選單的名字，不是旁邊一段沒有主人的文字', () => {
+    const wrapper = mountToolbar()
+
+    // 讀螢幕的人靠它聽出這是什麼選單；用滑鼠的人靠它點文字就能打開。
+    const label = wrapper.findAll('label').find(
+      candidate => candidate.text().includes('每根涵蓋'))
+    expect(label?.find('[data-testid="aggregation-interval-choice-select"]').exists()).toBe(true)
+  })
+
   it('正在取行情時挑不動——與「看多長」同時停用', () => {
     const wrapper = mountToolbar({ loading: true })
 

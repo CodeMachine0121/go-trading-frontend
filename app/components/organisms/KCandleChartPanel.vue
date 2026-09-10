@@ -68,6 +68,17 @@ const chart = ref<KCandleChartDto | null>(null)
 const visibleStartTime = ref(new Date())
 const visibleEndTime = ref(new Date())
 
+/**
+ * 使用者最後**要求**看的那一段。與上面那一對不同：那一對是**畫出來**的那一段。
+ *
+ * 成功時兩者一樣，被拒絕時不一樣——而不一樣的那一次正是需要它的時候。
+ * 被拒絕之後使用者改一個條件再試（換粗細、換標的、補齊），要重試的是
+ * **他要求的那一段**；沿用畫出來的那一段，他會拿回上一次成功的範圍，
+ * 而畫面上還亮著他按的那一個快捷區間——按了一年卻拿到一天，且沒有任何一句話提到它。
+ */
+const requestedStartTime = ref(new Date())
+const requestedEndTime = ref(new Date())
+
 const loading = ref(false)
 const rejectedMessage = ref<string | null>(null)
 const serverErrorMessage = ref<string | null>(null)
@@ -170,7 +181,7 @@ async function catchUp() {
     }
 
     await showViewport(new KCandleChartViewportDto(
-      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null,
+      caughtUpSymbol, requestedStartTime.value, requestedEndTime.value, null,
       aggregationIntervalChoice.value))
   }
   catch (error: unknown) {
@@ -197,6 +208,11 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
   latestRequestNumber += 1
   const requestNumber = latestRequestNumber
+
+  // 記下他要求的是哪一段。**在成功與失敗之前記**，因為它存在的理由就是這一次
+  // 可能不會成功——記在成功那一邊，被拒絕的那一段就永遠留不下來。
+  requestedStartTime.value = kCandleChartViewportDto.visibleStartTime
+  requestedEndTime.value = kCandleChartViewportDto.visibleEndTime
 
   loading.value = true
   rejectedMessage.value = null
@@ -234,7 +250,8 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       if (chart.value !== null) {
         chartIndicators.recalculateForRange(
           chart.value,
-          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime))
+          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime),
+          chartView.reloadedChart !== null)
       }
 
       // 跟盤放在記下顯示區間**之後**：跟盤一開始，更新隨時可能進來，
@@ -351,7 +368,7 @@ function showRange(range: { startTime: Date, endTime: Date }) {
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, visibleStartTime.value, visibleEndTime.value, chart.value,
+    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
     aggregationIntervalChoice.value))
 }
 

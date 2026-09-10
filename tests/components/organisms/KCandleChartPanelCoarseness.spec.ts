@@ -47,11 +47,12 @@ async function mountPanel(
   kCandleProxy: IKCandleProxy,
   calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])])),
+  tradingSymbolApplication = buildTradingSymbolApplication(),
 ) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
-      tradingSymbolApplication: buildTradingSymbolApplication(),
+      tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
@@ -217,6 +218,26 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     expect(calculateIndicator.mock.calls.length).toBeGreaterThan(calculationsBefore)
   })
 
+  it('補齊之後指標也要重算——補回來的那幾根落在同一段、同一種粗細裡', async () => {
+    // 補齊填的是涵蓋範圍**之內**的洞：交易標的、粗細、看的那一段全都沒變，
+    // 只有那批 K 線多了幾根。靠比對欄位是看不出來的，靠「有沒有換一批」才看得出來。
+    const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
+      'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockResolvedValue(3) }),
+      calculateIndicator,
+      buildTradingSymbolApplication(['BTCUSDT'], { hasTradingSession: true }))
+    await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
+    await flushPromises()
+    const calculationsBefore = calculateIndicator.mock.calls.length
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+    await settle()
+
+    expect(calculateIndicator.mock.calls.length).toBeGreaterThan(calculationsBefore)
+  })
+
   it('在圖上拉遠不改變挑好的那一種', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '15m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
@@ -287,6 +308,26 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
 
     expect(wrapper.find('[data-testid="rejected-alert"]').exists()).toBe(false)
     expect(chosenCoarseness(wrapper)).toBe('1m')
+  })
+
+  it('被拒絕之後改用更粗的一種，重試的是他要求的那一段，不是上一次成功的那一段', async () => {
+    const findKCandleSeries = vi.fn()
+      .mockResolvedValueOnce(seriesOf([buildKCandle()]))
+      .mockResolvedValueOnce(seriesOf([buildKCandle()], '1m'))
+      .mockRejectedValueOnce(new BackendRequestRejectedError('時間區間過大'))
+      .mockResolvedValue(seriesOf([buildKCandle()], '1h'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    await chooseCoarseness(wrapper, '1m')
+
+    // 按「一年」被拒絕，然後改用更粗的一種救回來——這正是規格寫的那條出路。
+    await wrapper.findAll('[data-testid="range-preset-button"]')[8]?.trigger('click')
+    await flushPromises()
+    await chooseCoarseness(wrapper, '1h')
+
+    const recovery = findKCandleSeries.mock.calls.at(-1)?.[0]
+    const visibleDays = (recovery.visibleEndTime.getTime() - recovery.visibleStartTime.getTime())
+      / (24 * 60 * 60 * 1000)
+    expect(visibleDays).toBe(365)
   })
 
   it('改用更粗的一種之後，那句拒絕就消失', async () => {
