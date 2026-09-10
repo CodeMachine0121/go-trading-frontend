@@ -16,6 +16,7 @@ import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
@@ -52,9 +53,31 @@ const drawing = ref<'candlestick' | 'line'>('candlestick')
 const presets = ref<KCandleChartRangePresetDto[]>([])
 const activePresetLabel = ref<string | null>(null)
 
+/**
+ * 使用者要多細。它與「看哪一段」是兩個獨立的意圖，所以住在自己的 ref 裡：
+ * 換標的、按快捷區間、拉遠拉近都只讀它、不寫它，於是挑好的那一種會一直用著。
+ *
+ * 預設**問 application 要**，不在這裡寫死——「一進來由系統挑」是一個判斷，
+ * 判斷住在 domain。進畫面前先擺一個空清單與一個佔位，理由與快捷區間相同。
+ */
+const aggregationIntervalChoices = ref<AggregationIntervalChoiceDto[]>([])
+const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
+  kCandleChartApplication.defaultAggregationIntervalChoice())
+
 const chart = ref<KCandleChartDto | null>(null)
 const visibleStartTime = ref(new Date())
 const visibleEndTime = ref(new Date())
+
+/**
+ * 使用者最後**要求**看的那一段。與上面那一對不同：那一對是**畫出來**的那一段。
+ *
+ * 成功時兩者一樣，被拒絕時不一樣——而不一樣的那一次正是需要它的時候。
+ * 被拒絕之後使用者改一個條件再試（換粗細、換標的、補齊），要重試的是
+ * **他要求的那一段**；沿用畫出來的那一段，他會拿回上一次成功的範圍，
+ * 而畫面上還亮著他按的那一個快捷區間——按了一年卻拿到一天，且沒有任何一句話提到它。
+ */
+const requestedStartTime = ref(new Date())
+const requestedEndTime = ref(new Date())
 
 const loading = ref(false)
 const rejectedMessage = ref<string | null>(null)
@@ -158,7 +181,8 @@ async function catchUp() {
     }
 
     await showViewport(new KCandleChartViewportDto(
-      caughtUpSymbol, visibleStartTime.value, visibleEndTime.value, null))
+      caughtUpSymbol, requestedStartTime.value, requestedEndTime.value, null,
+      aggregationIntervalChoice.value))
   }
   catch (error: unknown) {
     catchUpMessage.value = error instanceof Error
@@ -184,6 +208,11 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
   latestRequestNumber += 1
   const requestNumber = latestRequestNumber
+
+  // 記下他要求的是哪一段。**在成功與失敗之前記**，因為它存在的理由就是這一次
+  // 可能不會成功——記在成功那一邊，被拒絕的那一段就永遠留不下來。
+  requestedStartTime.value = kCandleChartViewportDto.visibleStartTime
+  requestedEndTime.value = kCandleChartViewportDto.visibleEndTime
 
   loading.value = true
   rejectedMessage.value = null
@@ -221,7 +250,8 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       if (chart.value !== null) {
         chartIndicators.recalculateForRange(
           chart.value,
-          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime))
+          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime),
+          chartView.reloadedChart !== null)
       }
 
       // 跟盤放在記下顯示區間**之後**：跟盤一開始，更新隨時可能進來，
@@ -323,7 +353,8 @@ onBeforeUnmount(() => {
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePresetLabel.value = preset.label
 
-  return showViewport(preset.toViewportDto(symbol.value, chart.value))
+  return showViewport(preset.toViewportDto(
+    symbol.value, chart.value, aggregationIntervalChoice.value))
 }
 
 function showRange(range: { startTime: Date, endTime: Date }) {
@@ -331,13 +362,28 @@ function showRange(range: { startTime: Date, endTime: Date }) {
   activePresetLabel.value = null
 
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, range.startTime, range.endTime, chart.value))
+    symbol.value, range.startTime, range.endTime, chart.value,
+    aggregationIntervalChoice.value))
 }
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, visibleStartTime.value, visibleEndTime.value, chart.value))
+    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
+    aggregationIntervalChoice.value))
 }
+
+/**
+ * 換一種粗細。看的那一段一個字都不動——他說的是「我要多細」，不是「我要看多長」。
+ *
+ * 重取由領域決定，這裡不判斷：手上那批是以另一個選擇取的，涵蓋得再廣都不算數，
+ * 而那條規則已經寫在顯示區間那個 domain model 裡了。挑到同一個時
+ * `watch` 根本不會醒來，所以「挑同一個不重取」也不必在這裡寫第二次。
+ */
+function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
+  aggregationIntervalChoice.value = choice
+}
+
+watch(aggregationIntervalChoice, () => reload())
 
 // 換交易標的等於換一批資料，正在看的那一段不變。
 watch(symbol, () => {
@@ -351,6 +397,7 @@ watch(symbol, () => {
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
 onMounted(async () => {
   presets.value = kCandleChartApplication.listRangePresets()
+  aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
 
   // 問「預設是哪一個」，不是拿清單的第一個：那一排由短到長排，第一個是最短的一段。
   void selectPreset(kCandleChartApplication.defaultRangePreset())
@@ -383,9 +430,12 @@ onMounted(async () => {
         :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
+        :aggregation-interval-choices="aggregationIntervalChoices"
+        :active-aggregation-interval-choice="aggregationIntervalChoice"
         :loading="loading"
         @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
+        @select-aggregation-interval-choice="selectAggregationIntervalChoice"
       />
 
       <ChartIndicatorPanel

@@ -4,12 +4,18 @@ import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-dom
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import { seriesOf } from '../../../fixtures/k-candle-series'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../../../fixtures/aggregation-interval-choice'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
 const COVERED_START_TIME = new Date('2026-09-02T06:00:00.000Z')
 const COVERED_END_TIME = new Date('2026-09-02T18:00:00.000Z')
 
-/** 取回計畫只說要哪一段——它說不出要多粗，那是系統回答的。 */
-function loadPlanForThatStretch(): KCandleChartLoadPlanVo {
+/** 取回計畫說要哪一段、以及使用者挑了什麼——它說不出**實際**多粗，那是系統回答的。 */
+function loadPlanForThatStretch(
+  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+): KCandleChartLoadPlanVo {
   return new KCandleChartLoadPlanVo(
     true,
     'BTCUSDT',
@@ -17,6 +23,7 @@ function loadPlanForThatStretch(): KCandleChartLoadPlanVo {
     new Date('2026-09-02T16:00:00.000Z'),
     COVERED_START_TIME,
     COVERED_END_TIME,
+    choice,
   )
 }
 
@@ -47,6 +54,24 @@ describe('KCandleSeriesDomain', () => {
 
     expect(chart.coveredStartTime).toEqual(COVERED_START_TIME)
     expect(chart.coveredEndTime).toEqual(COVERED_END_TIME)
+  })
+
+  it('記下這一批是以哪個選擇取回的——下一次比對「換粗細了沒」拿它來比', () => {
+    const chart = new KCandleSeriesDomain(
+      seriesOf([], '15m'), loadPlanForThatStretch(aggregationIntervalChoiceOf('5m'))).toDto()
+
+    // 兩個關於粗細的東西並存且不同：挑的是五分鐘，系統實際用了十五分鐘。
+    // 拿後端回報的那個去比對會無限重取——挑「自動」時它永遠不等於「自動」。
+    expect(chart.aggregationIntervalChoice.value).toBe('5m')
+    expect(chart.interval.value).toBe('15m')
+  })
+
+  it('沒挑時記下的就是「沒挑」，不是系統替我們挑的那一種', () => {
+    const chart = new KCandleSeriesDomain(seriesOf([], '1h'), loadPlanForThatStretch()).toDto()
+
+    expect(chart.aggregationIntervalChoice.value).toBe('auto')
+    expect(chart.aggregationIntervalChoice.declaredInterval).toBeNull()
+    expect(chart.interval.value).toBe('1h')
   })
 
   it('取回一根都沒有時是空的一批，不是錯誤', () => {

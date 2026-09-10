@@ -1,6 +1,7 @@
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 
 /**
@@ -56,8 +57,9 @@ const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
  * 也正是「重畫觸發取資料、取資料又觸發重畫」那個循環的溫床，
  * 所以對外只留一個問題可以問：toLoadPlan()。
  *
- * **「每根涵蓋多久」不在這三個問題裡面。** 它需要交易時段與休市日才算得對，
- * 而那是系統知道的事——畫面只說使用者在看哪一段，刻度照系統回報的來。
+ * **「每根涵蓋多久」仍然不在這三個問題裡面。** 使用者說得出他要多粗，
+ * 這裡就把那句話原樣帶下去；但**一段裡該塞多粗**需要交易時段與休市日才算得對，
+ * 那永遠是系統的事。這裡不算它，只轉述使用者說的話。
  *
  * 建構當下就把區間收進上限，因此實例存在就代表這一段是看得完的。
  */
@@ -66,6 +68,7 @@ export class KCandleChartViewportDomain {
   private readonly startTime: Date
   private readonly endTime: Date
   private readonly loadedChart: KCandleChartDto | null
+  private readonly aggregationIntervalChoice: AggregationIntervalChoiceDto
 
   constructor(kCandleChartViewportDto: KCandleChartViewportDto) {
     const normalizedSymbol = kCandleChartViewportDto.symbol.trim()
@@ -86,6 +89,7 @@ export class KCandleChartViewportDomain {
     this.symbol = normalizedSymbol
     this.endTime = kCandleChartViewportDto.visibleEndTime
     this.loadedChart = kCandleChartViewportDto.loadedChart
+    this.aggregationIntervalChoice = kCandleChartViewportDto.aggregationIntervalChoice
   }
 
   /**
@@ -99,9 +103,14 @@ export class KCandleChartViewportDomain {
     const spanMilliseconds = this.endTime.getTime() - this.startTime.getTime()
     const loadedChart = this.loadedChart
 
-    // 五個會讓手上這批不夠用的理由，擺在一起讀。最後兩個取代了以前的
-    // 「刻度變了就重新取」：以前畫面自己推導刻度，所以比對得出來；現在刻度要等取回
-    // 才知道，畫面唯一比對得出來的就是**它看的那一段長度變了**。
+    // 六個會讓手上這批不夠用的理由，擺在一起讀。
+    // **最後一個是「使用者改挑了另一種粗細」**：那是一批不同的 K 線，
+    // 手上這批涵蓋得再廣都不算數。它比的是**選擇**而不是後端回報的刻度——
+    // 挑「自動」而後端回「五分鐘」時，下一次的選擇仍然是「自動」，
+    // 拿刻度去比會永遠不相等，於是每一次都重取。
+    // 中間那兩個取代了以前的
+    // 「刻度變了就重新取」：以前畫面自己推導刻度，所以比對得出來；挑「自動」時
+    // 刻度仍然要等取回才知道，畫面唯一比對得出來的就是**它看的那一段長度變了**。
     // 涵蓋不到任何時間的那一批單獨列成一個理由，因為拿它當分母會算出一個
     // 比不出大小的答案，於是永遠判定成「沒變」——圖就從此不再更新。
     // 「當初看的是多長」由涵蓋範圍除以預取倍數推回來，而那個關係屬於這裡——
@@ -114,6 +123,7 @@ export class KCandleChartViewportDomain {
       || Math.abs(
         spanMilliseconds / (loadedChart.coveredSpanMilliseconds / FETCH_SPAN_MULTIPLIER) - 1)
       > VISIBLE_SPAN_CHANGE_THRESHOLD
+      || loadedChart.aggregationIntervalChoice.value !== this.aggregationIntervalChoice.value
 
     const prefetchMilliseconds = spanMilliseconds * PREFETCH_RATIO
 
@@ -124,6 +134,7 @@ export class KCandleChartViewportDomain {
       this.endTime,
       new Date(this.startTime.getTime() - prefetchMilliseconds),
       new Date(this.endTime.getTime() + prefetchMilliseconds),
+      this.aggregationIntervalChoice,
     )
   }
 }

@@ -11,6 +11,7 @@ import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
 
 // 繪圖函式庫是最外層的邊界，比照 proxy 用 mocking 套件替身，不手刻假實作。
 // 它需要真正的畫布，測試環境沒有；而我們要驗的也不是它畫得對不對，
@@ -112,6 +113,7 @@ function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
     VISIBLE_START_TIME,
     VISIBLE_END_TIME,
     kCandles,
+    AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
   )
 }
 

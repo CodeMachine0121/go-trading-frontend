@@ -2,6 +2,7 @@ import type { KCandleChartService } from '~/domain/service/k-candle-chart-servic
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
 /**
  * Application：K 線圖表的用例編排，全程只碰 DTO。
@@ -31,5 +32,13 @@ export class KCandleChartApplication {
 
   defaultRangePreset(): KCandleChartRangePresetDto {
     return this.kCandleChartService.defaultRangePreset()
+  }
+
+  listAggregationIntervalChoices(): AggregationIntervalChoiceDto[] {
+    return this.kCandleChartService.listAggregationIntervalChoices()
+  }
+
+  defaultAggregationIntervalChoice(): AggregationIntervalChoiceDto {
+    return this.kCandleChartService.defaultAggregationIntervalChoice()
   }
 }

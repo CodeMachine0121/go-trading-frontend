@@ -9,6 +9,10 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../fixtures/aggregation-interval-choice'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -40,12 +44,15 @@ function buildApplication(kCandleProxy: IKCandleProxy): KCandleChartApplication 
 
 function viewportSpanning(
   visibleMinutes: number, loadedChart: KCandleChartDto | null = null, symbol = 'BTCUSDT',
+  aggregationIntervalChoice: AggregationIntervalChoiceDto
+    = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
 ): KCandleChartViewportDto {
   return new KCandleChartViewportDto(
     symbol,
     new Date(CURRENT_TIME.getTime() - visibleMinutes * MILLISECONDS_PER_MINUTE),
     CURRENT_TIME,
     loadedChart,
+    aggregationIntervalChoice,
   )
 }
 
@@ -71,8 +78,8 @@ describe('KCandleChartApplication', () => {
       expect(loadPlan.symbol).toBe('BTCUSDT')
       expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
       expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-03T00:00:00.000Z')
-      // 交出去的條件裡沒有彙總刻度——那不是畫面決定的事
-      expect('interval' in loadPlan).toBe(false)
+      // 沒挑時交出去的選擇說不出任何刻度——一根多粗仍然由系統挑
+      expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBeNull()
     })
 
     it('把取回的每一根都算好漲跌交給畫面', async () => {
@@ -188,7 +195,8 @@ describe('KCandleChartApplication', () => {
       const presets = buildApplication(buildProxy()).listRangePresets()
       const oneMonth = presets[5]
 
-      const viewport = oneMonth?.toViewportDto('BTCUSDT', null)
+      const viewport = oneMonth?.toViewportDto(
+        'BTCUSDT', null, AUTOMATIC_AGGREGATION_INTERVAL_CHOICE)
 
       expect(viewport?.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
       expect(viewport?.visibleStartTime.toISOString()).toBe('2026-08-03T12:00:00.000Z')
@@ -199,10 +207,102 @@ describe('KCandleChartApplication', () => {
     it('不足一天的那幾個一樣是「往前這麼長」，不會被當成整天', () => {
       const presets = buildApplication(buildProxy()).listRangePresets()
 
-      const viewport = presets[1]?.toViewportDto('BTCUSDT', null)
+      const viewport = presets[1]?.toViewportDto(
+        'BTCUSDT', null, AUTOMATIC_AGGREGATION_INTERVAL_CHOICE)
 
       expect(viewport?.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
       expect(viewport?.visibleStartTime.toISOString()).toBe('2026-09-02T07:00:00.000Z')
+    })
+  })
+
+  describe('挑一根 K 線涵蓋多久', () => {
+    it('列出五種可挑的粗細，由細到粗，第一項是自動', () => {
+      const choices = buildApplication(buildProxy()).listAggregationIntervalChoices()
+
+      expect(choices.map(choice => choice.label))
+        .toEqual(['自動', '一分鐘', '五分鐘', '十五分鐘', '一小時'])
+    })
+
+    it('一進畫面由系統挑——那是一個判斷，不是清單的第一個', () => {
+      const kCandleChartApplication = buildApplication(buildProxy())
+
+      const defaultChoice = kCandleChartApplication.defaultAggregationIntervalChoice()
+
+      expect(defaultChoice.label).toBe('自動')
+      expect(defaultChoice.declaredInterval).toBeNull()
+    })
+
+    it('挑了固定的一種時，那一種一路帶到取行情的條件上', async () => {
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([], '5m'))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+
+      await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      expect(findKCandleSeries.mock.calls[0]?.[0].aggregationIntervalChoice.declaredInterval)
+        .toBe('5m')
+    })
+
+    it('換一種粗細就重新取——手上這批是另一種粗細的，涵蓋得再廣都不算數', async () => {
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([], '5m'))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+      const loaded = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      await kCandleChartApplication.loadKCandleChart(viewportSpanning(
+        24 * 60, loaded.reloadedChart, 'BTCUSDT', aggregationIntervalChoiceOf('1h')))
+
+      expect(findKCandleSeries).toHaveBeenCalledTimes(2)
+      expect(findKCandleSeries.mock.calls[1]?.[0].aggregationIntervalChoice.declaredInterval)
+        .toBe('1h')
+    })
+
+    it('挑到同一個不重新取', async () => {
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([], '5m'))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+      const loaded = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      const nextView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(
+        24 * 60, loaded.reloadedChart, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      expect(nextView.reloadedChart).toBeNull()
+      expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+    })
+
+    it('挑自動而系統回一種粗細時，下一次不會又重新取一遍', async () => {
+      // 拿後端回報的刻度去比對就會在這裡永遠不相等，於是每一次都重取。
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([], '1h'))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+      const loaded = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+
+      const nextView = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(24 * 60, loaded.reloadedChart))
+
+      expect(nextView.reloadedChart).toBeNull()
+      expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+    })
+
+    it('換粗細不改變使用者看的那一段', async () => {
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([], '5m'))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+      const loaded = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(4 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      const nextView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(
+        4 * 60, loaded.reloadedChart, 'BTCUSDT', aggregationIntervalChoiceOf('1h')))
+
+      expect(nextView.visibleStartTime).toEqual(loaded.visibleStartTime)
+      expect(nextView.visibleEndTime).toEqual(loaded.visibleEndTime)
+    })
+
+    it('按快捷區間只換看多長，挑好的粗細原樣帶過去', () => {
+      const presets = buildApplication(buildProxy()).listRangePresets()
+      const fiveMinutes = aggregationIntervalChoiceOf('5m')
+
+      const viewport = presets[0]?.toViewportDto('BTCUSDT', null, fiveMinutes)
+
+      expect(viewport?.aggregationIntervalChoice.declaredInterval).toBe('5m')
     })
   })
 

@@ -13,8 +13,9 @@ import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
  *
  * 這裡曾經連刻度也取自取回計畫，理由是「下一次要不要重新取靠身分比對，
  * 採用後端回報的值會讓比對永遠不相等、於是每次拖曳都重新取」。
- * 那個顧慮隨著刻度離開取回計畫一起消失了：**現在的重新取條件裡沒有刻度**，
- * 它比對的是交易標的、涵蓋範圍與顯示區間的長度變化。
+ * 那個顧慮的正解不是「別採用後端回報的值」，而是**比對別的東西**：
+ * 重新取的條件裡比的是**使用者挑的那個選擇**（取回計畫上的），
+ * 而標題列說的是**後端回報的那個刻度**。所以這裡兩個都要寫進去，各自取自它的來源。
  */
 export class KCandleSeriesDomain {
   constructor(
@@ -29,6 +30,7 @@ export class KCandleSeriesDomain {
       this.kCandleChartLoadPlanVo.fetchStartTime,
       this.kCandleChartLoadPlanVo.fetchEndTime,
       this.kCandleSeriesVo.kCandles.map(kCandle => kCandle.toDomain().toDto()),
+      this.kCandleChartLoadPlanVo.aggregationIntervalChoice,
     )
   }
 }

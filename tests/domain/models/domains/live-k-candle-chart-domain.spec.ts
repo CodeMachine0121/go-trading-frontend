@@ -4,16 +4,11 @@ import { LiveKCandleChartDomain } from '~/domain/models/domains/live-k-candle-ch
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { LiveKCandleUpdate } from '~/domain/models/entities/live-k-candle-update'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-
-function intervalOf(value: string) {
-  const interval = AGGREGATION_INTERVALS.find(candidate => candidate.value === value)
-  if (interval === undefined) {
-    throw new Error(`找不到彙總刻度 ${value}`)
-  }
-
-  return interval
-}
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../../../fixtures/aggregation-interval-choice'
+import { aggregationIntervalNamed as intervalOf } from '../../../fixtures/aggregation-interval'
 
 function kCandleOf(
   openTime: string,
@@ -33,13 +28,17 @@ function kCandleOf(
   )
 }
 
-function chartOf(interval: string, openTimes: string[]): KCandleChartDto {
+function chartOf(
+  interval: string, openTimes: string[],
+  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+): KCandleChartDto {
   return new KCandleChartDto(
     'BTCUSDT',
     intervalOf(interval),
     new Date('2026-09-03T00:00:00.000Z'),
     new Date('2026-09-03T23:59:59.000Z'),
     openTimes.map(openTime => kCandleOf(openTime).toDomain().toDto()),
+    choice,
   )
 }
 
@@ -48,6 +47,17 @@ function formingAt(openTime: string, figures: Parameters<typeof kCandleOf>[1] = 
 }
 
 describe('把即時更新併進圖上那批 K 線', () => {
+  it('併進來之後，這一批仍然是以同一個選擇取回的那一批', () => {
+    const chart = chartOf('5m', ['2026-09-03T10:00:00.000Z'], aggregationIntervalChoiceOf('5m'))
+
+    const merged = new LiveKCandleChartDomain(chart)
+      .applying(formingAt('2026-09-03T10:00:00.000Z', { close: '118' }))
+      .toChartDto()
+
+    // 改寫它會讓下一次比對誤判成「使用者換了粗細」，於是每一則即時更新都重取一次。
+    expect(merged.aggregationIntervalChoice.value).toBe('5m')
+  })
+
   it('成交價變了，最後那一根的收盤價跟著變', () => {
     const chart = chartOf('5m', ['2026-09-03T10:00:00.000Z'])
 

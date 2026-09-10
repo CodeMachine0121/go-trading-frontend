@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
+import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../../fixtures/aggregation-interval-choice'
 
 function chartOf(openTimes: string[]): KCandleChartDto {
   const interval = AGGREGATION_INTERVALS[0]
@@ -20,6 +21,7 @@ function chartOf(openTimes: string[]): KCandleChartDto {
       new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
     ).toDomain().toDto()),
+    AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
   )
 }
 

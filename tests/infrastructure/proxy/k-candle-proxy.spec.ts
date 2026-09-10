@@ -10,6 +10,10 @@ import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-p
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import {
+  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+} from '../../fixtures/aggregation-interval-choice'
 
 const BASE_URL = 'http://localhost:8080'
 // 查詢條件的結束時間取自建構當下，因此把目前時間釘住再建，送出去的那一段才說得準。
@@ -39,14 +43,21 @@ const K_CANDLE_WIRE = {
   takerBuyQuoteVolume: '600',
 }
 
-const LOAD_PLAN = new KCandleChartLoadPlanVo(
-  true,
-  'BTCUSDT',
-  new Date('2026-08-30T03:00:00.000Z'),
-  new Date('2026-08-30T09:00:00.000Z'),
-  new Date('2026-08-30T00:00:00.000Z'),
-  new Date('2026-08-30T12:00:00.000Z'),
-)
+function loadPlanChoosing(
+  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+): KCandleChartLoadPlanVo {
+  return new KCandleChartLoadPlanVo(
+    true,
+    'BTCUSDT',
+    new Date('2026-08-30T03:00:00.000Z'),
+    new Date('2026-08-30T09:00:00.000Z'),
+    new Date('2026-08-30T00:00:00.000Z'),
+    new Date('2026-08-30T12:00:00.000Z'),
+    choice,
+  )
+}
+
+const LOAD_PLAN = loadPlanChoosing()
 
 /**
  * 用真正的 FetchError 當替身：它與自己 new 出來的 Error 形狀不同——
@@ -114,8 +125,8 @@ describe('KCandleProxy', () => {
 
     await new KCandleProxy(BASE_URL).findKCandleSeries(LOAD_PLAN)
 
-    // 條件裡**沒有** interval：一根該多粗需要交易時段與休市日才算得對，
-    // 說了一種就等於在畫面這一側長出第二份市場作息。
+    // 沒挑時條件裡**沒有** interval：一根該多粗需要交易時段與休市日才算得對，
+    // 我們自己算一種就等於在畫面這一側長出第二份市場作息。
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
       query: {
         symbol: 'BTCUSDT',
@@ -123,6 +134,35 @@ describe('KCandleProxy', () => {
         endTime: '2026-08-30T12:00:00.000Z',
       },
     })
+  })
+
+  it('使用者挑了一種粗細時，把那一種說出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '5m', kCandles: [] })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new KCandleProxy(BASE_URL)
+      .findKCandleSeries(loadPlanChoosing(aggregationIntervalChoiceOf('5m')))
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
+      query: {
+        symbol: 'BTCUSDT',
+        startTime: '2026-08-30T00:00:00.000Z',
+        endTime: '2026-08-30T12:00:00.000Z',
+        interval: '5m',
+      },
+    })
+  })
+
+  it('挑了一種粗細時，畫面標的仍然是系統回報的那一個，不是我們要求的那一個', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', interval: '15m', kCandles: [K_CANDLE_WIRE],
+    }))
+
+    const kCandleSeries = await new KCandleProxy(BASE_URL)
+      .findKCandleSeries(loadPlanChoosing(aggregationIntervalChoiceOf('1m')))
+
+    // 看得出來比信任可靠：要了一分鐘、系統給十五分鐘，畫面要說十五分鐘。
+    expect(kCandleSeries.interval.value).toBe('15m')
   })
 
   it('把彙總回覆正規化成那幾根 K 線，以及系統說它用了哪一種刻度', async () => {

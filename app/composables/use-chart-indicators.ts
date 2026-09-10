@@ -383,19 +383,25 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   }
 
   /**
-   * 使用者正在看的那一段變了：等他停手，然後對**那一段**重算每一支。
+   * 圖上那批 K 線或使用者正在看的那一段變了：等他停手，然後對**那一段**重算每一支。
    *
    * 「等停手」在這裡而不在領域裡，是因為它需要計時器：一個「等一下再做」的物件，
    * 行為只能靠推進時間來觀察，而領域物件在這個專案裡的價值正是不必推進時間就驗得動。
    * **要不要算**這個判斷仍然不在這裡——那是顯示區間自己回答的。
    */
-  function recalculateForRange(chart: KCandleChartDto, range: ChartVisibleRangeVo) {
+  function recalculateForRange(
+    chart: KCandleChartDto, range: ChartVisibleRangeVo, batchWasReplaced: boolean,
+  ) {
     const previous = current.value
     const wasNeverSet = previous === null
-    // 同一檔的同一段：算出來必然一樣。換了交易標的就不算同一段——
-    // 換標的時使用者正在看的那一段不變，光比對時間會把它誤判成沒事發生。
-    const isUnchanged = range.isSameAs(previous?.range ?? null)
-      && chart.symbol === previous?.chart.symbol
+    // 有兩件事會讓上一次算出來的不再算數，而它們是兩件不同的事：
+    // **圖上那批 K 線被換掉了**，或者**他看的那一段移動了**。
+    //
+    // 前者由呼叫端直接說出來，不在這裡從欄位推。曾經推過——比對交易標的與彙總刻度，
+    // 而那份清單永遠列不完：補齊填的是涵蓋範圍**之內**的洞，換回來一批多了幾根、
+    // 交易標的、粗細與那一段卻一模一樣，於是線繼續畫著補齊之前的答案。
+    // 「有沒有換一批」是取資料那一側本來就知道的事實，問它比猜它可靠。
+    const isUnchanged = !batchWasReplaced && range.isSameAs(previous?.range ?? null)
 
     current.value = { chart, range }
 
