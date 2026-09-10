@@ -68,6 +68,8 @@ describe('StrategyLibraryDialog', () => {
 
     expect(wrapper.get('[data-testid="strategy-library-empty"]').text())
       .toContain('還沒有任何策略')
+    // 另一半同樣重要：一句「沒有」不告訴人下一步，而這一頁的下一步是去市集看看。
+    expect(wrapper.get('[data-testid="strategy-library-empty"]').text()).toContain('市集')
   })
 
   it('連不上後端時說連不上，不呈現空清單的說法', () => {

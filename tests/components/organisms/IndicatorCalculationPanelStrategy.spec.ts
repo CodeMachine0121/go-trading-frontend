@@ -1057,9 +1057,16 @@ describe('指標計算畫面上的策略：分享與收回', () => {
     expect(wrapper.text()).toContain('都會失去它')
   })
 
-  it('確認之後才真的收回', async () => {
+  it('確認之後才真的收回，而且那一列不再說它已分享', async () => {
+    // 收回之後清單要重讀一次，否則那一列還顯示「收回」，看的人只會再按一次。
     const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
-    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    // 掛起時讀一次、打開清單時再讀一次，收回之後才是第三次——第三次起它不再是分享狀態。
+    const listAvailableStrategies = vi.fn()
+      .mockResolvedValueOnce({ mine: [publishedStrategyRow()], adopted: [] })
+      .mockResolvedValueOnce({ mine: [publishedStrategyRow()], adopted: [] })
+      .mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] })
+    const wrapper = mountPanel({ withdrawStrategy, listAvailableStrategies })
+    await settle()
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
     await settle()
     await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
@@ -1068,6 +1075,25 @@ describe('指標計算畫面上的策略：分享與收回', () => {
     await pressConfirm(wrapper, '收回')
 
     expect(withdrawStrategy).toHaveBeenCalledWith(7)
+    expect(wrapper.find('[data-testid="strategy-library-withdraw-7"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-publish-7"]').exists()).toBe(true)
+  })
+
+  it('分享過的策略仍然改得動，而且改完還是分享狀態', async () => {
+    // 另一個選擇是「改了就自動下架」。那樣的話，每次微調都要記得再按一次分享，
+    // 而忘記的後果是別人手上留著一支永遠不會變好的舊版本。
+    const wrapper = await mountPanelWithPublished({
+      updateStrategy: vi.fn().mockResolvedValue(buildStoredStrategy(7, '二十根均線')),
+    })
+    await pickStrategy(wrapper, 7)
+
+    await typeScriptBody(wrapper, 'sum := 999.0')
+    await wrapper.get('[data-testid="save-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('已儲存')
+    // 編輯器沒有被鎖住——分享過不代表凍結。
+    expect(scriptBodyText(wrapper)).toContain('sum := 999.0')
   })
 
   it('取消之後什麼都沒發生', async () => {
@@ -1112,14 +1138,20 @@ async function mountPanelWithAdopted(
   return wrapper
 }
 
+/** 一支自己的策略，已經分享到市集上。 */
+function publishedStrategyRow(): Strategy {
+  const stored = buildStoredStrategy(7, '二十根均線')
+
+  return new Strategy(
+    stored.id, stored.name, stored.description, stored.script,
+    stored.resultType, stored.parameters, true)
+}
+
 /** 掛起一個手上那一支已經分享出去的畫面。 */
 async function mountPanelWithPublished(strategyProxy: Partial<IStrategyProxy> = {}) {
-  const published = buildStoredStrategy(7, '二十根均線')
   const wrapper = mountPanel({
     listAvailableStrategies: vi.fn().mockResolvedValue({
-      mine: [new Strategy(
-        published.id, published.name, published.description, published.script,
-        published.resultType, published.parameters, true)],
+      mine: [publishedStrategyRow()],
       adopted: [],
     }),
     ...strategyProxy,

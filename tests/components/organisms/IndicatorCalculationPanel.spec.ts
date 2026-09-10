@@ -9,6 +9,7 @@ import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
@@ -58,13 +59,16 @@ function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
     .querySelector('.cm-content')?.textContent ?? ''
 }
 
-function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
+function mountPanel(
+  indicatorCalculationProxy: IIndicatorCalculationProxy,
+  strategyProxy: Partial<IStrategyProxy> = {},
+) {
   return mount(IndicatorCalculationPanel, {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
       strategyMarketplaceApplication: buildStrategyMarketplaceApplication(),
-      strategyApplication: buildStrategyApplication(),
+      strategyApplication: buildStrategyApplication(strategyProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
       timeZone: buildTimeZone(),
@@ -708,5 +712,25 @@ describe('沒畫滿時，指標計算畫面要明講', () => {
     expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(0)
     expect(wrapper.text()).toContain('19')
     expect(wrapper.text()).toContain('20')
+  })
+})
+
+describe('指標計算：按計算不等於存檔', () => {
+  it('算一段還沒存的算式，不會多出任何一支策略', async () => {
+    // 這一條保住的是這一頁的核心流程：寫一段、直接算。少了它，遲早有人把「執行一律
+    // 指名策略」讀成「每一次實驗都要先取名字」。
+    const createStrategy = vi.fn()
+    const updateStrategy = vi.fn()
+    const wrapper = mountPanel(
+      {
+        calculateIndicator: vi.fn().mockResolvedValue(
+          new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+      },
+      { createStrategy, updateStrategy })
+    await flushPromises()
+    await fillAndSubmit(wrapper, {})
+
+    expect(createStrategy).not.toHaveBeenCalled()
+    expect(updateStrategy).not.toHaveBeenCalled()
   })
 })

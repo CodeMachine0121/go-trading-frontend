@@ -178,6 +178,30 @@ export function useUserSession(
     await navigateTo(LOGIN_PATH)
   }
 
+  /**
+   * 這一次登入在操作到一半時被系統認定不算數了。
+   *
+   * 它與 signOut **不是**同一件事，所以不共用：登出是使用者要求的，要跑一趟後端去撤掉
+   * 這台裝置的登入階段；這一種是後端先說了「請重新登入」，那趟撤銷已經沒有意義——
+   * 而且它必然會再被擋一次。
+   *
+   * 兩件事共同的部分才在這裡：**清掉全站共用的那一份**（否則側欄會繼續顯示一個已經
+   * 不算數的人），然後把人帶回登入畫面。
+   *
+   * 已經在登入畫面上時什麼都不做：那裡本來就是要去的地方，再導一次只會多一次跳動。
+   */
+  async function signOutBecauseSessionExpired(): Promise<void> {
+    currentUser.value = null
+    redirectTo.value = null
+    restoration.value = null
+
+    if (useRouter().currentRoute.value.path === LOGIN_PATH) {
+      return
+    }
+
+    await navigateTo(LOGIN_PATH)
+  }
+
   return {
     currentUser,
     pending,
@@ -188,6 +212,7 @@ export function useUserSession(
     rememberRedirectTo,
     clearSubmissionFeedback,
     signOut,
+    signOutBecauseSessionExpired,
   }
 }
 

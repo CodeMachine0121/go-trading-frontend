@@ -51,7 +51,6 @@ import { UserSessionApplication } from '~/application/user-session-application'
 import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
-import { LOGIN_PATH } from '~/composables/use-user-session'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -69,19 +68,13 @@ export default defineNuxtPlugin(() => {
   /**
    * 被登出時要做的事。
    *
-   * 它寫在組裝根，因為它是**編排**：清掉全站共用的那份「現在是誰在用」，然後把人帶回登入畫面。
-   * 發請求的那一層不該懂得導頁，而每一個畫面各自處理這件事，等於同一段規則寫十遍——
-   * 其中一遍遲早會把「請重新登入」顯示成一般的紅字，然後使用者會去修一份從來沒錯的請求。
-   *
-   * 已經在登入畫面上時什麼都不做：那裡本來就是要去的地方，再導一次只會多一次跳動。
+   * 它在這裡只是**接線**：那件事本身住在「現在是誰在用」那一份共用狀態旁邊，因為它要清掉
+   * 的正是那一份。發請求的那一層不該懂得導頁，而每一個畫面各自處理這件事，等於同一段規則
+   * 寫十遍——其中一遍遲早會把「請重新登入」顯示成一般的紅字，然後使用者會去修一份從來
+   * 沒錯的請求。
    */
   const onSignedOut = () => {
-    const router = useRouter()
-    if (router.currentRoute.value.path === LOGIN_PATH) {
-      return
-    }
-
-    void navigateTo(LOGIN_PATH)
+    void useUserSession().signOutBecauseSessionExpired()
   }
 
   const backendHealthApplication = new BackendHealthApplication(

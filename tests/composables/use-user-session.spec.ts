@@ -298,3 +298,40 @@ describe('useUserSession：登出', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/')
   })
 })
+
+describe('useUserSession：這一次登入在操作到一半時不算數了', () => {
+  it('清掉共用的那一份，並把人帶回登入畫面', async () => {
+    // 不清的話，側欄會繼續顯示一個已經不算數的人，而把關那一道門也會繼續放行。
+    // 這個測試環境的路由器一開始就停在登入畫面上，而那正是這條規則會跳過的情形——
+    // 所以先真的走到別的地方去（navigateTo 是替身，動不了路由器）。
+    const session = sessionUnderTest()
+    await useRouter().replace('/k-candles')
+    useState<SignedInUserDto | null>('user-session', () => null).value = SIGNED_IN_USER
+
+    await session.signOutBecauseSessionExpired()
+
+    expect(session.currentUser.value).toBeNull()
+    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('不跑那一趟撤銷——後端已經說了「請重新登入」，那趟必然再被擋一次', async () => {
+    // 它與使用者按下的登出不是同一件事，所以不共用那一條路。
+    const session = sessionUnderTest()
+    await useRouter().replace('/k-candles')
+    useState<SignedInUserDto | null>('user-session', () => null).value = SIGNED_IN_USER
+
+    await session.signOutBecauseSessionExpired()
+
+    expect(userSessionApplication.signOut).not.toHaveBeenCalled()
+  })
+
+  it('已經在登入畫面上時什麼都不做，不多跳一次', async () => {
+    const session = sessionUnderTest()
+    await useRouter().replace('/login')
+    navigateToSpy.mockClear()
+
+    await session.signOutBecauseSessionExpired()
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+})
