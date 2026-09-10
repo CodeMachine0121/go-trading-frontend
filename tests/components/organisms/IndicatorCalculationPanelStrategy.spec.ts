@@ -5,11 +5,18 @@ import { IndicatorCalculationApplication } from '~/application/indicator-calcula
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
+import type { IStrategyMarketplaceProxy } from '~/domain/interface/i-strategy-marketplace-proxy'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import {
+  buildStrategyMarketplaceApplication,
+  buildStrategyApplication,
+  buildStoredStrategy,
+  buildAdoptedStrategy,
+} from '../../fixtures/strategy-application'
+import { Strategy } from '~/domain/models/entities/strategy'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -22,7 +29,10 @@ async function settle() {
   await flushPromises()
 }
 
-function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
+function mountPanel(
+  strategyProxy: Partial<IStrategyProxy> = {},
+  marketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+) {
   return mount(IndicatorCalculationPanel, {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
@@ -30,6 +40,7 @@ function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
           calculateIndicator: vi.fn().mockResolvedValue(
             new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
         })),
+      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(marketplaceProxy),
       strategyApplication: buildStrategyApplication(strategyProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
@@ -975,3 +986,145 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
     ])
   })
 })
+
+describe('指標計算畫面上的策略：加入來的那些', () => {
+  it('挑加入來的那一支不會載入編輯器，而是說明它能做什麼', async () => {
+    // 它沒有算式可以載。把編輯器變成空的會讓人以為那支策略壞了，
+    // 所以挑它時就明說它是用來套用的。
+    const wrapper = await mountPanelWithAdopted()
+    const scriptBefore = scriptBodyText(wrapper)
+
+    await pickStrategy(wrapper, 9)
+
+    expect(scriptBodyText(wrapper)).toBe(scriptBefore)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('看不到它的算式')
+  })
+
+  it('挑策略那一排看得到兩段', async () => {
+    const wrapper = await mountPanelWithAdopted()
+
+    const options = wrapper.findAll('[data-testid="strategy-picker-select"] option')
+      .map(option => option.text())
+
+    expect(options).toContain('我的')
+    expect(options).toContain('別人的')
+  })
+
+  it('把加入來的那一支從清單移除', async () => {
+    const abandonStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithAdopted({}, { abandonStrategy })
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await wrapper.get('[data-testid="strategy-library-abandon-9"]').trigger('click')
+    await settle()
+
+    expect(abandonStrategy).toHaveBeenCalledWith(9)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('還在市集上')
+  })
+})
+
+describe('指標計算畫面上的策略：分享與收回', () => {
+  it('分享一支不先問——做錯了收回就好，中間沒有人失去東西', async () => {
+    const publishStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy,
+    })
+    await settle()
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await wrapper.get('[data-testid="strategy-library-publish-7"]').trigger('click')
+    await settle()
+
+    expect(publishStrategy).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('分享到市集')
+  })
+
+  it('收回要先問，而且說清楚後果', async () => {
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
+    await settle()
+
+    expect(withdrawStrategy).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('都會失去它')
+  })
+
+  it('確認之後才真的收回', async () => {
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
+    await settle()
+
+    await pressConfirm(wrapper, '收回')
+
+    expect(withdrawStrategy).toHaveBeenCalledWith(7)
+  })
+
+  it('取消之後什麼都沒發生', async () => {
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+    await wrapper.get('[data-testid="strategy-library-withdraw-7"]').trigger('click')
+    await settle()
+
+    await pressConfirm(wrapper, '取消')
+
+    expect(withdrawStrategy).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * 按下確認框裡那一顆。確認框與清單上的按鈕同時在畫面上，所以靠**字**分辨——
+ * 「收回」在清單那一列上是圖示按鈕，在確認框裡才是一顆寫著字的鈕。
+ */
+async function pressConfirm(wrapper: ReturnType<typeof mountPanel>, label: string) {
+  const buttons = wrapper.findAll('button').filter(button => button.text() === label)
+  expect(buttons.length).toBeGreaterThan(0)
+  await buttons[buttons.length - 1]!.trigger('click')
+  await settle()
+}
+
+/** 掛起一個手上有一支自己的、也加入過一支別人的畫面。 */
+async function mountPanelWithAdopted(
+  strategyProxy: Partial<IStrategyProxy> = {},
+  marketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+) {
+  const wrapper = mountPanel({
+    listAvailableStrategies: vi.fn().mockResolvedValue({
+      mine: [buildStoredStrategy(7, '我的')],
+      adopted: [buildAdoptedStrategy(9, '別人的')],
+    }),
+    ...strategyProxy,
+  }, marketplaceProxy)
+  await settle()
+
+  return wrapper
+}
+
+/** 掛起一個手上那一支已經分享出去的畫面。 */
+async function mountPanelWithPublished(strategyProxy: Partial<IStrategyProxy> = {}) {
+  const published = buildStoredStrategy(7, '二十根均線')
+  const wrapper = mountPanel({
+    listAvailableStrategies: vi.fn().mockResolvedValue({
+      mine: [new Strategy(
+        published.id, published.name, published.description, published.script,
+        published.resultType, published.parameters, true)],
+      adopted: [],
+    }),
+    ...strategyProxy,
+  })
+  await settle()
+
+  return wrapper
+}

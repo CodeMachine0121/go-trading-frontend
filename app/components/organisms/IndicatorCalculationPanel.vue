@@ -16,6 +16,7 @@ import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
 import StrategyLibraryDialog from '~/components/molecules/StrategyLibraryDialog.vue'
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
@@ -45,12 +46,15 @@ import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculat
 const {
   indicatorCalculationApplication,
   strategyApplication,
+  strategyMarketplaceApplication,
   tradingSymbolApplication,
   backtestApplication,
   timeZone,
 } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
   strategyApplication: StrategyApplication
+  /** 市集那一條線。這一頁只用它做一件事：把加入來的那一支從清單移除。 */
+  strategyMarketplaceApplication: StrategyMarketplaceApplication
   tradingSymbolApplication: TradingSymbolApplication
   backtestApplication: BacktestApplication
   /** 這一頁說時間的地方一律照它——回測的資金曲線與交易明細也不例外。 */
@@ -148,6 +152,7 @@ const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplicatio
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyLibrary = useStrategyLibrary(
   strategyApplication,
+  strategyMarketplaceApplication,
   () => new StrategyContentDto(
     scriptBody.value, resultType.value, strategyParameters.parameters.value),
   (content) => {
@@ -718,10 +723,14 @@ async function calculateIndicator() {
     <StrategyLibraryDialog
       :open="strategyLibrary.openDialog.value === 'library'"
       :strategies="strategyLibrary.strategies.value"
+      :adopted-strategies="strategyLibrary.adoptedStrategies.value"
       :error-message="strategyLibrary.listErrorMessage.value"
       :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
       @load="strategyLibrary.selectStrategy"
       @remove="strategyLibrary.askToDelete"
+      @publish="strategyLibrary.publishStrategy"
+      @withdraw="strategyLibrary.askToWithdraw"
+      @abandon="strategyLibrary.abandonStrategy"
       @close="strategyLibrary.closeDialog"
     />
 
@@ -740,6 +749,7 @@ async function calculateIndicator() {
       title="重新命名"
       hint="只換名字，這一支記著的算式與其餘設定都不會被動到。"
       :initial-name="strategyLibrary.activeStrategy.value?.name ?? ''"
+      :initial-description="strategyLibrary.activeStrategy.value?.description ?? ''"
       :error-message="strategyLibrary.nameErrorMessage.value"
       :submitting="strategyLibrary.saving.value"
       data-testid="rename-dialog"
@@ -763,6 +773,20 @@ async function calculateIndicator() {
       confirm-label="刪除"
       variant="danger"
       @confirm="strategyLibrary.confirmDelete"
+      @cancel="strategyLibrary.closeDialog"
+    />
+
+    <!--
+      收回要先問，分享不用。分享做錯了收回就好，中間沒有人失去任何東西；
+      收回做錯了，每一個加入過它的人都要重新加入一次，而你不會知道有誰。
+    -->
+    <ConfirmDialog
+      :open="strategyLibrary.openDialog.value === 'withdraw'"
+      title="從市集收回這一支？"
+      message="收回之後，所有把它加進自己清單的人都會失去它，而且你不會知道有誰。重新分享也不會讓他們自動回來。"
+      confirm-label="收回"
+      variant="danger"
+      @confirm="strategyLibrary.confirmWithdraw"
       @cancel="strategyLibrary.closeDialog"
     />
   </div>

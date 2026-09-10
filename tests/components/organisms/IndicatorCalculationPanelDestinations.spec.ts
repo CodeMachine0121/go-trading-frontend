@@ -7,7 +7,7 @@ import { IndicatorCalculationService } from '~/domain/service/indicator-calculat
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyMarketplaceApplication, buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -55,6 +55,7 @@ function mountPanel(strategyApplication = buildStrategyApplication()) {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
       strategyApplication,
+      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
       timeZone: buildTimeZone(),

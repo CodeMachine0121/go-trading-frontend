@@ -9,6 +9,7 @@ import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 const {
   $indicatorCalculationApplication,
   $strategyApplication,
+  $strategyMarketplaceApplication,
   $tradingSymbolApplication,
   $backtestApplication,
 } = useNuxtApp()
@@ -57,6 +58,7 @@ const { currentUser, signOut } = useUserSession()
     <IndicatorCalculationPanel
       :indicator-calculation-application="$indicatorCalculationApplication"
       :strategy-application="$strategyApplication"
+      :strategy-marketplace-application="$strategyMarketplaceApplication"
       :trading-symbol-application="$tradingSymbolApplication"
       :backtest-application="$backtestApplication"
       :time-zone="selectedTimeZone"

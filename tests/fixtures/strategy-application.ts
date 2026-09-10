@@ -2,6 +2,9 @@ import { vi } from 'vitest'
 import { StrategyApplication } from '~/application/strategy-application'
 import { StrategyService } from '~/domain/service/strategy-service'
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
+import type { IStrategyMarketplaceProxy } from '~/domain/interface/i-strategy-marketplace-proxy'
+import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
+import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
 import { PublishedStrategy } from '~/domain/models/entities/published-strategy'
 import { Strategy } from '~/domain/models/entities/strategy'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
@@ -66,4 +69,19 @@ export function buildAdoptedStrategy(
     new Date('2026-09-10T08:00:00.000Z'),
     overrides.parameters ?? [],
   )
+}
+
+/**
+ * 市集那一條線，只 mock 它最外層的 proxy。預設市集是空的、加入與移除都成功——
+ * 大部分的測試不在乎市集，它們在乎的是它有沒有把畫面接壞。
+ */
+export function buildStrategyMarketplaceApplication(
+  strategyMarketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+): StrategyMarketplaceApplication {
+  return new StrategyMarketplaceApplication(new StrategyMarketplaceService({
+    browseMarketplace: vi.fn().mockResolvedValue([]),
+    adoptStrategy: vi.fn().mockResolvedValue(undefined),
+    abandonStrategy: vi.fn().mockResolvedValue(undefined),
+    ...strategyMarketplaceProxy,
+  }))
 }

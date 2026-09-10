@@ -1,4 +1,5 @@
 import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
 import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
@@ -21,6 +22,14 @@ type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete' 
  */
 export function useStrategyLibrary(
   strategyApplication: StrategyApplication,
+  /**
+   * 市集那一條線。這裡只用它做一件事：把加入來的那一支從自己的清單拿掉。
+   *
+   * 那件事屬於這裡而不是市集頁，因為它改變的是**這一份清單**——使用者是在清單上看到
+   * 那一支、也是在清單上決定不要它的。市集頁上也有一顆做同一件事的按鈕，
+   * 兩邊走的是同一條路，只是入口不同。
+   */
+  strategyMarketplaceApplication: StrategyMarketplaceApplication,
   readCurrentContent: () => StrategyContentDto,
   applyContent: (content: StrategyContentDto) => void,
   /** 一份空白的策略內容。「空白長什麼樣」由畫面定義，這裡只負責在對的時機套用它。 */
@@ -183,7 +192,8 @@ export function useStrategyLibrary(
       return
     }
 
-    await writeStrategy(activeStrategy.value.name, activeStrategy.value.id)
+    await writeStrategy(
+      activeStrategy.value.name, activeStrategy.value.id, activeStrategy.value.description)
   }
 
   function openNameDialog() {
@@ -201,29 +211,29 @@ export function useStrategyLibrary(
     nameErrorMessage.value = null
   }
 
-  async function createStrategy(name: string) {
-    await writeStrategy(name, undefined)
+  async function createStrategy(name: string, description: string) {
+    await writeStrategy(name, undefined, description)
   }
 
   /**
    * 替使用中的那一支改名。它走的是同一條存檔路徑——改名就是「內容照舊、名字換掉」的一次儲存，
    * 因此名稱被佔用、那一支已經不在、連不上後端，三種失敗的處理完全不必重寫一遍。
    */
-  async function renameStrategy(name: string) {
+  async function renameStrategy(name: string, description: string) {
     if (activeStrategy.value === null) {
       return
     }
 
-    await writeStrategy(name, activeStrategy.value.id)
+    await writeStrategy(name, activeStrategy.value.id, description)
   }
 
-  async function writeStrategy(name: string, id: number | undefined) {
+  async function writeStrategy(name: string, id: number | undefined, description: string) {
     saving.value = true
     clearMessages()
 
     try {
       const saved = await strategyApplication.saveStrategy(
-        new StrategyWriteDto(name, readCurrentContent(), id))
+        new StrategyWriteDto(name, readCurrentContent(), id, description))
 
       activeStrategy.value = saved
       loadedContent.value = saved.content
@@ -293,6 +303,29 @@ export function useStrategyLibrary(
     }
     catch (error: unknown) {
       errorMessage.value = messageOf(error, '變更分享狀態時發生未預期的錯誤。')
+      openDialog.value = 'library'
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  /**
+   * 把加入來的那一支從自己的清單拿掉。**不先問**：它是別人的東西，拿掉只影響自己的清單，
+   * 想要再加回來到市集按一下就有——與刪掉自己的策略完全不同。
+   */
+  async function abandonStrategy(id: number) {
+    saving.value = true
+    clearMessages()
+
+    try {
+      await strategyMarketplaceApplication.abandonStrategy(id)
+      openDialog.value = 'library'
+      noticeMessage.value = '已經從你的清單移除。它還在市集上，隨時可以再加回來。'
+      await refreshStrategies()
+    }
+    catch (error: unknown) {
+      errorMessage.value = messageOf(error, '從清單移除時發生未預期的錯誤。')
       openDialog.value = 'library'
     }
     finally {
@@ -379,5 +412,6 @@ export function useStrategyLibrary(
     publishStrategy,
     askToWithdraw,
     confirmWithdraw,
+    abandonStrategy,
   }
 }
