@@ -81,11 +81,37 @@ export abstract class BackendApiProxy {
      * 那裡本來就是唯一知道全部具體型別的地方。
      */
     private readonly onSignedOut: () => void = () => {},
+    /**
+     * 試著把這一段登入救回來，救回來了回 `true`。
+     *
+     * 它存在是因為**登入憑證只活十五分鐘，而續用憑證活三十天**。少了它，坐在圖表前
+     * 十六分鐘之後按一下計算，就會被踢回登入畫面——而手上那份續用憑證明明還好著。
+     * 這一發本來只是過期，不是「這個人不算數了」。
+     *
+     * 它必須**同時只跑一次**（這件事由給進來的那一邊保證）：續用憑證用過就失效，
+     * 同時換兩次會被後端判定為盜用，把「這台需要重登」升級成「這個人每一台都被登出」。
+     */
+    private readonly recoverSession: () => Promise<boolean> = async () => false,
   ) {}
 
   protected async requestBackend<TWire>(
     path: string,
     options: BackendRequestOptions = {},
+  ): Promise<TWire> {
+    return this.sendRequest<TWire>(path, options, true)
+  }
+
+  /**
+   * 真正發出去的那一次，外加「這一發還准不准為了過期再試一次」。
+   *
+   * 它是私有的，而且**只被兩個地方呼叫：上面那一個，以及它自己**——那個界線就是它存在的
+   * 理由。重試次數不是一個可以調的數字，是遞迴時把那個許可交出去：第二發帶著 `false`，
+   * 所以「最多再試一次」寫在結構裡，不在一個總有一天會被調成二的計數器裡。
+   */
+  private async sendRequest<TWire>(
+    path: string,
+    options: BackendRequestOptions,
+    mayRenew: boolean,
   ): Promise<TWire> {
     const endpoint = `${this.baseUrl}${path}`
 
@@ -111,8 +137,19 @@ export abstract class BackendApiProxy {
           // 從來沒錯的請求。
           if (backendFailure.response.status === SIGNED_OUT_STATUS
             && (options.refusalMeansSignedOut ?? true)) {
-            // 記著的那一份已經不算數了。留著它，下一發還是會被擋，而把關那一道門
-            // 會繼續以為這個人登入著。
+            // 先試著救回來，再考慮把人趕回登入畫面。**這個順序就是這段程式的意義**：
+            // 登入憑證十五分鐘就過期，續用憑證還有三十天——十六分鐘之後按一下計算
+            // 就被登出，是把一件系統自己修得好的事，變成使用者的麻煩。
+            //
+            // 救回來之後重發一次，而不是把失敗回報上去讓畫面自己重試：呼叫端根本不知道
+            // 剛才那一發是因為過期才失敗的，而每一個呼叫端各自記得重試一次，
+            // 就是同一段規則寫十遍。
+            if (mayRenew && await this.recoverSession()) {
+              return await this.sendRequest<TWire>(path, options, false)
+            }
+
+            // 救不回來了。記著的那一份已經不算數，留著它下一發還是會被擋，
+            // 而把關那一道門會繼續以為這個人登入著。
             this.sessionStorageProxy.clearSession()
             this.onSignedOut()
 

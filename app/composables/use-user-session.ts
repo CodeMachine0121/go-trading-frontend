@@ -45,6 +45,17 @@ export function useUserSession(
    * 而真正的答案回來時已經沒有人在等它了。存下這個動作本身，晚到的人就會排在同一個答案後面。
    */
   const restoration = useState<Promise<void> | null>('user-session-restoration', () => null)
+  /**
+   * 正在進行的那一次「把過期的這一段救回來」。
+   *
+   * 它與上面那一份**分開**，而且只在進行中存在：上面那一份記得「這個分頁確認過了」，
+   * 而這一份要的正好相反——每一次過期都要重新救一次。
+   *
+   * 存的仍然是那個動作本身，理由比上面更硬：**續用憑證用過就失效**。同時被擋下來的兩發
+   * 請求要是各換一次，第二次會被後端判定為盜用，把「這一台要重登」升級成
+   * 「這個人每一台都被登出」。排在同一個動作後面，就只換那一次。
+   */
+  const recovery = useState<Promise<boolean> | null>('user-session-recovery', () => null)
   const pending = useState('user-session-pending', () => false)
   const errorMessage = useState<string | null>('user-session-error', () => null)
   const fieldErrors = useState<CredentialsFieldErrorsDto | null>(
@@ -202,6 +213,24 @@ export function useUserSession(
     await navigateTo(LOGIN_PATH)
   }
 
+  /**
+   * 一發請求被回「沒有帶著有效的身分」時，先試著把這一段救回來。救回來了回 `true`，
+   * 呼叫端就重發那一發；回 `false` 代表真的得重新登入了。
+   *
+   * 它做的事就是「重新確認一次」——那一段本來就會在登入憑證過期時換一對新的，
+   * 而這正是十六分鐘之後按下計算時發生的事。所以這裡沒有第二套續用邏輯，
+   * 只是把那一次確認**再跑一遍**（上一次的結果不能用：它是那一段還有效時算出來的）。
+   */
+  async function recoverExpiredSession(): Promise<boolean> {
+    recovery.value ??= restoreOnce()
+      .then(() => currentUser.value !== null)
+      .finally(() => {
+        recovery.value = null
+      })
+
+    return recovery.value
+  }
+
   return {
     currentUser,
     pending,
@@ -213,6 +242,7 @@ export function useUserSession(
     clearSubmissionFeedback,
     signOut,
     signOutBecauseSessionExpired,
+    recoverExpiredSession,
   }
 }
 

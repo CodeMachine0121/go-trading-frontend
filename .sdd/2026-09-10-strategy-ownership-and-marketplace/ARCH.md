@@ -28,7 +28,7 @@
 
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
-| `infrastructure/proxy/backend-api-proxy.ts` | **Modify** | 統一附上身分；把「請重新登入」從一般拒絕裡分出來，並在原地清掉記著的那份登入 |
+| `infrastructure/proxy/backend-api-proxy.ts` | **Modify** | 統一附上身分；把「請重新登入」從一般拒絕裡分出來；**先試著續用一次並重送那一發**，救不回來才清掉記著的那份登入 |
 | `domain/errors/signed-out-error.ts` | **Add** | 「請重新登入」自己的錯誤型別。它與其他失敗要使用者做的事不同，因此不能是同一種 |
 | `domain/models/entities/strategy.ts` | **Modify** | 加 `description` |
 | `domain/models/entities/published-strategy.ts` | **Add** | 市集上的一支：**沒有 `script` 欄位** |
@@ -108,7 +108,7 @@ AvailableStrategiesDto
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `BackendApiProxy` | 所有後端請求的共同出口與錯誤翻譯 | 建構時多收「記著登入的那一份」與「被登出時該做什麼」；每一發附上身分；401 翻成 `SignedOutError`，並在丟出去之前清掉記著的那一份、通知該做的事 |
+| `BackendApiProxy` | 所有後端請求的共同出口與錯誤翻譯 | 建構時多收「記著登入的那一份」、「被登出時該做什麼」與「試著把這一段救回來」；每一發附上身分；401 時**先救一次、救回來就重送那一發**（最多一次，界線由遞迴時交出的許可帶著，不是一個計數器），救不回來才清掉記著的那一份、通知該做的事、翻成 `SignedOutError` |
 | `StrategyProxy` | 策略端點 | `listStrategies` → `listAvailableStrategies`（收兩段）；讀寫多帶說明；新增發佈與收回 |
 | `StrategyService` / `StrategyApplication` | 策略編排 | 對應上面 |
 | `useStrategyLibrary` | 指標計算畫面上的策略狀態 | `strategies` 換成兩段；`selectStrategy` 對唯讀那一支改成說明而不是載入；新增發佈、收回與收回前的確認 |
@@ -118,6 +118,25 @@ AvailableStrategiesDto
 | `StrategyMarketplaceApplication` | 市集的用例 | 多一個「這一句話留下哪幾列」——畫面拿不到 Domain Model，只能經由這一層 |
 | `StrategyMarketplacePanel` | 市集這一頁 | 多一個搜尋框與第三種空狀態（「沒有符合」，帶一個清掉搜尋的動作） |
 | `dependencies.ts` | 組裝根 | 唯一知道「被登出時要清狀態並回登入畫面」的地方——那是編排，不是基礎設施的事 |
+
+### 為什麼 401 先續用一次，而不是直接把人趕走
+
+**登入憑證只活十五分鐘，續用憑證活三十天。** 這個操作台是一頁——一個人坐在圖表前看半小時
+再按一下計算，是最普通的用法，而少了這一步，那一下會把他踢回登入畫面。
+那不是一次登出，只是一次過期，而系統自己修得好。
+
+三件事必須同時成立，否則這一步會比它要修的問題更糟：
+
+1. **最多再試一次。** 界線寫在結構裡：重試那一發帶著「不准再續用」的許可，
+   所以「一次」不是一個總有一天會被調成二的數字。
+2. **同時只續用一次。** 續用憑證用過就失效，同時換兩次會被後端判定為盜用，
+   把「這一台要重登」升級成「這個人每一台都被登出」。九個 proxy 各記一次是行不通的——
+   所以那件事住在共用狀態旁邊（`useUserSession.recoverExpiredSession`），
+   proxy 只拿到一個「試著救回來」的回呼。
+3. **建立身分的那幾條路不續用。** 登入、續用、問「我是誰」被拒絕，都是那一次請求
+   自己的答案；當成過期會讓「密碼打錯」在登入畫面上演成一次登出，
+   而續用那一發自己去續用就是無窮遞迴。它們早就帶著 `refusalMeansSignedOut: false`，
+   續用與登出共用同一個開關——同一個判斷不該有兩個名字。
 
 ### 被登出時誰負責導頁
 

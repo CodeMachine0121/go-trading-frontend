@@ -91,15 +91,31 @@ describe('UserProxy.signIn', () => {
     // 就會在登入畫面上把「密碼打錯」演成一次被登出。
     const sessionStorageProxy = signedInSessionStorage()
     const onSignedOut = vi.fn()
+    const recoverSession = vi.fn()
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '電子郵件或密碼不正確' })))
 
-    const failure = await new UserProxy(BASE_URL, sessionStorageProxy, onSignedOut)
+    const failure = await new UserProxy(BASE_URL, sessionStorageProxy, onSignedOut, recoverSession)
       .signIn('james@example.com', 'wrong horse').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(CredentialsRejectedError)
     expect(sessionStorageProxy.clearSession).not.toHaveBeenCalled()
     expect(onSignedOut).not.toHaveBeenCalled()
+    // 也不會去換一對新的：密碼打錯換幾次都還是打錯，而續用憑證用一次就少一次。
+    expect(recoverSession).not.toHaveBeenCalled()
+  })
+
+  it('換新的那一發自己被拒絕時不會再去換一次——那才是真的得重新登入了', async () => {
+    // 少了這一條，救援自己會叫起救援：一次過期會變成一串換發，而每一次都作廢上一次。
+    const recoverSession = vi.fn()
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 401, message: '請重新登入' })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage(), vi.fn(), recoverSession)
+      .renewSession('a-refresh-token').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(AuthenticationRequiredError)
+    expect(recoverSession).not.toHaveBeenCalled()
   })
 
   it('帳密對不上是自己一種拒絕，訊息原文轉達', async () => {

@@ -44,6 +44,7 @@ beforeEach(() => {
   // useState 在同一個測試檔內跨測試共用，所以每一則都從乾淨的狀態開始。
   useState('user-session', () => null).value = null
   useState<Promise<void> | null>('user-session-restoration', () => null).value = null
+  useState<Promise<boolean> | null>('user-session-recovery', () => null).value = null
   useState('user-session-signing-out', () => false).value = false
   useState('user-session-pending', () => false).value = false
   useState<string | null>('user-session-error', () => null).value = null
@@ -333,5 +334,63 @@ describe('useUserSession：這一次登入在操作到一半時不算數了', ()
     await session.signOutBecauseSessionExpired()
 
     expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('useUserSession：把過期的那一段救回來', () => {
+  it('換到新的一對就回 true，讓被擋下來的那一發重送', async () => {
+    // 登入憑證只活十五分鐘，續用憑證活三十天——這就是十六分鐘之後按下計算時發生的事。
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    const { recoverExpiredSession, currentUser } = sessionUnderTest()
+
+    const recovered = await recoverExpiredSession()
+
+    expect(recovered).toBe(true)
+    expect(currentUser.value?.email).toBe('james@example.com')
+  })
+
+  it('換不到就回 false——那才是真的得重新登入了', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(null)
+    const { recoverExpiredSession, currentUser } = sessionUnderTest()
+
+    const recovered = await recoverExpiredSession()
+
+    expect(recovered).toBe(false)
+    expect(currentUser.value).toBeNull()
+  })
+
+  it('同時被擋下來的幾發只換一次——續用憑證用過就失效', async () => {
+    // 各換一次的話，第二次會被後端判定為盜用，把「這一台要重登」升級成
+    // 「這個人每一台都被登出」。
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    const { recoverExpiredSession } = sessionUnderTest()
+
+    const [first, second, third] = await Promise.all([
+      recoverExpiredSession(), recoverExpiredSession(), recoverExpiredSession(),
+    ])
+
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
+    expect([first, second, third]).toEqual([true, true, true])
+  })
+
+  it('下一次過期會再救一次——上一次的答案是那一段還有效時算出來的', async () => {
+    // 這正是它與「這個分頁確認過了」那一份分開的理由：那一份要記得，這一份不能記。
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    const { recoverExpiredSession } = sessionUnderTest()
+
+    await recoverExpiredSession()
+    await recoverExpiredSession()
+
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('連不上後端時回 false，而且不當成一次成功的救援', async () => {
+    userSessionApplication.restoreSession.mockRejectedValue(new BackendUnreachableError('http://localhost:8080'))
+    const { recoverExpiredSession, currentUser } = sessionUnderTest()
+
+    const recovered = await recoverExpiredSession()
+
+    expect(recovered).toBe(false)
+    expect(currentUser.value).toBeNull()
   })
 })

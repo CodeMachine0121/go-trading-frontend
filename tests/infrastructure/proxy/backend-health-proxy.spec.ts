@@ -2,6 +2,7 @@ import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { signedInSessionStorage, signedOutSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
+import { Session } from '~/domain/models/entities/session'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -100,6 +101,79 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     expect((failure as Error).message).toBe('請重新登入')
     expect(sessionStorageProxy.clearSession).toHaveBeenCalledOnce()
     expect(onSignedOut).toHaveBeenCalledOnce()
+  })
+
+  it('被擋下來時先試著救回這一段，救回來就把那一發再送一次', async () => {
+    // 登入憑證只活十五分鐘，續用憑證活三十天。少了這一步，坐在圖表前十六分鐘之後
+    // 按一下計算就會被踢回登入畫面——而系統自己修得好。
+    const sessionStorageProxy = signedInSessionStorage()
+    const onSignedOut = vi.fn()
+    const recoverSession = vi.fn().mockResolvedValue(true)
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(buildSignedOutError())
+      .mockResolvedValueOnce({ status: 'Healthy' })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const backendHealth = await new BackendHealthProxy(
+      BASE_URL, sessionStorageProxy, onSignedOut, recoverSession).fetchBackendHealth()
+
+    expect(backendHealth.status).toBe('Healthy')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(recoverSession).toHaveBeenCalledOnce()
+    // 沒有被登出，也沒有清掉記著的那一份：這一發本來只是過期。
+    expect(onSignedOut).not.toHaveBeenCalled()
+    expect(sessionStorageProxy.clearSession).not.toHaveBeenCalled()
+  })
+
+  it('再送那一次帶的是新換到的憑證，不是剛剛被擋下來的那一份', async () => {
+    // 換完之後身分是從記著的那一份重新讀的，所以「換到新的」與「送出新的」是同一件事。
+    const sessionStorageProxy = signedInSessionStorage()
+    vi.mocked(sessionStorageProxy.readSession)
+      .mockImplementationOnce(() => new Session(
+        'an-expired-proof',
+        new Date('2026-09-10T09:00:00Z'),
+        'a-refresh-token',
+        new Date('2026-10-10T09:00:00Z')))
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(buildSignedOutError())
+      .mockResolvedValueOnce({ status: 'Healthy' })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BackendHealthProxy(
+      BASE_URL, sessionStorageProxy, vi.fn(), vi.fn().mockResolvedValue(true)).fetchBackendHealth()
+
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual({ headers: { Authorization: 'Bearer an-expired-proof' } })
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual({ headers: SIGNED_IN_HEADERS })
+  })
+
+  it('救不回來才把人趕回登入畫面', async () => {
+    const sessionStorageProxy = signedInSessionStorage()
+    const onSignedOut = vi.fn()
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildSignedOutError()))
+
+    const failure = await new BackendHealthProxy(
+      BASE_URL, sessionStorageProxy, onSignedOut, vi.fn().mockResolvedValue(false))
+      .fetchBackendHealth().catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(SignedOutError)
+    expect(sessionStorageProxy.clearSession).toHaveBeenCalledOnce()
+    expect(onSignedOut).toHaveBeenCalledOnce()
+  })
+
+  it('最多再試一次——換到的新憑證又被擋下來，就不再換第二次', async () => {
+    // 續用憑證用過就失效，一直重試會踩到後端的盜用偵測，把「這一台要重登」
+    // 升級成「這個人每一台都被登出」。界線寫在結構裡，不在一個可以調的數字裡。
+    const recoverSession = vi.fn().mockResolvedValue(true)
+    const fetchMock = vi.fn().mockRejectedValue(buildSignedOutError())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const failure = await new BackendHealthProxy(
+      BASE_URL, signedInSessionStorage(), vi.fn(), recoverSession)
+      .fetchBackendHealth().catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(SignedOutError)
+    expect(recoverSession).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('那一種失敗不是「請求有問題」——把它混在一起，人會去修一份從來沒錯的請求', async () => {

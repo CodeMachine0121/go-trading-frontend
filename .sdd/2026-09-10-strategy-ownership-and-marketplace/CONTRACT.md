@@ -16,7 +16,10 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | AC-01.1 | 登入之後策略清單載得出來 | 清單顯示出來 | `backend-api-proxy.ts:88`（每一發附上身分） | `backend-health-proxy.spec.ts`（`記著一段登入時，每一發都帶著它`）＋策略面板既有的清單測試 | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-01.2 | 登入之後算得出指標 | 算出指標結果 | 同上（同一份基底） | 同上；指標計算面板既有的計算測試 | `asserts-oracle` | `produces-oracle` | ✅ conforms |
-| AC-01.3 | 登入過期時被帶回登入的地方 | 畫面切到登入的地方並顯示「請重新登入」 | `backend-api-proxy.ts:104`＋`use-user-session.ts:signOutBecauseSessionExpired` | `backend-health-proxy.spec.ts`（通知被叫到）＋`use-user-session.spec.ts`（`清掉共用的那一份，並把人帶回登入畫面`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-01.2a | 只是需要更新一次時，畫面自己更新並重送 | 算出指標結果，且沒有切換到登入的地方 | `backend-api-proxy.ts:sendRequest`（401 → 先救一次 → 重送）＋`use-user-session.ts:recoverExpiredSession` | `backend-health-proxy.spec.ts`（`救回來就把那一發再送一次`、`再送那一次帶的是新換到的憑證`）；`use-user-session.spec.ts`（`換到新的一對就回 true`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-01.2b | 同時被擋下來的好幾發只更新一次 | 更新只發生一次，三件事都得到答案 | `use-user-session.ts`（`user-session-recovery` 存的是進行中的那個動作） | `use-user-session.spec.ts`（`同時被擋下來的幾發只換一次`——變異：把單次收斂拿掉即失敗） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-01.2c | 打錯密碼不算一次過期 | 就地說明帳號或密碼不對，不更新也不登出 | `user-proxy.ts`（三條建立身分的路帶 `refusalMeansSignedOut: false`） | `user-proxy.spec.ts`（`帳密對不上不算被登出`、`換新的那一發自己被拒絕時不會再去換一次`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-01.3 | 真的不能再繼續用時才被帶回登入的地方 | 畫面切到登入的地方並顯示「請重新登入」 | `backend-api-proxy.ts:104`＋`use-user-session.ts:signOutBecauseSessionExpired` | `backend-health-proxy.spec.ts`（通知被叫到）＋`use-user-session.spec.ts`（`清掉共用的那一份，並把人帶回登入畫面`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-01.4 | 登入過期時不把它說成算式的問題 | 不顯示任何關於算式的錯誤 | `signed-out-error.ts`（自己一種型別） | `backend-health-proxy.spec.ts`（斷言它**不是**一般拒絕、也不是伺服器錯誤） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 | AC-01.5 | 從未登入不先發一次注定被擋的請求 | 直接請他先登入，且沒有向系統要任何資料 | `middleware/signed-in.global.ts`（既有，本切片未改） | `tests/middleware/signed-in.global.spec.ts`（既有） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
 
@@ -144,7 +147,7 @@
 
 | Status | Count |
 | :--- | ---: |
-| ✅ conforms | 60 |
+| ✅ conforms | 63 |
 | 🔴 violation | 0 |
 | 🟠 mis-asserted | 0 |
 | 🟡 partial | 1 |
@@ -152,7 +155,7 @@
 | ❔ unclear | 0 |
 | ⚠️ orphan | 0 |
 
-**Conformance: 98% (60 / 61)**，**0 個行為是錯的**。
+**Conformance: 98% (63 / 64)**，**0 個行為是錯的**。
 
 **第一次稽核找到、已經補上的五則 🟠（綠燈但沒有釘住那句話）：**
 - **AC-01.3／BR-2** — 證了「被登出時會通知」，沒有證那個通知會把人帶到登入畫面。
@@ -180,6 +183,12 @@
 （切詞、比對哪幾欄、大小寫、空白、要不要全部對上）集中在一個 domain model 裡，
 並且用變異一一打過：`every`→`some`、拿掉說明欄、不轉小寫都被測試抓住，
 而多餘的那個 `.trim()` 沒有被抓住——因為切詞已經把前後空白處理掉了，所以它被移除。
+
+**開 PR 之後審查找到、已經修掉的一件（AC-01.2a/b/c）：** 身分改成每一發都帶之後，
+「被回 401」就不再只出現在問「我是誰」那一條路上了——而登入憑證只活十五分鐘。
+坐在圖表前十六分鐘再按一下計算，會被踢回登入畫面，而手上那份續用憑證還有三十天。
+現在共同出口會先續用一次並把那一發重送，救不回來才把人帶走；同時被擋下來的幾發只續用一次
+（續用憑證用過就失效），而建立身分的那三條路不參與——它們的 401 是自己的答案。
 
 **Ceiling:** 這是靜態一致性稽核——它讀測試斷言與程式碼路徑並與契約推導出的預期比對，
 不執行自己發明的情境。要動態證明某一則，走 `/tdd`。
