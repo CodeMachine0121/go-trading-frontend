@@ -3,16 +3,20 @@ import { flushPromises, mount } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
+import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
+import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import { seriesOf } from '../../fixtures/k-candle-series'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
-import { buildStrategyApplication } from '../../fixtures/strategy-application'
+import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -39,14 +43,21 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   }
 }
 
-async function mountPanel(kCandleProxy: IKCandleProxy) {
+async function mountPanel(
+  kCandleProxy: IKCandleProxy,
+  calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
+    'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])])),
+) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication(),
-      chartIndicatorApplication: buildChartIndicatorApplication(),
-      strategyApplication: buildStrategyApplication(),
+      chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
+      strategyApplication: buildStrategyApplication({
+        listStrategies: vi.fn().mockResolvedValue(
+          [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+      }),
       timeZone: buildTimeZone(),
     },
     global: { stubs: { KCandleChart: true } },
@@ -54,6 +65,20 @@ async function mountPanel(kCandleProxy: IKCandleProxy) {
   await flushPromises()
 
   return wrapper
+}
+
+/**
+ * 等使用者「停手」。指標重算不在顯示區間變動的當下發生——
+ * 拖動一次會產生幾十個中間狀態，每一個都算等於把同一份工作做幾十遍。
+ */
+async function settle() {
+  await vi.advanceTimersByTimeAsync(400)
+  await flushPromises()
+}
+
+/** 目前選著的是哪一種粗細。 */
+function chosenCoarseness(wrapper: VueWrapper): string {
+  return (wrapper.find(INTERVAL_SELECT).element as HTMLSelectElement).value
 }
 
 /** 挑一種粗細，並等到那一次取行情跑完。 */
@@ -170,6 +195,68 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('15m')
   })
 
+  it('換一種粗細時，圖上已套用的指標跟著重算', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
+      'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
+    // 系統照挑的做，所以第二次回來的是另一種粗細——那才是「圖上換了一批」。
+    const wrapper = await mountPanel(
+      buildProxy({
+        findKCandleSeries: vi.fn()
+          .mockResolvedValueOnce(seriesOf([buildKCandle()], '5m'))
+          .mockResolvedValue(seriesOf([buildKCandle()], '1h')),
+      }),
+      calculateIndicator)
+    await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
+    await flushPromises()
+    const calculationsBefore = calculateIndicator.mock.calls.length
+
+    await chooseCoarseness(wrapper, '1h')
+    await settle()
+
+    // 圖上換了一批 K 線，線就得照那一批重畫——不重算的話它畫的是另一種粗細的答案。
+    expect(calculateIndicator.mock.calls.length).toBeGreaterThan(calculationsBefore)
+  })
+
+  it('在圖上拉遠不改變挑好的那一種', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '15m'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    await chooseCoarseness(wrapper, '15m')
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-03T12:00:00.000Z'),
+      endTime: CURRENT_TIME,
+    })
+    await flushPromises()
+
+    expect(chosenCoarseness(wrapper)).toBe('15m')
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('15m')
+  })
+
+  it('換一種畫法不改變挑好的那一種，也不重新取', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '15m'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    await chooseCoarseness(wrapper, '15m')
+    const callsBefore = findKCandleSeries.mock.calls.length
+
+    await wrapper.findAll('[data-testid="drawing-button"]')[1]?.trigger('click')
+    await flushPromises()
+
+    expect(chosenCoarseness(wrapper)).toBe('15m')
+    expect(findKCandleSeries).toHaveBeenCalledTimes(callsBefore)
+  })
+
+  it('還沒指定交易標的時，挑一種粗細也不去取', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', '')
+    await flushPromises()
+    const callsBefore = findKCandleSeries.mock.calls.length
+
+    await chooseCoarseness(wrapper, '5m')
+
+    expect(findKCandleSeries).toHaveBeenCalledTimes(callsBefore)
+  })
+
   it('挑得太細而那一段太長時，把系統說的原因原樣轉達', async () => {
     const wrapper = await mountPanel(buildProxy({
       findKCandleSeries: vi.fn()
@@ -183,6 +270,23 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     // 那句話同時說出兩條出路，畫面一個字都不改寫。
     expect(wrapper.get('[data-testid="rejected-alert"]').text())
       .toContain('也可以改用更長的一種')
+  })
+
+  it('改看短一點的一段之後，那句拒絕也會消失', async () => {
+    const wrapper = await mountPanel(buildProxy({
+      findKCandleSeries: vi.fn()
+        .mockResolvedValueOnce(seriesOf([buildKCandle()]))
+        .mockRejectedValueOnce(new BackendRequestRejectedError('時間區間過大'))
+        .mockResolvedValue(seriesOf([buildKCandle()], '1m')),
+    }))
+    await chooseCoarseness(wrapper, '1m')
+
+    // 系統說的兩條出路都要走得通：這是「縮小區間」那一條。
+    await wrapper.findAll('[data-testid="range-preset-button"]')[0]?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="rejected-alert"]').exists()).toBe(false)
+    expect(chosenCoarseness(wrapper)).toBe('1m')
   })
 
   it('改用更粗的一種之後，那句拒絕就消失', async () => {

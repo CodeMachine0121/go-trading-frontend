@@ -392,10 +392,14 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   function recalculateForRange(chart: KCandleChartDto, range: ChartVisibleRangeVo) {
     const previous = current.value
     const wasNeverSet = previous === null
-    // 同一檔的同一段：算出來必然一樣。換了交易標的就不算同一段——
-    // 換標的時使用者正在看的那一段不變，光比對時間會把它誤判成沒事發生。
+    // 同一檔、同一段、同一種粗細：算出來必然一樣。三個都要比——
+    // 換標的與換粗細時**使用者正在看的那一段都不變**，光比對時間會把它們
+    // 誤判成沒事發生，於是圖換了一批 K 線、線還是上一批算出來的。
+    // 粗細比的是**系統實際用的那一個**，不是使用者挑的那一個：算式吃的是
+    // 那一批 K 線，兩次挑法不同而系統給了同一種粗細時，答案本來就一樣。
     const isUnchanged = range.isSameAs(previous?.range ?? null)
       && chart.symbol === previous?.chart.symbol
+      && chart.interval.value === previous?.chart.interval.value
 
     current.value = { chart, range }
 
