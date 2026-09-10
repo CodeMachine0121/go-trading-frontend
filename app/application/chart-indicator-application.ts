@@ -3,7 +3,7 @@ import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
 
@@ -11,12 +11,12 @@ import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-par
 export class ChartIndicatorApplication {
   constructor(private readonly chartIndicatorService: ChartIndicatorService) {}
 
-  prepareAppliedIndicator(strategy: StrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
+  prepareAppliedIndicator(strategy: ChartApplicableStrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
     return this.chartIndicatorService.prepareAppliedIndicator(strategy, appliedIndicatorId)
   }
 
   restoreAppliedIndicators(
-    strategies: readonly StrategyDto[], lastAppliedIndicatorId: number,
+    strategies: readonly ChartApplicableStrategyDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
     return this.chartIndicatorService.restoreAppliedIndicators(strategies, lastAppliedIndicatorId)
   }

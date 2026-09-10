@@ -7,7 +7,7 @@ import { IndicatorCalculationService } from '~/domain/service/indicator-calculat
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyMarketplaceApplication, buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -55,6 +55,7 @@ function mountPanel(strategyApplication = buildStrategyApplication()) {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
       strategyApplication,
+      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
       timeZone: buildTimeZone(),
@@ -178,10 +179,10 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
   it('載入另一支策略時告訴回測那一側工作區被換掉了', async () => {
     // 換了一份算式，上一次那次重演就與畫面上這一份無關了。
     const strategyApplication = buildStrategyApplication({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '另一支', {
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '另一支', {
         scriptBody: '另一段算式',
         parameters: [new StrategyParameterDto('period', 'lookbackCount', 20)],
-      })]),
+      })], adopted: [] }),
     })
     const wrapper = mountPanel(strategyApplication)
     await settle()

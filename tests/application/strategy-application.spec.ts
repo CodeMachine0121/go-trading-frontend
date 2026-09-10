@@ -7,6 +7,7 @@ import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-res
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
+import { buildAdoptedStrategy } from '../fixtures/strategy-application'
 import { StrategyFieldError } from '~/domain/errors/strategy-field-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
@@ -14,10 +15,12 @@ import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
 function buildApplication(strategyProxy: Partial<IStrategyProxy>): StrategyApplication {
   return new StrategyApplication(new StrategyService({
-    listStrategies: vi.fn(),
+    listAvailableStrategies: vi.fn(),
     createStrategy: vi.fn(),
     updateStrategy: vi.fn(),
     deleteStrategy: vi.fn(),
+    publishStrategy: vi.fn(),
+    withdrawStrategy: vi.fn(),
     ...strategyProxy,
   }))
 }
@@ -27,7 +30,7 @@ function wholeScriptOf(scriptBody: string): string {
 }
 
 function storedStrategy(id: number, name: string, scriptBody = 'sum := 0.0'): Strategy {
-  return new Strategy(id, name, wholeScriptOf(scriptBody), 'floatList')
+  return new Strategy(id, name, '', wholeScriptOf(scriptBody), 'floatList')
 }
 
 const CALCULATE_BODY = [
@@ -43,17 +46,18 @@ function contentOf(scriptBody = CALCULATE_BODY): StrategyContentDto {
 describe('StrategyApplication.listStrategies', () => {
   it('把每一支收成畫面看得懂的形狀，順序原樣沿用後端給的', async () => {
     const strategyApplication = buildApplication({
-      listStrategies: vi.fn().mockResolvedValue([
-        storedStrategy(1, '二十根均線'), storedStrategy(2, '六十根均線'),
-      ]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [storedStrategy(1, '二十根均線'), storedStrategy(2, '六十根均線')],
+        adopted: [],
+      }),
     })
 
-    const strategies = await strategyApplication.listStrategies()
+    const available = await strategyApplication.listAvailableStrategies()
 
-    expect(strategies.map(strategy => strategy.name)).toEqual(['二十根均線', '六十根均線'])
-    expect(strategies[0]?.content.scriptBody).toBe('sum := 0.0')
-    expect(strategies[0]?.content.resultType).toBe('floatList')
-    expect(strategies[0]?.frameRecognised).toBe(true)
+    expect(available.mine.map(strategy => strategy.name)).toEqual(['二十根均線', '六十根均線'])
+    expect(available.mine[0]?.content.scriptBody).toBe('sum := 0.0')
+    expect(available.mine[0]?.content.resultType).toBe('floatList')
+    expect(available.mine[0]?.frameRecognised).toBe(true)
   })
 
   it('讀回來的策略身上沒有取數計畫可讀', async () => {
@@ -64,21 +68,59 @@ describe('StrategyApplication.listStrategies', () => {
     // **旋鈕在清單裡，而它不是取數計畫。** 判準沒有變：「快線是二十期」換到哪一檔、
     // 哪種粗細去算都一樣，它是這支算法的一部分；而「多粗、多長」每一次都可能不同。
     const strategyApplication = buildApplication({
-      listStrategies: vi.fn().mockResolvedValue([storedStrategy(1, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [storedStrategy(1, '二十根均線')],
+        adopted: [],
+      }),
     })
 
-    const strategies = await strategyApplication.listStrategies()
+    const available = await strategyApplication.listAvailableStrategies()
 
-    expect(Object.keys(strategies[0]?.content ?? {}))
+    expect(Object.keys(available.mine[0]?.content ?? {}))
       .toEqual(['scriptBody', 'resultType', 'parameters'])
   })
 
-  it('一支都沒有是空清單，不是錯誤', async () => {
+  it('兩段都空是答案，不是錯誤', async () => {
     const strategyApplication = buildApplication({
-      listStrategies: vi.fn().mockResolvedValue([]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
     })
 
-    await expect(strategyApplication.listStrategies()).resolves.toEqual([])
+    const available = await strategyApplication.listAvailableStrategies()
+
+    expect(available.mine).toEqual([])
+    expect(available.adopted).toEqual([])
+  })
+
+  it('加入來的那一段收成沒有算式的形狀', async () => {
+    // 這是這個切片最重要的一句話：分享出去的是一支策略的用處，不是它的作法。
+    // 它在型別上就成立——那一段的每一筆根本沒有算式可以讀。
+    const strategyApplication = buildApplication({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [],
+        adopted: [buildAdoptedStrategy(9, '別人的', { description: '抓短線轉折' })],
+      }),
+    })
+
+    const available = await strategyApplication.listAvailableStrategies()
+
+    expect(available.adopted).toHaveLength(1)
+    expect(available.adopted[0]?.name).toBe('別人的')
+    expect(available.adopted[0]?.description).toBe('抓短線轉折')
+    expect(available.adopted[0]?.publisherEmail).toBe('someone@example.com')
+    expect(available.adopted[0]).not.toHaveProperty('content')
+    expect(available.adopted[0]).not.toHaveProperty('script')
+  })
+
+  it('把自己的那一支放上市集或收回來', async () => {
+    const publishStrategy = vi.fn().mockResolvedValue(undefined)
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const strategyApplication = buildApplication({ publishStrategy, withdrawStrategy })
+
+    await strategyApplication.publishStrategy(7)
+    await strategyApplication.withdrawStrategy(7)
+
+    expect(publishStrategy).toHaveBeenCalledWith(7)
+    expect(withdrawStrategy).toHaveBeenCalledWith(7)
   })
 })
 

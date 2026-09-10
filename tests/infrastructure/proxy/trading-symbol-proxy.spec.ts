@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
+import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -28,9 +29,9 @@ describe('TradingSymbolProxy', () => {
     const fetchMock = vi.fn().mockResolvedValue([])
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+    await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/trading-symbols', {})
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/trading-symbols', { headers: SIGNED_IN_HEADERS })
   })
 
   it('把回來的原始資料正規化成交易標的，順序原樣保留', async () => {
@@ -38,7 +39,7 @@ describe('TradingSymbolProxy', () => {
       { symbol: 'BTCUSDT' }, { symbol: 'ETHUSDT' }, { symbol: 'SOLUSDT' },
     ]))
 
-    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
     expect(tradingSymbols.map(tradingSymbol => tradingSymbol.symbol))
       .toEqual(['BTCUSDT', 'ETHUSDT', 'SOLUSDT'])
@@ -47,20 +48,20 @@ describe('TradingSymbolProxy', () => {
   it('後端一檔都沒有時是空的一批，不是錯誤', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
 
-    await expect(new TradingSymbolProxy(BASE_URL).findTradingSymbols()).resolves.toEqual([])
+    await expect(new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()).resolves.toEqual([])
   })
 
   it('連不上後端時，是「連不上」而不是被拒絕', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError()))
 
-    await expect(new TradingSymbolProxy(BASE_URL).findTradingSymbols())
+    await expect(new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols())
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 
   it('後端有回應但出錯時，把原因包成可轉達的錯誤', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(400)))
 
-    await expect(new TradingSymbolProxy(BASE_URL).findTradingSymbols())
+    await expect(new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols())
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 })
@@ -77,7 +78,7 @@ describe('TradingSymbolProxy 讀後端隨標的送來的四件事', () => {
       },
     ]))
 
-    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
     expect(tradingSymbols[0]!.market.value).toBe('taiwanStock')
     expect(tradingSymbols[0]!.market.label).toBe('台股')
@@ -96,7 +97,7 @@ describe('TradingSymbolProxy 讀後端隨標的送來的四件事', () => {
       },
     ]))
 
-    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
     expect(tradingSymbols[0]!.isWatched).toBe(false)
     expect(tradingSymbols[0]!.isWithinTradingSession).toBe(false)
@@ -115,7 +116,7 @@ describe('TradingSymbolProxy 讀後端隨標的送來的四件事', () => {
       },
     ]))
 
-    const tradingSymbols = await new TradingSymbolProxy(BASE_URL).findTradingSymbols()
+    const tradingSymbols = await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
     expect(tradingSymbols.map(tradingSymbol => tradingSymbol.symbol)).toEqual(['AAPL'])
     expect(tradingSymbols[0]!.market.value).toBe('crypto')

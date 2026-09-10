@@ -5,7 +5,7 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
@@ -25,7 +25,7 @@ import AppliedIndicatorDialog from '~/components/molecules/AppliedIndicatorDialo
  */
 const { selectableStrategies, appliedIndicatorRows, colorOptions } = defineProps<{
   /** 還可以挑的策略。**已經在圖上的那幾支仍然在裡面**——同一支可以擺好幾次。 */
-  selectableStrategies: readonly StrategyDto[]
+  selectableStrategies: readonly ChartApplicableStrategyDto[]
   appliedIndicatorRows: readonly AppliedIndicatorRowDto[]
   colorOptions: readonly ChartLineColorOptionDto[]
   /** 還沒上圖、正在調的那一筆。沒有就是 null。 */
@@ -35,7 +35,7 @@ const { selectableStrategies, appliedIndicatorRows, colorOptions } = defineProps
 }>()
 
 const emit = defineEmits<{
-  apply: [strategy: StrategyDto]
+  apply: [strategy: ChartApplicableStrategyDto]
   changePendingParameterValue: [parameterName: string, value: number]
   confirmPending: []
   cancelPending: []

@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WatchlistProxy } from '~/infrastructure/proxy/watchlist-proxy'
+import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import { WatchlistEntryDto } from '~/domain/models/dto/watchlist-entry-dto'
 import { TradingSymbolNotInMarketError } from '~/domain/errors/trading-symbol-not-in-market-error'
 import { MarketDataSourceUnavailableError } from '~/domain/errors/market-data-source-unavailable-error'
@@ -32,9 +33,10 @@ describe('WatchlistProxy 加一檔進來', () => {
     const fetchMock = vi.fn().mockResolvedValue(null)
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new WatchlistProxy(BASE_URL).addToWatchlist(ENTRY)
+    await new WatchlistProxy(BASE_URL, signedInSessionStorage()).addToWatchlist(ENTRY)
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/watchlist', {
+      headers: SIGNED_IN_HEADERS,
       method: 'POST',
       body: { symbol: '2330', market: 'taiwanStock' },
     })
@@ -43,7 +45,7 @@ describe('WatchlistProxy 加一檔進來', () => {
   it('後端讀懂了請求卻拒絕，代表這個代號在那個市場找不到', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(400, '找不到這個代號')))
 
-    await expect(new WatchlistProxy(BASE_URL).addToWatchlist(ENTRY))
+    await expect(new WatchlistProxy(BASE_URL, signedInSessionStorage()).addToWatchlist(ENTRY))
       .rejects.toBeInstanceOf(TradingSymbolNotInMarketError)
   })
 
@@ -51,7 +53,7 @@ describe('WatchlistProxy 加一檔進來', () => {
     // 使用者的下一步完全相反：一個改輸入，一個等一下再試。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(502, '問不到台股')))
 
-    await expect(new WatchlistProxy(BASE_URL).addToWatchlist(ENTRY))
+    await expect(new WatchlistProxy(BASE_URL, signedInSessionStorage()).addToWatchlist(ENTRY))
       .rejects.toBeInstanceOf(MarketDataSourceUnavailableError)
   })
 
@@ -59,14 +61,14 @@ describe('WatchlistProxy 加一檔進來', () => {
     // 說錯的話，會把使用者的注意力引到錯的地方。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(500, '壞了')))
 
-    await expect(new WatchlistProxy(BASE_URL).addToWatchlist(ENTRY))
+    await expect(new WatchlistProxy(BASE_URL, signedInSessionStorage()).addToWatchlist(ENTRY))
       .rejects.toBeInstanceOf(BackendServerError)
   })
 
   it('連不上後端仍然是連不上', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError()))
 
-    await expect(new WatchlistProxy(BASE_URL).addToWatchlist(ENTRY))
+    await expect(new WatchlistProxy(BASE_URL, signedInSessionStorage()).addToWatchlist(ENTRY))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -76,9 +78,9 @@ describe('WatchlistProxy 把一檔拿掉', () => {
     const fetchMock = vi.fn().mockResolvedValue(null)
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new WatchlistProxy(BASE_URL).removeFromWatchlist('2330')
+    await new WatchlistProxy(BASE_URL, signedInSessionStorage()).removeFromWatchlist('2330')
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8080/watchlist/2330', { method: 'DELETE' })
+      'http://localhost:8080/watchlist/2330', { headers: SIGNED_IN_HEADERS, method: 'DELETE' })
   })
 })

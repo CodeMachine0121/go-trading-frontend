@@ -1,3 +1,4 @@
+import { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 
 /** DTO：一支策略離開 domain 的唯一形狀。 */
@@ -5,6 +6,8 @@ export class StrategyDto {
   constructor(
     public readonly id: number,
     public readonly name: string,
+    /** 擁有者寫的說明。沒寫時是空字串，畫面自行決定要不要顯示一句預設的話。 */
+    public readonly description: string,
     public readonly content: StrategyContentDto,
     /**
      * 這一支的算式認不認得出外框。認不出來時 `content.scriptBody` 是整段原文，
@@ -17,5 +20,25 @@ export class StrategyDto {
      * 使用者不會誤以為是自己哪裡設定錯了。
      */
     public readonly drawableOnChart: boolean,
+    /**
+     * 這一支在不在市集上。畫面據此決定那一列顯示的是「發佈」還是「收回」，
+     * 並標示它已經分享出去了。
+     */
+    public readonly published: boolean,
   ) {}
+
+  /**
+   * 這一支要套到圖上時的樣子。轉換寫在來源身上，而不是讓圖表那一端把整支策略拆開——
+   * 圖表要的是它需要的那幾樣，不是「一支策略去掉幾樣」。
+   */
+  toChartApplicable(): ChartApplicableStrategyDto {
+    return new ChartApplicableStrategyDto(
+      this.id,
+      this.name,
+      this.content.resultType,
+      this.content.parameters,
+      this.drawableOnChart,
+      false,
+    )
+  }
 }

@@ -6,7 +6,7 @@ import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import { AppliedIndicatorLineDto, AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 
@@ -186,7 +186,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 旋鈕讓那個前提不成立了：二十期與六十期是兩條不同的線，只是恰好共用同一段算法。
    * 規則沒有錯，是它的前提消失了。
    */
-  function selectableStrategies(strategies: readonly StrategyDto[]): StrategyDto[] {
+  function selectableStrategies(strategies: readonly ChartApplicableStrategyDto[]): ChartApplicableStrategyDto[] {
     return [...strategies]
   }
 
@@ -202,7 +202,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    *
    * **還原不寫回留存**：留存的內容一個字都沒有變，寫它只是把剛讀到的東西寫回去。
    */
-  async function restoreAppliedIndicators(strategies: readonly StrategyDto[]) {
+  async function restoreAppliedIndicators(strategies: readonly ChartApplicableStrategyDto[]) {
     const restored = chartIndicatorApplication.restoreAppliedIndicators(
       strategies, lastAppliedIndicatorId)
     if (restored.length === 0) {
@@ -237,7 +237,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * **這個判斷不是畫面的事**，而是那一筆自己答得出來的：多數策略沒有旋鈕，
    * 為了少數有旋鈕的讓所有策略都多一次確認，是拿多數人的每一次操作去補貼少數情況。
    */
-  async function applyIndicator(strategy: StrategyDto) {
+  async function applyIndicator(strategy: ChartApplicableStrategyDto) {
     lastAppliedIndicatorId += 1
     const prepared = chartIndicatorApplication.prepareAppliedIndicator(
       strategy, lastAppliedIndicatorId)

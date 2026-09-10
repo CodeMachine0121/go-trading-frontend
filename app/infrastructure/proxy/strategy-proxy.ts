@@ -1,6 +1,7 @@
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import type { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
 import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
+import { PublishedStrategy } from '~/domain/models/entities/published-strategy'
 import { Strategy } from '~/domain/models/entities/strategy'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
@@ -28,17 +29,41 @@ type StrategyParameterWire = {
 type StrategyWire = {
   id: number
   name: string
+  /** 舊版後端不給這一項，所以它是選擇性的——讀不到就當成沒寫說明。 */
+  description?: string
   script: string
   resultType: string
   parameters?: StrategyParameterWire[] | null
+  published?: boolean
+}
+
+/** 市集那一段送來的一張卡。**它沒有 script**——那不是漏了，是那一欄不存在。 */
+type PublishedStrategyWire = {
+  id: number
+  name: string
+  description?: string
+  resultType: string
+  publisherEmail: string
+  publishedAt: string
+  parameters?: StrategyParameterWire[] | null
+}
+
+/** 日常那一份送來的兩段。 */
+type AvailableStrategiesWire = {
+  mine?: StrategyWire[] | null
+  adopted?: PublishedStrategyWire[] | null
 }
 
 /** Proxy：打策略端點，並把「名稱被佔用」與「找不到那一支」從一般的拒絕裡分出來。 */
 export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
-  async listStrategies(): Promise<Strategy[]> {
-    const strategyWires = await this.requestBackend<StrategyWire[]>(STRATEGIES_ENDPOINT)
+  async listAvailableStrategies(): Promise<{ mine: Strategy[], adopted: PublishedStrategy[] }> {
+    const availableWire = await this.requestBackend<AvailableStrategiesWire>(STRATEGIES_ENDPOINT)
 
-    return strategyWires.map(strategyWire => this.toStrategy(strategyWire))
+    return {
+      mine: (availableWire.mine ?? []).map(strategyWire => this.toStrategy(strategyWire)),
+      adopted: (availableWire.adopted ?? []).map(
+        publishedWire => this.toPublishedStrategy(publishedWire)),
+    }
   }
 
   async createStrategy(strategyWriteDomain: StrategyWriteDomain): Promise<Strategy> {
@@ -51,9 +76,31 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
       `${STRATEGIES_ENDPOINT}/${strategyWriteDomain.id}`, 'PUT', strategyWriteDomain)
   }
 
+  async publishStrategy(id: number): Promise<void> {
+    await this.changePublication(id, 'POST')
+  }
+
+  async withdrawStrategy(id: number): Promise<void> {
+    await this.changePublication(id, 'DELETE')
+  }
+
   async deleteStrategy(id: number): Promise<void> {
     try {
       await this.requestBackend<null>(`${STRATEGIES_ENDPOINT}/${id}`, { method: 'DELETE' })
+    }
+    catch (error: unknown) {
+      throw this.strategyFailureOf(error)
+    }
+  }
+
+  /**
+   * 放上市集與從市集收回打的是同一條路徑，只差在方法——它們說的是同一件事的兩個方向
+   * （「這一支在市集上」成立或不成立），所以它們的失敗翻譯也一定相同。
+   */
+  private async changePublication(id: number, method: 'POST' | 'DELETE'): Promise<void> {
+    try {
+      await this.requestBackend<null>(
+        `${STRATEGIES_ENDPOINT}/${id}/publication`, { method })
     }
     catch (error: unknown) {
       throw this.strategyFailureOf(error)
@@ -74,6 +121,7 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
         method,
         body: {
           name: strategyWriteDomain.name,
+          description: strategyWriteDomain.description,
           script: strategyWriteDomain.script,
           resultType: strategyWriteDomain.resultType,
           parameters: strategyWriteDomain.parameters.map(parameter => ({
@@ -112,10 +160,27 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
     return error
   }
 
+  /**
+   * 市集那一段收乾淨。它與自己的那一段共用旋鈕的收法，卻**沒有算式可以收**——
+   * 那正是它與自己的策略唯一的差別，也是唯一重要的差別。
+   */
+  private toPublishedStrategy(publishedWire: PublishedStrategyWire): PublishedStrategy {
+    return new PublishedStrategy(
+      publishedWire.id,
+      publishedWire.name,
+      publishedWire.description ?? '',
+      publishedWire.resultType,
+      publishedWire.publisherEmail,
+      new Date(publishedWire.publishedAt),
+      this.toParameterDtos(publishedWire.parameters),
+    )
+  }
+
   private toStrategy(strategyWire: StrategyWire): Strategy {
     return new Strategy(
       strategyWire.id,
       strategyWire.name,
+      strategyWire.description ?? '',
       strategyWire.script,
       strategyWire.resultType,
       // 認得的照收，認不得的一律當成數值——系統對數值不解讀任何意思，
@@ -123,10 +188,21 @@ export class StrategyProxy extends BackendApiProxy implements IStrategyProxy {
       //
       // 「認得的」問的是那一份清單，不是一串寫死的比較。這裡曾經是後者，
       // 於是多一種種類的時候它被漏掉，而存好的東西讀回來就換了一種種類。
-      (strategyWire.parameters ?? []).map(parameter => new StrategyParameterDto(
-        parameter.name,
-        STRATEGY_PARAMETER_KINDS.find(kind => kind === parameter.kind) ?? 'number',
-        parameter.defaultValue)),
+      this.toParameterDtos(strategyWire.parameters),
+      strategyWire.published ?? false,
     )
+  }
+
+  /**
+   * 旋鈕收乾淨。自己的那一段與市集那一段共用它——旋鈕的收法沒有理由分成兩份，
+   * 而分成兩份就會有一份先學會新的種類。
+   */
+  private toParameterDtos(
+    parameterWires: StrategyParameterWire[] | null | undefined,
+  ): StrategyParameterDto[] {
+    return (parameterWires ?? []).map(parameter => new StrategyParameterDto(
+      parameter.name,
+      STRATEGY_PARAMETER_KINDS.find(kind => kind === parameter.kind) ?? 'number',
+      parameter.defaultValue))
   }
 }

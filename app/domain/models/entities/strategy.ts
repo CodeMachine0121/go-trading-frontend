@@ -14,10 +14,14 @@ export class Strategy {
   constructor(
     public readonly id: number,
     public readonly name: string,
+    /** 擁有者用自己的話寫的一段。沒寫時是空字串——分享出去之後，這是別人唯一的介紹。 */
+    public readonly description: string,
     public readonly script: string,
     public readonly resultType: string,
     /** 這支算式自己的旋鈕，與後端存的一模一樣。 */
     public readonly parameters: readonly StrategyParameterDto[] = [],
+    /** 這一支在不在市集上。**只有自己的策略答得出這個問題**——別人的那些一律在上面。 */
+    public readonly published: boolean = false,
   ) {}
 
   toDomain(): StrategyDomain {

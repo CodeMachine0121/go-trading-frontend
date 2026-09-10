@@ -5,11 +5,18 @@ import { IndicatorCalculationApplication } from '~/application/indicator-calcula
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
+import type { IStrategyMarketplaceProxy } from '~/domain/interface/i-strategy-marketplace-proxy'
 import { StrategyNameConflictError } from '~/domain/errors/strategy-name-conflict-error'
 import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import {
+  buildStrategyMarketplaceApplication,
+  buildStrategyApplication,
+  buildStoredStrategy,
+  buildAdoptedStrategy,
+} from '../../fixtures/strategy-application'
+import { Strategy } from '~/domain/models/entities/strategy'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -22,7 +29,10 @@ async function settle() {
   await flushPromises()
 }
 
-function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
+function mountPanel(
+  strategyProxy: Partial<IStrategyProxy> = {},
+  marketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+) {
   return mount(IndicatorCalculationPanel, {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
@@ -30,6 +40,7 @@ function mountPanel(strategyProxy: Partial<IStrategyProxy> = {}) {
           calculateIndicator: vi.fn().mockResolvedValue(
             new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
         })),
+      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(marketplaceProxy),
       strategyApplication: buildStrategyApplication(strategyProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
@@ -88,11 +99,11 @@ async function discardAndProceed(wrapper: ReturnType<typeof mountPanel>) {
 describe('指標計算畫面上的策略：挑一支來用', () => {
   it('挑一支就把它記住的算法帶進畫面', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', {
           scriptBody: 'sum := 123.0', resultType: 'boolList',
         }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
 
@@ -107,7 +118,7 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
     // 彙總刻度與要看多長跟交易標的同一類：它們是「這一次要怎麼算」。
     // 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘。
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
@@ -123,7 +134,7 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
 
   it('挑一支不會動到交易標的——策略不記交易標的', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     const symbolBefore = wrapper.get<HTMLSelectElement>('[data-testid="symbol-select"]').element.value
@@ -136,9 +147,9 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
 
   it('認不出外框的算式整段帶進來，並說出這一支不是在這裡寫出來的', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '手寫的', { rawScript: '這根本不是一段程式碼' }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
 
@@ -152,7 +163,7 @@ describe('指標計算畫面上的策略：挑一支來用', () => {
 describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () => {
   it('編輯區還沒動過時直接帶入，不多問', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
 
@@ -169,10 +180,10 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
     // 該問卻不問會弄丟使用者寫的東西；不該問卻問，只會讓他學會無視那個對話框，
     // 而它在真正要緊的時候必須被讀。
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線'),
         buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -186,7 +197,7 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
   it('已經寫了東西時先問過再覆蓋', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await typeScriptBody(wrapper, '我寫到一半的東西')
@@ -199,7 +210,7 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
   it('說不要放棄時畫面完全不變', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await typeScriptBody(wrapper, '我寫到一半的東西')
@@ -213,9 +224,9 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
   it('說要放棄時才換成新挑的那一支', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
     await typeScriptBody(wrapper, '我寫到一半的東西')
@@ -230,10 +241,10 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
   it('載入了一支又改過它，再挑另一支時要問', async () => {
     // US-02 真正的主線：手上已經有一支、也已經動過它。前面幾個案例都是「還沒載入過」。
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
         buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -247,10 +258,10 @@ describe('指標計算畫面上的策略：不弄丟寫到一半的東西', () =
 
   it('載入之後一個字都沒改，再挑另一支不再問', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
         buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -267,7 +278,7 @@ describe('指標計算畫面上的策略：存回去', () => {
     const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '二十根均線'))
     const createStrategy = vi.fn()
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy,
       createStrategy,
     })
@@ -299,7 +310,7 @@ describe('指標計算畫面上的策略：存回去', () => {
     const wrapper = mountPanel({
       createStrategy,
       updateStrategy,
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(9, '新的一支')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(9, '新的一支')], adopted: [] }),
     })
     await settle()
     await typeScriptBody(wrapper, 'sum := 0.0')
@@ -324,7 +335,7 @@ describe('指標計算畫面上的策略：存回去', () => {
     const createStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(8, '二十根均線 v2'))
     const updateStrategy = vi.fn()
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       createStrategy,
       updateStrategy,
     })
@@ -346,10 +357,10 @@ describe('指標計算畫面上的策略：存回去', () => {
     // 存好了卻還說「有東西沒存」，會讓使用者每挑一支都被問一次——
     // 而那個問題的答案永遠是「放棄吧，反正已經存過了」。
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線'),
         buildStoredStrategy(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
-      ]),
+      ], adopted: [] }),
       updateStrategy: vi.fn().mockResolvedValue(
         buildStoredStrategy(7, '二十根均線', { scriptBody: '我改過的東西' })),
     })
@@ -385,7 +396,7 @@ describe('指標計算畫面上的策略：存回去', () => {
 
   it('要存回去的那一支已經不在時說找不到，畫面內容一字不動', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy: vi.fn().mockRejectedValue(new StrategyNotFoundError('找不到識別碼為 7 的策略')),
     })
     await settle()
@@ -427,7 +438,7 @@ describe('指標計算畫面上的策略：改名', () => {
 
   it('改名的框裡先放著現在的名字', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -443,7 +454,7 @@ describe('指標計算畫面上的策略：改名', () => {
     const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20'))
     const createStrategy = vi.fn()
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy,
       createStrategy,
     })
@@ -465,9 +476,9 @@ describe('指標計算畫面上的策略：改名', () => {
 
   it('改名之後畫面上顯示的就是新名字', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn()
-        .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線')])
-        .mockResolvedValue([buildStoredStrategy(7, '均線 20')]),
+      listAvailableStrategies: vi.fn()
+        .mockResolvedValueOnce({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] })
+        .mockResolvedValue({ mine: [buildStoredStrategy(7, '均線 20')], adopted: [] }),
       updateStrategy: vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20')),
     })
     await settle()
@@ -486,9 +497,9 @@ describe('指標計算畫面上的策略：改名', () => {
   it('改名不會動到這一支記著的算式', async () => {
     const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '均線 20'))
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
-      ]),
+      ], adopted: [] }),
       updateStrategy,
     })
     await settle()
@@ -507,7 +518,7 @@ describe('指標計算畫面上的策略：改名', () => {
   it('改成別人用過的名字時退回改名的對話框，不是退回另存', async () => {
     // 被丟到一個自己沒打開過的對話框，比錯誤訊息本身更讓人困惑。
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy: vi.fn().mockRejectedValue(
         new StrategyNameConflictError('策略名稱「六十根均線」已被使用')),
     })
@@ -530,7 +541,7 @@ describe('指標計算畫面上的策略：改名', () => {
   it('儲存不會順手改掉名字——那是另一個動作', async () => {
     const updateStrategy = vi.fn().mockResolvedValue(buildStoredStrategy(7, '二十根均線'))
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy,
     })
     await settle()
@@ -547,10 +558,10 @@ describe('指標計算畫面上的策略：改名', () => {
 describe('指標計算畫面上的策略：清單與刪除', () => {
   it('打開清單看得到每一支，載入之後留在同一頁', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
         buildStoredStrategy(8, '六十根均線'),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
 
@@ -568,7 +579,7 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
   it('刪除前先問過；取消就不刪', async () => {
     const deleteStrategy = vi.fn()
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       deleteStrategy,
     })
     await settle()
@@ -585,11 +596,19 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
   })
 
   it('確認刪除之後那一支就從清單上消失', async () => {
-    const listStrategies = vi.fn()
-      .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')])
-      .mockResolvedValueOnce([buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')])
-      .mockResolvedValue([buildStoredStrategy(8, '六十根均線')])
-    const wrapper = mountPanel({ listStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined) })
+    const listAvailableStrategies = vi.fn()
+      .mockResolvedValueOnce({
+        mine: [buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')],
+        adopted: [],
+      })
+      .mockResolvedValueOnce({
+        mine: [buildStoredStrategy(7, '二十根均線'), buildStoredStrategy(8, '六十根均線')],
+        adopted: [],
+      })
+      .mockResolvedValue({ mine: [buildStoredStrategy(8, '六十根均線')], adopted: [] })
+    const wrapper = mountPanel({
+      listAvailableStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined),
+    })
     await settle()
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
     await settle()
@@ -604,12 +623,15 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
   })
 
   it('刪掉別的那一支時，正在用的那一支完全不受影響', async () => {
-    const listStrategies = vi.fn()
-      .mockResolvedValue([
-        buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
-        buildStoredStrategy(8, '六十根均線'),
-      ])
-    const wrapper = mountPanel({ listStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined) })
+    const listAvailableStrategies = vi.fn()
+      .mockResolvedValue({
+        mine: [
+          buildStoredStrategy(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+          buildStoredStrategy(8, '六十根均線'),
+        ],
+        adopted: [],
+      })
+    const wrapper = mountPanel({ listAvailableStrategies, deleteStrategy: vi.fn().mockResolvedValue(undefined) })
     await settle()
     await pickStrategy(wrapper, 7)
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
@@ -627,7 +649,7 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
 
   it('刪除時連不上後端，那一支仍在清單上並說明連不上', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       deleteStrategy: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
     })
     await settle()
@@ -644,7 +666,7 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
 
   it('刪掉正在用的那一支時，編輯區留著，之後儲存變成先問名字', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       deleteStrategy: vi.fn().mockResolvedValue(undefined),
     })
     await settle()
@@ -668,7 +690,7 @@ describe('指標計算畫面上的策略：清單與刪除', () => {
 
   it('打開清單時連不上後端就說連不上，不呈現空清單', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
+      listAvailableStrategies: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
     })
     await settle()
 
@@ -703,11 +725,11 @@ describe('指標計算畫面上的策略：彙總刻度', () => {
 describe('指標計算畫面上的策略：開一份新的空白', () => {
   it('清空算式並把指標值種類帶回預設', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '二十根均線', {
           scriptBody: 'sum := 123.0', resultType: 'boolList',
         }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -738,7 +760,7 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
   it('解除與那一支的關聯——之後按儲存是問新名字，不是存回原本那一支', async () => {
     const updateStrategy = vi.fn()
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
       updateStrategy,
     })
     await settle()
@@ -829,7 +851,7 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
 
   it('取消就什麼都不動，也仍然屬於原本那一支', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await pickStrategy(wrapper, 7)
@@ -855,19 +877,20 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
   })
 
   it('一次後端請求都不發，清單一支不增不減', async () => {
-    const listStrategies = vi.fn().mockResolvedValue([
-      buildStoredStrategy(1, '甲'), buildStoredStrategy(2, '乙'), buildStoredStrategy(3, '丙'),
-    ])
+    const listAvailableStrategies = vi.fn().mockResolvedValue({
+      mine: [buildStoredStrategy(1, '甲'), buildStoredStrategy(2, '乙'), buildStoredStrategy(3, '丙')],
+      adopted: [],
+    })
     const createStrategy = vi.fn()
     const updateStrategy = vi.fn()
     const deleteStrategy = vi.fn()
-    const wrapper = mountPanel({ listStrategies, createStrategy, updateStrategy, deleteStrategy })
+    const wrapper = mountPanel({ listAvailableStrategies, createStrategy, updateStrategy, deleteStrategy })
     await settle()
-    const listCallsBefore = listStrategies.mock.calls.length
+    const listCallsBefore = listAvailableStrategies.mock.calls.length
 
     await startBlankStrategy(wrapper)
 
-    expect(listStrategies.mock.calls).toHaveLength(listCallsBefore)
+    expect(listAvailableStrategies.mock.calls).toHaveLength(listCallsBefore)
     expect(createStrategy).not.toHaveBeenCalled()
     expect(updateStrategy).not.toHaveBeenCalled()
     expect(deleteStrategy).not.toHaveBeenCalled()
@@ -876,7 +899,7 @@ describe('指標計算畫面上的策略：開一份新的空白', () => {
 
   it('後端連不上也照樣開得起來', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockRejectedValue(new BackendUnreachableError('/strategies')),
+      listAvailableStrategies: vi.fn().mockRejectedValue(new BackendUnreachableError('/strategies')),
     })
     await settle()
     await typeScriptBody(wrapper, '我寫到一半的東西')
@@ -915,11 +938,11 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
 
   it('挑一支就把它記住的參數一起帶進畫面', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategy(7, '布林通道', {
           parameters: [new StrategyParameterDto('期數', 'lookbackCount', 50)],
         }),
-      ]),
+      ], adopted: [] }),
     })
     await settle()
 
@@ -935,7 +958,7 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
 
   it('挑一支沒有參數的策略，畫面上原本那幾格跟著清掉', async () => {
     const wrapper = mountPanel({
-      listStrategies: vi.fn().mockResolvedValue([buildStoredStrategy(7, '二十根均線')]),
+      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] }),
     })
     await settle()
     await addParameter(wrapper, '期數', '50')
@@ -963,3 +986,231 @@ describe('指標計算畫面上的策略：參數是策略內容', () => {
     ])
   })
 })
+
+describe('指標計算畫面上的策略：加入來的那些', () => {
+  it('挑加入來的那一支不會載入編輯器，而是說明它能做什麼', async () => {
+    // 它沒有算式可以載。把編輯器變成空的會讓人以為那支策略壞了，
+    // 所以挑它時就明說它是用來套用的。
+    const wrapper = await mountPanelWithAdopted()
+    const scriptBefore = scriptBodyText(wrapper)
+
+    await pickStrategy(wrapper, 9)
+
+    expect(scriptBodyText(wrapper)).toBe(scriptBefore)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('看不到它的算式')
+  })
+
+  it('挑策略那一排看得到兩段', async () => {
+    const wrapper = await mountPanelWithAdopted()
+
+    const options = wrapper.findAll('[data-testid="strategy-picker-select"] option')
+      .map(option => option.text())
+
+    expect(options).toContain('我的')
+    expect(options).toContain('別人的')
+  })
+
+  it('把加入來的那一支從清單移除', async () => {
+    const abandonStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithAdopted({}, { abandonStrategy })
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await wrapper.get('[data-testid="strategy-library-abandon-9"]').trigger('click')
+    await settle()
+
+    expect(abandonStrategy).toHaveBeenCalledWith(9)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('還在市集上')
+  })
+})
+
+describe('指標計算畫面上的策略：分享與收回', () => {
+  it('分享的是眼前那一支，不必先打開清單', async () => {
+    // 想分享的幾乎總是剛調對、剛存好的那一支。要為它多開一個對話框、
+    // 在一排列裡再找一次自己，是一段不必要的路。
+    const publishStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(publishStrategy).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('分享到市集')
+  })
+
+  it('分享一支不先問——做錯了收回就好，中間沒有人失去東西', async () => {
+    const publishStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy,
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(publishStrategy).toHaveBeenCalledOnce()
+    expect(wrapper.text()).not.toContain('都會失去它')
+  })
+
+  it('分享完不會彈出策略清單——那是使用者沒有要求的東西', async () => {
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+      publishStrategy: vi.fn().mockResolvedValue(undefined),
+    })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="share-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.find('[data-testid="strategy-library-row"]').exists()).toBe(false)
+  })
+
+  it('沒有使用中的那一支時按不下去——與「重新命名」同一條規則', async () => {
+    // 兩件事都需要先有一支。給一顆按下去只會撞牆的按鈕，比禁用它更糟。
+    const wrapper = mountPanel({
+      listAvailableStrategies: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategy(7, '二十根均線')], adopted: [],
+      }),
+    })
+    await settle()
+
+    expect(wrapper.get('[data-testid="share-strategy-button"]').attributes('disabled'))
+      .toBeDefined()
+  })
+
+  it('分享過的那一支，眼前那顆變成「收回」', async () => {
+    // 同一個位置的兩個方向。兩顆並排會有一顆永遠按不動，而看的人得自己判斷是哪一顆。
+    const wrapper = await mountPanelWithPublished()
+    await pickStrategy(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="share-strategy-button"]').exists()).toBe(false)
+  })
+
+  it('收回要先問，而且說清楚後果', async () => {
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(withdrawStrategy).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('都會失去它')
+  })
+
+  it('確認之後才真的收回，而且那顆按鈕換回「分享」', async () => {
+    // 收回之後清單要重讀一次，否則那顆還顯示「收回」，看的人只會再按一次。
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    // 掛起時讀一次，收回之後才是第二次——第二次起它不再是分享狀態。
+    const listAvailableStrategies = vi.fn()
+      .mockResolvedValueOnce({ mine: [publishedStrategyRow()], adopted: [] })
+      .mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線')], adopted: [] })
+    const wrapper = mountPanel({ withdrawStrategy, listAvailableStrategies })
+    await settle()
+    await pickStrategy(wrapper, 7)
+
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
+    await settle()
+    await pressConfirm(wrapper, '收回')
+
+    expect(withdrawStrategy).toHaveBeenCalledWith(7)
+    expect(wrapper.find('[data-testid="share-strategy-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(false)
+  })
+
+  it('分享過的策略仍然改得動，而且改完還是分享狀態', async () => {
+    // 另一個選擇是「改了就自動下架」。那樣的話，每次微調都要記得再按一次分享，
+    // 而忘記的後果是別人手上留著一支永遠不會變好的舊版本。
+    const wrapper = await mountPanelWithPublished({
+      updateStrategy: vi.fn().mockResolvedValue(buildStoredStrategy(7, '二十根均線')),
+    })
+    await pickStrategy(wrapper, 7)
+
+    await typeScriptBody(wrapper, 'sum := 999.0')
+    await wrapper.get('[data-testid="save-strategy-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get('[data-testid="strategy-notice"]').text()).toContain('已儲存')
+    // 編輯器沒有被鎖住——分享過不代表凍結。
+    expect(scriptBodyText(wrapper)).toContain('sum := 999.0')
+  })
+
+  it('取消之後什麼都沒發生', async () => {
+    const withdrawStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithPublished({ withdrawStrategy })
+    await pickStrategy(wrapper, 7)
+    await wrapper.get('[data-testid="withdraw-strategy-button"]').trigger('click')
+    await settle()
+
+    await pressConfirm(wrapper, '取消')
+
+    expect(withdrawStrategy).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="withdraw-strategy-button"]').exists()).toBe(true)
+  })
+})
+
+/**
+ * 按下確認框裡那一顆。確認框與清單上的按鈕同時在畫面上，所以靠**字**分辨——
+ * 「收回」在清單那一列上是圖示按鈕，在確認框裡才是一顆寫著字的鈕。
+ */
+async function pressConfirm(wrapper: ReturnType<typeof mountPanel>, label: string) {
+  const buttons = wrapper.findAll('button').filter(button => button.text() === label)
+  expect(buttons.length).toBeGreaterThan(0)
+  await buttons[buttons.length - 1]!.trigger('click')
+  await settle()
+}
+
+/** 掛起一個手上有一支自己的、也加入過一支別人的畫面。 */
+async function mountPanelWithAdopted(
+  strategyProxy: Partial<IStrategyProxy> = {},
+  marketplaceProxy: Partial<IStrategyMarketplaceProxy> = {},
+) {
+  const wrapper = mountPanel({
+    listAvailableStrategies: vi.fn().mockResolvedValue({
+      mine: [buildStoredStrategy(7, '我的')],
+      adopted: [buildAdoptedStrategy(9, '別人的')],
+    }),
+    ...strategyProxy,
+  }, marketplaceProxy)
+  await settle()
+
+  return wrapper
+}
+
+/** 一支自己的策略，已經分享到市集上。 */
+function publishedStrategyRow(): Strategy {
+  const stored = buildStoredStrategy(7, '二十根均線')
+
+  return new Strategy(
+    stored.id, stored.name, stored.description, stored.script,
+    stored.resultType, stored.parameters, true)
+}
+
+/** 掛起一個手上那一支已經分享出去的畫面。 */
+async function mountPanelWithPublished(strategyProxy: Partial<IStrategyProxy> = {}) {
+  const wrapper = mountPanel({
+    listAvailableStrategies: vi.fn().mockResolvedValue({
+      mine: [publishedStrategyRow()],
+      adopted: [],
+    }),
+    ...strategyProxy,
+  })
+  await settle()
+
+  return wrapper
+}

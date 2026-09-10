@@ -1,5 +1,5 @@
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
 import type { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
@@ -23,7 +23,7 @@ export class RememberedAppliedIndicatorsDomain {
   constructor(
     private readonly rememberedAppliedIndicatorVos: readonly RememberedAppliedIndicatorVo[],
     /** **現在**還存在的那幾支策略。它是還原時唯一的真相。 */
-    private readonly strategies: readonly StrategyDto[],
+    private readonly strategies: readonly ChartApplicableStrategyDto[],
   ) {}
 
   /**
@@ -45,7 +45,7 @@ export class RememberedAppliedIndicatorsDomain {
         strategy => new AppliedIndicatorDto(
           lastAppliedIndicatorId + order + 1,
           strategy,
-          strategy.content.parameters.map(
+          strategy.parameters.map(
             declared => this.toParameter(declared, remembered.parameterValues)),
           // 收起來的那幾筆回來時仍然收著。**照樣算**（誰算不算不歸這裡管）——
           // 收起來的是那條線，而使用者按眼睛拿回它時要的是一條現在的線。
@@ -67,7 +67,7 @@ export class RememberedAppliedIndicatorsDomain {
    */
   private restorableStrategiesOf(
     rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
-  ): StrategyDto[] {
+  ): ChartApplicableStrategyDto[] {
     return this.strategies
       .filter(strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId
         && strategy.drawableOnChart)

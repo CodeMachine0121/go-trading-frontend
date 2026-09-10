@@ -1,6 +1,7 @@
 import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
 import { StrategyDraftDomain } from '~/domain/models/domains/strategy-draft-domain'
 import { StrategyWriteDomain } from '~/domain/models/domains/strategy-write-domain'
+import { AvailableStrategiesDto } from '~/domain/models/dto/available-strategies-dto'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
@@ -11,11 +12,19 @@ import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 export class StrategyService {
   constructor(private readonly strategyProxy: IStrategyProxy) {}
 
-  /** 目前留著的每一支策略。一支都沒有是空清單，不是錯誤。 */
-  async listStrategies(): Promise<StrategyDto[]> {
-    const strategies = await this.strategyProxy.listStrategies()
+  /**
+   * 日常挑策略時看得到的那一份：自己的，加上從市集加入的。兩段都空是答案，不是錯誤。
+   *
+   * 回的是兩段而不是一段混起來的清單，因為加入來的那些**沒有算式**——
+   * 混成一段就需要一個「有時候有算式」的型別，而那正是這個功能要消滅的東西。
+   */
+  async listAvailableStrategies(): Promise<AvailableStrategiesDto> {
+    const available = await this.strategyProxy.listAvailableStrategies()
 
-    return strategies.map(strategy => strategy.toDomain().toDto())
+    return new AvailableStrategiesDto(
+      available.mine.map(strategy => strategy.toDomain().toDto()),
+      available.adopted.map(published => published.toDomain().toDto()),
+    )
   }
 
   /**
@@ -35,6 +44,19 @@ export class StrategyService {
 
   async deleteStrategy(id: number): Promise<void> {
     return this.strategyProxy.deleteStrategy(id)
+  }
+
+  /** 把自己的那一支放上市集。已經在上面的再放一次不算失敗。 */
+  async publishStrategy(id: number): Promise<void> {
+    return this.strategyProxy.publishStrategy(id)
+  }
+
+  /**
+   * 把自己的那一支從市集收回。所有加入過它的人也隨之失去它——
+   * 這件事的份量在畫面上以一次確認呈現，而不是靠這裡多說什麼。
+   */
+  async withdrawStrategy(id: number): Promise<void> {
+    return this.strategyProxy.withdrawStrategy(id)
   }
 
   /**

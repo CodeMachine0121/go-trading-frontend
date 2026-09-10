@@ -30,6 +30,9 @@ import { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
+import { StrategyMarketplaceProxy } from '~/infrastructure/proxy/strategy-marketplace-proxy'
+import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
+import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
@@ -58,44 +61,83 @@ export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig()
   const backendBaseUrl = runtimeConfig.public.backendBaseUrl
 
+  // 記著這台瀏覽器手上那一段登入的，只此一份：每一發請求都從它取得身分，
+  // 而被登出時也是它先被清掉。兩份的話，其中一份會在某個時刻是舊的答案。
+  const sessionStorageProxy = new SessionStorageProxy()
+
+  /**
+   * 被登出時要做的事。
+   *
+   * 它在這裡只是**接線**：那件事本身住在「現在是誰在用」那一份共用狀態旁邊，因為它要清掉
+   * 的正是那一份。發請求的那一層不該懂得導頁，而每一個畫面各自處理這件事，等於同一段規則
+   * 寫十遍——其中一遍遲早會把「請重新登入」顯示成一般的紅字，然後使用者會去修一份從來
+   * 沒錯的請求。
+   */
+  const onSignedOut = () => {
+    void useUserSession().signOutBecauseSessionExpired()
+  }
+
+  /**
+   * 被擋下來時先試著把這一段救回來。
+   *
+   * 它跟上面那一件事是**同一個決定的兩半**：登入憑證只活十五分鐘，續用憑證活三十天，
+   * 所以「被回 401」絕大多數時候只是過期，不是這個人不算數了。救得回來就重發那一發，
+   * 救不回來才走上面那條路。
+   *
+   * 同樣只是接線：怎麼救住在那一份共用狀態旁邊，因為它換到的新憑證要更新的正是那一份，
+   * 而「同時只換一次」也只有在那裡才守得住——每個 proxy 各記一次，九個 proxy 就會
+   * 同時換九次，而續用憑證用過就失效。
+   */
+  const recoverSession = () => useUserSession().recoverExpiredSession()
+
   const backendHealthApplication = new BackendHealthApplication(
-    new BackendHealthService(new BackendHealthProxy(backendBaseUrl)),
+    new BackendHealthService(new BackendHealthProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   const kCandleApplication = new KCandleApplication(
-    new KCandleService(new KCandleProxy(backendBaseUrl)),
+    new KCandleService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   const kCandleChartApplication = new KCandleChartApplication(
-    new KCandleChartService(new KCandleProxy(backendBaseUrl)),
+    new KCandleChartService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   const tradingSymbolApplication = new TradingSymbolApplication(
-    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl)),
+    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 讀走的是可查交易標的那一份——觀察清單是它的子集，多開一條讀取的路
   // 只會養出兩份會漂移的答案；寫入才是它自己的。
   const watchlistApplication = new WatchlistApplication(
     new WatchlistService(
-      new TradingSymbolProxy(backendBaseUrl),
-      new WatchlistProxy(backendBaseUrl),
+      new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
+      new WatchlistProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
     ),
   )
 
   const indicatorCalculationApplication = new IndicatorCalculationApplication(
-    new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl)),
+    new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   const strategyApplication = new StrategyApplication(
-    new StrategyService(new StrategyProxy(backendBaseUrl)),
+    new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  )
+
+  // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略那一條：
+  // 那一條回答「我的東西」，這一條回答「外面有什麼」。市集日後長出搜尋、分類或使用次數時，
+  // 長的是這一條，而日常挑策略那條路一行都不會動。
+  const strategyMarketplaceApplication = new StrategyMarketplaceApplication(
+    new StrategyMarketplaceService(
+      new StrategyMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    // 它也要問「哪幾支是我的、哪幾支我收下過」，而那只有自己的清單答得出來。
+    new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 重演一支策略是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
   // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
   // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
   const backtestApplication = new BacktestApplication(
-    new BacktestService(new BacktestProxy(backendBaseUrl)),
+    new BacktestService(new BacktestProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼、
@@ -105,7 +147,7 @@ export default defineNuxtPlugin(() => {
   // 合起來只會得到一個誰都不好懂的萬用儲存。
   const chartIndicatorApplication = new ChartIndicatorApplication(
     new ChartIndicatorService(
-      new IndicatorCalculationProxy(backendBaseUrl),
+      new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
       new ChartLineColorPreferenceProxy(),
       new StrategyParameterValuePreferenceProxy(),
       new AppliedChartIndicatorPreferenceProxy(),
@@ -121,7 +163,7 @@ export default defineNuxtPlugin(() => {
   // 助手是後端的一項能力，因此它只吃 base URL——這台瀏覽器上沒有任何要記住的東西。
   // 「目前這段對話」活在共用的畫面狀態裡，不是留存下來的偏好。
   const assistantConversationApplication = new AssistantConversationApplication(
-    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl)),
+    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 那顆叫出助手的鍵擺在哪裡，是這台裝置的習慣而不是行情，所以它只碰瀏覽器儲存、
@@ -148,7 +190,8 @@ export default defineNuxtPlugin(() => {
   // 所以它吃兩個 proxy。記憶那一側刻意是獨立的一個能力，而不是塞進打後端的那一個：
   // 憑證改記在 cookie（好讓伺服器端也判斷得出來）的那一天，換的是它，不是後端那一條。
   const userSessionApplication = new UserSessionApplication(
-    new UserSessionService(new UserProxy(backendBaseUrl), new SessionStorageProxy()),
+    new UserSessionService(
+      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession), sessionStorageProxy),
   )
 
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
@@ -165,6 +208,7 @@ export default defineNuxtPlugin(() => {
       watchlistApplication,
       indicatorCalculationApplication,
       strategyApplication,
+      strategyMarketplaceApplication,
       backtestApplication,
       chartIndicatorApplication,
       liveKCandleApplication,

@@ -1,4 +1,6 @@
 import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
+import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
@@ -8,7 +10,7 @@ import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 /** 目前哪一個對話框疊在畫面上。一次只有一個——好幾個同時開沒有任何意義。 */
-type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete'
+type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete' | 'withdraw'
 
 /**
  * 策略在指標計算這個畫面上的**狀態**：留著哪些、正在用哪一支、載入當下那一份長什麼樣、
@@ -20,12 +22,28 @@ type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete'
  */
 export function useStrategyLibrary(
   strategyApplication: StrategyApplication,
+  /**
+   * 市集那一條線。這裡只用它做一件事：把加入來的那一支從自己的清單拿掉。
+   *
+   * 那件事屬於這裡而不是市集頁，因為它改變的是**這一份清單**——使用者是在清單上看到
+   * 那一支、也是在清單上決定不要它的。市集頁上也有一顆做同一件事的按鈕，
+   * 兩邊走的是同一條路，只是入口不同。
+   */
+  strategyMarketplaceApplication: StrategyMarketplaceApplication,
   readCurrentContent: () => StrategyContentDto,
   applyContent: (content: StrategyContentDto) => void,
   /** 一份空白的策略內容。「空白長什麼樣」由畫面定義，這裡只負責在對的時機套用它。 */
   blankContent: StrategyContentDto,
 ) {
+  /**
+   * 自己寫的那些。它們帶著算式，所以載得進編輯器、改得動、刪得掉、發得出去。
+   */
   const strategies = ref<StrategyDto[]>([])
+  /**
+   * 從市集加入的那些。它們**沒有算式**，所以這裡沒有任何一段程式碼能把它們載進編輯器——
+   * 那不是一條要遵守的規則，是型別上寫不出來的事。
+   */
+  const adoptedStrategies = ref<PublishedStrategyDto[]>([])
   const activeStrategy = ref<StrategyDto | null>(null)
   /** 載入當下那一份。跟現在畫面上的比，就知道有沒有東西還沒存。 */
   const loadedContent = ref<StrategyContentDto | null>(null)
@@ -53,12 +71,40 @@ export function useStrategyLibrary(
     listErrorMessage.value = null
 
     try {
-      strategies.value = await strategyApplication.listStrategies()
+      const available = await strategyApplication.listAvailableStrategies()
+      strategies.value = [...available.mine]
+      adoptedStrategies.value = [...available.adopted]
+      refreshActiveStrategy()
     }
     catch (error: unknown) {
       // 取不到清單時**不清空手上這一份**——把它清空等於告訴使用者他什麼都沒存過。
       listErrorMessage.value = messageOf(error, '取得策略清單時發生未預期的錯誤。')
     }
+  }
+
+  /**
+   * 讓「使用中的那一支」跟上剛讀回來的那一份。
+   *
+   * 沒有這一步，關於那一支的每一件事都會停在載入當下的樣子——最明顯的是分享狀態：
+   * 剛按過收回，眼前那顆按鈕還寫著「收回」，而看的人只會再按一次。
+   *
+   * **只換那份紀錄，不動 `loadedContent`。** 那一份是「載入當下畫面上是什麼」，
+   * 拿新讀回來的內容覆蓋它，等於把使用者還沒存的修改當成已經存了。
+   *
+   * 清單裡找不到它時什麼都不做：那代表它在別的地方被刪掉了，而「刪掉正在用的那一支
+   * 只解除關聯、內容留著」是刪除那條路自己的規則，不該由一次重讀順手執行。
+   */
+  function refreshActiveStrategy() {
+    if (activeStrategy.value === null) {
+      return
+    }
+
+    const refreshed = strategies.value.find(candidate => candidate.id === activeStrategy.value?.id)
+    if (refreshed === undefined) {
+      return
+    }
+
+    activeStrategy.value = refreshed
   }
 
   function openLibrary() {
@@ -73,8 +119,23 @@ export function useStrategyLibrary(
     pendingDraftAction.value = null
   }
 
-  /** 挑一支來用。 */
+  /**
+   * 挑一支來用。
+   *
+   * **加入來的那一支不會被載入編輯器**，而是就地說明它能做什麼。這裡不是「擋下來」——
+   * 它根本沒有算式可以載，把編輯器變成空的會讓人以為那支策略壞了。
+   */
   function selectStrategy(id: number) {
+    const adopted = adoptedStrategies.value.find(candidate => candidate.id === id)
+    if (adopted !== undefined) {
+      clearMessages()
+      noticeMessage.value
+        = `「${adopted.name}」是從市集加入的，看不到它的算式；它可以套到 K 線圖上，或直接拿去算。`
+      openDialog.value = 'none'
+
+      return
+    }
+
     guardOverwritingDraft(() => loadStrategy(id))
   }
 
@@ -157,7 +218,8 @@ export function useStrategyLibrary(
       return
     }
 
-    await writeStrategy(activeStrategy.value.name, activeStrategy.value.id)
+    await writeStrategy(
+      activeStrategy.value.name, activeStrategy.value.id, activeStrategy.value.description)
   }
 
   function openNameDialog() {
@@ -175,29 +237,29 @@ export function useStrategyLibrary(
     nameErrorMessage.value = null
   }
 
-  async function createStrategy(name: string) {
-    await writeStrategy(name, undefined)
+  async function createStrategy(name: string, description: string) {
+    await writeStrategy(name, undefined, description)
   }
 
   /**
    * 替使用中的那一支改名。它走的是同一條存檔路徑——改名就是「內容照舊、名字換掉」的一次儲存，
    * 因此名稱被佔用、那一支已經不在、連不上後端，三種失敗的處理完全不必重寫一遍。
    */
-  async function renameStrategy(name: string) {
+  async function renameStrategy(name: string, description: string) {
     if (activeStrategy.value === null) {
       return
     }
 
-    await writeStrategy(name, activeStrategy.value.id)
+    await writeStrategy(name, activeStrategy.value.id, description)
   }
 
-  async function writeStrategy(name: string, id: number | undefined) {
+  async function writeStrategy(name: string, id: number | undefined, description: string) {
     saving.value = true
     clearMessages()
 
     try {
       const saved = await strategyApplication.saveStrategy(
-        new StrategyWriteDto(name, readCurrentContent(), id))
+        new StrategyWriteDto(name, readCurrentContent(), id, description))
 
       activeStrategy.value = saved
       loadedContent.value = saved.content
@@ -217,6 +279,84 @@ export function useStrategyLibrary(
       }
 
       errorMessage.value = messageOf(error, '儲存策略時發生未預期的錯誤。')
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  /**
+   * 把自己的那一支放上市集。**不先問**：發佈做錯了收回就好，而且中間沒有人失去任何東西。
+   */
+  async function publishStrategy(id: number) {
+    await changePublication(id, () => strategyApplication.publishStrategy(id), '已經分享到市集。')
+  }
+
+  /**
+   * 收回之前先問一次。與發佈不對稱是刻意的：收回做錯了，每一個加入過它的人都要重新加入
+   * 一次，而**你不會知道有誰**——一個影響到別人、而且自己補不回來的動作，值得多問一次。
+   */
+  function askToWithdraw(id: number) {
+    pendingStrategyId.value = id
+    openDialog.value = 'withdraw'
+  }
+
+  async function confirmWithdraw() {
+    const id = pendingStrategyId.value
+    pendingStrategyId.value = null
+    if (id === null) {
+      return
+    }
+
+    await changePublication(id, () => strategyApplication.withdrawStrategy(id), '已經從市集收回。')
+  }
+
+  /**
+   * 放上市集與收回走同一條路：兩者都是同一件事的兩個方向，
+   * 所以「成功要說什麼、失敗要說什麼、之後要重讀清單」也只寫一次。
+   *
+   * 兩者都以**不開任何對話框**收尾。它們是從主畫面那一排按下來的，收回那一次頂多
+   * 開過一個確認框而那個框已經做完事了——收尾時把清單彈出來，等於替使用者打開一個
+   * 他沒有要求的東西。
+   */
+  async function changePublication(
+    id: number, change: () => Promise<void>, successMessage: string,
+  ) {
+    saving.value = true
+    clearMessages()
+
+    try {
+      await change()
+      openDialog.value = 'none'
+      noticeMessage.value = successMessage
+      await refreshStrategies()
+    }
+    catch (error: unknown) {
+      errorMessage.value = messageOf(error, '變更分享狀態時發生未預期的錯誤。')
+      openDialog.value = 'none'
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  /**
+   * 把加入來的那一支從自己的清單拿掉。**不先問**：它是別人的東西，拿掉只影響自己的清單，
+   * 想要再加回來到市集按一下就有——與刪掉自己的策略完全不同。
+   */
+  async function abandonStrategy(id: number) {
+    saving.value = true
+    clearMessages()
+
+    try {
+      await strategyMarketplaceApplication.abandonStrategy(id)
+      openDialog.value = 'library'
+      noticeMessage.value = '已經從你的清單移除。它還在市集上，隨時可以再加回來。'
+      await refreshStrategies()
+    }
+    catch (error: unknown) {
+      errorMessage.value = messageOf(error, '從清單移除時發生未預期的錯誤。')
+      openDialog.value = 'library'
     }
     finally {
       saving.value = false
@@ -278,6 +418,7 @@ export function useStrategyLibrary(
 
   return {
     strategies,
+    adoptedStrategies,
     activeStrategy,
     openDialog,
     saving,
@@ -298,5 +439,9 @@ export function useStrategyLibrary(
     renameStrategy,
     askToDelete,
     confirmDelete,
+    publishStrategy,
+    askToWithdraw,
+    confirmWithdraw,
+    abandonStrategy,
   }
 }

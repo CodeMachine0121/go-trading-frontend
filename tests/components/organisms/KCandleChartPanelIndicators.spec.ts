@@ -16,7 +16,8 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyApplication, buildStoredStrategy, buildAdoptedStrategy }
+  from '../../fixtures/strategy-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -61,6 +62,8 @@ function aShortCalculation(usedCandleCount: number, indicatorName = '均價') {
 
 async function mountPanel(overrides: {
   strategies?: ReturnType<typeof buildStoredStrategy>[]
+  /** 從市集加入來的那些。它們沒有算式，而圖表照樣套得上。 */
+  adopted?: ReturnType<typeof buildAdoptedStrategy>[]
   calculateIndicator?: IIndicatorCalculationProxy['calculateIndicator']
 } = {}) {
   const strategies = overrides.strategies
@@ -76,7 +79,9 @@ async function mountPanel(overrides: {
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
-        listStrategies: vi.fn().mockResolvedValue(strategies),
+        listAvailableStrategies: vi.fn().mockResolvedValue({
+          mine: strategies, adopted: overrides.adopted ?? [],
+        }),
       }),
       timeZone: buildTimeZone(),
     },
@@ -578,8 +583,7 @@ describe('圖表上的指標：線的顏色', () => {
           // 上一次打開這個畫面時，使用者替這條線挑過粉色。
           { readColorToken: vi.fn().mockReturnValue('--color-chart-line-5') }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -643,8 +647,7 @@ describe('圖表上的指標：邊界', () => {
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -710,7 +713,7 @@ describe('圖表上的指標：邊界', () => {
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockRejectedValue(
+          listAvailableStrategies: vi.fn().mockRejectedValue(
             new BackendUnreachableError('http://localhost:8080')),
         }),
         timeZone: buildTimeZone(),
@@ -868,8 +871,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
           calculateIndicator: vi.fn().mockResolvedValue(aCalculation()),
         }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -1040,5 +1042,25 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+})
+
+describe('K 線圖表：加入來的策略', () => {
+  it('挑得到，也套得上——套用不需要算式，而它正好沒有', async () => {
+    // 這是這個切片在圖表上唯一看得出來的差別：一支讀不到算式的策略，照樣畫得出線。
+    const { wrapper, calculateIndicator } = await mountPanel({
+      strategies: [],
+      adopted: [buildAdoptedStrategy(9, '別人的', { resultType: 'float' })],
+    })
+
+    const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
+      .map(option => option.text())
+    expect(options).toContain('別人的')
+
+    await applyStrategy(wrapper, 9)
+
+    expect(calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({ strategyId: 9, script: '' }))
+    expect(wrapper.text()).toContain('別人的')
   })
 })

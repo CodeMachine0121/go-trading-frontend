@@ -1,5 +1,6 @@
 import type { StrategyService } from '~/domain/service/strategy-service'
 import type { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
+import type { AvailableStrategiesDto } from '~/domain/models/dto/available-strategies-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 
@@ -7,8 +8,8 @@ import type { StrategyWriteDto } from '~/domain/models/dto/strategy-write-dto'
 export class StrategyApplication {
   constructor(private readonly strategyService: StrategyService) {}
 
-  async listStrategies(): Promise<StrategyDto[]> {
-    return this.strategyService.listStrategies()
+  async listAvailableStrategies(): Promise<AvailableStrategiesDto> {
+    return this.strategyService.listAvailableStrategies()
   }
 
   async saveStrategy(strategyWriteDto: StrategyWriteDto): Promise<StrategyDto> {
@@ -17,6 +18,14 @@ export class StrategyApplication {
 
   async deleteStrategy(id: number): Promise<void> {
     return this.strategyService.deleteStrategy(id)
+  }
+
+  async publishStrategy(id: number): Promise<void> {
+    return this.strategyService.publishStrategy(id)
+  }
+
+  async withdrawStrategy(id: number): Promise<void> {
+    return this.strategyService.withdrawStrategy(id)
   }
 
   hasUnsavedChanges(

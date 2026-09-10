@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 
 // 分子：挑一支存好的策略，旁邊擺上對這一支能做的事。
 //
@@ -15,7 +15,7 @@ import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 // 一支都沒有時，選單換成一句話而不是留一個空選單——空選單看起來像壞掉。
 // 但動作**仍然要在**：那正是使用者要按「另存為新策略」存下第一支的時候。
 const { strategies, activeStrategyId = null } = defineProps<{
-  strategies: StrategyDto[]
+  strategies: ChartApplicableStrategyDto[]
   activeStrategyId?: number | null
 }>()
 

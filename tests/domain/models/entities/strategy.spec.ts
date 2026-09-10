@@ -11,7 +11,7 @@ describe('Strategy', () => {
   it('交出去的形狀帶著它記住的算法', () => {
     const scriptBody = 'sum := 0.0\nreturn nil'
     const strategy = new Strategy(
-      7, '二十根均線', wholeScriptOf('floatList', scriptBody), 'floatList')
+      7, '二十根均線', '', wholeScriptOf('floatList', scriptBody), 'floatList')
 
     const strategyDto = strategy.toDomain().toDto()
 
@@ -23,7 +23,7 @@ describe('Strategy', () => {
   })
 
   it('算式認不出外框時整段原樣交出並說明', () => {
-    const strategy = new Strategy(7, '手寫的', '這根本不是一段程式碼', 'float')
+    const strategy = new Strategy(7, '手寫的', '', '這根本不是一段程式碼', 'float')
 
     const strategyDto = strategy.toDomain().toDto()
 
@@ -35,7 +35,7 @@ describe('Strategy', () => {
     { declared: 'boolList', expected: 'boolList' },
     { declared: '不認得的種類', expected: 'float' },
   ])('指標值種類 $declared 收成 $expected', ({ declared, expected }) => {
-    const strategy = new Strategy(1, 'x', 'y', declared)
+    const strategy = new Strategy(1, 'x', '', 'y', declared)
 
     expect(strategy.toDomain().toDto().content.resultType).toBe(expected)
   })

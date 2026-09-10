@@ -14,10 +14,13 @@ function mountNameDialog(props: Record<string, unknown> = {}) {
 }
 
 describe('StrategyNameDialog', () => {
-  it('只問名稱一件事', () => {
+  it('問的就是那兩件事：叫什麼、做什麼', () => {
+    // 說明與名稱一起問，因為它們一起被想到。分成兩步只會讓大部分人跳過第二步，
+    // 而分享到市集之後，那一步是別人唯一的介紹。
     const wrapper = mountNameDialog()
 
     expect(wrapper.findAll('input')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="strategy-description-input"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('其餘內容取自畫面上目前的算式')
   })
 
@@ -27,7 +30,7 @@ describe('StrategyNameDialog', () => {
 
     await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
 
-    expect(wrapper.emitted('submit')).toEqual([['二十根均線']])
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '']])
   })
 
   it.each([
@@ -103,5 +106,38 @@ describe('StrategyNameDialog', () => {
 
     expect(wrapper.emitted('cancel')).toHaveLength(1)
     expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+})
+
+describe('StrategyNameDialog：說明', () => {
+  it('說明與名字一起交出去', async () => {
+    // 兩者一起被想到（「這是什麼、它做什麼」），所以一起問、一起送。
+    const wrapper = mountNameDialog()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('二十根均線')
+    await wrapper.get('[data-testid="strategy-description-input"]').setValue('抓短線轉折')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '抓短線轉折']])
+  })
+
+  it('說明留空也送得出去——沒有說明是一個合法的答案', async () => {
+    const wrapper = mountNameDialog()
+    await wrapper.get('[data-testid="strategy-name-input"]').setValue('二十根均線')
+
+    await wrapper.get('[data-testid="strategy-name-submit"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '']])
+  })
+
+  it('每次打開都從這一次該有的起點開始，不留上一次打的說明', async () => {
+    const wrapper = mountNameDialog({ initialDescription: '原本的說明' })
+    await wrapper.get('[data-testid="strategy-description-input"]').setValue('改到一半的')
+
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+
+    expect((wrapper.get('[data-testid="strategy-description-input"]')
+      .element as HTMLTextAreaElement).value).toBe('原本的說明')
   })
 })

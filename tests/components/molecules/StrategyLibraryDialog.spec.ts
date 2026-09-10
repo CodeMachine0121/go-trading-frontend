@@ -3,14 +3,17 @@ import { describe, expect, it } from 'vitest'
 import StrategyLibraryDialog from '~/components/molecules/StrategyLibraryDialog.vue'
 import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
 import { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
 
 function strategyOf(id: number, name: string): StrategyDto {
   return new StrategyDto(
-    id, name, new StrategyContentDto('sum := 0.0', 'floatList'), true, true)
+    id, name, '', new StrategyContentDto('sum := 0.0', 'floatList'), true, true, false)
 }
 
 function mountLibrary(props: Record<string, unknown> = {}) {
-  return mount(StrategyLibraryDialog, { props: { open: true, strategies: [], ...props } })
+  return mount(StrategyLibraryDialog, {
+    props: { open: true, strategies: [], adoptedStrategies: [], ...props },
+  })
 }
 
 describe('StrategyLibraryDialog', () => {
@@ -63,7 +66,10 @@ describe('StrategyLibraryDialog', () => {
   it('一支都沒有時明說沒有', () => {
     const wrapper = mountLibrary({ strategies: [] })
 
-    expect(wrapper.get('[data-testid="strategy-library-empty"]').text()).toBe('還沒有任何策略。')
+    expect(wrapper.get('[data-testid="strategy-library-empty"]').text())
+      .toContain('還沒有任何策略')
+    // 另一半同樣重要：一句「沒有」不告訴人下一步，而這一頁的下一步是去市集看看。
+    expect(wrapper.get('[data-testid="strategy-library-empty"]').text()).toContain('市集')
   })
 
   it('連不上後端時說連不上，不呈現空清單的說法', () => {
@@ -82,3 +88,96 @@ describe('StrategyLibraryDialog', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 })
+
+/** 一支從市集加入來的策略。**它沒有算式**——那不是漏了，是那一欄不存在。 */
+function adoptedStrategyOf(id: number, name: string): PublishedStrategyDto {
+  return new PublishedStrategyDto(
+    id, name, '抓短線轉折', 'floatList', 'someone@example.com',
+    new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
+}
+
+describe('StrategyLibraryDialog：兩段清單', () => {
+  it('自己的與加入的分成兩節，各有小標題', () => {
+    const wrapper = mountLibrary({
+      strategies: [strategyOf(1, '我的')],
+      adoptedStrategies: [adoptedStrategyOf(9, '別人的')],
+    })
+
+    expect(wrapper.text()).toContain('我的策略')
+    expect(wrapper.get('[data-testid="strategy-library-adopted-section"]').text())
+      .toContain('我加入的')
+  })
+
+  it('加入來的那一列只有「移除」，一個會改動它的動作都沒有', () => {
+    // 它沒有算式可以載，也不是我的東西——顯示那些按鈕，按下去只會撞牆。
+    const wrapper = mountLibrary({
+      strategies: [],
+      adoptedStrategies: [adoptedStrategyOf(9, '別人的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-library-abandon-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-library-load-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-delete-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-publish-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-withdraw-9"]').exists()).toBe(false)
+  })
+
+  it('加入來的那一列標出是誰分享的', () => {
+    const wrapper = mountLibrary({
+      strategies: [],
+      adoptedStrategies: [adoptedStrategyOf(9, '別人的')],
+    })
+
+    expect(wrapper.get('[data-testid="strategy-library-adopted-row-9"]').text())
+      .toContain('someone@example.com')
+  })
+
+  it('按移除時說出是哪一支', async () => {
+    const wrapper = mountLibrary({
+      strategies: [],
+      adoptedStrategies: [adoptedStrategyOf(9, '別人的')],
+    })
+
+    await wrapper.get('[data-testid="strategy-library-abandon-9"]').trigger('click')
+
+    expect(wrapper.emitted('abandon')).toEqual([[9]])
+  })
+
+  it('兩段都空才說「還沒有任何策略」', () => {
+    const wrapper = mountLibrary({
+      strategies: [],
+      adoptedStrategies: [adoptedStrategyOf(9, '別人的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-library-empty"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyLibraryDialog：分享狀態', () => {
+  it('分享過的那一支標出「已分享」', () => {
+    // 分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
+    // 但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
+    // 就只能一支一支載進來看那顆按鈕。
+    const wrapper = mountLibrary({
+      strategies: [strategyOf(1, '沒分享的'), publishedStrategyOf(2, '分享過的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-library-shared-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-library-shared-1"]').exists()).toBe(false)
+  })
+
+  it('清單上沒有分享或收回那兩顆——它們在主畫面那一排', () => {
+    const wrapper = mountLibrary({
+      strategies: [strategyOf(1, '沒分享的'), publishedStrategyOf(2, '分享過的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-library-publish-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-library-withdraw-2"]').exists()).toBe(false)
+  })
+})
+
+/** 自己的一支，已經分享到市集上。 */
+function publishedStrategyOf(id: number, name: string): StrategyDto {
+  return new StrategyDto(
+    id, name, '', new StrategyContentDto('sum := 0.0', 'floatList'), true, true, true)
+}

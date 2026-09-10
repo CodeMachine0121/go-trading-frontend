@@ -2,6 +2,7 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
+import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
 import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 
 // 分子：留著的每一支策略，逐列可以載入或刪除。
@@ -11,14 +12,31 @@ import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
 //
 // 連不上後端與一支都沒有是兩件事：後者說「還沒有任何策略」，
 // 前者要說連不上。把連線失敗顯示成空清單，會讓人以為自己什麼都沒存過。
-const { open, strategies, errorMessage = null, activeStrategyId = null } = defineProps<{
+const {
+  open,
+  strategies,
+  adoptedStrategies,
+  errorMessage = null,
+  activeStrategyId = null,
+} = defineProps<{
   open: boolean
+  /** 自己寫的那些。它們帶著算式，所以每一種動作都做得到。 */
   strategies: StrategyDto[]
+  /**
+   * 從市集加入的那些。它們**沒有算式**，所以這裡連「載入」都不提供——
+   * 那不是擋下來，是沒有東西可以載。
+   */
+  adoptedStrategies: PublishedStrategyDto[]
   errorMessage?: string | null
   activeStrategyId?: number | null
 }>()
 
-const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }>()
+const emit = defineEmits<{
+  load: [id: number]
+  remove: [id: number]
+  abandon: [id: number]
+  close: []
+}>()
 </script>
 
 <template>
@@ -36,15 +54,22 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
     </p>
 
     <p
-      v-else-if="strategies.length === 0"
+      v-else-if="strategies.length === 0 && adoptedStrategies.length === 0"
       class="strategy-library__empty"
       data-testid="strategy-library-empty"
     >
-      還沒有任何策略。
+      還沒有任何策略。到策略市集看看別人分享了什麼，或自己存一支。
     </p>
 
+    <h3
+      v-if="strategies.length > 0"
+      class="strategy-library__section"
+    >
+      我的策略
+    </h3>
+
     <ul
-      v-else
+      v-if="strategies.length > 0"
       class="strategy-library__list"
     >
       <li
@@ -59,6 +84,16 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
             v-if="strategy.id === activeStrategyId"
             class="strategy-library__active"
           >使用中</span>
+          <!--
+            分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
+            但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
+            就只能一支一支載進來看那顆按鈕。
+          -->
+          <span
+            v-if="strategy.published"
+            class="strategy-library__shared"
+            :data-testid="`strategy-library-shared-${strategy.id}`"
+          >已分享</span>
         </span>
 
         <span class="strategy-library__actions">
@@ -89,6 +124,51 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
         </span>
       </li>
     </ul>
+
+    <!--
+      加入來的那一段自成一節，而不是混進上面那一份：它們能做的事完全不同，
+      混在一起就得靠每一列自己解釋為什麼少了幾顆按鈕。
+    -->
+    <h3
+      v-if="adoptedStrategies.length > 0"
+      class="strategy-library__section"
+      data-testid="strategy-library-adopted-section"
+    >
+      我加入的
+    </h3>
+
+    <ul
+      v-if="adoptedStrategies.length > 0"
+      class="strategy-library__list"
+    >
+      <li
+        v-for="adopted in adoptedStrategies"
+        :key="adopted.id"
+        class="strategy-library__row"
+        :data-testid="`strategy-library-adopted-row-${adopted.id}`"
+      >
+        <span class="strategy-library__name">
+          {{ adopted.name }}
+          <span class="strategy-library__sharer">{{ adopted.publisherEmail }} 分享</span>
+        </span>
+
+        <span class="strategy-library__actions">
+          <!--
+            這一列**只有**「移除」。載入、改名、刪除、分享一顆都不給——
+            它沒有算式可以載，也不是我的東西。
+          -->
+          <AppButton
+            variant="danger"
+            size="small"
+            :label="`把「${adopted.name}」從我的清單移除`"
+            :data-testid="`strategy-library-abandon-${adopted.id}`"
+            @click="emit('abandon', adopted.id)"
+          >
+            移除
+          </AppButton>
+        </span>
+      </li>
+    </ul>
   </AppModal>
 </template>
 
@@ -103,6 +183,25 @@ const emit = defineEmits<{ load: [id: number], remove: [id: number], close: [] }
 
   &__error {
     color: color('danger');
+  }
+
+  &__section {
+    margin: spacing('sm') 0 spacing('2xs');
+    color: color('text-faint');
+    font-weight: font-weight('medium');
+    font-size: font-size('2xs');
+  }
+
+  &__shared {
+    margin-left: spacing('2xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  &__sharer {
+    margin-left: spacing('2xs');
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   // 一份清單就畫成一份清單：一條一條以髮絲線隔開，不是一疊各自帶框的小卡。

@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
+import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
@@ -52,9 +53,10 @@ describe('IndicatorCalculationProxy', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/indicator-calculations', {
+      headers: SIGNED_IN_HEADERS,
       method: 'POST',
       body: {
         symbol: 'BTCUSDT',
@@ -78,7 +80,7 @@ describe('IndicatorCalculationProxy', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
       new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
         'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [
           new StrategyParameterDto('期數', 'lookbackCount', 20),
@@ -108,7 +110,7 @@ describe('IndicatorCalculationProxy', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.parameters).toEqual([])
@@ -121,7 +123,7 @@ describe('IndicatorCalculationProxy', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(requestOf('boolList'))
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(requestOf('boolList'))
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:8080/indicator-calculations',
@@ -137,7 +139,7 @@ describe('IndicatorCalculationProxy', () => {
       signal: 'sell',
     }))
 
-    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL)
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage())
       .calculateIndicator(requestOf('signal'))
 
     expect(indicatorCalculation.resultType).toBe('signal')
@@ -153,7 +155,7 @@ describe('IndicatorCalculationProxy', () => {
       values: { 均價: 110, 最高: 120 },
     }))
 
-    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     expect(indicatorCalculation.usedCandleCount).toBe(4)
     expect(indicatorCalculation.resultType).toBe('float')
@@ -179,7 +181,7 @@ describe('IndicatorCalculationProxy', () => {
       symbol: 'BTCUSDT', usedCandleCount: 3, resultType, values: { 指標: wireValue },
     }))
 
-    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL)
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage())
       .calculateIndicator(requestOf(resultType))
 
     expect(indicatorCalculation.resultType).toBe(resultType)
@@ -194,7 +196,7 @@ describe('IndicatorCalculationProxy', () => {
       symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values,
     }))
 
-    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const indicatorCalculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     expect(indicatorCalculation.indicatorValues).toHaveLength(0)
     expect(indicatorCalculation.usedCandleCount).toBe(3)
@@ -204,10 +206,10 @@ describe('IndicatorCalculationProxy', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 422, message: '算式無法解讀：expected }, found EOF' })))
 
-    const calculate = new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const calculate = new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     await expect(calculate).rejects.toBeInstanceOf(IndicatorScriptFailedError)
-    await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+    await expect(new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST))
       .rejects.toThrow('算式無法解讀：expected }, found EOF')
   })
 
@@ -216,17 +218,17 @@ describe('IndicatorCalculationProxy', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 400, message: '找不到這個交易標的' })))
 
-    const calculate = new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const calculate = new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     await expect(calculate).rejects.toBeInstanceOf(BackendRequestRejectedError)
-    await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+    await expect(new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST))
       .rejects.toThrow('找不到這個交易標的')
   })
 
   it('連不上後端時維持連線錯誤', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    await expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+    await expect(new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -238,7 +240,7 @@ describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => 
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     const [, options] = fetchMock.mock.calls[0] as [string, { body: Record<string, unknown> }]
     expect('endTime' in options.body).toBe(false)
@@ -252,7 +254,7 @@ describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => 
     const windowEndingInThePast = new ObservationWindowVo(
       new Date('2026-09-02T09:00:00.000Z'), new Date('2026-09-02T12:00:00.000Z'))
 
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
       new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
         'BTCUSDT', '1h', windowEndingInThePast, SCRIPT_BODY, 'float')))
 
@@ -270,7 +272,7 @@ describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => 
       values: { 線: [1, 2] },
     }))
 
-    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const calculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     expect(calculation.openTimes).toEqual([
       new Date('2026-09-02T10:00:00Z'), new Date('2026-09-02T11:00:00Z'),
@@ -282,7 +284,7 @@ describe('IndicatorCalculationProxy：算到哪一刻與讀了哪幾根', () => 
       symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, openTimes: null, resultType: 'float', values: {},
     }))
 
-    const calculation = await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST)
+    const calculation = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST)
 
     expect(calculation.openTimes).toEqual([])
   })
@@ -367,7 +369,7 @@ describe('填滿要幾根', () => {
       resultType: 'float', values: {},
     }))
 
-    return expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+    return expect(new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST))
       .resolves.toMatchObject({ candleCount: 119, usedCandleCount: 50 })
   })
 
@@ -378,7 +380,7 @@ describe('填滿要幾根', () => {
       symbol: 'BTCUSDT', usedCandleCount: 50, resultType: 'float', values: {},
     }))
 
-    return expect(new IndicatorCalculationProxy(BASE_URL).calculateIndicator(REQUEST))
+    return expect(new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(REQUEST))
       .resolves.toMatchObject({ candleCount: null })
   })
 })
@@ -438,7 +440,7 @@ function rejectionOf(
 
 async function calculationFailure(): Promise<unknown> {
   try {
-    await new IndicatorCalculationProxy(BASE_URL).calculateIndicator(
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
       new IndicatorCalculationRequestDomain(
         new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float')))
   }

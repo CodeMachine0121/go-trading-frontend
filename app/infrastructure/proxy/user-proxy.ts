@@ -60,6 +60,9 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
       return this.toSession(await this.requestBackend<SessionWire>(SESSIONS_ENDPOINT, {
         method: 'POST',
         body: { email, password },
+        // 這裡被拒代表帳密對不上，不是一段登入過期了。交給共同出口去解讀，
+        // 就會在登入畫面上把「密碼打錯」演成一次被登出。
+        refusalMeansSignedOut: false,
       }))
     }
     catch (error: unknown) {
@@ -72,6 +75,9 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
       return this.toSession(await this.requestBackend<SessionWire>(SESSION_RENEWAL_ENDPOINT, {
         method: 'POST',
         body: { refreshToken },
+        // 換發被拒代表那一份續用憑證不算數了。這一整條路就是在確認身分還算不算數，
+        // 所以答案由它自己說——見下面那一段翻譯。
+        refusalMeansSignedOut: false,
       }))
     }
     catch (error: unknown) {
@@ -97,7 +103,13 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
     try {
       const signedInUserWire = await this.requestBackend<SignedInUserWire>(
         SIGNED_IN_USER_ENDPOINT,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
+        {
+          // 身分在這裡是**參數**而不是「目前這一段」：這條路問的正是「記著的這一份還算不算數」，
+          // 而它可能是剛從瀏覽器儲存讀回來、還沒被任何人採信的那一份。
+          headers: { Authorization: `Bearer ${accessToken}` },
+          // 被拒就是「這一份不算數」——那是這條路的答案，不是一段正在用的登入忽然失效。
+          refusalMeansSignedOut: false,
+        },
       )
 
       return this.toSignedInUser(signedInUserWire)

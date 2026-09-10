@@ -18,6 +18,7 @@ import { StrategyFieldError } from '~/domain/errors/strategy-field-error'
 export class StrategyWriteDomain {
   readonly id: number | undefined
   readonly name: string
+  readonly description: string
   readonly script: string
   readonly resultType: string
   readonly parameters: readonly StrategyParameterDto[]
@@ -32,6 +33,10 @@ export class StrategyWriteDomain {
 
     this.id = strategyWriteDto.id
     this.name = normalizedName
+    // 說明的長度上限與名稱同理，是後端的規則：抄一份下來，等那邊改了這邊沒跟著改，
+    // 畫面就會擋掉其實存得下的東西。這裡只做一件前端確定知道的事：去掉前後空白，
+    // 因為只打了空白與什麼都沒打，對讀的人是同一件事。
+    this.description = strategyWriteDto.description.trim()
     this.script = new IndicatorScriptDomain(resultType).assemble(strategyWriteDto.content.scriptBody)
     this.resultType = resultType.value
     // 旋鈕的規則由它們自己的模型把關，這裡只借用它——多一套判斷就多一個會漂移的地方。

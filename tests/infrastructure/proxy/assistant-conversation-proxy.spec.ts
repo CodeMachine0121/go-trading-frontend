@@ -1,6 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
+import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
 import { AssistantUnavailableError } from '~/domain/errors/assistant-unavailable-error'
@@ -47,7 +48,7 @@ describe('AssistantConversationProxy.ask', () => {
       usage: 3184,
     }))
 
-    const answer = await new AssistantConversationProxy(BASE_URL).ask(askDomainOf(7))
+    const answer = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
 
     expect(answer.conversationId).toBe(7)
     expect(answer.answer).toBe('在盤整。')
@@ -62,7 +63,7 @@ describe('AssistantConversationProxy.ask', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new AssistantConversationProxy(BASE_URL).ask(askDomainOf(null))
+    await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(null))
 
     expect(fetchMock.mock.calls[0]?.[1]?.body).toEqual({ question: 'BTCUSDT 最近走勢如何' })
   })
@@ -73,7 +74,7 @@ describe('AssistantConversationProxy.ask', () => {
     })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new AssistantConversationProxy(BASE_URL).ask(askDomainOf(7))
+    await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
 
     expect(fetchMock.mock.calls[0]?.[1]?.body).toEqual({
       conversationId: 7,
@@ -107,7 +108,7 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
     // 合成一種的代價是有人對著一個要等到明天的拒絕重試一整個小時。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({ status, message })))
 
-    await expect(new AssistantConversationProxy(BASE_URL).ask(askDomainOf()))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf()))
       .rejects.toBeInstanceOf(expectedError)
   })
 
@@ -117,7 +118,7 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
       message: '今日助手用量額度 300000 已用盡，於 2026-09-05T00:00:00Z 重置',
     })))
 
-    await expect(new AssistantConversationProxy(BASE_URL).ask(askDomainOf()))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf()))
       .rejects.toThrow('2026-09-05T00:00:00Z')
   })
 
@@ -127,7 +128,7 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
       status: 502, message: 'storage unavailable',
     })))
 
-    await expect(new AssistantConversationProxy(BASE_URL).ask(askDomainOf()))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf()))
       .rejects.toBeInstanceOf(BackendServerError)
   })
 
@@ -136,14 +137,14 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
       status: 400, message: 'assistant ask is empty: 必須寫點什麼才問得起來',
     })))
 
-    await expect(new AssistantConversationProxy(BASE_URL).ask(askDomainOf()))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf()))
       .rejects.toBeInstanceOf(BackendRequestRejectedError)
   })
 
   it('連不上後端與被拒絕是兩件事', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    await expect(new AssistantConversationProxy(BASE_URL).ask(askDomainOf()))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf()))
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -155,7 +156,7 @@ describe('AssistantConversationProxy.listConversations', () => {
       { id: 1, lastActiveAt: '2026-09-04T09:00:00Z', messageCount: 2 },
     ]))
 
-    const summaries = await new AssistantConversationProxy(BASE_URL).listConversations()
+    const summaries = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).listConversations()
 
     expect(summaries.map(summary => summary.id)).toEqual([2, 1])
     expect(summaries[0]?.lastActiveAt).toEqual(new Date('2026-09-04T10:30:00Z'))
@@ -164,7 +165,7 @@ describe('AssistantConversationProxy.listConversations', () => {
   it('一段都沒有是空陣列', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
 
-    await expect(new AssistantConversationProxy(BASE_URL).listConversations()).resolves.toEqual([])
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).listConversations()).resolves.toEqual([])
   })
 })
 
@@ -179,7 +180,7 @@ describe('AssistantConversationProxy.getConversation', () => {
       ],
     }))
 
-    const conversation = await new AssistantConversationProxy(BASE_URL).getConversation(7)
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
 
     expect(conversation.messages.map(message => message.role)).toEqual(['ask', 'answer'])
     expect(conversation.messages[0]?.createdAt).toEqual(new Date('2026-09-04T10:00:00Z'))
@@ -193,7 +194,7 @@ describe('AssistantConversationProxy.getConversation', () => {
       messages: [{ role: 'something-new', content: '?', createdAt: '2026-09-04T10:00:00Z' }],
     }))
 
-    const conversation = await new AssistantConversationProxy(BASE_URL).getConversation(7)
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
 
     expect(conversation.messages[0]?.role).toBe('answer')
   })
@@ -203,7 +204,7 @@ describe('AssistantConversationProxy.getConversation', () => {
       status: 404, message: '找不到識別碼為 99 的對話',
     })))
 
-    await expect(new AssistantConversationProxy(BASE_URL).getConversation(99))
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(99))
       .rejects.toBeInstanceOf(ConversationNotFoundError)
   })
 })
