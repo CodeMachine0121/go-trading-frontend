@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
+import AppInput from '~/components/atoms/AppInput.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import MarketplaceStrategyCard from '~/components/molecules/MarketplaceStrategyCard.vue'
 import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
@@ -19,6 +21,24 @@ const { strategyMarketplaceApplication } = defineProps<{
 }>()
 
 const listingRows = ref<MarketplaceListingRowDto[]>([])
+
+/**
+ * 使用者打的那一句搜尋的字。
+ *
+ * 它是這一頁的狀態，不是查詢條件：**不留存**（重新打開就是全部），
+ * 而且**加入或移除之後留在框裡**——重讀清單不該把剛按過的那一張搖走。
+ */
+const searchQuery = ref('')
+
+/**
+ * 這一句話之後真的顯示出來的那幾列。
+ *
+ * 「是什麼意思」由 application 背後的規則回答，這裡只交出打的字與手上的清單。
+ * 沒有打字時它就是全部，所以下面的模板不必為「有沒有在搜」各寫一條路。
+ */
+const visibleRows = computed(
+  () => strategyMarketplaceApplication.matchingRows(listingRows.value, searchQuery.value),
+)
 
 const loading = ref(true)
 const unavailable = ref(false)
@@ -99,6 +119,27 @@ onMounted(reload)
         加入之後，它會出現在你挑策略的地方，可以拿去算、也可以套到 K 線圖上。
       </p>
 
+      <!--
+        搜尋框只在市集上真的有東西的時候出現：空市集上給一個搜不到任何東西的框，
+        只會讓人以為是自己搜錯了。
+      -->
+      <div
+        v-if="!loading && !unavailable && listingRows.length > 0"
+        class="strategy-marketplace-panel__search"
+      >
+        <label
+          class="strategy-marketplace-panel__search-label"
+          for="marketplace-search"
+        >搜尋</label>
+        <AppInput
+          id="marketplace-search"
+          v-model="searchQuery"
+          type="search"
+          placeholder="策略名稱、說明，或是誰分享的"
+          data-testid="marketplace-search-input"
+        />
+      </div>
+
       <AppAlert
         v-if="failureMessage"
         tone="danger"
@@ -138,12 +179,33 @@ onMounted(reload)
         市集上還沒有任何策略。把自己調好的一支分享出來，別人就看得到它了。
       </p>
 
+      <!--
+        「沒有符合」與「市集上還沒有任何策略」是兩句不同的話，因為它們要人做的事相反：
+        一句要他換個關鍵字，一句要他等別人分享。說成同一句，他會把自己打錯的幾個字
+        讀成「這裡什麼都沒有」，然後就不再回來了。
+      -->
+      <p
+        v-else-if="visibleRows.length === 0"
+        class="strategy-marketplace-panel__placeholder"
+        data-testid="marketplace-no-matches"
+      >
+        沒有符合「{{ searchQuery.trim() }}」的策略。
+        <AppButton
+          variant="ghost"
+          size="small"
+          data-testid="marketplace-clear-search"
+          @click="searchQuery = ''"
+        >
+          清掉搜尋
+        </AppButton>
+      </p>
+
       <ul
         v-else
         class="strategy-marketplace-panel__list"
       >
         <MarketplaceStrategyCard
-          v-for="row in listingRows"
+          v-for="row in visibleRows"
           :key="row.strategy.id"
           :row="row"
           :busy="changingStrategyId === row.strategy.id"
@@ -161,6 +223,19 @@ onMounted(reload)
     margin: 0 0 spacing('sm');
     color: color('text-faint');
     font-size: font-size('2xs');
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: spacing('xs');
+    margin-bottom: spacing('sm');
+  }
+
+  &__search-label {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+    white-space: nowrap;
   }
 
   &__placeholder {

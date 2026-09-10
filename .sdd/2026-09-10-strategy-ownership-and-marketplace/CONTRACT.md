@@ -81,6 +81,26 @@
 
 ---
 
+### US-07 — 在市集裡找一支
+
+| ID | Clause | Oracle | Implementation | Test | Test audit | Code audit | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| AC-07.1 | 打一個詞就只剩對得上的 | 只顯示「二十根均線」，看不到「布林通道」 | `marketplace-search-domain.ts:matching`；`StrategyMarketplacePanel.vue:visibleRows` | `StrategyMarketplacePanel.spec.ts`（`打一個詞就只剩對得上的`）；`marketplace-search-domain.spec.ts`（`一個詞只留下對得上的`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.2 | 沒有打字就是全部 | 兩支都看得到 | 同上（一個詞都不剩時原樣交回) | `StrategyMarketplacePanel.spec.ts`（`沒有打字就是全部`）；`marketplace-search-domain.spec.ts` | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.3 | 只打空白等同沒有打 | 兩支都看得到 | 切完之後一個詞都不剩 | `StrategyMarketplacePanel.spec.ts`（`只打空白等同沒有打`）；`marketplace-search-domain.spec.ts` | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.4 | 前後的空白不算 | 只看到「二十根均線」 | 切詞時丟掉空字串 | `marketplace-search-domain.spec.ts`（`前後的空白不算`，含全形空白） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.5 | 不分大小寫 | 搜「ma20」看到「MA20」 | 兩邊都轉小寫 | `marketplace-search-domain.spec.ts`（`不分大小寫`，兩個方向都測） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.6 | 好幾個詞時每一個都要對上 | 搜「均線 二十」看到「二十根均線」 | `terms.every` | `marketplace-search-domain.spec.ts`（`好幾個詞時每一個都要對上`＋`落在不同欄位也算`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.7 | 其中一個詞對不上就不算 | 搜「均線 布林」一支都看不到 | 同上 | `marketplace-search-domain.spec.ts`（`其中一個詞對不上就一列都不留`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.8 | 說明也在比對範圍內 | 搜「轉折」看到那一支 | 比對字串含 `description` | `StrategyMarketplacePanel.spec.ts`（`說明與分享者也搜得到`）；`marketplace-search-domain.spec.ts` | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.9 | 是誰分享的也在比對範圍內 | 搜「小明」看到那一支 | 比對字串含 `publisherEmail` | `StrategyMarketplacePanel.spec.ts`（同上）；`marketplace-search-domain.spec.ts` | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.10 | 沒寫說明不影響其他欄位 | 搜「布林」看到那一支 | 空字串串起來不影響其餘欄位 | `marketplace-search-domain.spec.ts`（`沒寫說明不影響其他欄位對得上`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.11 | 搜不到時說的是「沒有符合」 | 顯示「沒有符合」，且不顯示「市集上還沒有任何策略」 | `StrategyMarketplacePanel.vue`（兩種空狀態互斥） | `StrategyMarketplacePanel.spec.ts`（`搜不到時說的是「沒有符合」，不是「市集上還沒有任何策略」`——兩半都斷言） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.12 | 清掉搜尋，全部回來 | 每一支都看得到 | 那一句話裡的「清掉搜尋」把打的字清空 | `StrategyMarketplacePanel.spec.ts`（`搜不到時給一個清掉搜尋的去處，按下去全部回來`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.13 | 市集本來就空的時候說的不是「沒有符合」 | 顯示「市集上還沒有任何策略」 | 空市集連搜尋框都不給，所以那句話走不到 | `StrategyMarketplacePanel.spec.ts`（`空的市集不是錯誤`＋`市集是空的時候連搜尋框都不給`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.14 | 搜出來的那一張照樣加得進來 | 加入成功 | 搜尋只換掉畫出來的那一份，按鈕與動作不變 | `StrategyMarketplacePanel.spec.ts`（`搜出來的那一張照樣加得進來`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+| AC-07.15 | 搜尋不留存 | 重新打開時框是空的，每一支都看得到 | 打的字是這一頁的狀態，不隨清單走 | `StrategyMarketplacePanel.spec.ts`（`搜尋不留存——重新打開就是全部`） | `asserts-oracle` | `produces-oracle` | ✅ conforms |
+
 ## Core Business Rules
 
 | ID | Rule | Oracle | Implementation | Test | Status |
@@ -94,6 +114,8 @@
 | BR-7 | 自己分享的留在市集上，但不給加入/移除 | 看得到、標明是自己的、沒有按鈕 | `marketplace-listing-domain.ts`；`MarketplaceStrategyCard.vue` | `marketplace-listing-domain.spec.ts`；`StrategyMarketplacePanel.spec.ts` | ✅ conforms |
 | BR-8 | 連不上與「一支都沒有」永遠分開講 | 兩種狀態互斥呈現 | 兩處空狀態（清單、市集） | 兩處各有一則 | ✅ conforms |
 | BR-9 | 按計算不等於存檔 | 計算不寫任何策略 | 計算那條路沒有寫入 | `IndicatorCalculationPanel.spec.ts` | ✅ conforms |
+| BR-10 | 搜尋比對那一張上看得到的字，不分大小寫、空白不算、每個詞都要對上 | 名稱／說明／分享者都比對；指標值種類不比對 | `marketplace-search-domain.ts`（五個決定都在這一個地方） | `marketplace-search-domain.spec.ts`（含`指標值種類不比對`一則）；四個變異各被打下來（`every`→`some`、拿掉說明、不轉小寫，以及一個**沒被打下來**的多餘 `.trim()`——已移除） | ✅ conforms |
+| BR-11 | 搜尋只決定看得到哪幾張 | 不改順序、不改任何策略、不影響按鈕、不留存 | `visibleRows` 是 computed，不回寫 `listingRows` | `marketplace-search-domain.spec.ts`（`順序照交進來的`、`交進來的那一份不被改動`）；`StrategyMarketplacePanel.spec.ts`（`照樣加得進來`、`加入之後搜尋條件還在`、`不留存`） | ✅ conforms |
 
 ---
 
@@ -122,7 +144,7 @@
 
 | Status | Count |
 | :--- | ---: |
-| ✅ conforms | 43 |
+| ✅ conforms | 60 |
 | 🔴 violation | 0 |
 | 🟠 mis-asserted | 0 |
 | 🟡 partial | 1 |
@@ -130,7 +152,7 @@
 | ❔ unclear | 0 |
 | ⚠️ orphan | 0 |
 
-**Conformance: 98% (43 / 44)**，**0 個行為是錯的**。
+**Conformance: 98% (60 / 61)**，**0 個行為是錯的**。
 
 **第一次稽核找到、已經補上的五則 🟠（綠燈但沒有釘住那句話）：**
 - **AC-01.3／BR-2** — 證了「被登出時會通知」，沒有證那個通知會把人帶到登入畫面。
@@ -151,6 +173,13 @@
 所以剛按過收回，眼前那顆還寫著「收回」。那一步現在寫在重讀那一處，
 並且刻意不動 `loadedContent`（動了就等於把還沒存的修改當成已經存了）。
 上表的 AC-05.1a／05.1b／05.2a 是隨之新增的條款。
+
+**後來併進這一份契約的一段（US-07 / BR-10 / BR-11：市集搜尋）：** 它沒有另開切片——
+搜尋是市集的一部分，另開一份文件只會讓「市集是什麼」分散在兩處。
+那 15 則的預期結果先寫進 PRD，程式與測試才跟上；比對規則的五個決定
+（切詞、比對哪幾欄、大小寫、空白、要不要全部對上）集中在一個 domain model 裡，
+並且用變異一一打過：`every`→`some`、拿掉說明欄、不轉小寫都被測試抓住，
+而多餘的那個 `.trim()` 沒有被抓住——因為切詞已經把前後空白處理掉了，所以它被移除。
 
 **Ceiling:** 這是靜態一致性稽核——它讀測試斷言與程式碼路徑並與契約推導出的預期比對，
 不執行自己發明的情境。要動態證明某一則，走 `/tdd`。

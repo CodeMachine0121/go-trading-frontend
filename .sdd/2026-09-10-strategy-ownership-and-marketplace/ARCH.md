@@ -46,7 +46,9 @@
 | `application/strategy-marketplace-application.ts` | **Add** | 對應上面 |
 | `composables/use-strategy-library.ts` | **Modify** | 清單分兩段；挑到唯讀的那一支不載入編輯器；發佈／收回與收回前的確認 |
 | `pages/marketplace/index.vue` | **Add** | 市集這個去處 |
+| `components/organisms/StrategyMarketplacePanel.vue` | **Add** | 市集這一頁的全部：常駐說明、搜尋、卡片、三種空狀態 |
 | `components/molecules/MarketplaceStrategyCard.vue` | **Add** | 市集上的一張卡 |
+| `domain/models/domains/marketplace-search-domain.ts` | **Add** | 搜尋這條規則的唯一所在地：怎麼切詞、比對哪幾欄、要全部對上 |
 | `components/molecules/StrategyLibraryDialog.vue` | **Modify** | 兩段標題；唯讀那一段的動作只有「移除」；自己那一段多發佈／收回 |
 | `components/molecules/StrategyNameDialog.vue` | **Modify** | 多一個「說明」 |
 | `components/molecules/StrategyPicker.vue` | **Modify** | 兩段分組 |
@@ -72,6 +74,7 @@
 | `StrategyMarketplaceApplication` | Application | 市集的用例 | 上者 | US-04 |
 | `pages/marketplace/index.vue` | Page | 市集這個去處 | `StrategyMarketplaceApplication` | US-04 |
 | `MarketplaceStrategyCard.vue` | Molecule | 一張卡與它唯一那顆動作按鈕 | — | US-04 |
+| `MarketplaceSearchDomain` | Domain Model | 一句搜尋的字**是什麼意思**：切成幾個詞、比對名稱／說明／分享者、每一個都要對上 | `MarketplaceListingRowDto` | US-07 全部 |
 
 ### 「唯讀」怎麼只判斷一次
 
@@ -87,6 +90,18 @@ AvailableStrategiesDto
 不是一個要靠審查抓的錯誤，是一段編不過的程式。這與系統那一側用兩種形狀取代一個可空欄位，
 是同一個決定的兩端。
 
+### 搜尋為什麼是一個 Domain Model，而不是畫面上一行 `filter`
+
+搜尋看起來只是一行 `filter`，但那一行裡有**五個決定**：切詞的方式、比對哪幾個欄位、
+大小寫怎麼算、空白怎麼算、以及好幾個詞是「全部都要對上」還是「對上一個就算」。
+每一個決定都是規則，而規則寫在畫面上就會在下一個要搜尋的地方被重新猜一次。
+
+所以那五個決定住在 `MarketplaceSearchDomain` 裡，畫面只交出使用者打的那一句話與手上的清單，
+拿回留下來的那幾列。這也是畫面唯一拿得到它的方式——`.vue` 只認識 Application 與 DTO
+（見 eslint 的分層邊界），所以它經由 `StrategyMarketplaceApplication.matchingRows` 進來。
+
+**它不發任何請求**：市集本來就一次全部拿回來，在手上的清單上篩，一發請求都不必多。
+
 ---
 
 ## 4. Modified Components
@@ -100,6 +115,8 @@ AvailableStrategiesDto
 | `StrategyLibraryDialog` | 策略清單對話框 | 兩段各一個小標題；每一列的動作由它屬於哪一段決定 |
 | `StrategyNameDialog` | 取名對話框 | 多一個「說明」輸入 |
 | `StrategyPicker` | 圖表上挑策略 | 兩段分組；唯讀那些照樣挑得到（套用不需要算式） |
+| `StrategyMarketplaceApplication` | 市集的用例 | 多一個「這一句話留下哪幾列」——畫面拿不到 Domain Model，只能經由這一層 |
+| `StrategyMarketplacePanel` | 市集這一頁 | 多一個搜尋框與第三種空狀態（「沒有符合」，帶一個清掉搜尋的動作） |
 | `dependencies.ts` | 組裝根 | 唯一知道「被登出時要清狀態並回登入畫面」的地方——那是編排，不是基礎設施的事 |
 
 ### 被登出時誰負責導頁
@@ -129,8 +146,10 @@ flowchart TD
 
 ## 6. Extensibility & Handoff Notes
 
-- **Most likely next requirement:** 市集長大——搜尋、分類、或「這一支多少人用」。
-- **Where it lands:** `pages/marketplace/index.vue` 與 `StrategyMarketplaceService`。
+- **Most likely next requirement:** 市集再長大——分類、排序、或「這一支多少人用」；
+  以及搜尋從眼前搬到系統那一側。
+- **Where it lands:** `MarketplaceSearchDomain`（比對規則）、`StrategyMarketplacePanel`（那個框）
+  與 `StrategyMarketplaceService`（真的要送出去查的那一天）。
   兩者都只服務市集，所以市集長大時，日常挑策略那條路一行都不動。
   這正是把市集做成獨立去處（而不是清單裡多一個頁籤）換來的東西。
 - **How to add it:** 加一個查詢條件 = 市集那條線多一個參數；日常那條線不知道有這回事。
@@ -142,7 +161,9 @@ flowchart TD
   - 登入畫面的位址：一律用 `LOGIN_PATH`，它已經只寫在一個地方。
   - 「請重新登入」這句話：由系統那一側說，畫面照抄。
 - **Known debt / deferred:**
-  - 市集與清單都一次列完、不分頁。策略數量還小；該回頭處理的訊號是市集超過大約兩百張卡。
+  - 市集與清單都一次列完、不分頁，**搜尋也因此在眼前做**。策略數量還小；
+    該回頭處理的訊號是市集超過大約兩百張卡——那一天搜尋要跟著送到系統那一側，
+    而落點就是 `MarketplaceSearchDomain` 與市集那條線多一個查詢條件。
   - 加入的那一支在別人那邊被收回時，畫面要到下一次讀清單才知道。沒有推播，也不打算有。
 
 ---
@@ -163,6 +184,7 @@ flowchart TD
 | US-04 市集的十則 | `pages/marketplace/index.vue` + `MarketplaceStrategyCard` + `StrategyMarketplaceService` |
 | US-05 發佈與收回的七則 | `useStrategyLibrary` + `StrategyLibraryDialog` + `StrategyProxy` |
 | US-06 沒存過的算式照舊算得動（三則） | 不需要任何改動——系統那一側保留了這條路 |
+| US-07 搜尋的十五則 | `MarketplaceSearchDomain`（比對規則）+ `StrategyMarketplaceApplication.matchingRows` + `StrategyMarketplacePanel`（那個框與「沒有符合」） |
 
 ---
 

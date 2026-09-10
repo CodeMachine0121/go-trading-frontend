@@ -173,6 +173,12 @@ describe('StrategyMarketplacePanel', () => {
     expect(wrapper.find('[data-testid="marketplace-empty"]').exists()).toBe(false)
   })
 
+  it('市集是空的時候連搜尋框都不給——搜不到任何東西的框只會讓人以為是自己搜錯了', async () => {
+    const wrapper = await mountPanel({ browseMarketplace: vi.fn().mockResolvedValue([]) })
+
+    expect(wrapper.find('[data-testid="marketplace-search-input"]').exists()).toBe(false)
+  })
+
   it('畫不成線的那幾種先講，不等使用者套到圖上才失敗', async () => {
     const wrapper = await mountPanel({
       browseMarketplace: vi.fn().mockResolvedValue([
@@ -182,5 +188,111 @@ describe('StrategyMarketplacePanel', () => {
 
     expect(wrapper.get('[data-testid="marketplace-strategy-undrawable-9"]').text())
       .toContain('畫不成線')
+  })
+})
+
+describe('StrategyMarketplacePanel 的搜尋', () => {
+  const twoStrategies = vi.fn().mockResolvedValue([
+    publishedStrategyOf(1, '二十根均線', { description: '抓短線轉折' }),
+    publishedStrategyOf(2, '布林通道', { publisherEmail: 'ming@example.com' }),
+  ])
+
+  async function search(query: string, browseMarketplace = twoStrategies) {
+    const wrapper = await mountPanel({ browseMarketplace })
+    await wrapper.get('[data-testid="marketplace-search-input"]').setValue(query)
+
+    return wrapper
+  }
+
+  /** 眼前真的看得到的那幾支。 */
+  function visibleNames(wrapper: Awaited<ReturnType<typeof search>>): string[] {
+    return wrapper.findAll('li[data-testid^="marketplace-strategy-"]')
+      .map(card => card.get('h3').text())
+  }
+
+  it('打一個詞就只剩對得上的', async () => {
+    const wrapper = await search('均線')
+
+    expect(visibleNames(wrapper)).toEqual(['二十根均線'])
+  })
+
+  it('沒有打字就是全部', async () => {
+    const wrapper = await search('')
+
+    expect(visibleNames(wrapper)).toEqual(['二十根均線', '布林通道'])
+  })
+
+  it('只打空白等同沒有打', async () => {
+    const wrapper = await search('   ')
+
+    expect(visibleNames(wrapper)).toEqual(['二十根均線', '布林通道'])
+  })
+
+  it('說明與分享者也搜得到', async () => {
+    // 算式看不到的時候，說明是別人唯一的判斷依據；而人記得的常常是「誰分享的」。
+    expect(visibleNames(await search('轉折'))).toEqual(['二十根均線'])
+    expect(visibleNames(await search('ming'))).toEqual(['布林通道'])
+  })
+
+  it('搜不到時說的是「沒有符合」，不是「市集上還沒有任何策略」', async () => {
+    // 兩句話要人做的事相反：一句要他換關鍵字，一句要他等別人分享。
+    const wrapper = await search('不存在的東西')
+
+    expect(wrapper.get('[data-testid="marketplace-no-matches"]').text()).toContain('沒有符合')
+    expect(wrapper.find('[data-testid="marketplace-empty"]').exists()).toBe(false)
+    expect(visibleNames(wrapper)).toEqual([])
+  })
+
+  it('搜不到時給一個清掉搜尋的去處，按下去全部回來', async () => {
+    const wrapper = await search('不存在的東西')
+
+    await wrapper.get('[data-testid="marketplace-clear-search"]').trigger('click')
+
+    expect(visibleNames(wrapper)).toEqual(['二十根均線', '布林通道'])
+    expect(wrapper.find('[data-testid="marketplace-no-matches"]').exists()).toBe(false)
+  })
+
+  it('搜出來的那一張照樣加得進來', async () => {
+    const adoptStrategy = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanel({ adoptStrategy, browseMarketplace: twoStrategies })
+    await wrapper.get('[data-testid="marketplace-search-input"]').setValue('均線')
+
+    await wrapper.get('[data-testid="marketplace-adopt-1"]').trigger('click')
+    await flushPromises()
+
+    expect(adoptStrategy).toHaveBeenCalledWith(1)
+  })
+
+  it('加入之後搜尋條件還在——重讀清單不該把剛按過的那一張搖走', async () => {
+    const wrapper = await mountPanel({
+      adoptStrategy: vi.fn().mockResolvedValue(undefined),
+      browseMarketplace: twoStrategies,
+    })
+    await wrapper.get('[data-testid="marketplace-search-input"]').setValue('均線')
+
+    await wrapper.get('[data-testid="marketplace-adopt-1"]').trigger('click')
+    await flushPromises()
+
+    expect(visibleNames(wrapper)).toEqual(['二十根均線'])
+  })
+
+  it('搜尋不留存——重新打開就是全部', async () => {
+    const searched = await search('均線')
+    expect(visibleNames(searched)).toEqual(['二十根均線'])
+
+    const reopened = await mountPanel({ browseMarketplace: twoStrategies })
+
+    expect((reopened.get('[data-testid="marketplace-search-input"]').element as HTMLInputElement)
+      .value).toBe('')
+    expect(visibleNames(reopened)).toEqual(['二十根均線', '布林通道'])
+  })
+
+  it('連不上系統時說連不上，與搜尋無關', async () => {
+    const wrapper = await mountPanel({
+      browseMarketplace: vi.fn().mockRejectedValue(new Error('連不上')),
+    })
+
+    expect(wrapper.get('[data-testid="marketplace-unavailable-alert"]').text()).toContain('讀不到市集')
+    expect(wrapper.find('[data-testid="marketplace-no-matches"]').exists()).toBe(false)
   })
 })

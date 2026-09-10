@@ -1,6 +1,7 @@
 import type { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
 import type { StrategyService } from '~/domain/service/strategy-service'
 import { MarketplaceListingDomain } from '~/domain/models/domains/marketplace-listing-domain'
+import { MarketplaceSearchDomain } from '~/domain/models/domains/marketplace-search-domain'
 import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 
 /**
@@ -29,6 +30,19 @@ export class StrategyMarketplaceApplication {
     ])
 
     return new MarketplaceListingDomain(publishedStrategies, available).toRowDtos()
+  }
+
+  /**
+   * 一句搜尋的字之後，市集上還留下哪幾列。
+   *
+   * 它在這一層而不是在畫面上，因為「這一句話是什麼意思」是規則——切詞、比對哪幾欄、
+   * 是不是每個詞都要對上，都寫在 domain model 裡，而畫面只認識這一層與 DTO。
+   * 它**不讀任何東西**：篩的是畫面手上那一份，所以打字不會發出請求。
+   */
+  matchingRows(
+    rows: readonly MarketplaceListingRowDto[], query: string,
+  ): MarketplaceListingRowDto[] {
+    return new MarketplaceSearchDomain(query).matching(rows)
   }
 
   async adoptStrategy(id: number): Promise<void> {
