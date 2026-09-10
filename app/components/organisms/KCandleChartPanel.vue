@@ -22,7 +22,7 @@ import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
@@ -94,7 +94,7 @@ let latestRequestNumber = 0
 const chartIndicators = useChartIndicators(chartIndicatorApplication)
 
 /** 可以挑來套用的策略。取不到清單時是空的——那是一份清單，不是一個功能。 */
-const strategies = ref<StrategyDto[]>([])
+const strategies = ref<ChartApplicableStrategyDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
@@ -403,7 +403,13 @@ onMounted(async () => {
   void selectPreset(kCandleChartApplication.defaultRangePreset())
 
   try {
-    strategies.value = await strategyApplication.listStrategies()
+    // 兩段都能套到圖上：套用不需要算式，而加入來的那些正好沒有。
+    // 在這裡就轉成圖表要的形狀，圖表那一路因此完全不必知道有兩種來源。
+    const available = await strategyApplication.listAvailableStrategies()
+    strategies.value = [
+      ...available.mine.map(strategy => strategy.toChartApplicable()),
+      ...available.adopted.map(published => published.toChartApplicable()),
+    ]
 
     // 上次擺著的那幾支自己回來。**要等策略清單到手**——那份清單是還原時唯一的真相：
     // 留存的是「他要哪幾支」，而那幾支可能已經被刪、改了宣告，或者現在畫不成線。

@@ -50,12 +50,13 @@ afterEach(() => {
 
 describe('StrategyProxy.listStrategies', () => {
   it('把後端給的每一支收成領域看得懂的形狀', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([
-      strategyWireOf(1, '二十根均線'),
-      strategyWireOf(2, '六十根均線'),
-    ]))
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      mine: [strategyWireOf(1, '二十根均線'), strategyWireOf(2, '六十根均線')],
+      adopted: [],
+    }))
 
-    const strategies = await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+    const { mine: strategies } = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategies()
 
     expect(strategies).toHaveLength(2)
     expect(strategies[0]?.id).toBe(1)
@@ -65,16 +66,20 @@ describe('StrategyProxy.listStrategies', () => {
   })
 
   it('一支都沒有是空陣列，不是錯誤', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [], adopted: [] }))
 
-    await expect(new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()).resolves.toEqual([])
+    const available = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategies()
+
+    expect(available.mine).toEqual([])
+    expect(available.adopted).toEqual([])
   })
 
   it('打的是策略端點', async () => {
-    const fetchMock = vi.fn().mockResolvedValue([])
+    const fetchMock = vi.fn().mockResolvedValue({ mine: [], adopted: [] })
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+    await new StrategyProxy(BASE_URL, signedInSessionStorage()).listAvailableStrategies()
 
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/strategies', { headers: SIGNED_IN_HEADERS })
   })
@@ -82,7 +87,7 @@ describe('StrategyProxy.listStrategies', () => {
   it('連不上後端時說得出來', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({})))
 
-    await expect(new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies())
+    await expect(new StrategyProxy(BASE_URL, signedInSessionStorage()).listAvailableStrategies())
       .rejects.toBeInstanceOf(BackendUnreachableError)
   })
 })
@@ -99,6 +104,9 @@ describe('StrategyProxy.createStrategy', () => {
       method: 'POST',
       body: {
         name: '二十根均線',
+        // 沒寫說明送出的是空字串，不是什麼都不送——「沒有說明」是一個值，
+        // 改寫時必須說得出來，否則舊的說明會留在那裡。
+        description: '',
         script: writeDomainOf().script,
         resultType: 'floatList',
         // 一支沒有旋鈕的算式送出的是一份空的，不是什麼都不送——
@@ -221,12 +229,13 @@ describe('StrategyProxy：策略記著的旋鈕', () => {
   })
 
   it('讀回來時把後端的預設值收成畫面上那個數字', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [{
       ...strategyWireOf(1, '布林通道'),
       parameters: [{ name: '期數', kind: 'lookbackCount', defaultValue: 20 }],
-    }]))
+    }], adopted: [] }))
 
-    const strategies = await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+    const { mine: strategies } = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategies()
 
     expect(strategies[0]?.parameters).toEqual([
       expect.objectContaining({ name: '期數', kind: 'lookbackCount', value: 20 }),
@@ -237,31 +246,36 @@ describe('StrategyProxy：策略記著的旋鈕', () => {
     '$kind 這一種存進去讀回來還是同一種', async ({ kind }) => {
       // 這一條走過**每一種**，而不是列幾種來測：漏掉一種的後果是
       // 存好的東西讀回來換了一種種類，而那不會有任何地方報錯。
-      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [{
         ...strategyWireOf(1, '布林通道'),
         parameters: [{ name: '旋鈕', kind, defaultValue: 1 }],
-      }]))
+      }], adopted: [] }))
 
-      const strategies = await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+      const { mine: strategies } = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+        .listAvailableStrategies()
 
       expect(strategies[0]?.parameters[0]?.kind).toBe(kind)
     })
 
   it('認不得的種類一律當成數值——它不會憑空變成回看根數去多拿 K 線', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [{
       ...strategyWireOf(1, '布林通道'),
       parameters: [{ name: '期數', kind: '未來才有的種類', defaultValue: 20 }],
-    }]))
+    }], adopted: [] }))
 
-    const strategies = await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+    const { mine: strategies } = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategies()
 
     expect(strategies[0]?.parameters[0]?.kind).toBe('number')
   })
 
   it('後端那一支沒有旋鈕這個欄位時，收成一支都沒有', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([strategyWireOf(1, '二十根均線')]))
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      mine: [strategyWireOf(1, '二十根均線')], adopted: [],
+    }))
 
-    const strategies = await new StrategyProxy(BASE_URL, signedInSessionStorage()).listStrategies()
+    const { mine: strategies } = await new StrategyProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategies()
 
     expect(strategies[0]?.parameters).toEqual([])
   })

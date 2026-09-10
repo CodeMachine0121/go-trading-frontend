@@ -72,7 +72,7 @@ async function mountPanel(overrides: {
   readAppliedChartIndicators?: Mock<IAppliedChartIndicatorPreferenceProxy['readAppliedChartIndicators']>
   calculateIndicator?: Mock<IIndicatorCalculationProxy['calculateIndicator']>
   colorPreference?: Partial<IChartLineColorPreferenceProxy>
-  listStrategies?: Mock
+  listAvailableStrategies?: Mock
   /** 行情什麼時候回來。不給就立刻回來。 */
   findKCandleSeries?: Mock
 } = {}) {
@@ -95,8 +95,11 @@ async function mountPanel(overrides: {
         { readAppliedChartIndicators, writeAppliedChartIndicators },
       ),
       strategyApplication: buildStrategyApplication({
-        listStrategies: overrides.listStrategies
-          ?? vi.fn().mockResolvedValue(overrides.strategies ?? [strategyWithLookback()]),
+        listAvailableStrategies: overrides.listAvailableStrategies
+          ?? vi.fn().mockResolvedValue({
+            mine: overrides.strategies ?? [strategyWithLookback()],
+            adopted: [],
+          }),
       }),
       timeZone: buildTimeZone(),
     },
@@ -264,7 +267,7 @@ describe('打開畫面時對不上的那幾筆不回來', () => {
 
   it('取不到策略清單時清單是空的，圖表本身照畫', async () => {
     const { wrapper } = await mountPanel({
-      listStrategies: vi.fn().mockRejectedValue(new Error('連不上')),
+      listAvailableStrategies: vi.fn().mockRejectedValue(new Error('連不上')),
       remembered: [rememberedOf(7)],
     })
 

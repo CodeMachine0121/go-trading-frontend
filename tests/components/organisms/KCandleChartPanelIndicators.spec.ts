@@ -76,7 +76,7 @@ async function mountPanel(overrides: {
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
-        listStrategies: vi.fn().mockResolvedValue(strategies),
+        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: strategies, adopted: [] }),
       }),
       timeZone: buildTimeZone(),
     },
@@ -578,8 +578,7 @@ describe('圖表上的指標：線的顏色', () => {
           // 上一次打開這個畫面時，使用者替這條線挑過粉色。
           { readColorToken: vi.fn().mockReturnValue('--color-chart-line-5') }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -643,8 +642,7 @@ describe('圖表上的指標：邊界', () => {
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -710,7 +708,7 @@ describe('圖表上的指標：邊界', () => {
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockRejectedValue(
+          listAvailableStrategies: vi.fn().mockRejectedValue(
             new BackendUnreachableError('http://localhost:8080')),
         }),
         timeZone: buildTimeZone(),
@@ -868,8 +866,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
           calculateIndicator: vi.fn().mockResolvedValue(aCalculation()),
         }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue(
-            [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },

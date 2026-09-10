@@ -80,7 +80,7 @@ async function mountPanel(overrides: {
         { writeValue, ...overrides.parameterValuePreference },
       ),
       strategyApplication: buildStrategyApplication({
-        listStrategies: vi.fn().mockResolvedValue(strategies),
+        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: strategies, adopted: [] }),
         updateStrategy,
         createStrategy,
         ...overrides.strategyProxy,

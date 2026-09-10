@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RememberedAppliedIndicatorsDomain } from '~/domain/models/domains/remembered-applied-indicators-domain'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
-import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
-import { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
 function lookbackCount(name: string, value: number): StrategyParameterDto {
@@ -11,9 +10,9 @@ function lookbackCount(name: string, value: number): StrategyParameterDto {
 
 function strategyOf(
   id: number, name: string, parameters: StrategyParameterDto[] = [], drawableOnChart = true,
-): StrategyDto {
-  return new StrategyDto(
-    id, name, new StrategyContentDto('sum := 0.0', 'floatList', parameters), true, drawableOnChart)
+): ChartApplicableStrategyDto {
+  return new ChartApplicableStrategyDto(
+    id, name, 'floatList', parameters, drawableOnChart, false)
 }
 
 function rememberedOf(
@@ -24,7 +23,7 @@ function rememberedOf(
 }
 
 function restore(
-  remembered: RememberedAppliedIndicatorVo[], strategies: StrategyDto[],
+  remembered: RememberedAppliedIndicatorVo[], strategies: ChartApplicableStrategyDto[],
   lastAppliedIndicatorId = 0,
 ) {
   return new RememberedAppliedIndicatorsDomain(remembered, strategies)

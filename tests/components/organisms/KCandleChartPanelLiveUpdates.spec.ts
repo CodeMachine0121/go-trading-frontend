@@ -82,8 +82,7 @@ async function mountPanel(
         { followKCandles: feed.followKCandles }),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
-        listStrategies: vi.fn().mockResolvedValue(
-          [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
     },

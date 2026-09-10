@@ -97,8 +97,7 @@ async function mountPanel() {
       liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
       strategyApplication: buildStrategyApplication({
-        listStrategies: vi.fn().mockResolvedValue(
-          [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]),
+        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
     },
@@ -292,7 +291,7 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
         liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
         strategyApplication: buildStrategyApplication({
-          listStrategies: vi.fn().mockResolvedValue([]),
+          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },

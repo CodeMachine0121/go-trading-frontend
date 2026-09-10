@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
-import { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 
-const STRATEGY = new StrategyDto(
-  7, '二十根均線', new StrategyContentDto('sum := 0.0', 'floatList'), true, true)
+const STRATEGY = new ChartApplicableStrategyDto(7, '二十根均線', 'floatList', [], true, false)
 
 function appliedWith(parameters: StrategyParameterDto[], id = 1): AppliedIndicatorDto {
   return new AppliedIndicatorDto(id, STRATEGY, parameters)

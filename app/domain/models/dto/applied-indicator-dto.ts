@@ -1,4 +1,4 @@
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 
@@ -22,7 +22,7 @@ import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-appl
 export class AppliedIndicatorDto {
   constructor(
     public readonly id: number,
-    public readonly strategy: StrategyDto,
+    public readonly strategy: ChartApplicableStrategyDto,
     /** 這一次要用的那幾格。名稱與種類照策略的宣告，值是這一次的。 */
     public readonly parameters: readonly StrategyParameterDto[],
     /**

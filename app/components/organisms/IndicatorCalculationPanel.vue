@@ -181,6 +181,18 @@ function fillExampleScriptBody() {
   scriptBody.value = scriptTemplate.value.exampleBody
 }
 
+/**
+ * 挑策略那一排要顯示的東西：自己的，加上從市集加入的。
+ *
+ * 兩段在這裡合成一排是因為「要挑哪一支」對使用者是一個動作，不是兩個；
+ * 而挑到加入來的那一支會發生什麼，由收下這個選擇的地方決定——那一支沒有算式，
+ * 所以它不會被載進編輯器。
+ */
+const pickableStrategies = computed(() => [
+  ...strategyLibrary.strategies.value.map(strategy => strategy.toChartApplicable()),
+  ...strategyLibrary.adoptedStrategies.value.map(published => published.toChartApplicable()),
+])
+
 async function calculateIndicator() {
   await calculationRun.run(() => new IndicatorCalculationRequestDto(
     symbol.value,
@@ -198,7 +210,7 @@ async function calculateIndicator() {
          它不必有標題列——「策略」兩個字就寫在它自己的欄位標籤上了。 -->
     <AppPanel class="indicator-calculation-panel__strategy">
       <StrategyPicker
-        :strategies="strategyLibrary.strategies.value"
+        :strategies="pickableStrategies"
         :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
         @select="strategyLibrary.selectStrategy"
       >

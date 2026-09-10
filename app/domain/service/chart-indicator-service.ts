@@ -4,7 +4,7 @@ import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-
 import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
 import { AppliedIndicatorParametersDomain } from '~/domain/models/domains/applied-indicator-parameters-domain'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
@@ -43,7 +43,7 @@ export class ChartIndicatorService {
    * （取不到時圖表照畫），為了還原再打一趟等於讓一個附加功能多花一次往返。
    */
   restoreAppliedIndicators(
-    strategies: readonly StrategyDto[], lastAppliedIndicatorId: number,
+    strategies: readonly ChartApplicableStrategyDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
     return new RememberedAppliedIndicatorsDomain(
       this.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators(),
@@ -71,13 +71,13 @@ export class ChartIndicatorService {
    * 呼叫端只說「我要套用這一支」。讀記憶、對照宣告、丟掉已經不存在的名字、
    * 補上策略的預設值，四件事都在這裡面——**呼叫端不知道記憶存在，也不該知道**。
    */
-  prepareAppliedIndicator(strategy: StrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
+  prepareAppliedIndicator(strategy: ChartApplicableStrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
     return new AppliedIndicatorDto(
       appliedIndicatorId,
       strategy,
       new AppliedIndicatorParametersDomain(
         strategy.id,
-        strategy.content.parameters,
+        strategy.parameters,
         this.strategyParameterValuePreferenceProxy).toDtos(),
     )
   }
@@ -141,11 +141,14 @@ export class ChartIndicatorService {
         chartIndicatorRequestDto.symbol,
         chartIndicatorRequestDto.aggregationInterval,
         chartIndicatorRequestDto.observationWindow,
-        appliedIndicator.strategy.content.scriptBody,
-        appliedIndicator.strategy.content.resultType,
+        // 算式一個字都不送：圖表套用的是一支**已存的**策略，指名它就夠了——
+        // 而從市集加入的那些根本沒有算式可以送，指名是唯一跑得動的方式。
+        '',
+        appliedIndicator.strategy.resultType,
         // **這一次**的值，不是策略記著的預設值。同一支策略的另一筆套用
         // 可能填著完全不同的數字，而它們必須各自算各自的。
         appliedIndicator.parameters,
+        appliedIndicator.strategy.id,
       ))
 
     const indicatorCalculation

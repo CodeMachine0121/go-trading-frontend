@@ -23,9 +23,22 @@ export class IndicatorCalculationRequestDto {
      * 而那是系統才答得出來的事。
      */
     public readonly observationWindow: ObservationWindowVo,
+    /**
+     * 要跑的那一段算式**內容**。指標計算畫面走這一條：使用者在編輯器裡寫了什麼就跑什麼，
+     * 不必先存成策略。
+     *
+     * 與 `strategyId` **恰好挑一種**。兩個都給，就說不出實際跑的是哪一個。
+     */
     public readonly scriptBody: string,
     public readonly resultType: string,
     /** 這支算式的旋鈕。空的一份代表一支沒有旋鈕的算式。 */
     public readonly parameters: readonly StrategyParameterDto[] = [],
+    /**
+     * 要跑的是**哪一支已存的策略**。K 線圖表走這一條：那裡套用的是一支已經定案的策略，
+     * 而它可能是從市集加入來的——那種**沒有算式可以送**，指名它是唯一跑得動的方式。
+     *
+     * 與 `scriptBody` 恰好挑一種。
+     */
+    public readonly strategyId?: number,
   ) {}
 }

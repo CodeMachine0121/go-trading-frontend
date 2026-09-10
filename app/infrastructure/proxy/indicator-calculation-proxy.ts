@@ -79,20 +79,28 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
                   endTime: indicatorCalculationRequestDomain.observationWindow
                     .endTime.toISOString(),
                 }),
-            resultType: indicatorCalculationRequestDomain.resultType.value,
-            script: indicatorCalculationRequestDomain.script,
+            // 指名一支策略時**只送識別碼**：算式、指標值種類與旋鈕宣告都在那一支身上，
+            // 再送一份只會多出一個可能與它不一致的答案。帶算式內容時反過來，
+            // 那三樣沒有別的地方可以取。
+            ...(indicatorCalculationRequestDomain.strategyId === undefined
+              ? {
+                  resultType: indicatorCalculationRequestDomain.resultType.value,
+                  script: indicatorCalculationRequestDomain.script,
+                  parameters: indicatorCalculationRequestDomain.parameters.all.map(
+                    parameter => ({
+                      name: parameter.name,
+                      kind: parameter.kind,
+                      defaultValue: parameter.value,
+                    })),
+                }
+              : { strategyId: indicatorCalculationRequestDomain.strategyId }),
             // 宣告與這一次的值分兩份送：系統要先知道這支算式**宣告**了哪些名字，
             // 才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
             //
-            // 兩份都永遠送出去，空的也送——「一個都沒宣告」與「忘了送」
+            // 這一次的值永遠送出去，空的也送——「一個都沒宣告」與「忘了送」
             // 在收的那一端長得一模一樣，而後者曾經真的發生過：
-            // 少了這兩行，每一次計算都收到零個參數，於是算式裡**第一個**
+            // 少了這幾行，每一次計算都收到零個參數，於是算式裡**第一個**
             // 取用參數的那一行失敗，看起來像宣告的順序有影響。
-            parameters: indicatorCalculationRequestDomain.parameters.all.map(parameter => ({
-              name: parameter.name,
-              kind: parameter.kind,
-              defaultValue: parameter.value,
-            })),
             parameterValues: indicatorCalculationRequestDomain.parameters.all.map(parameter => ({
               name: parameter.name,
               value: parameter.value,

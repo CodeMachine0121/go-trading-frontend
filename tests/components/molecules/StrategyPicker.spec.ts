@@ -1,12 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
-import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
-import { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
 
-function strategyOf(id: number, name: string): StrategyDto {
-  return new StrategyDto(
-    id, name, new StrategyContentDto('sum := 0.0', 'floatList'), true, true)
+function strategyOf(id: number, name: string, adopted = false): ChartApplicableStrategyDto {
+  return new ChartApplicableStrategyDto(id, name, 'floatList', [], true, adopted)
 }
 
 describe('StrategyPicker', () => {
