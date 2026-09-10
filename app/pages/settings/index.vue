@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
@@ -56,14 +55,7 @@ onMounted(() => {
     </template>
 
     <div class="settings-page">
-      <!--
-        四個段落住在同一張紙上，中間只用髮絲線分開。
-        之前是三個各自畫框的方塊，讀起來像三件不相干的事——它們其實是同一頁的四段。
-      -->
-      <AppPanel
-        class="settings-page__sheet"
-        flush
-      >
+      <div class="settings-page__stack">
         <AccountProfilePanel :email="currentUser?.email ?? null" />
 
         <PasswordChangePanel
@@ -84,6 +76,8 @@ onMounted(() => {
           :setting="telegramDelivery.setting.value"
           :loading="telegramDelivery.loading.value"
           :load-error-message="telegramDelivery.loadErrorMessage.value"
+          :form-visible="telegramDelivery.formVisible.value"
+          :editing="telegramDelivery.editing.value"
           :saving="telegramDelivery.saving.value"
           :save-error-message="telegramDelivery.saveErrorMessage.value"
           :message-error="telegramDelivery.messageError.value"
@@ -95,9 +89,11 @@ onMounted(() => {
           :send-succeeded="telegramDelivery.sendSucceeded.value"
           @save="telegramDelivery.saveDeliverySetting"
           @remove="telegramDelivery.removeDeliverySetting"
+          @start-editing="telegramDelivery.startEditing"
+          @cancel-editing="telegramDelivery.cancelEditing"
           @send-test-message="telegramDelivery.sendTestMessage"
         />
-      </AppPanel>
+      </div>
     </div>
   </ConsoleLayout>
 </template>
@@ -113,12 +109,17 @@ onMounted(() => {
   width: 100%;
   overflow-y: auto;
 
-  &__sheet {
+  // 四張卡疊成一欄、置中。
+  //
+  // 卡片的寬度就是欄位的寬度，所以它訂在「一個表單好填的寬度」而不是「螢幕有多寬」——
+  // 攤到整片螢幕會把一個密碼框拉到九百多像素，靠左則會在右邊留下一大片死空白。
+  // 兩件事由同一個上限一起解決。
+  &__stack {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('md');
     margin: 0 auto;
-
-    // 13rem（標題欄）+ 2rem（間距）+ 28rem（可操作欄）+ 兩側內距，剛好裝滿。
-    // 再寬一點，紙的右半邊就會空出一塊——那正是這次要修掉的東西。
-    max-width: 47rem;
+    max-width: 38rem;
   }
 }
 </style>

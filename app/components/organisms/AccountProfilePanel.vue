@@ -17,7 +17,7 @@ const MASKED_PASSWORD = '••••••••'
 <template>
   <SettingsSection
     title="帳號"
-    description="你用來登入的那組身分。電子郵件就是帳號本身，目前不能更換。"
+    description="你用來登入的那組身分。電子郵件就是帳號本身，目前不能更換；密碼不會顯示，只能更換——系統從來沒有留著它。"
   >
     <dl class="account-profile-panel">
       <div class="account-profile-panel__row">
@@ -41,9 +41,6 @@ const MASKED_PASSWORD = '••••••••'
             class="account-profile-panel__masked"
             data-testid="account-password-mask"
           >{{ MASKED_PASSWORD }}</span>
-          <span class="account-profile-panel__note">
-            密碼不會顯示，只能更換——系統從來沒有留著它。
-          </span>
         </dd>
       </div>
     </dl>
@@ -51,17 +48,27 @@ const MASKED_PASSWORD = '••••••••'
 </template>
 
 <style scoped lang="scss">
-// 兩列唯讀資料。它刻意長得**不像表單**：沒有框、沒有底色，
-// 因為這一段沒有任何東西可以動，而看起來可以填的東西會讓人一直想去點它。
 .account-profile-panel {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
   margin: 0;
 
+  // 標籤在左、值在右，兩兩對齊成一張小小的對照表。它刻意長得**不像表單**：
+  // 沒有框、沒有底色，因為這一段沒有任何東西可以動，
+  // 而看起來可以填的東西會讓人一直想去點它。
   &__row {
     display: grid;
-    gap: spacing('3xs');
+    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+    gap: spacing('sm');
+    align-items: baseline;
+    border-bottom: 1px solid color('border');
+    padding-bottom: spacing('sm');
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
   }
 
   &__label {
@@ -69,13 +76,10 @@ const MASKED_PASSWORD = '••••••••'
   }
 
   &__value {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('3xs');
     margin: 0;
     min-width: 0;
     overflow-wrap: anywhere;
-    color: color('text');
+    color: color('text-strong');
     font-size: font-size('sm');
   }
 
@@ -86,10 +90,5 @@ const MASKED_PASSWORD = '••••••••'
     font-family: font-family('mono');
   }
 
-  &__note {
-    color: color('text-faint');
-    line-height: line-height('normal');
-    font-size: font-size('2xs');
-  }
 }
 </style>

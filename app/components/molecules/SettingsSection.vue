@@ -1,62 +1,55 @@
 <script setup lang="ts">
-// 分子：設定畫面上的一個段落——左邊說「這是什麼」，右邊放「可以動的東西」。
+import AppPanel from '~/components/atoms/AppPanel.vue'
+
+// 分子：設定畫面上的一個段落——一張卡，標題在最上面，可以動的東西在下面。
 //
-// 這個版型解掉設定畫面最容易犯的三個毛病，而且是同一招解的：
+// 標題**在上面**而不是在左邊。左邊那個版型（標題與說明自成一欄）在只有頁首的網站上
+// 很好用，但這個操作台左邊已經有一條導覽了——再長出第二欄靠左的文字，讀起來會是
+// 兩條並排的側欄。而且它在段落很高的時候會留下一大片空的左欄。
 //
-//   一、**寬度**。整頁一欄的話，一個密碼框會被拉到九百多像素寬——沒有任何一個
-//       密碼需要那麼寬。左右分欄之後，可操作的那一欄天然被限制在一個手臂寬。
-//   二、**層級**。段落標題是真的標題（亮、夠大），不是一條暗到看不見的窄帶。
-//       說明文字跟著標題走，不是塞在表單第一行擋路。
-//   三、**右半邊的空白**。1440 的螢幕上，一欄式版面會留下一大片死掉的右側；
-//       兩欄把它用掉了。
+// 標題與說明之間、說明與欄位之間各有一條看得見的節奏，段落因此不必靠框線就分得開；
+// 框線只用來把一整段圈起來。
 //
-// 它只出插槽與骨架，不認識任何領域概念——四個段落（帳號、換密碼、Telegram、試送）
-// 用的都是這一個。
+// 它只出插槽與骨架，不認識任何領域概念。
 defineProps<{
   title: string
-  /** 一句話說明這個段落在做什麼。它住在標題旁邊，不佔用可操作那一欄的第一行。 */
+  /** 一句話說明這個段落在做什麼。它跟著標題走，不佔用第一格欄位的位置。 */
   description?: string
 }>()
 </script>
 
 <template>
-  <section class="settings-section">
-    <div class="settings-section__heading">
-      <h2 class="settings-section__title">
-        {{ title }}
-      </h2>
-      <p
-        v-if="description"
-        class="settings-section__description"
-      >
-        {{ description }}
-      </p>
-    </div>
+  <AppPanel
+    class="settings-section"
+    flush
+  >
+    <div class="settings-section__body">
+      <div class="settings-section__heading">
+        <h2 class="settings-section__title">
+          {{ title }}
+        </h2>
+        <p
+          v-if="description"
+          class="settings-section__description"
+        >
+          {{ description }}
+        </p>
+      </div>
 
-    <div class="settings-section__controls">
-      <slot />
+      <div class="settings-section__controls">
+        <slot />
+      </div>
     </div>
-  </section>
+  </AppPanel>
 </template>
 
 <style scoped lang="scss">
 .settings-section {
-  display: grid;
-  gap: spacing('sm');
-  padding: spacing('lg');
-
-  // 段落之間只用一條髮絲線分開，不各自畫一個框。四個框疊起來會讀成四個彼此無關的
-  // 東西，而它們其實是同一頁的四段。
-  //
-  // 相鄰選擇器跨得過元件邊界：這幾個段落在 DOM 上是兄弟。
-  & + & {
-    border-top: 1px solid color('border');
-  }
-
-  @include respond-to('md') {
-    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
-    gap: spacing('xl');
-    padding: spacing('xl');
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('md');
+    padding: spacing('lg');
   }
 
   &__heading {
@@ -72,28 +65,25 @@ defineProps<{
     color: color('text-strong');
     line-height: line-height('tight');
     font-weight: font-weight('semibold');
-    font-size: font-size('md');
+    font-size: font-size('lg');
   }
 
   &__description {
     margin: 0;
-    color: color('text-faint');
+    color: color('text-muted');
     line-height: line-height('normal');
-    font-size: font-size('2xs');
+    font-size: font-size('xs');
   }
 
+  // 可操作的東西填滿整張卡，寬度上限由卡片本身決定（見 pages/settings）。
+  //
+  // 這是「標題在上面」換來的好處：卡片有多寬，欄位就有多寬，沒有一格需要自己
+  // 訂一個數字——四個段落因此天然切在同一條右緣上，而卡片裡也不會空出一塊。
   &__controls {
     display: flex;
     flex-direction: column;
     gap: spacing('md');
     min-width: 0;
-
-    // 可操作的那一欄有上限，而且**四個段落共用同一個上限**。
-    //
-    // 沒有上限的話，欄位會跟著視窗一起變寬，而一個變寬的輸入框並不會變好填。
-    // 各段自己訂寬度的話，四段會切出四條右緣——一頁上四條參差的邊，
-    // 看起來就是沒對齊，即使每一段自己都對得好好的。
-    max-width: 28rem;
   }
 }
 </style>

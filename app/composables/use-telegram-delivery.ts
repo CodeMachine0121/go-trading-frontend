@@ -37,6 +37,33 @@ export function useTelegramDelivery(
 
   const configured = computed(() => setting.value?.configured ?? false)
 
+  /**
+   * 正在填那兩格。
+   *
+   * 已經連上的時候，那兩格**收起來**：金鑰拿不回來，所以一個永遠空著的密碼框擺在
+   * 「已連線」底下，看起來像設定掉了。收起來之後，這一段平常只回答一個問題——
+   * 通了沒——而那正是多數時候唯一想知道的事。
+   *
+   * 還沒設定過時它無關緊要：那兩格本來就得填，所以直接攤開。
+   */
+  const editing = ref(false)
+  const formVisible = computed(() => !configured.value || editing.value)
+
+  /** 要換一組。金鑰那一格是空的（它拿不回來），聊天室代號留著上一次的值。 */
+  function startEditing(): void {
+    botToken.value = ''
+    saveErrorMessage.value = null
+    editing.value = true
+  }
+
+  /** 不換了。填到一半的金鑰跟著收掉——留著它，下一次打開會看到半串來歷不明的字。 */
+  function cancelEditing(): void {
+    botToken.value = ''
+    chatId.value = setting.value?.chatId ?? ''
+    saveErrorMessage.value = null
+    editing.value = false
+  }
+
   /** 這一則訊息現在的樣子：幾個字、上限幾個字、送不送得出去。規則在領域裡。 */
   const testMessage = computed(() => new TestMessageDomain(message.value))
   const messageError = computed(() => testMessage.value.error())
@@ -52,6 +79,10 @@ export function useTelegramDelivery(
 
     try {
       setting.value = await telegramDeliveryApplication.loadDeliverySetting()
+      // 聊天室代號讀得回來，所以那一格從已存的設定填好——要換的人多半只換金鑰，
+      // 讓他把一個系統本來就知道的數字再打一次，是白費工。
+      // 金鑰不填，因為它拿不回來。
+      chatId.value = setting.value.chatId
     }
     catch (error: unknown) {
       // 讀不到不等於沒設定過。把它畫成空狀態，已經設定過的人會以為自己的設定不見了。
@@ -80,6 +111,7 @@ export function useTelegramDelivery(
       setting.value = await telegramDeliveryApplication.saveDeliverySetting(
         botToken.value, chatId.value)
       botToken.value = ''
+      editing.value = false
     }
     catch (error: unknown) {
       saveErrorMessage.value = messageFor(error)
@@ -103,6 +135,8 @@ export function useTelegramDelivery(
       await telegramDeliveryApplication.removeDeliverySetting()
       setting.value = await telegramDeliveryApplication.loadDeliverySetting()
       botToken.value = ''
+      chatId.value = ''
+      editing.value = false
     }
     catch (error: unknown) {
       saveErrorMessage.value = messageFor(error)
@@ -145,6 +179,10 @@ export function useTelegramDelivery(
   return {
     setting,
     configured,
+    editing,
+    formVisible,
+    startEditing,
+    cancelEditing,
     loading,
     loadErrorMessage,
     botToken,

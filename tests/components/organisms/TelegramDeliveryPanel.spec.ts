@@ -13,9 +13,15 @@ function mountPanel(props: Record<string, unknown> = {}) {
       chatId: '',
       message: '這是一則來自 go-trading 的測試訊息。',
       maximumCharacterCount: 4096,
+      formVisible: true,
       ...props,
     },
   })
+}
+
+/** 已經連上、而且那兩格是收起來的——這是設定好之後平常看到的樣子。 */
+function mountConnected(props: Record<string, unknown> = {}) {
+  return mountPanel({ setting: CONFIGURED, formVisible: false, chatId: '987654', ...props })
 }
 
 describe('TelegramDeliveryPanel：目前的狀態', () => {
@@ -28,11 +34,18 @@ describe('TelegramDeliveryPanel：目前的狀態', () => {
   })
 
   it('還沒設定過時明說，而且不是紅字', () => {
-    // 它是正常狀態，不是錯誤。
+    // 它是這一段的正常起點，不是出了什麼事。
     const wrapper = mountPanel({ setting: UNCONFIGURED })
 
     expect(wrapper.get('[data-testid="telegram-unconfigured"]').text()).toContain('還沒有設定')
     expect(wrapper.find('[data-testid="telegram-load-error"]').exists()).toBe(false)
+  })
+
+  it('還沒設定過時那兩格直接攤開——它們本來就得填', () => {
+    const wrapper = mountPanel({ setting: UNCONFIGURED })
+
+    expect(wrapper.find('[data-testid="bot-token-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="telegram-cancel"]').exists()).toBe(false)
   })
 
   it('讀不到設定與沒有設定分得開', () => {
@@ -42,27 +55,43 @@ describe('TelegramDeliveryPanel：目前的狀態', () => {
     expect(wrapper.find('[data-testid="telegram-unconfigured"]').exists()).toBe(false)
   })
 
-  it('已設定時說得出存著的是哪一組金鑰', () => {
-    const wrapper = mountPanel({ setting: CONFIGURED })
+  it('已連上時讀起來像一列紀錄：認得出是哪一組、送去哪裡', () => {
+    const wrapper = mountConnected()
 
-    const summary = wrapper.get('[data-testid="telegram-summary"]').text()
-    expect(summary).toContain('已設定')
-    expect(summary).toContain('金鑰結尾 1234')
+    const connection = wrapper.get('[data-testid="telegram-summary"]').text()
+    expect(connection).toContain('已連線')
+    expect(connection).toContain('金鑰結尾 1234')
+    expect(connection).toContain('987654')
   })
 
-  it('那一行不重複下面輸入框裡已經看得到的東西', () => {
-    // 聊天室代號就在下面那一格裡。同一個數字在同一個畫面上出現兩次，
-    // 遲早會有人以為它們是兩件事，然後只改了其中一個。
-    const wrapper = mountPanel({ setting: CONFIGURED, chatId: '987654' })
+  it('已連上時那兩格是收起來的', () => {
+    // 金鑰拿不回來，所以一個永遠空著的密碼框擺在「已連線」底下，
+    // 看起來像設定掉了。
+    const wrapper = mountConnected()
 
-    expect(wrapper.get('[data-testid="telegram-summary"]').text()).not.toContain('987654')
-    expect((wrapper.get('[data-testid="chat-id-input"]').element as HTMLInputElement).value)
-      .toBe('987654')
+    expect(wrapper.find('[data-testid="bot-token-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="chat-id-input"]').exists()).toBe(false)
+  })
+
+  it('按「更換金鑰」才把那兩格叫出來', () => {
+    const wrapper = mountConnected()
+
+    return wrapper.get('[data-testid="telegram-edit"]').trigger('click').then(() => {
+      expect(wrapper.emitted('startEditing')).toHaveLength(1)
+    })
+  })
+
+  it('換到一半可以取消，還沒設定過時則沒有取消可按', () => {
+    const editingWrapper = mountPanel({ setting: CONFIGURED, formVisible: true, editing: true })
+    expect(editingWrapper.find('[data-testid="telegram-cancel"]').exists()).toBe(true)
+
+    const firstTimeWrapper = mountPanel({ setting: UNCONFIGURED })
+    expect(firstTimeWrapper.find('[data-testid="telegram-cancel"]').exists()).toBe(false)
   })
 
   it('金鑰那一格永遠是空的，並說明為什麼', () => {
     // 它已經拿不回來了，留半串在畫面上只會讓人以為它還在。
-    const wrapper = mountPanel({ setting: CONFIGURED })
+    const wrapper = mountPanel({ setting: CONFIGURED, editing: true })
 
     expect((wrapper.get('[data-testid="bot-token-input"]').element as HTMLInputElement).value)
       .toBe('')
@@ -97,14 +126,14 @@ describe('TelegramDeliveryPanel：儲存與移除', () => {
     expect(wrapper.emitted('save')).toHaveLength(1)
   })
 
-  it('還沒設定過就沒有「移除設定」可按', () => {
+  it('還沒設定過就沒有「移除」可按', () => {
     expect(mountPanel({ setting: UNCONFIGURED }).find('[data-testid="telegram-remove"]').exists())
       .toBe(false)
   })
 
   it('移除要先確認過才真的移除', async () => {
     // 手滑掉的話，要回到現在這個狀態得重新貼一整串金鑰——它已經拿不回來了。
-    const wrapper = mountPanel({ setting: CONFIGURED })
+    const wrapper = mountConnected()
 
     await wrapper.get('[data-testid="telegram-remove"]').trigger('click')
     expect(wrapper.emitted('remove')).toBeUndefined()
@@ -114,7 +143,7 @@ describe('TelegramDeliveryPanel：儲存與移除', () => {
   })
 
   it('取消就什麼都不變', async () => {
-    const wrapper = mountPanel({ setting: CONFIGURED })
+    const wrapper = mountConnected()
 
     await wrapper.get('[data-testid="telegram-remove"]').trigger('click')
     await wrapper.findComponent({ name: 'ConfirmDialog' }).vm.$emit('cancel')
@@ -206,15 +235,15 @@ describe('TelegramDeliveryPanel：三格都往上綁', () => {
     expect(wrapper.emitted(event)).toEqual([[value]])
   })
 
-  it('已經設定過時，那顆鍵說的是「更換設定」而不是「儲存設定」', async () => {
+  it('換一組時那顆鍵說的是「更換設定」，第一次設定時說「儲存設定」', async () => {
     // 兩個字的差別就是使用者知不知道自己正在覆蓋掉一份既有的設定。
     const wrapper = mountPanel({
-      setting: CONFIGURED, botToken: '123456:AAH', chatId: '987654',
+      setting: CONFIGURED, editing: true, botToken: '123456:AAH', chatId: '987654',
     })
 
     expect(wrapper.get('[data-testid="telegram-save"]').text()).toBe('更換設定')
 
-    await wrapper.setProps({ setting: UNCONFIGURED })
+    await wrapper.setProps({ setting: UNCONFIGURED, editing: false })
     expect(wrapper.get('[data-testid="telegram-save"]').text()).toBe('儲存設定')
   })
 

@@ -51,7 +51,7 @@ function submit(): void {
 <template>
   <SettingsSection
     title="更換密碼"
-    description="換好之後，你在每一台裝置上的登入都不再算數，包含這一台——會請你用新密碼重新登入一次。"
+    description="為了安全，換好之後你在每一台裝置上的登入都不再算數，包含這一台——會請你用新密碼重新登入一次。"
   >
     <form
       class="password-change-panel"

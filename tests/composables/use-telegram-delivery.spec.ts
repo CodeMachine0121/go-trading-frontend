@@ -248,3 +248,95 @@ describe('useTelegramDelivery：一次只做一件事，而且失敗說得出口
     expect(saveErrorMessage.value).toBe('與 Telegram 設定往來時發生未預期的錯誤。')
   })
 })
+
+describe('useTelegramDelivery：那兩格什麼時候攤開', () => {
+  it('還沒設定過就直接攤開——它們本來就得填', () => {
+    const { formVisible, editing } = telegramDeliveryUnderTest()
+
+    expect(formVisible.value).toBe(true)
+    expect(editing.value).toBe(false)
+  })
+
+  it('已經連上就收起來，按了「更換」才攤開', async () => {
+    // 金鑰拿不回來，所以一個永遠空著的密碼框擺在「已連線」底下，
+    // 看起來像設定掉了。
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+
+    expect(fixture.formVisible.value).toBe(false)
+
+    fixture.startEditing()
+
+    expect(fixture.formVisible.value).toBe(true)
+    expect(fixture.editing.value).toBe(true)
+  })
+
+  it('讀回來時聊天室代號就填好了，金鑰不填', async () => {
+    // 要換的人多半只換金鑰，讓他把一個系統本來就知道的數字再打一次是白費工；
+    // 而金鑰是真的拿不回來。
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    const fixture = telegramDeliveryUnderTest()
+
+    await fixture.loadDeliverySetting()
+
+    expect(fixture.chatId.value).toBe('987654')
+    expect(fixture.botToken.value).toBe('')
+  })
+
+  it('取消就把填到一半的金鑰收掉，聊天室代號回到存著的那一個', async () => {
+    // 留著半串來歷不明的字，下一次打開會看到它，而沒有人記得那是什麼。
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+    fixture.startEditing()
+    fixture.botToken.value = '打到一半'
+    fixture.chatId.value = '改到一半'
+
+    fixture.cancelEditing()
+
+    expect(fixture.formVisible.value).toBe(false)
+    expect(fixture.botToken.value).toBe('')
+    expect(fixture.chatId.value).toBe('987654')
+  })
+
+  it('換成功之後那兩格自己收回去', async () => {
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+    fixture.startEditing()
+
+    await fixture.saveDeliverySetting()
+
+    expect(fixture.formVisible.value).toBe(false)
+    expect(fixture.botToken.value).toBe('')
+  })
+
+  it('換失敗就留在原地，讓人改完再送一次', async () => {
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    telegramDeliveryApplication.saveDeliverySetting.mockRejectedValue(
+      new SecretSealUnavailableError('系統目前無法安全保存機器人金鑰'))
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+    fixture.startEditing()
+
+    await fixture.saveDeliverySetting()
+
+    expect(fixture.formVisible.value).toBe(true)
+    expect(fixture.saveErrorMessage.value).toContain('SECRET_SEAL_KEY')
+  })
+
+  it('移除之後回到「還沒設定」，兩格清空並攤開', async () => {
+    telegramDeliveryApplication.loadDeliverySetting
+      .mockResolvedValueOnce(CONFIGURED)
+      .mockResolvedValueOnce(UNCONFIGURED)
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+
+    await fixture.removeDeliverySetting()
+
+    expect(fixture.configured.value).toBe(false)
+    expect(fixture.formVisible.value).toBe(true)
+    expect(fixture.chatId.value).toBe('')
+  })
+})
