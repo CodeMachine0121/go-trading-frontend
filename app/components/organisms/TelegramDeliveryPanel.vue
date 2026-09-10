@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import type { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SettingsSection from '~/components/molecules/SettingsSection.vue'
 
-// 有機體：設定畫面上「Telegram 投遞」那一張卡。
+// 有機體：設定畫面上與 Telegram 有關的**兩段**。
 //
-// 兩件事共用一張卡，因為它們是同一件事的兩半：說出要送到哪裡，然後確認那條路真的通。
-// 分成兩張卡的話，「還沒設定所以送不了」這個關係得靠使用者自己看出來。
+// 兩段而不是一段：說出「要送到哪裡」與「試著送一則看看」是兩件事，
+// 之前把它們塞進同一張卡，中間只好拿一條分隔線硬切開——而一條分隔線正是
+// 「這裡其實是兩段」最誠實的自白。它們仍然住在同一個元件裡，因為第二段能不能按
+// 完全取決於第一段設好了沒。
 //
 // 這裡不寫任何規則：訊息的長度由 TestMessageDomain 說了算，四種送不出去的說法由
 // 領域備好，這裡只畫。
@@ -69,154 +72,111 @@ function confirmRemoval(): void {
 </script>
 
 <template>
-  <AppPanel title="Telegram 投遞">
-    <div class="telegram-delivery-panel">
-      <p class="telegram-delivery-panel__caption">
-        留下一組機器人金鑰與一個聊天室代號，這台系統就送得出訊息到你的 Telegram。
-        目前它只送你自己按下去的那一則測試訊息。
-      </p>
+  <SettingsSection
+    title="Telegram 投遞"
+    description="留下一組機器人金鑰與一個聊天室代號，這台系統就送得出訊息到你的 Telegram。"
+  >
+    <!--
+      目前是什麼狀態，一行講完。
+      之前這裡是一張兩列的對照表，而那兩列講的正好是下面兩格輸入框裡的東西——
+      同一個聊天室代號在同一個畫面上出現兩次。現在它只說輸入框說不出來的那一件事：
+      連上了沒，以及存著的是哪一組金鑰。
+    -->
+    <p
+      v-if="loading"
+      class="telegram-delivery-panel__state"
+      data-testid="telegram-loading"
+    >
+      <AppBadge variant="neutral">
+        讀取中
+      </AppBadge>
+      <span>正在問後端目前的設定…</span>
+    </p>
+    <AppAlert
+      v-else-if="loadErrorMessage"
+      tone="danger"
+      data-testid="telegram-load-error"
+    >
+      {{ loadErrorMessage }}
+    </AppAlert>
+    <p
+      v-else-if="!configured"
+      class="telegram-delivery-panel__state"
+      data-testid="telegram-unconfigured"
+    >
+      <AppBadge variant="neutral">
+        還沒有設定
+      </AppBadge>
+      <span>填好下面兩格並儲存，就能試送一則訊息。</span>
+    </p>
+    <p
+      v-else
+      class="telegram-delivery-panel__state"
+      data-testid="telegram-summary"
+    >
+      <AppBadge variant="success">
+        已設定
+      </AppBadge>
+      <span>{{ setting?.summary }}</span>
+    </p>
 
-      <!--
-        讀取中與「還沒有設定」是兩種狀態，不能長得一樣：已經設定過的人若在讀取的
-        那半秒被告知他沒有設定，他會以為設定不見了。
-      -->
-      <p
-        v-if="loading"
-        class="telegram-delivery-panel__status"
-        data-testid="telegram-loading"
-      >
-        讀取目前的設定…
-      </p>
-      <AppAlert
-        v-else-if="loadErrorMessage"
-        tone="danger"
-        data-testid="telegram-load-error"
-      >
-        {{ loadErrorMessage }}
-      </AppAlert>
-      <p
-        v-else-if="!configured"
-        class="telegram-delivery-panel__status"
-        data-testid="telegram-unconfigured"
-      >
-        還沒有設定。填好下面兩格並儲存，就能試送一則訊息。
-      </p>
-      <dl
-        v-else
-        class="telegram-delivery-panel__summary"
-        data-testid="telegram-summary"
-      >
-        <div class="telegram-delivery-panel__row">
-          <dt class="telegram-delivery-panel__label">
-            聊天室代號
-          </dt>
-          <dd class="telegram-delivery-panel__value">
-            {{ setting?.chatId }}
-          </dd>
-        </div>
-        <div class="telegram-delivery-panel__row">
-          <dt class="telegram-delivery-panel__label">
-            機器人金鑰
-          </dt>
-          <dd class="telegram-delivery-panel__value">
-            {{ setting?.summary }}
-          </dd>
-        </div>
-      </dl>
+    <FormField
+      label="機器人金鑰"
+      hint="存進去之後就拿不回來了，畫面只留得下最後四個字。要更換請重新填入整串。"
+    >
+      <AppInput
+        v-model="botToken"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        data-testid="bot-token-input"
+      />
+    </FormField>
 
-      <FormField
-        label="機器人金鑰"
-        hint="存進去之後就拿不回來了，畫面只留得下最後四個字。要更換請重新填入整串。"
+    <FormField
+      class="telegram-delivery-panel__field--narrow"
+      label="聊天室代號"
+      hint="數字的聊天室代號，或以 @ 開頭的頻道名稱。"
+    >
+      <AppInput
+        v-model="chatId"
+        autocapitalize="off"
+        spellcheck="false"
+        data-testid="chat-id-input"
+      />
+    </FormField>
+
+    <AppAlert
+      v-if="saveErrorMessage"
+      tone="danger"
+      data-testid="telegram-save-error"
+    >
+      {{ saveErrorMessage }}
+    </AppAlert>
+
+    <!--
+      移除擺在最左邊、而且是安靜的那一種；儲存擺在最右邊、是實心的那一顆。
+      兩顆都畫成實心色塊的話，一整段裡最搶眼的會是那顆會弄丟東西的。
+    -->
+    <div class="telegram-delivery-panel__actions">
+      <AppButton
+        v-if="configured"
+        variant="danger-ghost"
+        :disabled="saving"
+        data-testid="telegram-remove"
+        @click="removeConfirmationOpen = true"
       >
-        <AppInput
-          v-model="botToken"
-          type="password"
-          autocomplete="off"
-          spellcheck="false"
-          data-testid="bot-token-input"
-        />
-      </FormField>
-
-      <FormField
-        label="聊天室代號"
-        hint="數字的聊天室代號，或以 @ 開頭的頻道名稱。"
+        移除設定
+      </AppButton>
+      <AppButton
+        variant="primary"
+        class="telegram-delivery-panel__save"
+        :disabled="!savable"
+        data-testid="telegram-save"
+        @click="emit('save')"
       >
-        <AppInput
-          v-model="chatId"
-          autocapitalize="off"
-          spellcheck="false"
-          data-testid="chat-id-input"
-        />
-      </FormField>
-
-      <AppAlert
-        v-if="saveErrorMessage"
-        tone="danger"
-        data-testid="telegram-save-error"
-      >
-        {{ saveErrorMessage }}
-      </AppAlert>
-
-      <div class="telegram-delivery-panel__actions">
-        <AppButton
-          v-if="configured"
-          variant="danger"
-          :disabled="saving"
-          data-testid="telegram-remove"
-          @click="removeConfirmationOpen = true"
-        >
-          移除設定
-        </AppButton>
-        <AppButton
-          variant="primary"
-          :disabled="!savable"
-          data-testid="telegram-save"
-          @click="emit('save')"
-        >
-          {{ saveLabel }}
-        </AppButton>
-      </div>
-
-      <hr class="telegram-delivery-panel__divider">
-
-      <FormField
-        label="測試訊息"
-        :hint="`${characterCount} / ${maximumCharacterCount} 個字`"
-        :error-message="messageError"
-      >
-        <AppTextarea
-          v-model="message"
-          :invalid="messageError !== null"
-          data-testid="test-message-input"
-        />
-      </FormField>
-
-      <p
-        v-if="!configured"
-        class="telegram-delivery-panel__status"
-        data-testid="test-message-blocked"
-      >
-        先完成上面的 Telegram 設定，才送得出測試訊息。
-      </p>
-
-      <AppAlert
-        v-if="sendResultMessage"
-        :tone="sendSucceeded ? 'success' : 'danger'"
-        data-testid="test-message-result"
-      >
-        {{ sendResultMessage }}
-      </AppAlert>
-
-      <div class="telegram-delivery-panel__actions">
-        <AppButton
-          variant="secondary"
-          :disabled="!canSendTestMessage"
-          data-testid="test-message-send"
-          @click="emit('sendTestMessage')"
-        >
-          {{ sendLabel }}
-        </AppButton>
-      </div>
+        {{ saveLabel }}
+      </AppButton>
     </div>
 
     <ConfirmDialog
@@ -228,62 +188,116 @@ function confirmRemoval(): void {
       @confirm="confirmRemoval"
       @cancel="removeConfirmationOpen = false"
     />
-  </AppPanel>
+  </SettingsSection>
+
+  <SettingsSection
+    title="試送一則訊息"
+    description="按一下，看它有沒有真的出現在你的 Telegram。送不出去時會說是哪一件事出了問題。"
+  >
+    <FormField
+      label="測試訊息"
+      :error-message="messageError"
+    >
+      <template #default>
+        <AppTextarea
+          v-model="message"
+          :invalid="messageError !== null"
+          data-testid="test-message-input"
+        />
+      </template>
+    </FormField>
+
+    <p class="telegram-delivery-panel__counter">
+      {{ characterCount }} / {{ maximumCharacterCount }} 個字
+    </p>
+
+    <p
+      v-if="!configured"
+      class="telegram-delivery-panel__note"
+      data-testid="test-message-blocked"
+    >
+      先完成上面的 Telegram 設定，才送得出測試訊息。
+    </p>
+
+    <AppAlert
+      v-if="sendResultMessage"
+      :tone="sendSucceeded ? 'success' : 'danger'"
+      data-testid="test-message-result"
+    >
+      {{ sendResultMessage }}
+    </AppAlert>
+
+    <!--
+      這一顆刻意不是實心藍的。實心的強調色只留給「這一段要按的那一顆」，而試送
+      **不改變任何東西**——它是一次檢查，不是一個決定。整頁三顆亮藍色，
+      等於沒有主要動作。
+    -->
+    <div class="telegram-delivery-panel__actions">
+      <AppButton
+        variant="secondary"
+        class="telegram-delivery-panel__save"
+        :disabled="!canSendTestMessage"
+        data-testid="test-message-send"
+        @click="emit('sendTestMessage')"
+      >
+        {{ sendLabel }}
+      </AppButton>
+    </div>
+  </SettingsSection>
 </template>
 
 <style scoped lang="scss">
 .telegram-delivery-panel {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('sm');
-
-  &__caption,
-  &__status {
+  // 狀態那一行：一個牌子加一句話，貼在段落最上面。
+  // 它讀起來要像一盞燈，不像一列資料——所以沒有標籤欄，也沒有框。
+  &__state {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('2xs') spacing('xs');
+    align-items: baseline;
     margin: 0;
+    color: color('text-muted');
+    line-height: line-height('normal');
+    font-size: font-size('sm');
+  }
+
+  // 只有聊天室代號自己收窄——它是幾個數字，給它一整欄的寬度，
+  // 旁邊那一片空白看起來就像忘了填東西。其餘欄位跟著整欄走。
+  &__field--narrow {
+    max-width: 16rem;
+  }
+
+  // 字數貼在輸入框正下方、靠右——它講的是「還能打多少」，
+  // 那件事只有在看著那一格的時候才有意義。
+  &__counter {
+    margin: 0;
+    margin-top: calc(-1 * spacing('xs'));
+    text-align: right;
     color: color('text-faint');
     font-size: font-size('2xs');
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__note {
+    margin: 0;
+    color: color('text-faint');
     line-height: line-height('normal');
+    font-size: font-size('2xs');
   }
 
-  &__summary {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('2xs');
-    margin: 0;
-  }
-
-  &__row {
-    display: grid;
-    gap: spacing('3xs');
-
-    @include respond-to('md') {
-      grid-template-columns: 8rem minmax(0, 1fr);
-      align-items: baseline;
-    }
-  }
-
-  &__label {
-    @include dense-label;
-  }
-
-  &__value {
-    margin: 0;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: color('text');
-  }
-
-  &__divider {
-    margin: spacing('2xs') 0;
-    border: none;
-    border-top: 1px solid color('border');
-    width: 100%;
-  }
-
+  // 危險的那一顆在最左邊，主要的那一顆在最右邊，中間隔開。
+  // 並排在一起時，手指與眼睛都太容易走錯一顆。
+  //
+  // 整列的右緣跟欄位切齊，不是跟整頁切齊：按鈕與它送出的那些格子要落在同一條線上，
+  // 眼睛才不用重新找。
   &__actions {
     display: flex;
-    gap: spacing('2xs');
-    justify-content: flex-end;
+    gap: spacing('xs');
+    align-items: center;
+  }
+
+  &__save {
+    margin-left: auto;
   }
 }
 </style>

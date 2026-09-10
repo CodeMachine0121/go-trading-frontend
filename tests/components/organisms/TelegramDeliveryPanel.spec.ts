@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import TelegramDeliveryPanel from '~/components/organisms/TelegramDeliveryPanel.vue'
 import { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
 
-const CONFIGURED = new TelegramDeliveryDto(
-  true, '987654', '1234', '已設定，結尾 1234；要更換請重新填入整串金鑰。')
+const CONFIGURED = new TelegramDeliveryDto(true, '987654', '1234', '金鑰結尾 1234')
 const UNCONFIGURED = new TelegramDeliveryDto(false, '', '', null)
 
 function mountPanel(props: Record<string, unknown> = {}) {
@@ -43,13 +42,22 @@ describe('TelegramDeliveryPanel：目前的狀態', () => {
     expect(wrapper.find('[data-testid="telegram-unconfigured"]').exists()).toBe(false)
   })
 
-  it('已設定時顯示聊天室代號與那句「結尾 1234」', () => {
+  it('已設定時說得出存著的是哪一組金鑰', () => {
     const wrapper = mountPanel({ setting: CONFIGURED })
 
     const summary = wrapper.get('[data-testid="telegram-summary"]').text()
-    expect(summary).toContain('987654')
-    expect(summary).toContain('結尾 1234')
-    expect(summary).toContain('重新填入整串')
+    expect(summary).toContain('已設定')
+    expect(summary).toContain('金鑰結尾 1234')
+  })
+
+  it('那一行不重複下面輸入框裡已經看得到的東西', () => {
+    // 聊天室代號就在下面那一格裡。同一個數字在同一個畫面上出現兩次，
+    // 遲早會有人以為它們是兩件事，然後只改了其中一個。
+    const wrapper = mountPanel({ setting: CONFIGURED, chatId: '987654' })
+
+    expect(wrapper.get('[data-testid="telegram-summary"]').text()).not.toContain('987654')
+    expect((wrapper.get('[data-testid="chat-id-input"]').element as HTMLInputElement).value)
+      .toBe('987654')
   })
 
   it('金鑰那一格永遠是空的，並說明為什麼', () => {

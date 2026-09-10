@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import AppPanel from '~/components/atoms/AppPanel.vue'
+import SettingsSection from '~/components/molecules/SettingsSection.vue'
 
-// 有機體：設定畫面上「帳號」那一張卡。
+// 有機體：設定畫面上「帳號」那一段。
 //
 // 它只顯示，什麼都不做。密碼那一格畫的是一排點而**不是密碼**——這個系統從來沒有
 // 留著密碼，畫面自然也拿不出來。旁邊那句話因此是必要的而不是客套：
@@ -15,7 +15,10 @@ const MASKED_PASSWORD = '••••••••'
 </script>
 
 <template>
-  <AppPanel title="帳號">
+  <SettingsSection
+    title="帳號"
+    description="你用來登入的那組身分。電子郵件就是帳號本身，目前不能更換。"
+  >
     <dl class="account-profile-panel">
       <div class="account-profile-panel__row">
         <dt class="account-profile-panel__label">
@@ -44,10 +47,12 @@ const MASKED_PASSWORD = '••••••••'
         </dd>
       </div>
     </dl>
-  </AppPanel>
+  </SettingsSection>
 </template>
 
 <style scoped lang="scss">
+// 兩列唯讀資料。它刻意長得**不像表單**：沒有框、沒有底色，
+// 因為這一段沒有任何東西可以動，而看起來可以填的東西會讓人一直想去點它。
 .account-profile-panel {
   display: flex;
   flex-direction: column;
@@ -57,11 +62,6 @@ const MASKED_PASSWORD = '••••••••'
   &__row {
     display: grid;
     gap: spacing('3xs');
-
-    @include respond-to('md') {
-      grid-template-columns: 8rem minmax(0, 1fr);
-      align-items: baseline;
-    }
   }
 
   &__label {
@@ -70,23 +70,26 @@ const MASKED_PASSWORD = '••••••••'
 
   &__value {
     display: flex;
-    flex-wrap: wrap;
-    gap: spacing('2xs') spacing('sm');
-    align-items: baseline;
+    flex-direction: column;
+    gap: spacing('3xs');
     margin: 0;
     min-width: 0;
     overflow-wrap: anywhere;
     color: color('text');
+    font-size: font-size('sm');
   }
 
+  // 那一排點與電子郵件對齊在同一個節奏上，所以它用等寬字：
+  // 比例字型下八個點會擠成一團，看起來像一個汙漬而不是一組被遮住的字。
   &__masked {
-    letter-spacing: 0.2em;
+    letter-spacing: 0.3em;
+    font-family: font-family('mono');
   }
 
   &__note {
     color: color('text-faint');
-    font-size: font-size('2xs');
     line-height: line-height('normal');
+    font-size: font-size('2xs');
   }
 }
 </style>

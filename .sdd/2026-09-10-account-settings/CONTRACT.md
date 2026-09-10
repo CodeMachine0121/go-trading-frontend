@@ -3,7 +3,7 @@
 Contract: `.sdd/2026-09-10-account-settings/PRD.md`
 Design map: `.sdd/2026-09-10-account-settings/ARCH.md`
 Implementation: `app/{domain,application,infrastructure,composables,components,pages}`
-Oracle: Acceptance Criteria（29 個情境）＋ 核心業務規則（11 條）＋ 非功能需求（3 條）
+Oracle: Acceptance Criteria（31 個情境）＋ 核心業務規則（11 條）＋ 非功能需求（3 條）
 
 > 這是一次**靜態一致性稽核**：逐條把測試的斷言與程式的執行路徑各自對照規格導出的預期結果，
 > 不是「跑一次測試看綠燈」。判定不採信 pass/fail。
@@ -25,7 +25,8 @@ Oracle: Acceptance Criteria（29 個情境）＋ 核心業務規則（11 條）�
 | AC-11 | 換成功先說一聲再帶走 | 顯示「密碼已更換，請用新密碼重新登入」，然後回到登入畫面 | `use-user-session.ts:233`（`signOutAfterPasswordChange`）· `pages/login.vue` · `SignInPanel.vue` | `use-password-change.spec.ts:46`（notice＋導頁）· `use-user-session.spec.ts`（取走一次）· `SignInPanel.spec.ts`（畫得出來且不是紅字） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-12 | 還沒設定過就明說，而且不是錯誤 | Telegram 區塊顯示「還沒有設定」，不是紅字 | `TelegramDeliveryPanel.vue` | `TelegramDeliveryPanel.spec.ts:31` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-13 | 第一次設定完，金鑰那一格清空 | 顯示已設定與結尾；金鑰那一格是空的 | `use-telegram-delivery.ts:88` | `use-telegram-delivery.spec.ts:59` · `TelegramDeliveryPanel.spec.ts:46/55` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-14 | 回到這一頁時金鑰那一格仍然是空的 | 空的，旁邊寫「已設定，結尾 1234；要更換請重新填入整串」 | `telegram-delivery-domain.ts:26`（那句話）· 那一格從不由回應填入 | `telegram-delivery-domain.spec.ts` · `TelegramDeliveryPanel.spec.ts:55` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-14 | 回到這一頁時金鑰那一格仍然是空的 | 空的；狀態那一行說「已設定」與「金鑰結尾 1234」，那一格底下寫「要更換請重新填入整串」 | `telegram-delivery-domain.ts`（那句話）· `TelegramDeliveryPanel.vue` 的狀態行與欄位說明 | `telegram-delivery-domain.spec.ts` · `TelegramDeliveryPanel.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-14a | 狀態那一行不重複輸入框裡已經看得到的東西 | 那一行沒有再說一次聊天室代號；代號出現在它自己那一格 | `telegram-delivery-domain.ts` 的 `summary()` | `telegram-delivery-domain.spec.ts`（斷言不含代號）· `TelegramDeliveryPanel.spec.ts`（斷言那一行不含、輸入框含） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-15 | 後端存不了金鑰時如實轉達，並說明不是使用者填錯 | 顯示那句話＋「這不是你填錯了什麼」 | `use-telegram-delivery.ts:170` | `use-telegram-delivery.spec.ts:71` · `TelegramDeliveryPanel.spec.ts:229` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-16 | 輸入框預先填好一句可以直接送的話 | 已經有一句話，而且改得掉 | `use-telegram-delivery.ts:9`（`DEFAULT_TEST_MESSAGE`） | `use-telegram-delivery.spec.ts:94` · `TelegramDeliveryPanel.spec.ts:119/189` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-17 | 送得出去 | 顯示送出成功 | `use-telegram-delivery.ts:141` | `use-telegram-delivery.spec.ts:106` · `TelegramDeliveryPanel.spec.ts:165` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -67,7 +68,7 @@ Oracle: Acceptance Criteria（29 個情境）＋ 核心業務規則（11 條）�
 
 ## Summary
 
-- Conforms: 39/43 clauses ✅（91%）
+- Conforms: 41/45 clauses ✅（91%）
 - Violations: 無
 - Mis-asserted: `AC-1`、`BR-12`、`NFR-2`
   - `AC-1`：兩半各自有測試（側欄有那一項、卡片顯示電子郵件），但**沒有一則測試把整頁組起來走完**。

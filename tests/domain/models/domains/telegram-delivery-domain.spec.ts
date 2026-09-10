@@ -3,15 +3,24 @@ import { TelegramDeliveryDomain } from '~/domain/models/domains/telegram-deliver
 import { TelegramDelivery } from '~/domain/models/entities/telegram-delivery'
 
 describe('TelegramDeliveryDomain', () => {
-  it('已設定時說得出結尾，也說得出那一格為什麼是空的', () => {
-    // 後半句是必要的：少了它，使用者會以為畫面把他的金鑰弄丟了。
+  it('已設定時說得出存著的是哪一組金鑰', () => {
+    // 這句話是使用者唯一能用來認出「是不是我貼的那一組」的線索。
     const deliveryDto = new TelegramDeliveryDomain(
       new TelegramDelivery(true, '987654', '1234')).toDto()
 
     expect(deliveryDto.configured).toBe(true)
     expect(deliveryDto.chatId).toBe('987654')
     expect(deliveryDto.botTokenTail).toBe('1234')
-    expect(deliveryDto.summary).toBe('已設定，結尾 1234；要更換請重新填入整串金鑰。')
+    expect(deliveryDto.summary).toBe('金鑰結尾 1234')
+  })
+
+  it('那句話不重複畫面上已經有的東西', () => {
+    // 聊天室代號就在下面那一格輸入框裡。說第二次只是把同一個數字擺兩份，
+    // 而兩份遲早會有人以為它們是兩件事。
+    const deliveryDto = new TelegramDeliveryDomain(
+      new TelegramDelivery(true, '987654', '1234')).toDto()
+
+    expect(deliveryDto.summary).not.toContain('987654')
   })
 
   it('還沒設定過時沒有那一句話', () => {
@@ -28,6 +37,6 @@ describe('TelegramDeliveryDomain', () => {
     const deliveryDto = new TelegramDeliveryDomain(
       new TelegramDelivery(true, '987654', '')).toDto()
 
-    expect(deliveryDto.summary).toBe('已設定；要更換請重新填入整串金鑰。')
+    expect(deliveryDto.summary).toBe('金鑰已設定')
   })
 })

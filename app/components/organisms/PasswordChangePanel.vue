@@ -2,10 +2,10 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SettingsSection from '~/components/molecules/SettingsSection.vue'
 
-// 有機體：設定畫面上「更換密碼」那一張卡。
+// 有機體：設定畫面上「更換密碼」那一段。
 //
 // 送出之前的規則不在這裡：四條規則（三格都要填、夠長、不太長、兩次一樣）住在
 // PasswordChangeDomain，這裡只把三格往上送，再把回來的每一格說明畫在該格底下。
@@ -49,16 +49,14 @@ function submit(): void {
 </script>
 
 <template>
-  <AppPanel title="更換密碼">
+  <SettingsSection
+    title="更換密碼"
+    description="換好之後，你在每一台裝置上的登入都不再算數，包含這一台——會請你用新密碼重新登入一次。"
+  >
     <form
       class="password-change-panel"
       @submit.prevent="submit"
     >
-      <p class="password-change-panel__caption">
-        換好之後，你在每一台裝置上的登入都不再算數，包含這一台——
-        會請你用新密碼重新登入一次。
-      </p>
-
       <FormField
         label="目前的密碼"
         :error-message="currentPasswordError"
@@ -121,22 +119,20 @@ function submit(): void {
         </AppButton>
       </div>
     </form>
-  </AppPanel>
+  </SettingsSection>
 </template>
 
 <style scoped lang="scss">
 .password-change-panel {
   display: flex;
   flex-direction: column;
-  gap: spacing('sm');
+  gap: spacing('md');
 
-  &__caption {
-    margin: 0;
-    color: color('text-faint');
-    font-size: font-size('2xs');
-    line-height: line-height('normal');
-  }
-
+  // 動作跟著欄位那一欄的右緣走，而不是跟著整頁的右緣。
+  // 貼在頁緣的話，填完最後一格的眼睛要橫著跑過整片空白才找得到它。
+  //
+  // 欄位本身不另訂寬度：整欄的上限由 SettingsSection 一次訂好，
+  // 四個段落因此切在同一條右緣上。
   &__actions {
     display: flex;
     justify-content: flex-end;

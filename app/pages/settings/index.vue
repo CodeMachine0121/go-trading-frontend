@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
@@ -55,52 +56,69 @@ onMounted(() => {
     </template>
 
     <div class="settings-page">
-      <AccountProfilePanel :email="currentUser?.email ?? null" />
+      <!--
+        四個段落住在同一張紙上，中間只用髮絲線分開。
+        之前是三個各自畫框的方塊，讀起來像三件不相干的事——它們其實是同一頁的四段。
+      -->
+      <AppPanel
+        class="settings-page__sheet"
+        flush
+      >
+        <AccountProfilePanel :email="currentUser?.email ?? null" />
 
-      <PasswordChangePanel
-        :pending="passwordChange.pending.value"
-        :error-message="passwordChange.errorMessage.value"
-        :current-password-error="passwordChange.fieldErrors.value?.currentPassword ?? null"
-        :new-password-error="passwordChange.fieldErrors.value?.newPassword ?? null"
-        :new-password-confirmation-error="
-          passwordChange.fieldErrors.value?.newPasswordConfirmation ?? null"
-        @submit="passwordChange.submitPasswordChange"
-        @edit="passwordChange.clearFeedback"
-      />
+        <PasswordChangePanel
+          :pending="passwordChange.pending.value"
+          :error-message="passwordChange.errorMessage.value"
+          :current-password-error="passwordChange.fieldErrors.value?.currentPassword ?? null"
+          :new-password-error="passwordChange.fieldErrors.value?.newPassword ?? null"
+          :new-password-confirmation-error="
+            passwordChange.fieldErrors.value?.newPasswordConfirmation ?? null"
+          @submit="passwordChange.submitPasswordChange"
+          @edit="passwordChange.clearFeedback"
+        />
 
-      <TelegramDeliveryPanel
-        v-model:bot-token="telegramDelivery.botToken.value"
-        v-model:chat-id="telegramDelivery.chatId.value"
-        v-model:message="telegramDelivery.message.value"
-        :setting="telegramDelivery.setting.value"
-        :loading="telegramDelivery.loading.value"
-        :load-error-message="telegramDelivery.loadErrorMessage.value"
-        :saving="telegramDelivery.saving.value"
-        :save-error-message="telegramDelivery.saveErrorMessage.value"
-        :message-error="telegramDelivery.messageError.value"
-        :character-count="telegramDelivery.characterCount.value"
-        :maximum-character-count="telegramDelivery.maximumCharacterCount.value"
-        :sending="telegramDelivery.sending.value"
-        :can-send-test-message="telegramDelivery.canSendTestMessage.value"
-        :send-result-message="telegramDelivery.sendResultMessage.value"
-        :send-succeeded="telegramDelivery.sendSucceeded.value"
-        @save="telegramDelivery.saveDeliverySetting"
-        @remove="telegramDelivery.removeDeliverySetting"
-        @send-test-message="telegramDelivery.sendTestMessage"
-      />
+        <TelegramDeliveryPanel
+          v-model:bot-token="telegramDelivery.botToken.value"
+          v-model:chat-id="telegramDelivery.chatId.value"
+          v-model:message="telegramDelivery.message.value"
+          :setting="telegramDelivery.setting.value"
+          :loading="telegramDelivery.loading.value"
+          :load-error-message="telegramDelivery.loadErrorMessage.value"
+          :saving="telegramDelivery.saving.value"
+          :save-error-message="telegramDelivery.saveErrorMessage.value"
+          :message-error="telegramDelivery.messageError.value"
+          :character-count="telegramDelivery.characterCount.value"
+          :maximum-character-count="telegramDelivery.maximumCharacterCount.value"
+          :sending="telegramDelivery.sending.value"
+          :can-send-test-message="telegramDelivery.canSendTestMessage.value"
+          :send-result-message="telegramDelivery.sendResultMessage.value"
+          :send-succeeded="telegramDelivery.sendSucceeded.value"
+          @save="telegramDelivery.saveDeliverySetting"
+          @remove="telegramDelivery.removeDeliverySetting"
+          @send-test-message="telegramDelivery.sendTestMessage"
+        />
+      </AppPanel>
     </div>
   </ConsoleLayout>
 </template>
 
 <style scoped lang="scss">
 .settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: spacing('md');
-  padding: spacing('md');
+  padding: spacing('lg');
 
-  // 一疊卡片而不是一整塊儀表，所以它自己捲，且不會寬到讓人橫著讀一行字。
-  width: min(48rem, 100%);
+  // 這一頁不是一整塊儀表，是一張要讀的紙——所以它自己捲，而且置中。
+  //
+  // 靠左的話，1440 的螢幕上右邊會空掉一大片，看起來像版面沒做完；
+  // 而整片攤開又會把一個密碼框拉到九百多像素寬。置中並給上限，兩件事一起解決。
+  width: 100%;
   overflow-y: auto;
+
+  &__sheet {
+    margin: 0 auto;
+
+    // 13rem（標題欄）+ 2rem（間距）+ 28rem（可操作欄）+ 兩側內距，剛好裝滿。
+    // 再寬一點，紙的右半邊就會空出一塊——那正是這次要修掉的東西。
+    max-width: 47rem;
+  }
 }
 </style>
