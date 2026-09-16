@@ -1,5 +1,10 @@
-import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
-import { STRATEGY_BOT_HALT_REASON_LABELS } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
+import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
+import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
+import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
+import {
+  STRATEGY_BOT_HALT_REASONS,
+  STRATEGY_BOT_HALT_REASON_LABELS,
+} from '~/domain/models/vo/strategy-bot-halt-reason-vo'
 
 /**
  * Domain Model：一台機器人在清單上該長什麼樣。
@@ -9,7 +14,29 @@ import { STRATEGY_BOT_HALT_REASON_LABELS } from '~/domain/models/vo/strategy-bot
  * 散在元件的 `v-if` 裡的話，總有一天會出現「顯示已停止、卻還給按停止」這種組合。
  */
 export class StrategyBotRunStateDomain {
-  constructor(private readonly strategyBot: StrategyBotDto) {}
+  constructor(private readonly strategyBot: StrategyBot) {}
+
+  /**
+   * 這四件事算完之後交出去的那一份。
+   *
+   * 元件拿到的是結論而不是狀態字串——那是「元件只看得到 DTO」這條規則真正的用處：
+   * 它讓「顯示已停止、卻還給按停止」這種組合沒有地方可以生出來。
+   */
+  toDto(): StrategyBotRunStateDto {
+    return new StrategyBotRunStateDto(
+      this.isRunning,
+      this.isHalted,
+      this.isConflicting,
+      this.statusLabel,
+      this.statusTone,
+      this.haltReasonLabel,
+      this.lastSentSignalLabel,
+      this.canStart,
+      this.canStop,
+      this.canEdit,
+      this.editBlockedReason,
+    )
+  }
 
   /** 它現在在跑嗎。 */
   get isRunning(): boolean {
@@ -18,7 +45,18 @@ export class StrategyBotRunStateDomain {
 
   /** 它是被系統自己停下來的嗎——與被擁有者按停止是兩件事。 */
   get isHalted(): boolean {
-    return !this.isRunning && this.strategyBot.haltReason !== null
+    return !this.isRunning && this.knownHaltReason !== null
+  }
+
+  /**
+   * 認得出來的停擺原因，認不得的一律當成沒有。
+   *
+   * 原樣傳給畫面的話，一個後端新增的第五種原因會顯示成一格空白——
+   * 而空白在這份清單上的意思是「這台沒事」，那是最糟的一種誤讀。
+   */
+  private get knownHaltReason(): StrategyBotHaltReasonVo | null {
+    return STRATEGY_BOT_HALT_REASONS.find(
+      known => known === this.strategyBot.haltReason) ?? null
   }
 
   /**
@@ -40,13 +78,26 @@ export class StrategyBotRunStateDomain {
     return this.isRunning ? '執行中' : '已停止'
   }
 
-  /** 停擺原因那一句。沒有停擺時是空字串。 */
-  get haltReasonLabel(): string {
-    if (this.strategyBot.haltReason === null) {
-      return ''
+  /**
+   * 狀態標籤該用什麼語氣。
+   *
+   * **它是規則不是樣式**——「停擺要比已停止更醒目」是這份清單存在的理由，
+   * 不是一個配色偏好。由 domain 決定而不是由元件判斷狀態字串，
+   * 是為了讓那條規則只有一個地方可以改。
+   */
+  get statusTone(): 'success' | 'danger' | 'neutral' {
+    if (this.isHalted) {
+      return 'danger'
     }
 
-    return STRATEGY_BOT_HALT_REASON_LABELS[this.strategyBot.haltReason]
+    return this.isRunning ? 'success' : 'neutral'
+  }
+
+  /** 停擺原因那一句。沒有停擺時是空字串。 */
+  get haltReasonLabel(): string {
+    const haltReason = this.knownHaltReason
+
+    return haltReason === null ? '' : STRATEGY_BOT_HALT_REASON_LABELS[haltReason]
   }
 
   /**

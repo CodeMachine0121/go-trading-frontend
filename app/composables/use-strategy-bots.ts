@@ -1,0 +1,203 @@
+import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+
+/**
+ * 機器人清單這一整塊的狀態與動作。
+ *
+ * 它同時要問兩個 Application，而那不是偷懶：機器人清單答得出「我派了誰出去」，
+ * 但答不出「我有哪幾支策略可以派」——挑策略的選單與它宣告了哪幾個旋鈕，
+ * 只有策略那一條線知道。
+ */
+export function useStrategyBots(
+  strategyBotApplication: StrategyBotApplication,
+  strategyApplication: StrategyApplication,
+) {
+  const strategyBots = ref<StrategyBotDto[]>([])
+  const strategyOptions = ref<{ value: number, label: string }[]>([])
+  const parameterNamesByStrategyId = ref<Record<number, readonly string[]>>({})
+
+  const loading = ref(false)
+  const saving = ref(false)
+  const busyId = ref<number | null>(null)
+  const failureMessage = ref('')
+  const formFailureMessage = ref('')
+  /**
+   * 啟動被「還沒設定 Telegram」擋下來過。
+   *
+   * 它自己一個旗標而不是混進 failureMessage，是因為它是唯一一種**要離開這個畫面
+   * 才解得掉**的拒絕——認得出它，那句話才帶得出一條到帳號設定的路。
+   */
+  const deliveryNotConfigured = ref(false)
+
+  const formOpen = ref(false)
+  const editing = ref<StrategyBotDto | null>(null)
+  const deleting = ref<StrategyBotDto | null>(null)
+
+  async function load() {
+    loading.value = true
+    failureMessage.value = ''
+
+    try {
+      // 兩邊一起問：挑策略的選單沒有內容的話，這張表單第二段就填不完，
+      // 所以它們是同一次載入的兩半，不是先後兩件事。
+      const [bots, available] = await Promise.all([
+        strategyBotApplication.listStrategyBots(),
+        strategyApplication.listAvailableStrategies(),
+      ])
+
+      strategyBots.value = bots
+
+      // 自己的與採用來的分開讀，因為它們的形狀本來就不同：採用來的**沒有算式**，
+      // 所以它的旋鈕直接掛在上面，而自己的那幾支掛在算式內容裡。
+      // 合成一個「有時候有算式」的型別，正是這個系統一直在避免的東西。
+      const options = [
+        ...available.mine.map(strategy => ({
+          value: strategy.id,
+          label: strategy.name,
+          parameterNames: strategy.content.parameters.map(parameter => parameter.name),
+        })),
+        ...available.adopted.map(strategy => ({
+          value: strategy.id,
+          label: strategy.name,
+          parameterNames: strategy.parameters.map(parameter => parameter.name),
+        })),
+      ]
+
+      strategyOptions.value = options.map(
+        option => ({ value: option.value, label: option.label }))
+      parameterNamesByStrategyId.value = Object.fromEntries(
+        options.map(option => [option.value, option.parameterNames]))
+    }
+    catch (error: unknown) {
+      failureMessage.value = messageOf(error)
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
+  function openCreateForm() {
+    editing.value = null
+    formFailureMessage.value = ''
+    formOpen.value = true
+  }
+
+  function openEditForm(strategyBot: StrategyBotDto) {
+    editing.value = strategyBot
+    formFailureMessage.value = ''
+    formOpen.value = true
+  }
+
+  function closeForm() {
+    formOpen.value = false
+  }
+
+  /**
+   * 存起來。被後端拒絕時**表單留著**——要使用者重打一次，
+   * 是拿他的時間賠一個伺服器端才知道的規則。
+   */
+  async function save(writeDto: StrategyBotWriteDto) {
+    saving.value = true
+    formFailureMessage.value = ''
+
+    try {
+      await strategyBotApplication.saveStrategyBot(writeDto)
+      formOpen.value = false
+      await load()
+    }
+    catch (error: unknown) {
+      formFailureMessage.value = messageOf(error)
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  async function start(id: number) {
+    deliveryNotConfigured.value = false
+    await runOnBot(id, () => strategyBotApplication.startStrategyBot(id))
+  }
+
+  async function stop(id: number) {
+    await runOnBot(id, () => strategyBotApplication.stopStrategyBot(id))
+  }
+
+  function askToDelete(strategyBot: StrategyBotDto) {
+    deleting.value = strategyBot
+  }
+
+  function cancelDelete() {
+    deleting.value = null
+  }
+
+  /** 執行中的也刪得掉，不要求先按停止——他要的結果是這台不在了。 */
+  async function confirmDelete() {
+    const target = deleting.value
+    deleting.value = null
+
+    if (target === null) {
+      return
+    }
+
+    await runOnBot(target.id, () => strategyBotApplication.deleteStrategyBot(target.id))
+  }
+
+  /**
+   * 對一台機器人做一件事，然後重讀清單。
+   *
+   * 重讀而不是就地改那一列，是因為一次操作可能不只改到那一台——例如啟動失敗時
+   * 後端什麼都沒動，而就地改的那一列已經先變了樣子。
+   */
+  async function runOnBot(id: number, action: () => Promise<unknown>) {
+    busyId.value = id
+    failureMessage.value = ''
+
+    try {
+      await action()
+      await load()
+    }
+    catch (error: unknown) {
+      if (error instanceof TelegramNotConfiguredError) {
+        deliveryNotConfigured.value = true
+      }
+      else {
+        failureMessage.value = messageOf(error)
+      }
+    }
+    finally {
+      busyId.value = null
+    }
+  }
+
+  function messageOf(error: unknown): string {
+    return error instanceof Error ? error.message : '發生了一個說不出原因的錯誤'
+  }
+
+  return {
+    strategyBots,
+    strategyOptions,
+    parameterNamesByStrategyId,
+    loading,
+    saving,
+    busyId,
+    failureMessage,
+    formFailureMessage,
+    deliveryNotConfigured,
+    formOpen,
+    editing,
+    deleting,
+    load,
+    openCreateForm,
+    openEditForm,
+    closeForm,
+    save,
+    start,
+    stop,
+    askToDelete,
+    cancelDelete,
+    confirmDelete,
+  }
+}

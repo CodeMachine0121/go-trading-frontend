@@ -1,14 +1,13 @@
 import type { StrategyBot, StrategyBotCondition, StrategyBotSignalSource } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import {
   StrategyBotParameterValueDto,
   StrategyBotSignalSourceDto,
 } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { CONDITION_OPERATORS } from '~/domain/models/vo/condition-operator-vo'
-import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
-import { STRATEGY_BOT_HALT_REASONS } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
 
 /**
  * Domain Model：一台已存機器人對畫面的樣子。
@@ -33,10 +32,7 @@ export class StrategyBotDomain {
       this.strategyBot.signalSources.map(source => this.toSignalSourceDto(source)),
       this.toConditionDto(this.strategyBot.buyCondition),
       this.toConditionDto(this.strategyBot.sellCondition),
-      this.strategyBot.runState,
-      this.strategyBot.lastSentSignal,
-      this.toHaltReason(this.strategyBot.haltReason),
-      this.strategyBot.conflicting,
+      new StrategyBotRunStateDomain(this.strategyBot).toDto(),
     )
   }
 
@@ -73,10 +69,6 @@ export class StrategyBotDomain {
 
   private toOperator(operator: string): ConditionOperatorVo | null {
     return CONDITION_OPERATORS.find(known => known === operator) ?? null
-  }
-
-  private toHaltReason(haltReason: StrategyBotHaltReasonVo | null): StrategyBotHaltReasonVo | null {
-    return STRATEGY_BOT_HALT_REASONS.find(known => known === haltReason) ?? null
   }
 
   private newNodeId(): string {

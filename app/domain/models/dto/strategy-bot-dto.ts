@@ -1,7 +1,6 @@
 import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
-import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
-import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
+import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 
 /**
  * DTO：一台機器人交給畫面的樣子。
@@ -19,12 +18,10 @@ export class StrategyBotDto {
     public readonly signalSources: readonly StrategyBotSignalSourceDto[],
     public readonly buyCondition: StrategyBotConditionDto | null,
     public readonly sellCondition: StrategyBotConditionDto | null,
-    public readonly runState: StrategyBotRunStateVo,
-    /** 最近一次**真的送出去**的信號。沒送過是一種狀態，不是空白。 */
-    public readonly lastSentSignal: string,
-    /** 系統自己停下它的原因。它的擁有者停的、或它還在跑時為 null。 */
-    public readonly haltReason: StrategyBotHaltReasonVo | null,
-    /** 上一輪買入與賣出條件同時成立。**不是停擺**——機器人還在跑。 */
-    public readonly conflicting: boolean,
+    /**
+     * 它現在在做什麼，**已經算成畫面直接畫得出來的樣子**：四種狀態哪一種、
+     * 原因怎麼講、播放還是停止、編輯給不給按。
+     */
+    public readonly runState: StrategyBotRunStateDto,
   ) {}
 }
