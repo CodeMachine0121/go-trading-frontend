@@ -1,4 +1,9 @@
 <script setup lang="ts">
+// NuxtLink 直接 import 進來，不在 `:is` 裡用 resolveComponent 去找它。
+// resolveComponent 是在 render 當下才去查全域註冊表，而這顆按鈕會在任何地方被用到——
+// 查不到的時候它不會壞掉，只會印一行警告然後渲染成一個空殼，連結就這樣靜靜不見了。
+import { NuxtLink } from '#components'
+
 // 全站唯一的按鈕元件（原子）。
 // 畫面上按鈕有幾十種長相，但「按鈕」這個概念只有這一個元件——
 // 外觀由使用端透過 variant / size / block 決定，不另外長出 PrimaryButton、DangerButton。
@@ -49,7 +54,7 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
 
 <template>
   <component
-    :is="to === undefined ? 'button' : resolveComponent('NuxtLink')"
+    :is="to === undefined ? 'button' : NuxtLink"
     class="app-button"
     :class="[
       `app-button--${variant}`,
