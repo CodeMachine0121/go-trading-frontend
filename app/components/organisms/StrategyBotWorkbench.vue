@@ -98,8 +98,8 @@ function onSave() {
 
     <StrategyBotCanvas
       :sources="form.signalSources.value"
-      :buy-matrix="form.conditionSides[0].matrix.value"
-      :sell-matrix="form.conditionSides[1].matrix.value"
+      :buy-board="form.conditionSides[0].board.value"
+      :sell-board="form.conditionSides[1].board.value"
       :strategy-options="strategyOptions"
       :interval-options="form.intervalOptions"
       :parameter-names-by-strategy-id="parameterNamesByStrategyId"

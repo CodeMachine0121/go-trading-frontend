@@ -390,7 +390,7 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel-0"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(false)
   })
 
   it('按齒輪才打開，而且它開在一個彈窗裡', async () => {
@@ -401,7 +401,7 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
 
     await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
 
-    const panel = wrapper.get('[data-testid="strategy-settings-panel-0"]')
+    const panel = wrapper.get('[data-testid="strategy-settings-panel"]')
     expect(panel.find('[data-testid="strategy-label-input"]').exists()).toBe(true)
     expect(panel.find('[data-testid="strategy-interval-select"]').exists()).toBe(true)
     expect(panel.find('[data-testid="strategy-parameter-input"]').exists()).toBe(true)
@@ -420,7 +420,7 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
     await wrapper.get('[data-testid="strategy-label-input"]').setValue('改過名字了')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel-0"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(true)
   })
 
   it('按「好了」就關起來', async () => {
@@ -430,7 +430,7 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
     await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
     await wrapper.get('[data-testid="strategy-settings-done"]').trigger('click')
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel-0"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(false)
   })
 })
 
@@ -479,7 +479,7 @@ describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
       ]))
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="matrix-unrepresentable-buy"]').text()).toContain('排不出')
-    expect(wrapper.find('[data-testid="matrix-unrepresentable-sell"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="board-unrepresentable-buy"]').text()).toContain('排不出')
+    expect(wrapper.find('[data-testid="board-unrepresentable-sell"]').exists()).toBe(false)
   })
 })

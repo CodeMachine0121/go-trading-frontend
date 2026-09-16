@@ -7,7 +7,7 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
  * 要說的話。空集合是一塊擺著卻什麼都不收的零件，也就是一句永遠不成立的話——
  * 所以擺上去的零件一定至少收一個。
  */
-export class ConditionMatrixPieceDto {
+export class ConditionBoardPieceDto {
   constructor(
     public readonly sourceLabel: string,
     public readonly acceptedSignals: readonly string[],
@@ -25,11 +25,11 @@ export class ConditionMatrixPieceDto {
  * 三層以上的巢狀在實際的條件裡幾乎不出現，而它會讓「把一塊拖到另一塊上」
  * 這個動作變得沒有人說得準結果。
  */
-export class ConditionMatrixItemDto {
+export class ConditionBoardItemDto {
   constructor(
     /** 一組零件怎麼合併它裡面那幾塊。單獨一塊時為 `null`。 */
     public readonly operator: ConditionOperatorVo | null,
-    public readonly pieces: readonly ConditionMatrixPieceDto[],
+    public readonly pieces: readonly ConditionBoardPieceDto[],
   ) {}
 
   get isBundle(): boolean {
@@ -56,11 +56,11 @@ export class ConditionMatrixItemDto {
  * 說不出來的（三層以上、或組裡還有組）不會被硬塞進來：`representable` 為 false 時
  * 畫面照實說，而不是默默把它壓平成一個意思不同的條件。
  */
-export class ConditionMatrixDto {
+export class ConditionBoardDto {
   constructor(
     /** 墊子上每一格之間怎麼合併。 */
     public readonly operator: ConditionOperatorVo,
-    public readonly items: readonly ConditionMatrixItemDto[],
+    public readonly items: readonly ConditionBoardItemDto[],
     public readonly representable: boolean,
   ) {}
 

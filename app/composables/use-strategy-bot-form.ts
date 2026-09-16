@@ -1,9 +1,9 @@
-import { ConditionMatrixDomain } from '~/domain/models/domains/condition-matrix-domain'
+import { ConditionBoardDomain } from '~/domain/models/domains/condition-board-domain'
 import {
-  ConditionMatrixDto,
-  ConditionMatrixItemDto,
-  ConditionMatrixPieceDto,
-} from '~/domain/models/dto/condition-matrix-dto'
+  ConditionBoardDto,
+  ConditionBoardItemDto,
+  ConditionBoardPieceDto,
+} from '~/domain/models/dto/condition-board-dto'
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -87,8 +87,8 @@ export function useStrategyBotForm(
    */
   const signalSourceUsageWarnings = computed(() => {
     const usedLabels = new Set([
-      ...matrices.buy.value.placedLabels,
-      ...matrices.sell.value.placedLabels,
+      ...boards.buy.value.placedLabels,
+      ...boards.sell.value.placedLabels,
     ])
 
     const warnings: Record<number, string> = {}
@@ -133,9 +133,9 @@ export function useStrategyBotForm(
     signalSources.value = [...(loaded?.signalSources ?? [])]
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
     // 存進來的那棵樹在這裡、而且只在這裡，被讀成「墊子上擺了哪幾塊」。
-    matrices.buy.value = new StrategyBotConditionDomain(loaded?.buyCondition ?? null).toMatrixDto()
-    matrices.sell.value = new StrategyBotConditionDomain(
-      loaded?.sellCondition ?? null).toMatrixDto()
+    boards.buy.value = new StrategyBotConditionDomain(loaded?.buyCondition ?? null).toBoardDto()
+    boards.sell.value = new StrategyBotConditionDomain(
+      loaded?.sellCondition ?? null).toBoardDto()
   }
 
   function addSignalSource() {
@@ -234,8 +234,8 @@ export function useStrategyBotForm(
 
     // 表上那一列跟著改名。代號是列的身分，改了名卻不跟著改的話，
     // 使用者會看到一列空白的新策略，和一列指著一個已經不存在的名字的舊資料。
-    matrices.buy.value = renamedRows(matrices.buy.value, committedLabel, label)
-    matrices.sell.value = renamedRows(matrices.sell.value, committedLabel, label)
+    boards.buy.value = renamedPieces(boards.buy.value, committedLabel, label)
+    boards.sell.value = renamedPieces(boards.sell.value, committedLabel, label)
     committedLabels.value = committedLabels.value.map(
       (existing, position) => (position === index ? label : existing))
   }
@@ -264,16 +264,16 @@ export function useStrategyBotForm(
   }
 
   /** 墊子上某一塊零件改名之後的樣子。它擺在哪裡、收什麼，一樣都不動。 */
-  function renamedRows(matrix: ConditionMatrixDto, fromLabel: string, toLabel: string) {
-    return new ConditionMatrixDto(
-      matrix.operator,
-      matrix.items.map(item => new ConditionMatrixItemDto(
+  function renamedPieces(board: ConditionBoardDto, fromLabel: string, toLabel: string) {
+    return new ConditionBoardDto(
+      board.operator,
+      board.items.map(item => new ConditionBoardItemDto(
         item.operator,
         item.pieces.map(piece => (piece.sourceLabel === fromLabel
-          ? new ConditionMatrixPieceDto(toLabel, piece.acceptedSignals)
+          ? new ConditionBoardPieceDto(toLabel, piece.acceptedSignals)
           : piece)),
       )),
-      matrix.representable,
+      board.representable,
     )
   }
 
@@ -292,9 +292,9 @@ export function useStrategyBotForm(
    * **兩邊各存一份的話，第二份遲早會說出第一份沒有的話**——所以樹那一份只在
    * 讀進來與送出去這兩個時刻存在。
    */
-  const matrices = {
-    buy: ref(new StrategyBotConditionDomain(null).toMatrixDto()),
-    sell: ref(new StrategyBotConditionDomain(null).toMatrixDto()),
+  const boards = {
+    buy: ref(new StrategyBotConditionDomain(null).toBoardDto()),
+    sell: ref(new StrategyBotConditionDomain(null).toBoardDto()),
   }
 
   /**
@@ -302,7 +302,7 @@ export function useStrategyBotForm(
    * 寫兩份的話，第二份就是那個忘記同步的地方。
    */
   function conditionSide(key: 'buy' | 'sell', heading: string) {
-    const matrix = matrices[key]
+    const board = boards[key]
 
     /**
      * 每次讀之前先跟這一刻的來源對齊。
@@ -312,40 +312,40 @@ export function useStrategyBotForm(
      * 而每一種都要記得同步一次的話，第五種就是那個被忘記的。
      */
     const aligned = computed(
-      () => new ConditionMatrixDomain(matrix.value).alignedTo(sourceLabels.value))
+      () => new ConditionBoardDomain(board.value).alignedTo(sourceLabels.value))
 
     return {
       key,
       heading,
-      matrix: computed(() => aligned.value.value),
+      board: computed(() => aligned.value.value),
       condition: computed(() => aligned.value.toCondition()),
       toggleSignal: (sourceLabel: string, signal: string) => {
-        matrix.value = aligned.value.toggleSignal(sourceLabel, signal).value
+        board.value = aligned.value.toggleSignal(sourceLabel, signal).value
       },
       /** 這張墊子上擺了這塊零件沒有。 */
       holds: (sourceLabel: string) => aligned.value.holds(sourceLabel),
       /** 把一塊零件擺上這張墊子的第幾格；已經在上面就是搬位置。 */
       placeAt: (sourceLabel: string, position: number) => {
-        matrix.value = aligned.value.placeAt(sourceLabel, position).value
+        board.value = aligned.value.placeAt(sourceLabel, position).value
       },
       /** 把一塊零件從這張墊子上拿走。它回到架子上，不是被刪掉。 */
       takeOff: (sourceLabel: string) => {
-        matrix.value = aligned.value.takeOff(sourceLabel).value
+        board.value = aligned.value.takeOff(sourceLabel).value
       },
       /** 把一塊零件扣到另一塊上，變成一組——「A 而且（B 或 C）」唯一的寫法。 */
       bundleOnto: (sourceLabel: string, targetLabel: string) => {
-        matrix.value = aligned.value.bundleOnto(sourceLabel, targetLabel).value
+        board.value = aligned.value.bundleOnto(sourceLabel, targetLabel).value
       },
       /** 把一塊零件從一組裡拆出來，放回它自己一格。 */
       unbundle: (sourceLabel: string) => {
-        matrix.value = aligned.value.unbundle(sourceLabel).value
+        board.value = aligned.value.unbundle(sourceLabel).value
       },
       /** 換掉某一組裡面怎麼合併。 */
       changeBundleOperator: (itemKey: string, operator: ConditionOperatorVo) => {
-        matrix.value = aligned.value.changeBundleOperator(itemKey, operator).value
+        board.value = aligned.value.changeBundleOperator(itemKey, operator).value
       },
       changeOperator: (operator: ConditionOperatorVo) => {
-        matrix.value = aligned.value.changeOperator(operator).value
+        board.value = aligned.value.changeOperator(operator).value
       },
     }
   }

@@ -45,7 +45,7 @@ function aStoredBot() {
  * 扣成一組的用 `(且 A:… B:…)` 括起來。
  */
 function readable(form: ReturnType<typeof formUnderTest>, side: 0 | 1): string[] {
-  return form.conditionSides[side]!.matrix.value.items.map((item) => {
+  return form.conditionSides[side]!.board.value.items.map((item) => {
     const pieces = item.pieces.map(
       piece => `${piece.sourceLabel}:${piece.acceptedSignals.join('+')}`)
 
@@ -197,7 +197,7 @@ describe('useStrategyBotForm 的那張表', () => {
 
     form.conditionSides[0]!.changeOperator('or')
 
-    expect(form.conditionSides[0]!.matrix.value.operator).toBe('or')
+    expect(form.conditionSides[0]!.board.value.operator).toBe('or')
     expect(readable(form, 0)).toEqual(['均線:buy', '動能:buy'])
   })
 

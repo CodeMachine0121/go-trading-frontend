@@ -1,8 +1,8 @@
 import {
-  ConditionMatrixDto,
-  ConditionMatrixItemDto,
-  ConditionMatrixPieceDto,
-} from '~/domain/models/dto/condition-matrix-dto'
+  ConditionBoardDto,
+  ConditionBoardItemDto,
+  ConditionBoardPieceDto,
+} from '~/domain/models/dto/condition-board-dto'
 import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
@@ -11,7 +11,7 @@ import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
  * Domain Model：一棵存起來的條件樹。
  *
  * 它現在**只做一件事：把樹讀成一張表**。編輯不在這裡發生——使用者改的是表
- * （見 ConditionMatrixDomain），送出去時再由表寫回一棵樹。
+ * （見 ConditionBoardDomain），送出去時再由表寫回一棵樹。
  *
  * 之前這裡有一整套「在某個節點底下加一句、把一句包成群組、某個洞收不收某一塊」的
  * 操作，那是為了一個由積木與空位組成的畫面。那個畫面被一張表取代了，
@@ -38,27 +38,27 @@ export class StrategyBotConditionDomain {
    * 三層以上、或組裡還有組的，**不硬壓平**：壓平會得到一個意思不同的條件，
    * 而使用者會在完全沒察覺的情況下把它存回去。`representable` 為 false，畫面照實說。
    */
-  toMatrixDto(): ConditionMatrixDto {
+  toBoardDto(): ConditionBoardDto {
     if (this.condition === null) {
-      return new ConditionMatrixDto('and', [], true)
+      return new ConditionBoardDto('and', [], true)
     }
 
     // 一句比對自己就是墊子上一塊零件；用哪個運算子都一樣。
     if (!this.condition.isGroup) {
-      return new ConditionMatrixDto('and', [this.itemFrom([this.condition])!], true)
+      return new ConditionBoardDto('and', [this.itemFrom([this.condition])!], true)
     }
 
     const items = this.itemsFrom(this.condition)
 
     return items === null
-      ? new ConditionMatrixDto(this.condition.operator!, [], false)
-      : new ConditionMatrixDto(this.condition.operator!, items, true)
+      ? new ConditionBoardDto(this.condition.operator!, [], false)
+      : new ConditionBoardDto(this.condition.operator!, items, true)
   }
 
   /** 墊子上的每一格——讀不出來時回 `null`。 */
-  private itemsFrom(group: StrategyBotConditionDto): ConditionMatrixItemDto[] | null {
+  private itemsFrom(group: StrategyBotConditionDto): ConditionBoardItemDto[] | null {
     const operator = group.operator!
-    const items: ConditionMatrixItemDto[] = []
+    const items: ConditionBoardItemDto[] = []
 
     for (const child of group.conditions) {
       if (!child.isGroup) {
@@ -111,10 +111,10 @@ export class StrategyBotConditionDomain {
    * 順序照著固定的那一份，不是照著樹裡出現的順序——
    * 同樣的一塊零件在兩台機器人上要長得一樣。
    */
-  private withSignalAdded(item: ConditionMatrixItemDto, signal: string): ConditionMatrixItemDto {
+  private withSignalAdded(item: ConditionBoardItemDto, signal: string): ConditionBoardItemDto {
     const piece = item.pieces[0]!
 
-    return new ConditionMatrixItemDto(null, [new ConditionMatrixPieceDto(
+    return new ConditionBoardItemDto(null, [new ConditionBoardPieceDto(
       piece.sourceLabel,
       SIGNAL_VALUES.filter(
         candidate => candidate === signal || piece.acceptedSignals.includes(candidate)),
@@ -130,10 +130,10 @@ export class StrategyBotConditionDomain {
   private itemFrom(
     comparisons: readonly StrategyBotConditionDto[],
     operator: ConditionOperatorVo | null = null,
-  ): ConditionMatrixItemDto | null {
+  ): ConditionBoardItemDto | null {
     const pieces = this.piecesFrom(comparisons)
 
-    return new ConditionMatrixItemDto(pieces.length > 1 ? operator : null, pieces)
+    return new ConditionBoardItemDto(pieces.length > 1 ? operator : null, pieces)
   }
 
   /**
@@ -144,7 +144,7 @@ export class StrategyBotConditionDomain {
    */
   private piecesFrom(
     comparisons: readonly StrategyBotConditionDto[],
-  ): ConditionMatrixPieceDto[] {
+  ): ConditionBoardPieceDto[] {
     const signalsByLabel = new Map<string, string[]>()
     for (const comparison of comparisons) {
       const accepted = signalsByLabel.get(comparison.sourceLabel) ?? []
@@ -154,7 +154,7 @@ export class StrategyBotConditionDomain {
       signalsByLabel.set(comparison.sourceLabel, accepted)
     }
 
-    return [...signalsByLabel.entries()].map(([label, accepted]) => new ConditionMatrixPieceDto(
+    return [...signalsByLabel.entries()].map(([label, accepted]) => new ConditionBoardPieceDto(
       label, SIGNAL_VALUES.filter(signal => accepted.includes(signal))))
   }
 

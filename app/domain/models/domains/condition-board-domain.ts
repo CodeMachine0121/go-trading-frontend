@@ -1,8 +1,8 @@
 import {
-  ConditionMatrixDto,
-  ConditionMatrixItemDto,
-  ConditionMatrixPieceDto,
-} from '~/domain/models/dto/condition-matrix-dto'
+  ConditionBoardDto,
+  ConditionBoardItemDto,
+  ConditionBoardPieceDto,
+} from '~/domain/models/dto/condition-board-dto'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
@@ -20,16 +20,16 @@ const DEFAULT_ACCEPTED_SIGNAL = 'buy'
  * 每一個操作都回傳一張新的墊子，沒有任何一個就地改——就地改深處某一格，
  * 正是 Vue 的響應式最容易漏掉的一種更新。
  */
-export class ConditionMatrixDomain {
-  constructor(private readonly matrix: ConditionMatrixDto) {}
+export class ConditionBoardDomain {
+  constructor(private readonly board: ConditionBoardDto) {}
 
-  get value(): ConditionMatrixDto {
-    return this.matrix
+  get value(): ConditionBoardDto {
+    return this.board
   }
 
   /** 這塊零件在不在這張墊子上，不分它在哪一格。 */
   holds(sourceLabel: string): boolean {
-    return this.matrix.placedLabels.includes(sourceLabel)
+    return this.board.placedLabels.includes(sourceLabel)
   }
 
   /**
@@ -38,9 +38,9 @@ export class ConditionMatrixDomain {
    * 一塊零件收的是一個集合而不是一個值，所以這裡是「切換」而不是「指派」：
    * 「A 是買入或持有都算」是真的有人要說的話。
    */
-  toggleSignal(sourceLabel: string, signal: string): ConditionMatrixDomain {
+  toggleSignal(sourceLabel: string, signal: string): ConditionBoardDomain {
     return this.mappingPieces(piece => (piece.sourceLabel === sourceLabel
-      ? new ConditionMatrixPieceDto(
+      ? new ConditionBoardPieceDto(
           piece.sourceLabel,
           piece.acceptedSignals.includes(signal)
             ? piece.acceptedSignals.filter(accepted => accepted !== signal)
@@ -53,19 +53,19 @@ export class ConditionMatrixDomain {
   }
 
   /** 換掉墊子上每一格之間怎麼合併。哪幾塊擺在哪裡一格都不動。 */
-  changeOperator(operator: ConditionOperatorVo): ConditionMatrixDomain {
-    return new ConditionMatrixDomain(
-      new ConditionMatrixDto(operator, this.matrix.items, this.matrix.representable))
+  changeOperator(operator: ConditionOperatorVo): ConditionBoardDomain {
+    return new ConditionBoardDomain(
+      new ConditionBoardDto(operator, this.board.items, this.board.representable))
   }
 
   /** 換掉某一組零件裡面怎麼合併。那一組是由它裝著哪幾塊認出來的。 */
-  changeBundleOperator(itemKey: string, operator: ConditionOperatorVo): ConditionMatrixDomain {
-    return new ConditionMatrixDomain(new ConditionMatrixDto(
-      this.matrix.operator,
-      this.matrix.items.map(item => (item.key === itemKey && item.isBundle
-        ? new ConditionMatrixItemDto(operator, item.pieces)
+  changeBundleOperator(itemKey: string, operator: ConditionOperatorVo): ConditionBoardDomain {
+    return new ConditionBoardDomain(new ConditionBoardDto(
+      this.board.operator,
+      this.board.items.map(item => (item.key === itemKey && item.isBundle
+        ? new ConditionBoardItemDto(operator, item.pieces)
         : item)),
-      this.matrix.representable,
+      this.board.representable,
     ))
   }
 
@@ -76,9 +76,9 @@ export class ConditionMatrixDomain {
    * 那是使用者要做的動作，而一個自己跑到工作區的零件，
    * 會讓他覺得畫面在替他做決定。
    */
-  alignedTo(sourceLabels: readonly string[]): ConditionMatrixDomain {
-    return this.rebuilt(this.matrix.items
-      .map(item => new ConditionMatrixItemDto(
+  alignedTo(sourceLabels: readonly string[]): ConditionBoardDomain {
+    return this.rebuilt(this.board.items
+      .map(item => new ConditionBoardItemDto(
         item.operator, item.pieces.filter(piece => sourceLabels.includes(piece.sourceLabel))))
       .filter(item => item.pieces.length > 0))
   }
@@ -86,14 +86,14 @@ export class ConditionMatrixDomain {
   /**
    * 把一塊零件擺上墊子的第幾格。已經在墊子上就是**搬位置**，不是複製。
    */
-  placeAt(sourceLabel: string, position: number): ConditionMatrixDomain {
+  placeAt(sourceLabel: string, position: number): ConditionBoardDomain {
     const carried = this.pieceOf(sourceLabel)
     const without = this.withoutPiece(sourceLabel)
     const landing = Math.max(0, Math.min(position, without.length))
 
     return this.rebuilt([
       ...without.slice(0, landing),
-      new ConditionMatrixItemDto(null, [carried]),
+      new ConditionBoardItemDto(null, [carried]),
       ...without.slice(landing),
     ])
   }
@@ -107,36 +107,36 @@ export class ConditionMatrixDomain {
    *
    * 扣到自己身上、或扣到自己已經在的那一組上，都是什麼都不做。
    */
-  bundleOnto(sourceLabel: string, targetLabel: string): ConditionMatrixDomain {
-    const target = this.matrix.items.find(item => item.holdsLabels.includes(targetLabel))
+  bundleOnto(sourceLabel: string, targetLabel: string): ConditionBoardDomain {
+    const target = this.board.items.find(item => item.holdsLabels.includes(targetLabel))
     if (target === undefined || target.holdsLabels.includes(sourceLabel)) {
       return this
     }
 
     // 一組裡面不會再有一組：被拖過來的如果自己是一組，就整組攤進去。
-    const carriedPieces = this.matrix.items
+    const carriedPieces = this.board.items
       .find(item => item.holdsLabels.includes(sourceLabel))?.pieces
       .filter(piece => piece.sourceLabel === sourceLabel) ?? [this.pieceOf(sourceLabel)]
 
     return this.rebuilt(this.withoutPiece(sourceLabel).map(item => (item.key === target.key
-      ? new ConditionMatrixItemDto(item.operator ?? 'or', [...item.pieces, ...carriedPieces])
+      ? new ConditionBoardItemDto(item.operator ?? 'or', [...item.pieces, ...carriedPieces])
       : item)))
   }
 
   /** 把一塊零件從一組裡拆出來，放回它自己一格。 */
-  unbundle(sourceLabel: string): ConditionMatrixDomain {
-    const holder = this.matrix.items.find(item => item.holdsLabels.includes(sourceLabel))
+  unbundle(sourceLabel: string): ConditionBoardDomain {
+    const holder = this.board.items.find(item => item.holdsLabels.includes(sourceLabel))
     if (holder === undefined || !holder.isBundle) {
       return this
     }
 
-    const position = this.matrix.items.indexOf(holder) + 1
+    const position = this.board.items.indexOf(holder) + 1
 
     return this.placeAt(sourceLabel, position)
   }
 
   /** 把一塊零件從這張墊子上拿走。它回到架子上，不是被刪掉。 */
-  takeOff(sourceLabel: string): ConditionMatrixDomain {
+  takeOff(sourceLabel: string): ConditionBoardDomain {
     return this.rebuilt(this.withoutPiece(sourceLabel))
   }
 
@@ -150,8 +150,8 @@ export class ConditionMatrixDomain {
   toCondition(): StrategyBotConditionDto | null {
     // 一塊什麼都不收的零件寫不出任何一句話，所以它不算數——使用者把最後一個信號
     // 也關掉時，那一塊就等於還沒決定，而不是「決定了一件不可能的事」。
-    const clauses = this.matrix.items
-      .map(item => new ConditionMatrixItemDto(
+    const clauses = this.board.items
+      .map(item => new ConditionBoardItemDto(
         item.operator, item.pieces.filter(piece => piece.acceptedSignals.length > 0)))
       .filter(item => item.pieces.length > 0)
       .map(item => this.clauseFor(item))
@@ -165,10 +165,10 @@ export class ConditionMatrixDomain {
     }
 
     return new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, this.matrix.operator, clauses, '', '')
+      new StrategyBotConditionNodeIdVo().value, this.board.operator, clauses, '', '')
   }
 
-  private clauseFor(item: ConditionMatrixItemDto): StrategyBotConditionDto {
+  private clauseFor(item: ConditionBoardItemDto): StrategyBotConditionDto {
     const pieceClauses = item.pieces.map(piece => this.clauseForPiece(piece))
 
     if (pieceClauses.length === 1) {
@@ -179,7 +179,7 @@ export class ConditionMatrixDomain {
       new StrategyBotConditionNodeIdVo().value, item.operator ?? 'or', pieceClauses, '', '')
   }
 
-  private clauseForPiece(piece: ConditionMatrixPieceDto): StrategyBotConditionDto {
+  private clauseForPiece(piece: ConditionBoardPieceDto): StrategyBotConditionDto {
     const comparisons = piece.acceptedSignals.map(signal => new StrategyBotConditionDto(
       new StrategyBotConditionNodeIdVo().value, null, [], piece.sourceLabel, signal))
 
@@ -192,17 +192,17 @@ export class ConditionMatrixDomain {
   }
 
   /** 這塊零件現在的樣子；還沒擺上墊子的話就是一塊新的。 */
-  private pieceOf(sourceLabel: string): ConditionMatrixPieceDto {
-    return this.matrix.items
+  private pieceOf(sourceLabel: string): ConditionBoardPieceDto {
+    return this.board.items
       .flatMap(item => item.pieces)
       .find(piece => piece.sourceLabel === sourceLabel)
-      ?? new ConditionMatrixPieceDto(sourceLabel, [DEFAULT_ACCEPTED_SIGNAL])
+      ?? new ConditionBoardPieceDto(sourceLabel, [DEFAULT_ACCEPTED_SIGNAL])
   }
 
   /** 墊子上拿掉這塊零件之後剩下的那幾格。空掉的那一組跟著消失。 */
-  private withoutPiece(sourceLabel: string): ConditionMatrixItemDto[] {
-    return this.matrix.items
-      .map(item => new ConditionMatrixItemDto(
+  private withoutPiece(sourceLabel: string): ConditionBoardItemDto[] {
+    return this.board.items
+      .map(item => new ConditionBoardItemDto(
         item.operator, item.pieces.filter(piece => piece.sourceLabel !== sourceLabel)))
       .filter(item => item.pieces.length > 0)
   }
@@ -213,24 +213,24 @@ export class ConditionMatrixDomain {
    * 一個裝著一塊的「組」與那一塊本身**說的是同一句話**，但它多一層框、多一個運算子
    * 選單，而那個選單改了什麼都不會發生。留著它，使用者會以為自己漏看了什麼。
    */
-  private rebuilt(items: readonly ConditionMatrixItemDto[]): ConditionMatrixDomain {
-    return new ConditionMatrixDomain(new ConditionMatrixDto(
-      this.matrix.operator,
+  private rebuilt(items: readonly ConditionBoardItemDto[]): ConditionBoardDomain {
+    return new ConditionBoardDomain(new ConditionBoardDto(
+      this.board.operator,
       items.map(item => (item.isBundle && item.pieces.length === 1
-        ? new ConditionMatrixItemDto(null, item.pieces)
+        ? new ConditionBoardItemDto(null, item.pieces)
         : item)),
-      this.matrix.representable,
+      this.board.representable,
     ))
   }
 
   private mappingPieces(
-    transform: (piece: ConditionMatrixPieceDto) => ConditionMatrixPieceDto,
-  ): ConditionMatrixDomain {
-    return new ConditionMatrixDomain(new ConditionMatrixDto(
-      this.matrix.operator,
-      this.matrix.items.map(
-        item => new ConditionMatrixItemDto(item.operator, item.pieces.map(transform))),
-      this.matrix.representable,
+    transform: (piece: ConditionBoardPieceDto) => ConditionBoardPieceDto,
+  ): ConditionBoardDomain {
+    return new ConditionBoardDomain(new ConditionBoardDto(
+      this.board.operator,
+      this.board.items.map(
+        item => new ConditionBoardItemDto(item.operator, item.pieces.map(transform))),
+      this.board.representable,
     ))
   }
 }
