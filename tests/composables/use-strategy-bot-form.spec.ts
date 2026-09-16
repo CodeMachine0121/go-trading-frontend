@@ -272,6 +272,26 @@ describe('useStrategyBotForm 的條件操作', () => {
       .toEqual(['A 等於…', 'B 等於…'])
   })
 
+  it('改了代號，抽屜與樹上那幾句一起跟著改', () => {
+    // 抽屜列的是這一刻拼得出來的東西。它不跟著改的話，使用者會看到一塊指向
+    // 舊代號的積木，而那個代號已經不存在了。
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.changeSignalSourceLabel(0, 'MA')
+
+    expect(form.blockDrawer.value.comparisons.map(option => option.label)).toContain('MA 等於…')
+    expect(form.conditionSides[0]!.condition.value!.conditions[0]!.sourceLabel).toBe('MA')
+  })
+
+  it('刪掉一個還被條件用著的來源會被擋下來，並說得出是誰在用', () => {
+    // 默默把那幾句一起刪掉，比擋住它不誠實得多。
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    expect(form.signalSourceRemovalBlockedReasons.value[0]).toContain('A')
+  })
+
   it('一個來源都沒有時，抽屜說得出要先去宣告一個', () => {
     const form = formUnderTest()
     form.reset()
