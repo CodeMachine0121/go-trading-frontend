@@ -10,6 +10,16 @@ function group(nodeId: string, operator: 'and' | 'or', ...children: StrategyBotC
   return new StrategyBotConditionDto(nodeId, operator, children, '', '')
 }
 
+/** 這棵樹最深的那一個群組。加東西一律往那裡加，才問得出深度上限有沒有被守住。 */
+function deepestGroupNodeId(tree: StrategyBotConditionDomain): string {
+  let node = tree.value!
+  while (node.conditions.some(child => child.isGroup)) {
+    node = node.conditions.find(child => child.isGroup)!
+  }
+
+  return node.nodeId
+}
+
 /** 「( A 且 B ) 或 C」——一棵夠深、夠寬的樹，足以讓每一種操作都有東西可以碰。 */
 function aNestedTree() {
   return new StrategyBotConditionDomain(
@@ -126,30 +136,66 @@ describe('StrategyBotConditionDomain', () => {
     expect(two.removeNode('a').value?.conditions).toHaveLength(2)
   })
 
-  it('深到上限的那一層就加不動東西了', () => {
-    // 五層是一個人還讀得懂自己寫了什麼的極限；再複雜該寫進算式裡。
+  it('三個動作各問各的——加一個群組比加一句佔得更兇', () => {
+    // 新群組一出生就帶兩句，所以它長的是兩層三個節點，不是一層一個。
+    // 用同一個問題管兩種動作，就會出現「按鈕還在、按下去卻超過上限」。
+    // l1 是第一層，l4 是第四層，它的兩句比對落在第五層——剛好填滿。
     const deep = new StrategyBotConditionDomain(
       group('l1', 'and',
         group('l2', 'and',
           group('l3', 'and',
-            group('l4', 'and',
-              group('l5', 'and', comparison('x', 'A'), comparison('y', 'A')),
-              comparison('y4', 'A')),
+            group('l4', 'and', comparison('x', 'A'), comparison('y', 'A')),
             comparison('y3', 'A')),
           comparison('y2', 'A')),
         comparison('y1', 'A')))
 
-    expect(deep.canAddUnder('l4')).toBe(true)
-    expect(deep.canAddUnder('l5')).toBe(false)
+    expect(deep.depth).toBe(5)
+    // 第四層底下還放得下一句（落在第五層），但放不下一個群組（它的兩句會落到第六層）。
+    expect(deep.canAddComparisonUnder('l4')).toBe(true)
+    expect(deep.canAddGroupUnder('l4')).toBe(false)
   })
 
-  it('節點數到上限就整棵都加不動了', () => {
-    const wide = new StrategyBotConditionDomain(
-      group('root', 'or',
-        ...Array.from({ length: 31 }, (_unused, index) => comparison(`n${index}`, 'A'))))
+  it('加一句與加一個群組都不會讓深度超過上限', () => {
+    // 斷言的是**做出來的結果**，不是那個問題本身——只問問題的話，
+    // 問錯了也一樣是綠的。
+    let tree = new StrategyBotConditionDomain(null).startWithGroup('A')
 
-    expect(wide.nodeCount).toBe(32)
-    expect(wide.canAddUnder('root')).toBe(false)
+    for (let step = 0; step < 6; step += 1) {
+      const deepestGroup = deepestGroupNodeId(tree)
+      if (tree.canAddGroupUnder(deepestGroup)) {
+        tree = tree.addGroup(deepestGroup, 'A')
+      }
+      else if (tree.canAddComparisonUnder(deepestGroup)) {
+        tree = tree.addComparison(deepestGroup, 'A')
+      }
+      expect(tree.depth).toBeLessThanOrEqual(5)
+    }
+  })
+
+  it('包成群組也不會讓深度超過上限', () => {
+    const deep = new StrategyBotConditionDomain(
+      group('l1', 'and',
+        group('l2', 'and',
+          group('l3', 'and',
+            group('l4', 'and', comparison('x', 'A'), comparison('y', 'A')),
+            comparison('y3', 'A')),
+          comparison('y2', 'A')),
+        comparison('y1', 'A')))
+
+    // x 在第五層，包起來會讓它掉到第六層。
+    expect(deep.canWrapInGroup('x')).toBe(false)
+  })
+
+  it('節點數快滿時，加一個群組（三個節點）先被擋下來', () => {
+    const almostFull = new StrategyBotConditionDomain(
+      group('root', 'or',
+        ...Array.from({ length: 30 }, (_unused, index) => comparison(`n${index}`, 'A'))))
+
+    expect(almostFull.nodeCount).toBe(31)
+    // 還放得下一個節點，但放不下三個。
+    expect(almostFull.canAddComparisonUnder('root')).toBe(true)
+    expect(almostFull.canAddGroupUnder('root')).toBe(false)
+    expect(almostFull.addComparison('root', 'A').nodeCount).toBe(32)
   })
 
   it('說得出這棵樹用到哪幾個來源', () => {

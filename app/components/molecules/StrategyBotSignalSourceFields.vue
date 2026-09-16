@@ -9,30 +9,39 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 //
 // 它是**一個** UI 概念而不是「一列」加「一塊」：一列脫離了它所在的那一份就答不出
 // 「代號有沒有重複」，而那正是這一塊要回答的事情之一。
-const { sources, strategyOptions, intervalOptions, parameterNamesByStrategyId, canAdd, removalBlockedReasons }
-  = defineProps<{
-    sources: readonly StrategyBotSignalSourceDto[]
-    strategyOptions: readonly { value: number, label: string }[]
-    intervalOptions: readonly { value: string, label: string }[]
-    /** 每一支策略宣告了哪幾個旋鈕。挑了策略才知道有哪幾格要填。 */
-    parameterNamesByStrategyId: Readonly<Record<number, readonly string[]>>
-    /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
-    canAdd: boolean
-    /**
+const {
+  sources, strategyOptions, intervalOptions, parameterNamesByStrategyId,
+  canAdd, signalSourceLimit, removalBlockedReasons,
+} = defineProps<{
+  sources: readonly StrategyBotSignalSourceDto[]
+  strategyOptions: readonly { value: number, label: string }[]
+  intervalOptions: readonly { value: string, label: string }[]
+  /** 每一支策略宣告了哪幾個旋鈕。挑了策略才知道有哪幾格要填。 */
+  parameterNamesByStrategyId: Readonly<Record<number, readonly string[]>>
+  /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
+  canAdd: boolean
+  /**
+     * 上限是多少，好在到了的時候說得出來。
+     *
+     * 由上面餵下來而不是元件自己去問 domain：元件只看得到 DTO 與上面給的東西，
+     * 而這個數字與擋住新增的那一個必須是**同一份**——各拿各的，兩邊遲早會不一樣。
+     */
+  signalSourceLimit: number
+  /**
      * 一支可用策略都沒有。
      *
      * 這時新增鍵按下去只會得到一個空的下拉選單——而畫面**明明知道原因**。
      * 一個知道原因卻保持沉默的畫面，是把使用者留在原地自己猜。
      */
-    hasNoStrategies: boolean
-    /**
+  hasNoStrategies: boolean
+  /**
      * 第幾個來源現在刪不掉，以及為什麼。
      *
      * 刪掉一個還被條件用著的來源，會讓條件指向一個不存在的代號。這裡選擇**擋住那次刪除**
      * 並說出是哪裡在用它——比默默把條件一起刪掉誠實得多。
      */
-    removalBlockedReasons: Readonly<Record<number, string>>
-  }>()
+  removalBlockedReasons: Readonly<Record<number, string>>
+}>()
 
 const emit = defineEmits<{
   add: []
@@ -170,8 +179,21 @@ function onParameterInput(index: number, name: string, raw: string | number) {
       買入、賣出、持有。先去策略庫寫一支訊號種類的，這裡就挑得到它了。
     </p>
 
+    <!--
+      到了上限時說出上限。少了這一句，那顆消失的按鈕與上面「一支訊號策略都沒有」
+      那一種消失長得一模一樣——而兩者要做的事完全不同。
+    -->
+    <p
+      v-else-if="!canAdd"
+      class="strategy-bot-signal-source-fields__empty"
+      data-testid="signal-sources-at-limit"
+    >
+      一台機器人的信號來源上限是 {{ signalSourceLimit }} 個。要再加一個，
+      得先移除其中一個。
+    </p>
+
     <AppButton
-      v-else-if="canAdd"
+      v-else
       type="button"
       variant="secondary"
       class="strategy-bot-signal-source-fields__add"

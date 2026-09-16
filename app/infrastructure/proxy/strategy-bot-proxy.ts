@@ -174,12 +174,14 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
   ): Record<string, BackendRequestValue> {
     const writeDto = strategyBotWriteDomain.sendable
 
+    // 這裡不再自己去空白：正規化是 StrategyBotWriteDomain.sendable 整份一起做的。
+    // 在這裡補一格，就是讓「哪幾格正規化過」有兩個答案。
     return {
-      name: writeDto.name.trim(),
-      symbol: writeDto.symbol.trim(),
+      name: writeDto.name,
+      symbol: writeDto.symbol,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
       signalSources: writeDto.signalSources.map(signalSource => ({
-        label: signalSource.label.trim(),
+        label: signalSource.label,
         strategyId: signalSource.strategyId,
         aggregationInterval: signalSource.aggregationInterval,
         parameterValues: signalSource.parameterValues.map(parameterValue => ({

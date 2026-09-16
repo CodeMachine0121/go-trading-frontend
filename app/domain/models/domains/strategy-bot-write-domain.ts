@@ -1,5 +1,7 @@
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
-import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 /**
@@ -55,9 +57,50 @@ export class StrategyBotWriteDomain {
     return this.rejection === null
   }
 
-  /** 送出去的那一份，名稱與代號的前後空白都去掉了。 */
+  /**
+   * 送出去的那一份，名稱、標的、來源代號**與條件裡指到的代號**前後空白都去掉了。
+   *
+   * 條件裡那一份也要去，而且理由比其他幾格都硬：來源代號去了空白、條件裡的沒去，
+   * 兩邊就對不上——後端會說這個條件指到一個沒有宣告的來源，而畫面上那兩格
+   * 看起來一模一樣。正規化必須是**整份一起**，不能一格一格挑著做。
+   */
   get sendable(): StrategyBotWriteDto {
-    return this.writeDto
+    return new StrategyBotWriteDto(
+      this.writeDto.id,
+      this.writeDto.name.trim(),
+      this.writeDto.symbol.trim(),
+      this.writeDto.triggerIntervalMinutes,
+      this.writeDto.signalSources.map(signalSource => new StrategyBotSignalSourceDto(
+        signalSource.label.trim(),
+        signalSource.strategyId,
+        signalSource.aggregationInterval,
+        signalSource.parameterValues,
+      )),
+      this.trimmedCondition(this.writeDto.buyCondition),
+      this.trimmedCondition(this.writeDto.sellCondition),
+    )
+  }
+
+  /** 把一棵條件樹裡每一句比對指到的代號一起去掉前後空白。 */
+  private trimmedCondition(
+    condition: StrategyBotConditionDto | null,
+  ): StrategyBotConditionDto | null {
+    if (condition === null) {
+      return null
+    }
+
+    if (!condition.isGroup) {
+      return new StrategyBotConditionDto(
+        condition.nodeId, null, [], condition.sourceLabel.trim(), condition.signal)
+    }
+
+    return new StrategyBotConditionDto(
+      condition.nodeId,
+      condition.operator,
+      condition.conditions.map(child => this.trimmedCondition(child)!),
+      '',
+      '',
+    )
   }
 
   private signalSourceRejection(): string | null {

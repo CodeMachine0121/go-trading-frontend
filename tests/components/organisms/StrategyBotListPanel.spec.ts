@@ -38,7 +38,7 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
 function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
-    getStrategyBot: vi.fn(),
+    getStrategyBot: vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())),
     saveStrategyBot: vi.fn(),
     deleteStrategyBot: vi.fn().mockResolvedValue(undefined),
     startStrategyBot: vi.fn(),

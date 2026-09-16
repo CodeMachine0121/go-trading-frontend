@@ -143,13 +143,49 @@ export class StrategyBotConditionDomain {
       && parent.conditions.length > STRATEGY_BOT_LIMITS.conditionGroupMinimumSize
   }
 
-  /** 這個群組還加不加得動東西：再深一層會不會超過上限，整棵會不會超過節點數。 */
-  canAddUnder(parentNodeId: string): boolean {
+  /**
+   * 在這個節點底下加**一句比對**加不加得動。
+   *
+   * 一句比對長一層、多一個節點，所以它問的就是這兩件事。
+   */
+  canAddComparisonUnder(parentNodeId: string): boolean {
+    return this.hasRoomUnder(parentNodeId, 1, 1)
+  }
+
+  /**
+   * 在這個節點底下加**一個群組**加不加得動。
+   *
+   * 它問的與加一句比對**不是同一件事**：新群組一出生就帶兩句比對，所以它長的是
+   * 兩層、三個節點。用同一個問題管兩種動作，就會出現「按鈕還在、按下去卻超過上限」——
+   * 而那正是這一刀答應要讓它按不出來的那種錯誤。
+   */
+  canAddGroupUnder(parentNodeId: string): boolean {
+    return this.hasRoomUnder(parentNodeId, 2, 3)
+  }
+
+  /**
+   * 把這一句比對包成群組加不加得動。
+   *
+   * 包起來之後，原來那一句往下掉一層，旁邊還多一句——所以是多一層、多兩個節點。
+   */
+  canWrapInGroup(nodeId: string): boolean {
+    return this.hasRoomUnder(nodeId, 1, 2)
+  }
+
+  /**
+   * 在這個節點底下再長 addedDepth 層、addedNodeCount 個節點，還放得下嗎。
+   *
+   * 三個動作各自問各自的，是因為它們長出來的東西不一樣大。
+   * 一個「通用」的問法只能假設最小的那一種，而那個假設在另外兩種上就是錯的。
+   */
+  private hasRoomUnder(
+    parentNodeId: string, addedDepth: number, addedNodeCount: number,
+  ): boolean {
     const parentDepth = this.depthFromRootTo(this.condition, parentNodeId, 1)
 
     return parentDepth !== null
-      && parentDepth < STRATEGY_BOT_LIMITS.conditionDepth
-      && this.nodeCount < STRATEGY_BOT_LIMITS.conditionNodeCount
+      && parentDepth + addedDepth <= STRATEGY_BOT_LIMITS.conditionDepth
+      && this.nodeCount + addedNodeCount <= STRATEGY_BOT_LIMITS.conditionNodeCount
   }
 
   /** 從無到有開一棵樹：一句比對。把它包成群組是之後一個明確的動作。 */

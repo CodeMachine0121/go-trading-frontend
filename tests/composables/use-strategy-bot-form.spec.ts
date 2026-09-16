@@ -88,6 +88,39 @@ describe('useStrategyBotForm 讓第三段跟得上第二段', () => {
     expect(buyCondition?.conditions[1]?.sourceLabel).toBe('B')
   })
 
+  it('對調兩個代號時，兩邊的條件不會被合併成同一句', () => {
+    // 欄位是逐字觸發的，所以對調必然經過一個「兩個都叫 A」的瞬間。
+    // 那一刻若照改，B 的那一句會永久變成 A 的那一句——而畫面上一個字都沒提。
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    // 把 B 改成 A（撞名），再把 A 改成 MA。
+    form.changeSignalSourceLabel(1, 'A')
+    form.changeSignalSourceLabel(0, 'MA')
+
+    const buyCondition = form.conditionSides[0]?.condition.value
+    const usedLabels = [
+      buyCondition?.conditions[0]?.sourceLabel,
+      buyCondition?.conditions[1]?.sourceLabel,
+    ]
+
+    expect(new Set(usedLabels).size).toBe(2)
+    expect(usedLabels).toContain('MA')
+  })
+
+  it('撞名期間條件按兵不動，名字弄乾淨之後才跟上', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.changeSignalSourceLabel(1, 'A')
+    // 撞名的那一刻，B 的那一句還指著 B。
+    expect(form.conditionSides[0]?.condition.value?.conditions[1]?.sourceLabel).toBe('B')
+
+    form.changeSignalSourceLabel(1, 'RSI')
+    // 弄乾淨之後，它才從 B 改過去。
+    expect(form.conditionSides[0]?.condition.value?.conditions[1]?.sourceLabel).toBe('RSI')
+  })
+
   it('還被條件用著的來源刪不掉，並說得出是哪裡在用它', () => {
     // 比默默把條件一起刪掉誠實得多。
     const form = formUnderTest(aStoredBot())

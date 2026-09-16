@@ -14,16 +14,24 @@ import { CONDITION_OPERATORS, CONDITION_OPERATOR_LABELS } from '~/domain/models/
 //
 // 它不判斷任何事——加不加得動、刪不刪得掉都由上面算好傳下來。一個自己判斷規則的
 // 節點，會讓同一條規則在每一層各有一份看法。
-const { condition, sourceLabels, signalOptions, canAdd, removableNodeIds } = defineProps<{
-  condition: StrategyBotConditionDto
-  /** 這台機器人宣告過的每一個代號。選單裡只有它們——指到沒宣告的代號因此打不出來。 */
-  sourceLabels: readonly string[]
-  signalOptions: readonly { value: string, label: string }[]
-  /** 這一個節點底下還加不加得動東西（再深一層會不會超過上限）。 */
-  canAdd: (nodeId: string) => boolean
-  /** 拿得掉的那幾個節點。剩兩句的群組裡那幾句不在裡面，所以它們的刪除鍵不存在。 */
-  removableNodeIds: readonly string[]
-}>()
+const { condition, sourceLabels, signalOptions, canAddComparison, canAddGroup, canWrapInGroup, removableNodeIds }
+  = defineProps<{
+    condition: StrategyBotConditionDto
+    /** 這台機器人宣告過的每一個代號。選單裡只有它們——指到沒宣告的代號因此打不出來。 */
+    sourceLabels: readonly string[]
+    signalOptions: readonly { value: string, label: string }[]
+    /**
+   * 三個動作各自加不加得動。
+   *
+   * 三個而不是一個，是因為它們長出來的東西不一樣大：一句比對是一層一個節點，
+   * 一個群組一出生就帶兩句（兩層三個節點），包成群組是一層兩個節點。
+   */
+    canAddComparison: (nodeId: string) => boolean
+    canAddGroup: (nodeId: string) => boolean
+    canWrapInGroup: (nodeId: string) => boolean
+    /** 拿得掉的那幾個節點。剩兩句的群組裡那幾句不在裡面，所以它們的刪除鍵不存在。 */
+    removableNodeIds: readonly string[]
+  }>()
 
 const emit = defineEmits<{
   addComparison: [parentNodeId: string]
@@ -68,7 +76,7 @@ function isRemovable(nodeId: string): boolean {
 
       <div class="strategy-bot-condition__actions">
         <AppButton
-          v-if="canAdd(condition.nodeId)"
+          v-if="canAddComparison(condition.nodeId)"
           type="button"
           data-testid="condition-add-comparison"
           @click="emit('addComparison', condition.nodeId)"
@@ -76,7 +84,7 @@ function isRemovable(nodeId: string): boolean {
           ＋ 一句比對
         </AppButton>
         <AppButton
-          v-if="canAdd(condition.nodeId)"
+          v-if="canAddGroup(condition.nodeId)"
           type="button"
           data-testid="condition-add-group"
           @click="emit('addGroup', condition.nodeId)"
@@ -107,7 +115,9 @@ function isRemovable(nodeId: string): boolean {
           :condition="child"
           :source-labels="sourceLabels"
           :signal-options="signalOptions"
-          :can-add="canAdd"
+          :can-add-comparison="canAddComparison"
+          :can-add-group="canAddGroup"
+          :can-wrap-in-group="canWrapInGroup"
           :removable-node-ids="removableNodeIds"
           @add-comparison="emit('addComparison', $event)"
           @add-group="emit('addGroup', $event)"
@@ -165,7 +175,7 @@ function isRemovable(nodeId: string): boolean {
         使用者要的是「再加一個條件」，不是「把剛剛填的丟掉重來」。
       -->
       <AppButton
-        v-if="canAdd(condition.nodeId)"
+        v-if="canWrapInGroup(condition.nodeId)"
         type="button"
         data-testid="condition-wrap-in-group"
         @click="emit('wrapInGroup', condition.nodeId)"

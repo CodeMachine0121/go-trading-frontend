@@ -19,6 +19,7 @@ function mountFields(options: {
       ],
       parameterNamesByStrategyId: { 9: ['回看根數'] },
       canAdd: options.canAdd ?? true,
+      signalSourceLimit: 10,
       hasNoStrategies: options.hasNoStrategies ?? false,
       removalBlockedReasons: options.removalBlockedReasons ?? {},
     },
@@ -43,9 +44,13 @@ describe('StrategyBotSignalSourceFields', () => {
     expect(mountFields().find('[data-testid="signal-source-add"]').exists()).toBe(true)
   })
 
-  it('到了上限就沒有新增鍵', () => {
-    expect(mountFields({ canAdd: false })
-      .find('[data-testid="signal-source-add"]').exists()).toBe(false)
+  it('到了上限時說出上限，而不是讓按鈕默默消失', () => {
+    // 少了這一句，那顆消失的按鈕與「一支訊號策略都沒有」那一種消失長得一模一樣——
+    // 而兩者要做的事完全不同。
+    const wrapper = mountFields({ canAdd: false })
+
+    expect(wrapper.find('[data-testid="signal-source-add"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="signal-sources-at-limit"]').text()).toContain('10 個')
   })
 
   it('那支策略宣告了旋鈕，就出現那幾格', () => {

@@ -103,10 +103,32 @@ export function useStrategyBots(
     formOpen.value = true
   }
 
-  function openEditForm(strategyBot: StrategyBotDto) {
-    editing.value = strategyBot
+  /**
+   * 打開一台來編輯，而且**重新去問它現在長什麼樣**。
+   *
+   * 不重問的話，清單上那一份可能已經過期——那一台可能在另一個分頁被刪掉了，
+   * 或被改過了。使用者會對著一份不存在的資料重做一次編輯，按下儲存才被告知找不到。
+   * 現在他在打開的那一刻就知道。
+   */
+  async function openEditForm(strategyBot: StrategyBotDto) {
     formFailureMessage.value = ''
-    formOpen.value = true
+    failureMessage.value = ''
+    busyId.value = strategyBot.id
+
+    try {
+      editing.value = await strategyBotApplication.getStrategyBot(strategyBot.id)
+      formOpen.value = true
+    }
+    catch (error: unknown) {
+      // 先重讀、再說話。反過來的話那句話會被 load() 自己的清空吃掉——
+      // 使用者按了編輯，什麼都沒發生，清單卻默默換了一份。
+      const openFailure = messageOf(error)
+      await load()
+      failureMessage.value = openFailure
+    }
+    finally {
+      busyId.value = null
+    }
   }
 
   function closeForm() {

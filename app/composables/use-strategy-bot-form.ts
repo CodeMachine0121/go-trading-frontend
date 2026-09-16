@@ -42,6 +42,13 @@ export function useStrategyBotForm(
   const symbol = ref('')
   const triggerIntervalText = ref(String(DEFAULT_TRIGGER_INTERVAL_MINUTES))
   const signalSources = ref<StrategyBotSignalSourceDto[]>([])
+  /**
+   * 條件目前真正指著的那幾個代號——也就是每個來源**最後一個沒有撞名的**代號。
+   *
+   * 它與 `signalSources` 的 label 多數時候一樣，只在使用者打到一半撞名的那幾個瞬間
+   * 分岔。沒有它的話，對調兩個代號會讓兩邊的條件永久合併成同一句。
+   */
+  const committedLabels = ref<string[]>([])
   const buyCondition = ref<StrategyBotConditionDto | null>(null)
   const sellCondition = ref<StrategyBotConditionDto | null>(null)
 
@@ -115,6 +122,7 @@ export function useStrategyBotForm(
     triggerIntervalText.value = String(
       loaded?.triggerIntervalMinutes ?? DEFAULT_TRIGGER_INTERVAL_MINUTES)
     signalSources.value = [...(loaded?.signalSources ?? [])]
+    committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
     buyCondition.value = loaded?.buyCondition ?? null
     sellCondition.value = loaded?.sellCondition ?? null
   }
@@ -124,15 +132,18 @@ export function useStrategyBotForm(
       return
     }
 
+    const label = nextLabel()
+
     signalSources.value = [
       ...signalSources.value,
       new StrategyBotSignalSourceDto(
-        nextLabel(),
+        label,
         strategyOptions()[0]?.value ?? 0,
         DEFAULT_AGGREGATION_INTERVAL,
         [],
       ),
     ]
+    committedLabels.value = [...committedLabels.value, label]
   }
 
   /**
@@ -160,6 +171,7 @@ export function useStrategyBotForm(
     }
 
     signalSources.value = signalSources.value.filter((_, position) => position !== index)
+    committedLabels.value = committedLabels.value.filter((_, position) => position !== index)
   }
 
   /**
@@ -167,18 +179,37 @@ export function useStrategyBotForm(
    *
    * 不跟著改的話，使用者把 A 改成「均線」之後，條件會指向一個不存在的代號——
    * 而畫面上那一句看起來完全正常。
+   *
+   * **撞名的那一刻不改條件**，這是這段唯一不明顯、但非改不可的地方：
+   * 條件只記得代號那一串字，所以改名是一次全樹的字串取代。使用者在兩個來源之間
+   * 對調代號時必然會經過一個「兩個都叫 A」的瞬間（欄位是逐字觸發的），
+   * 那一刻如果照改，兩個來源的條件就**永久合併成同一句**——他把第二個改走之後，
+   * 原本屬於另一支策略的那一句已經悄悄變成重複的一句，而畫面上一個字都沒提。
+   *
+   * 所以條件記著的是 committedLabels：**最後一個沒有撞名的代號**。撞名期間欄位照改
+   * （使用者才看得到那句重複的提醒），條件按兵不動；等他把名字弄乾淨了，
+   * 再從條件真正還指著的那一個改過去。
    */
   function changeSignalSourceLabel(index: number, label: string) {
-    const previousLabel = signalSources.value[index]?.label
     replaceSignalSource(index, signalSource => new StrategyBotSignalSourceDto(
       label, signalSource.strategyId, signalSource.aggregationInterval, signalSource.parameterValues))
 
-    if (previousLabel !== undefined && previousLabel !== label) {
-      buyCondition.value = new StrategyBotConditionDomain(buyCondition.value)
-        .renameSourceLabel(previousLabel, label).value
-      sellCondition.value = new StrategyBotConditionDomain(sellCondition.value)
-        .renameSourceLabel(previousLabel, label).value
+    const committedLabel = committedLabels.value[index]
+    const takenByOthers = signalSources.value
+      .filter((_unused, position) => position !== index)
+      .map(signalSource => signalSource.label.trim())
+
+    if (committedLabel === undefined || label.trim() === committedLabel
+      || takenByOthers.includes(label.trim())) {
+      return
     }
+
+    buyCondition.value = new StrategyBotConditionDomain(buyCondition.value)
+      .renameSourceLabel(committedLabel, label).value
+    sellCondition.value = new StrategyBotConditionDomain(sellCondition.value)
+      .renameSourceLabel(committedLabel, label).value
+    committedLabels.value = committedLabels.value.map(
+      (existing, position) => (position === index ? label : existing))
   }
 
   /** 換策略時把舊策略的旋鈕值清掉——它們屬於另一支算式，留著只會被後端拒絕。 */
@@ -235,7 +266,11 @@ export function useStrategyBotForm(
       // 規則在畫面上的樣子是**做不到**，而不是被拒絕。
       removableNodeIds: computed(() => collectNodeIds(condition.value)
         .filter(nodeId => tree.value.canRemove(nodeId))),
-      canAdd: (nodeId: string) => tree.value.canAddUnder(nodeId),
+      // 三個動作各問各的：它們長出來的東西不一樣大，用同一個答案管三個，
+      // 就會出現「按鈕還在、按下去卻超過上限」。
+      canAddComparison: (nodeId: string) => tree.value.canAddComparisonUnder(nodeId),
+      canAddGroup: (nodeId: string) => tree.value.canAddGroupUnder(nodeId),
+      canWrapInGroup: (nodeId: string) => tree.value.canWrapInGroup(nodeId),
       start: () => apply(domain => domain.startWithComparison(firstLabel())),
       addComparison: (parentNodeId: string) =>
         apply(domain => domain.addComparison(parentNodeId, firstLabel())),
@@ -281,6 +316,8 @@ export function useStrategyBotForm(
     intervalOptions,
     signalOptions: SIGNAL_OPTIONS,
     canAddSignalSource,
+    // 與擋住新增的是同一個數字，往下傳給要說出它的那個元件。
+    signalSourceLimit: STRATEGY_BOT_LIMITS.signalSourceCount,
     signalSourceRemovalBlockedReasons,
     conditionSides,
     rejection,

@@ -234,13 +234,36 @@ describe('useStrategyBots 的表單', () => {
     expect(bots.formFailureMessage.value).toBe('機器人名稱「早盤突破」已被使用')
   })
 
-  it('打開編輯時帶著那一台，打開新增時不帶', async () => {
-    const bots = botsUnderTest()
+  it('打開編輯時重新去問那一台現在長什麼樣', async () => {
+    // 清單上那一份可能已經過期——那一台可能在另一個分頁被改過或刪掉了。
+    strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(3, '改過名字了'))
 
-    bots.openEditForm(botDto(3, '早盤突破'))
-    expect(bots.editing.value?.id).toBe(3)
+    const bots = botsUnderTest()
+    await bots.openEditForm(botDto(3, '早盤突破'))
+
+    expect(strategyBotApplication.getStrategyBot).toHaveBeenCalledWith(3)
+    expect(bots.editing.value?.name).toBe('改過名字了')
+    expect(bots.formOpen.value).toBe(true)
+  })
+
+  it('那一台已經被刪掉時，在打開的那一刻就說，並把清單重讀一次', async () => {
+    // 不然他會對著一份不存在的資料重做一次編輯，按下儲存才被告知找不到。
+    strategyBotApplication.getStrategyBot.mockRejectedValue(
+      new Error('找不到識別碼為 3 的策略機器人'))
+
+    const bots = botsUnderTest()
+    await bots.openEditForm(botDto(3, '早盤突破'))
+
+    expect(bots.formOpen.value).toBe(false)
+    expect(bots.failureMessage.value).toContain('找不到')
+    expect(strategyBotApplication.listStrategyBots).toHaveBeenCalled()
+  })
+
+  it('打開新增時不帶任何一台', () => {
+    const bots = botsUnderTest()
 
     bots.openCreateForm()
     expect(bots.editing.value).toBeNull()
+    expect(bots.formOpen.value).toBe(true)
   })
 })

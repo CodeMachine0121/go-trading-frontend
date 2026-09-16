@@ -19,14 +19,21 @@ function group(nodeId: string, operator: 'and' | 'or', ...children: StrategyBotC
 
 function mountEditor(
   condition: StrategyBotConditionDto,
-  options: { removableNodeIds?: string[], canAdd?: boolean } = {},
+  options: {
+    removableNodeIds?: string[]
+    canAddComparison?: boolean
+    canAddGroup?: boolean
+    canWrapInGroup?: boolean
+  } = {},
 ) {
   return mount(StrategyBotConditionEditor, {
     props: {
       condition,
       sourceLabels: ['A', 'B', 'C'],
       signalOptions: SIGNAL_OPTIONS,
-      canAdd: () => options.canAdd ?? true,
+      canAddComparison: () => options.canAddComparison ?? true,
+      canAddGroup: () => options.canAddGroup ?? true,
+      canWrapInGroup: () => options.canWrapInGroup ?? true,
       removableNodeIds: options.removableNodeIds ?? [],
     },
   })
@@ -113,11 +120,23 @@ describe('StrategyBotConditionEditor 讓做不到的事沒有按鈕', () => {
   })
 
   it('加不動的時候沒有新增鍵', () => {
-    const wrapper = mountEditor(aNestedCondition(), { canAdd: false })
+    const wrapper = mountEditor(aNestedCondition(), {
+      canAddComparison: false, canAddGroup: false, canWrapInGroup: false,
+    })
 
     expect(wrapper.findAll('[data-testid="condition-add-comparison"]')).toHaveLength(0)
     expect(wrapper.findAll('[data-testid="condition-add-group"]')).toHaveLength(0)
     expect(wrapper.findAll('[data-testid="condition-wrap-in-group"]')).toHaveLength(0)
+  })
+
+  it('三個動作各自消失——放得下一句、放不下一個群組時只留前者', () => {
+    // 它們長出來的東西不一樣大，所以能不能按也是三個各自的答案。
+    const wrapper = mountEditor(aNestedCondition(), {
+      canAddComparison: true, canAddGroup: false,
+    })
+
+    expect(wrapper.findAll('[data-testid="condition-add-comparison"]').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('[data-testid="condition-add-group"]')).toHaveLength(0)
   })
 
   it('一句比對加得動時，給的是「再加一個條件」而不是「加一個群組」', () => {
