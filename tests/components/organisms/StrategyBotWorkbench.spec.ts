@@ -320,38 +320,32 @@ describe('StrategyBotWorkbench 把一塊丟掉的兩條路', () => {
   })
 })
 
-describe('StrategyBotWorkbench 的積木抽屜什麼時候在', () => {
-  it('人在上面才開著，離開就收——沒有任何一種把它撐住的狀態', async () => {
+describe('StrategyBotWorkbench 的積木抽屜在哪裡', () => {
+  it('它一直在——沒有任何一種要先做什麼才看得到它的狀態', async () => {
+    // 積木式編輯器一向如此：Scratch 的積木面板固定在左側，
+    // Blockly 的 toolbox 是 always displayed。中間試過滑過去才出現，
+    // 那個模式在選單設計上早有定論：使用者失去控制權，而且鍵盤與觸控碰不到。
     const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
 
-    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
-
-    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
-    expect(wrapper.find('.block-dock--open').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
-    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="block-drawer"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="block-comparison:A:"]').isVisible()).toBe(true)
   })
 
-  it('選著一個空位也撐不住它——那正是先前收不回去的原因', async () => {
+  it('它是拼的那一段的一部分，不是浮在畫面上的東西', async () => {
+    // 浮起來的話它會蓋住底下的東西，而它旁邊那一整欄正是它要被拖過去的地方。
     const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
 
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
-    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
-    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
-
-    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+    expect(wrapper.get('.workbench__palette').element
+      .contains(wrapper.get('[data-testid="block-drawer"]').element)).toBe(true)
   })
 
   it('選著一個空位時點一塊，那一塊就進到那個空位裡', async () => {
-    // 抽屜關不關是一回事，挑出來的那一塊要落到他剛剛指的地方是另一回事。
     const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
 
     await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
-    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
     await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
     await flushPromises()
 

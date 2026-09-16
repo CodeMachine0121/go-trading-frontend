@@ -54,7 +54,7 @@ export class ConditionBlockPaletteDomain {
    */
   private hint(): string {
     if (this.declaredLabels.length === 0) {
-      return '還沒有任何信號來源。先在左邊加一個，這裡才有東西可以拼。'
+      return '還沒有任何信號來源。先在上面加一個，這裡才有東西可以拼。'
     }
 
     if (this.selectedHole === null) {

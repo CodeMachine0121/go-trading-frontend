@@ -5,7 +5,7 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import StrategyBotSignalSourceFields from '~/components/molecules/StrategyBotSignalSourceFields.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
-import StrategyBotBlockDock from '~/components/organisms/StrategyBotBlockDock.vue'
+import StrategyBotBlockDrawer from '~/components/molecules/StrategyBotBlockDrawer.vue'
 import StrategyBotConditionTree from '~/components/organisms/StrategyBotConditionTree.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -17,7 +17,17 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 它**不知道自己是在新增還是在改**——收到一台機器人（或 null），交出一份要存的東西。
 // 知道的話，這裡就會長出兩條各自的路，而它們要做的事其實一模一樣。
 //
-// 版面是兩欄：左邊是準備材料（這台是什麼、它聽哪幾支策略），右邊是拼。
+// 版面分成兩段：上面準備材料（這台是什麼、它聽哪幾支策略），下面是拼。
+//
+// 拼的那一段是**積木抽屜 ＋ 工作區**並排，而抽屜**一直在那裡、不會自己收起來**。
+// 這是積木式編輯器的既有做法：Scratch 的積木面板固定在左側，Blockly 的 toolbox
+// 也是「always displayed」。中間試過讓它滑過去才出現，那是錯的——
+// 那個模式在選單設計上早有定論：使用者失去控制權（他沒打算打開，它自己開了），
+// 而且用鍵盤與觸控的人根本碰不到。
+//
+// 抽屜是**黏住的**：它不隨著樹愈拼愈長而被推走，但它也沒有離開版面——
+// 它就在那裡，只是不會被捲出畫面。
+//
 // 兩棵樹上下排在同一欄裡，**同時看得見**——一台機器人的買入與賣出同時成立時它什麼都不會說，
 // 而那件事只有在兩棵並排時才看得出來。
 const { editing, strategyOptions, saving, failureMessage } = defineProps<{
@@ -66,52 +76,63 @@ function onSave() {
 
 <template>
   <div class="workbench">
-    <div class="workbench__columns">
-      <!-- 左欄：準備材料。 -->
-      <div class="workbench__materials">
-        <AppPanel title="這台機器人是什麼">
-          <div class="workbench__identity">
-            <AppInput
-              v-model="form.name.value"
-              type="text"
-              placeholder="機器人名稱"
-              data-testid="bot-name-input"
-            />
-            <AppInput
-              v-model="form.triggerIntervalText.value"
-              type="number"
-              inputmode="numeric"
-              placeholder="每隔幾分鐘"
-              data-testid="bot-interval-input"
-            />
-            <SymbolField
-              v-model="form.symbol.value"
-              :trading-symbol-application="tradingSymbolApplication"
-            />
-          </div>
-        </AppPanel>
-
-        <AppPanel title="它要聽哪幾支策略">
-          <StrategyBotSignalSourceFields
-            :sources="form.signalSources.value"
-            :strategy-options="strategyOptions"
-            :interval-options="form.intervalOptions"
-            :parameter-names-by-strategy-id="parameterNamesByStrategyId"
-            :can-add="form.canAddSignalSource.value"
-            :signal-source-limit="form.signalSourceLimit"
-            :has-no-strategies="strategyOptions.length === 0"
-            :usage-warnings="form.signalSourceUsageWarnings.value"
-            @add="form.addSignalSource"
-            @remove="form.removeSignalSource"
-            @change-label="form.changeSignalSourceLabel"
-            @change-strategy="form.changeSignalSourceStrategy"
-            @change-interval="form.changeSignalSourceInterval"
-            @change-parameter-value="form.changeSignalSourceParameterValue"
+    <!-- 上半：準備材料。 -->
+    <div class="workbench__materials">
+      <AppPanel title="這台機器人是什麼">
+        <div class="workbench__identity">
+          <AppInput
+            v-model="form.name.value"
+            type="text"
+            placeholder="機器人名稱"
+            data-testid="bot-name-input"
           />
-        </AppPanel>
+          <AppInput
+            v-model="form.triggerIntervalText.value"
+            type="number"
+            inputmode="numeric"
+            placeholder="每隔幾分鐘"
+            data-testid="bot-interval-input"
+          />
+          <SymbolField
+            v-model="form.symbol.value"
+            :trading-symbol-application="tradingSymbolApplication"
+          />
+        </div>
+      </AppPanel>
+
+      <AppPanel title="它要聽哪幾支策略">
+        <StrategyBotSignalSourceFields
+          :sources="form.signalSources.value"
+          :strategy-options="strategyOptions"
+          :interval-options="form.intervalOptions"
+          :parameter-names-by-strategy-id="parameterNamesByStrategyId"
+          :can-add="form.canAddSignalSource.value"
+          :signal-source-limit="form.signalSourceLimit"
+          :has-no-strategies="strategyOptions.length === 0"
+          :usage-warnings="form.signalSourceUsageWarnings.value"
+          @add="form.addSignalSource"
+          @remove="form.removeSignalSource"
+          @change-label="form.changeSignalSourceLabel"
+          @change-strategy="form.changeSignalSourceStrategy"
+          @change-interval="form.changeSignalSourceInterval"
+          @change-parameter-value="form.changeSignalSourceParameterValue"
+        />
+      </AppPanel>
+    </div>
+
+    <!-- 下半：積木抽屜在左、工作區在右——積木式編輯器一向如此。 -->
+    <div class="workbench__building">
+      <div class="workbench__palette">
+        <StrategyBotBlockDrawer
+          :drawer="form.blockDrawer.value"
+          @pick="option => form.conditionSides.find(
+            side => side.key === form.selectedHole.value?.side)?.fill(
+            form.selectedHole.value!.hole, option.block)"
+          @drag-start="option => form.startDraggingBlock(option.block)"
+          @drag-end="form.stopDragging"
+        />
       </div>
 
-      <!-- 右欄：拼。兩棵樹上下排，同時看得見。 -->
       <div class="workbench__trees">
         <AppPanel
           v-for="side in form.conditionSides"
@@ -150,20 +171,6 @@ function onSave() {
         </AppPanel>
       </div>
     </div>
-
-    <!--
-      抽屜貼在畫面右緣，不在版面裡：待在版面裡的話它會被樹推走——
-      條件愈拼愈長，它就愈往下掉，偏偏它是每一步都要用到的東西。
-      兩棵樹共用同一個，所以它也不能長在任何一棵裡面。
-    -->
-    <StrategyBotBlockDock
-      :drawer="form.blockDrawer.value"
-      @pick="option => form.conditionSides.find(
-        side => side.key === form.selectedHole.value?.side)?.fill(
-        form.selectedHole.value!.hole, option.block)"
-      @drag-start="option => form.startDraggingBlock(option.block)"
-      @drag-end="form.stopDragging"
-    />
 
     <AppAlert
       v-if="form.rejection.value !== null"
@@ -207,24 +214,45 @@ function onSave() {
   flex-direction: column;
   gap: spacing('sm');
 
-  // 右緣留一條給那個把手。它是 fixed 的，所以不會自己把版面推開——
-  // 不留的話它會正好蓋在最右邊那一欄的控制項上。
-  padding-right: spacing('lg');
-
-  &__columns {
+  &__materials {
     display: grid;
-
-    // 窄畫面一欄：兩欄擠在手機上，拼的那一欄會窄到第三層縮排就沒地方了。
     grid-template-columns: minmax(0, 1fr);
     gap: spacing('sm');
 
     @include respond-to('lg') {
-      // 拼的那一欄寬一些：巢狀三層之後，縮排本身就吃掉不少寬度。
+      // 「這台是什麼」比「它聽哪幾支策略」短得多，所以不對半分。
       grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     }
   }
 
-  &__materials,
+  &__building {
+    display: grid;
+
+    // 窄畫面時抽屜排在工作區上面：積木在手邊，而不是要捲到底才拿得到。
+    grid-template-columns: minmax(0, 1fr);
+    gap: spacing('sm');
+
+    @include respond-to('lg') {
+      // 積木式編輯器一向如此：積木在左，拼的地方在右。
+      grid-template-columns: 260px minmax(0, 1fr);
+    }
+  }
+
+  &__palette {
+    min-width: 0;
+
+    @include respond-to('lg') {
+      // **黏住**：這就是那個「被樹推走」的問題真正的答案——不是把它藏起來，
+      // 是讓它不隨著樹愈拼愈長而捲出畫面。它仍然一直在，仍然拖得到。
+      position: sticky;
+      top: spacing('sm');
+
+      // 自己捲。積木多到裝不下時，該捲的是它，不是整頁。
+      max-height: calc(100vh - #{spacing('lg')});
+      overflow-y: auto;
+    }
+  }
+
   &__trees {
     display: flex;
     flex-direction: column;
