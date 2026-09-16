@@ -45,8 +45,8 @@ describe('StrategyBotWriteDomain', () => {
     ['觸發間隔是零', { triggerIntervalMinutes: 0 }, '必須大於零'],
     ['觸發間隔超過一天', { triggerIntervalMinutes: 1441 }, '上限是 1440 分鐘'],
     ['一個信號來源都沒有', { signalSources: [] }, '至少要有一個信號來源'],
-    ['買入條件是空的', { buyCondition: null }, '都不得為空'],
-    ['賣出條件是空的', { sellCondition: null }, '都不得為空'],
+    ['買入條件是空的', { buyCondition: null }, '買入條件還沒放'],
+    ['賣出條件是空的', { sellCondition: null }, '賣出條件還沒放'],
   ])('%s就送不出去，並說出是哪一件事', (_situation, overrides, expectedMessage) => {
     const writeDomain = aBotWrite(overrides)
 
@@ -74,12 +74,27 @@ describe('StrategyBotWriteDomain', () => {
     expect(writeDomain.rejection).toBe('必須給機器人取一個名稱')
   })
 
-  it('不重複驗那幾條畫面上根本按不出來的規則', () => {
-    // 條件指到沒宣告的代號、群組只剩一句、第 11 個來源——那三種在畫面上是
-    // 選單裡沒有、刪除鍵不見、新增鍵不見。把做不到的事再寫成一條驗證，
-    // 是替一個不會發生的情況維護一段程式。
+  it('條件指到一個沒宣告的代號就送不出去', () => {
+    // 這一條原本不驗，理由是畫面上按不出來。積木工作台之後它按得出來了：
+    // 把 A 改名成一個當下正被別人用著的代號時，樹上那幾句會停在舊代號上等它不再撞名，
+    // 而那個瞬間它們指的就是一個已經不存在的來源。
     const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
 
-    expect(writeDomain.isSendable).toBe(true)
+    expect(writeDomain.isSendable).toBe(false)
+    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
+  })
+
+  it('半成品送不出去，並說得出是哪一塊', () => {
+    // 積木工作台讓使用者造得出半成品——剛放下去的群組裡是兩個空位。
+    // 那是刻意的（未完成自己會標出來），但半成品不能送出去。
+    const halfBuilt = new StrategyBotConditionDto('g', 'and', [], '', '')
+
+    expect(aBotWrite({ buyCondition: halfBuilt }).rejection).toContain('買入條件')
+  })
+
+  it('比對還沒選信號也送不出去', () => {
+    const noSignal = new StrategyBotConditionDto('c', null, [], 'A', '')
+
+    expect(aBotWrite({ sellCondition: noSignal }).rejection).toContain('賣出條件')
   })
 })

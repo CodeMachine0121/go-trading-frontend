@@ -3,30 +3,24 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
-import StrategyBotFormDialog from '~/components/organisms/StrategyBotFormDialog.vue'
 import StrategyBotStatusBadge from '~/components/molecules/StrategyBotStatusBadge.vue'
 import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppToast from '~/components/atoms/AppToast.vue'
-import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
-import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
 
 // 有機體：機器人清單這一整塊——四種狀態、三顆按鈕、空清單、錯誤與重試。
 //
 // 它是使用者**唯一**會發現機器人出事的地方：四種停擺原因裡有兩種正好是
 // 「通知他的那條路壞了」，所以沒有任何一條主動通知的路走得通。
-const { strategyBotApplication, strategyApplication, timeZoneIdentifier } = defineProps<{
+const { strategyBotApplication, timeZoneIdentifier } = defineProps<{
   strategyBotApplication: StrategyBotApplication
-  strategyApplication: StrategyApplication
-  /** 表單裡的標的欄位自己去取清單用的，這一層只是傳下去。 */
-  tradingSymbolApplication: TradingSymbolApplication
   /** 歷史裡那些時間用哪一個時區說。整個操作台只有一個，所以由上面傳下來。 */
   timeZoneIdentifier: string
 }>()
 
-const bots = useStrategyBots(strategyBotApplication, strategyApplication)
+const bots = useStrategyBots(strategyBotApplication)
 
 onMounted(() => {
   void bots.load()
@@ -36,10 +30,13 @@ onMounted(() => {
 <template>
   <AppPanel title="我的機器人">
     <template #actions>
+      <!--
+        走一條路由而不是開一個對話框：拼一台機器人要看到的東西遠多於一個浮在
+        清單上的框裝得下，而一個功能兩個入口，兩邊都要維護、遲早不一致。
+      -->
       <AppButton
-        type="button"
+        to="/strategy-bots/new"
         data-testid="bot-create"
-        @click="bots.openCreateForm"
       >
         ＋ 拼一台機器人
       </AppButton>
@@ -180,14 +177,27 @@ onMounted(() => {
             {{ bots.expandedBotId.value === strategyBot.id ? '收起紀錄' : '執行紀錄' }}
           </AppButton>
 
-          <!-- 執行中不給按，並說得出為什麼——按了才被拒絕是把看得出來的事留到送出才講。 -->
+          <!--
+            執行中不給按，並說得出為什麼——按了才被拒絕是把看得出來的事留到送出才講。
+
+            不給按的那一版**不是連結**：一個帶著 disabled 的連結照樣點得進去，
+            而點得進去就等於那條規則只是畫上去的。
+          -->
           <AppButton
+            v-if="strategyBot.runState.canEdit"
+            :to="`/strategy-bots/${strategyBot.id}`"
+            variant="ghost"
+            data-testid="bot-edit"
+          >
+            編輯
+          </AppButton>
+          <AppButton
+            v-else
             type="button"
             variant="ghost"
-            :disabled="!strategyBot.runState.canEdit"
+            disabled
             :title="strategyBot.runState.editBlockedReason"
             data-testid="bot-edit"
-            @click="bots.openEditForm(strategyBot)"
           >
             編輯
           </AppButton>
@@ -213,18 +223,9 @@ onMounted(() => {
       </li>
     </ul>
 
-    <StrategyBotFormDialog
-      :open="bots.formOpen.value"
-      :editing="bots.editing.value"
-      :trading-symbol-application="tradingSymbolApplication"
-      :strategy-options="bots.strategyOptions.value"
-      :parameter-names-by-strategy-id="bots.parameterNamesByStrategyId.value"
-      :saving="bots.saving.value"
-      :failure-message="bots.formFailureMessage.value"
-      @close="bots.closeForm"
-      @save="bots.save"
-    />
-
+    <!--
+      「存好了」那一句由工作台說，在這一頁看到——存完之後使用者已經被送回來了。
+    -->
     <AppToast :message="bots.announcement.value" />
 
     <ConfirmDialog

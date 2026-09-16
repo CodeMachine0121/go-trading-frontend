@@ -1,16 +1,13 @@
+// @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyBotListPanel from '~/components/organisms/StrategyBotListPanel.vue'
-import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
-import { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
-import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
 
 function runningState() {
   return new StrategyBotRunStateDto(
@@ -38,19 +35,7 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   )
 }
 
-// 只 mock 最外層的 proxy；application 與 domain service 都是真的，
-// 所以「表單上挑得到哪幾檔」測到的是真正跑起來的那條路。
-function symbolApplicationListing(...symbols: string[]) {
-  return new TradingSymbolApplication(new TradingSymbolService({
-    findTradingSymbols: vi.fn().mockResolvedValue(
-      symbols.map(symbol => buildTradingSymbol(symbol))),
-  }))
-}
-
-function mountPanel(
-  overrides: Partial<StrategyBotApplication> = {},
-  tradingSymbolApplication = symbolApplicationListing('BTCUSDT', 'ETHUSDT'),
-) {
+function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
     listRunRecords: vi.fn().mockResolvedValue([]),
@@ -63,18 +48,13 @@ function mountPanel(
     ...overrides,
   }
 
-  const strategyApplication = {
-    listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
-  }
-
   const wrapper = mount(StrategyBotListPanel, {
     props: {
       strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
-      strategyApplication: strategyApplication as unknown as StrategyApplication,
-      tradingSymbolApplication,
       timeZoneIdentifier: 'Asia/Taipei',
     },
-    global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
+    // 連結要照樣渲染出 href：那正是這幾條測試在問的事。
+    global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
 
   return { wrapper, strategyBotApplication }
@@ -276,105 +256,62 @@ describe('StrategyBotListPanel 的立即運算', () => {
   })
 })
 
-describe('StrategyBotListPanel 表單上的交易標的', () => {
-  it('是從後端認得的那幾檔裡挑，不是自己打', async () => {
-    const { wrapper } = mountPanel({}, symbolApplicationListing('BTCUSDT', 'ETHUSDT'))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="bot-create"]').trigger('click')
-    await flushPromises()
-
-    const symbolSelect = wrapper.get('[data-testid="symbol-select"]')
-    expect(symbolSelect.findAll('option').map(option => option.element.value))
-      .toEqual(['BTCUSDT', 'ETHUSDT'])
-  })
-
-  it('沒有留下任何可以自己打標的的輸入框', async () => {
-    // 這一條是這次改動的全部意義：留著一格能打字的欄位，
-    // 打成小寫的 btcusdt 就查不到任何 K 線，而每一輪失敗都寫成「持有」。
+describe('StrategyBotListPanel 走去工作台的那兩條路', () => {
+  it('新增是一條路由，不是一個浮在清單上的對話框', async () => {
+    // 拼一台機器人要看到的東西遠多於一個對話框裝得下，而一個功能兩個入口，
+    // 兩邊都要維護、遲早不一致。
     const { wrapper } = mountPanel()
     await flushPromises()
 
-    await wrapper.get('[data-testid="bot-create"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="bot-symbol-input"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="bot-create"]').attributes('href'))
+      .toBe('/strategy-bots/new')
   })
 
-  it('挑了哪一檔就是存進去的那一檔', async () => {
-    const saveStrategyBot = vi.fn().mockResolvedValue(
-      botDto(1, '早盤突破', stoppedState()))
-    const { wrapper } = mountPanel(
-      { saveStrategyBot }, symbolApplicationListing('BTCUSDT', 'ETHUSDT'))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="bot-create"]').trigger('click')
-    await flushPromises()
-
-    await wrapper.get('[data-testid="bot-name-input"]').setValue('早盤突破')
-    await wrapper.get('[data-testid="bot-interval-input"]').setValue('5')
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="symbol-select"]').element).toHaveProperty(
-      'value', 'ETHUSDT')
-  })
-})
-
-describe('StrategyBotListPanel 存完之後說的那一句', () => {
-  async function openEditAndSave(
-    saveStrategyBot: StrategyBotApplication['saveStrategyBot'],
-  ) {
+  it('已停止的那一台，編輯帶得到它自己的那一頁', async () => {
     const { wrapper } = mountPanel({
-      saveStrategyBot,
-      listStrategyBots: vi.fn().mockResolvedValue(
-        [botDto(1, '早盤突破', stoppedState())]),
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(7, '早盤突破', stoppedState())]),
     })
     await flushPromises()
 
-    await wrapper.get('[data-testid="bot-edit"]').trigger('click')
-    await flushPromises()
-
-    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
-    await flushPromises()
-
-    return wrapper
-  }
-
-  it('存好了就把表單收掉，並且說一聲', async () => {
-    const wrapper = await openEditAndSave(
-      vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())))
-
-    expect(wrapper.find('[data-testid="bot-form-save"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
+    expect(wrapper.get('[data-testid="bot-edit"]').attributes('href'))
+      .toBe('/strategy-bots/7')
   })
 
-  it('後端拒絕時不說成功，表單也留著讓人改', async () => {
-    // 這一條是那句話的全部價值所在：它只在真的存進去時出現。
-    // 存不存得進去看不出來的話，說成功比不說更糟。
-    const wrapper = await openEditAndSave(
-      vi.fn().mockRejectedValue(new Error('觸發間隔上限是 1440 分鐘')))
+  it('執行中的那一台，編輯不是連結——一個 disabled 的連結照樣點得進去', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(7, '早盤突破', runningState())]),
+    })
+    await flushPromises()
+
+    const edit = wrapper.get('[data-testid="bot-edit"]')
+
+    expect(edit.attributes('href')).toBeUndefined()
+    expect(edit.attributes('disabled')).toBeDefined()
+    expect(edit.attributes('title')).toContain('停止')
+  })
+
+  it('清單上不會浮出任何拼機器人的對話框', async () => {
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-name-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="bot-form-save"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyBotListPanel 上那一句「存好了」', () => {
+  it('說這句話的是工作台，看到它的是這一頁——所以它跨得過換頁', async () => {
+    // 存好一台機器人之後使用者已經被送回清單了。留在工作台說的話，
+    // 會在換頁那一瞬間跟著消失，等於沒說。
+    const { announce } = useConsoleAnnouncement()
+    const { wrapper } = mountPanel()
+    await flushPromises()
 
     expect(wrapper.find('[data-testid="app-toast"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="bot-form-save"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="bot-form-failure"]').text())
-      .toContain('觸發間隔上限是 1440 分鐘')
-  })
 
-  it('那句話自己會走，不會留在畫面上誤導下一個動作', async () => {
-    vi.useFakeTimers()
-    try {
-      const wrapper = await openEditAndSave(
-        vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())))
-      expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
+    announce('更改成功')
+    await flushPromises()
 
-      vi.advanceTimersByTime(4000)
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="app-toast"]').exists()).toBe(false)
-    }
-    finally {
-      vi.useRealTimers()
-    }
+    expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
   })
 })

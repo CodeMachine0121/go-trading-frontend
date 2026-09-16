@@ -1,3 +1,4 @@
+import { ConditionBlockPaletteDomain } from '~/domain/models/domains/condition-block-palette-domain'
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
@@ -8,6 +9,8 @@ import {
 } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
+import type { ConditionBlockVo } from '~/domain/models/vo/condition-block-vo'
+import type { ConditionHoleVo } from '~/domain/models/vo/condition-hole-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
@@ -244,6 +247,27 @@ export function useStrategyBotForm(
   }
 
   /**
+   * 使用者剛剛點的那個空位，連同它在哪一棵樹上。
+   *
+   * **一個，不是兩個**：抽屜只有一個，所以「現在要放進哪裡」全畫面只能有一個答案。
+   * 兩棵樹各記一個的話，點了買入那邊再點賣出那邊，抽屜就得決定聽誰的。
+   */
+  const selectedHole = ref<{ side: 'buy' | 'sell', hole: ConditionHoleVo } | null>(null)
+
+  /**
+   * 正被拖著的東西：抽屜裡的一塊，或樹上已經有的一塊。
+   *
+   * 拖放通道只搬得動字串，而字串要變回一塊積木得有人認得那個格式——
+   * 那個方向沒有來源物件可以掛，只會是一個 static。所以拖著的是什麼記在這裡，
+   * 通道裡那串字只是為了讓瀏覽器認得這是一次拖曳。
+   */
+  const dragging = ref<
+    | { kind: 'block', block: ConditionBlockVo }
+    | { kind: 'node', side: 'buy' | 'sell', nodeId: string }
+    | null
+  >(null)
+
+  /**
    * 兩棵樹的每一個動作長得一模一樣，所以它們共用這一段而不是各寫一份。
    * 寫兩份的話，第二份就是那個忘記同步的地方。
    */
@@ -262,44 +286,77 @@ export function useStrategyBotForm(
       key,
       heading,
       condition,
-      // 拿得掉的那幾個。剩兩句的群組裡那幾句不在裡面，所以它們的刪除鍵不存在——
-      // 規則在畫面上的樣子是**做不到**，而不是被拒絕。
-      removableNodeIds: computed(() => collectNodeIds(condition.value)
-        .filter(nodeId => tree.value.canRemove(nodeId))),
-      // 三個動作各問各的：它們長出來的東西不一樣大，用同一個答案管三個，
-      // 就會出現「按鈕還在、按下去卻超過上限」。
-      canAddComparison: (nodeId: string) => tree.value.canAddComparisonUnder(nodeId),
-      canAddGroup: (nodeId: string) => tree.value.canAddGroupUnder(nodeId),
-      canWrapInGroup: (nodeId: string) => tree.value.canWrapInGroup(nodeId),
-      start: () => apply(domain => domain.startWithComparison(firstLabel())),
-      addComparison: (parentNodeId: string) =>
-        apply(domain => domain.addComparison(parentNodeId, firstLabel())),
-      addGroup: (parentNodeId: string) =>
-        apply(domain => domain.addGroup(parentNodeId, firstLabel())),
+      /** 這一棵畫出來的樣子，洞與每一塊的狀態都已經在裡面了。 */
+      view: computed(() => tree.value.toViewDto(sourceLabels.value)),
+      /** 這一棵還差什麼。沒話說就是拼好了。 */
+      incompleteReason: computed(() => tree.value.incompleteReason(sourceLabels.value)),
+      /** 使用者現在選著的空位是不是在這一棵上，是的話是哪一個。 */
+      selectedHoleKey: computed(() => (
+        selectedHole.value?.side === key ? selectedHole.value.hole.key : null)),
+      selectHole: (hole: ConditionHoleVo) => {
+        selectedHole.value = { side: key, hole }
+      },
+      /**
+       * 把一塊放進一個空位——點按與拖拉走的是同一個方法。
+       *
+       * 放完就把選著的空位清掉：那個空位已經不是空的了，繼續指著它會讓下一次點抽屜
+       * 落到一個不存在的地方。
+       */
+      fill: (hole: ConditionHoleVo, block: ConditionBlockVo) => {
+        apply(domain => domain.fill(hole, block))
+        selectedHole.value = null
+      },
+      /** 把樹上已經有的一塊搬進一個空位，底下的一整串跟著走。 */
+      move: (nodeId: string, hole: ConditionHoleVo) => {
+        apply(domain => domain.move(nodeId, hole))
+        selectedHole.value = null
+      },
       changeOperator: (nodeId: string, operator: ConditionOperatorVo) =>
         apply(domain => domain.changeOperator(nodeId, operator)),
       changeComparison: (nodeId: string, sourceLabel: string, signal: string) =>
         apply(domain => domain.changeComparison(nodeId, sourceLabel, signal)),
-      wrapInGroup: (nodeId: string) =>
-        apply(domain => domain.wrapInGroup(nodeId, firstLabel())),
-      remove: (nodeId: string) => apply(domain => domain.removeNode(nodeId)),
+      remove: (nodeId: string) => {
+        apply(domain => domain.removeNode(nodeId))
+        selectedHole.value = null
+      },
+      /**
+       * 這個空位收不收現在拖著的那個東西。
+       *
+       * 落點問的與抽屜問的是同一個方法，所以一塊按得下去的積木一定也放得進去。
+       * 拖著一個節點時多一條限制：它不得落進自己底下——那會把一段樹接到它自己身上。
+       */
+      acceptsDragged: (hole: ConditionHoleVo) => {
+        const carried = dragging.value
+        if (carried === null) {
+          return false
+        }
+
+        if (carried.kind === 'block') {
+          return tree.value.accepts(hole, carried.block)
+        }
+
+        return carried.side === key && tree.value.move(carried.nodeId, hole).value !== condition.value
+      },
+      /** 把現在拖著的那個東西放進這個空位。放不進去時什麼都不做。 */
+      dropDragged: (hole: ConditionHoleVo) => {
+        const carried = dragging.value
+        dragging.value = null
+
+        if (carried === null) {
+          return
+        }
+
+        if (carried.kind === 'block') {
+          apply(domain => domain.fill(hole, carried.block))
+
+          return
+        }
+
+        if (carried.side === key) {
+          apply(domain => domain.move(carried.nodeId, hole))
+        }
+      },
     }
-  }
-
-  /** 新加的那一句預設指向第一個來源——留空的話畫面上會多出一句永遠不成立的條件。 */
-  function firstLabel(): string {
-    return sourceLabels.value[0] ?? ''
-  }
-
-  function collectNodeIds(condition: StrategyBotConditionDto | null): string[] {
-    if (condition === null) {
-      return []
-    }
-
-    return [
-      condition.nodeId,
-      ...condition.conditions.flatMap(child => collectNodeIds(child)),
-    ]
   }
 
   const conditionSides = [
@@ -320,6 +377,32 @@ export function useStrategyBotForm(
     signalSourceLimit: STRATEGY_BOT_LIMITS.signalSourceCount,
     signalSourceRemovalBlockedReasons,
     conditionSides,
+    /**
+     * 積木抽屜這一刻的樣子。
+     *
+     * 每次都由**這一刻已宣告的代號**與**現在選著的空位**重算，不留快取：
+     * 抽屜列的就是現在拼得出來的東西，而使用者隨時會在第二段加一個、刪一個、改一個代號。
+     */
+    blockDrawer: computed(() => new ConditionBlockPaletteDomain(
+      new StrategyBotConditionDomain(
+        selectedHole.value?.side === 'sell' ? sellCondition.value : buyCondition.value),
+      sourceLabels.value,
+      selectedHole.value?.hole ?? null,
+    ).toDto()),
+    selectedHole,
+    dragging,
+    /** 從抽屜開始拖一塊。 */
+    startDraggingBlock: (block: ConditionBlockVo) => {
+      dragging.value = { kind: 'block', block }
+    },
+    /** 從樹上開始拖一塊已經放好的。 */
+    startDraggingNode: (side: 'buy' | 'sell', nodeId: string) => {
+      dragging.value = { kind: 'node', side, nodeId }
+    },
+    /** 拖曳結束——不論有沒有放成功，拖著的那個東西都要放開。 */
+    stopDragging: () => {
+      dragging.value = null
+    },
     rejection,
     reset,
     toWriteDto,

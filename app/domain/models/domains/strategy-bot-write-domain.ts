@@ -133,12 +133,28 @@ export class StrategyBotWriteDomain {
     return null
   }
 
+  /**
+   * 兩棵樹送不送得出去。
+   *
+   * 「空的」與「有一塊還沒填完」在這裡是**同一類事**，因為積木工作台讓使用者
+   * 造得出半成品：一個剛放下去的群組裡是兩個空位，一句剛放下去的比對還沒選信號。
+   * 那是刻意的——未完成自己會標出來——但半成品不能送出去，
+   * 而擋住它的那句話要說得出是哪一塊。
+   */
   private conditionRejection(): string | null {
-    const buyCondition = new StrategyBotConditionDomain(this.writeDto.buyCondition)
-    const sellCondition = new StrategyBotConditionDomain(this.writeDto.sellCondition)
+    const declaredLabels = this.writeDto.signalSources.map(
+      signalSource => signalSource.label.trim())
 
-    if (buyCondition.isEmpty || sellCondition.isEmpty) {
-      return '買入條件與賣出條件都不得為空——少了任何一邊，這台機器人就只會說一種話'
+    const buyProblem = new StrategyBotConditionDomain(this.writeDto.buyCondition)
+      .incompleteReason(declaredLabels)
+    if (buyProblem !== '') {
+      return `買入條件${buyProblem}`
+    }
+
+    const sellProblem = new StrategyBotConditionDomain(this.writeDto.sellCondition)
+      .incompleteReason(declaredLabels)
+    if (sellProblem !== '') {
+      return `賣出條件${sellProblem}`
     }
 
     return null

@@ -6,7 +6,7 @@ import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import StrategyBotListPanel from '~/components/organisms/StrategyBotListPanel.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $strategyBotApplication, $strategyApplication, $tradingSymbolApplication } = useNuxtApp()
+const { $strategyBotApplication } = useNuxtApp()
 
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
@@ -45,8 +45,6 @@ const { currentUser, signOut } = useUserSession()
 
     <StrategyBotListPanel
       :strategy-bot-application="$strategyBotApplication"
-      :strategy-application="$strategyApplication"
-      :trading-symbol-application="$tradingSymbolApplication"
       :time-zone-identifier="selectedTimeZone.identifier"
     />
   </ConsoleLayout>

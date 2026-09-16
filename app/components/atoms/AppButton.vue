@@ -19,11 +19,21 @@ type ButtonSize = 'small' | 'medium' | 'large'
  */
 type ButtonShape = 'default' | 'pill' | 'circle'
 
-const { variant = 'primary', size = 'medium', shape = 'default', block = false, label } = defineProps<{
+const { variant = 'primary', size = 'medium', shape = 'default', block = false, label, to } = defineProps<{
   variant?: ButtonVariant
   size?: ButtonSize
   shape?: ButtonShape
   block?: boolean
+  /**
+   * 給了它，這顆按鈕就是一條連結——長相一模一樣，但它去得了別的地方。
+   *
+   * 它在這裡而不是另外開一個 LinkButton，因為「按鈕」在這個操作台上只有一個元件，
+   * 而兩個長得一樣的東西遲早會有一個忘記跟著改。
+   *
+   * 不給按的時候**不要用它**：一個帶著 disabled 的連結照樣點得進去，
+   * 而點得進去就等於那條規則只是畫上去的。那種情況用一般的按鈕加 disabled。
+   */
+  to?: string
   /**
    * 只放圖示、沒有文字時，這顆按鈕叫什麼。
    *
@@ -38,7 +48,8 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
 </script>
 
 <template>
-  <button
+  <component
+    :is="to === undefined ? 'button' : resolveComponent('NuxtLink')"
     class="app-button"
     :class="[
       `app-button--${variant}`,
@@ -46,12 +57,13 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
       `app-button--${shape}`,
       { 'app-button--block': block, 'app-button--labelled': label !== undefined },
     ]"
-    type="button"
+    :type="to === undefined ? 'button' : undefined"
+    :to="to"
     :aria-label="label"
     :title="label"
   >
     <slot />
-  </button>
+  </component>
 </template>
 
 <style scoped lang="scss">
@@ -68,6 +80,9 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   line-height: line-height('tight');
   font-weight: font-weight('medium');
   white-space: nowrap;
+
+  // 當成連結用時，底線與瀏覽器的預設顏色會讓它不再像一顆按鈕。
+  text-decoration: none;
 
   @include focus-ring;
 
