@@ -1,4 +1,8 @@
-import { ConditionMatrixDto, ConditionMatrixRowDto } from '~/domain/models/dto/condition-matrix-dto'
+import {
+  ConditionMatrixDto,
+  ConditionMatrixItemDto,
+  ConditionMatrixPieceDto,
+} from '~/domain/models/dto/condition-matrix-dto'
 import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
@@ -26,109 +30,137 @@ export class StrategyBotConditionDomain {
   }
 
   /**
-   * 這棵樹畫成一張表：每一列一個來源，格子裡是它要是哪幾個信號才算數。
+   * 這棵樹讀成「墊子上擺了什麼」。
    *
-   * 畫得出來的形狀只有一種：**每個來源各出一句（或幾句同來源的句子），整體用同一個
-   * 運算子串起來**。那涵蓋了實際會寫的絕大多數條件，換來的是一張沒有空位、
-   * 沒有拖拉、沒有巢狀的表。
+   * 讀得出來的形狀是**兩層**：墊子上幾格用同一個運算子串起來，其中一格可以是一小組。
+   * 那涵蓋了實際會寫的絕大多數條件，包括「A 而且（B 或 C）」。
    *
-   * 畫不出來時（且與或交錯）**不硬壓平**：壓平會得到一個意思不同的條件，
-   * 而使用者會在完全沒察覺的情況下把它存回去。`representable` 為 false，
-   * 畫面照實說。
-   *
-   * 已宣告的代號要傳進來，因為表的列是由**來源**決定的，不是由樹決定的：
-   * 一個宣告了但還沒用到的來源，也該有一列空的等著他勾。
+   * 三層以上、或組裡還有組的，**不硬壓平**：壓平會得到一個意思不同的條件，
+   * 而使用者會在完全沒察覺的情況下把它存回去。`representable` 為 false，畫面照實說。
    */
-  toMatrixDto(sourceLabels: readonly string[]): ConditionMatrixDto {
-    const emptyRows = sourceLabels.map(label => new ConditionMatrixRowDto(label, []))
-
+  toMatrixDto(): ConditionMatrixDto {
     if (this.condition === null) {
-      return new ConditionMatrixDto('and', emptyRows, true)
+      return new ConditionMatrixDto('and', [], true)
     }
 
-    // 一句比對自己就是一整邊：一列、一個信號，整體用哪個運算子都一樣。
+    // 一句比對自己就是墊子上一塊零件；用哪個運算子都一樣。
     if (!this.condition.isGroup) {
-      return new ConditionMatrixDto('and', this.rowsFrom([this.condition], sourceLabels), true)
+      return new ConditionMatrixDto('and', [this.itemFrom([this.condition])!], true)
     }
 
-    const clauses = this.flattenedClauses(this.condition, this.condition.operator!)
+    const items = this.itemsFrom(this.condition)
 
-    return clauses === null
-      ? new ConditionMatrixDto(this.condition.operator!, emptyRows, false)
-      : new ConditionMatrixDto(
-          this.condition.operator!, this.rowsFrom(clauses, sourceLabels), true)
+    return items === null
+      ? new ConditionMatrixDto(this.condition.operator!, [], false)
+      : new ConditionMatrixDto(this.condition.operator!, items, true)
+  }
+
+  /** 墊子上的每一格——讀不出來時回 `null`。 */
+  private itemsFrom(group: StrategyBotConditionDto): ConditionMatrixItemDto[] | null {
+    const operator = group.operator!
+    const items: ConditionMatrixItemDto[] = []
+
+    for (const child of group.conditions) {
+      if (!child.isGroup) {
+        // 同一塊零件的好幾句要併回同一格：`或(A=買, A=持)` 說的是
+        // **一塊零件收兩個信號**，不是兩塊零件。併進**第一次**出現的那一格，
+        // 順序才跟樹上一樣——而那個順序正是使用者在墊子上排出來的。
+        const existing = items.findIndex(
+          item => !item.isBundle && item.pieces[0]!.sourceLabel === child.sourceLabel)
+
+        if (existing === -1) {
+          items.push(this.itemFrom([child])!)
+        }
+        else {
+          items[existing] = this.withSignalAdded(items[existing]!, child.signal)
+        }
+
+        continue
+      }
+
+      // 同一個運算子的子群組與外面那一層說的是同一句話（`A且(B且C)` ＝ `A且B且C`），
+      // 所以它攤開來，不是一組。
+      if (child.operator === operator) {
+        const deeper = this.itemsFrom(child)
+        if (deeper === null) {
+          return null
+        }
+        items.push(...deeper)
+
+        continue
+      }
+
+      // 運算子不同的子群組：裡面只能是比對，不能再有一層。
+      if (child.conditions.some(grandchild => grandchild.isGroup)) {
+        return null
+      }
+
+      const item = this.itemFrom(child.conditions, child.operator)
+      if (item === null) {
+        return null
+      }
+      items.push(item)
+    }
+
+    return items
+  }
+
+  /**
+   * 這一格那塊零件再多收一個信號。
+   *
+   * 順序照著固定的那一份，不是照著樹裡出現的順序——
+   * 同樣的一塊零件在兩台機器人上要長得一樣。
+   */
+  private withSignalAdded(item: ConditionMatrixItemDto, signal: string): ConditionMatrixItemDto {
+    const piece = item.pieces[0]!
+
+    return new ConditionMatrixItemDto(null, [new ConditionMatrixPieceDto(
+      piece.sourceLabel,
+      SIGNAL_VALUES.filter(
+        candidate => candidate === signal || piece.acceptedSignals.includes(candidate)),
+    )])
+  }
+
+  /**
+   * 一排比對讀成墊子上的一格。
+   *
+   * 同一塊零件的好幾句收成那一塊收的好幾個信號；不同零件的好幾句就是一組。
+   * **只提到一塊零件的那一組不是一組**——它就是那一塊，收了好幾個信號。
+   */
+  private itemFrom(
+    comparisons: readonly StrategyBotConditionDto[],
+    operator: ConditionOperatorVo | null = null,
+  ): ConditionMatrixItemDto | null {
+    const pieces = this.piecesFrom(comparisons)
+
+    return new ConditionMatrixItemDto(pieces.length > 1 ? operator : null, pieces)
+  }
+
+  /**
+   * 一排比對歸成零件：同一塊零件的好幾句，收成那一塊收的好幾個信號。
+   *
+   * 信號的順序照著固定的那一份，不是照著樹裡出現的順序——
+   * 同樣的一塊零件在兩台機器人上要長得一樣。
+   */
+  private piecesFrom(
+    comparisons: readonly StrategyBotConditionDto[],
+  ): ConditionMatrixPieceDto[] {
+    const signalsByLabel = new Map<string, string[]>()
+    for (const comparison of comparisons) {
+      const accepted = signalsByLabel.get(comparison.sourceLabel) ?? []
+      if (!accepted.includes(comparison.signal)) {
+        accepted.push(comparison.signal)
+      }
+      signalsByLabel.set(comparison.sourceLabel, accepted)
+    }
+
+    return [...signalsByLabel.entries()].map(([label, accepted]) => new ConditionMatrixPieceDto(
+      label, SIGNAL_VALUES.filter(signal => accepted.includes(signal))))
   }
 
   /** 這棵樹用到的每一個來源代號。 */
   usedSourceLabels(): readonly string[] {
     return this.collectLabels(this.condition)
-  }
-
-  /**
-   * 這個群組底下所有的比對，攤成一排——攤不平時回 `null`。
-   *
-   * 攤得平的只有兩種：同一個運算子一路到底（`A且(B且C)` 與 `A且B且C` 是同一件事），
-   * 或是「或」的子群組**只提到一個來源**（那正是「A 是買入或持有」在樹上的樣子）。
-   *
-   * 其餘的（`A且(B或C)`，兩個不同來源）攤平之後意思會變，所以不攤——
-   * 一個悄悄改變意思的轉換，比一個說自己做不到的轉換危險得多。
-   */
-  private flattenedClauses(
-    group: StrategyBotConditionDto, operator: ConditionOperatorVo,
-  ): StrategyBotConditionDto[] | null {
-    const flattened: StrategyBotConditionDto[] = []
-
-    for (const child of group.conditions) {
-      if (!child.isGroup) {
-        flattened.push(child)
-
-        continue
-      }
-
-      if (child.operator === operator) {
-        const deeper = this.flattenedClauses(child, operator)
-        if (deeper === null) {
-          return null
-        }
-        flattened.push(...deeper)
-
-        continue
-      }
-
-      // 運算子不同的子群組：只有「它整群都在講同一個來源」時才畫得出來，
-      // 因為那就是一格裡打開好幾個信號的意思。
-      const labels = new Set(this.collectLabels(child))
-      if (labels.size !== 1 || child.conditions.some(grandchild => grandchild.isGroup)) {
-        return null
-      }
-      flattened.push(...child.conditions)
-    }
-
-    return flattened
-  }
-
-  /** 攤平之後的那一排比對，依來源歸成一列一列。 */
-  private rowsFrom(
-    clauses: readonly StrategyBotConditionDto[], sourceLabels: readonly string[],
-  ): ConditionMatrixRowDto[] {
-    const signalsByLabel = new Map<string, string[]>()
-    for (const clause of clauses) {
-      const accepted = signalsByLabel.get(clause.sourceLabel) ?? []
-      if (!accepted.includes(clause.signal)) {
-        accepted.push(clause.signal)
-      }
-      signalsByLabel.set(clause.sourceLabel, accepted)
-    }
-
-    // 列的順序照著**來源**，不是照著樹——使用者在旁邊看到的策略清單就是這個順序。
-    // 樹上提到、但已經不在來源裡的代號仍然列出來，排在後面：
-    // 一列看不見的條件會在儲存時被擋下來，而他不知道它在哪裡。
-    const orphanLabels = [...signalsByLabel.keys()].filter(label => !sourceLabels.includes(label))
-
-    return [...sourceLabels, ...orphanLabels].map(label => new ConditionMatrixRowDto(
-      label,
-      SIGNAL_VALUES.filter(signal => (signalsByLabel.get(label) ?? []).includes(signal)),
-    ))
   }
 
   private collectLabels(node: StrategyBotConditionDto | null): string[] {

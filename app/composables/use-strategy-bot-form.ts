@@ -1,5 +1,9 @@
 import { ConditionMatrixDomain } from '~/domain/models/domains/condition-matrix-domain'
-import { ConditionMatrixDto, ConditionMatrixRowDto } from '~/domain/models/dto/condition-matrix-dto'
+import {
+  ConditionMatrixDto,
+  ConditionMatrixItemDto,
+  ConditionMatrixPieceDto,
+} from '~/domain/models/dto/condition-matrix-dto'
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -83,8 +87,8 @@ export function useStrategyBotForm(
    */
   const signalSourceUsageWarnings = computed(() => {
     const usedLabels = new Set([
-      ...matrices.buy.value.rows.filter(row => row.participates).map(row => row.sourceLabel),
-      ...matrices.sell.value.rows.filter(row => row.participates).map(row => row.sourceLabel),
+      ...matrices.buy.value.placedLabels,
+      ...matrices.sell.value.placedLabels,
     ])
 
     const warnings: Record<number, string> = {}
@@ -128,12 +132,10 @@ export function useStrategyBotForm(
       loaded?.triggerIntervalMinutes ?? DEFAULT_TRIGGER_INTERVAL_MINUTES)
     signalSources.value = [...(loaded?.signalSources ?? [])]
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
-    // 存進來的那棵樹在這裡、而且只在這裡，被讀成一張表。
-    const storedLabels = (loaded?.signalSources ?? []).map(signalSource => signalSource.label)
-    matrices.buy.value = new StrategyBotConditionDomain(
-      loaded?.buyCondition ?? null).toMatrixDto(storedLabels)
+    // 存進來的那棵樹在這裡、而且只在這裡，被讀成「墊子上擺了哪幾塊」。
+    matrices.buy.value = new StrategyBotConditionDomain(loaded?.buyCondition ?? null).toMatrixDto()
     matrices.sell.value = new StrategyBotConditionDomain(
-      loaded?.sellCondition ?? null).toMatrixDto(storedLabels)
+      loaded?.sellCondition ?? null).toMatrixDto()
   }
 
   function addSignalSource() {
@@ -261,13 +263,16 @@ export function useStrategyBotForm(
     ))
   }
 
-  /** 一張表上某一列改名之後的樣子。格子一個都不動——改的只是它叫什麼。 */
+  /** 墊子上某一塊零件改名之後的樣子。它擺在哪裡、收什麼，一樣都不動。 */
   function renamedRows(matrix: ConditionMatrixDto, fromLabel: string, toLabel: string) {
     return new ConditionMatrixDto(
       matrix.operator,
-      matrix.rows.map(row => (row.sourceLabel === fromLabel
-        ? new ConditionMatrixRowDto(toLabel, row.acceptedSignals)
-        : row)),
+      matrix.items.map(item => new ConditionMatrixItemDto(
+        item.operator,
+        item.pieces.map(piece => (piece.sourceLabel === fromLabel
+          ? new ConditionMatrixPieceDto(toLabel, piece.acceptedSignals)
+          : piece)),
+      )),
       matrix.representable,
     )
   }
@@ -288,8 +293,8 @@ export function useStrategyBotForm(
    * 讀進來與送出去這兩個時刻存在。
    */
   const matrices = {
-    buy: ref(new StrategyBotConditionDomain(null).toMatrixDto([])),
-    sell: ref(new StrategyBotConditionDomain(null).toMatrixDto([])),
+    buy: ref(new StrategyBotConditionDomain(null).toMatrixDto()),
+    sell: ref(new StrategyBotConditionDomain(null).toMatrixDto()),
   }
 
   /**
@@ -316,6 +321,28 @@ export function useStrategyBotForm(
       condition: computed(() => aligned.value.toCondition()),
       toggleSignal: (sourceLabel: string, signal: string) => {
         matrix.value = aligned.value.toggleSignal(sourceLabel, signal).value
+      },
+      /** 這張墊子上擺了這塊零件沒有。 */
+      holds: (sourceLabel: string) => aligned.value.holds(sourceLabel),
+      /** 把一塊零件擺上這張墊子的第幾格；已經在上面就是搬位置。 */
+      placeAt: (sourceLabel: string, position: number) => {
+        matrix.value = aligned.value.placeAt(sourceLabel, position).value
+      },
+      /** 把一塊零件從這張墊子上拿走。它回到架子上，不是被刪掉。 */
+      takeOff: (sourceLabel: string) => {
+        matrix.value = aligned.value.takeOff(sourceLabel).value
+      },
+      /** 把一塊零件扣到另一塊上，變成一組——「A 而且（B 或 C）」唯一的寫法。 */
+      bundleOnto: (sourceLabel: string, targetLabel: string) => {
+        matrix.value = aligned.value.bundleOnto(sourceLabel, targetLabel).value
+      },
+      /** 把一塊零件從一組裡拆出來，放回它自己一格。 */
+      unbundle: (sourceLabel: string) => {
+        matrix.value = aligned.value.unbundle(sourceLabel).value
+      },
+      /** 換掉某一組裡面怎麼合併。 */
+      changeBundleOperator: (itemKey: string, operator: ConditionOperatorVo) => {
+        matrix.value = aligned.value.changeBundleOperator(itemKey, operator).value
       },
       changeOperator: (operator: ConditionOperatorVo) => {
         matrix.value = aligned.value.changeOperator(operator).value

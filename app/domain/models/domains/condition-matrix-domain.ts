@@ -1,17 +1,24 @@
-import { ConditionMatrixDto, ConditionMatrixRowDto } from '~/domain/models/dto/condition-matrix-dto'
+import {
+  ConditionMatrixDto,
+  ConditionMatrixItemDto,
+  ConditionMatrixPieceDto,
+} from '~/domain/models/dto/condition-matrix-dto'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 import { StrategyBotConditionNodeIdVo } from '~/domain/models/vo/strategy-bot-condition-node-id-vo'
 
+/** 剛擺上墊子的零件先收下買入——什麼都不收的零件是一句永遠不成立的話。 */
+const DEFAULT_ACCEPTED_SIGNAL = 'buy'
+
 /**
- * Domain Model：一整邊的判斷，以矩陣的形狀存在，以及所有改得動它的操作。
+ * Domain Model：一張墊子上擺了什麼，以及所有搬得動它的操作。
  *
- * **它不是第二份資料。** 存出去的永遠是條件樹；這個模型只負責在「使用者看得懂的形狀」
+ * **它不是第二份資料。** 存出去的永遠是條件樹；這個模型只負責在「使用者搬得動的形狀」
  * 與「後端收得下的形狀」之間翻譯。兩邊各存一份的話，第二份遲早會說出第一份沒有的話。
  *
- * 每一個操作都回傳一個新的矩陣，沒有任何一個就地改——理由與條件樹那一邊相同：
- * 就地改深處某一格，正是 Vue 的響應式最容易漏掉的一種更新。
+ * 每一個操作都回傳一張新的墊子，沒有任何一個就地改——就地改深處某一格，
+ * 正是 Vue 的響應式最容易漏掉的一種更新。
  */
 export class ConditionMatrixDomain {
   constructor(private readonly matrix: ConditionMatrixDto) {}
@@ -20,63 +27,134 @@ export class ConditionMatrixDomain {
     return this.matrix
   }
 
+  /** 這塊零件在不在這張墊子上，不分它在哪一格。 */
+  holds(sourceLabel: string): boolean {
+    return this.matrix.placedLabels.includes(sourceLabel)
+  }
+
   /**
-   * 把某一列的某一個信號打開或關掉。
+   * 把某一塊零件的某一個信號打開或關掉。
    *
-   * 一格是一個集合而不是一個值，所以這裡是「切換」而不是「指派」：
-   * 「A 是買入或持有都算」是真的有人要說的話，而一個下拉選單說不出它。
+   * 一塊零件收的是一個集合而不是一個值，所以這裡是「切換」而不是「指派」：
+   * 「A 是買入或持有都算」是真的有人要說的話。
    */
   toggleSignal(sourceLabel: string, signal: string): ConditionMatrixDomain {
-    return new ConditionMatrixDomain(new ConditionMatrixDto(
-      this.matrix.operator,
-      this.matrix.rows.map(row => (row.sourceLabel === sourceLabel
-        ? new ConditionMatrixRowDto(
-            row.sourceLabel,
-            row.acceptedSignals.includes(signal)
-              ? row.acceptedSignals.filter(accepted => accepted !== signal)
-              // 順序照著 SIGNAL_VALUES，不是照著按下去的順序——同樣的一格
-              // 在兩台機器人上要長得一樣。
-              : SIGNAL_VALUES.filter(
-                  candidate => candidate === signal || row.acceptedSignals.includes(candidate)),
-          )
-        : row)),
-      this.matrix.representable,
-    ))
+    return this.mappingPieces(piece => (piece.sourceLabel === sourceLabel
+      ? new ConditionMatrixPieceDto(
+          piece.sourceLabel,
+          piece.acceptedSignals.includes(signal)
+            ? piece.acceptedSignals.filter(accepted => accepted !== signal)
+            // 順序照著 SIGNAL_VALUES，不是照著按下去的順序——同樣的一塊零件
+            // 在兩台機器人上要長得一樣。
+            : SIGNAL_VALUES.filter(
+                candidate => candidate === signal || piece.acceptedSignals.includes(candidate)),
+        )
+      : piece))
   }
 
-  /** 換掉每一列之間怎麼合併。哪幾格打開著一格都不動。 */
+  /** 換掉墊子上每一格之間怎麼合併。哪幾塊擺在哪裡一格都不動。 */
   changeOperator(operator: ConditionOperatorVo): ConditionMatrixDomain {
     return new ConditionMatrixDomain(
-      new ConditionMatrixDto(operator, this.matrix.rows, this.matrix.representable))
+      new ConditionMatrixDto(operator, this.matrix.items, this.matrix.representable))
   }
 
-  /**
-   * 讓這張表的列，與這一刻宣告的來源對齊。
-   *
-   * 加一個來源就多一列（空的），刪一個就少一列，改代號就跟著改——
-   * 而**留著的那幾列一格都不動**。表與來源是同一份東西的兩種看法，
-   * 所以它們不會有「還沒同步」的狀態。
-   */
-  alignedTo(sourceLabels: readonly string[]): ConditionMatrixDomain {
+  /** 換掉某一組零件裡面怎麼合併。那一組是由它裝著哪幾塊認出來的。 */
+  changeBundleOperator(itemKey: string, operator: ConditionOperatorVo): ConditionMatrixDomain {
     return new ConditionMatrixDomain(new ConditionMatrixDto(
       this.matrix.operator,
-      sourceLabels.map(label => this.matrix.rows.find(row => row.sourceLabel === label)
-        ?? new ConditionMatrixRowDto(label, [])),
+      this.matrix.items.map(item => (item.key === itemKey && item.isBundle
+        ? new ConditionMatrixItemDto(operator, item.pieces)
+        : item)),
       this.matrix.representable,
     ))
   }
 
   /**
-   * 這張表寫成後端收得下的那棵樹。沒有任何一列參與判斷時回 `null`。
+   * 把已經不存在的零件從墊子上收走。
    *
-   * 一列打開好幾個信號時，那一列自己是一個「或」——「A 是買入或持有」。
-   * 整體是「或」的話就不用再包一層，直接攤進去：一個只有一種可能的巢狀，
-   * 存進去之後讀回來會變成另一個形狀，而那會讓「存進去的與讀出來的一樣」不再成立。
+   * 它**只收不放**：一塊新加的零件待在架子上，不會自己跳到墊子上——
+   * 那是使用者要做的動作，而一個自己跑到工作區的零件，
+   * 會讓他覺得畫面在替他做決定。
+   */
+  alignedTo(sourceLabels: readonly string[]): ConditionMatrixDomain {
+    return this.rebuilt(this.matrix.items
+      .map(item => new ConditionMatrixItemDto(
+        item.operator, item.pieces.filter(piece => sourceLabels.includes(piece.sourceLabel))))
+      .filter(item => item.pieces.length > 0))
+  }
+
+  /**
+   * 把一塊零件擺上墊子的第幾格。已經在墊子上就是**搬位置**，不是複製。
+   */
+  placeAt(sourceLabel: string, position: number): ConditionMatrixDomain {
+    const carried = this.pieceOf(sourceLabel)
+    const without = this.withoutPiece(sourceLabel)
+    const landing = Math.max(0, Math.min(position, without.length))
+
+    return this.rebuilt([
+      ...without.slice(0, landing),
+      new ConditionMatrixItemDto(null, [carried]),
+      ...without.slice(landing),
+    ])
+  }
+
+  /**
+   * 把一塊零件扣到另一塊（或另一組）上，變成一組。
+   *
+   * 這是墊子上唯一造得出巢狀的動作，也是「A 而且（B 或 C）」唯一的寫法。
+   * 一組預設用「或」合併，因為墊子本身多半是「全部成立」——
+   * 扣在一起的那幾塊如果也是「全部成立」，那一組就沒有存在的必要。
+   *
+   * 扣到自己身上、或扣到自己已經在的那一組上，都是什麼都不做。
+   */
+  bundleOnto(sourceLabel: string, targetLabel: string): ConditionMatrixDomain {
+    const target = this.matrix.items.find(item => item.holdsLabels.includes(targetLabel))
+    if (target === undefined || target.holdsLabels.includes(sourceLabel)) {
+      return this
+    }
+
+    // 一組裡面不會再有一組：被拖過來的如果自己是一組，就整組攤進去。
+    const carriedPieces = this.matrix.items
+      .find(item => item.holdsLabels.includes(sourceLabel))?.pieces
+      .filter(piece => piece.sourceLabel === sourceLabel) ?? [this.pieceOf(sourceLabel)]
+
+    return this.rebuilt(this.withoutPiece(sourceLabel).map(item => (item.key === target.key
+      ? new ConditionMatrixItemDto(item.operator ?? 'or', [...item.pieces, ...carriedPieces])
+      : item)))
+  }
+
+  /** 把一塊零件從一組裡拆出來，放回它自己一格。 */
+  unbundle(sourceLabel: string): ConditionMatrixDomain {
+    const holder = this.matrix.items.find(item => item.holdsLabels.includes(sourceLabel))
+    if (holder === undefined || !holder.isBundle) {
+      return this
+    }
+
+    const position = this.matrix.items.indexOf(holder) + 1
+
+    return this.placeAt(sourceLabel, position)
+  }
+
+  /** 把一塊零件從這張墊子上拿走。它回到架子上，不是被刪掉。 */
+  takeOff(sourceLabel: string): ConditionMatrixDomain {
+    return this.rebuilt(this.withoutPiece(sourceLabel))
+  }
+
+  /**
+   * 這張墊子寫成後端收得下的那棵樹。墊子上一塊零件都沒有時回 `null`。
+   *
+   * 一塊零件收好幾個信號時，它自己是一個「或」；一組零件是它自己那個運算子的群組。
+   * 只有一格時不多包一層：一個只有一種可能的巢狀，存進去之後讀回來會變成另一個形狀，
+   * 而那會讓「存進去的與讀出來的一樣」不再成立。
    */
   toCondition(): StrategyBotConditionDto | null {
-    const clauses = this.matrix.rows
-      .filter(row => row.participates)
-      .map(row => this.clauseFor(row))
+    // 一塊什麼都不收的零件寫不出任何一句話，所以它不算數——使用者把最後一個信號
+    // 也關掉時，那一塊就等於還沒決定，而不是「決定了一件不可能的事」。
+    const clauses = this.matrix.items
+      .map(item => new ConditionMatrixItemDto(
+        item.operator, item.pieces.filter(piece => piece.acceptedSignals.length > 0)))
+      .filter(item => item.pieces.length > 0)
+      .map(item => this.clauseFor(item))
 
     if (clauses.length === 0) {
       return null
@@ -90,9 +168,20 @@ export class ConditionMatrixDomain {
       new StrategyBotConditionNodeIdVo().value, this.matrix.operator, clauses, '', '')
   }
 
-  private clauseFor(row: ConditionMatrixRowDto): StrategyBotConditionDto {
-    const comparisons = row.acceptedSignals.map(signal => new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, null, [], row.sourceLabel, signal))
+  private clauseFor(item: ConditionMatrixItemDto): StrategyBotConditionDto {
+    const pieceClauses = item.pieces.map(piece => this.clauseForPiece(piece))
+
+    if (pieceClauses.length === 1) {
+      return pieceClauses[0]!
+    }
+
+    return new StrategyBotConditionDto(
+      new StrategyBotConditionNodeIdVo().value, item.operator ?? 'or', pieceClauses, '', '')
+  }
+
+  private clauseForPiece(piece: ConditionMatrixPieceDto): StrategyBotConditionDto {
+    const comparisons = piece.acceptedSignals.map(signal => new StrategyBotConditionDto(
+      new StrategyBotConditionNodeIdVo().value, null, [], piece.sourceLabel, signal))
 
     if (comparisons.length === 1) {
       return comparisons[0]!
@@ -100,5 +189,48 @@ export class ConditionMatrixDomain {
 
     return new StrategyBotConditionDto(
       new StrategyBotConditionNodeIdVo().value, 'or', comparisons, '', '')
+  }
+
+  /** 這塊零件現在的樣子；還沒擺上墊子的話就是一塊新的。 */
+  private pieceOf(sourceLabel: string): ConditionMatrixPieceDto {
+    return this.matrix.items
+      .flatMap(item => item.pieces)
+      .find(piece => piece.sourceLabel === sourceLabel)
+      ?? new ConditionMatrixPieceDto(sourceLabel, [DEFAULT_ACCEPTED_SIGNAL])
+  }
+
+  /** 墊子上拿掉這塊零件之後剩下的那幾格。空掉的那一組跟著消失。 */
+  private withoutPiece(sourceLabel: string): ConditionMatrixItemDto[] {
+    return this.matrix.items
+      .map(item => new ConditionMatrixItemDto(
+        item.operator, item.pieces.filter(piece => piece.sourceLabel !== sourceLabel)))
+      .filter(item => item.pieces.length > 0)
+  }
+
+  /**
+   * 收拾過的墊子：只剩一塊的組自己散開。
+   *
+   * 一個裝著一塊的「組」與那一塊本身**說的是同一句話**，但它多一層框、多一個運算子
+   * 選單，而那個選單改了什麼都不會發生。留著它，使用者會以為自己漏看了什麼。
+   */
+  private rebuilt(items: readonly ConditionMatrixItemDto[]): ConditionMatrixDomain {
+    return new ConditionMatrixDomain(new ConditionMatrixDto(
+      this.matrix.operator,
+      items.map(item => (item.isBundle && item.pieces.length === 1
+        ? new ConditionMatrixItemDto(null, item.pieces)
+        : item)),
+      this.matrix.representable,
+    ))
+  }
+
+  private mappingPieces(
+    transform: (piece: ConditionMatrixPieceDto) => ConditionMatrixPieceDto,
+  ): ConditionMatrixDomain {
+    return new ConditionMatrixDomain(new ConditionMatrixDto(
+      this.matrix.operator,
+      this.matrix.items.map(
+        item => new ConditionMatrixItemDto(item.operator, item.pieces.map(transform))),
+      this.matrix.representable,
+    ))
   }
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ConditionMatrixDomain } from '~/domain/models/domains/condition-matrix-domain'
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
-import { ConditionMatrixDto, ConditionMatrixRowDto } from '~/domain/models/dto/condition-matrix-dto'
+import {
+  ConditionMatrixDto,
+  ConditionMatrixItemDto,
+  ConditionMatrixPieceDto,
+} from '~/domain/models/dto/condition-matrix-dto'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
@@ -12,13 +16,21 @@ function group(operator: 'and' | 'or', ...children: StrategyBotConditionDto[]) {
   return new StrategyBotConditionDto(`g-${operator}`, operator, children, '', '')
 }
 
-function matrixOf(condition: StrategyBotConditionDto | null, labels: readonly string[]) {
-  return new StrategyBotConditionDomain(condition).toMatrixDto(labels)
+function matrixOf(condition: StrategyBotConditionDto | null) {
+  return new StrategyBotConditionDomain(condition).toMatrixDto()
 }
 
-/** 一張表讀成好比對的樣子：`代號:信號+信號`。 */
+/**
+ * 一張墊子讀成好比對的樣子：一格一個字串，`代號:信號+信號`；
+ * 扣成一組的用 `(且 A:… B:…)` 括起來。
+ */
 function readable(matrix: ConditionMatrixDto): string[] {
-  return matrix.rows.map(row => `${row.sourceLabel}:${row.acceptedSignals.join('+')}`)
+  return matrix.items.map((item) => {
+    const pieces = item.pieces.map(
+      piece => `${piece.sourceLabel}:${piece.acceptedSignals.join('+')}`)
+
+    return item.isBundle ? `(${item.operator} ${pieces.join(' ')})` : pieces[0]!
+  })
 }
 
 /** 一棵樹讀成好比對的樣子。 */
@@ -33,24 +45,23 @@ function shapeOf(condition: StrategyBotConditionDto | null): string {
 }
 
 describe('一棵樹讀成一張表', () => {
-  it('空的樹就是每個來源各一列空的', () => {
-    const matrix = matrixOf(null, ['MACD', 'ATR'])
+  it('空的樹就是一張空墊子——上面一塊零件都沒有', () => {
+    // 「沒擺上去」與「擺著但什麼都沒勾」是兩件事：一塊沒擺上去的零件
+    // 不該佔著墊子上的位置。
+    const matrix = matrixOf(null)
 
-    expect(readable(matrix)).toEqual(['MACD:', 'ATR:'])
+    expect(readable(matrix)).toEqual([])
     expect(matrix.isEmpty).toBe(true)
     expect(matrix.representable).toBe(true)
   })
 
-  it('一句比對就是那一列打開一個信號，其餘的列空著', () => {
-    const matrix = matrixOf(comparison('c', 'MACD', 'buy'), ['MACD', 'ATR'])
-
-    expect(readable(matrix)).toEqual(['MACD:buy', 'ATR:'])
+  it('一句比對就是墊子上一塊零件，收下一個信號', () => {
+    expect(readable(matrixOf(comparison('c', 'MACD', 'buy')))).toEqual(['MACD:buy'])
   })
 
   it('一排「且」就是每一列各打開一個', () => {
     const matrix = matrixOf(
-      group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'sell')),
-      ['MACD', 'ATR'])
+      group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'sell')))
 
     expect(matrix.operator).toBe('and')
     expect(readable(matrix)).toEqual(['MACD:buy', 'ATR:sell'])
@@ -60,8 +71,7 @@ describe('一棵樹讀成一張表', () => {
     // 「A 且（B 且 C）」與「A 且 B 且 C」說的是同一句話。
     const matrix = matrixOf(
       group('and', comparison('a', 'MACD', 'buy'),
-        group('and', comparison('b', 'ATR', 'buy'), comparison('c', 'EMA', 'buy'))),
-      ['MACD', 'ATR', 'EMA'])
+        group('and', comparison('b', 'ATR', 'buy'), comparison('c', 'EMA', 'buy'))))
 
     expect(matrix.representable).toBe(true)
     expect(readable(matrix)).toEqual(['MACD:buy', 'ATR:buy', 'EMA:buy'])
@@ -70,8 +80,7 @@ describe('一棵樹讀成一張表', () => {
   it('同一個來源的好幾句，收成同一列的好幾格', () => {
     // 「A 是買入或持有」——一格是一個集合，正是為了說得出這句話。
     const matrix = matrixOf(
-      group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'MACD', 'hold')),
-      ['MACD'])
+      group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'MACD', 'hold')))
 
     expect(readable(matrix)).toEqual(['MACD:buy+hold'])
   })
@@ -81,47 +90,58 @@ describe('一棵樹讀成一張表', () => {
     const matrix = matrixOf(
       group('and',
         group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'MACD', 'hold')),
-        comparison('c', 'ATR', 'buy')),
-      ['MACD', 'ATR'])
+        comparison('c', 'ATR', 'buy')))
 
     expect(matrix.representable).toBe(true)
     expect(readable(matrix)).toEqual(['MACD:buy+hold', 'ATR:buy'])
   })
 
-  it('且與或交錯、又講不同來源的，**不硬壓平**', () => {
-    // 壓平會得到一個意思不同的條件，而使用者會在完全沒察覺的情況下把它存回去。
+  it('「A 而且（B 或 C）」讀成一組加一塊——那正是一組存在的理由', () => {
     const matrix = matrixOf(
       group('and',
         group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
-        comparison('c', 'EMA', 'buy')),
-      ['MACD', 'ATR', 'EMA'])
+        comparison('c', 'EMA', 'buy')))
+
+    expect(matrix.representable).toBe(true)
+    expect(readable(matrix)).toEqual(['(or MACD:buy ATR:buy)', 'EMA:buy'])
+  })
+
+  it('一組裡面還有一組就讀不出來——**不硬壓平**', () => {
+    // 壓平會得到一個意思不同的條件，而使用者會在完全沒察覺的情況下把它存回去。
+    const matrix = matrixOf(
+      group('and',
+        group('or',
+          comparison('a', 'MACD', 'buy'),
+          group('and', comparison('b', 'ATR', 'buy'), comparison('c', 'EMA', 'buy'))),
+        comparison('d', 'RSI', 'buy')))
 
     expect(matrix.representable).toBe(false)
   })
 
-  it('樹上提到、但已經不在來源裡的代號仍然列出來，排在後面', () => {
-    // 一列看不見的條件會在儲存時被擋下來，而他不知道它在哪裡。
+  it('順序照著樹——那正是使用者在墊子上排出來的順序', () => {
+    // 照別的順序讀回來，他會看到自己排過的東西被打亂。
     const matrix = matrixOf(
-      group('and', comparison('a', 'MACD', 'buy'), comparison('b', '早就刪了', 'buy')),
-      ['MACD'])
+      group('and', comparison('b', 'ATR', 'buy'), comparison('a', 'MACD', 'buy')))
 
-    expect(readable(matrix)).toEqual(['MACD:buy', '早就刪了:buy'])
+    expect(readable(matrix)).toEqual(['ATR:buy', 'MACD:buy'])
   })
 
   it('信號的順序照著固定的那一份，不是照著樹裡出現的順序', () => {
     // 同樣的一格在兩台機器人上要長得一樣。
     const matrix = matrixOf(
-      group('or', comparison('a', 'MACD', 'hold'), comparison('b', 'MACD', 'buy')),
-      ['MACD'])
+      group('or', comparison('a', 'MACD', 'hold'), comparison('b', 'MACD', 'buy')))
 
-    expect(matrix.rows[0]!.acceptedSignals).toEqual(['buy', 'hold'])
+    expect(matrix.items[0]!.pieces[0]!.acceptedSignals).toEqual(['buy', 'hold'])
   })
 })
 
 describe('一張表寫回一棵樹', () => {
   function matrixDomain(operator: 'and' | 'or', rows: [string, string[]][]) {
     return new ConditionMatrixDomain(new ConditionMatrixDto(
-      operator, rows.map(([label, signals]) => new ConditionMatrixRowDto(label, signals)), true))
+      operator,
+      rows.map(([label, signals]) => new ConditionMatrixItemDto(
+        null, [new ConditionMatrixPieceDto(label, signals)])),
+      true))
   }
 
   it('一列都沒參與就是空的條件', () => {
@@ -145,28 +165,30 @@ describe('一張表寫回一棵樹', () => {
 })
 
 describe('來回轉換不會改變意思', () => {
-  const cases: { name: string, condition: StrategyBotConditionDto, labels: string[] }[] = [
+  const cases: { name: string, condition: StrategyBotConditionDto }[] = [
     {
-      name: '一句比對',
+      name: '一塊零件',
       condition: comparison('c', 'MACD', 'buy'),
-      labels: ['MACD'],
     },
     {
       name: '一排且',
       condition: group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'sell')),
-      labels: ['MACD', 'ATR'],
     },
     {
       name: '一排或',
       condition: group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'sell')),
-      labels: ['MACD', 'ATR'],
     },
     {
-      name: '同一個來源的好幾句',
+      name: '同一塊零件收好幾個信號',
       condition: group('and',
         group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'MACD', 'hold')),
         comparison('c', 'ATR', 'buy')),
-      labels: ['MACD', 'ATR'],
+    },
+    {
+      name: 'A 而且（B 或 C）',
+      condition: group('and',
+        group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
+        comparison('c', 'EMA', 'buy')),
     },
   ]
 
@@ -174,7 +196,7 @@ describe('來回轉換不會改變意思', () => {
     it(`${testCase.name}：讀成表再寫回去，形狀一樣`, () => {
       // 這是整個做法站不站得住的那一條：表只是那棵樹的另一種說法，
       // 不是第二份資料。讀一趟就變一次意思的話，使用者每打開一次就損失一點東西。
-      const matrix = matrixOf(testCase.condition, testCase.labels)
+      const matrix = matrixOf(testCase.condition)
       const backAgain = new ConditionMatrixDomain(matrix).toCondition()
 
       expect(shapeOf(backAgain)).toBe(shapeOf(testCase.condition))
@@ -184,30 +206,49 @@ describe('來回轉換不會改變意思', () => {
 
 describe('改一張表', () => {
   const start = () => new ConditionMatrixDomain(new ConditionMatrixDto(
-    'and', [new ConditionMatrixRowDto('MACD', ['buy'])], true))
+    'and', [new ConditionMatrixItemDto(null, [new ConditionMatrixPieceDto('MACD', ['buy'])])],
+    true))
 
   it('按一格沒開的就打開它', () => {
-    expect(start().toggleSignal('MACD', 'hold').value.rows[0]!.acceptedSignals)
+    expect(start().toggleSignal('MACD', 'hold').value.items[0]!.pieces[0]!.acceptedSignals)
       .toEqual(['buy', 'hold'])
   })
 
   it('按一格開著的就關掉它', () => {
-    expect(start().toggleSignal('MACD', 'buy').value.rows[0]!.acceptedSignals).toEqual([])
+    expect(start().toggleSignal('MACD', 'buy').value.items[0]!.pieces[0]!.acceptedSignals).toEqual([])
   })
 
   it('換運算子時哪幾格開著一格都不動', () => {
     const changed = start().changeOperator('or')
 
     expect(changed.value.operator).toBe('or')
-    expect(changed.value.rows[0]!.acceptedSignals).toEqual(['buy'])
+    expect(changed.value.items[0]!.pieces[0]!.acceptedSignals).toEqual(['buy'])
   })
 
-  it('來源變了，列跟著變，而留著的那幾列一格都不動', () => {
-    // 表與來源是同一份東西的兩種看法，所以它們不會有「還沒同步」的狀態。
-    const aligned = start().alignedTo(['MACD', 'ATR'])
+  it('零件被丟掉時，墊子上那一塊跟著收走——但它不會自己跳上墊子', () => {
+    // 一個自己跑到工作區的零件，會讓使用者覺得畫面在替他做決定。
+    expect(readable(start().alignedTo(['MACD', 'ATR']).value)).toEqual(['MACD:buy'])
+    expect(readable(start().alignedTo(['ATR']).value)).toEqual([])
+  })
 
-    expect(readable(aligned.value)).toEqual(['MACD:buy', 'ATR:'])
+  it('把一塊零件擺上墊子，它預設收下買入', () => {
+    // 一塊擺在墊子上卻什麼都不收的零件，是一句永遠不成立的話，
+    // 而它看起來跟一句填好的一模一樣。
+    expect(readable(start().placeAt('ATR', 1).value)).toEqual(['MACD:buy', 'ATR:buy'])
+  })
 
-    expect(readable(aligned.alignedTo(['ATR']).value)).toEqual(['ATR:'])
+  it('已經在墊子上的零件再擺一次，是搬位置，不是複製', () => {
+    const twoPieces = start().placeAt('ATR', 1)
+
+    expect(readable(twoPieces.placeAt('ATR', 0).value)).toEqual(['ATR:buy', 'MACD:buy'])
+  })
+
+  it('把一塊零件拿下墊子', () => {
+    expect(readable(start().takeOff('MACD').value)).toEqual([])
+  })
+
+  it('問得出一塊零件在不在這張墊子上', () => {
+    expect(start().holds('MACD')).toBe(true)
+    expect(start().holds('ATR')).toBe(false)
   })
 })

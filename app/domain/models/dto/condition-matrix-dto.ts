@@ -1,52 +1,76 @@
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 
 /**
- * DTO：矩陣上的一列——一個信號來源，以及它要是哪幾個信號才算數。
+ * DTO：墊子上的一塊零件——它是哪一支策略，以及它要是哪幾個信號才算數。
  *
  * `acceptedSignals` 是一個**集合**而不是一個值，因為「A 是買入或持有都算」是真的有人
- * 要說的話。空集合代表這一列**不參與**這一邊的判斷，而那與「它必須是某個值」
- * 是兩件完全不同的事——用一個「不管」的選項混在同一個下拉裡，
- * 使用者會以為那是第四種信號。
+ * 要說的話。空集合是一塊擺著卻什麼都不收的零件，也就是一句永遠不成立的話——
+ * 所以擺上去的零件一定至少收一個。
  */
-export class ConditionMatrixRowDto {
+export class ConditionMatrixPieceDto {
   constructor(
     public readonly sourceLabel: string,
     public readonly acceptedSignals: readonly string[],
   ) {}
+}
 
-  /** 這一列有沒有參與判斷。 */
-  get participates(): boolean {
-    return this.acceptedSignals.length > 0
+/**
+ * DTO：墊子上的一格——一塊零件，或**扣在一起的一組零件**。
+ *
+ * 一組零件是為了說得出「A 而且（B 或 C）」。沒有它的話，一張墊子只說得出
+ * 「這幾塊全部成立」或「這幾塊任一成立」，中間那種混著的就永遠寫不出來。
+ *
+ * `operator` 有值就是一組，沒有就是單獨一塊——與條件樹用同一個分辨方式，
+ * 因為它們本來就是同一件事的兩種形狀。**一組裡面不會再有一組**：
+ * 三層以上的巢狀在實際的條件裡幾乎不出現，而它會讓「把一塊拖到另一塊上」
+ * 這個動作變得沒有人說得準結果。
+ */
+export class ConditionMatrixItemDto {
+  constructor(
+    /** 一組零件怎麼合併它裡面那幾塊。單獨一塊時為 `null`。 */
+    public readonly operator: ConditionOperatorVo | null,
+    public readonly pieces: readonly ConditionMatrixPieceDto[],
+  ) {}
+
+  get isBundle(): boolean {
+    return this.operator !== null
+  }
+
+  /** 拿來當 Vue 的 key，也拿來認出「這一格是哪一格」。 */
+  get key(): string {
+    return this.pieces.map(piece => piece.sourceLabel).join('+')
+  }
+
+  get holdsLabels(): readonly string[] {
+    return this.pieces.map(piece => piece.sourceLabel)
   }
 }
 
 /**
- * DTO：一整邊的判斷，畫成一張表。
+ * DTO：一整邊的判斷，畫成一張墊子上擺了什麼。
  *
  * 它是條件樹的另一種說法，而不是另一份資料：存出去的仍然是那棵樹。
- * 矩陣說得出來的形狀是「每個來源各出一句（或幾句同來源的句子），
- * 整體用且或或串起來」——那涵蓋了實際會寫的絕大多數條件，
- * 而它換來的是**一張表，沒有空位、沒有拖拉、沒有巢狀**。
+ * 墊子說得出來的形狀是「幾格用且或或串起來，其中一格可以是一小組」——
+ * 也就是兩層。那涵蓋了實際會寫的絕大多數條件。
  *
- * 說不出來的那幾種（且與或交錯的巢狀）不會被硬塞進來：`representable` 為 false 時
+ * 說不出來的（三層以上、或組裡還有組）不會被硬塞進來：`representable` 為 false 時
  * 畫面照實說，而不是默默把它壓平成一個意思不同的條件。
  */
 export class ConditionMatrixDto {
   constructor(
-    /** 每一列之間怎麼合併。 */
+    /** 墊子上每一格之間怎麼合併。 */
     public readonly operator: ConditionOperatorVo,
-    public readonly rows: readonly ConditionMatrixRowDto[],
-    /**
-     * 這棵樹畫不畫得成一張表。
-     *
-     * 畫不成時 `rows` 仍然照實反映它讀得懂的部分，但畫面必須說出來——
-     * 使用者存下去會換掉一個他沒看懂的條件。
-     */
+    public readonly items: readonly ConditionMatrixItemDto[],
     public readonly representable: boolean,
   ) {}
 
-  /** 有沒有任何一列參與判斷。一列都沒有就是「這一邊還沒設定」。 */
+  /** 墊子上一塊零件都沒有。 */
   get isEmpty(): boolean {
-    return !this.rows.some(row => row.participates)
+    return this.items.length === 0
+  }
+
+  /** 墊子上擺著的每一塊零件，不分它在哪一格。 */
+  get placedLabels(): readonly string[] {
+    return this.items.flatMap(item => item.holdsLabels)
   }
 }

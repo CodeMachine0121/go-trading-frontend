@@ -40,10 +40,17 @@ function aStoredBot() {
   )
 }
 
-/** 一張表讀成好比對的樣子：`代號:信號+信號`。 */
+/**
+ * 一張墊子讀成好比對的樣子：一格一個字串，`代號:信號+信號`；
+ * 扣成一組的用 `(且 A:… B:…)` 括起來。
+ */
 function readable(form: ReturnType<typeof formUnderTest>, side: 0 | 1): string[] {
-  return form.conditionSides[side]!.matrix.value.rows.map(
-    row => `${row.sourceLabel}:${row.acceptedSignals.join('+')}`)
+  return form.conditionSides[side]!.matrix.value.items.map((item) => {
+    const pieces = item.pieces.map(
+      piece => `${piece.sourceLabel}:${piece.acceptedSignals.join('+')}`)
+
+    return item.isBundle ? `(${item.operator} ${pieces.join(' ')})` : pieces[0]!
+  })
 }
 
 describe('useStrategyBotForm 的策略清單', () => {
@@ -58,15 +65,38 @@ describe('useStrategyBotForm 的策略清單', () => {
     expect(form.sourceLabels.value).toEqual(['均線', '均線 2'])
   })
 
-  it('加一支策略，兩邊的表立刻各多一列空的', () => {
-    // 表與策略清單是同一份東西的兩種看法，所以它們不會有「還沒同步」的狀態。
+  it('加一塊零件不會自己跳上墊子——那是使用者要做的動作', () => {
+    // 一個自己跑到工作區的零件，會讓他覺得畫面在替他做決定。
     const form = formUnderTest()
     form.reset()
 
     form.addSignalSource()
 
-    expect(readable(form, 0)).toEqual(['均線:'])
-    expect(readable(form, 1)).toEqual(['均線:'])
+    expect(form.sourceLabels.value).toEqual(['均線'])
+    expect(readable(form, 0)).toEqual([])
+    expect(readable(form, 1)).toEqual([])
+  })
+
+  it('把零件擺上墊子，它就在上面了', () => {
+    const form = formUnderTest()
+    form.reset()
+    form.addSignalSource()
+
+    form.conditionSides[0]!.placeAt('均線', 0)
+
+    expect(readable(form, 0)).toEqual(['均線:buy'])
+    expect(form.conditionSides[0]!.holds('均線')).toBe(true)
+    expect(form.conditionSides[1]!.holds('均線')).toBe(false)
+  })
+
+  it('把零件拿下墊子，零件本身還在架子上', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[0]!.takeOff('均線')
+
+    expect(readable(form, 0)).toEqual(['動能:buy'])
+    expect(form.sourceLabels.value).toContain('均線')
   })
 
   it('刪掉一支策略，兩邊的表立刻各少一列', () => {
@@ -94,7 +124,6 @@ describe('useStrategyBotForm 的策略清單', () => {
 
     form.changeSignalSourceLabel(0, '動能')
 
-    expect(readable(form, 0)).toEqual(['動能:buy', '動能:buy'])
     expect(form.rejection.value).toContain('重複')
   })
 
@@ -139,7 +168,7 @@ describe('useStrategyBotForm 的那張表', () => {
     form.reset()
 
     expect(readable(form, 0)).toEqual(['均線:buy', '動能:buy'])
-    expect(readable(form, 1)).toEqual(['均線:sell', '動能:'])
+    expect(readable(form, 1)).toEqual(['均線:sell'])
   })
 
   it('按一格就打開它，再按一次就關掉', () => {
@@ -159,7 +188,7 @@ describe('useStrategyBotForm 的那張表', () => {
 
     form.conditionSides[0]!.toggleSignal('均線', 'hold')
 
-    expect(readable(form, 1)).toEqual(['均線:sell', '動能:'])
+    expect(readable(form, 1)).toEqual(['均線:sell'])
   })
 
   it('換運算子時哪幾格開著一格都不動', () => {
