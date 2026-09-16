@@ -5,6 +5,8 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import StrategyBotConditionEditor from '~/components/molecules/StrategyBotConditionEditor.vue'
 import StrategyBotSignalSourceFields from '~/components/molecules/StrategyBotSignalSourceFields.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
@@ -17,6 +19,14 @@ const { open, editing, strategyOptions, saving, failureMessage } = defineProps<{
   open: boolean
   /** 有值就是改那一台，沒有就是新的一台。 */
   editing: StrategyBotDto | null
+  /**
+   * 交給標的欄位自己去取清單用的。
+   *
+   * 標的是**挑**出來的而不是打出來的：一台機器人指到一個後端沒有 K 線的代號時，
+   * 每一輪都會算不出東西，而算不出東西目前寫進歷史的字是「持有」——
+   * 跟真的算出持有長得一模一樣。打錯一個字母的代價是看不出來，所以不給打。
+   */
+  tradingSymbolApplication: TradingSymbolApplication
   strategyOptions: readonly { value: number, label: string }[]
   parameterNamesByStrategyId: Readonly<Record<number, readonly string[]>>
   saving: boolean
@@ -69,12 +79,6 @@ function onSave() {
             data-testid="bot-name-input"
           />
           <AppInput
-            v-model="form.symbol.value"
-            type="text"
-            placeholder="交易標的（例如 BTCUSDT）"
-            data-testid="bot-symbol-input"
-          />
-          <AppInput
             v-model="form.triggerIntervalText.value"
             type="number"
             inputmode="numeric"
@@ -82,6 +86,15 @@ function onSave() {
             data-testid="bot-interval-input"
           />
         </div>
+
+        <!--
+          標的自己一列，不跟上面那兩格擠：它比一格輸入框高一截——
+          上面多了一排市場切換鍵，下面多了一句說明。
+        -->
+        <SymbolField
+          v-model="form.symbol.value"
+          :trading-symbol-application="tradingSymbolApplication"
+        />
       </section>
 
       <!-- 第二段：它要聽哪幾支。第三段的選單由這一段填出來。 -->

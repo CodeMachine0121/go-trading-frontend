@@ -8,6 +8,9 @@ import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
+import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
 
 function runningState() {
   return new StrategyBotRunStateDto(
@@ -35,7 +38,19 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   )
 }
 
-function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
+// 只 mock 最外層的 proxy；application 與 domain service 都是真的，
+// 所以「表單上挑得到哪幾檔」測到的是真正跑起來的那條路。
+function symbolApplicationListing(...symbols: string[]) {
+  return new TradingSymbolApplication(new TradingSymbolService({
+    findTradingSymbols: vi.fn().mockResolvedValue(
+      symbols.map(symbol => buildTradingSymbol(symbol))),
+  }))
+}
+
+function mountPanel(
+  overrides: Partial<StrategyBotApplication> = {},
+  tradingSymbolApplication = symbolApplicationListing('BTCUSDT', 'ETHUSDT'),
+) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
     listRunRecords: vi.fn().mockResolvedValue([]),
@@ -56,6 +71,7 @@ function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
     props: {
       strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
       strategyApplication: strategyApplication as unknown as StrategyApplication,
+      tradingSymbolApplication,
       timeZoneIdentifier: 'Asia/Taipei',
     },
     global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
@@ -257,5 +273,50 @@ describe('StrategyBotListPanel 的立即運算', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="bot-run-now"]').attributes('disabled')).toBeUndefined()
+  })
+})
+
+describe('StrategyBotListPanel 表單上的交易標的', () => {
+  it('是從後端認得的那幾檔裡挑，不是自己打', async () => {
+    const { wrapper } = mountPanel({}, symbolApplicationListing('BTCUSDT', 'ETHUSDT'))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-create"]').trigger('click')
+    await flushPromises()
+
+    const symbolSelect = wrapper.get('[data-testid="symbol-select"]')
+    expect(symbolSelect.findAll('option').map(option => option.element.value))
+      .toEqual(['BTCUSDT', 'ETHUSDT'])
+  })
+
+  it('沒有留下任何可以自己打標的的輸入框', async () => {
+    // 這一條是這次改動的全部意義：留著一格能打字的欄位，
+    // 打成小寫的 btcusdt 就查不到任何 K 線，而每一輪失敗都寫成「持有」。
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-create"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-symbol-input"]').exists()).toBe(false)
+  })
+
+  it('挑了哪一檔就是存進去的那一檔', async () => {
+    const saveStrategyBot = vi.fn().mockResolvedValue(
+      botDto(1, '早盤突破', stoppedState()))
+    const { wrapper } = mountPanel(
+      { saveStrategyBot }, symbolApplicationListing('BTCUSDT', 'ETHUSDT'))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-create"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-name-input"]').setValue('早盤突破')
+    await wrapper.get('[data-testid="bot-interval-input"]').setValue('5')
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="symbol-select"]').element).toHaveProperty(
+      'value', 'ETHUSDT')
   })
 })

@@ -9,6 +9,7 @@ import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
 
 // 有機體：機器人清單這一整塊——四種狀態、三顆按鈕、空清單、錯誤與重試。
@@ -18,6 +19,8 @@ import { useStrategyBots } from '~/composables/use-strategy-bots'
 const { strategyBotApplication, strategyApplication, timeZoneIdentifier } = defineProps<{
   strategyBotApplication: StrategyBotApplication
   strategyApplication: StrategyApplication
+  /** 表單裡的標的欄位自己去取清單用的，這一層只是傳下去。 */
+  tradingSymbolApplication: TradingSymbolApplication
   /** 歷史裡那些時間用哪一個時區說。整個操作台只有一個，所以由上面傳下來。 */
   timeZoneIdentifier: string
 }>()
@@ -212,6 +215,7 @@ onMounted(() => {
     <StrategyBotFormDialog
       :open="bots.formOpen.value"
       :editing="bots.editing.value"
+      :trading-symbol-application="tradingSymbolApplication"
       :strategy-options="bots.strategyOptions.value"
       :parameter-names-by-strategy-id="bots.parameterNamesByStrategyId.value"
       :saving="bots.saving.value"
