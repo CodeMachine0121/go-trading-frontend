@@ -1,0 +1,197 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import StrategyBotListPanel from '~/components/organisms/StrategyBotListPanel.vue'
+import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
+import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+
+function runningState() {
+  return new StrategyBotRunStateDto(
+    true, false, false, '執行中', 'success', '', '買入', false, true, false,
+    '這台機器人正在執行中，要先停止它才改得動')
+}
+
+function stoppedState() {
+  return new StrategyBotRunStateDto(
+    false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
+}
+
+function haltedState() {
+  return new StrategyBotRunStateDto(
+    false, true, false, '停擺', 'danger', '機器人金鑰不被接受', '買入', true, false, true, '')
+}
+
+function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
+  return new StrategyBotDto(
+    id, name, 'BTCUSDT', 5,
+    [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
+    new StrategyBotConditionDto('n1', null, [], 'A', 'buy'),
+    new StrategyBotConditionDto('n2', null, [], 'A', 'sell'),
+    runState,
+  )
+}
+
+function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
+  const strategyBotApplication = {
+    listStrategyBots: vi.fn().mockResolvedValue([]),
+    getStrategyBot: vi.fn(),
+    saveStrategyBot: vi.fn(),
+    deleteStrategyBot: vi.fn().mockResolvedValue(undefined),
+    startStrategyBot: vi.fn(),
+    stopStrategyBot: vi.fn(),
+    ...overrides,
+  }
+
+  const strategyApplication = {
+    listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
+  }
+
+  const wrapper = mount(StrategyBotListPanel, {
+    props: {
+      strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
+      strategyApplication: strategyApplication as unknown as StrategyApplication,
+    },
+    global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
+  })
+
+  return { wrapper, strategyBotApplication }
+}
+
+describe('StrategyBotListPanel 的清單', () => {
+  it('一台都沒有時說得出下一步，而不是給一張空表', async () => {
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-list-empty"]').text()).toContain('還沒有任何機器人')
+    expect(wrapper.findAll('[data-testid="bot-row"]')).toHaveLength(0)
+  })
+
+  it('照後端交出的順序顯示，畫面不自己重排', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botDto(1, '早盤突破', stoppedState()),
+        botDto(2, '收盤反轉', runningState()),
+      ]),
+    })
+    await flushPromises()
+
+    const rows = wrapper.findAll('[data-testid="bot-row"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.text()).toContain('早盤突破')
+    expect(rows[1]?.text()).toContain('收盤反轉')
+  })
+
+  it('讀不到時說出後端說的那個原因，並給得出重試的路', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockRejectedValue(new Error('後端連不上')),
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-list-failure"]').text()).toContain('後端連不上')
+    expect(wrapper.find('[data-testid="bot-list-retry"]').exists()).toBe(true)
+  })
+
+  it('沒送過訊號的那一台寫的是一句話，不是空白', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-last-sent-signal"]').text()).toContain('還沒送出過')
+  })
+
+  it('停擺的那一台把原因說出來', async () => {
+    // 這份清單是使用者唯一會發現機器人出事的地方。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', haltedState())]),
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-halt-reason"]').text()).toBe('機器人金鑰不被接受')
+  })
+})
+
+describe('StrategyBotListPanel 的三顆按鈕', () => {
+  it('執行中時看得到停止、看不到播放', async () => {
+    // 一台機器人只有兩種狀態，同時看到兩顆互斥的鍵沒有任何一種讀法是對的。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', runningState())]),
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-stop"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bot-start"]').exists()).toBe(false)
+  })
+
+  it('已停止時看得到播放、看不到停止', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-start"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bot-stop"]').exists()).toBe(false)
+  })
+
+  it('執行中時編輯不給按，並說得出為什麼', async () => {
+    // 按了才被拒絕，是把一個畫面早就看得出來的事留到送出才講。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', runningState())]),
+    })
+    await flushPromises()
+
+    const editButton = wrapper.get('[data-testid="bot-edit"]')
+    expect(editButton.attributes('disabled')).toBeDefined()
+    expect(editButton.attributes('title')).toContain('要先停止')
+  })
+
+  it('按播放就真的去啟動那一台', async () => {
+    const startStrategyBot = vi.fn().mockResolvedValue(botDto(1, '早盤突破', runningState()))
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+      startStrategyBot,
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-start"]').trigger('click')
+    await flushPromises()
+
+    expect(startStrategyBot).toHaveBeenCalledWith(1)
+  })
+
+  it('沒設定 Telegram 時，那句話帶得出一條去設定的路', async () => {
+    // 他現在就在一個按鈕之外的地方，光說「請先完成設定」等於要他自己去找。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+      startStrategyBot: vi.fn().mockRejectedValue(
+        new TelegramNotConfiguredError('要先完成 Telegram 設定')),
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-start"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-delivery-not-configured"]').text())
+      .toContain('Telegram 設定')
+    expect(wrapper.find('[data-testid="bot-delivery-settings-link"]').exists()).toBe(true)
+  })
+
+  it('按刪除只是先問——在確認之前那一台還在', async () => {
+    const deleteStrategyBot = vi.fn().mockResolvedValue(undefined)
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', runningState())]),
+      deleteStrategyBot,
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-delete"]').trigger('click')
+    await flushPromises()
+
+    expect(deleteStrategyBot).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="bot-row"]')).toHaveLength(1)
+  })
+})
