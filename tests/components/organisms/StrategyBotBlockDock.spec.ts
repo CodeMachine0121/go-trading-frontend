@@ -116,6 +116,26 @@ describe('StrategyBotBlockDock 什麼時候出來', () => {
     expect(isOpen(wrapper)).toBe(true)
   })
 
+  it('放完一塊就收回去——點按那條路也一樣', async () => {
+    // 撐開它的是「選著一個空位」。放進一塊之後那個空位就不是空的了，
+    // 而抽屜還開著的話，使用者看到的是一個放完東西還賴著不走的抽屜。
+    const wrapper = mountDock({ holeSelected: true })
+
+    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseenter')
+    await wrapper.setProps({ holeSelected: false })
+
+    expect(isOpen(wrapper)).toBe(false)
+  })
+
+  it('釘住的話放完照樣留著——想連著放好幾塊的人按的就是它', async () => {
+    const wrapper = mountDock({ holeSelected: true })
+
+    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
+    await wrapper.setProps({ holeSelected: false })
+
+    expect(isOpen(wrapper)).toBe(true)
+  })
+
   it('把手說得出現在是開還是關，給看不到畫面的人', () => {
     const wrapper = mountDock({ holeSelected: true })
 

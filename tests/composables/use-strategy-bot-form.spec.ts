@@ -259,6 +259,37 @@ describe('useStrategyBotForm 的條件操作', () => {
     expect(sellSide!.selectedHoleKey.value).not.toBeNull()
   })
 
+  it('再點一次同一個空位就放掉它', () => {
+    // 沒有放掉那條路的話，點了一個空位又決定不放東西的人，
+    // 就困在一個永遠開著的抽屜旁邊。
+    const form = formUnderTest()
+    form.reset()
+    form.addSignalSource()
+
+    const buySide = form.conditionSides[0]!
+    const hole = buySide.view.value.hole!
+
+    buySide.selectHole(hole)
+    expect(form.selectedHole.value).not.toBeNull()
+
+    buySide.selectHole(hole)
+    expect(form.selectedHole.value).toBeNull()
+  })
+
+  it('點另一棵樹的空位是換過去，不是放掉', () => {
+    const form = formUnderTest()
+    form.reset()
+    form.addSignalSource()
+
+    const [buySide, sellSide] = form.conditionSides
+    buySide!.selectHole(buySide!.view.value.hole!)
+    expect(form.selectedHole.value?.side).toBe('buy')
+
+    sellSide!.selectHole(sellSide!.view.value.hole!)
+
+    expect(form.selectedHole.value?.side).toBe('sell')
+  })
+
   it('改了來源，抽屜立刻跟著改', () => {
     const form = formUnderTest()
     form.reset()

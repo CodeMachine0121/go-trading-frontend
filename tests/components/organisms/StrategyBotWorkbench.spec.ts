@@ -319,3 +319,37 @@ describe('StrategyBotWorkbench 把一塊丟掉的兩條路', () => {
     expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(false)
   })
 })
+
+describe('StrategyBotWorkbench 的積木抽屜什麼時候在', () => {
+  it('點一個空位就把抽屜叫出來，放完一塊它就收回去', async () => {
+    // 從頭走一遍的那一條：抽屜是由「選著一個空位」撐開的，
+    // 而放進一塊之後那個空位就不是空的了。
+    const wrapper = mountWorkbench(anUnbuiltBot())
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="block-dock-panel"]').classes())
+      .not.toContain('block-dock--open')
+
+    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
+    expect(wrapper.find('.block-dock--open').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+  })
+
+  it('點了空位又改變主意，再點一次它就收回去', async () => {
+    // 沒有這條路的話，他就困在一個永遠開著的抽屜旁邊。
+    const wrapper = mountWorkbench(anUnbuiltBot())
+    await flushPromises()
+
+    const hole = wrapper.findAll('[data-testid="condition-hole"]')[0]!
+    await hole.trigger('click')
+    expect(wrapper.find('.block-dock--open').exists()).toBe(true)
+
+    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
+
+    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+  })
+})

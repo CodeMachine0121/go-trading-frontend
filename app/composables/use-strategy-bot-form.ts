@@ -295,8 +295,18 @@ export function useStrategyBotForm(
       /** 使用者現在選著的空位是不是在這一棵上，是的話是哪一個。 */
       selectedHoleKey: computed(() => (
         selectedHole.value?.side === key ? selectedHole.value.hole.key : null)),
+      /**
+       * 點一個空位就選它；**再點同一個就放掉**。
+       *
+       * 沒有放掉那條路的話，點了一個空位又決定不放東西的人，
+       * 就困在一個永遠開著的抽屜旁邊——因為把抽屜撐開的正是那個選取，
+       * 而畫面上沒有任何動作取消得了它。
+       */
       selectHole: (hole: ConditionHoleVo) => {
-        selectedHole.value = { side: key, hole }
+        selectedHole.value = selectedHole.value?.side === key
+          && selectedHole.value.hole.key === hole.key
+          ? null
+          : { side: key, hole }
       },
       /**
        * 把一塊放進一個空位——點按與拖拉走的是同一個方法。
