@@ -1,0 +1,69 @@
+# 這個檔案存在的理由是：**commit 之前沒有人在跑測試。**
+#
+# pre-commit hook 只做兩件事——對 staged 的檔案跑 ESLint --fix，然後 typecheck。
+# 那擋得住打錯字，擋不住一次改壞行為的修改：兩千多則測試在 commit 的那一刻
+# 一則都沒跑過。所以「本機是綠的」在這個專案裡從來不等於「它還會動」。
+#
+# 另外一件 hook 做不到的事：它只看**staged 的檔案**。把一個 export 改名、
+# 卻只 stage 其中一邊時，hook 看不到另一邊——那正是最容易漏的那一種。
+# 這裡一律看整個專案。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一條分支的第二次 push 會讓第一次的答案失去意義。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # 版本從 package.json 的 packageManager 讀，不在這裡寫第二份——
+          # 寫死的話，升級 bun 的那天有一邊會被忘記，而 CI 與本機跑在不同版本上
+          # 是最難查的那種失敗。
+          bun-version-file: package.json
+
+      # bun 的下載快取。node_modules 本身不快取：它跟著 lockfile 走，
+      # 而快取一份可能過期的 node_modules 正好會掩蓋 --frozen-lockfile 想抓的東西。
+      - name: cache bun downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      # --frozen-lockfile：lockfile 與 package.json 對不起來就失敗，
+      # 而不是安靜地裝一個別的版本然後照樣綠燈。
+      - name: install
+        run: bun install --frozen-lockfile
+
+      # 以下四步就是 `bun run verify`，但**拆開跑**。
+      # 合成一步的話，GitHub 上只看得到「verify 失敗」，要點進 log 才知道是
+      # 型別壞了還是某一則測試紅了。拆開之後，失敗的那一格自己會說話。
+      - name: eslint
+        run: bun run lint
+
+      - name: stylelint
+        run: bun run lint:style
+
+      # typecheck 要有 .nuxt 底下產生出來的型別才跑得動，那是 postinstall 的
+      # `nuxt prepare` 做的——所以它一定要排在 install 之後。
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: test
+        run: bun run test
