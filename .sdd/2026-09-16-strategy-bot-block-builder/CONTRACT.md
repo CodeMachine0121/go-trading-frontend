@@ -47,7 +47,9 @@
 | AC-19 | 群組不足兩塊自己標出，並說得出至少要兩塊 | `strategy-bot-condition-holes.spec.ts`＋`StrategyBotWorkbench.spec.ts` | `statusOf` / `statusTextFor` | ✅ |
 | AC-20 | 比對還沒選信號自己標出 | 同上 | 同上 | ✅ |
 | AC-21 | 改代號時那一句跟著改 | `use-strategy-bot-form.spec.ts`「改了代號，抽屜與樹上那幾句一起跟著改」 | `committedLabels` + `renameSourceLabel`（既有） | ✅ |
-| AC-22a | 一個還被條件用著的來源刪不掉，並說得出是誰在用 | `use-strategy-bot-form.spec.ts`「刪掉一個還被條件用著的來源會被擋下來」 | `signalSourceRemovalBlockedReasons` | ✅ |
+| AC-22a | 一個還被條件用著的來源**刪得掉**，只是先說一聲 | `use-strategy-bot-form.spec.ts`＋`StrategyBotSignalSourceFields.spec.ts` | `signalSourceUsageWarnings`（只說，不擋） | ✅ |
+| AC-22c | 來源被刪掉之後那一句自己標出，且送不出去 | `use-strategy-bot-form.spec.ts`「還被條件用著的來源刪得掉」 | `statusOf` → `unknownSource`；`conditionRejection()` | ✅ |
+| AC-22d | 拖樹上的一塊出去丟掉 | `StrategyBotWorkbench.spec.ts` 四條 | `dropAwayDragged` / `isDraggingOwnNode` | ✅ |
 | AC-22b | 代號撞名時那一句仍指著舊代號，並標出「找不到那個來源」 | `strategy-bot-condition-holes.spec.ts`＋`StrategyBotWorkbench.spec.ts`（`condition-node--unknownSource`）＋`use-strategy-bot-form.spec.ts`（撞名期間不改） | `statusOf` 回 `unknownSource`；`committedLabels` | ✅ |
 | AC-23 | 每一塊都好了就沒有任何標示 | `strategy-bot-condition-holes.spec.ts`＋`StrategyBotWorkbench.spec.ts` | `statusOf` | ✅ |
 | AC-24 | 有空位沒填就存不下去，並說得出哪一件事 | `StrategyBotWorkbench.spec.ts`＋`strategy-bot-write-domain.spec.ts` | `incompleteReason()` → `conditionRejection()` | ✅ |

@@ -7,7 +7,7 @@ function mountFields(options: {
   sources?: StrategyBotSignalSourceDto[]
   canAdd?: boolean
   hasNoStrategies?: boolean
-  removalBlockedReasons?: Record<number, string>
+  usageWarnings?: Record<number, string>
 } = {}) {
   return mount(StrategyBotSignalSourceFields, {
     props: {
@@ -21,7 +21,7 @@ function mountFields(options: {
       canAdd: options.canAdd ?? true,
       signalSourceLimit: 10,
       hasNoStrategies: options.hasNoStrategies ?? false,
-      removalBlockedReasons: options.removalBlockedReasons ?? {},
+      usageWarnings: options.usageWarnings ?? {},
     },
   })
 }
@@ -62,16 +62,30 @@ describe('StrategyBotSignalSourceFields', () => {
     expect(wrapper.text()).toContain('回看根數')
   })
 
-  it('還被條件用著的來源，移除鍵按不動，並說出是哪裡在用它', () => {
+  it('還被條件用著的來源**照樣刪得掉**，只是先說一聲', () => {
+    // 擋住它的代價比想像中大：只有一個來源、而兩棵樹都在用它的人，
+    // 得先把兩棵樹拆光才換得掉那一支策略。刪掉之後那幾句會自己標成
+    // 「找不到這個來源」並且送不出去——看得見，就不必擋。
     const wrapper = mountFields({
       sources: [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
-      removalBlockedReasons: { 0: '條件裡還在用「A」，要先把那幾句改掉或刪掉' },
+      usageWarnings: { 0: '條件裡還在用「A」，刪掉之後那幾句要改或拿掉' },
     })
 
     expect(wrapper.get('[data-testid="signal-source-remove"]').attributes('disabled'))
-      .toBeDefined()
-    expect(wrapper.get('[data-testid="signal-source-removal-blocked"]').text())
+      .toBeUndefined()
+    expect(wrapper.get('[data-testid="signal-source-usage-warning"]').text())
       .toContain('「A」')
+  })
+
+  it('按下去就真的把它交出去刪，不管有沒有人在用它', async () => {
+    const wrapper = mountFields({
+      sources: [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
+      usageWarnings: { 0: '條件裡還在用「A」，刪掉之後那幾句要改或拿掉' },
+    })
+
+    await wrapper.get('[data-testid="signal-source-remove"]').trigger('click')
+
+    expect(wrapper.emitted('remove')?.[0]).toEqual([0])
   })
 
   it('一個來源都沒有時說得出下一步', () => {

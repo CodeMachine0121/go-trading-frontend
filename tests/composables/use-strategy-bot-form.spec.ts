@@ -122,15 +122,15 @@ describe('useStrategyBotForm 讓第三段跟得上第二段', () => {
     expect(form.conditionSides[0]?.condition.value?.conditions[1]?.sourceLabel).toBe('RSI')
   })
 
-  it('還被條件用著的來源刪不掉，並說得出是哪裡在用它', () => {
-    // 比默默把條件一起刪掉誠實得多。
+  it('刪一個還被條件用著的來源之前先說一聲，但不擋', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
-    expect(form.signalSourceRemovalBlockedReasons.value[0]).toContain('「A」')
+    expect(form.signalSourceUsageWarnings.value[0]).toContain('「A」')
 
     form.removeSignalSource(0)
-    expect(form.signalSources.value).toHaveLength(2)
+
+    expect(form.signalSources.value).toHaveLength(1)
   })
 
   it('沒有被條件用著的來源刪得掉', () => {
@@ -138,7 +138,7 @@ describe('useStrategyBotForm 讓第三段跟得上第二段', () => {
     form.reset()
     form.addSignalSource()
 
-    expect(form.signalSourceRemovalBlockedReasons.value[0]).toBeUndefined()
+    expect(form.signalSourceUsageWarnings.value[0]).toBeUndefined()
 
     form.removeSignalSource(0)
     expect(form.signalSources.value).toHaveLength(0)
@@ -284,12 +284,19 @@ describe('useStrategyBotForm 的條件操作', () => {
     expect(form.conditionSides[0]!.condition.value!.conditions[0]!.sourceLabel).toBe('MA')
   })
 
-  it('刪掉一個還被條件用著的來源會被擋下來，並說得出是誰在用', () => {
-    // 默默把那幾句一起刪掉，比擋住它不誠實得多。
+  it('還被條件用著的來源刪得掉，刪完那幾句自己標成找不到來源', () => {
+    // 擋住它的代價比想像中大：只有一個來源、而兩棵樹都在用它的人，
+    // 得先把兩棵樹拆光才換得掉那一支策略。
     const form = formUnderTest(aStoredBot())
     form.reset()
 
-    expect(form.signalSourceRemovalBlockedReasons.value[0]).toContain('A')
+    expect(form.signalSourceUsageWarnings.value[0]).toContain('A')
+
+    form.removeSignalSource(0)
+
+    // 樹上那幾句仍然指著 A，而 A 已經不在宣告過的代號裡了。
+    expect(form.sourceLabels.value).not.toContain('A')
+    expect(form.rejection.value).not.toBeNull()
   })
 
   it('一個來源都沒有時，抽屜說得出要先去宣告一個', () => {

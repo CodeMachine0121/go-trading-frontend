@@ -4,8 +4,9 @@ import type { ConditionBlockOptionDto } from '~/domain/models/dto/condition-bloc
 
 // 分子：積木抽屜——這一刻拼得出來的每一塊。
 //
-// 它**一直在畫面上**，不是點了空位才出現。一直在，使用者才拖得起來；
-// 而點按那條路只需要它「亮起哪幾塊」，不需要它出現或消失。
+// 它住在畫面右緣的抽屜裡（見 StrategyBotBlockDock），所以是**直的**：
+// 一欄一欄往下排。橫著排的版本待在版面裡，而待在版面裡的東西會被樹推走——
+// 條件愈拼愈長，抽屜就愈往下掉，偏偏它是拼的時候每一步都要用到的。
 //
 // 放不進去的那幾塊仍然列出來，只是按不下去並說得出原因。整個拿掉的話，
 // 使用者看到的是一個東西變少了的抽屜，而不知道是自己碰到了上限。
@@ -158,16 +159,19 @@ function onPick(option: ConditionBlockOptionDto) {
     font-size: font-size('2xs');
   }
 
+  // 直的：這個抽屜是一欄，不是一條。
+  flex: 1;
+  overflow-y: auto;
+
   &__groups {
     display: flex;
-    flex-wrap: wrap;
-    gap: spacing('xs') spacing('md');
+    flex-direction: column;
+    gap: spacing('sm');
   }
 
   &__section {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
     gap: spacing('2xs');
     min-width: 0;
   }
@@ -179,7 +183,10 @@ function onPick(option: ConditionBlockOptionDto) {
 
   &__blocks {
     display: flex;
-    flex-wrap: wrap;
+
+    // 一塊一行：積木上寫的是代號加一句話，擠成兩欄之後每一塊都得換行，
+    // 而換了行的積木看起來像兩塊。
+    flex-direction: column;
     gap: spacing('3xs');
     margin: 0;
     padding: 0;
@@ -188,6 +195,7 @@ function onPick(option: ConditionBlockOptionDto) {
 
   &__block {
     border: 1px solid color('border');
+    text-align: left;
     border-radius: radius('sm');
     background-color: color('surface-raised');
     cursor: grab;

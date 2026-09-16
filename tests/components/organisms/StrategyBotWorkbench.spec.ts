@@ -257,3 +257,65 @@ describe('StrategyBotWorkbench 的拖拉', () => {
     expect(wrapper.findAll('[data-testid="condition-group"]')).toHaveLength(2)
   })
 })
+
+describe('StrategyBotWorkbench 把一塊丟掉的兩條路', () => {
+  function dragEvent(): Partial<DragEvent> {
+    return { dataTransfer: { setData: vi.fn() } as unknown as DataTransfer }
+  }
+
+  it('那顆移除鍵按下去就沒了', async () => {
+    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
+      comparison('b', 'A'), comparison('c', 'A')), null))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="remove-a"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="remove-a"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(2)
+  })
+
+  it('沒有人在拖的時候，那一格丟掉用的位子不在', async () => {
+    // 一個永遠掛在那裡的垃圾桶，多數時間只是一塊佔著位子的紅色。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(false)
+  })
+
+  it('拖起樹上的一塊，那一格就出現', async () => {
+    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
+      comparison('b', 'A'), comparison('c', 'A')), null))
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="condition-comparison"]')[0]!
+      .trigger('dragstart', dragEvent())
+
+    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(true)
+    // 丟掉那一格只屬於正被拖著的那一棵。
+    expect(wrapper.find('[data-testid="sell-bin"]').exists()).toBe(false)
+  })
+
+  it('拖到那一格上放開，那一塊就沒了', async () => {
+    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
+      comparison('b', 'A'), comparison('c', 'A')), null))
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="condition-comparison"]')[0]!
+      .trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="buy-bin"]').trigger('drop')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(2)
+  })
+
+  it('從抽屜拖出來的那一塊丟不掉——它本來就不在樹上', async () => {
+    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
+      comparison('b', 'A'), comparison('c', 'A')), null))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', dragEvent())
+
+    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(false)
+  })
+})

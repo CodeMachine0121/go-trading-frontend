@@ -11,7 +11,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 // 「代號有沒有重複」，而那正是這一塊要回答的事情之一。
 const {
   sources, strategyOptions, intervalOptions, parameterNamesByStrategyId,
-  canAdd, signalSourceLimit, removalBlockedReasons,
+  canAdd, signalSourceLimit, usageWarnings,
 } = defineProps<{
   sources: readonly StrategyBotSignalSourceDto[]
   strategyOptions: readonly { value: number, label: string }[]
@@ -40,7 +40,14 @@ const {
      * 刪掉一個還被條件用著的來源，會讓條件指向一個不存在的代號。這裡選擇**擋住那次刪除**
      * 並說出是哪裡在用它——比默默把條件一起刪掉誠實得多。
      */
-  removalBlockedReasons: Readonly<Record<number, string>>
+  /**
+   * 哪幾個來源正被條件用著，以及被誰用著。
+   *
+   * 它**不擋刪除**，只在刪之前說一聲。擋住的話，一個只有一個來源、
+   * 而兩棵樹都在用它的人，得先把兩棵樹拆光才換得掉那一支策略。
+   * 刪掉之後那幾句會自己標成「找不到這個來源」，而且送不出去——看得見，就不必擋。
+   */
+  usageWarnings: Readonly<Record<number, string>>
 }>()
 
 const emit = defineEmits<{
@@ -129,8 +136,7 @@ function onParameterInput(index: number, name: string, raw: string | number) {
           <AppButton
             type="button"
             variant="danger-ghost"
-            :disabled="removalBlockedReasons[index] !== undefined"
-            :title="removalBlockedReasons[index]"
+            :title="usageWarnings[index]"
             data-testid="signal-source-remove"
             @click="emit('remove', index)"
           >
@@ -138,12 +144,13 @@ function onParameterInput(index: number, name: string, raw: string | number) {
           </AppButton>
         </div>
 
+        <!-- 說一聲，不擋。刪掉之後那幾句自己會喊，而且送不出去。 -->
         <p
-          v-if="removalBlockedReasons[index] !== undefined"
+          v-if="usageWarnings[index] !== undefined"
           class="strategy-bot-signal-source-fields__blocked"
-          data-testid="signal-source-removal-blocked"
+          data-testid="signal-source-usage-warning"
         >
-          {{ removalBlockedReasons[index] }}
+          {{ usageWarnings[index] }}
         </p>
 
         <!-- 旋鈕由那支策略宣告什麼就出現什麼；沒宣告的話這一排整個不出現。 -->

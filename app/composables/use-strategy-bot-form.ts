@@ -74,25 +74,31 @@ export function useStrategyBotForm(
     () => signalSources.value.length < STRATEGY_BOT_LIMITS.signalSourceCount)
 
   /**
-   * 哪幾個來源現在刪不掉，以及為什麼。
+   * 哪幾個來源被條件用著，以及被誰用著。
    *
-   * 刪掉一個還被條件用著的來源，會讓條件指向一個不存在的代號。這裡**擋住那次刪除**
-   * 並說出是哪裡在用它——比默默把條件一起刪掉誠實得多。
+   * 它**不再擋住刪除**。原本會擋，理由是「刪了條件就會指向一個不存在的代號」——
+   * 而那件事現在**看得見**：那幾句會自己標成「找不到這個來源」，而且送不出去。
+   *
+   * 擋住的代價比想像中大：使用者只有一個來源、而兩棵樹都在用它的時候，
+   * 他得先把兩棵樹拆光才刪得掉那一個來源，才換得掉一支策略。
+   * 那是要他為了改一個地方先毀掉另外兩個地方。
+   *
+   * 所以這裡只剩**說一聲**：刪之前告訴他有誰在用，刪之後那幾句自己會喊。
    */
-  const signalSourceRemovalBlockedReasons = computed(() => {
+  const signalSourceUsageWarnings = computed(() => {
     const usedLabels = new Set([
       ...new StrategyBotConditionDomain(buyCondition.value).usedSourceLabels(),
       ...new StrategyBotConditionDomain(sellCondition.value).usedSourceLabels(),
     ])
 
-    const blocked: Record<number, string> = {}
+    const warnings: Record<number, string> = {}
     signalSources.value.forEach((signalSource, index) => {
       if (usedLabels.has(signalSource.label)) {
-        blocked[index] = `條件裡還在用「${signalSource.label}」，要先把那幾句改掉或刪掉`
+        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉之後那幾句要改或拿掉`
       }
     })
 
-    return blocked
+    return warnings
   })
 
   const rejection = computed(() => new StrategyBotWriteDomain(buildWriteDto()).rejection)
@@ -169,10 +175,6 @@ export function useStrategyBotForm(
   }
 
   function removeSignalSource(index: number) {
-    if (signalSourceRemovalBlockedReasons.value[index] !== undefined) {
-      return
-    }
-
     signalSources.value = signalSources.value.filter((_, position) => position !== index)
     committedLabels.value = committedLabels.value.filter((_, position) => position !== index)
   }
@@ -337,6 +339,26 @@ export function useStrategyBotForm(
 
         return carried.side === key && tree.value.move(carried.nodeId, hole).value !== condition.value
       },
+      /**
+       * 把現在拖著的那一塊丟掉。
+       *
+       * 它與那顆「移除」鍵做的是同一件事，而兩條路都要有：拖著一塊已經抓在手上的積木時，
+       * 最自然的丟法是把它扔出去，而不是放回原位再去找它的按鈕。
+       * 反過來，沒有指標裝置的人只有按鈕那一條。
+       *
+       * 拖著的是抽屜裡的積木時什麼都不做——它本來就不在樹上，沒有東西可以丟。
+       */
+      dropAwayDragged: () => {
+        const carried = dragging.value
+        dragging.value = null
+
+        if (carried?.kind === 'node' && carried.side === key) {
+          apply(domain => domain.removeNode(carried.nodeId))
+        }
+      },
+      /** 現在拖著的是這一棵上的一塊嗎——丟掉那一格要不要出現，看的就是這件事。 */
+      isDraggingOwnNode: computed(
+        () => dragging.value?.kind === 'node' && dragging.value.side === key),
       /** 把現在拖著的那個東西放進這個空位。放不進去時什麼都不做。 */
       dropDragged: (hole: ConditionHoleVo) => {
         const carried = dragging.value
@@ -375,7 +397,7 @@ export function useStrategyBotForm(
     canAddSignalSource,
     // 與擋住新增的是同一個數字，往下傳給要說出它的那個元件。
     signalSourceLimit: STRATEGY_BOT_LIMITS.signalSourceCount,
-    signalSourceRemovalBlockedReasons,
+    signalSourceUsageWarnings,
     conditionSides,
     /**
      * 積木抽屜這一刻的樣子。

@@ -3,9 +3,9 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
-import StrategyBotBlockDrawer from '~/components/molecules/StrategyBotBlockDrawer.vue'
 import StrategyBotSignalSourceFields from '~/components/molecules/StrategyBotSignalSourceFields.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import StrategyBotBlockDock from '~/components/organisms/StrategyBotBlockDock.vue'
 import StrategyBotConditionTree from '~/components/organisms/StrategyBotConditionTree.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -100,7 +100,7 @@ function onSave() {
             :can-add="form.canAddSignalSource.value"
             :signal-source-limit="form.signalSourceLimit"
             :has-no-strategies="strategyOptions.length === 0"
-            :removal-blocked-reasons="form.signalSourceRemovalBlockedReasons.value"
+            :usage-warnings="form.signalSourceUsageWarnings.value"
             @add="form.addSignalSource"
             @remove="form.removeSignalSource"
             @change-label="form.changeSignalSourceLabel"
@@ -118,6 +118,20 @@ function onSave() {
           :key="side.key"
           :title="side.heading"
         >
+          <!--
+            拖著樹上的一塊時才出現的那一格。它只在有東西可以丟的時候在，
+            因為一個永遠掛在那裡的垃圾桶，多數時間只是一塊佔著位子的紅色。
+          -->
+          <div
+            v-if="side.isDraggingOwnNode.value"
+            class="workbench__bin"
+            :data-testid="`${side.key}-bin`"
+            @dragover.prevent="undefined"
+            @drop.prevent="side.dropAwayDragged"
+          >
+            拖到這裡丟掉
+          </div>
+
           <StrategyBotConditionTree
             :node="side.view.value"
             :source-labels="form.sourceLabels.value"
@@ -138,10 +152,14 @@ function onSave() {
     </div>
 
     <!--
-      抽屜在最底下橫著一整條：兩棵樹共用它，所以它不能長在任何一棵裡面。
+      抽屜貼在畫面右緣，不在版面裡：待在版面裡的話它會被樹推走——
+      條件愈拼愈長，它就愈往下掉，偏偏它是每一步都要用到的東西。
+      兩棵樹共用同一個，所以它也不能長在任何一棵裡面。
     -->
-    <StrategyBotBlockDrawer
+    <StrategyBotBlockDock
       :drawer="form.blockDrawer.value"
+      :drag-active="form.dragging.value !== null"
+      :hole-selected="form.selectedHole.value !== null"
       @pick="option => form.conditionSides.find(
         side => side.key === form.selectedHole.value?.side)?.fill(
         form.selectedHole.value!.hole, option.block)"
@@ -191,6 +209,10 @@ function onSave() {
   flex-direction: column;
   gap: spacing('sm');
 
+  // 右緣留一條給那個把手。它是 fixed 的，所以不會自己把版面推開——
+  // 不留的話它會正好蓋在最右邊那一欄的控制項上。
+  padding-right: spacing('lg');
+
   &__columns {
     display: grid;
 
@@ -216,6 +238,19 @@ function onSave() {
     display: flex;
     flex-direction: column;
     gap: spacing('2xs');
+  }
+
+  &__bin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: spacing('2xs');
+    border: 1px dashed color('danger');
+    border-radius: radius('sm');
+    background-color: color('danger-soft');
+    padding: spacing('2xs');
+    color: color('danger');
+    font-size: font-size('2xs');
   }
 
   &__actions {
