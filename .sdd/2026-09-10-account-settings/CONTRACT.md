@@ -57,6 +57,7 @@ Oracle: Acceptance Criteria（34 個情境）＋ 核心業務規則（11 條）�
 | BR-11 | 移除要先確認 | 見 AC-28 | `TelegramDeliveryPanel.vue` | `TelegramDeliveryPanel.spec.ts:97` | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-12 | Edge Case：三個區塊各說各的，一個錯誤不覆蓋另一個 | 三份獨立狀態 | 三個 composable／props 各自持有 | `TelegramDeliveryPanel.spec.ts:39`（讀取錯誤不影響其他區塊的呈現） | shallow（沒有一則測試同時讓兩個區塊出錯） | produces-oracle（狀態結構上就是分開的） | 🟠 mis-asserted |
 | NFR-1 | 進入畫面只讀一次目前設定 | 一次 `loadDeliverySetting` | `pages/settings/index.vue`（`onMounted` 一次） | — | no-test | produces-oracle | 🟡 partial |
+| NFR-1a | 換密碼成功後，本機記著的憑證一律清乾淨 | 那一對被忘掉，而且不另外跑一趟撤銷 | `use-user-session.ts`（`signOutAfterPasswordChange` → `forgetSession`）· `user-session-service.ts` | `use-password-change.spec.ts`（「記著的那一對憑證也被忘掉」「不去敲那扇已經鎖上的門」） | asserts-oracle | produces-oracle | ✅ conforms |
 | NFR-2 | 完整金鑰不留在畫面上，也不寫進瀏覽器儲存 | 存好即清空；任何儲存都沒有它 | `use-telegram-delivery.ts:88`（`ref`，非 `useState`／`localStorage`） | `use-telegram-delivery.spec.ts:59`（清空）；「不寫進瀏覽器儲存」無測試 | shallow | produces-oracle | 🟠 mis-asserted |
 | NFR-3 | 密碼三格不記住、不自動填、離開即消失 | 不寫進任何儲存 | `PasswordChangePanel.vue` 的三個 `ref`；`autocomplete` 用 `current-password`／`new-password` | — | no-test | produces-oracle | 🟡 partial |
 

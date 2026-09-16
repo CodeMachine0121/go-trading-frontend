@@ -18,12 +18,15 @@ export function usePasswordChange(
    * 一個參數都不必給；它存在的唯一理由是讓這裡的編排測得到。
    */
   passwordChangeApplication = useNuxtApp().$passwordChangeApplication,
+  /**
+   * 換好之後要把人帶去哪。它與上面那個參數存在的理由相同：讓這裡的編排測得到——
+   * 「換成功要留一句話、忘掉記著的那一對、然後回登入畫面」是規則，不是接線。
+   */
+  userSession = useUserSession(),
 ) {
   const pending = ref(false)
   const errorMessage = ref<string | null>(null)
   const fieldErrors = ref<PasswordChangeFieldErrorsDto | null>(null)
-
-  const { signOutAfterPasswordChange } = useUserSession()
 
   /**
    * 送出一次換密碼，成功就把人帶回登入畫面。
@@ -48,7 +51,7 @@ export function usePasswordChange(
 
       // 換頁包在裡面而不是交給呼叫端「成功的話再自己走一次」：漏掉第二步的畫面
       // 會停在原地，看起來像什麼都沒發生——而後端那一側已經把他登出了。
-      await signOutAfterPasswordChange()
+      await userSession.signOutAfterPasswordChange()
     }
     catch (error: unknown) {
       applyFailure(error)

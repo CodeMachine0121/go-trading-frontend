@@ -225,13 +225,17 @@ export function useUserSession(
    *
    * 它**不走 signOut**，儘管兩者看起來很像。signOut 會跑一趟後端去撤掉這台裝置的
    * 登入階段，而換密碼時後端已經把這個人**每一台**都撤掉了——那一趟必定白跑，
-   * 而且它送的是一份已經不算數的續用憑證。
+   * 而且它送的是一份已經不算數的續用憑證。要忘掉的那一半則照樣要做，所以它走的是
+   * forgetSession：忘記，但不敲那扇已經鎖上的門。
    *
    * 那句話跟著人一起走。只留在設定畫面上，導走之後他就看不到了；只放在登入畫面上，
    * 中間那一瞬間看起來像被踢出去。所以兩邊都說，由這裡把它交過去。
    */
   async function signOutAfterPasswordChange(): Promise<void> {
     signInNotice.value = '密碼已更換，請用新密碼重新登入。'
+    // 記著的那一對也要忘掉，不只是清掉畫面上的狀態。留著的話，下一次換頁時把關會
+    // 拿兩份已經不算數的憑證去敲兩次門才放棄——而那段時間畫面說不清楚自己是誰。
+    userSessionApplication.forgetSession()
     currentUser.value = null
     redirectTo.value = null
     restoration.value = null

@@ -209,7 +209,7 @@ describe('TelegramDeliveryPanel：試送一則訊息', () => {
 
   it.each([
     ['Telegram 不接受這組機器人金鑰，請重新填一次整串金鑰。'],
-    ['Telegram 找不到這個聊天室，請確認聊天室代號。'],
+    ['Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。'],
     ['連不上 Telegram，請稍後再試。'],
     ['Telegram 太久沒有回答，這一則當作沒送成，請稍後再試。'],
   ])('送不成時把那一句原樣說出來：%s', (sentence) => {

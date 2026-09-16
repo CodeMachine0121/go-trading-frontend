@@ -17,16 +17,26 @@ mockNuxtImport('navigateTo', () => navigateToSpy)
 
 const passwordChangeApplication = { changePassword: vi.fn() }
 
+/**
+ * 「現在是誰在用」那一份的替身。它只要說得出 signOutAfterPasswordChange 有沒有被叫到，
+ * 以及那一支底下是不是真的去忘掉了記著的那一對。
+ */
+const userSessionApplicationStub = { forgetSession: vi.fn(), signOut: vi.fn() }
+
 /** 替身從參數進去，不去換掉 useNuxtApp——換掉它會連路由同步一起弄壞。 */
 function passwordChangeUnderTest() {
   return usePasswordChange(
-    passwordChangeApplication as unknown as Parameters<typeof usePasswordChange>[0])
+    passwordChangeApplication as unknown as Parameters<typeof usePasswordChange>[0],
+    useUserSession(
+      userSessionApplicationStub as unknown as Parameters<typeof useUserSession>[0]),
+  )
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
   navigateToSpy.mockImplementation((path: string) => path)
   passwordChangeApplication.changePassword.mockResolvedValue(undefined)
+  userSessionApplicationStub.forgetSession.mockReturnValue(undefined)
   useState<SignedInUserDto | null>('user-session', () => null).value
     = new SignedInUserDto(7, 'james@example.com')
   useState<string | null>('user-session-sign-in-notice', () => null).value = null
@@ -60,6 +70,25 @@ describe('usePasswordChange', () => {
     await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
 
     expect(useState<SignedInUserDto | null>('user-session').value).toBeNull()
+  })
+
+  it('換好之後記著的那一對憑證也被忘掉', async () => {
+    // 留著的話，下一次換頁時把關會拿兩份已經不算數的憑證去敲兩次門才放棄，
+    // 而那段時間畫面說不清楚自己是誰。
+    const { submitPasswordChange } = passwordChangeUnderTest()
+
+    await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
+
+    expect(userSessionApplicationStub.forgetSession).toHaveBeenCalledOnce()
+  })
+
+  it('忘掉是本機的事——它不去敲那扇已經鎖上的門', async () => {
+    // 後端已經把每一段都撤掉了，再送一次撤銷是拿一份不算數的續用憑證去敲門。
+    const { submitPasswordChange } = passwordChangeUnderTest()
+
+    await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
+
+    expect(userSessionApplicationStub.signOut).not.toHaveBeenCalled()
   })
 
   it('連按兩下只送出一次', async () => {

@@ -119,14 +119,14 @@ describe('useTelegramDelivery：試送一則訊息', () => {
     // 這顆鍵的全部價值就在於它會說出是哪一格填錯。
     telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
     telegramDeliveryApplication.sendTestMessage.mockResolvedValue(
-      new TestMessageResultDto(false, 'Telegram 找不到這個聊天室，請確認聊天室代號。'))
+      new TestMessageResultDto(false, 'Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。'))
     const fixture = telegramDeliveryUnderTest()
     await fixture.loadDeliverySetting()
 
     await fixture.sendTestMessage()
 
     expect(fixture.sendSucceeded.value).toBe(false)
-    expect(fixture.sendResultMessage.value).toBe('Telegram 找不到這個聊天室，請確認聊天室代號。')
+    expect(fixture.sendResultMessage.value).toBe('Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。')
   })
 
   it('後端說還沒設定過時，把人指向上面那張卡', async () => {
