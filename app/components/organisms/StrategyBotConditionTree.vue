@@ -268,7 +268,7 @@ function onDragStart(event: DragEvent, nodeId: string) {
 
   // 兩類邊色沿用抽屜：拖著的那一塊與它落下去之後的樣子要看得出是同一種東西。
   &--group {
-    border-left: 2px solid color('accent');
+    border-left: 2px solid color('primary');
   }
 
   &--comparison {

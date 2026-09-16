@@ -18,11 +18,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "verify": "bun run lint && bun run lint:style && bun run typecheck && bun run test",
+    "verify": "bun run lint && bun run lint:style && bun run lint:tokens && bun run typecheck && bun run test",
     "postinstall": "nuxt prepare",
     "prepare": "husky",
     "lint:style": "stylelint \"app/**/*.{scss,vue}\"",
-    "lint:style:fix": "stylelint \"app/**/*.{scss,vue}\" --fix"
+    "lint:style:fix": "stylelint \"app/**/*.{scss,vue}\" --fix",
+    "lint:tokens": "node scripts/check-design-tokens.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

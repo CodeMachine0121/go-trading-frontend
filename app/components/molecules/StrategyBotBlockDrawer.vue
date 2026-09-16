@@ -197,7 +197,7 @@ function onPick(option: ConditionBlockOptionDto) {
     font-family: inherit;
 
     &:not(&--unavailable):hover {
-      border-color: color('accent');
+      border-color: color('primary');
       color: color('text-strong');
     }
 
@@ -207,7 +207,7 @@ function onPick(option: ConditionBlockOptionDto) {
     }
 
     &--groups {
-      border-left: 2px solid color('accent');
+      border-left: 2px solid color('primary');
     }
 
     // 按不下去用 aria-disabled 標，不用 disabled 屬性：後者連拖曳都收不到，

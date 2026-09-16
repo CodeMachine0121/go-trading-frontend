@@ -84,14 +84,14 @@ const hint = computed(() => {
   }
 
   &:hover {
-    border-color: color('accent');
+    border-color: color('primary');
     color: color('text');
   }
 
   &--selected {
     border-style: solid;
-    border-color: color('accent');
-    background-color: color('accent-soft');
+    border-color: color('primary');
+    background-color: color('primary-soft');
     color: color('text-strong');
   }
 
