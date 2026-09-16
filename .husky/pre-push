@@ -1,6 +1,11 @@
-# push 前完整驗一次：lint + style lint + type check + 單元測試
+# push 前完整驗一次：lint + style lint + token + type check + 單元測試
 # 注意：一定要 `bun run test`——`bun test` 會改跑 bun 內建的測試 runner，不是 Vitest
+#
+# lint:tokens 看起來與 lint:style 重疊，其實不是：stylelint 讀的是 CSS 的語法，
+# 它不編譯 SCSS，所以 color('accent') 這種**名字寫錯**的 token 它一個字都不會說。
+# 那種錯誤過得了這裡每一關，只在畫面被打開的那一刻才爆。
 bun run lint
 bun run lint:style
+bun run lint:tokens
 bun run typecheck
 bun run test

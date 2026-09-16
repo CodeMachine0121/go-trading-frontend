@@ -40,6 +40,7 @@ describe('ConsoleLayout', () => {
     expect(wrapper.text()).toContain('K 線瀏覽')
     expect(wrapper.text()).toContain('K 線圖表')
     expect(wrapper.text()).toContain('指標計算')
+    expect(wrapper.text()).toContain('策略機器人')
   })
 
   it('側欄收得起來，而且收起來之後每個畫面都還在', () => {
@@ -50,7 +51,7 @@ describe('ConsoleLayout', () => {
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(8)
+    expect(wrapper.findAll('a')).toHaveLength(9)
     expect(wrapper.text()).toContain('指標計算')
     expect(wrapper.text()).toContain('觀察清單')
     expect(wrapper.text()).toContain('設定')

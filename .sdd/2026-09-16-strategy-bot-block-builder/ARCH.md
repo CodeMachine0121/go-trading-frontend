@@ -1,0 +1,312 @@
+# Architecture — 策略機器人積木工作台
+
+**PRD:** `./PRD.md`
+**前一刀:** `../2026-09-16-strategy-bot-console/ARCH.md`（清單、播放／停止／刪除、執行紀錄沿用，不動）
+
+---
+
+## 1. 設計目標
+
+把「拼一棵條件樹」從**一組按鈕**換成**把積木放進洞裡**，而且：
+
+1. **洞不進資料。** 存出去的形狀一個位元都不變——洞是**看樹的方式**，不是樹的一部分。
+2. **拼得出來的形狀一定存得下去。** 上限的判斷發生在「這個洞收不收這塊」，
+   不是發生在儲存。
+3. **元件不做判斷。** 元件收到的是一份**已經答完的形狀**：哪裡是洞、哪一塊有問題、
+   抽屜裡哪幾塊現在放得進去。元件只負責畫。
+
+第 3 點是這份設計的主軸。目前的條件編輯器元件自己在算 `canAddComparison`、
+`canAddGroup`、`canWrapInGroup`，而那幾個判斷再過一版就會跟 domain 的規則分岔。
+
+---
+
+## 2. 變更範圍
+
+### 新增
+
+| 位置 | 型別 | 職責 |
+|---|---|---|
+| `domain/models/vo/` | `ConditionHoleVo` | 一個可以放積木的**位置**：哪個群組底下的第幾格 |
+| `domain/models/vo/` | `ConditionBlockVo` | 抽屜裡的**一塊**：一句比對（指名某個來源）或一個群組（且／或） |
+| `domain/models/dto/` | `ConditionNodeViewDto` | 一個節點**畫出來的樣子**：它是洞、是比對還是群組，以及它自己的狀態 |
+| `domain/models/dto/` | `ConditionBlockOptionDto` | 抽屜裡一塊的樣子：放不放得進去，放不進去的話那句話是什麼 |
+| `domain/models/domains/` | `ConditionBlockPaletteDomain` | 給定一棵樹、已宣告的代號、一個被點的洞 → 這一刻抽屜長什麼樣 |
+| `components/molecules/` | `StrategyBotConditionHole.vue` | 一個畫出來的洞 |
+| `components/molecules/` | `StrategyBotBlockDrawer.vue` | 積木抽屜 |
+| `components/organisms/` | `StrategyBotConditionTree.vue` | 一棵樹（遞迴），取代 `StrategyBotConditionEditor.vue` |
+| `components/organisms/` | `StrategyBotWorkbench.vue` | 整個工作台：三段＋兩棵樹＋抽屜 |
+| `composables/` | `use-strategy-bot-workbench.ts` | **那一頁**的狀態：在改哪一台、可挑哪幾支策略、存得怎麼樣了 |
+| `components/templates/` | `StrategyBotWorkbenchPage.vue` | 新增與編輯共用的那一張殼（標題、載入、找不到、離開前確認） |
+| `pages/strategy-bots/` | `new.vue`、`[id].vue` | 兩條進得去的路，共用同一個工作台 |
+
+### 修改
+
+| 位置 | 改什麼 |
+|---|---|
+| `domain/models/domains/strategy-bot-condition-domain.ts` | 加 `holes()`、`fill()`、`move()`、`accepts()`、`toViewDto()`；`canAddComparisonUnder` 一族由 `accepts()` 取代 |
+| `composables/use-strategy-bot-form.ts` | 條件那一段改走洞與積木（含被點的洞與拖到一半的那一塊）；其餘兩段不動 |
+| `composables/use-strategy-bots.ts` | 拿掉整段表單狀態；不再撈可用策略——那件事搬到工作台了 |
+| `components/atoms/AppButton.vue` | 多一個 `to`：給了它就是一條連結，長相不變 |
+| `domain/models/domains/strategy-bot-write-domain.ts` | 半成品（群組不足兩塊、比對沒選信號、指向沒宣告的代號）現在擋在送出前 |
+| `composables/use-strategy-bots.ts` | `openCreateForm` / `openEditForm` 改成**走頁面**，不再開對話框 |
+| `components/organisms/StrategyBotListPanel.vue` | 編輯與新增改成連結；拿掉對話框 |
+
+### 刪除
+
+| 位置 | 為什麼 |
+|---|---|
+| `components/organisms/StrategyBotFormDialog.vue` | 整頁取代它。**留著就是第二個入口**，兩邊都要維護、遲早不一致（BR-10） |
+| `components/molecules/StrategyBotConditionEditor.vue` | 由 `StrategyBotConditionTree.vue` 取代 |
+
+### 明確不動
+
+- **後端一切。** 路由、DTO 形狀、規則全部原樣。
+- 機器人清單、播放／停止／刪除、執行紀錄、立即運算、Telegram 設定。
+- 信號來源那一段的規則（代號不得重複、上限、撞名期間不改條件）——
+  只有它**呈現在哪裡**變了。
+
+---
+
+## 3. 核心設計：洞是看樹的方式，不是樹的一部分
+
+存出去的樹裡，一個群組的子條件永遠是**填好的節點**。洞是從那棵樹**推出來**的：
+
+```
+樹（存得下去的形狀）        畫出來的樣子
+────────────────────       ──────────────────────
+null                   →   ┊ 洞（根） ┊
+
+全部成立                →   全部成立
+ ├ A＝買入                   ├ A＝買入
+ └ B＝買入                   ├ B＝買入
+                            └ ┊ 洞 ┊     ← 每個群組尾端固定一個
+```
+
+規則只有兩條：
+
+- **樹是空的** → 根上一個洞。
+- **每一個群組的尾端固定一個洞**（除非該群組已經到節點或深度上限）。
+
+這樣做的代價是使用者只能**往後接**，不能插在中間。那是刻意的：
+且與或**沒有順序**，插在中間與接在尾端得到的是同一個條件，
+而多一種放法就多一種要畫、要測、要解釋的東西。
+
+`ConditionHoleVo` 因此只需要兩個欄位：`parentNodeId`（`null` 代表根）與 `position`。
+
+---
+
+## 4. 深模組：元件收到的是答案，不是材料
+
+### `StrategyBotConditionDomain.toViewDto(declaredLabels)`
+
+一次答完元件要畫的每一件事：
+
+```
+ConditionNodeViewDto
+├ kind: 'hole' | 'comparison' | 'group'
+├ nodeId            （洞沒有）
+├ hole              （只有洞有：parentNodeId + position）
+├ operator / sourceLabel / signal
+├ status: 'ok' | 'incomplete' | 'unknownSource'
+├ statusText        （status 不是 ok 時那句話）
+├ removable: boolean
+└ children: ConditionNodeViewDto[]
+```
+
+元件**一個判斷都不做**。`status` 兩種壞法分得開，是因為使用者的下一步不同：
+`incomplete` 是「還沒做完」，`unknownSource` 是「有東西壞了」。
+
+### `ConditionBlockPaletteDomain(tree, declaredLabels, selectedHole).toDto()`
+
+```
+ConditionBlockOptionDto
+├ block: ConditionBlockVo
+├ label
+├ enabled: boolean
+└ disabledReason: string   （enabled 為 false 時那句話）
+```
+
+抽屜的「這一塊現在放不放得進去」與樹的「這個洞收不收這一塊」是**同一個判斷**，
+所以它只寫在一個地方：`StrategyBotConditionDomain.accepts(hole, block)`。
+抽屜問它，拖拉的落點也問它。
+
+---
+
+## 5. 拖拉：兩條路走進同一個方法
+
+點按與拖拉都只是取得 `(hole, block)` 的**兩種手段**，
+之後走的是同一個 `fill(hole, block)`：
+
+```
+點一下洞    → 記住 selectedHole → 點抽屜某塊 → fill(hole, block)
+從抽屜拖    → dragover 問 accepts() → drop → fill(hole, block)
+拖既有的一塊 → dragover 問 accepts() → drop → move(nodeId, hole)
+```
+
+拖拉用**原生 HTML5 drag and drop**，不引第三方套件：
+拖的東西只有兩種、落點只有洞，而任何一個拖拉套件帶進來的是它自己的一套座標、
+一套生命週期、與一套要跟著升級的東西。
+
+`move` 的落點限制寫在 `accepts()` 裡：**一個群組不得落進自己底下**
+（那會把一段樹接到自己身上）。這是洞與積木唯一畫得出無效形狀的地方，
+所以判斷寫在收受端，而不是靠畫面不給拖。
+
+---
+
+## 6. 頁面
+
+| 路由 | 意思 |
+|---|---|
+| `/strategy-bots` | 清單（不變） |
+| `/strategy-bots/new` | 新拼一台 |
+| `/strategy-bots/:id` | 改那一台 |
+
+兩頁都只做接線：取得 Application、把工作台放上去。**工作台本身不知道自己是新增還是編輯**
+——它收到一台機器人（或 `null`），交出一份要存的東西。
+
+離開前的確認用 Nuxt 的路由守衛，條件是**這一頁有沒有被改過**，
+而不是「有沒有填過東西」——打開一台既有的機器人本來就滿的。
+
+---
+
+## 6.5 實作時改掉的兩個決定
+
+**一、被點的洞與拖著的那一塊住在 `use-strategy-bot-form.ts`，不另開一個 composable。**
+那兩樣東西每一次被讀都要連著兩棵樹一起問，而兩棵樹本來就住在那裡。
+分開的話，樹得整棵傳過去，而傳過去的那一份與原本那一份是同一份資料的兩個變數。
+`use-strategy-bot-workbench.ts` 因此縮小成**那一頁**的狀態，不碰條件。
+
+**二、積木用 `aria-disabled` 標，不用 `disabled`。**
+一顆 `disabled` 的按鈕在 DOM 裡收不到任何事件——**包括拖曳**。
+用它的話，一塊「現在點不下去」的積木會連拖都拖不動，而拖拉存在的理由正是
+不必先點一個空位。所以按不按得下去寫在 `aria-disabled` 與一個 JS 判斷裡：
+讀螢幕的人照樣聽得到，手上拖著它的人照樣拖得動。
+
+**三、半成品的擋法。**
+積木工作台讓使用者造得出半成品（剛放下去的空群組、還沒選信號的比對），
+那是刻意的——未完成自己會標出來。但半成品不能送出去，
+所以 `StrategyBotWriteDomain` 從「只驗兩棵都不得為空」擴成問那棵樹
+`incompleteReason()`，並說得出是哪一塊。
+
+---
+
+## 6.6 走錯一次的路：滑過去才出現的抽屜
+
+抽屜原本排在版面最底下，於是它**被愈拼愈長的樹推走**。
+
+第一次的答案是把它做成貼在畫面右緣、滑鼠碰到才滑出來的抽屜。那是錯的，而且錯了三輪
+才看出來——每一輪都在補「什麼時候該把它收起來」：拖曳時瀏覽器不發 mouseleave、
+放完一塊之後沒人放手、點了空位又反悔沒有路可退。每補一個條件就多一個漏洞。
+
+真正的原因不是哪一條漏掉，是**模式選錯了**：
+
+- 積木式編輯器的既有做法是**固定的面板**。Scratch 的積木面板在左側、一直在；
+  Blockly 的 toolbox 是 always displayed，甚至有 continuous-toolbox 讓它永遠攤開。
+  Scratch 的自動隱藏是一個 addon，不是預設，而且連它都附了一顆鎖。
+- 滑過去才出現的選單在設計上早有定論：使用者失去控制權（他沒打算打開，它自己開了），
+  誤觸，而且用鍵盤與觸控的人根本碰不到。
+
+所以現在它就是一欄固定的面板，`position: sticky` 讓它不被捲走。
+**「被樹推走」的答案是黏住，不是藏起來。**
+
+---
+
+## 6.7 最後一次重排：信號來源**就是**積木
+
+前面每一版都把「宣告信號來源」與「積木抽屜」做成兩塊東西，而那一個決定製造了
+三個彼此無關的抱怨：
+
+1. 宣告那一塊愈長，拼的地方就被擠得愈下面。
+2. 抽屜裡只看得到代號字母（A、B），說不出那是哪一支策略。
+3. 條件讀起來是「A 等於買入」——一句看不出自己在說什麼的話。
+
+三個都是同一件事：**一個東西被畫了兩次，而第二次是一份說不出話的影子。**
+
+現在它們是同一塊：一個信號來源就是一塊積木，寫著那支策略的名字，拖得動；
+它自己的設定（代號、策略、刻度、旋鈕）收在它底下，按齒輪才打開。
+收起來時一個來源就是一行——十個來源仍然是十行，而不是把工作區推出畫面。
+
+代號的預設值也跟著改成**那支策略的名字**（撞名時接數字），
+所以條件現在讀起來是「MACD 交叉 等於 買入」。代號仍然改得動，
+它只是不再從一個沒有意義的字母開始。
+
+版面因此是：
+
+```
+┌ 名稱 · 標的 · 每隔幾分鐘 ───────────────────────┐
+├──────────────┬──────────────────────────────────┤
+│ 信號來源＝積木 │  什麼情況算買入                   │
+│ （sticky）    │  什麼情況算賣出                   │
+│ 群組          │                                  │
+└──────────────┴──────────────────────────────────┘
+```
+
+---
+
+## 6.8 最後的答案：整頁就是一張表
+
+積木、空位、抽屜、拖拉——那一整套設計收到的抱怨從來不是同一個症狀，
+卻總是同一個原因：**頁面是好幾塊，它們之間的關係要用記的，而其中一塊會把另一塊推走。**
+
+補一塊就冒出下一塊。所以整批拿掉，換成一張表：
+
+```
+                       什麼算買入      什麼算賣出
+  ⚙ MACD 交叉  5m  ✕    買 賣 持       買 賣 持
+  ⚙ ATR 濾網   1h  ✕    買 賣 持       買 賣 持
+  ＋ 加一支策略
+
+  上面勾起來的那幾列要…  全部成立 ▾     全部成立 ▾
+```
+
+- **列首就是那支策略的名字**，不必去別的地方查它是誰。
+- **一格是一個集合**，不是一個值：「買入或持有都算」是真的有人要說的話，
+  而一個下拉選單說不出它。一格都沒亮＝這一支不參與這一邊。
+- **沒有第二塊**，所以沒有東西可以被推走、沒有東西需要拖。
+
+**存的形狀一個位元都沒變。** 表是那棵樹的另一種說法：讀進來時
+`StrategyBotConditionDomain.toMatrixDto()` 把樹讀成表，送出去時
+`ConditionMatrixDomain.toCondition()` 寫回一棵樹。來回一趟形狀不變，
+那條測試是整個做法站不站得住的依據。
+
+**代價講在明處**：一張表說不出「且與或交錯」的巢狀條件。那種條件出現時
+（多半是舊資料）畫面照實說它畫不出來，而不是默默壓平成一個意思不同的東西。
+
+隨之整批刪除的：`StrategyBotPalette`、`StrategyBotConditionTree`、
+`StrategyBotConditionHole`、`ConditionBlockPaletteDomain`、`ConditionHoleVo`、
+`ConditionBlockVo`、`ConditionNodeViewDto`，以及條件樹 domain 上那一整套
+加／包／搬／收不收的操作。**沒有人在用的能力留著，下一個人會以為它還有意義。**
+
+---
+
+## 7. 下一個需求會打在哪裡（延伸點）
+
+最可能的下一個需求是**第三種積木**（例如「不成立」、或是跨來源的比較）。
+
+它會打在三個地方，而這份設計讓那三個地方各只有一處：
+
+1. `ConditionBlockVo` 多一種 `kind`。
+2. `StrategyBotConditionDomain.accepts()` 多一條規則。
+3. `toViewDto()` 多一種 `kind` 的畫法。
+
+抽屜、拖拉、落點、狀態標示**一行都不用改**——它們問的都是上面那三個。
+
+---
+
+## 8. Traceability
+
+| PRD 場景 | 由誰滿足 |
+|---|---|
+| Story A 全部 | `pages/strategy-bots/new.vue`、`[id].vue`、`use-strategy-bot-workbench.ts` |
+| 空的條件顯示一個洞 | `StrategyBotConditionDomain.toViewDto()` → `StrategyBotConditionHole.vue` |
+| 點洞看得到放得進去的東西 | `ConditionBlockPaletteDomain` → `StrategyBotBlockDrawer.vue` |
+| 點抽屜／拖抽屜放進去 | `StrategyBotConditionDomain.fill()` |
+| 搬一塊／搬一個群組 | `StrategyBotConditionDomain.move()` |
+| 拿掉一塊／一個群組 | `StrategyBotConditionDomain.removeNode()`（既有） |
+| 深度／節點數到頂 | `StrategyBotConditionDomain.accepts()` |
+| 一個來源都沒宣告 | `ConditionBlockPaletteDomain` |
+| 三種節點狀態 | `StrategyBotConditionDomain.toViewDto()` |
+| 存不下去看得出來 | `use-strategy-bot-workbench.ts` 的 rejection（沿用既有規則） |
+| 兩棵樹同時看得見 | `StrategyBotWorkbench.vue` 版面 |
+| 來源與抽屜連動 | `ConditionBlockPaletteDomain` 每次由已宣告代號重算 |
+| 代號改名帶著條件走 | `use-strategy-bot-form.ts` 的 `committedLabels`（既有，不動） |

@@ -21,6 +21,29 @@ type BackendFailure = {
   }
 }
 
+/**
+ * 送得出去的一個值。
+ *
+ * 它是遞迴的，因為送出去的內容從策略機器人開始真的有了深度：一棵條件樹是一個群組
+ * 裝著幾個群組裝著幾句比對，而深度多少由使用者拼到哪裡決定。
+ *
+ * 遞迴不等於「什麼都能裝」——這裡列得出每一種允許的形狀，而 `any` 的意思是不再列。
+ * 差別在於：打錯一個欄位名仍然編不過，只是欄位可以再往下長一層。
+ *
+ * `null` 是一個真的值而不是「沒填」：後端有幾個欄位可以是**沒有這一項**，
+ * 而那與送 0 或整個省略都不是同一件事。
+ */
+export type BackendRequestValue
+  = | string
+    | number
+    | boolean
+    | null
+    | readonly BackendRequestValue[]
+    | { readonly [key: string]: BackendRequestValue }
+
+/** 送出去的那一包。 */
+export type BackendRequestBody = { readonly [key: string]: BackendRequestValue }
+
 /** 從這個狀態碼開始，代表問題出在後端自己身上，不是這次請求的內容。 */
 const SERVER_ERROR_STATUS_FLOOR = 500
 
@@ -37,7 +60,7 @@ type BackendRequestOptions = {
    * null 是一個真的值而不是「沒填」：後端有幾個欄位可以是**沒有這一項**，
    * 而那與送 0 或整個省略都不是同一件事。
    */
-  body?: Record<string, string | number | null | readonly Record<string, string | number>[]>
+  body?: BackendRequestBody
   /**
    * 這一次請求要多帶的標頭。
    *

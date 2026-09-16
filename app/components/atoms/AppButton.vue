@@ -1,4 +1,9 @@
 <script setup lang="ts">
+// NuxtLink 直接 import 進來，不在 `:is` 裡用 resolveComponent 去找它。
+// resolveComponent 是在 render 當下才去查全域註冊表，而這顆按鈕會在任何地方被用到——
+// 查不到的時候它不會壞掉，只會印一行警告然後渲染成一個空殼，連結就這樣靜靜不見了。
+import { NuxtLink } from '#components'
+
 // 全站唯一的按鈕元件（原子）。
 // 畫面上按鈕有幾十種長相，但「按鈕」這個概念只有這一個元件——
 // 外觀由使用端透過 variant / size / block 決定，不另外長出 PrimaryButton、DangerButton。
@@ -19,11 +24,21 @@ type ButtonSize = 'small' | 'medium' | 'large'
  */
 type ButtonShape = 'default' | 'pill' | 'circle'
 
-const { variant = 'primary', size = 'medium', shape = 'default', block = false, label } = defineProps<{
+const { variant = 'primary', size = 'medium', shape = 'default', block = false, label, to } = defineProps<{
   variant?: ButtonVariant
   size?: ButtonSize
   shape?: ButtonShape
   block?: boolean
+  /**
+   * 給了它，這顆按鈕就是一條連結——長相一模一樣，但它去得了別的地方。
+   *
+   * 它在這裡而不是另外開一個 LinkButton，因為「按鈕」在這個操作台上只有一個元件，
+   * 而兩個長得一樣的東西遲早會有一個忘記跟著改。
+   *
+   * 不給按的時候**不要用它**：一個帶著 disabled 的連結照樣點得進去，
+   * 而點得進去就等於那條規則只是畫上去的。那種情況用一般的按鈕加 disabled。
+   */
+  to?: string
   /**
    * 只放圖示、沒有文字時，這顆按鈕叫什麼。
    *
@@ -38,7 +53,8 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
 </script>
 
 <template>
-  <button
+  <component
+    :is="to === undefined ? 'button' : NuxtLink"
     class="app-button"
     :class="[
       `app-button--${variant}`,
@@ -46,12 +62,13 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
       `app-button--${shape}`,
       { 'app-button--block': block, 'app-button--labelled': label !== undefined },
     ]"
-    type="button"
+    :type="to === undefined ? 'button' : undefined"
+    :to="to"
     :aria-label="label"
     :title="label"
   >
     <slot />
-  </button>
+  </component>
 </template>
 
 <style scoped lang="scss">
@@ -68,6 +85,9 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   line-height: line-height('tight');
   font-weight: font-weight('medium');
   white-space: nowrap;
+
+  // 當成連結用時，底線與瀏覽器的預設顏色會讓它不再像一顆按鈕。
+  text-decoration: none;
 
   @include focus-ring;
 
