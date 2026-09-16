@@ -1,4 +1,5 @@
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
+import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 
 /**
@@ -35,4 +36,12 @@ export interface IStrategyBotProxy {
 
   /** 停下來。 */
   stopStrategyBot(id: number): Promise<StrategyBot>
+
+  /**
+   * 這台機器人跑過哪幾輪，最新的排前面。
+   *
+   * 它自己一條路而不是跟著機器人一起回來，因為兩者是在不同時刻、以不同的量讀的：
+   * 機器人清單是打開來看「哪一台該管」，歷史是打開來看「其中那一台」。
+   */
+  listRunRecords(id: number): Promise<StrategyBotRunRecord[]>
 }

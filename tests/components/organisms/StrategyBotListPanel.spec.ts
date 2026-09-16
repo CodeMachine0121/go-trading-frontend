@@ -38,6 +38,7 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
 function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
+    listRunRecords: vi.fn().mockResolvedValue([]),
     getStrategyBot: vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())),
     saveStrategyBot: vi.fn(),
     deleteStrategyBot: vi.fn().mockResolvedValue(undefined),
@@ -54,6 +55,7 @@ function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
     props: {
       strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
       strategyApplication: strategyApplication as unknown as StrategyApplication,
+      timeZoneIdentifier: 'Asia/Taipei',
     },
     global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
   })
@@ -193,5 +195,40 @@ describe('StrategyBotListPanel 的三顆按鈕', () => {
 
     expect(deleteStrategyBot).not.toHaveBeenCalled()
     expect(wrapper.findAll('[data-testid="bot-row"]')).toHaveLength(1)
+  })
+})
+
+describe('StrategyBotListPanel 的執行紀錄', () => {
+  it('一開始不展開，按一下才出現', async () => {
+    const listRunRecords = vi.fn().mockResolvedValue([])
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+      listRunRecords,
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="run-history-empty"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(listRunRecords).toHaveBeenCalledWith(1)
+    expect(wrapper.find('[data-testid="run-history-empty"]').exists()).toBe(true)
+  })
+
+  it('那顆鍵說得出按下去會發生什麼', async () => {
+    // 一個只打得開、關不掉的區塊，會讓人以為那是頁面的一部分而不是他按出來的。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+    })
+    await flushPromises()
+
+    const toggle = wrapper.get('[data-testid="bot-history-toggle"]')
+    expect(toggle.text()).toContain('執行紀錄')
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-history-toggle"]').text()).toContain('收起紀錄')
   })
 })

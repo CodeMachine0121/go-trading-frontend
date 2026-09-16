@@ -1,6 +1,7 @@
 import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
 import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import {
   StrategyBot,
   StrategyBotCondition,
@@ -35,6 +36,13 @@ const DELIVERY_NOT_CONFIGURED_HINT = 'Telegram 設定'
 
 /** 後端說「這台正在執行中」時，訊息裡一定有的那幾個字。 */
 const BOT_RUNNING_HINT = '執行中'
+
+/** 後端回來的一輪。時間是字串，在這裡就收成一個瞬間，不讓 wire 格式進 domain。 */
+type StrategyBotRunRecordWire = {
+  runNumber: number
+  ranAt: string
+  result: string
+}
 
 /** 後端回來的一個信號來源。**它沒有 script**——那不是漏了，是那一欄不存在。 */
 type StrategyBotSignalSourceWire = {
@@ -116,6 +124,22 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
 
   async stopStrategyBot(id: number): Promise<StrategyBot> {
     return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/run`, 'DELETE')
+  }
+
+  async listRunRecords(id: number): Promise<StrategyBotRunRecord[]> {
+    try {
+      const runRecordsWire = await this.requestBackend<StrategyBotRunRecordWire[]>(
+        `${STRATEGY_BOTS_ENDPOINT}/${id}/runs`)
+
+      return (runRecordsWire ?? []).map(runRecordWire => new StrategyBotRunRecord(
+        runRecordWire.runNumber,
+        new Date(runRecordWire.ranAt),
+        runRecordWire.result,
+      ))
+    }
+    catch (error: unknown) {
+      throw this.strategyBotFailureOf(error)
+    }
   }
 
   /**

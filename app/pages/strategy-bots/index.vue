@@ -46,6 +46,7 @@ const { currentUser, signOut } = useUserSession()
     <StrategyBotListPanel
       :strategy-bot-application="$strategyBotApplication"
       :strategy-application="$strategyApplication"
+      :time-zone-identifier="selectedTimeZone.identifier"
     />
   </ConsoleLayout>
 </template>

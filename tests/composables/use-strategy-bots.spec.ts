@@ -13,6 +13,7 @@ const strategyBotApplication = {
   deleteStrategyBot: vi.fn(),
   startStrategyBot: vi.fn(),
   stopStrategyBot: vi.fn(),
+  listRunRecords: vi.fn(),
 }
 
 const strategyApplication = { listAvailableStrategies: vi.fn() }
@@ -265,5 +266,61 @@ describe('useStrategyBots 的表單', () => {
     bots.openCreateForm()
     expect(bots.editing.value).toBeNull()
     expect(bots.formOpen.value).toBe(true)
+  })
+})
+
+describe('useStrategyBots 的執行紀錄', () => {
+  it('展開時才去撈，收起來再按一次', async () => {
+    // 一份清單裡十台各自先撈一次，等於為了一個多數時候沒人展開的區塊打十次後端。
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+
+    const bots = botsUnderTest()
+    expect(strategyBotApplication.listRunRecords).not.toHaveBeenCalled()
+
+    await bots.toggleRunHistory(3)
+    expect(bots.expandedBotId.value).toBe(3)
+    expect(strategyBotApplication.listRunRecords).toHaveBeenCalledWith(3)
+
+    await bots.toggleRunHistory(3)
+    expect(bots.expandedBotId.value).toBeNull()
+  })
+
+  it('一次只展開一台', async () => {
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+
+    const bots = botsUnderTest()
+    await bots.toggleRunHistory(3)
+    await bots.toggleRunHistory(4)
+
+    expect(bots.expandedBotId.value).toBe(4)
+  })
+
+  it('讀不到時說出原因', async () => {
+    strategyBotApplication.listRunRecords.mockRejectedValue(new Error('後端連不上'))
+
+    const bots = botsUnderTest()
+    await bots.toggleRunHistory(3)
+
+    expect(bots.runRecordsFailureMessage.value).toBe('後端連不上')
+    expect(bots.runRecords.value).toEqual([])
+  })
+
+  it('回來得太慢的那一份不會掛到別台底下', async () => {
+    // 使用者在等待期間收起來、或改展開了別台。那一份屬於另一台機器人的歷史
+    // 掛上去的話，他讀到的是一份張冠李戴的紀錄——而畫面上看不出來。
+    let releaseFirst: (records: unknown[]) => void = () => {}
+    strategyBotApplication.listRunRecords
+      .mockImplementationOnce(() => new Promise((resolve) => { releaseFirst = resolve }))
+      .mockResolvedValueOnce([])
+
+    const bots = botsUnderTest()
+    const firstToggle = bots.toggleRunHistory(3)
+    await bots.toggleRunHistory(4)
+
+    releaseFirst([{ runNumber: 1, ranAt: new Date(), resultLabel: '買入', resultTone: 'success' }])
+    await firstToggle
+
+    expect(bots.expandedBotId.value).toBe(4)
+    expect(bots.runRecords.value).toEqual([])
   })
 })

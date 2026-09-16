@@ -5,6 +5,8 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import StrategyBotFormDialog from '~/components/organisms/StrategyBotFormDialog.vue'
 import StrategyBotStatusBadge from '~/components/molecules/StrategyBotStatusBadge.vue'
+import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
@@ -13,9 +15,11 @@ import { useStrategyBots } from '~/composables/use-strategy-bots'
 //
 // 它是使用者**唯一**會發現機器人出事的地方：四種停擺原因裡有兩種正好是
 // 「通知他的那條路壞了」，所以沒有任何一條主動通知的路走得通。
-const { strategyBotApplication, strategyApplication } = defineProps<{
+const { strategyBotApplication, strategyApplication, timeZoneIdentifier } = defineProps<{
   strategyBotApplication: StrategyBotApplication
   strategyApplication: StrategyApplication
+  /** 歷史裡那些時間用哪一個時區說。整個操作台只有一個，所以由上面傳下來。 */
+  timeZoneIdentifier: string
 }>()
 
 const bots = useStrategyBots(strategyBotApplication, strategyApplication)
@@ -118,25 +122,43 @@ onMounted(() => {
         </span>
 
         <div class="strategy-bot-list__actions">
-          <!-- 播放與停止是同一個位置的兩種樣子：一台機器人只有兩種狀態。 -->
+          <!--
+            電源鍵，不是播放鍵。播放說的是「跑一次這個東西」；一台常駐機器人是
+            開著或關著，而那是兩張完全不同的心智圖。同一個位置的兩種樣子，
+            因為一台機器人只有兩種狀態。
+          -->
           <AppButton
             v-if="strategyBot.runState.canStart"
             type="button"
+            variant="secondary"
             :disabled="bots.busyId.value === strategyBot.id"
+            title="啟動這台機器人"
             data-testid="bot-start"
             @click="bots.start(strategyBot.id)"
           >
-            播放
+            <AppIcon name="power" />
+            啟動
           </AppButton>
           <AppButton
             v-else
             type="button"
-            variant="secondary"
             :disabled="bots.busyId.value === strategyBot.id"
+            title="停止這台機器人"
             data-testid="bot-stop"
             @click="bots.stop(strategyBot.id)"
           >
+            <AppIcon name="power" />
             停止
+          </AppButton>
+
+          <AppButton
+            type="button"
+            variant="ghost"
+            :aria-expanded="bots.expandedBotId.value === strategyBot.id"
+            data-testid="bot-history-toggle"
+            @click="bots.toggleRunHistory(strategyBot.id)"
+          >
+            {{ bots.expandedBotId.value === strategyBot.id ? '收起紀錄' : '執行紀錄' }}
           </AppButton>
 
           <!-- 執行中不給按，並說得出為什麼——按了才被拒絕是把看得出來的事留到送出才講。 -->
@@ -160,6 +182,15 @@ onMounted(() => {
             刪除
           </AppButton>
         </div>
+
+        <StrategyBotRunHistory
+          v-if="bots.expandedBotId.value === strategyBot.id"
+          class="strategy-bot-list__history"
+          :run-records="bots.runRecords.value"
+          :loading="bots.runRecordsLoading.value"
+          :failure-message="bots.runRecordsFailureMessage.value"
+          :time-zone-identifier="timeZoneIdentifier"
+        />
       </li>
     </ul>
 
@@ -238,6 +269,11 @@ onMounted(() => {
     display: flex;
     gap: spacing('2xs');
     margin-left: auto;
+  }
+
+  // 展開的紀錄橫跨整列，所以那一列要能換行讓它自己佔一行。
+  &__history {
+    flex-basis: 100%;
   }
 }
 </style>

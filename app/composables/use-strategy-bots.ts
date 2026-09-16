@@ -1,6 +1,7 @@
 import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
@@ -40,6 +41,17 @@ export function useStrategyBots(
    * 才解得掉**的拒絕——認得出它，那句話才帶得出一條到帳號設定的路。
    */
   const deliveryNotConfigured = ref(false)
+
+  /**
+   * 哪一台的歷史正展開著，以及它的內容。
+   *
+   * 一次只展開一台：十台同時展開的清單，沒有一台看得清楚；而且歷史是**展開時才去撈**
+   * ——一份清單裡十台各自先撈一次，等於為了一個多數時候沒人展開的區塊打十次後端。
+   */
+  const expandedBotId = ref<number | null>(null)
+  const runRecords = ref<StrategyBotRunRecordDto[]>([])
+  const runRecordsLoading = ref(false)
+  const runRecordsFailureMessage = ref('')
 
   const formOpen = ref(false)
   const editing = ref<StrategyBotDto | null>(null)
@@ -94,6 +106,45 @@ export function useStrategyBots(
     }
     finally {
       loading.value = false
+    }
+  }
+
+  /**
+   * 展開或收起一台的歷史。
+   *
+   * 再按一次收起來，因為那顆鍵說的是「這一台的紀錄，看或不看」——
+   * 一個只打得開、關不掉的區塊，會讓人以為那是頁面的一部分而不是他按出來的。
+   */
+  async function toggleRunHistory(strategyBotId: number) {
+    if (expandedBotId.value === strategyBotId) {
+      expandedBotId.value = null
+
+      return
+    }
+
+    expandedBotId.value = strategyBotId
+    runRecords.value = []
+    runRecordsFailureMessage.value = ''
+    runRecordsLoading.value = true
+
+    try {
+      const loaded = await strategyBotApplication.listRunRecords(strategyBotId)
+
+      // 這一趟回來之前，使用者可能已經收起來或改展開了別台。把它丟掉，
+      // 否則他會看到一份屬於別台機器人的歷史掛在這一台底下。
+      if (expandedBotId.value === strategyBotId) {
+        runRecords.value = loaded
+      }
+    }
+    catch (error: unknown) {
+      if (expandedBotId.value === strategyBotId) {
+        runRecordsFailureMessage.value = messageOf(error)
+      }
+    }
+    finally {
+      if (expandedBotId.value === strategyBotId) {
+        runRecordsLoading.value = false
+      }
     }
   }
 
@@ -226,6 +277,11 @@ export function useStrategyBots(
     failureMessage,
     formFailureMessage,
     deliveryNotConfigured,
+    expandedBotId,
+    runRecords,
+    runRecordsLoading,
+    runRecordsFailureMessage,
+    toggleRunHistory,
     formOpen,
     editing,
     deleting,

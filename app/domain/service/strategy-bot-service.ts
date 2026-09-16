@@ -1,6 +1,7 @@
 import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-error'
 
@@ -60,5 +61,12 @@ export class StrategyBotService {
     const stopped = await this.strategyBotProxy.stopStrategyBot(id)
 
     return stopped.toDomain().toDto()
+  }
+
+  /** 這台機器人跑過哪幾輪。一輪都沒跑過是答案，不是錯誤。 */
+  async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
+    const runRecords = await this.strategyBotProxy.listRunRecords(id)
+
+    return runRecords.map(runRecord => runRecord.toDomain().toDto())
   }
 }

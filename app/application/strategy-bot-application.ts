@@ -1,5 +1,6 @@
 import type { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 
 /** Application：策略機器人的用例編排，全程只碰 DTO。 */
@@ -28,5 +29,9 @@ export class StrategyBotApplication {
 
   async stopStrategyBot(id: number): Promise<StrategyBotDto> {
     return this.strategyBotService.stopStrategyBot(id)
+  }
+
+  async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
+    return this.strategyBotService.listRunRecords(id)
   }
 }
