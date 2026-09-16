@@ -158,8 +158,6 @@ function onSave() {
     -->
     <StrategyBotBlockDock
       :drawer="form.blockDrawer.value"
-      :drag-active="form.dragging.value !== null"
-      :hole-selected="form.selectedHole.value !== null"
       @pick="option => form.conditionSides.find(
         side => side.key === form.selectedHole.value?.side)?.fill(
         form.selectedHole.value!.hole, option.block)"

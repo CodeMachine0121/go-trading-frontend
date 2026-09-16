@@ -321,35 +321,40 @@ describe('StrategyBotWorkbench 把一塊丟掉的兩條路', () => {
 })
 
 describe('StrategyBotWorkbench 的積木抽屜什麼時候在', () => {
-  it('點一個空位就把抽屜叫出來，放完一塊它就收回去', async () => {
-    // 從頭走一遍的那一條：抽屜是由「選著一個空位」撐開的，
-    // 而放進一塊之後那個空位就不是空的了。
+  it('人在上面才開著，離開就收——沒有任何一種把它撐住的狀態', async () => {
     const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="block-dock-panel"]').classes())
-      .not.toContain('block-dock--open')
+    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
 
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
+    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
     expect(wrapper.find('.block-dock--open').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
+    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+  })
+
+  it('選著一個空位也撐不住它——那正是先前收不回去的原因', async () => {
+    const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
+
+    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
+    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
+    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
 
     expect(wrapper.find('.block-dock--open').exists()).toBe(false)
   })
 
-  it('點了空位又改變主意，再點一次它就收回去', async () => {
-    // 沒有這條路的話，他就困在一個永遠開著的抽屜旁邊。
+  it('選著一個空位時點一塊，那一塊就進到那個空位裡', async () => {
+    // 抽屜關不關是一回事，挑出來的那一塊要落到他剛剛指的地方是另一回事。
     const wrapper = mountWorkbench(anUnbuiltBot())
     await flushPromises()
 
-    const hole = wrapper.findAll('[data-testid="condition-hole"]')[0]!
-    await hole.trigger('click')
-    expect(wrapper.find('.block-dock--open').exists()).toBe(true)
-
     await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
+    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await flushPromises()
 
-    expect(wrapper.find('.block-dock--open').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(1)
   })
 })

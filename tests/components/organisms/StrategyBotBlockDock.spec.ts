@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import StrategyBotBlockDock from '~/components/organisms/StrategyBotBlockDock.vue'
 import { ConditionBlockDrawerDto } from '~/domain/models/dto/condition-block-drawer-dto'
 import { ConditionBlockOptionDto } from '~/domain/models/dto/condition-block-option-dto'
@@ -15,26 +15,21 @@ function aDrawer() {
   )
 }
 
-function mountDock(overrides: { dragActive?: boolean, holeSelected?: boolean } = {}) {
-  return mount(StrategyBotBlockDock, {
-    props: {
-      drawer: aDrawer(),
-      dragActive: overrides.dragActive ?? false,
-      holeSelected: overrides.holeSelected ?? false,
-    },
-  })
+function mountDock() {
+  return mount(StrategyBotBlockDock, { props: { drawer: aDrawer() } })
 }
 
 function isOpen(wrapper: ReturnType<typeof mountDock>) {
-  return wrapper.get('[data-testid="block-dock-panel"]').classes()
-    .some(className => className.endsWith('block-dock__panel'))
-    && wrapper.classes().includes('block-dock--open')
+  return wrapper.classes().includes('block-dock--open')
 }
 
-describe('StrategyBotBlockDock 什麼時候出來', () => {
+// 這個抽屜只有一條規則：**人在上面就開著，離開就收起來。**
+//
+// 它一路試出來的：每多一個撐開它的理由（釘住、選著一個空位、正在拖），
+// 就多一個「那個理由消失時誰負責放手」的問題，而漏掉任何一個，
+// 使用者看到的就是一個收不回去的抽屜。所以這裡每一條問的都是同一件事。
+describe('StrategyBotBlockDock', () => {
   it('一開始收著——它貼在畫面邊緣，不是版面的一部分', () => {
-    // 待在版面裡的話它會被樹推走：條件愈拼愈長，它就愈往下掉，
-    // 偏偏它是每一步都要用到的東西。
     expect(isOpen(mountDock())).toBe(false)
   })
 
@@ -46,7 +41,23 @@ describe('StrategyBotBlockDock 什麼時候出來', () => {
     expect(isOpen(wrapper)).toBe(true)
   })
 
-  it('滑鼠移開就自己收回去', async () => {
+  it('滑鼠碰到把手也出來', async () => {
+    const wrapper = mountDock()
+
+    await wrapper.get('[data-testid="block-dock-handle"]').trigger('mouseenter')
+
+    expect(isOpen(wrapper)).toBe(true)
+  })
+
+  it('用鍵盤走到把手上也出來——他們沒有滑鼠可以滑過去', async () => {
+    const wrapper = mountDock()
+
+    await wrapper.get('[data-testid="block-dock-handle"]').trigger('focus')
+
+    expect(isOpen(wrapper)).toBe(true)
+  })
+
+  it('滑鼠離開就收回去', async () => {
     const wrapper = mountDock()
 
     await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
@@ -55,101 +66,63 @@ describe('StrategyBotBlockDock 什麼時候出來', () => {
     expect(isOpen(wrapper)).toBe(false)
   })
 
-  it('按了把手就留著，滑鼠移開也不收', async () => {
+  it('按了把手也不會留著——這裡沒有任何一種釘住', async () => {
+    // 留得住的話，就又回到「誰負責把它收起來」那個問題。
     const wrapper = mountDock()
 
-    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
-    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
-
-    expect(isOpen(wrapper)).toBe(true)
-  })
-
-  it('再按一次把手就放它走', async () => {
-    const wrapper = mountDock()
-
-    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
+    await wrapper.get('[data-testid="block-dock-handle"]').trigger('mouseenter')
     await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
     await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
 
     expect(isOpen(wrapper)).toBe(false)
   })
 
-  it('拖到一半一定開著——手上還抓著東西時把它收走最難解釋', async () => {
-    // 抽屜靠滑過去打開的話，使用者從裡面拖一塊出來的那一瞬間滑鼠就離開了它。
-    const wrapper = mountDock({ dragActive: true })
-
-    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
-
-    expect(isOpen(wrapper)).toBe(true)
-  })
-
-  it('選著一個空位時也一定開著——那一刻他要的就是有什麼可以放進去', async () => {
-    // 他剛剛點的那個空位可能在畫面的另一頭，離右緣很遠。
-    const wrapper = mountDock({ holeSelected: true })
-
-    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
-
-    expect(isOpen(wrapper)).toBe(true)
-  })
-
-  it('從抽屜裡拖一塊出去，拖完它自己收回去', async () => {
-    // **拖曳期間瀏覽器不發 mouseleave**，所以抽屜收不到任何「你離開了」的消息，
-    // 會一直以為滑鼠還在自己身上——拖完就那樣開著，直到使用者特地滑進去再滑出來。
+  it('點一塊放進去之後，滑鼠一離開它就收', async () => {
     const wrapper = mountDock()
 
     await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseenter')
-    await wrapper.setProps({ dragActive: true })
-    expect(isOpen(wrapper)).toBe(true)
-
-    await wrapper.setProps({ dragActive: false })
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseleave')
 
     expect(isOpen(wrapper)).toBe(false)
   })
 
-  it('釘住的話，拖完照樣留著——那是使用者自己按的', async () => {
+  it('開始拖一塊就收起來——瀏覽器不會告訴它滑鼠已經走了', async () => {
+    // 拖曳期間 mouseleave 不發，所以抽屜自己看不到使用者把積木帶走。
+    // 收起來也更好：手上抓著積木時要看的是**要放到哪裡**，不是抽屜裡還有什麼。
     const wrapper = mountDock()
 
-    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
-    await wrapper.setProps({ dragActive: true })
-    await wrapper.setProps({ dragActive: false })
-
-    expect(isOpen(wrapper)).toBe(true)
-  })
-
-  it('放完一塊就收回去——點按那條路也一樣', async () => {
-    // 撐開它的是「選著一個空位」。放進一塊之後那個空位就不是空的了，
-    // 而抽屜還開著的話，使用者看到的是一個放完東西還賴著不走的抽屜。
-    const wrapper = mountDock({ holeSelected: true })
-
     await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseenter')
-    await wrapper.setProps({ holeSelected: false })
+    expect(isOpen(wrapper)).toBe(true)
+
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', {
+      dataTransfer: { setData: vi.fn() } as unknown as DataTransfer,
+    })
 
     expect(isOpen(wrapper)).toBe(false)
   })
 
-  it('釘住的話放完照樣留著——想連著放好幾塊的人按的就是它', async () => {
-    const wrapper = mountDock({ holeSelected: true })
+  it('把手說得出現在是開還是關，給看不到畫面的人', async () => {
+    const wrapper = mountDock()
 
-    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
-    await wrapper.setProps({ holeSelected: false })
+    expect(wrapper.get('[data-testid="block-dock-handle"]').attributes('aria-expanded'))
+      .toBe('false')
 
-    expect(isOpen(wrapper)).toBe(true)
-  })
-
-  it('把手說得出現在是開還是關，給看不到畫面的人', () => {
-    const wrapper = mountDock({ holeSelected: true })
+    await wrapper.get('[data-testid="block-dock-edge"]').trigger('mouseenter')
 
     expect(wrapper.get('[data-testid="block-dock-handle"]').attributes('aria-expanded'))
       .toBe('true')
   })
-})
 
-describe('StrategyBotBlockDock 把抽屜的事往上傳', () => {
-  it('點一塊就往上傳，不自己處理', () => {
-    const wrapper = mountDock({ holeSelected: true })
+  it('點一塊與拖一塊都往上傳，它自己不處理', async () => {
+    const wrapper = mountDock()
 
-    wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
+    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', {
+      dataTransfer: { setData: vi.fn() } as unknown as DataTransfer,
+    })
 
     expect(wrapper.emitted('pick')).toBeTruthy()
+    expect(wrapper.emitted('dragStart')).toBeTruthy()
   })
 })

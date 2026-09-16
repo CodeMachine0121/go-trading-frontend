@@ -36,7 +36,7 @@ const hint = computed(() => {
     return '這一塊放不進這裡'
   }
 
-  return tone.value === 'selected' ? '從下面的抽屜挑一塊' : '放一塊進來'
+  return tone.value === 'selected' ? '從右邊的抽屜挑一塊' : '放一塊進來'
 })
 </script>
 
