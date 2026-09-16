@@ -50,6 +50,7 @@ beforeEach(() => {
   useState<string | null>('user-session-error', () => null).value = null
   useState<CredentialsFieldErrorsDto | null>('user-session-field-errors', () => null).value = null
   useState<string | null>('user-session-redirect-to', () => null).value = null
+  useState<string | null>('user-session-sign-in-notice', () => null).value = null
 })
 
 describe('useUserSession：確認「現在是誰在用」只做一次', () => {
@@ -392,5 +393,20 @@ describe('useUserSession：把過期的那一段救回來', () => {
 
     expect(recovered).toBe(false)
     expect(currentUser.value).toBeNull()
+  })
+})
+
+describe('useUserSession：帶去登入畫面的那一句話', () => {
+  it('說了之後由登入畫面取走，而且只說一次', () => {
+    // 留著的話，下一次因為別的原因回到登入畫面時，它會再說一次一件早就過去的事。
+    useState<string | null>('user-session-sign-in-notice').value = '密碼已更換，請用新密碼重新登入。'
+    const { takeSignInNotice } = sessionUnderTest()
+
+    expect(takeSignInNotice()).toBe('密碼已更換，請用新密碼重新登入。')
+    expect(takeSignInNotice()).toBeNull()
+  })
+
+  it('沒有人留話時就沒有話', () => {
+    expect(sessionUnderTest().takeSignInNotice()).toBeNull()
   })
 })

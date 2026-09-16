@@ -62,6 +62,13 @@ export function useUserSession(
     'user-session-field-errors', () => null)
   const redirectTo = useState<string | null>('user-session-redirect-to', () => null)
   const signingOut = useState('user-session-signing-out', () => false)
+  /**
+   * 登入畫面上要多說的那一句話，例如「密碼已更換」。
+   *
+   * 它是跨畫面共用的狀態，因為說這句話的地方（設定畫面）與顯示它的地方（登入畫面）
+   * 是兩個畫面，中間隔著一次換頁。
+   */
+  const signInNotice = useState<string | null>('user-session-sign-in-notice', () => null)
 
   /**
    * 確認這台瀏覽器記著的憑證認不認得出人來，**一個分頁只做一次**。
@@ -214,6 +221,38 @@ export function useUserSession(
   }
 
   /**
+   * 密碼換好了：把這台記著的那一份丟掉，帶著一句話回到登入畫面。
+   *
+   * 它**不走 signOut**，儘管兩者看起來很像。signOut 會跑一趟後端去撤掉這台裝置的
+   * 登入階段，而換密碼時後端已經把這個人**每一台**都撤掉了——那一趟必定白跑，
+   * 而且它送的是一份已經不算數的續用憑證。要忘掉的那一半則照樣要做，所以它走的是
+   * forgetSession：忘記，但不敲那扇已經鎖上的門。
+   *
+   * 那句話跟著人一起走。只留在設定畫面上，導走之後他就看不到了；只放在登入畫面上，
+   * 中間那一瞬間看起來像被踢出去。所以兩邊都說，由這裡把它交過去。
+   */
+  async function signOutAfterPasswordChange(): Promise<void> {
+    signInNotice.value = '密碼已更換，請用新密碼重新登入。'
+    // 記著的那一對也要忘掉，不只是清掉畫面上的狀態。留著的話，下一次換頁時把關會
+    // 拿兩份已經不算數的憑證去敲兩次門才放棄——而那段時間畫面說不清楚自己是誰。
+    userSessionApplication.forgetSession()
+    currentUser.value = null
+    redirectTo.value = null
+    restoration.value = null
+    clearSubmissionFeedback()
+
+    await navigateTo(LOGIN_PATH)
+  }
+
+  /** 取出並用掉登入畫面上那一句話。用掉之後就忘記，否則它會一直掛在那裡。 */
+  function takeSignInNotice(): string | null {
+    const notice = signInNotice.value
+    signInNotice.value = null
+
+    return notice
+  }
+
+  /**
    * 一發請求被回「沒有帶著有效的身分」時，先試著把這一段救回來。救回來了回 `true`，
    * 呼叫端就重發那一發；回 `false` 代表真的得重新登入了。
    *
@@ -242,6 +281,8 @@ export function useUserSession(
     clearSubmissionFeedback,
     signOut,
     signOutBecauseSessionExpired,
+    signOutAfterPasswordChange,
+    takeSignInNotice,
     recoverExpiredSession,
   }
 }

@@ -114,6 +114,20 @@ export class UserSessionService {
    * 做不到的只是「立刻讓後端也忘記」，而使用者能做的只有稍後再登出一次，
    * 那不值得攔住他，更不值得讓他停在一個他已經決定要離開的畫面上。
    */
+  /**
+   * 只把這台裝置記著的那一對忘掉，**不跑一趟後端**。
+   *
+   * 它與 signOut 的差別只有那一趟，而那一趟正是重點：換密碼時後端已經把這個人
+   * **每一段**登入階段都撤掉了，再送一次撤銷是拿一份已經不算數的續用憑證去敲門。
+   *
+   * 不忘掉的話，記著的那一對會留在瀏覽器裡：下一次換頁時把關會拿它去問「我是誰」，
+   * 得到 401，再拿同樣不算數的續用憑證去換一次，然後才放棄。
+   * 它最後會自己好，但中間白跑兩趟，而且那段時間畫面說不清楚自己是登入還是沒登入。
+   */
+  forgetSession(): void {
+    this.sessionStorageProxy.clearSession()
+  }
+
   async signOut(): Promise<void> {
     const storedSession = this.sessionStorageProxy.readSession()
 

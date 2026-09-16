@@ -62,6 +62,8 @@ function buildFixture(overrides: {
     renewSession: overrides.renewSession ?? vi.fn().mockResolvedValue(RENEWED_SESSION),
     revokeSession: overrides.revokeSession ?? vi.fn().mockResolvedValue(undefined),
     fetchSignedInUser: overrides.fetchSignedInUser ?? vi.fn().mockResolvedValue(SIGNED_IN_USER),
+    // 換密碼不經過這一段編排，但介面上有它，所以替身得說得出這個字。
+    changePassword: vi.fn().mockResolvedValue(undefined),
   }
   const sessionStorageProxy = {
     readSession: overrides.readSession ?? vi.fn().mockReturnValue(null),

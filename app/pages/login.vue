@@ -11,12 +11,22 @@ const {
   fieldErrors,
   submitCredentials,
   clearSubmissionFeedback,
+  takeSignInNotice,
 } = useUserSession()
+
+/**
+ * 上一個畫面留下的一句話，例如「密碼已更換」。
+ *
+ * 它在這裡就被取走並用掉——留著的話，下一次因為別的原因回到登入畫面時，
+ * 它會再說一次一件早就過去的事。
+ */
+const notice = ref(takeSignInNotice())
 </script>
 
 <template>
   <main class="login-page">
     <SignInPanel
+      :notice="notice"
       :pending="pending"
       :error-message="errorMessage"
       :email-error="fieldErrors?.email ?? null"

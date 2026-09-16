@@ -5,13 +5,13 @@
 // 需要新的長相時，是在這裡新增一個 variant（並在 token 內補色），不是新增一個元件。
 // 詳見 .claude/rules/component-design.md。
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost'
 type ButtonSize = 'small' | 'medium' | 'large'
 
 /**
  * 這顆按鈕的外形。
  *
- * `default` 是這個操作台的角——收得很緊，因為它是一台儀器。
+ * `default` 是這個操作台的角——圓得剛好看得出是圓的，不多。
  * `pill` 與 `circle` 是給**對話介面**用的：一句可以點的建議提問是一枚籌碼、
  * 一顆浮在畫面上叫出助手的鍵是一個圓，那兩個東西方方正正會很硬。
  *
@@ -152,6 +152,21 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   &--danger {
     background-color: color('danger');
     color: color('text-inverse');
+
+    &:hover:not(:disabled) {
+      background-color: color('danger-soft');
+      color: color('danger');
+    }
+  }
+
+  // 會弄丟東西、但不是這個畫面主角的動作。
+  //
+  // 實心紅是給「這一頁就是為了刪掉它而存在」的地方用的；擺在一個主要動作旁邊，
+  // 兩顆一樣搶眼，眼睛第一個看到的反而是那顆會弄丟東西的。這一種安靜地待著，
+  // 只在滑過去時才紅起來——夠讓人在按之前知道自己在碰什麼。
+  &--danger-ghost {
+    background-color: transparent;
+    color: color('text-muted');
 
     &:hover:not(:disabled) {
       background-color: color('danger-soft');
