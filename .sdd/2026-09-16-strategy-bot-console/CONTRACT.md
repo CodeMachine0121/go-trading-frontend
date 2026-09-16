@@ -45,6 +45,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | AC-18 | 填完三段就存得起來，狀態是已停止 | 出現在清單上、已停止 | `StrategyBotFormDialog` ＋ `saveStrategyBot` | application「不帶識別碼是新增」＋ composable「存成功就關起來並重讀」 | ✅ |
 | AC-19 | 信號來源只挑得到自己的可用策略 | 選單裡只有可用策略 | `use-strategy-bots.ts` `strategyOptions` 只來自 `listAvailableStrategies` | composable「機器人與可挑的策略是同一次載入的兩半」 | ✅ |
+| AC-19b | 只挑得到會吐訊號的那幾支 | 選單裡只有訊號種類的 | `use-strategy-bots.ts` 兩邊各自 `filter` 到 `signal` | composable「只挑得到會吐訊號的那幾支策略」（拿掉篩選即轉紅，已驗） | ✅ |
 | AC-20 | 同一支策略加兩次，只要代號不同 | 存成功，兩個各自說話 | `nextLabel()` 自動給下一個沒人用的代號 | form composable「新加的來源自動拿到一個沒人用的代號」 | ✅ |
 | AC-21 | 信號來源數量有上限 | 加不了，並說出 10 | `canAddSignalSource` → 新增鍵消失 | form composable「到了上限就加不動」 | ✅ |
 
@@ -85,7 +86,7 @@
 | BR-07 | 一次操作之後清單反映新狀態 | 不必自己重新整理 | `runOnBot` 一律重讀 | composable「播放之後重讀清單，而不是就地改那一列」 | ✅ |
 | BR-08 | 打開編輯時那台已被刪掉 → 說找不到，回清單 | 同 AC-35 | 同 AC-35 | 同 AC-35 | 🟡 |
 | BR-09 | 儲存被拒絕時表單內容留著 | 內容還在 | `formFailureMessage` 不動任何欄位 | composable「被拒絕時表單留著」 | ✅ |
-| BR-10 | 可用策略是空的時候說得出要先有一支 | 不是給一個空的下拉選單 | `StrategyBotSignalSourceFields` 的 `signal-sources-no-strategies`：一支都挑不到時**新增鍵換成那一句話** | SignalSourceFields「說出真正的下一步而不是給一顆通往空選單的按鈕」 | ✅ |
+| BR-10 | 一支會吐信號的都沒有時說得出要先寫一支 | 不是給一個空的下拉選單 | `StrategyBotSignalSourceFields` 的 `signal-sources-no-strategies`：一支都挑不到時**新增鍵換成那一句話** | SignalSourceFields「說出真正的下一步而不是給一顆通往空選單的按鈕」 | ✅ |
 | BR-11 | 刪掉一個還被條件用著的來源要被擋住並說出是哪裡在用 | 刪不掉，且說出代號 | `signalSourceRemovalBlockedReasons` | form composable「還被條件用著的來源刪不掉」 | ✅ |
 
 ### Section 6 — Non-Functional Requirements
@@ -121,9 +122,9 @@
 
 ```
 Contract verification complete for "策略機器人操作台".
-Oracle: PRD Acceptance Criteria — 50 clauses (35 AC · 11 BR · 4 NFR).
+Oracle: PRD Acceptance Criteria — 51 clauses (36 AC · 11 BR · 4 NFR).
 
-✅ 47 conforms · 🔴 0 violations · 🟠 0 mis-asserted · 🟡 3 partial · ❌ 0 gaps · ⚠️ 0 orphans
+✅ 48 conforms · 🔴 0 violations · 🟠 0 mis-asserted · 🟡 3 partial · ❌ 0 gaps · ⚠️ 0 orphans
 Conformance: 94%
 ```
 
