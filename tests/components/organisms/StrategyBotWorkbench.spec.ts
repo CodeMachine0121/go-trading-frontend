@@ -15,144 +15,160 @@ function stoppedState() {
     false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
 }
 
-function comparison(nodeId: string, sourceLabel: string, signal = 'buy') {
+function comparison(nodeId: string, sourceLabel: string, signal: string) {
   return new StrategyBotConditionDto(nodeId, null, [], sourceLabel, signal)
 }
 
-function group(nodeId: string, ...children: StrategyBotConditionDto[]) {
-  return new StrategyBotConditionDto(nodeId, 'and', children, '', '')
+function group(operator: 'and' | 'or', ...children: StrategyBotConditionDto[]) {
+  return new StrategyBotConditionDto(`g-${operator}`, operator, children, '', '')
 }
 
-function aStoredBot(
-  buyCondition: StrategyBotConditionDto | null = comparison('buy-1', 'A'),
-  sellCondition: StrategyBotConditionDto | null = comparison('sell-1', 'A', 'sell'),
+function aBot(
+  buyCondition: StrategyBotConditionDto | null = comparison('b', 'MACD', 'buy'),
+  sellCondition: StrategyBotConditionDto | null = comparison('s', 'MACD', 'sell'),
+  sources = [new StrategyBotSignalSourceDto('MACD', 9, '5m', [])],
 ) {
   return new StrategyBotDto(
-    7, '早盤突破', 'BTCUSDT', 5,
-    [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
-    buyCondition, sellCondition, stoppedState(),
-  )
+    7, '早盤突破', 'BTCUSDT', 5, sources, buyCondition, sellCondition, stoppedState())
 }
 
-/** 材料準備好了、但一塊都還沒拼的一台——兩棵樹各是一個洞。 */
-const anUnbuiltBot = () => aStoredBot(null, null)
-
-function mountWorkbench(editing: StrategyBotDto | null = aStoredBot()) {
-  const wrapper = mount(StrategyBotWorkbench, {
+function mountWorkbench(editing: StrategyBotDto | null = aBot()) {
+  return mount(StrategyBotWorkbench, {
     props: {
       editing,
       tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService({
         findTradingSymbols: vi.fn().mockResolvedValue([buildTradingSymbol('BTCUSDT')]),
       })),
-      strategyOptions: [{ value: 9, label: '均線' }],
-      parameterNamesByStrategyId: { 9: ['回看根數'] },
+      strategyOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
+      parameterNamesByStrategyId: { 9: ['快線期數'] },
       saving: false,
       failureMessage: '',
     },
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
-
-  return wrapper
 }
 
-describe('StrategyBotWorkbench 的兩棵樹', () => {
-  it('買入與賣出同時看得見——不必切換才看得到另一棵', async () => {
-    // 一台機器人的兩個條件同時成立時它什麼都不會說，
-    // 而那件事只有在兩棵並排時才看得出來。
+describe('StrategyBotWorkbench：整頁就是一張表', () => {
+  it('一支策略一列，列首就是它的名字——不必去別的地方查它是誰', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('什麼情況算買入')
-    expect(wrapper.text()).toContain('什麼情況算賣出')
+    const rows = wrapper.findAll('[data-testid="strategy-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text()).toContain('MACD')
   })
 
-  it('空的那一棵畫成一個洞，不是一片空白', async () => {
-    // 空白跟「這裡本來就不需要東西」長得一樣。
-    const wrapper = mountWorkbench(anUnbuiltBot())
+  it('買入與賣出是同一列上的兩欄——它們會不會撞在一起，橫著看就知道', async () => {
+    // 兩邊同時成立時這台機器人什麼都不會說，而那件事只有並排時才看得出來。
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="condition-hole"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('什麼算買入')
+    expect(wrapper.text()).toContain('什麼算賣出')
+    expect(wrapper.find('[data-testid="cell-buy-MACD-buy"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cell-sell-MACD-buy"]').exists()).toBe(true)
   })
 
-  it('改一棵不會動到另一棵', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
+  it('存進去時亮著的那幾格，打開來仍然亮著', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    const holesBefore = wrapper.findAll('[data-testid="condition-hole"]')
-    await holesBefore[0]!.trigger('click')
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
-    await flushPromises()
-
-    // 賣出那一邊仍然是一個洞。
-    expect(wrapper.findAll('[data-testid="condition-hole"]')).toHaveLength(1)
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="cell-buy-MACD-buy"]').attributes('aria-pressed'))
+      .toBe('true')
+    expect(wrapper.get('[data-testid="cell-buy-MACD-sell"]').attributes('aria-pressed'))
+      .toBe('false')
+    expect(wrapper.get('[data-testid="cell-sell-MACD-sell"]').attributes('aria-pressed'))
+      .toBe('true')
   })
-})
 
-describe('StrategyBotWorkbench 的積木抽屜', () => {
-  it('點一個空位，放得進去的那幾塊才按得下去', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
+  it('按一格就亮，再按一次就滅', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    // 按不下去用 aria-disabled 標而不是 disabled：後者連拖曳事件都收不到，
-    // 而這幾塊必須隨時拖得動。
-    expect(wrapper.get('[data-testid="block-comparison:A:"]').attributes('aria-disabled'))
+    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
+    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
       .toBe('true')
 
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
-
-    expect(wrapper.get('[data-testid="block-comparison:A:"]').attributes('aria-disabled'))
+    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
+    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
       .toBe('false')
   })
 
-  it('點一塊群組進去，裡面就是兩個新的空位', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
+  it('一格可以同時亮好幾個——「買入或持有都算」是真的有人要說的話', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
-    await wrapper.get('[data-testid="block-group::and"]').trigger('click')
-    await flushPromises()
+    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
 
-    expect(wrapper.findAll('[data-testid="condition-group"]')).toHaveLength(1)
-    // 買入那個群組裡兩個，加上賣出那一棵自己的一個。
-    expect(wrapper.findAll('[data-testid="condition-hole"]')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="cell-buy-MACD-buy"]').attributes('aria-pressed'))
+      .toBe('true')
+    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
+      .toBe('true')
   })
 
-  it('一個來源都沒宣告時，積木那一欄說得出下一步', async () => {
-    const wrapper = mountWorkbench(new StrategyBotDto(
-      7, '早盤突破', 'BTCUSDT', 5, [], null, null, stoppedState()))
+  it('按買入那一欄不會動到賣出那一欄', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="signal-sources-empty"]').text()).toContain('加一支策略')
+    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="cell-sell-MACD-hold"]').attributes('aria-pressed'))
+      .toBe('false')
   })
 })
 
-describe('StrategyBotWorkbench 上每一塊自己的狀態', () => {
-  it('還不夠兩塊的群組自己標出來，不必等到按儲存', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'))))
+describe('StrategyBotWorkbench：加一支策略', () => {
+  it('加一支就多一列，兩欄都跟著出現', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="status-g"]').text()).toContain('2')
-  })
-
-  it('還沒選信號的比對自己標出來', async () => {
-    const wrapper = mountWorkbench(aStoredBot(comparison('c', 'A', '')))
+    await wrapper.get('[data-testid="strategy-add"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="status-c"]').text()).toContain('等於什麼')
+    expect(wrapper.findAll('[data-testid="strategy-row"]')).toHaveLength(2)
   })
 
-  it('指向一個不存在的來源是另一種說法，不是還沒填完', async () => {
-    // 兩種壞法使用者的下一步不一樣：一個是再填一點，一個是有東西被刪掉了。
-    const wrapper = mountWorkbench(aStoredBot(comparison('c', '早就不在了')))
+  it('刪一支就少一列，而那一列還被用著也刪得掉', async () => {
+    const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="status-c"]').text()).toContain('找不到')
-    expect(wrapper.get('[data-testid="condition-comparison"]').classes())
-      .toContain('condition-node--unknownSource')
+    await wrapper.get('[data-testid="strategy-remove"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="strategy-row"]')).toHaveLength(0)
   })
 
-  it('每一塊都好了就沒有任何標示，而且存得下去', async () => {
+  it('一支策略都還沒有時說得出下一步', async () => {
+    const wrapper = mountWorkbench(aBot(null, null, []))
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="no-sources"]').text()).toContain('加一支')
+  })
+})
+
+describe('StrategyBotWorkbench：一支策略自己的設定', () => {
+  it('一開始收著——收起來時一支策略就是一列', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="strategy-settings-panel-0"]').exists()).toBe(false)
+  })
+
+  it('按齒輪才打開，裡面是這一支自己的事', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
+
+    const panel = wrapper.get('[data-testid="strategy-settings-panel-0"]')
+    expect(panel.find('[data-testid="strategy-label-input"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="strategy-interval-select"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="strategy-parameter-input"]').exists()).toBe(true)
+  })
+})
+
+describe('StrategyBotWorkbench：存得下去嗎', () => {
+  it('每一邊都有格子亮著就存得下去', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
@@ -160,17 +176,15 @@ describe('StrategyBotWorkbench 上每一塊自己的狀態', () => {
     expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeUndefined()
   })
 
-  it('有一塊沒填完就存不下去，並說得出是哪一件事', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'))))
+  it('一邊一格都沒亮就存不下去，並說得出為什麼', async () => {
+    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toContain('買入條件')
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toContain('兩邊都要')
     expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
   })
-})
 
-describe('StrategyBotWorkbench 交出去的那一份', () => {
-  it('按儲存交出的是這一刻拼出來的那一台', async () => {
+  it('按儲存交出的是這一刻表上的那一台', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
@@ -180,175 +194,23 @@ describe('StrategyBotWorkbench 交出去的那一份', () => {
     expect(saved.id).toBe(7)
     expect(saved.name).toBe('早盤突破')
   })
-
-  it('一開始沒有被改過，改一下就說它被改過了', async () => {
-    // 巢狀條件是花時間拼出來的，靜靜丟掉太貴；但什麼都沒改時攔人，
-    // 第三次之後就沒有人會讀那句話了。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(false)
-
-    await wrapper.get('[data-testid="bot-name-input"]').setValue('改過名字了')
-    await flushPromises()
-
-    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
-  })
 })
 
-describe('StrategyBotWorkbench 的拖拉', () => {
-  /** 讓拖曳事件帶得動一個 dataTransfer——瀏覽器會給，happy-dom 不會。 */
-  function dragEvent(): Partial<DragEvent> {
-    return { dataTransfer: { setData: vi.fn() } as unknown as DataTransfer }
-  }
-
-  it('從抽屜拖一塊到空位上，它就放進去了', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
+describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
+  it('且與或交錯的條件，照實說這張表畫不出它——不默默壓平', async () => {
+    // 壓平會得到一個意思不同的條件，而使用者會在完全沒察覺的情況下把它存回去。
+    const wrapper = mountWorkbench(aBot(
+      group('and',
+        group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
+        comparison('c', 'MACD', 'sell')),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new StrategyBotSignalSourceDto('MACD', 9, '5m', []),
+        new StrategyBotSignalSourceDto('ATR', 10, '1h', []),
+      ]))
     await flushPromises()
 
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', dragEvent())
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(1)
-  })
-
-  it('拖到一半，收得下的空位與收不下的長得不一樣', async () => {
-    // 落點問的與抽屜問的是同一個方法，所以一塊按得下去的積木一定也放得進去。
-    const wrapper = mountWorkbench(anUnbuiltBot())
-    await flushPromises()
-
-    const idle = wrapper.findAll('[data-testid="condition-hole"]')[0]!
-    expect(idle.classes()).toContain('condition-hole--idle')
-
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', dragEvent())
-
-    expect(wrapper.findAll('[data-testid="condition-hole"]')[0]!.classes())
-      .toContain('condition-hole--accepting')
-  })
-
-  it('放開之後就不再有人在拖——沒放成也一樣', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
-    await flushPromises()
-
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragend')
-
-    expect(wrapper.findAll('[data-testid="condition-hole"]')[0]!.classes())
-      .toContain('condition-hole--idle')
-  })
-
-  it('搬一個群組就是搬走它底下的一整串', async () => {
-    const wrapper = mountWorkbench(
-      aStoredBot(group('outer', group('inner', comparison('a', 'A'), comparison('b', 'A')),
-        comparison('c', 'A')), null))
-    await flushPromises()
-
-    // 內層那個群組拖到賣出那一棵的空位上。
-    await wrapper.get('[data-testid="condition-group"]').trigger('dragstart', dragEvent())
-
-    // 賣出那一棵是空的，所以畫面上最後一個洞就是它。
-    const holes = wrapper.findAll('[data-testid="condition-hole"]')
-    await holes[holes.length - 1]!.trigger('drop')
-    await flushPromises()
-
-    // 三句比對一句都沒少：搬的是一整串，不是把它拆開。
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(3)
-    expect(wrapper.findAll('[data-testid="condition-group"]')).toHaveLength(2)
-  })
-})
-
-describe('StrategyBotWorkbench 把一塊丟掉的兩條路', () => {
-  function dragEvent(): Partial<DragEvent> {
-    return { dataTransfer: { setData: vi.fn() } as unknown as DataTransfer }
-  }
-
-  it('那顆移除鍵按下去就沒了', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
-      comparison('b', 'A'), comparison('c', 'A')), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="remove-a"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="remove-a"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(2)
-  })
-
-  it('沒有人在拖的時候，那一格丟掉用的位子不在', async () => {
-    // 一個永遠掛在那裡的垃圾桶，多數時間只是一塊佔著位子的紅色。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(false)
-  })
-
-  it('拖起樹上的一塊，那一格就出現', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
-      comparison('b', 'A'), comparison('c', 'A')), null))
-    await flushPromises()
-
-    await wrapper.findAll('[data-testid="condition-comparison"]')[0]!
-      .trigger('dragstart', dragEvent())
-
-    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(true)
-    // 丟掉那一格只屬於正被拖著的那一棵。
-    expect(wrapper.find('[data-testid="sell-bin"]').exists()).toBe(false)
-  })
-
-  it('拖到那一格上放開，那一塊就沒了', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
-      comparison('b', 'A'), comparison('c', 'A')), null))
-    await flushPromises()
-
-    await wrapper.findAll('[data-testid="condition-comparison"]')[0]!
-      .trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="buy-bin"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(2)
-  })
-
-  it('從抽屜拖出來的那一塊丟不掉——它本來就不在樹上', async () => {
-    const wrapper = mountWorkbench(aStoredBot(group('g', comparison('a', 'A'),
-      comparison('b', 'A'), comparison('c', 'A')), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('dragstart', dragEvent())
-
-    expect(wrapper.find('[data-testid="buy-bin"]').exists()).toBe(false)
-  })
-})
-
-describe('StrategyBotWorkbench 的積木抽屜在哪裡', () => {
-  it('它一直在——沒有任何一種要先做什麼才看得到它的狀態', async () => {
-    // 積木式編輯器一向如此：Scratch 的積木面板固定在左側，
-    // Blockly 的 toolbox 是 always displayed。中間試過滑過去才出現，
-    // 那個模式在選單設計上早有定論：使用者失去控制權，而且鍵盤與觸控碰不到。
-    const wrapper = mountWorkbench(anUnbuiltBot())
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="block-drawer"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="block-comparison:A:"]').isVisible()).toBe(true)
-  })
-
-  it('它是拼的那一段的一部分，不是浮在畫面上的東西', async () => {
-    // 浮起來的話它會蓋住底下的東西，而它旁邊那一整欄正是它要被拖過去的地方。
-    const wrapper = mountWorkbench(anUnbuiltBot())
-    await flushPromises()
-
-    expect(wrapper.get('.workbench__palette').element
-      .contains(wrapper.get('[data-testid="block-drawer"]').element)).toBe(true)
-  })
-
-  it('選著一個空位時點一塊，那一塊就進到那個空位裡', async () => {
-    const wrapper = mountWorkbench(anUnbuiltBot())
-    await flushPromises()
-
-    await wrapper.findAll('[data-testid="condition-hole"]')[0]!.trigger('click')
-    await wrapper.get('[data-testid="block-comparison:A:"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="condition-comparison"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="matrix-unrepresentable-buy"]').text()).toContain('畫不出')
+    expect(wrapper.find('[data-testid="matrix-unrepresentable-sell"]').exists()).toBe(false)
   })
 })

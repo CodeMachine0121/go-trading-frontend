@@ -134,29 +134,29 @@ export class StrategyBotWriteDomain {
   }
 
   /**
-   * 兩棵樹送不送得出去。
+   * 兩邊的判斷送不送得出去。
    *
-   * 「空的」與「有一塊還沒填完」在這裡是**同一類事**，因為積木工作台讓使用者
-   * 造得出半成品：一個剛放下去的群組裡是兩個空位，一句剛放下去的比對還沒選信號。
-   * 那是刻意的——未完成自己會標出來——但半成品不能送出去，
-   * 而擋住它的那句話要說得出是哪一塊。
+   * 只剩兩件事要問。**形狀不必問**：條件是由一張表寫出來的，而表寫得出來的形狀
+   * 天生就是合法的——群組至少兩句、每一句都有信號，都是它產生方式的必然結果。
+   * 去驗一個造不出反例的規則，是替一個不會發生的情況維護一段程式。
    */
   private conditionRejection(): string | null {
+    const buyCondition = new StrategyBotConditionDomain(this.writeDto.buyCondition)
+    const sellCondition = new StrategyBotConditionDomain(this.writeDto.sellCondition)
+
+    if (buyCondition.isEmpty || sellCondition.isEmpty) {
+      return '買入與賣出兩邊都要至少勾一格——少了任何一邊，這台機器人就只會說一種話'
+    }
+
+    // 指到一個已經不在的代號，是唯一造得出來的壞條件：改代號時撞到別人用著的名字，
+    // 那一列會停在舊名字上等它不再撞名。
     const declaredLabels = this.writeDto.signalSources.map(
       signalSource => signalSource.label.trim())
+    const orphan = [...buyCondition.usedSourceLabels(), ...sellCondition.usedSourceLabels()]
+      .find(label => !declaredLabels.includes(label))
 
-    const buyProblem = new StrategyBotConditionDomain(this.writeDto.buyCondition)
-      .incompleteReason(declaredLabels)
-    if (buyProblem !== '') {
-      return `買入條件${buyProblem}`
-    }
-
-    const sellProblem = new StrategyBotConditionDomain(this.writeDto.sellCondition)
-      .incompleteReason(declaredLabels)
-    if (sellProblem !== '') {
-      return `賣出條件${sellProblem}`
-    }
-
-    return null
+    return orphan === undefined
+      ? null
+      : `條件裡還指著「${orphan}」，但已經沒有這一支策略了`
   }
 }

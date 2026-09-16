@@ -1,7 +1,7 @@
-import { ConditionBlockPaletteDomain } from '~/domain/models/domains/condition-block-palette-domain'
+import { ConditionMatrixDomain } from '~/domain/models/domains/condition-matrix-domain'
+import { ConditionMatrixDto, ConditionMatrixRowDto } from '~/domain/models/dto/condition-matrix-dto'
 import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
-import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import {
   StrategyBotParameterValueDto,
@@ -9,8 +9,6 @@ import {
 } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-import type { ConditionBlockVo } from '~/domain/models/vo/condition-block-vo'
-import type { ConditionHoleVo } from '~/domain/models/vo/condition-hole-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
@@ -52,8 +50,6 @@ export function useStrategyBotForm(
    * 分岔。沒有它的話，對調兩個代號會讓兩邊的條件永久合併成同一句。
    */
   const committedLabels = ref<string[]>([])
-  const buyCondition = ref<StrategyBotConditionDto | null>(null)
-  const sellCondition = ref<StrategyBotConditionDto | null>(null)
 
   const intervalOptions = AGGREGATION_INTERVALS.map(interval => ({
     value: interval.value,
@@ -87,8 +83,8 @@ export function useStrategyBotForm(
    */
   const signalSourceUsageWarnings = computed(() => {
     const usedLabels = new Set([
-      ...new StrategyBotConditionDomain(buyCondition.value).usedSourceLabels(),
-      ...new StrategyBotConditionDomain(sellCondition.value).usedSourceLabels(),
+      ...matrices.buy.value.rows.filter(row => row.participates).map(row => row.sourceLabel),
+      ...matrices.sell.value.rows.filter(row => row.participates).map(row => row.sourceLabel),
     ])
 
     const warnings: Record<number, string> = {}
@@ -110,8 +106,8 @@ export function useStrategyBotForm(
       symbol.value,
       triggerIntervalMinutes.value,
       signalSources.value,
-      buyCondition.value,
-      sellCondition.value,
+      conditionSides[0].condition.value,
+      conditionSides[1].condition.value,
     )
   }
 
@@ -132,8 +128,12 @@ export function useStrategyBotForm(
       loaded?.triggerIntervalMinutes ?? DEFAULT_TRIGGER_INTERVAL_MINUTES)
     signalSources.value = [...(loaded?.signalSources ?? [])]
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
-    buyCondition.value = loaded?.buyCondition ?? null
-    sellCondition.value = loaded?.sellCondition ?? null
+    // 存進來的那棵樹在這裡、而且只在這裡，被讀成一張表。
+    const storedLabels = (loaded?.signalSources ?? []).map(signalSource => signalSource.label)
+    matrices.buy.value = new StrategyBotConditionDomain(
+      loaded?.buyCondition ?? null).toMatrixDto(storedLabels)
+    matrices.sell.value = new StrategyBotConditionDomain(
+      loaded?.sellCondition ?? null).toMatrixDto(storedLabels)
   }
 
   function addSignalSource() {
@@ -230,10 +230,10 @@ export function useStrategyBotForm(
       return
     }
 
-    buyCondition.value = new StrategyBotConditionDomain(buyCondition.value)
-      .renameSourceLabel(committedLabel, label).value
-    sellCondition.value = new StrategyBotConditionDomain(sellCondition.value)
-      .renameSourceLabel(committedLabel, label).value
+    // 表上那一列跟著改名。代號是列的身分，改了名卻不跟著改的話，
+    // 使用者會看到一列空白的新策略，和一列指著一個已經不存在的名字的舊資料。
+    matrices.buy.value = renamedRows(matrices.buy.value, committedLabel, label)
+    matrices.sell.value = renamedRows(matrices.sell.value, committedLabel, label)
     committedLabels.value = committedLabels.value.map(
       (existing, position) => (position === index ? label : existing))
   }
@@ -261,6 +261,17 @@ export function useStrategyBotForm(
     ))
   }
 
+  /** 一張表上某一列改名之後的樣子。格子一個都不動——改的只是它叫什麼。 */
+  function renamedRows(matrix: ConditionMatrixDto, fromLabel: string, toLabel: string) {
+    return new ConditionMatrixDto(
+      matrix.operator,
+      matrix.rows.map(row => (row.sourceLabel === fromLabel
+        ? new ConditionMatrixRowDto(toLabel, row.acceptedSignals)
+        : row)),
+      matrix.representable,
+    )
+  }
+
   function replaceSignalSource(
     index: number,
     transform: (signalSource: StrategyBotSignalSourceDto) => StrategyBotSignalSourceDto,
@@ -270,151 +281,51 @@ export function useStrategyBotForm(
   }
 
   /**
-   * 使用者剛剛點的那個空位，連同它在哪一棵樹上。
+   * 兩邊的判斷，以矩陣的形狀跟著使用者的每一次點擊走。
    *
-   * **一個，不是兩個**：抽屜只有一個，所以「現在要放進哪裡」全畫面只能有一個答案。
-   * 兩棵樹各記一個的話，點了買入那邊再點賣出那邊，抽屜就得決定聽誰的。
+   * 它由存進來的那棵樹讀出來一次，之後就是這一頁的狀態；要送出去時再寫回一棵樹。
+   * **兩邊各存一份的話，第二份遲早會說出第一份沒有的話**——所以樹那一份只在
+   * 讀進來與送出去這兩個時刻存在。
    */
-  const selectedHole = ref<{ side: 'buy' | 'sell', hole: ConditionHoleVo } | null>(null)
+  const matrices = {
+    buy: ref(new StrategyBotConditionDomain(null).toMatrixDto([])),
+    sell: ref(new StrategyBotConditionDomain(null).toMatrixDto([])),
+  }
 
   /**
-   * 正被拖著的東西：抽屜裡的一塊，或樹上已經有的一塊。
-   *
-   * 拖放通道只搬得動字串，而字串要變回一塊積木得有人認得那個格式——
-   * 那個方向沒有來源物件可以掛，只會是一個 static。所以拖著的是什麼記在這裡，
-   * 通道裡那串字只是為了讓瀏覽器認得這是一次拖曳。
-   */
-  const dragging = ref<
-    | { kind: 'block', block: ConditionBlockVo }
-    | { kind: 'node', side: 'buy' | 'sell', nodeId: string }
-    | null
-  >(null)
-
-  /**
-   * 兩棵樹的每一個動作長得一模一樣，所以它們共用這一段而不是各寫一份。
+   * 兩邊的判斷長得一模一樣，所以它們共用這一段而不是各寫一份。
    * 寫兩份的話，第二份就是那個忘記同步的地方。
    */
-  function conditionSide(
-    key: 'buy' | 'sell',
-    heading: string,
-    condition: Ref<StrategyBotConditionDto | null>,
-  ) {
-    const tree = computed(() => new StrategyBotConditionDomain(condition.value))
+  function conditionSide(key: 'buy' | 'sell', heading: string) {
+    const matrix = matrices[key]
 
-    function apply(transform: (domain: StrategyBotConditionDomain) => StrategyBotConditionDomain) {
-      condition.value = transform(tree.value).value
-    }
+    /**
+     * 每次讀之前先跟這一刻的來源對齊。
+     *
+     * 表的列是由**來源**決定的：加一支策略就多一列，刪一支就少一列，改代號就跟著改。
+     * 對齊寫在讀的路上而不是各個改動的路上，是因為來源有五種改法，
+     * 而每一種都要記得同步一次的話，第五種就是那個被忘記的。
+     */
+    const aligned = computed(
+      () => new ConditionMatrixDomain(matrix.value).alignedTo(sourceLabels.value))
 
     return {
       key,
       heading,
-      condition,
-      /** 這一棵畫出來的樣子，洞與每一塊的狀態都已經在裡面了。 */
-      view: computed(() => tree.value.toViewDto(sourceLabels.value)),
-      /** 這一棵還差什麼。沒話說就是拼好了。 */
-      incompleteReason: computed(() => tree.value.incompleteReason(sourceLabels.value)),
-      /** 使用者現在選著的空位是不是在這一棵上，是的話是哪一個。 */
-      selectedHoleKey: computed(() => (
-        selectedHole.value?.side === key ? selectedHole.value.hole.key : null)),
-      /**
-       * 點一個空位就選它；**再點同一個就放掉**。
-       *
-       * 沒有放掉那條路的話，點了一個空位又決定不放東西的人，
-       * 就困在一個永遠開著的抽屜旁邊——因為把抽屜撐開的正是那個選取，
-       * 而畫面上沒有任何動作取消得了它。
-       */
-      selectHole: (hole: ConditionHoleVo) => {
-        selectedHole.value = selectedHole.value?.side === key
-          && selectedHole.value.hole.key === hole.key
-          ? null
-          : { side: key, hole }
+      matrix: computed(() => aligned.value.value),
+      condition: computed(() => aligned.value.toCondition()),
+      toggleSignal: (sourceLabel: string, signal: string) => {
+        matrix.value = aligned.value.toggleSignal(sourceLabel, signal).value
       },
-      /**
-       * 把一塊放進一個空位——點按與拖拉走的是同一個方法。
-       *
-       * 放完就把選著的空位清掉：那個空位已經不是空的了，繼續指著它會讓下一次點抽屜
-       * 落到一個不存在的地方。
-       */
-      fill: (hole: ConditionHoleVo, block: ConditionBlockVo) => {
-        apply(domain => domain.fill(hole, block))
-        selectedHole.value = null
-      },
-      /** 把樹上已經有的一塊搬進一個空位，底下的一整串跟著走。 */
-      move: (nodeId: string, hole: ConditionHoleVo) => {
-        apply(domain => domain.move(nodeId, hole))
-        selectedHole.value = null
-      },
-      changeOperator: (nodeId: string, operator: ConditionOperatorVo) =>
-        apply(domain => domain.changeOperator(nodeId, operator)),
-      changeComparison: (nodeId: string, sourceLabel: string, signal: string) =>
-        apply(domain => domain.changeComparison(nodeId, sourceLabel, signal)),
-      remove: (nodeId: string) => {
-        apply(domain => domain.removeNode(nodeId))
-        selectedHole.value = null
-      },
-      /**
-       * 這個空位收不收現在拖著的那個東西。
-       *
-       * 落點問的與抽屜問的是同一個方法，所以一塊按得下去的積木一定也放得進去。
-       * 拖著一個節點時多一條限制：它不得落進自己底下——那會把一段樹接到它自己身上。
-       */
-      acceptsDragged: (hole: ConditionHoleVo) => {
-        const carried = dragging.value
-        if (carried === null) {
-          return false
-        }
-
-        if (carried.kind === 'block') {
-          return tree.value.accepts(hole, carried.block)
-        }
-
-        return carried.side === key && tree.value.move(carried.nodeId, hole).value !== condition.value
-      },
-      /**
-       * 把現在拖著的那一塊丟掉。
-       *
-       * 它與那顆「移除」鍵做的是同一件事，而兩條路都要有：拖著一塊已經抓在手上的積木時，
-       * 最自然的丟法是把它扔出去，而不是放回原位再去找它的按鈕。
-       * 反過來，沒有指標裝置的人只有按鈕那一條。
-       *
-       * 拖著的是抽屜裡的積木時什麼都不做——它本來就不在樹上，沒有東西可以丟。
-       */
-      dropAwayDragged: () => {
-        const carried = dragging.value
-        dragging.value = null
-
-        if (carried?.kind === 'node' && carried.side === key) {
-          apply(domain => domain.removeNode(carried.nodeId))
-        }
-      },
-      /** 現在拖著的是這一棵上的一塊嗎——丟掉那一格要不要出現，看的就是這件事。 */
-      isDraggingOwnNode: computed(
-        () => dragging.value?.kind === 'node' && dragging.value.side === key),
-      /** 把現在拖著的那個東西放進這個空位。放不進去時什麼都不做。 */
-      dropDragged: (hole: ConditionHoleVo) => {
-        const carried = dragging.value
-        dragging.value = null
-
-        if (carried === null) {
-          return
-        }
-
-        if (carried.kind === 'block') {
-          apply(domain => domain.fill(hole, carried.block))
-
-          return
-        }
-
-        if (carried.side === key) {
-          apply(domain => domain.move(carried.nodeId, hole))
-        }
+      changeOperator: (operator: ConditionOperatorVo) => {
+        matrix.value = aligned.value.changeOperator(operator).value
       },
     }
   }
 
   const conditionSides = [
-    conditionSide('buy', '什麼情況算買入', buyCondition),
-    conditionSide('sell', '什麼情況算賣出', sellCondition),
+    conditionSide('buy', '什麼算買入'),
+    conditionSide('sell', '什麼算賣出'),
   ]
 
   return {
@@ -436,26 +347,6 @@ export function useStrategyBotForm(
      * 每次都由**這一刻已宣告的代號**與**現在選著的空位**重算，不留快取：
      * 抽屜列的就是現在拼得出來的東西，而使用者隨時會在第二段加一個、刪一個、改一個代號。
      */
-    blockDrawer: computed(() => new ConditionBlockPaletteDomain(
-      new StrategyBotConditionDomain(
-        selectedHole.value?.side === 'sell' ? sellCondition.value : buyCondition.value),
-      sourceLabels.value,
-      selectedHole.value?.hole ?? null,
-    ).toDto()),
-    selectedHole,
-    dragging,
-    /** 從抽屜開始拖一塊。 */
-    startDraggingBlock: (block: ConditionBlockVo) => {
-      dragging.value = { kind: 'block', block }
-    },
-    /** 從樹上開始拖一塊已經放好的。 */
-    startDraggingNode: (side: 'buy' | 'sell', nodeId: string) => {
-      dragging.value = { kind: 'node', side, nodeId }
-    },
-    /** 拖曳結束——不論有沒有放成功，拖著的那個東西都要放開。 */
-    stopDragging: () => {
-      dragging.value = null
-    },
     rejection,
     reset,
     toWriteDto,

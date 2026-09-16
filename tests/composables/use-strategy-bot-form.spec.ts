@@ -1,6 +1,5 @@
 // @vitest-environment nuxt
 import { describe, expect, it } from 'vitest'
-import { ConditionBlockVo } from '~/domain/models/vo/condition-block-vo'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
@@ -20,30 +19,38 @@ function aStoppedRunState() {
     false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
 }
 
-/** 一台存好的機器人，買入條件是「A 且 B」——足以證明讀回來時層次不變。 */
+function comparison(nodeId: string, sourceLabel: string, signal: string) {
+  return new StrategyBotConditionDto(nodeId, null, [], sourceLabel, signal)
+}
+
+/** 一台存好的機器人：買入是「均線＝買 且 動能＝買」，賣出是「均線＝賣」。 */
 function aStoredBot() {
   return new StrategyBotDto(
     3, '早盤突破', 'BTCUSDT', 5,
     [
-      new StrategyBotSignalSourceDto('A', 9, '1h', []),
-      new StrategyBotSignalSourceDto('B', 10, '5m', []),
+      new StrategyBotSignalSourceDto('均線', 9, '1h', []),
+      new StrategyBotSignalSourceDto('動能', 10, '5m', []),
     ],
     new StrategyBotConditionDto('root', 'and', [
-      new StrategyBotConditionDto('a', null, [], 'A', 'buy'),
-      new StrategyBotConditionDto('b', null, [], 'B', 'buy'),
+      comparison('a', '均線', 'buy'),
+      comparison('b', '動能', 'buy'),
     ], '', ''),
-    new StrategyBotConditionDto('s', null, [], 'A', 'sell'),
+    comparison('s', '均線', 'sell'),
     aStoppedRunState(),
   )
 }
 
-describe('useStrategyBotForm 的三段順序', () => {
-  it('條件挑得到的代號，是由信號來源那一段填出來的', () => {
-    // 這一行就是「打不出錯誤的代號」的實作方式：選單裡沒有的東西選不到。
+/** 一張表讀成好比對的樣子：`代號:信號+信號`。 */
+function readable(form: ReturnType<typeof formUnderTest>, side: 0 | 1): string[] {
+  return form.conditionSides[side]!.matrix.value.rows.map(
+    row => `${row.sourceLabel}:${row.acceptedSignals.join('+')}`)
+}
+
+describe('useStrategyBotForm 的策略清單', () => {
+  it('新加的策略預設就叫它自己的名字，撞名時後面接數字', () => {
+    // 「A 等於買入」是一句看不出自己在說什麼的話——使用者得自己記住 A 是哪一支。
     const form = formUnderTest()
     form.reset()
-
-    expect(form.sourceLabels.value).toEqual([])
 
     form.addSignalSource()
     form.addSignalSource()
@@ -51,150 +58,156 @@ describe('useStrategyBotForm 的三段順序', () => {
     expect(form.sourceLabels.value).toEqual(['均線', '均線 2'])
   })
 
-  it('新加的來源預設就叫那支策略的名字，撞名時後面接數字', () => {
-    // 「A 等於買入」是一句看不出自己在說什麼的話——使用者得自己記住 A 是哪一支，
-    // 而他同時在讀的是一棵三層深的樹。
-
-    // 代號是這張表單上唯一沒有預設值就填不完的欄位，而 A、B、C 正是多數人會打的那幾個。
+  it('加一支策略，兩邊的表立刻各多一列空的', () => {
+    // 表與策略清單是同一份東西的兩種看法，所以它們不會有「還沒同步」的狀態。
     const form = formUnderTest()
     form.reset()
-    form.addSignalSource()
-    form.addSignalSource()
+
     form.addSignalSource()
 
-    expect(form.signalSources.value.map(source => source.label)).toEqual(['均線', '均線 2', '均線 3'])
+    expect(readable(form, 0)).toEqual(['均線:'])
+    expect(readable(form, 1)).toEqual(['均線:'])
   })
 
-  it('到了上限就加不動——新增鍵因此消失，而不是按了才被拒', () => {
+  it('刪掉一支策略，兩邊的表立刻各少一列', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.removeSignalSource(0)
+
+    expect(readable(form, 0)).toEqual(['動能:buy'])
+  })
+
+  it('改一支策略的名字，表上那一列跟著改，格子一個都不動', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.changeSignalSourceLabel(0, '長均線')
+
+    expect(readable(form, 0)).toEqual(['長均線:buy', '動能:buy'])
+  })
+
+  it('改成一個別人正用著的名字時，那一列先停在舊名字上', () => {
+    // 對調兩個名字必然會經過一個「兩個都叫動能」的瞬間，照改的話兩列會永久合併。
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.changeSignalSourceLabel(0, '動能')
+
+    expect(readable(form, 0)).toEqual(['動能:buy', '動能:buy'])
+    expect(form.rejection.value).toContain('重複')
+  })
+
+  it('換策略時把舊策略的旋鈕值清掉——它們屬於另一支算式', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.changeSignalSourceParameterValue(0, '回看根數', 20)
+    form.changeSignalSourceStrategy(0, 10)
+
+    expect(form.signalSources.value[0]!.parameterValues).toEqual([])
+  })
+
+  it('到了上限就加不動——新增鍵不存在，而不是按了才被拒', () => {
     const form = formUnderTest()
     form.reset()
-    for (let index = 0; index < 10; index += 1) {
+
+    for (let added = 0; added < form.signalSourceLimit; added += 1) {
       form.addSignalSource()
     }
 
     expect(form.canAddSignalSource.value).toBe(false)
-
-    form.addSignalSource()
-    expect(form.signalSources.value).toHaveLength(10)
   })
-})
 
-describe('useStrategyBotForm 讓第三段跟得上第二段', () => {
-  it('來源改名時，條件裡指到舊代號的那幾句一起改', () => {
-    // 不跟著改的話，條件會指向一個不存在的代號，而畫面上那一句看起來完全正常。
+  it('還被條件用著的策略刪得掉，只是先說一聲', () => {
+    // 擋住它的代價比想像中大：只有一支策略、而兩邊都在用它的人，
+    // 得先把兩邊拆光才換得掉那一支。
     const form = formUnderTest(aStoredBot())
     form.reset()
 
-    form.changeSignalSourceLabel(0, '均線交叉')
-
-    const buyCondition = form.conditionSides[0]?.condition.value
-    expect(buyCondition?.conditions[0]?.sourceLabel).toBe('均線交叉')
-    expect(buyCondition?.conditions[1]?.sourceLabel).toBe('B')
-  })
-
-  it('對調兩個代號時，兩邊的條件不會被合併成同一句', () => {
-    // 欄位是逐字觸發的，所以對調必然經過一個「兩個都叫 A」的瞬間。
-    // 那一刻若照改，B 的那一句會永久變成 A 的那一句——而畫面上一個字都沒提。
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    // 把 B 改成 A（撞名），再把 A 改成 MA。
-    form.changeSignalSourceLabel(1, 'A')
-    form.changeSignalSourceLabel(0, 'MA')
-
-    const buyCondition = form.conditionSides[0]?.condition.value
-    const usedLabels = [
-      buyCondition?.conditions[0]?.sourceLabel,
-      buyCondition?.conditions[1]?.sourceLabel,
-    ]
-
-    expect(new Set(usedLabels).size).toBe(2)
-    expect(usedLabels).toContain('MA')
-  })
-
-  it('撞名期間條件按兵不動，名字弄乾淨之後才跟上', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    form.changeSignalSourceLabel(1, 'A')
-    // 撞名的那一刻，B 的那一句還指著 B。
-    expect(form.conditionSides[0]?.condition.value?.conditions[1]?.sourceLabel).toBe('B')
-
-    form.changeSignalSourceLabel(1, 'RSI')
-    // 弄乾淨之後，它才從 B 改過去。
-    expect(form.conditionSides[0]?.condition.value?.conditions[1]?.sourceLabel).toBe('RSI')
-  })
-
-  it('刪一個還被條件用著的來源之前先說一聲，但不擋', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    expect(form.signalSourceUsageWarnings.value[0]).toContain('「A」')
+    expect(form.signalSourceUsageWarnings.value[0]).toContain('均線')
 
     form.removeSignalSource(0)
 
     expect(form.signalSources.value).toHaveLength(1)
   })
+})
 
-  it('沒有被條件用著的來源刪得掉', () => {
-    const form = formUnderTest()
+describe('useStrategyBotForm 的那張表', () => {
+  it('打開一台存好的機器人，兩邊讀回來的格子與存進去時一樣', () => {
+    const form = formUnderTest(aStoredBot())
     form.reset()
-    form.addSignalSource()
 
-    expect(form.signalSourceUsageWarnings.value[0]).toBeUndefined()
-
-    form.removeSignalSource(0)
-    expect(form.signalSources.value).toHaveLength(0)
+    expect(readable(form, 0)).toEqual(['均線:buy', '動能:buy'])
+    expect(readable(form, 1)).toEqual(['均線:sell', '動能:'])
   })
 
-  it('換策略時把舊策略的旋鈕值清掉', () => {
-    // 它們屬於另一支算式，留著只會被後端拒絕。
-    const form = formUnderTest()
+  it('按一格就打開它，再按一次就關掉', () => {
+    const form = formUnderTest(aStoredBot())
     form.reset()
-    form.addSignalSource()
-    form.changeSignalSourceParameterValue(0, '回看根數', 20)
 
-    expect(form.signalSources.value[0]?.parameterValues).toHaveLength(1)
+    form.conditionSides[0]!.toggleSignal('均線', 'hold')
+    expect(readable(form, 0)).toEqual(['均線:buy+hold', '動能:buy'])
 
-    form.changeSignalSourceStrategy(0, 10)
+    form.conditionSides[0]!.toggleSignal('均線', 'buy')
+    expect(readable(form, 0)).toEqual(['均線:hold', '動能:buy'])
+  })
 
-    expect(form.signalSources.value[0]?.strategyId).toBe(10)
-    expect(form.signalSources.value[0]?.parameterValues).toHaveLength(0)
+  it('改一邊不會動到另一邊', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[0]!.toggleSignal('均線', 'hold')
+
+    expect(readable(form, 1)).toEqual(['均線:sell', '動能:'])
+  })
+
+  it('換運算子時哪幾格開著一格都不動', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[0]!.changeOperator('or')
+
+    expect(form.conditionSides[0]!.matrix.value.operator).toBe('or')
+    expect(readable(form, 0)).toEqual(['均線:buy', '動能:buy'])
+  })
+
+  it('一邊一格都沒勾就送不出去，並說得出為什麼', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[1]!.toggleSignal('均線', 'sell')
+
+    expect(form.rejection.value).toContain('兩邊都要至少勾一格')
+  })
+
+  it('交出去的是那張表寫成的條件樹——存的形狀一個位元都沒變', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    const writeDto = form.toWriteDto()
+
+    expect(writeDto?.buyCondition?.isGroup).toBe(true)
+    expect(writeDto?.buyCondition?.operator).toBe('and')
+    expect(writeDto?.buyCondition?.conditions.map(child => child.sourceLabel))
+      .toEqual(['均線', '動能'])
+    expect(writeDto?.sellCondition?.sourceLabel).toBe('均線')
+  })
+
+  it('一格打開好幾個信號時，那一列自己寫成一個「或」', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[0]!.toggleSignal('均線', 'hold')
+
+    const firstClause = form.toWriteDto()?.buyCondition?.conditions[0]
+    expect(firstClause?.operator).toBe('or')
+    expect(firstClause?.conditions.map(child => child.signal)).toEqual(['buy', 'hold'])
   })
 })
 
-describe('useStrategyBotForm 讀回一台已存的', () => {
-  it('巢狀的層次與存進去時相同', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    const buyCondition = form.conditionSides[0]?.condition.value
-    expect(buyCondition?.isGroup).toBe(true)
-    expect(buyCondition?.operator).toBe('and')
-    expect(buyCondition?.conditions).toHaveLength(2)
-  })
-
-  it('每一個來源各自的刻度都正確帶出來', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    expect(form.signalSources.value[0]?.aggregationInterval).toBe('1h')
-    expect(form.signalSources.value[1]?.aggregationInterval).toBe('5m')
-  })
-
-  it('改到一半關掉再打開，看到的是庫裡那一台', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-    form.name.value = '改到一半'
-
-    form.reset()
-
-    expect(form.name.value).toBe('早盤突破')
-  })
-})
-
-describe('useStrategyBotForm 送不送得出去', () => {
-  it('填完三段就送得出去', () => {
+describe('useStrategyBotForm 存得下去嗎', () => {
+  it('每一格都好了就送得出去', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
@@ -202,201 +215,20 @@ describe('useStrategyBotForm 送不送得出去', () => {
     expect(form.toWriteDto()).not.toBeNull()
   })
 
-  it('送不出去時 toWriteDto 回 null，理由在 rejection 裡', () => {
-    const form = formUnderTest()
+  it('沒給名稱就送不出去', () => {
+    const form = formUnderTest(aStoredBot())
     form.reset()
+    form.name.value = '   '
 
-    expect(form.rejection.value).toContain('取一個名稱')
+    expect(form.rejection.value).toContain('名稱')
     expect(form.toWriteDto()).toBeNull()
   })
 
-  it('改一台已存的時候帶著它的識別碼', () => {
+  it('觸發間隔填 0 就送不出去', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
+    form.triggerIntervalText.value = '0'
 
-    expect(form.toWriteDto()?.id).toBe(3)
-  })
-})
-
-describe('useStrategyBotForm 的條件操作', () => {
-  it('從無到有：空的那一棵就是一個洞，放一塊進去它就是整棵樹', () => {
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    const buySide = form.conditionSides[0]!
-    expect(buySide.condition.value).toBeNull()
-    expect(buySide.view.value.kind).toBe('hole')
-
-    buySide.fill(buySide.view.value.hole!, new ConditionBlockVo('comparison', 'A', null))
-
-    expect(buySide.condition.value?.isGroup).toBe(false)
-    expect(buySide.condition.value?.sourceLabel).toBe('A')
-  })
-
-  it('放完就把選著的空位清掉——它已經不是空的了', () => {
-    // 繼續指著它，下一次點抽屜會落到一個不存在的地方。
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    const buySide = form.conditionSides[0]!
-    buySide.selectHole(buySide.view.value.hole!)
-    expect(form.selectedHole.value).not.toBeNull()
-
-    buySide.fill(buySide.view.value.hole!, new ConditionBlockVo('comparison', 'A', null))
-
-    expect(form.selectedHole.value).toBeNull()
-  })
-
-  it('抽屜只認一個空位——兩棵樹共用它，所以不能各記各的', () => {
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    const [buySide, sellSide] = form.conditionSides
-    buySide!.selectHole(buySide!.view.value.hole!)
-    sellSide!.selectHole(sellSide!.view.value.hole!)
-
-    expect(buySide!.selectedHoleKey.value).toBeNull()
-    expect(sellSide!.selectedHoleKey.value).not.toBeNull()
-  })
-
-  it('再點一次同一個空位就放掉它', () => {
-    // 沒有放掉那條路的話，點了一個空位又決定不放東西的人，
-    // 就困在一個永遠開著的抽屜旁邊。
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    const buySide = form.conditionSides[0]!
-    const hole = buySide.view.value.hole!
-
-    buySide.selectHole(hole)
-    expect(form.selectedHole.value).not.toBeNull()
-
-    buySide.selectHole(hole)
-    expect(form.selectedHole.value).toBeNull()
-  })
-
-  it('點另一棵樹的空位是換過去，不是放掉', () => {
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    const [buySide, sellSide] = form.conditionSides
-    buySide!.selectHole(buySide!.view.value.hole!)
-    expect(form.selectedHole.value?.side).toBe('buy')
-
-    sellSide!.selectHole(sellSide!.view.value.hole!)
-
-    expect(form.selectedHole.value?.side).toBe('sell')
-  })
-
-  it('改了來源，抽屜立刻跟著改', () => {
-    const form = formUnderTest()
-    form.reset()
-    form.addSignalSource()
-
-    expect(form.blockDrawer.value.comparisons.map(option => option.label)).toEqual(['均線 等於…'])
-
-    form.addSignalSource()
-
-    expect(form.blockDrawer.value.comparisons.map(option => option.label))
-      .toEqual(['均線 等於…', '均線 2 等於…'])
-  })
-
-  it('改了代號，抽屜與樹上那幾句一起跟著改', () => {
-    // 抽屜列的是這一刻拼得出來的東西。它不跟著改的話，使用者會看到一塊指向
-    // 舊代號的積木，而那個代號已經不存在了。
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    form.changeSignalSourceLabel(0, 'MA')
-
-    expect(form.blockDrawer.value.comparisons.map(option => option.label)).toContain('MA 等於…')
-    expect(form.conditionSides[0]!.condition.value!.conditions[0]!.sourceLabel).toBe('MA')
-  })
-
-  it('還被條件用著的來源刪得掉，刪完那幾句自己標成找不到來源', () => {
-    // 擋住它的代價比想像中大：只有一個來源、而兩棵樹都在用它的人，
-    // 得先把兩棵樹拆光才換得掉那一支策略。
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    expect(form.signalSourceUsageWarnings.value[0]).toContain('A')
-
-    form.removeSignalSource(0)
-
-    // 樹上那幾句仍然指著 A，而 A 已經不在宣告過的代號裡了。
-    expect(form.sourceLabels.value).not.toContain('A')
-    expect(form.rejection.value).not.toBeNull()
-  })
-
-  it('一個來源都沒有時，抽屜說得出要先去宣告一個', () => {
-    const form = formUnderTest()
-    form.reset()
-
-    expect(form.blockDrawer.value.comparisons).toEqual([])
-    expect(form.blockDrawer.value.hint).toContain('信號來源')
-  })
-
-  it('群組剩兩句時，那兩句都拿不掉——規則在畫面上的樣子是做不到，不是按了才被拒', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    const buySide = form.conditionSides[0]!
-    const view = buySide.view.value
-
-    expect(view.removable).toBe(true)
-    expect(view.children.filter(child => child.kind !== 'hole')
-      .every(child => !child.removable)).toBe(true)
-  })
-
-  it('拖著的那一塊放不進自己底下——那會把一段樹接到它自己身上', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    const buySide = form.conditionSides[0]!
-    form.startDraggingNode('buy', buySide.condition.value!.nodeId)
-    const ownHole = buySide.view.value.children.find(child => child.kind === 'hole')!.hole!
-
-    expect(buySide.acceptsDragged(ownHole)).toBe(false)
-  })
-
-  it('拖著一塊抽屜裡的積木時，放得進去的空位說收', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    const buySide = form.conditionSides[0]!
-    form.startDraggingBlock(new ConditionBlockVo('comparison', 'A', null))
-    const hole = buySide.view.value.children.find(child => child.kind === 'hole')!.hole!
-
-    expect(buySide.acceptsDragged(hole)).toBe(true)
-
-    buySide.dropDragged(hole)
-
-    expect(form.dragging.value).toBeNull()
-    expect(buySide.condition.value!.conditions).toHaveLength(3)
-  })
-
-  it('沒有人在拖的時候，每一個空位都不收', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    const buySide = form.conditionSides[0]!
-    const hole = buySide.view.value.children.find(child => child.kind === 'hole')!.hole!
-
-    expect(buySide.acceptsDragged(hole)).toBe(false)
-  })
-
-  it('買入與賣出各自編各自的，互不影響', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    form.conditionSides[0]?.remove('root')
-
-    expect(form.conditionSides[0]?.condition.value).toBeNull()
-    expect(form.conditionSides[1]?.condition.value?.sourceLabel).toBe('A')
+    expect(form.rejection.value).toContain('大於零')
   })
 })

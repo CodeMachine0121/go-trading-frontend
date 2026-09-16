@@ -45,8 +45,8 @@ describe('StrategyBotWriteDomain', () => {
     ['觸發間隔是零', { triggerIntervalMinutes: 0 }, '必須大於零'],
     ['觸發間隔超過一天', { triggerIntervalMinutes: 1441 }, '上限是 1440 分鐘'],
     ['一個信號來源都沒有', { signalSources: [] }, '至少要有一個信號來源'],
-    ['買入條件是空的', { buyCondition: null }, '買入條件還沒放'],
-    ['賣出條件是空的', { sellCondition: null }, '賣出條件還沒放'],
+    ['買入一格都沒勾', { buyCondition: null }, '兩邊都要至少勾一格'],
+    ['賣出一格都沒勾', { sellCondition: null }, '兩邊都要至少勾一格'],
   ])('%s就送不出去，並說出是哪一件事', (_situation, overrides, expectedMessage) => {
     const writeDomain = aBotWrite(overrides)
 
@@ -75,6 +75,26 @@ describe('StrategyBotWriteDomain', () => {
   })
 
   it('條件指到一個沒宣告的代號就送不出去', () => {
+    // 這是唯一造得出來的壞條件：改代號時撞到別人用著的名字，
+    // 那一列會停在舊名字上等它不再撞名。
+    const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
+
+    expect(writeDomain.isSendable).toBe(false)
+    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
+  })
+
+  it('形狀不必驗——條件是由一張表寫出來的，而表寫不出不合法的形狀', () => {
+    // 群組至少兩句、每一句都有信號，都是它產生方式的必然結果。
+    // 去驗一個造不出反例的規則，是替一個不會發生的情況維護一段程式。
+    const wellFormed = new StrategyBotConditionDto('g', 'and', [
+      comparison('A', 'buy'),
+      comparison('A', 'hold'),
+    ], '', '')
+
+    expect(aBotWrite({ buyCondition: wellFormed }).isSendable).toBe(true)
+  })
+
+  it('條件指到一個沒宣告的代號就送不出去', () => {
     // 這一條原本不驗，理由是畫面上按不出來。積木工作台之後它按得出來了：
     // 把 A 改名成一個當下正被別人用著的代號時，樹上那幾句會停在舊代號上等它不再撞名，
     // 而那個瞬間它們指的就是一個已經不存在的來源。
@@ -84,17 +104,24 @@ describe('StrategyBotWriteDomain', () => {
     expect(writeDomain.rejection).toContain('沒有宣告過的代號')
   })
 
-  it('半成品送不出去，並說得出是哪一塊', () => {
-    // 積木工作台讓使用者造得出半成品——剛放下去的群組裡是兩個空位。
-    // 那是刻意的（未完成自己會標出來），但半成品不能送出去。
-    const halfBuilt = new StrategyBotConditionDto('g', 'and', [], '', '')
+  it('形狀不必驗——條件是由一張表寫出來的，而表寫不出不合法的形狀', () => {
+    // 群組至少兩句、每一句都有信號，都是它產生方式的必然結果。
+    // 去驗一個造不出反例的規則，是替一個不會發生的情況維護一段程式。
+    const wellFormed = new StrategyBotConditionDto('g', 'and', [
+      comparison('A', 'buy'),
+      comparison('A', 'hold'),
+    ], '', '')
 
-    expect(aBotWrite({ buyCondition: halfBuilt }).rejection).toContain('買入條件')
+    expect(aBotWrite({ buyCondition: wellFormed }).isSendable).toBe(true)
   })
 
-  it('比對還沒選信號也送不出去', () => {
-    const noSignal = new StrategyBotConditionDto('c', null, [], 'A', '')
+  it('條件指到一個沒宣告的代號就送不出去', () => {
+    // 這一條原本不驗，理由是畫面上按不出來。積木工作台之後它按得出來了：
+    // 把 A 改名成一個當下正被別人用著的代號時，樹上那幾句會停在舊代號上等它不再撞名，
+    // 而那個瞬間它們指的就是一個已經不存在的來源。
+    const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
 
-    expect(aBotWrite({ sellCondition: noSignal }).rejection).toContain('賣出條件')
+    expect(writeDomain.isSendable).toBe(false)
+    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
   })
 })
