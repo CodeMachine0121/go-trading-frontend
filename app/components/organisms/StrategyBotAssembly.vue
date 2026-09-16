@@ -104,8 +104,8 @@ function isHeld(side: Side, kind: 'source' | 'signal', value: string): boolean {
  * 兩個槽都滿了就自動接上去——還要再按一次「確定」的話，那一下就是在填表，
  * 而不是在拼。點同一塊已經在槽裡的零件會把它拿回來，因為拿錯了總要放得回去。
  */
-function place(side: Side, kind: 'source' | 'signal', value: string) {
-  activeSide.value = side
+function place(kind: 'source' | 'signal', value: string) {
+  const side = activeSide.value
   const slot = inProgress.value[side]
   const next = kind === 'source'
     ? { sourceLabel: slot.sourceLabel === value ? '' : value, signal: slot.signal }
@@ -294,7 +294,7 @@ function onParameterInput(index: number, name: string, raw: string | number) {
               :class="{ 'assembly__piece--held': isHeld(activeSide, 'source', source.label) }"
               :aria-pressed="isHeld(activeSide, 'source', source.label)"
               :data-testid="`piece-source-${source.label}`"
-              @click="place(activeSide, 'source', source.label)"
+              @click="place('source', source.label)"
             >
               {{ source.label }}
               <span class="assembly__piece-note">{{
@@ -424,7 +424,7 @@ function onParameterInput(index: number, name: string, raw: string | number) {
               ]"
               :aria-pressed="isHeld(activeSide, 'signal', piece.value)"
               :data-testid="`piece-signal-${piece.value}`"
-              @click="place(activeSide, 'signal', piece.value)"
+              @click="place('signal', piece.value)"
             >
               {{ piece.label }}
             </button>
