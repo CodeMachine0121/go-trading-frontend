@@ -3,6 +3,7 @@ import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
+import { StrategyBotProxy } from '~/infrastructure/proxy/strategy-bot-proxy'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
@@ -19,6 +20,7 @@ import { WatchlistService } from '~/domain/service/watchlist-service'
 import { WatchlistProxy } from '~/infrastructure/proxy/watchlist-proxy'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { StrategyService } from '~/domain/service/strategy-service'
+import { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import { TimeZoneService } from '~/domain/service/time-zone-service'
 import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
@@ -30,6 +32,7 @@ import { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyApplication } from '~/application/strategy-application'
+import { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { StrategyMarketplaceProxy } from '~/infrastructure/proxy/strategy-marketplace-proxy'
 import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
 import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
@@ -126,6 +129,13 @@ export default defineNuxtPlugin(() => {
 
   const strategyApplication = new StrategyApplication(
     new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  )
+
+  // 策略機器人是操作台上第一件「沒有人看著的時候還在做事」的東西，所以它有自己的一整條線：
+  // 策略那一條回答「我寫了什麼」，這一條回答「我派了誰出去、它現在怎麼樣」。
+  const strategyBotApplication = new StrategyBotApplication(
+    new StrategyBotService(
+      new StrategyBotProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略那一條：
@@ -230,6 +240,7 @@ export default defineNuxtPlugin(() => {
       watchlistApplication,
       indicatorCalculationApplication,
       strategyApplication,
+      strategyBotApplication,
       strategyMarketplaceApplication,
       backtestApplication,
       chartIndicatorApplication,
