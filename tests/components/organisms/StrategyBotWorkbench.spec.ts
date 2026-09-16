@@ -48,72 +48,122 @@ function mountWorkbench(editing: StrategyBotDto | null = aBot()) {
   })
 }
 
-describe('StrategyBotWorkbench：整頁就是一張表', () => {
-  it('一支策略一列，列首就是它的名字——不必去別的地方查它是誰', async () => {
+describe('StrategyBotWorkbench：一句一句拼出來', () => {
+  it('存進去的每一句，打開來就是拼好的一塊', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    const rows = wrapper.findAll('[data-testid="strategy-row"]')
-    expect(rows).toHaveLength(1)
-    expect(rows[0]!.text()).toContain('MACD')
+    expect(wrapper.find('[data-testid="sentence-buy-MACD-buy"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="sentence-sell-MACD-sell"]').exists()).toBe(true)
   })
 
-  it('買入與賣出是同一列上的兩欄——它們會不會撞在一起，橫著看就知道', async () => {
-    // 兩邊同時成立時這台機器人什麼都不會說，而那件事只有並排時才看得出來。
+  it('空著的那一句永遠在最下面，說得出下一步在哪', async () => {
+    // 一個要先按「新增」才出現的槽，等於把最常做的那件事藏起來。
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('什麼算買入')
-    expect(wrapper.text()).toContain('什麼算賣出')
-    expect(wrapper.find('[data-testid="cell-buy-MACD-buy"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cell-sell-MACD-buy"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="slot-source-buy"]').text()).toContain('挑一支策略')
+    expect(wrapper.get('[data-testid="slot-signal-buy"]').text()).toContain('挑一個信號')
   })
 
-  it('存進去時亮著的那幾格，打開來仍然亮著', async () => {
+  it('點一塊策略零件，它就落進那個槽', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="cell-buy-MACD-buy"]').attributes('aria-pressed'))
-      .toBe('true')
-    expect(wrapper.get('[data-testid="cell-buy-MACD-sell"]').attributes('aria-pressed'))
-      .toBe('false')
-    expect(wrapper.get('[data-testid="cell-sell-MACD-sell"]').attributes('aria-pressed'))
-      .toBe('true')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="slot-source-buy"]').text()).toContain('MACD')
   })
 
-  it('按一格就亮，再按一次就滅', async () => {
+  it('兩個槽都滿了就自動接上去，槽跟著空回來', async () => {
+    // 還要再按一次「確定」的話，那一下就是在填表，而不是在拼。
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
-    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
-      .toBe('true')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+    await wrapper.get('[data-testid="piece-signal-hold"]').trigger('click')
+    await flushPromises()
 
-    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
-    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
-      .toBe('false')
+    expect(wrapper.find('[data-testid="sentence-buy-MACD-hold"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="slot-source-buy"]').text()).toContain('挑一支策略')
   })
 
-  it('一格可以同時亮好幾個——「買入或持有都算」是真的有人要說的話', async () => {
+  it('拿在手上的那一塊在零件盤上只留一個影子', async () => {
+    // 兩個地方同時出現同一塊，使用者會以為自己拿到的是第二塊。
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="cell-buy-MACD-buy"]').attributes('aria-pressed'))
-      .toBe('true')
-    expect(wrapper.get('[data-testid="cell-buy-MACD-hold"]').attributes('aria-pressed'))
+    expect(wrapper.get('[data-testid="piece-source-MACD"]').attributes('aria-pressed'))
       .toBe('true')
   })
 
-  it('按買入那一欄不會動到賣出那一欄', async () => {
+  it('再點一次拿在手上的那一塊，就把它放回去', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="cell-buy-MACD-hold"]').trigger('click')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="cell-sell-MACD-hold"]').attributes('aria-pressed'))
-      .toBe('false')
+    expect(wrapper.get('[data-testid="slot-source-buy"]').text()).toContain('挑一支策略')
+  })
+
+  it('零件落到哪一座，由現在選著的那一座決定', async () => {
+    // 零件盤只有一個，所以「現在要放進哪裡」全畫面只能有一個答案。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="board-sell"]').trigger('click')
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="slot-source-sell"]').text()).toContain('MACD')
+    expect(wrapper.get('[data-testid="slot-source-buy"]').text()).toContain('挑一支策略')
+  })
+
+  it('拆掉一句就少一句', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="take-apart-buy-MACD-buy"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sentence-buy-MACD-buy"]').exists()).toBe(false)
+  })
+
+  it('同一支策略可以拼好幾句——「買入或持有都算」是真的有人要說的話', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+    await wrapper.get('[data-testid="piece-signal-hold"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sentence-buy-MACD-buy"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="sentence-buy-MACD-hold"]').exists()).toBe(true)
+  })
+
+  it('拼一邊不會動到另一邊', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="piece-source-MACD"]').trigger('click')
+    await wrapper.get('[data-testid="piece-signal-hold"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sentence-sell-MACD-hold"]').exists()).toBe(false)
+  })
+
+  it('條件這一區裡一個下拉選單都沒有——那正是填表與組裝的差別', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    const board = wrapper.get('[data-testid="board-buy"]')
+
+    // 唯一的例外是「這幾句要全部成立還是任一成立」，那是整座拼板的性質，
+    // 不是拼出來的東西。
+    expect(board.findAll('select')).toHaveLength(1)
+    expect(board.find('[data-testid="operator-buy"]').exists()).toBe(true)
   })
 })
 
@@ -197,7 +247,7 @@ describe('StrategyBotWorkbench：存得下去嗎', () => {
 })
 
 describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
-  it('且與或交錯的條件，照實說這張表畫不出它——不默默壓平', async () => {
+  it('且與或交錯的條件，照實說這裡拼不出它——不默默壓平', async () => {
     // 壓平會得到一個意思不同的條件，而使用者會在完全沒察覺的情況下把它存回去。
     const wrapper = mountWorkbench(aBot(
       group('and',
@@ -210,7 +260,7 @@ describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
       ]))
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="matrix-unrepresentable-buy"]').text()).toContain('畫不出')
+    expect(wrapper.get('[data-testid="matrix-unrepresentable-buy"]').text()).toContain('拼不出')
     expect(wrapper.find('[data-testid="matrix-unrepresentable-sell"]').exists()).toBe(false)
   })
 })

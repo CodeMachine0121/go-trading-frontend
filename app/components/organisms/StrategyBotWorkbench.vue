@@ -3,7 +3,7 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
-import StrategyBotDecisionTable from '~/components/organisms/StrategyBotDecisionTable.vue'
+import StrategyBotAssembly from '~/components/organisms/StrategyBotAssembly.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -14,14 +14,14 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 它**不知道自己是在新增還是在改**——收到一台機器人（或 null），交出一份要存的東西。
 // 知道的話，這裡就會長出兩條各自的路，而它們要做的事其實一模一樣。
 //
-// 整頁只有兩塊：一列「這台機器人是什麼」，和一張「它怎麼判斷」的表。
+// 整頁只有兩塊：一列「這台機器人是什麼」，和底下那個**拼零件的地方**。
 //
-// 在此之前這裡是「來源清單 ＋ 積木抽屜 ＋ 兩棵可拖拉的樹」，而它收到的每一個抱怨
-// 都來自同一件事：**東西被切成好幾塊，它們之間的關係要用記的，而其中一塊會把另一塊推走。**
+// 這裡試過表單、試過樹、試過抽屜、試過矩陣，每一版都被同一句話擋回來：
+// 「這就是區塊換位置而已」。那句話是對的——那幾版都是把下拉選單重新排列。
 //
-// 一張表沒有第二塊。列首就是那支策略的名字，兩欄就是買入與賣出，
-// 交叉的那一格就是「這一支要是什麼才算數」。沒有東西可以被推走、
-// 沒有東西需要拖、也沒有哪一欄說不出自己是誰。
+// 現在它是**零件與槽**：一句判斷由三塊扣起來（⬢策略⬢ 是 ⬢信號⬢），
+// 從下面的零件盤點一塊，它落進上面空著的槽，兩個槽滿了就咔一下接進堆疊。
+// 條件這一區裡一個下拉選單都沒有，因為**下拉選單是在填表，掉進槽裡的零件是在組裝**。
 const { editing, strategyOptions, saving, failureMessage } = defineProps<{
   /** 有值就是改那一台，沒有就是新的一台。 */
   editing: StrategyBotDto | null
@@ -95,7 +95,7 @@ function onSave() {
       </label>
     </div>
 
-    <StrategyBotDecisionTable
+    <StrategyBotAssembly
       :sources="form.signalSources.value"
       :buy-matrix="form.conditionSides[0].matrix.value"
       :sell-matrix="form.conditionSides[1].matrix.value"
