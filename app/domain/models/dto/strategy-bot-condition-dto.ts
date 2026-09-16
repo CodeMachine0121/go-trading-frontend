@@ -7,9 +7,8 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
  * 攤平了的話，畫面得先把樹組回來才畫得出第一格——而那就是第二個組樹的地方，
  * 遲早會跟第一個對同一份資料有不同的看法。
  *
- * `nodeId` 只活在畫面上，後端既不收也不給。它存在的唯一理由是 Vue 的 `key`：
- * 沒有一個穩定的識別碼，刪掉中間一句時 Vue 會重用錯的那一格 DOM，
- * 使用者看到的是「另一句的內容跳到這一格」——一個看起來像資料壞掉的畫面問題。
+ * `nodeId` 只活在畫面上，後端既不收也不給——為什麼需要它，見
+ * StrategyBotConditionNodeIdVo。
  */
 export class StrategyBotConditionDto {
   constructor(

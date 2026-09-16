@@ -1,5 +1,6 @@
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import { StrategyBotConditionNodeIdVo } from '~/domain/models/vo/strategy-bot-condition-node-id-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 /**
@@ -172,7 +173,7 @@ export class StrategyBotConditionDomain {
       this.mapNodes(this.condition, node => (
         node.nodeId === nodeId && !node.isGroup
           ? new StrategyBotConditionDto(
-              this.newNodeId(),
+              new StrategyBotConditionNodeIdVo().value,
               'and',
               [node, this.newComparison(sourceLabel)],
               '',
@@ -200,28 +201,17 @@ export class StrategyBotConditionDomain {
   }
 
   private newComparison(sourceLabel: string): StrategyBotConditionDto {
-    return new StrategyBotConditionDto(this.newNodeId(), null, [], sourceLabel, 'buy')
+    return new StrategyBotConditionDto(new StrategyBotConditionNodeIdVo().value, null, [], sourceLabel, 'buy')
   }
 
   private newGroup(sourceLabel: string): StrategyBotConditionDto {
     return new StrategyBotConditionDto(
-      this.newNodeId(),
+      new StrategyBotConditionNodeIdVo().value,
       'and',
       [this.newComparison(sourceLabel), this.newComparison(sourceLabel)],
       '',
       '',
     )
-  }
-
-  /**
-   * 一個只活在畫面上的識別碼。
-   *
-   * 它的唯一用途是 Vue 的 `key`。用陣列索引當 key 的話，刪掉中間一句時
-   * 後面每一句的 key 都往前挪一格，Vue 會重用錯的那一格 DOM——
-   * 使用者看到的是「另一句的內容跳到這一格」，一個看起來像資料壞掉的畫面問題。
-   */
-  private newNodeId(): string {
-    return `node-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`
   }
 
   private mapNodes(

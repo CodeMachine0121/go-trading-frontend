@@ -1,6 +1,7 @@
 import type { StrategyBot, StrategyBotCondition, StrategyBotSignalSource } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
+import { StrategyBotConditionNodeIdVo } from '~/domain/models/vo/strategy-bot-condition-node-id-vo'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import {
   StrategyBotParameterValueDto,
@@ -57,7 +58,7 @@ export class StrategyBotDomain {
     const operator = this.toOperator(condition.operator)
 
     return new StrategyBotConditionDto(
-      this.newNodeId(),
+      new StrategyBotConditionNodeIdVo().value,
       operator,
       operator === null
         ? []
@@ -69,9 +70,5 @@ export class StrategyBotDomain {
 
   private toOperator(operator: string): ConditionOperatorVo | null {
     return CONDITION_OPERATORS.find(known => known === operator) ?? null
-  }
-
-  private newNodeId(): string {
-    return `node-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`
   }
 }
