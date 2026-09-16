@@ -3,6 +3,15 @@ import type { StrategyBotApplication } from '~/application/strategy-bot-applicat
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
+
+/**
+ * 機器人聽得懂的唯一一種指標值種類。
+ *
+ * 它是這一整條線的前提：一台機器人的條件比對的是買入／賣出／持有，
+ * 而只有這一種策略吐得出那三個值。
+ */
+const SIGNAL_RESULT_TYPE: IndicatorResultType = 'signal'
 
 /**
  * 機器人清單這一整塊的狀態與動作。
@@ -51,19 +60,28 @@ export function useStrategyBots(
       strategyBots.value = bots
 
       // 自己的與採用來的分開讀，因為它們的形狀本來就不同：採用來的**沒有算式**，
-      // 所以它的旋鈕直接掛在上面，而自己的那幾支掛在算式內容裡。
+      // 所以它的旋鈕與指標值種類直接掛在上面，而自己的那幾支掛在算式內容裡。
       // 合成一個「有時候有算式」的型別，正是這個系統一直在避免的東西。
+      //
+      // 兩邊都只留**訊號種類**的那幾支。不是為了清單好看：機器人跑一個信號來源時
+      // 一律以訊號種類執行它，所以一支吐數字的策略在第一輪就會算式失敗，
+      // 而算式失敗是會**停擺**的那一類——使用者會得到一台按下播放、隔天發現
+      // 早就停了的機器人，而原因發生在他看不到的地方。挑不到，就不會發生。
       const options = [
-        ...available.mine.map(strategy => ({
-          value: strategy.id,
-          label: strategy.name,
-          parameterNames: strategy.content.parameters.map(parameter => parameter.name),
-        })),
-        ...available.adopted.map(strategy => ({
-          value: strategy.id,
-          label: strategy.name,
-          parameterNames: strategy.parameters.map(parameter => parameter.name),
-        })),
+        ...available.mine
+          .filter(strategy => strategy.content.resultType === SIGNAL_RESULT_TYPE)
+          .map(strategy => ({
+            value: strategy.id,
+            label: strategy.name,
+            parameterNames: strategy.content.parameters.map(parameter => parameter.name),
+          })),
+        ...available.adopted
+          .filter(strategy => strategy.resultType === SIGNAL_RESULT_TYPE)
+          .map(strategy => ({
+            value: strategy.id,
+            label: strategy.name,
+            parameterNames: strategy.parameters.map(parameter => parameter.name),
+          })),
       ]
 
       strategyOptions.value = options.map(

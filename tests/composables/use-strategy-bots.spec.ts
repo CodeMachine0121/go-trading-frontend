@@ -46,8 +46,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   strategyBotApplication.listStrategyBots.mockResolvedValue([botDto(3, '早盤突破')])
   strategyApplication.listAvailableStrategies.mockResolvedValue({
-    mine: [{ id: 9, name: '均線', content: { parameters: [{ name: '回看根數' }] } }],
-    adopted: [{ id: 10, name: '別人的動能', parameters: [{ name: '週期' }] }],
+    mine: [{
+      id: 9,
+      name: '均線',
+      content: { resultType: 'signal', parameters: [{ name: '回看根數' }] },
+    }],
+    adopted: [{ id: 10, name: '別人的動能', resultType: 'signal', parameters: [{ name: '週期' }] }],
   })
 })
 
@@ -71,6 +75,45 @@ describe('useStrategyBots 載入', () => {
 
     expect(bots.parameterNamesByStrategyId.value[9]).toEqual(['回看根數'])
     expect(bots.parameterNamesByStrategyId.value[10]).toEqual(['週期'])
+  })
+
+  it('只挑得到會吐訊號的那幾支策略', async () => {
+    // 不是為了清單好看：機器人一律以訊號種類執行一個信號來源，
+    // 所以一支吐數字的策略會在第一輪算式失敗——而算式失敗是會**停擺**的那一類。
+    // 使用者會得到一台按下播放、隔天發現早就停了的機器人。挑不到，就不會發生。
+    strategyApplication.listAvailableStrategies.mockResolvedValue({
+      mine: [
+        { id: 9, name: '會吐訊號的', content: { resultType: 'signal', parameters: [] } },
+        { id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } },
+        { id: 12, name: '吐一整條線的', content: { resultType: 'floatList', parameters: [] } },
+      ],
+      adopted: [
+        { id: 10, name: '採用來、會吐訊號的', resultType: 'signal', parameters: [] },
+        { id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] },
+      ],
+    })
+
+    const bots = botsUnderTest()
+    await bots.load()
+
+    expect(bots.strategyOptions.value).toEqual([
+      { value: 9, label: '會吐訊號的' },
+      { value: 10, label: '採用來、會吐訊號的' },
+    ])
+    expect(bots.parameterNamesByStrategyId.value[11]).toBeUndefined()
+    expect(bots.parameterNamesByStrategyId.value[13]).toBeUndefined()
+  })
+
+  it('一支會吐訊號的都沒有時，選單是空的——畫面據此說出下一步', async () => {
+    strategyApplication.listAvailableStrategies.mockResolvedValue({
+      mine: [{ id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } }],
+      adopted: [],
+    })
+
+    const bots = botsUnderTest()
+    await bots.load()
+
+    expect(bots.strategyOptions.value).toEqual([])
   })
 
   it('讀不到時說得出原因，而且清單不變成半殘的樣子', async () => {
