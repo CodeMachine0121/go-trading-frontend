@@ -7,6 +7,7 @@ import StrategyBotFormDialog from '~/components/organisms/StrategyBotFormDialog.
 import StrategyBotStatusBadge from '~/components/molecules/StrategyBotStatusBadge.vue'
 import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppToast from '~/components/atoms/AppToast.vue'
 import type { StrategyApplication } from '~/application/strategy-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
@@ -223,6 +224,8 @@ onMounted(() => {
       @close="bots.closeForm"
       @save="bots.save"
     />
+
+    <AppToast :message="bots.announcement.value" />
 
     <ConfirmDialog
       :open="bots.deleting.value !== null"

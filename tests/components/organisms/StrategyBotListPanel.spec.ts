@@ -320,3 +320,61 @@ describe('StrategyBotListPanel 表單上的交易標的', () => {
       'value', 'ETHUSDT')
   })
 })
+
+describe('StrategyBotListPanel 存完之後說的那一句', () => {
+  async function openEditAndSave(
+    saveStrategyBot: StrategyBotApplication['saveStrategyBot'],
+  ) {
+    const { wrapper } = mountPanel({
+      saveStrategyBot,
+      listStrategyBots: vi.fn().mockResolvedValue(
+        [botDto(1, '早盤突破', stoppedState())]),
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-edit"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('存好了就把表單收掉，並且說一聲', async () => {
+    const wrapper = await openEditAndSave(
+      vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())))
+
+    expect(wrapper.find('[data-testid="bot-form-save"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
+  })
+
+  it('後端拒絕時不說成功，表單也留著讓人改', async () => {
+    // 這一條是那句話的全部價值所在：它只在真的存進去時出現。
+    // 存不存得進去看不出來的話，說成功比不說更糟。
+    const wrapper = await openEditAndSave(
+      vi.fn().mockRejectedValue(new Error('觸發間隔上限是 1440 分鐘')))
+
+    expect(wrapper.find('[data-testid="app-toast"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="bot-form-save"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="bot-form-failure"]').text())
+      .toContain('觸發間隔上限是 1440 分鐘')
+  })
+
+  it('那句話自己會走，不會留在畫面上誤導下一個動作', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = await openEditAndSave(
+        vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())))
+      expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
+
+      vi.advanceTimersByTime(4000)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="app-toast"]').exists()).toBe(false)
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+})

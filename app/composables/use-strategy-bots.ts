@@ -15,6 +15,13 @@ import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-ty
 const SIGNAL_RESULT_TYPE: IndicatorResultType = 'signal'
 
 /**
+ * 做完一件事那句話停留多久。
+ *
+ * 四秒：夠一句十來個字讀完，又短到不會還掛在那裡誤導下一個動作的結果。
+ */
+const ANNOUNCEMENT_VISIBLE_MILLISECONDS = 4000
+
+/**
  * 機器人清單這一整塊的狀態與動作。
  *
  * 它同時要問兩個 Application，而那不是偷懶：機器人清單答得出「我派了誰出去」，
@@ -56,6 +63,41 @@ export function useStrategyBots(
   const formOpen = ref(false)
   const editing = ref<StrategyBotDto | null>(null)
   const deleting = ref<StrategyBotDto | null>(null)
+
+  /**
+   * 剛剛那件事成了，那一句話。空字串就是現在沒話要說。
+   *
+   * 它跟 failureMessage 分開，因為兩者留下來的理由不同：出了事那句要留著等人處理，
+   * 成功這句留著只會蓋住下一個動作。
+   */
+  const announcement = ref('')
+
+  /**
+   * 收掉上一句的計時器。
+   *
+   * 由這裡拿著而不是讓那個元件自己數，是因為連著做兩件事時會有兩個計時器在數同一格
+   * 位子——先到的那個會把後來的話收掉，於是第二句只閃一下就不見了。每說一句就把前一個
+   * 計時器取消，那格位子永遠只有一個人在數。
+   */
+  let announcementTimer: ReturnType<typeof setTimeout> | null = null
+
+  function announce(message: string) {
+    announcement.value = message
+
+    if (announcementTimer !== null) {
+      clearTimeout(announcementTimer)
+    }
+    announcementTimer = setTimeout(() => {
+      announcement.value = ''
+    }, ANNOUNCEMENT_VISIBLE_MILLISECONDS)
+  }
+
+  // 畫面收掉之後那個計時器還在數，數完會去寫一個沒有人在看的 ref。
+  onScopeDispose(() => {
+    if (announcementTimer !== null) {
+      clearTimeout(announcementTimer)
+    }
+  })
 
   async function load() {
     loading.value = true
@@ -194,9 +236,14 @@ export function useStrategyBots(
     saving.value = true
     formFailureMessage.value = ''
 
+    // 改的還是新的，要在存之前問——存完之後 load() 已經把清單換過一輪，
+    // 那時再問「剛剛是在改哪一台」問的是新的一份資料。
+    const wasEditing = writeDto.id !== undefined
+
     try {
       await strategyBotApplication.saveStrategyBot(writeDto)
       formOpen.value = false
+      announce(wasEditing ? '更改成功' : '機器人建好了')
       await load()
     }
     catch (error: unknown) {
@@ -297,6 +344,7 @@ export function useStrategyBots(
     saving,
     busyId,
     failureMessage,
+    announcement,
     formFailureMessage,
     deliveryNotConfigured,
     expandedBotId,

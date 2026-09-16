@@ -223,6 +223,48 @@ describe('useStrategyBots 的表單', () => {
     expect(strategyBotApplication.listStrategyBots).toHaveBeenCalled()
   })
 
+  it('存好了就說一聲——而且分得出剛剛是改一台還是拼了一台新的', async () => {
+    // 兩句話不同不是修辭：使用者按下儲存之後畫面上唯一改變的就是這一句，
+    // 它是他判斷「剛剛那下到底做了什麼」的全部依據。
+    strategyBotApplication.saveStrategyBot.mockResolvedValue(botDto(3, '早盤突破'))
+
+    const editingBots = botsUnderTest()
+    await editingBots.save({ ...botDto(3, '早盤突破'), id: 3 } as never)
+    expect(editingBots.announcement.value).toBe('更改成功')
+
+    const creatingBots = botsUnderTest()
+    await creatingBots.save({ ...botDto(3, '早盤突破'), id: undefined } as never)
+    expect(creatingBots.announcement.value).toBe('機器人建好了')
+  })
+
+  it('被拒絕時一個字都不說——存不進去卻說成功，比不說更糟', async () => {
+    strategyBotApplication.saveStrategyBot.mockRejectedValue(
+      new Error('機器人名稱「早盤突破」已被使用'))
+
+    const bots = botsUnderTest()
+    await bots.save({ ...botDto(3, '早盤突破'), id: 3 } as never)
+
+    expect(bots.announcement.value).toBe('')
+  })
+
+  it('那句話自己會走', async () => {
+    vi.useFakeTimers()
+    try {
+      strategyBotApplication.saveStrategyBot.mockResolvedValue(botDto(3, '早盤突破'))
+
+      const bots = botsUnderTest()
+      await bots.save({ ...botDto(3, '早盤突破'), id: 3 } as never)
+      expect(bots.announcement.value).toBe('更改成功')
+
+      vi.advanceTimersByTime(4000)
+
+      expect(bots.announcement.value).toBe('')
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('被拒絕時表單留著，內容一個字都沒少', async () => {
     // 要使用者重打一次，是拿他的時間賠一個伺服器端才知道的規則。
     strategyBotApplication.saveStrategyBot.mockRejectedValue(
