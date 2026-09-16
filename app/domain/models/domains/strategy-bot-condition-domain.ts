@@ -232,19 +232,20 @@ export class StrategyBotConditionDomain {
       return null
     }
 
-    const transformed = transform(node)
+    // 先把子節點走完，再轉換自己——順序反過來的話，「把一句比對包成群組」會爆炸：
+    // 轉換產生的新群組裡裝著原來那一個節點，而它仍然符合條件，於是被再包一次，
+    // 永遠包下去。先走子節點，轉換的產物就不會再被自己看到一次。
+    const walked = node.isGroup
+      ? new StrategyBotConditionDto(
+          node.nodeId,
+          node.operator,
+          node.conditions.map(child => this.mapNodes(child, transform)!),
+          '',
+          '',
+        )
+      : node
 
-    if (!transformed.isGroup) {
-      return transformed
-    }
-
-    return new StrategyBotConditionDto(
-      transformed.nodeId,
-      transformed.operator,
-      transformed.conditions.map(child => this.mapNodes(child, transform)!),
-      '',
-      '',
-    )
+    return transform(walked)
   }
 
   private withoutNode(
