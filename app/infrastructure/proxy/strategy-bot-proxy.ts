@@ -115,15 +115,25 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
   }
 
   /**
-   * 開始跑與停下來打的是同一個子資源，只差在方法——它們說的是同一件事的兩個方向
-   * （「這台在跑」成立或不成立），所以它們的失敗翻譯也一定相同。
+   * 開著與關著打的是同一個子資源，只差在方法——它們說的是同一件事的兩個方向
+   * （「這台開著」成立或不成立），所以它們的失敗翻譯也一定相同。
    */
   async startStrategyBot(id: number): Promise<StrategyBot> {
-    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/run`, 'POST')
+    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/power`, 'POST')
   }
 
   async stopStrategyBot(id: number): Promise<StrategyBot> {
-    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/run`, 'DELETE')
+    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/power`, 'DELETE')
+  }
+
+  /**
+   * 不等排程，現在就跑一輪。
+   *
+   * 它與排程那一輪走的是同一條路，所以它送不送訊息、記不記進歷史，都與它自己跑
+   * 一模一樣——這顆鍵要用來確認的正是那件事。
+   */
+  async runRoundNow(id: number): Promise<StrategyBot> {
+    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/runs`, 'POST')
   }
 
   async listRunRecords(id: number): Promise<StrategyBotRunRecord[]> {

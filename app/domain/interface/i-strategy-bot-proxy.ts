@@ -38,6 +38,12 @@ export interface IStrategyBotProxy {
   stopStrategyBot(id: number): Promise<StrategyBot>
 
   /**
+   * 不等排程，現在就跑一輪。已停止的也跑得動——試一台機器人不該非得先讓它跑著。
+   * 正在跑一輪時拋 StrategyBotAlreadyRunningARoundError。
+   */
+  runRoundNow(id: number): Promise<StrategyBot>
+
+  /**
    * 這台機器人跑過哪幾輪，最新的排前面。
    *
    * 它自己一條路而不是跟著機器人一起回來，因為兩者是在不同時刻、以不同的量讀的：

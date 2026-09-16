@@ -154,17 +154,28 @@ describe('StrategyBotProxy 送出去的樣子', () => {
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('PUT')
   })
 
-  it('播放與停止打的是同一個子資源的兩個方向', async () => {
+  it('開著與關著打的是同一個子資源的兩個方向', async () => {
     const fetchMock = vi.fn().mockResolvedValue(botWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await proxy().startStrategyBot(3)
     await proxy().stopStrategyBot(3)
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/strategy-bots/3/run')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/strategy-bots/3/power')
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST')
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8080/strategy-bots/3/run')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('http://localhost:8080/strategy-bots/3/power')
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('DELETE')
+  })
+
+  it('立即運算打的是輪次那一條，不是電源那一條', async () => {
+    // 兩條差一個字母而意思完全不同，所以這一條特別釘住。
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().runRoundNow(3)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/strategy-bots/3/runs')
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST')
   })
 })
 

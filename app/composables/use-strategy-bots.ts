@@ -216,6 +216,28 @@ export function useStrategyBots(
     await runOnBot(id, () => strategyBotApplication.stopStrategyBot(id))
   }
 
+  /**
+   * 不等排程，現在就跑一輪，然後**把那一台的歷史展開**。
+   *
+   * 展開是這顆鍵的一半：按下去卻什麼都沒變，使用者無從知道它到底跑了沒有——
+   * 而剛跑完的那一輪就在歷史的第一列。
+   */
+  async function runNow(id: number) {
+    deliveryNotConfigured.value = false
+    await runOnBot(id, () => strategyBotApplication.runRoundNow(id))
+
+    if (failureMessage.value !== '') {
+      return
+    }
+
+    // 已經展開的就重讀，沒展開的就展開——兩種情況下他看到的都是剛剛那一輪。
+    if (expandedBotId.value === id) {
+      expandedBotId.value = null
+    }
+
+    await toggleRunHistory(id)
+  }
+
   function askToDelete(strategyBot: StrategyBotDto) {
     deleting.value = strategyBot
   }
@@ -282,6 +304,7 @@ export function useStrategyBots(
     runRecordsLoading,
     runRecordsFailureMessage,
     toggleRunHistory,
+    runNow,
     formOpen,
     editing,
     deleting,

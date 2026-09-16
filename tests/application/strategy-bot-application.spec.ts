@@ -23,6 +23,7 @@ function buildApplication(strategyBotProxy: Partial<IStrategyBotProxy>): Strateg
     deleteStrategyBot: vi.fn(),
     startStrategyBot: vi.fn(),
     stopStrategyBot: vi.fn(),
+    runRoundNow: vi.fn(),
     listRunRecords: vi.fn(),
     ...strategyBotProxy,
   }))

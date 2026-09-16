@@ -63,6 +63,13 @@ export class StrategyBotService {
     return stopped.toDomain().toDto()
   }
 
+  /** 不等排程，現在就跑一輪。 */
+  async runRoundNow(id: number): Promise<StrategyBotDto> {
+    const ran = await this.strategyBotProxy.runRoundNow(id)
+
+    return ran.toDomain().toDto()
+  }
+
   /** 這台機器人跑過哪幾輪。一輪都沒跑過是答案，不是錯誤。 */
   async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
     const runRecords = await this.strategyBotProxy.listRunRecords(id)

@@ -39,6 +39,7 @@ function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
     listRunRecords: vi.fn().mockResolvedValue([]),
+    runRoundNow: vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())),
     getStrategyBot: vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState())),
     saveStrategyBot: vi.fn(),
     deleteStrategyBot: vi.fn().mockResolvedValue(undefined),
@@ -230,5 +231,31 @@ describe('StrategyBotListPanel 的執行紀錄', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="bot-history-toggle"]').text()).toContain('收起紀錄')
+  })
+})
+
+describe('StrategyBotListPanel 的立即運算', () => {
+  it('按下去就跑一輪，並把歷史展開', async () => {
+    const runRoundNow = vi.fn().mockResolvedValue(botDto(1, '早盤突破', stoppedState()))
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+      runRoundNow,
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-run-now"]').trigger('click')
+    await flushPromises()
+
+    expect(runRoundNow).toHaveBeenCalledWith(1)
+    expect(wrapper.find('[data-testid="run-history-empty"]').exists()).toBe(true)
+  })
+
+  it('已停止的機器人也給按——試一台機器人不該非得先讓它跑著', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([botDto(1, '早盤突破', stoppedState())]),
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-run-now"]').attributes('disabled')).toBeUndefined()
   })
 })

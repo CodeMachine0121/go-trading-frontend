@@ -31,6 +31,10 @@ export class StrategyBotApplication {
     return this.strategyBotService.stopStrategyBot(id)
   }
 
+  async runRoundNow(id: number): Promise<StrategyBotDto> {
+    return this.strategyBotService.runRoundNow(id)
+  }
+
   async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
     return this.strategyBotService.listRunRecords(id)
   }

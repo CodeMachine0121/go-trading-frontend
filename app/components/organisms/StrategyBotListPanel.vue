@@ -151,6 +151,21 @@ onMounted(() => {
             停止
           </AppButton>
 
+          <!--
+            試一次，不等排程。它走的是排程那一輪同一條路，所以按下去看到的
+            就是它自己跑會做的事——這顆鍵要用來確認的正是那件事。
+          -->
+          <AppButton
+            type="button"
+            variant="secondary"
+            :disabled="bots.busyId.value === strategyBot.id"
+            title="不等排程，現在就跑一輪"
+            data-testid="bot-run-now"
+            @click="bots.runNow(strategyBot.id)"
+          >
+            立即運算
+          </AppButton>
+
           <AppButton
             type="button"
             variant="ghost"

@@ -13,6 +13,7 @@ const strategyBotApplication = {
   deleteStrategyBot: vi.fn(),
   startStrategyBot: vi.fn(),
   stopStrategyBot: vi.fn(),
+  runRoundNow: vi.fn(),
   listRunRecords: vi.fn(),
 }
 
@@ -322,5 +323,44 @@ describe('useStrategyBots 的執行紀錄', () => {
 
     expect(bots.expandedBotId.value).toBe(4)
     expect(bots.runRecords.value).toEqual([])
+  })
+})
+
+describe('useStrategyBots 的立即運算', () => {
+  it('跑一輪之後把那一台的歷史展開', async () => {
+    // 按下去卻什麼都沒變，使用者無從知道它到底跑了沒有——
+    // 而剛跑完的那一輪就在歷史的第一列。
+    strategyBotApplication.runRoundNow.mockResolvedValue(botDto(3, '早盤突破'))
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+
+    const bots = botsUnderTest()
+    await bots.runNow(3)
+
+    expect(strategyBotApplication.runRoundNow).toHaveBeenCalledWith(3)
+    expect(bots.expandedBotId.value).toBe(3)
+  })
+
+  it('已經展開的重讀一次，不是收起來', async () => {
+    strategyBotApplication.runRoundNow.mockResolvedValue(botDto(3, '早盤突破'))
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+
+    const bots = botsUnderTest()
+    await bots.toggleRunHistory(3)
+    await bots.runNow(3)
+
+    expect(bots.expandedBotId.value).toBe(3)
+    // 第一次是展開，第二次是跑完之後重讀。
+    expect(strategyBotApplication.listRunRecords).toHaveBeenCalledTimes(2)
+  })
+
+  it('跑不動時說出原因，而且不展開一份沒有變的歷史', async () => {
+    strategyBotApplication.runRoundNow.mockRejectedValue(
+      new Error('這台機器人正在跑一輪，等它跑完再試一次'))
+
+    const bots = botsUnderTest()
+    await bots.runNow(3)
+
+    expect(bots.failureMessage.value).toContain('正在跑一輪')
+    expect(bots.expandedBotId.value).toBeNull()
   })
 })
