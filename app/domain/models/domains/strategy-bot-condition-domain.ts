@@ -1,5 +1,10 @@
+import { ConditionNodeViewDto } from '~/domain/models/dto/condition-node-view-dto'
+import type { ConditionNodeStatusVo } from '~/domain/models/dto/condition-node-view-dto'
 import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import type { ConditionBlockVo } from '~/domain/models/vo/condition-block-vo'
+import { ConditionHoleVo } from '~/domain/models/vo/condition-hole-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 import { StrategyBotConditionNodeIdVo } from '~/domain/models/vo/strategy-bot-condition-node-id-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
@@ -350,6 +355,298 @@ export class StrategyBotConditionDomain {
 
     return node.conditions.reduce(
       (total, child) => total + this.nodeCountOf(child), 1)
+  }
+
+  /**
+   * 這個洞收不收這一塊。
+   *
+   * 抽屜的「這塊現在按不按得下去」與落點的「這裡放不放得進去」是**同一個問題**，
+   * 所以只寫在這一個地方。分開寫的話，其中一邊遲早會多一條或少一條規則，
+   * 而使用者看到的是一塊按得下去卻放不進去的積木。
+   *
+   * 回傳一句話而不是 true/false：擋下來的時候總要說得出為什麼，
+   * 而知道為什麼的是這裡。放得進去時回空字串。
+   */
+  refusalFor(hole: ConditionHoleVo, block: ConditionBlockVo): string {
+    if (!this.hasHoleAt(hole)) {
+      return '這個位置已經不在了'
+    }
+
+    const addedNodeCount = 1
+    if (this.nodeCount + addedNodeCount > STRATEGY_BOT_LIMITS.conditionNodeCount) {
+      return `一棵條件樹最多 ${STRATEGY_BOT_LIMITS.conditionNodeCount} 塊，已經滿了`
+    }
+
+    // 洞所在的層數，就是放進去那一塊會待的層數。根上的洞是第一層。
+    const holeLevel = hole.parentNodeId === null
+      ? 1
+      : (this.depthFromRootTo(this.condition, hole.parentNodeId, 1) ?? 0) + 1
+
+    // 一塊比對就是它自己一層；一個群組放下去之後裡面還要再裝東西，
+    // 所以它至少要佔兩層——放得下自己卻裝不了任何東西的群組，是一個永遠存不出去的形狀。
+    const neededDepth = block.kind === 'group' ? holeLevel + 1 : holeLevel
+    if (neededDepth > STRATEGY_BOT_LIMITS.conditionDepth) {
+      return `巢狀最多 ${STRATEGY_BOT_LIMITS.conditionDepth} 層，這裡放不下`
+    }
+
+    return ''
+  }
+
+  /** 這個洞收不收這一塊。要說出為什麼時問 `refusalFor`。 */
+  accepts(hole: ConditionHoleVo, block: ConditionBlockVo): boolean {
+    return this.refusalFor(hole, block) === ''
+  }
+
+  /**
+   * 把一塊積木放進一個洞裡。
+   *
+   * 放不進去時原樣回傳自己而不是拋錯：畫面已經不讓使用者走到這裡了，
+   * 而一個沒有人接的錯誤只會把整頁弄倒——弄倒的代價是他拼了半天的那棵樹。
+   */
+  fill(hole: ConditionHoleVo, block: ConditionBlockVo): StrategyBotConditionDomain {
+    if (!this.accepts(hole, block)) {
+      return this
+    }
+
+    const placed = block.kind === 'group'
+      ? new StrategyBotConditionDto(
+          new StrategyBotConditionNodeIdVo().value, block.operator ?? 'and', [], '', '')
+      // 信號留空，不給預設值。上一版給的是「買入」，而一句填好的比對與一句
+      // 還沒選信號的比對長得一模一樣——現在未完成自己會標出來，留空才誠實。
+      : new StrategyBotConditionDto(
+          new StrategyBotConditionNodeIdVo().value, null, [], block.sourceLabel, '')
+
+    return this.placeAt(hole, placed)
+  }
+
+  /**
+   * 把樹上已經有的一塊搬到一個洞裡，**底下的一整串跟著走**。
+   *
+   * 先摘下來再放回去，而且是照這個順序：反過來的話，樹上會有一瞬間存在兩份同樣身分的
+   * 節點，而接著的那次摘除會把兩份都摘掉。
+   *
+   * 一個群組不得落進自己底下——那會把一段樹接到它自己身上，走一次就無限深。
+   * 這是洞與積木唯一畫得出無效形狀的地方，所以擋在這裡，而不是靠畫面不給拖。
+   */
+  move(nodeId: string, hole: ConditionHoleVo): StrategyBotConditionDomain {
+    const root = this.condition
+    if (root === null) {
+      return this
+    }
+
+    const moving = this.nodeById(root, nodeId)
+    if (moving === null || !this.hasHoleAt(hole) || this.isWithin(moving, hole.parentNodeId)) {
+      return this
+    }
+
+    // 搬到自己原本待的那個群組裡，是一個什麼都沒發生的動作——但摘下來之後
+    // 那個群組少了一格，洞的位置就跟著往前挪，於是它會落到別人前面去。
+    // 順序在且與或底下沒有意義，所以直接當作沒發生。
+    const currentParent = this.parentOf(root, nodeId)
+    if ((currentParent?.nodeId ?? null) === hole.parentNodeId) {
+      return this
+    }
+
+    const detached = new StrategyBotConditionDomain(
+      root.nodeId === nodeId ? null : this.withoutNode(root, nodeId))
+
+    return detached.placeAt(hole, moving)
+  }
+
+  /**
+   * 這棵樹連同它每一塊的狀態，畫成元件直接照著畫的形狀。
+   *
+   * 已宣告的代號要傳進來，因為「這一句指到一個不存在的來源」是樹自己答不出來的——
+   * 樹只記得代號那一串字，誰還在是第二段的事。
+   */
+  toViewDto(declaredLabels: readonly string[]): ConditionNodeViewDto {
+    if (this.condition === null) {
+      return this.holeViewAt(new ConditionHoleVo(null, 0))
+    }
+
+    return this.nodeViewOf(this.condition, declaredLabels)
+  }
+
+  /**
+   * 這棵樹存不存得下去，存不下去的話是哪一件事。存得下去時回空字串。
+   *
+   * 它會說出**第一件**沒好的事而不是全部：使用者一次只修一個地方，
+   * 而一串同時列出來的問題，多數是同一個還沒拼完的區塊講了好幾次。
+   */
+  incompleteReason(declaredLabels: readonly string[]): string {
+    if (this.condition === null) {
+      return '還沒放任何東西進去'
+    }
+
+    return this.firstProblemIn(this.condition, declaredLabels)
+  }
+
+  /** 樹上每一個洞。抽屜與落點都問這裡，所以「哪裡算一個洞」只有一份定義。 */
+  holes(): readonly ConditionHoleVo[] {
+    if (this.condition === null) {
+      return [new ConditionHoleVo(null, 0)]
+    }
+
+    return this.holesIn(this.condition)
+  }
+
+  private holesIn(node: StrategyBotConditionDto): ConditionHoleVo[] {
+    if (!node.isGroup) {
+      return []
+    }
+
+    return [
+      ...node.conditions.flatMap(child => this.holesIn(child)),
+      ...Array.from({ length: this.holeCountFor(node) },
+        (_unused, offset) => new ConditionHoleVo(node.nodeId, node.conditions.length + offset)),
+    ]
+  }
+
+  /**
+   * 一個群組尾端要畫幾個洞。
+   *
+   * 至少一個，好讓群組永遠還能再長；還沒滿兩句時則畫到滿——一個剛放下去的空群組
+   * 一次就看得出它要兩塊，而不是放一塊、再冒出一個洞、再放一塊。
+   */
+  private holeCountFor(node: StrategyBotConditionDto): number {
+    return Math.max(
+      1, STRATEGY_BOT_LIMITS.conditionGroupMinimumSize - node.conditions.length)
+  }
+
+  private hasHoleAt(hole: ConditionHoleVo): boolean {
+    return this.holes().some(candidate => candidate.key === hole.key)
+  }
+
+  private placeAt(
+    hole: ConditionHoleVo, placed: StrategyBotConditionDto,
+  ): StrategyBotConditionDomain {
+    if (hole.parentNodeId === null) {
+      return new StrategyBotConditionDomain(placed)
+    }
+
+    return new StrategyBotConditionDomain(
+      this.mapNodes(this.condition, node => (
+        node.nodeId === hole.parentNodeId && node.isGroup
+          ? new StrategyBotConditionDto(
+              node.nodeId, node.operator, [...node.conditions, placed], '', '')
+          : node
+      )),
+    )
+  }
+
+  private nodeById(
+    node: StrategyBotConditionDto | null, nodeId: string,
+  ): StrategyBotConditionDto | null {
+    if (node === null) {
+      return null
+    }
+
+    if (node.nodeId === nodeId) {
+      return node
+    }
+
+    for (const child of node.conditions) {
+      const found = this.nodeById(child, nodeId)
+      if (found !== null) {
+        return found
+      }
+    }
+
+    return null
+  }
+
+  /** candidateId 是不是 node 自己或它底下的任何一個。 */
+  private isWithin(node: StrategyBotConditionDto, candidateId: string | null): boolean {
+    if (candidateId === null) {
+      return false
+    }
+
+    return this.nodeById(node, candidateId) !== null
+  }
+
+  private nodeViewOf(
+    node: StrategyBotConditionDto, declaredLabels: readonly string[],
+  ): ConditionNodeViewDto {
+    const status = this.statusOf(node, declaredLabels)
+
+    return new ConditionNodeViewDto(
+      node.isGroup ? 'group' : 'comparison',
+      node.nodeId,
+      null,
+      node.operator,
+      node.sourceLabel,
+      node.signal,
+      status,
+      this.statusTextFor(node, status),
+      this.canRemove(node.nodeId),
+      node.isGroup
+        ? [
+            ...node.conditions.map(child => this.nodeViewOf(child, declaredLabels)),
+            ...Array.from({ length: this.holeCountFor(node) }, (_unused, offset) =>
+              this.holeViewAt(
+                new ConditionHoleVo(node.nodeId, node.conditions.length + offset))),
+          ]
+        : [],
+    )
+  }
+
+  private holeViewAt(hole: ConditionHoleVo): ConditionNodeViewDto {
+    return new ConditionNodeViewDto(
+      'hole', '', hole, null, '', '', 'ok', '', false, [])
+  }
+
+  private statusOf(
+    node: StrategyBotConditionDto, declaredLabels: readonly string[],
+  ): ConditionNodeStatusVo {
+    if (node.isGroup) {
+      return node.conditions.length < STRATEGY_BOT_LIMITS.conditionGroupMinimumSize
+        ? 'incomplete'
+        : 'ok'
+    }
+
+    if (node.sourceLabel !== '' && !declaredLabels.includes(node.sourceLabel)) {
+      return 'unknownSource'
+    }
+
+    return node.sourceLabel === '' || !SIGNAL_VALUES.includes(node.signal as never)
+      ? 'incomplete'
+      : 'ok'
+  }
+
+  private statusTextFor(
+    node: StrategyBotConditionDto, status: ConditionNodeStatusVo,
+  ): string {
+    if (status === 'ok') {
+      return ''
+    }
+
+    if (status === 'unknownSource') {
+      return `找不到信號來源「${node.sourceLabel}」了，它可能已經被刪掉或改名`
+    }
+
+    if (node.isGroup) {
+      return `一個群組至少要 ${STRATEGY_BOT_LIMITS.conditionGroupMinimumSize} 塊`
+    }
+
+    return node.sourceLabel === '' ? '還沒選信號來源' : '還沒選這個來源要等於什麼'
+  }
+
+  private firstProblemIn(
+    node: StrategyBotConditionDto, declaredLabels: readonly string[],
+  ): string {
+    const status = this.statusOf(node, declaredLabels)
+    if (status !== 'ok') {
+      return this.statusTextFor(node, status)
+    }
+
+    for (const child of node.conditions) {
+      const problem = this.firstProblemIn(child, declaredLabels)
+      if (problem !== '') {
+        return problem
+      }
+    }
+
+    return ''
   }
 
   private collectLabels(node: StrategyBotConditionDto | null): string[] {
