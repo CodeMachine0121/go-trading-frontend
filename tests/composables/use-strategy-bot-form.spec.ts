@@ -48,10 +48,13 @@ describe('useStrategyBotForm 的三段順序', () => {
     form.addSignalSource()
     form.addSignalSource()
 
-    expect(form.sourceLabels.value).toEqual(['A', 'B'])
+    expect(form.sourceLabels.value).toEqual(['均線', '均線 2'])
   })
 
-  it('新加的來源自動拿到一個沒人用的代號', () => {
+  it('新加的來源預設就叫那支策略的名字，撞名時後面接數字', () => {
+    // 「A 等於買入」是一句看不出自己在說什麼的話——使用者得自己記住 A 是哪一支，
+    // 而他同時在讀的是一棵三層深的樹。
+
     // 代號是這張表單上唯一沒有預設值就填不完的欄位，而 A、B、C 正是多數人會打的那幾個。
     const form = formUnderTest()
     form.reset()
@@ -59,7 +62,7 @@ describe('useStrategyBotForm 的三段順序', () => {
     form.addSignalSource()
     form.addSignalSource()
 
-    expect(form.signalSources.value.map(source => source.label)).toEqual(['A', 'B', 'C'])
+    expect(form.signalSources.value.map(source => source.label)).toEqual(['均線', '均線 2', '均線 3'])
   })
 
   it('到了上限就加不動——新增鍵因此消失，而不是按了才被拒', () => {
@@ -295,12 +298,12 @@ describe('useStrategyBotForm 的條件操作', () => {
     form.reset()
     form.addSignalSource()
 
-    expect(form.blockDrawer.value.comparisons.map(option => option.label)).toEqual(['A 等於…'])
+    expect(form.blockDrawer.value.comparisons.map(option => option.label)).toEqual(['均線 等於…'])
 
     form.addSignalSource()
 
     expect(form.blockDrawer.value.comparisons.map(option => option.label))
-      .toEqual(['A 等於…', 'B 等於…'])
+      .toEqual(['均線 等於…', '均線 2 等於…'])
   })
 
   it('改了代號，抽屜與樹上那幾句一起跟著改', () => {

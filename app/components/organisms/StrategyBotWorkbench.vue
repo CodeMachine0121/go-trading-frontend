@@ -3,10 +3,9 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
-import StrategyBotSignalSourceFields from '~/components/molecules/StrategyBotSignalSourceFields.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
-import StrategyBotBlockDrawer from '~/components/molecules/StrategyBotBlockDrawer.vue'
 import StrategyBotConditionTree from '~/components/organisms/StrategyBotConditionTree.vue'
+import StrategyBotPalette from '~/components/organisms/StrategyBotPalette.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -76,33 +75,41 @@ function onSave() {
 
 <template>
   <div class="workbench">
-    <!-- 上半：準備材料。 -->
-    <div class="workbench__materials">
-      <AppPanel title="這台機器人是什麼">
-        <div class="workbench__identity">
-          <AppInput
-            v-model="form.name.value"
-            type="text"
-            placeholder="機器人名稱"
-            data-testid="bot-name-input"
-          />
-          <AppInput
-            v-model="form.triggerIntervalText.value"
-            type="number"
-            inputmode="numeric"
-            placeholder="每隔幾分鐘"
-            data-testid="bot-interval-input"
-          />
-          <SymbolField
-            v-model="form.symbol.value"
-            :trading-symbol-application="tradingSymbolApplication"
-          />
-        </div>
-      </AppPanel>
+    <!--
+      這台機器人是什麼：一列就夠。它填一次就不會再動，所以不該佔著畫面——
+      而**拼**這件事會做上半小時。
+    -->
+    <div class="workbench__identity">
+      <AppInput
+        v-model="form.name.value"
+        type="text"
+        placeholder="機器人名稱"
+        data-testid="bot-name-input"
+      />
+      <SymbolField
+        v-model="form.symbol.value"
+        :trading-symbol-application="tradingSymbolApplication"
+      />
+      <label class="workbench__interval">
+        <span class="workbench__interval-name">每隔幾分鐘</span>
+        <AppInput
+          v-model="form.triggerIntervalText.value"
+          type="number"
+          inputmode="numeric"
+          placeholder="5"
+          data-testid="bot-interval-input"
+        />
+      </label>
+    </div>
 
-      <AppPanel title="它要聽哪幾支策略">
-        <StrategyBotSignalSourceFields
+    <div class="workbench__building">
+      <!--
+        左邊是手上有哪些積木——**信號來源就是積木**，不是另外一份清單。
+      -->
+      <div class="workbench__palette">
+        <StrategyBotPalette
           :sources="form.signalSources.value"
+          :block-drawer="form.blockDrawer.value"
           :strategy-options="strategyOptions"
           :interval-options="form.intervalOptions"
           :parameter-names-by-strategy-id="parameterNamesByStrategyId"
@@ -116,15 +123,6 @@ function onSave() {
           @change-strategy="form.changeSignalSourceStrategy"
           @change-interval="form.changeSignalSourceInterval"
           @change-parameter-value="form.changeSignalSourceParameterValue"
-        />
-      </AppPanel>
-    </div>
-
-    <!-- 下半：積木抽屜在左、工作區在右——積木式編輯器一向如此。 -->
-    <div class="workbench__building">
-      <div class="workbench__palette">
-        <StrategyBotBlockDrawer
-          :drawer="form.blockDrawer.value"
           @pick="option => form.conditionSides.find(
             side => side.key === form.selectedHole.value?.side)?.fill(
             form.selectedHole.value!.hole, option.block)"
@@ -133,16 +131,13 @@ function onSave() {
         />
       </div>
 
+      <!-- 右邊是拼的地方。兩棵樹上下排，同時看得見。 -->
       <div class="workbench__trees">
         <AppPanel
           v-for="side in form.conditionSides"
           :key="side.key"
           :title="side.heading"
         >
-          <!--
-            拖著樹上的一塊時才出現的那一格。它只在有東西可以丟的時候在，
-            因為一個永遠掛在那裡的垃圾桶，多數時間只是一塊佔著位子的紅色。
-          -->
           <div
             v-if="side.isDraggingOwnNode.value"
             class="workbench__bin"
@@ -214,27 +209,44 @@ function onSave() {
   flex-direction: column;
   gap: spacing('sm');
 
-  &__materials {
+  &__identity {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: spacing('sm');
+    gap: spacing('2xs');
+    border: 1px solid color('border');
+    border-radius: radius('md');
+    background-color: color('surface');
+    padding: spacing('sm');
 
-    @include respond-to('lg') {
-      // 「這台是什麼」比「它聽哪幾支策略」短得多，所以不對半分。
-      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    @include respond-to('md') {
+      // 一列：名稱、標的、間隔。填一次就不會再動的東西不該佔著高度。
+      grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+      align-items: end;
     }
+  }
+
+  &__interval {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    min-width: 0;
+  }
+
+  &__interval-name {
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   &__building {
     display: grid;
 
-    // 窄畫面時抽屜排在工作區上面：積木在手邊，而不是要捲到底才拿得到。
+    // 窄畫面時積木排在拼的地方上面：積木在手邊，不是要捲到底才拿得到。
     grid-template-columns: minmax(0, 1fr);
     gap: spacing('sm');
 
     @include respond-to('lg') {
       // 積木式編輯器一向如此：積木在左，拼的地方在右。
-      grid-template-columns: 260px minmax(0, 1fr);
+      grid-template-columns: 280px minmax(0, 1fr);
     }
   }
 
@@ -242,12 +254,10 @@ function onSave() {
     min-width: 0;
 
     @include respond-to('lg') {
-      // **黏住**：這就是那個「被樹推走」的問題真正的答案——不是把它藏起來，
-      // 是讓它不隨著樹愈拼愈長而捲出畫面。它仍然一直在，仍然拖得到。
+      // **黏住**：這就是「被愈拼愈長的樹推走」真正的答案——不是把它藏起來，
+      // 是讓它不隨著樹愈長而捲出畫面。
       position: sticky;
       top: spacing('sm');
-
-      // 自己捲。積木多到裝不下時，該捲的是它，不是整頁。
       max-height: calc(100vh - #{spacing('lg')});
       overflow-y: auto;
     }
@@ -258,12 +268,6 @@ function onSave() {
     flex-direction: column;
     gap: spacing('sm');
     min-width: 0;
-  }
-
-  &__identity {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('2xs');
   }
 
   &__bin {

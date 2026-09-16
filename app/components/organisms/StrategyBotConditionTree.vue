@@ -96,11 +96,14 @@ function onDragStart(event: DragEvent, nodeId: string) {
   >
     <div class="condition-node__line">
       <!--
-        拖曳握把是一個看得見的東西，因為「這一塊搬得動」不寫出來就沒有人會去試。
-        它不是按鈕：按下去什麼都不會發生，它只是抓的地方。
+        **這一格才是抓的地方**，而且它得夠大。
+        整塊都設 draggable 是不夠的：裡面那幾個下拉選單會把滑鼠事件吃掉，
+        從它們身上按下去只會展開選單，拖不動任何東西——使用者試了兩次沒反應，
+        就會以為這塊根本搬不動。所以把手是一條完整高度的直條，抓得到、也看得出來。
       -->
       <span
         class="condition-node__grip"
+        :title="`拖曳搬走這一塊`"
         aria-hidden="true"
       >⠿</span>
 
@@ -231,15 +234,32 @@ function onDragStart(event: DragEvent, nodeId: string) {
   &__line {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
     gap: spacing('2xs');
   }
 
   &__grip {
+    display: flex;
+    flex: none;
+    align-items: center;
+
+    // 一條完整高度的直條，不是一個字。裡面那幾個下拉選單會吃掉滑鼠事件，
+    // 所以抓得到的地方只有這裡——它必須大到不用瞄準。
+    align-self: stretch;
+    border-right: 1px solid color('border');
     cursor: grab;
-    color: color('text-muted');
-    font-size: font-size('xs');
+    padding-right: spacing('2xs');
+    color: color('text-faint');
+    font-size: font-size('sm');
     line-height: 1;
+
+    &:hover {
+      color: color('text-strong');
+    }
+
+    &:active {
+      cursor: grabbing;
+    }
   }
 
   &__equals {

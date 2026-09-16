@@ -118,12 +118,12 @@ describe('StrategyBotWorkbench 的積木抽屜', () => {
     expect(wrapper.findAll('[data-testid="condition-hole"]')).toHaveLength(3)
   })
 
-  it('一個來源都沒宣告時，抽屜說得出要先去加一個', async () => {
+  it('一個來源都沒宣告時，積木那一欄說得出下一步', async () => {
     const wrapper = mountWorkbench(new StrategyBotDto(
       7, '早盤突破', 'BTCUSDT', 5, [], null, null, stoppedState()))
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="block-drawer-hint"]').text()).toContain('信號來源')
+    expect(wrapper.get('[data-testid="signal-sources-empty"]').text()).toContain('加一支策略')
   })
 })
 

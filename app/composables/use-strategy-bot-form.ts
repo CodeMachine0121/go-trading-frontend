@@ -141,13 +141,14 @@ export function useStrategyBotForm(
       return
     }
 
-    const label = nextLabel()
+    const strategyId = strategyOptions()[0]?.value ?? 0
+    const label = nextLabel(strategyId)
 
     signalSources.value = [
       ...signalSources.value,
       new StrategyBotSignalSourceDto(
         label,
-        strategyOptions()[0]?.value ?? 0,
+        strategyId,
         DEFAULT_AGGREGATION_INTERVAL,
         [],
       ),
@@ -156,22 +157,42 @@ export function useStrategyBotForm(
   }
 
   /**
-   * 下一個沒人用的代號。
+   * 下一個沒人用的代號，預設就是**那支策略的名字**。
    *
-   * 自動給一個，是因為代號是這張表單上唯一沒有預設值就填不完的欄位——
-   * 而 A、B、C 正是絕大多數人會自己打的那幾個字。
+   * 原本給的是 A、B、C，而那讓條件讀起來是「A 等於買入」——一句看不出自己在說什麼的話。
+   * 使用者得自己記住 A 是哪一支，而他同時在讀的是一棵三層深的樹。
+   * 用策略的名字，同一句就變成「MACD 交叉 等於買入」，不必記任何東西。
+   *
+   * 撞名時後面接一個數字而不是換一個字母：同一支策略用兩次（不同參數）正是代號
+   * 存在的理由，而「MACD 交叉 2」仍然說得出它是哪一支。
    */
-  function nextLabel(): string {
+  function nextLabel(strategyId: number): string {
     const taken = new Set(signalSources.value.map(signalSource => signalSource.label))
+    const strategyName = strategyOptions().find(
+      option => option.value === strategyId)?.label.trim() ?? ''
 
-    for (let offset = 0; offset < 26; offset += 1) {
-      const candidate = String.fromCharCode('A'.charCodeAt(0) + offset)
+    // 一支策略都還沒得挑時只能退回舊做法——那時畫面上已經在說「先去建一支策略」了。
+    if (strategyName === '') {
+      for (let offset = 0; offset < 26; offset += 1) {
+        const candidate = String.fromCharCode('A'.charCodeAt(0) + offset)
+        if (!taken.has(candidate)) {
+          return candidate
+        }
+      }
+
+      return `來源${signalSources.value.length + 1}`
+    }
+
+    if (!taken.has(strategyName)) {
+      return strategyName
+    }
+
+    for (let suffix = 2; ; suffix += 1) {
+      const candidate = `${strategyName} ${suffix}`
       if (!taken.has(candidate)) {
         return candidate
       }
     }
-
-    return `來源${signalSources.value.length + 1}`
   }
 
   function removeSignalSource(index: number) {
