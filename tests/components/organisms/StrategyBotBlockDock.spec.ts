@@ -92,6 +92,30 @@ describe('StrategyBotBlockDock 什麼時候出來', () => {
     expect(isOpen(wrapper)).toBe(true)
   })
 
+  it('從抽屜裡拖一塊出去，拖完它自己收回去', async () => {
+    // **拖曳期間瀏覽器不發 mouseleave**，所以抽屜收不到任何「你離開了」的消息，
+    // 會一直以為滑鼠還在自己身上——拖完就那樣開著，直到使用者特地滑進去再滑出來。
+    const wrapper = mountDock()
+
+    await wrapper.get('[data-testid="block-dock-panel"]').trigger('mouseenter')
+    await wrapper.setProps({ dragActive: true })
+    expect(isOpen(wrapper)).toBe(true)
+
+    await wrapper.setProps({ dragActive: false })
+
+    expect(isOpen(wrapper)).toBe(false)
+  })
+
+  it('釘住的話，拖完照樣留著——那是使用者自己按的', async () => {
+    const wrapper = mountDock()
+
+    await wrapper.get('[data-testid="block-dock-handle"]').trigger('click')
+    await wrapper.setProps({ dragActive: true })
+    await wrapper.setProps({ dragActive: false })
+
+    expect(isOpen(wrapper)).toBe(true)
+  })
+
   it('把手說得出現在是開還是關，給看不到畫面的人', () => {
     const wrapper = mountDock({ holeSelected: true })
 

@@ -45,6 +45,23 @@ const pinned = ref(false)
 const open = computed(() => hovering.value || pinned.value || dragActive || holeSelected)
 
 /**
+ * 一次拖曳結束就把「滑鼠在我身上」放掉。
+ *
+ * **拖曳期間瀏覽器不發 mouseleave。** 所以使用者從抽屜裡拖一塊出去時，
+ * 抽屜收不到任何「你離開了」的消息——它會一直以為滑鼠還在自己身上，
+ * 於是拖完之後就那樣開著，直到使用者特地滑進去再滑出來。
+ *
+ * 這裡補的就是那一則沒有送到的消息：拖曳結束的那一刻，重新把它當成沒人在上面。
+ * 真的還在上面的話，下一次滑鼠動一下就會再發一次 mouseenter；
+ * 而釘住的那個是使用者自己按的，不在這條的管轄範圍。
+ */
+watch(() => dragActive, (dragging, wasDragging) => {
+  if (wasDragging && !dragging) {
+    hovering.value = false
+  }
+})
+
+/**
  * 按把手是「留著／收起來」，不是「打開／關閉」。
  *
  * 滑過去就會開的東西，再給它一顆「打開」的按鈕是沒有意義的——它多半已經開著了。
@@ -173,6 +190,12 @@ function onEscape() {
     z-index: z-index('dock');
     transform: translateX(100%);
     transition: transform duration('normal') ease;
+
+    // 它浮在畫面上，所以自己要有底色——透出底下那一頁的抽屜看起來像壞掉，
+    // 不像一塊面板。
+    border-left: 1px solid color('border');
+    border-radius: radius('md') 0 0 radius('md');
+    background-color: color('surface-overlay');
     box-shadow: shadow('lg');
     width: min(320px, 90vw);
 
