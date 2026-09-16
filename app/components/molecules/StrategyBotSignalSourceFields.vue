@@ -166,7 +166,7 @@ function onParameterInput(index: number, name: string, raw: string | number) {
       class="strategy-bot-signal-source-fields__empty"
       data-testid="signal-sources-no-strategies"
     >
-      你還沒有任何**訊號種類**的策略——有別種的也挑不到，因為機器人只聽得懂
+      你還沒有任何訊號種類的策略——有別種的也挑不到，因為機器人只聽得懂
       買入、賣出、持有。先去策略庫寫一支訊號種類的，這裡就挑得到它了。
     </p>
 

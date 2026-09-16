@@ -26,12 +26,16 @@ function mountFields(options: {
 }
 
 describe('StrategyBotSignalSourceFields', () => {
-  it('一支可用策略都沒有時，說出真正的下一步而不是給一顆通往空選單的按鈕', () => {
+  it('一支訊號種類的策略都沒有時，說出真正的下一步而不是給一顆通往空選單的按鈕', () => {
     // 畫面明明知道原因；知道原因卻保持沉默，是把使用者留在原地自己猜。
+    // 而且要說對是哪一種「沒有」——他可能有五支策略，只是沒有一支是訊號種類的。
     const wrapper = mountFields({ hasNoStrategies: true })
 
-    expect(wrapper.get('[data-testid="signal-sources-no-strategies"]').text())
-      .toContain('會吐訊號的策略')
+    const message = wrapper.get('[data-testid="signal-sources-no-strategies"]').text()
+    expect(message).toContain('訊號種類的策略')
+    expect(message).toContain('策略庫')
+    // 提示文字是畫面上的字，不是 markdown——星號會原樣顯示給使用者看。
+    expect(message).not.toContain('*')
     expect(wrapper.find('[data-testid="signal-source-add"]').exists()).toBe(false)
   })
 
