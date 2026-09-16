@@ -19,6 +19,13 @@ const { sources, strategyOptions, intervalOptions, parameterNamesByStrategyId, c
     /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
     canAdd: boolean
     /**
+     * 一支可用策略都沒有。
+     *
+     * 這時新增鍵按下去只會得到一個空的下拉選單——而畫面**明明知道原因**。
+     * 一個知道原因卻保持沉默的畫面，是把使用者留在原地自己猜。
+     */
+    hasNoStrategies: boolean
+    /**
      * 第幾個來源現在刪不掉，以及為什麼。
      *
      * 刪掉一個還被條件用著的來源，會讓條件指向一個不存在的代號。這裡選擇**擋住那次刪除**
@@ -153,8 +160,18 @@ function onParameterInput(index: number, name: string, raw: string | number) {
       </li>
     </ul>
 
+    <!-- 一支都挑不到時說出真正的下一步，而不是給一顆通往空選單的按鈕。 -->
+    <p
+      v-if="hasNoStrategies"
+      class="strategy-bot-signal-source-fields__empty"
+      data-testid="signal-sources-no-strategies"
+    >
+      你還沒有任何會吐訊號的策略。機器人只聽得懂買入、賣出、持有，
+      所以要先在策略庫寫一支「訊號」種類的策略。
+    </p>
+
     <AppButton
-      v-if="canAdd"
+      v-else-if="canAdd"
       type="button"
       variant="secondary"
       class="strategy-bot-signal-source-fields__add"

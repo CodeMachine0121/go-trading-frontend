@@ -96,6 +96,7 @@ function onSave() {
           :interval-options="form.intervalOptions"
           :parameter-names-by-strategy-id="parameterNamesByStrategyId"
           :can-add="form.canAddSignalSource.value"
+          :has-no-strategies="strategyOptions.length === 0"
           :removal-blocked-reasons="form.signalSourceRemovalBlockedReasons.value"
           @add="form.addSignalSource"
           @remove="form.removeSignalSource"
