@@ -270,6 +270,29 @@ describe('useAssistantConversation 回頭詢問', () => {
   })
 })
 
+describe('useAssistantConversation 回頭詢問讀不回來時', () => {
+  it('不吵使用者，下一次醒來再試一次', async () => {
+    // 答案還在後端那邊寫著。這時跳一塊紅色警示，附一顆會再花一次錢的再試一次，
+    // 比什麼都不說更糟——等待本身已經誠實地表示「還不知道」。
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { rejectionMessage, messages, pending, ask } = conversationUnderTest()
+    await ask('問一句')
+
+    applicationMock.getConversation.mockRejectedValueOnce(
+      new BackendUnreachableError('http://localhost:8080'))
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(rejectionMessage.value).toBeNull()
+    expect(pending.value).toBe(true)
+
+    applicationMock.getConversation.mockResolvedValue(answeredConversation())
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(messages.value.map(message => message.role)).toEqual(['ask', 'answer'])
+    expect(rejectionMessage.value).toBeNull()
+  })
+})
+
 describe('useAssistantConversation 回到上次看的那一段', () => {
   it('整頁重新載入之後回到同一段，還在寫的就繼續等', async () => {
     // 這是整個切片的重點：重整之後看到的是同一件事，而不是一段空白的新對話。
@@ -294,6 +317,30 @@ describe('useAssistantConversation 回到上次看的那一段', () => {
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
 
     expect(messages.value.map(message => message.role)).toEqual(['ask', 'answer'])
+  })
+
+  it('回來看到上次那一則壞掉了，再試一次送得出同一句', async () => {
+    // 這正是這個切片存在的那個流程：他好幾分鐘後才回來。
+    // 那一句就寫在畫面上，按下去卻什麼都沒發生是最難理解的一種壞掉。
+    preferenceMock.readCurrentConversationId.mockReturnValue(7)
+    applicationMock.getConversation.mockResolvedValue(failedConversation())
+    const { resumeCurrentConversation, retry } = conversationUnderTest()
+    await resumeCurrentConversation()
+
+    await retry()
+
+    expect(applicationMock.ask).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(applicationMock.ask).mock.calls[0]?.[0]?.question).toBe('問一句')
+  })
+
+  it('回來看到上次那一段答完了，不會憑空再送一次', async () => {
+    preferenceMock.readCurrentConversationId.mockReturnValue(7)
+    const { resumeCurrentConversation, retry } = conversationUnderTest()
+    await resumeCurrentConversation()
+
+    await retry()
+
+    expect(applicationMock.ask).not.toHaveBeenCalled()
   })
 
   it('沒有記著哪一段就什麼都不做', async () => {
@@ -405,6 +452,43 @@ describe('useAssistantConversation 送不出去時', () => {
     expect(draft.value).toBe('BTCUSDT 最近走勢如何')
   })
 
+  it('送不出去就不是在等——沒有東西在寫', async () => {
+    // 樂觀放上去的那一則假設後端會收下。它沒收下的時候，那個假設要收回來：
+    // 留著它畫面會永遠轉圈圈，而警示塊（連同它上面的再試一次）只在不等的時候出現——
+    // 使用者會看到一個沒有盡頭的等待、沒有任何說明，也送不出下一句。
+    applicationMock.ask.mockRejectedValue(new BackendUnreachableError('http://localhost:8080'))
+    const { pending, messages, ask } = conversationUnderTest()
+
+    await ask('問一句')
+
+    expect(pending.value).toBe(false)
+    expect(messages.value.map(message => message.role)).toEqual(['ask'])
+  })
+
+  it('送不出去之後不會有一條在背景空轉的迴圈', async () => {
+    // 沒有對話可以問、也沒有東西在寫，卻每兩秒醒來一次。
+    applicationMock.ask.mockRejectedValue(new BackendUnreachableError('http://localhost:8080'))
+    const { ask } = conversationUnderTest()
+    await ask('問一句')
+    applicationMock.getConversation.mockClear()
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS * 5)
+
+    expect(applicationMock.getConversation).not.toHaveBeenCalled()
+  })
+
+  it('送不出去之後再試一次真的再送一次', async () => {
+    applicationMock.ask.mockRejectedValueOnce(new BackendUnreachableError('http://localhost:8080'))
+    const { messages, rejectionMessage, ask, retry } = conversationUnderTest()
+    await ask('問一句')
+
+    await retry()
+
+    expect(applicationMock.ask).toHaveBeenCalledTimes(2)
+    expect(rejectionMessage.value).toBeNull()
+    expect(messages.value.map(message => message.role)).toEqual(['ask', 'answer'])
+  })
+
   it('還沒問過任何一句時，再試一次什麼都不做', async () => {
     const { retry } = conversationUnderTest()
 
@@ -424,6 +508,47 @@ describe('useAssistantConversation 換對話', () => {
     expect(conversationId.value).toBe(7)
     expect(messages.value.map(message => message.role)).toEqual(['ask', 'answer'])
     expect(preferenceMock.writeCurrentConversationId).toHaveBeenCalledWith(7)
+  })
+
+  it('挑那一段失敗時，本來在寫的那一段照樣繼續問', async () => {
+    // 換過去失敗了，畫面還停在本來那一段——它還在寫，沒有人去問它的話
+    // 那個答案永遠不會出現。
+    applicationMock.getConversation.mockResolvedValue(runningConversation(7))
+    const { ask, selectConversation } = conversationUnderTest()
+    await ask('問一句')
+
+    applicationMock.getConversation.mockRejectedValueOnce(
+      new BackendUnreachableError('http://localhost:8080'))
+    await selectConversation(9)
+
+    applicationMock.getConversation.mockResolvedValue(runningConversation(7))
+    applicationMock.getConversation.mockClear()
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(applicationMock.getConversation).toHaveBeenCalledWith(7)
+  })
+
+  it('慢一步回來的那一段不會蓋掉使用者已經換過去的那一段', async () => {
+    // 取消得掉「排好的下一次」，取消不掉「已經送出去的那一次」。
+    let landSlowRead: () => void = () => {}
+    applicationMock.getConversation.mockImplementationOnce(
+      async () => new Promise((resolve) => {
+        landSlowRead = () => resolve(
+          buildConversation(7, [buildMessage('ask', '慢的那一段')]))
+      }))
+    const { conversationId, messages, selectConversation } = conversationUnderTest()
+
+    const slowSelect = selectConversation(7)
+
+    applicationMock.getConversation.mockResolvedValue(
+      buildConversation(9, [buildMessage('ask', '他挑的那一段')]))
+    await selectConversation(9)
+
+    landSlowRead()
+    await slowSelect
+
+    expect(conversationId.value).toBe(9)
+    expect(messages.value.map(message => message.content)).toEqual(['他挑的那一段'])
   })
 
   it('挑到一段還在寫的就接著等下去', async () => {
