@@ -189,11 +189,18 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             >⠿</span>
             <span class="mat__piece-name">{{ piece.sourceLabel }}</span>
 
+            <!--
+              零件上的每一顆按鈕都自己也是可拖的，理由見底下 .mat__piece 的註解：
+              原生拖曳**不會**從一個 button 上起頭，而這幾顆按鈕佔了零件的半張臉。
+              它們起頭之後，dragstart 照樣往上冒泡到零件身上，所以拿起來的仍然是
+              整塊零件，不是按鈕。按一下還是按一下——沒有移動就不是一次拖曳。
+            -->
             <AppButton
               v-if="item.isBundle"
               type="button"
               variant="ghost"
               size="small"
+              draggable="true"
               label="把這塊從這一組裡拆出來"
               :data-testid="`unbundle-${side}-${piece.sourceLabel}`"
               @click="emit('unbundle', piece.sourceLabel)"
@@ -204,6 +211,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
               type="button"
               variant="ghost"
               size="small"
+              draggable="true"
               label="把這塊拿回架子上"
               :data-testid="`take-off-${side}-${piece.sourceLabel}`"
               @click="emit('takeOff', piece.sourceLabel)"
@@ -222,6 +230,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
                 :key="chip.value"
                 type="button"
                 class="mat__chip"
+                draggable="true"
                 :class="[
                   `mat__chip--${chip.value}`,
                   { 'mat__chip--on': piece.acceptedSignals.includes(chip.value) },
@@ -348,6 +357,12 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     gap: spacing('3xs');
   }
 
+  // 整塊都拿得起來，不是只有寫著代號的那一行。
+  //
+  // 一塊零件的下半張臉是三顆信號開關，右上角還有兩顆小按鈕——而原生拖曳**不會**
+  // 從一個 button 上起頭，即使它的祖先是 draggable。所以那幾顆按鈕過去等於在零件
+  // 身上挖了幾個洞：使用者按在上面往下拉，什麼都不會發生，而他看到的是一塊
+  // 有時拖得動、有時拖不動的積木。每一顆按鈕自己也標成可拖，那幾個洞就補起來了。
   &__piece {
     display: flex;
     flex-wrap: wrap;

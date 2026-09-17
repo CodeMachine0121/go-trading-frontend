@@ -848,3 +848,68 @@ describe('TradingStrategyWorkbench：帶子說得出放下去會發生什麼', (
     expect(wrapper.get('[data-testid="drop-buy-0"]').text()).toBe('')
   })
 })
+
+describe('TradingStrategyWorkbench：零件的每一處都拿得起來', () => {
+  // 一塊零件的下半張臉是三顆信號開關，右上角還有兩顆小按鈕。原生拖曳不會從一個
+  // button 上起頭，所以那幾顆過去等於在零件身上挖了幾個洞：按在上面往下拉什麼都
+  // 不會發生，而使用者看到的是一塊有時拖得動、有時拖不動的積木。
+
+  it('按在信號開關上拖，拿起來的是整塊零件', async () => {
+    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="chip-buy-MACD-buy"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
+  })
+
+  it('按在「拿回架子上」那顆按鈕上拖，也是拿起整塊零件', async () => {
+    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="take-off-buy-MACD"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
+  })
+
+  it('那幾顆按鈕仍然是按鈕——沒有移動就不是一次拖曳', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="take-off-buy-MACD"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="chip-sell-MACD-sell"]').attributes('aria-pressed'))
+      .toBe('true')
+  })
+
+  it('零件身上沒有一塊按下去拖不動的地方', async () => {
+    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
+    await flushPromises()
+
+    const undraggable = wrapper.get('[data-testid="placed-buy-MACD"]')
+      .findAll('button')
+      .filter(button => button.attributes('draggable') !== 'true')
+
+    expect(undraggable).toHaveLength(0)
+  })
+
+  it('架子上那幾塊也一樣——同一塊積木不該有些地方拖得動、有些拖不動', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-remove"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
+    // 拖過去不等於刪掉：那顆按鈕按下去才是刪掉。
+    expect(wrapper.find('[data-testid="shelf-piece-MACD"]').exists()).toBe(true)
+  })
+})

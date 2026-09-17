@@ -102,10 +102,16 @@ function intervalLabelOf(interval: string): string {
           <span class="shelf__piece-name">{{ source.label }}</span>
           <span class="shelf__piece-note">{{ intervalLabelOf(source.aggregationInterval) }}</span>
 
+          <!--
+            按鈕自己也標成可拖：原生拖曳不會從一個 button 上起頭，而這兩顆就坐在
+            零件上。不標的話，按在它們身上往外拉什麼都不會發生——同一塊積木
+            有些地方拖得動、有些地方拖不動。dragstart 照樣往上冒泡到零件身上。
+          -->
           <AppButton
             type="button"
             variant="ghost"
             size="small"
+            draggable="true"
             label="這塊零件的設定"
             :data-testid="`strategy-script-settings-${index}`"
             @click="emit('tune', index)"
@@ -116,6 +122,7 @@ function intervalLabelOf(interval: string): string {
             type="button"
             variant="danger-ghost"
             size="small"
+            draggable="true"
             label="丟掉這塊零件"
             data-testid="strategy-script-remove"
             @click="emit('remove', index)"
