@@ -1,16 +1,10 @@
-import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
-import { CONDITION_SIDES } from '~/domain/models/vo/condition-side-vo'
-import type { PieceDragOrigin } from '~/composables/use-piece-drag'
-
-/**
- * 零件身上「拿得起來」的標記，以及「放得下去」的標記。
- *
- * 用 data 屬性而不是 ref 陣列，因為 interact.js 認的是**選擇器**：註冊一次，之後
- * 新長出來的零件自動也拿得起來。一塊一塊去掛的話，每次墊子重排都得掛一輪，
- * 而漏掉的那一塊不會報錯，只會安靜地拖不動——正是我們在修的那個毛病。
- */
-const PIECE_SELECTOR = '[data-piece-label]'
-const DROP_ZONE_SELECTOR = '[data-drop-kind]'
+import {
+  DROP_ZONE_SELECTOR,
+  PIECE_SELECTOR,
+  applyDropOn,
+  applyHoverOn,
+  pickedUpPieceOf,
+} from '~/utilities/piece-drag-markup'
 
 /** 走超過這麼多像素才算一次拖曳。沒走就是一次普通的 click，開關照樣切換。 */
 const DRAG_START_TOLERANCE_PIXELS = 4
@@ -27,19 +21,20 @@ function swallowTheClickAfterADrag() {
   window.setTimeout(() => document.removeEventListener('click', swallow, true), 0)
 }
 
-function isConditionSide(value: string | undefined): value is ConditionSideVo {
-  return CONDITION_SIDES.some(side => side === value)
-}
-
-function isDragOrigin(value: string | undefined): value is PieceDragOrigin {
-  return value === 'shelf' || isConditionSide(value)
-}
-
 /**
  * 把工作檯上的拖曳接到指標事件上。
  *
- * 它只認 DOM 與手勢，一句規則都不知道：讀出被按住的是哪一塊、放下的是哪一格，
- * 剩下的交給 usePieceDrag。為什麼不用瀏覽器內建的拖放，見那一支的說明。
+ * **為什麼不用瀏覽器內建的拖放**：原生拖曳不會從一個 `<button>` 上起頭，就算它的
+ * 祖先標了 `draggable` 也一樣，而且各家瀏覽器對「標了 draggable 的按鈕」的處理並不
+ * 一致——Safari 至今幾乎不讓它起頭。一塊零件的下半張臉是三顆信號開關，右上角還有
+ * 兩顆小按鈕，於是零件身上被挖出好幾個洞：按在上面往外拉什麼都不會發生，而使用者
+ * 沒有任何辦法看出是哪幾個地方。那不是補得完的洞，是那套 API 的性質。
+ *
+ * interact.js 是純指標事件（mouse / touch / pen）的，它不問被按住的是不是按鈕，
+ * 也因此順手拿到了觸控。一起換掉的還有原生拖曳那張改不了的半透明殘影。
+ *
+ * 這一層**只認手勢與 DOM**，一句規則都不知道：讀出被按住的是哪一塊、放下的是哪一格
+ * （怎麼讀住在 piece-drag-markup），剩下的交給 usePieceDrag。
  *
  * interact.js 只在瀏覽器裡載入——它一進來就摸 window，而這個站是會做伺服器渲染的。
  *
@@ -63,41 +58,6 @@ export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>)
    */
   let stillMounted = true
 
-  function dropZoneOf(element: Element): HTMLElement | null {
-    return element instanceof HTMLElement ? element : null
-  }
-
-  /** 指標移到某一格上。只有插入帶會說「懸在第幾格」，其餘兩種沒有位置可言。 */
-  function onDragEnter(zone: HTMLElement) {
-    const side = zone.dataset.dropSide
-    if (zone.dataset.dropKind === 'slot' && isConditionSide(side)) {
-      pieceDrag.hoverOver(side, Number(zone.dataset.dropPosition))
-    }
-  }
-
-  /** 放下去。三種落點各自是一種搬動——哪一種由這一格自己說。 */
-  function onDrop(zone: HTMLElement) {
-    const side = zone.dataset.dropSide
-
-    if (zone.dataset.dropKind === 'shelf') {
-      pieceDrag.dropOnShelf()
-
-      return
-    }
-
-    if (!isConditionSide(side)) {
-      return
-    }
-
-    if (zone.dataset.dropKind === 'piece') {
-      pieceDrag.dropOntoPiece(side, zone.dataset.pieceLabel ?? '')
-
-      return
-    }
-
-    pieceDrag.dropOnMat(side, Number(zone.dataset.dropPosition))
-  }
-
   onMounted(async () => {
     const root = benchElement.value
     if (root === null) {
@@ -117,35 +77,36 @@ export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>)
     const pieces = interact(PIECE_SELECTOR, { context: root }).draggable({
       autoScroll: true,
       listeners: {
-        start(event: { target: HTMLElement }) {
-          const label = event.target.dataset.pieceLabel
-          const origin = event.target.dataset.pieceOrigin
-          if (label === undefined || !isDragOrigin(origin)) {
+        start(event) {
+          const target = event.target as HTMLElement
+          const picked = pickedUpPieceOf(target)
+          if (picked === null) {
             return
           }
 
           carriedOffset.x = 0
           carriedOffset.y = 0
-          pieceDrag.pickUp(label, origin)
+          pieceDrag.pickUp(picked.sourceLabel, picked.origin)
 
           // 被拿起來的那一塊浮起來，而且不再擋住它底下的落點。
           // position 要一起給：z-index 對一個 static 的元素不生效，
           // 於是它會從別塊零件底下穿過去。
-          event.target.style.position = 'relative'
-          event.target.style.zIndex = '2'
-          event.target.style.pointerEvents = 'none'
+          target.style.position = 'relative'
+          target.style.zIndex = '2'
+          target.style.pointerEvents = 'none'
         },
-        move(event: { target: HTMLElement, dx: number, dy: number }) {
+        move(event) {
+          const target = event.target as HTMLElement
           carriedOffset.x += event.dx
           carriedOffset.y += event.dy
-          event.target.style.transform
-            = `translate(${carriedOffset.x}px, ${carriedOffset.y}px)`
+          target.style.transform = `translate(${carriedOffset.x}px, ${carriedOffset.y}px)`
         },
-        end(event: { target: HTMLElement }) {
-          event.target.style.transform = ''
-          event.target.style.position = ''
-          event.target.style.zIndex = ''
-          event.target.style.pointerEvents = ''
+        end(event) {
+          const target = event.target as HTMLElement
+          target.style.transform = ''
+          target.style.position = ''
+          target.style.zIndex = ''
+          target.style.pointerEvents = ''
           swallowTheClickAfterADrag()
 
           // 放掉手上那一塊留到這一輪事件都送完之後：drop 與 dragend 誰先誰後由
@@ -160,19 +121,9 @@ export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>)
       // 以**指標**落在哪裡判定，不是以那塊零件蓋住了多少：使用者瞄的是游標，
       // 而一塊零件比一條插入帶高得多，用面積判定會一直落在隔壁那一格。
       overlap: 'pointer',
-      ondragenter: (event: { target: Element }) => {
-        const zone = dropZoneOf(event.target)
-        if (zone !== null) {
-          onDragEnter(zone)
-        }
-      },
+      ondragenter: event => applyHoverOn(event.target, pieceDrag),
       ondragleave: () => pieceDrag.leaveHover(),
-      ondrop: (event: { target: Element }) => {
-        const zone = dropZoneOf(event.target)
-        if (zone !== null) {
-          onDrop(zone)
-        }
-      },
+      ondrop: event => applyDropOn(event.target, pieceDrag),
     })
 
     teardown = () => {

@@ -4,16 +4,16 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ConditionBoardDto } from '~/domain/models/dto/condition-board-dto'
 import { CONDITION_OPERATORS, CONDITION_OPERATOR_LABELS } from '~/domain/models/vo/condition-operator-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
+import { pieceDragMarkup, pieceDropMarkup, slotDropMarkup } from '~/utilities/piece-drag-markup'
 
 // 有機體：工作檯右邊的一張墊子——買入或賣出其中一邊，以及它上面擺了哪幾塊零件。
 //
 // 兩張墊子是同一個元件的兩份，因為它們要做的事一模一樣。寫兩份的話，
 // 第二份就是那個忘記同步的地方。
-const { board, heading, tone, hoveringAt, carrying } = defineProps<{
+const { board, heading, side, hoveringAt, carrying } = defineProps<{
   board: ConditionBoardDto
   heading: string
-  /** 這一邊是買還是賣。只決定顏色，不決定行為。 */
-  tone: 'buy' | 'sell'
   /** 這張墊子上的哪一格正被游標懸著。不是這一張時為 `null`。 */
   hoveringAt: number | null
   /**
@@ -27,8 +27,14 @@ const { board, heading, tone, hoveringAt, carrying } = defineProps<{
    * 同一個動作，對一塊獨立的零件是搬位置，對一塊扣在組裡的零件是把它拆出來。
    */
   carrying: string | null
-  /** 這一邊在畫面上的識別字，用來組出 data-testid。 */
-  side: string
+  /**
+   * 這是買入還是賣出的那一邊。
+   *
+   * 一個值，不是兩個：它同時決定顏色、決定每個落點屬於哪一邊，也組得出 data-testid。
+   * 拆成「顏色用的」與「識別用的」兩個 prop 時，兩邊永遠被餵同一個值，
+   * 而那只是給了未來某個人一個把它們餵成不同值的機會。
+   */
+  side: ConditionSideVo
 }>()
 
 const emit = defineEmits<{
@@ -105,7 +111,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     <header class="mat__head">
       <span
         class="mat__name"
-        :class="`mat__name--${tone}`"
+        :class="`mat__name--${side}`"
       >{{ heading }}</span>
       <span class="mat__note">把零件拖進來</span>
     </header>
@@ -126,9 +132,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             'mat__drop-line--armed': hoveringAt === position,
           }"
           :data-testid="`drop-${side}-${position}`"
-          data-drop-kind="slot"
-          :data-drop-side="side"
-          :data-drop-position="position"
+          v-bind="slotDropMarkup(side, position)"
         >
           <!--
             只有正被懸著的那一條說話。四條帶子同時寫著同一句，那句話就變成背景。
@@ -177,10 +181,10 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             :key="piece.sourceLabel"
             class="mat__piece"
             :data-testid="`placed-${side}-${piece.sourceLabel}`"
-            :data-piece-label="piece.sourceLabel"
-            :data-piece-origin="side"
-            data-drop-kind="piece"
-            :data-drop-side="side"
+            v-bind="{
+              ...pieceDragMarkup(piece.sourceLabel, side),
+              ...pieceDropMarkup(side),
+            }"
           >
             <span
               class="mat__grip"
@@ -248,9 +252,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
           class="mat__landing"
           :class="{ 'mat__landing--armed': hoveringAt === board.items.length }"
           :data-testid="`drop-${side}-end`"
-          data-drop-kind="slot"
-          :data-drop-side="side"
-          :data-drop-position="board.items.length"
+          v-bind="slotDropMarkup(side, board.items.length)"
         >
           {{ board.items.length === 0 ? '這張墊子還是空的' : '疊在某一塊上就扣成一組' }}
         </div>

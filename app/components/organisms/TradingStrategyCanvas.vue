@@ -112,7 +112,6 @@ const placedLabels = computed(
         :key="mat.key"
         :board="mat.board()"
         :heading="mat.heading"
-        :tone="mat.key"
         :side="mat.key"
         :hovering-at="pieceDrag.hoveringOn(mat.key)"
         :carrying="pieceDrag.carrying.value"

@@ -1,6 +1,7 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { applyDropOn, pickedUpPieceOf } from '~/utilities/piece-drag-markup'
 import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWorkbench.vue'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
@@ -21,6 +22,14 @@ function aBot(
 ) {
   return new TradingStrategyDto(7, '黃金交叉', sources, buyCondition, sellCondition)
 }
+
+const place = vi.fn()
+const takeOff = vi.fn()
+const bundleOnto = vi.fn()
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
   return mount(TradingStrategyWorkbench, {
@@ -537,7 +546,9 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子�
 describe('TradingStrategyWorkbench：零件身上沒有一塊拖不動的地方', () => {
   // 拖曳走的是指標事件（見 usePieceDragGestures），不是瀏覽器內建的那一套——
   // 內建那套不會從一個 <button> 上起頭，而一塊零件的下半張臉全是按鈕。
-  // 手勢那一層認的是這幾個 data 屬性，所以這裡驗的就是它們掛對了沒有。
+  //
+  // 這裡驗的是**元件真的照那份契約標了**：讀回來用的就是手勢那一層用的同一支讀取器，
+  // 所以屬性名稱在這裡一個字都不必再寫一次。
 
   function aBundledBoard() {
     return mountWorkbench(aBot(
@@ -552,18 +563,16 @@ describe('TradingStrategyWorkbench：零件身上沒有一塊拖不動的地方'
       ]))
   }
 
-  it('架子上與墊子上的每一塊零件都標著自己是誰、從哪裡被拿起來', async () => {
+  it('架子上與墊子上的每一塊零件，手勢那一層都讀得出它是誰、從哪裡被拿起來', async () => {
     const wrapper = aBundledBoard()
     await flushPromises()
 
-    const shelfPiece = wrapper.get('[data-testid="shelf-piece-MACD"]')
-    expect(shelfPiece.attributes('data-piece-label')).toBe('MACD')
-    expect(shelfPiece.attributes('data-piece-origin')).toBe('shelf')
+    expect(pickedUpPieceOf(wrapper.get('[data-testid="shelf-piece-MACD"]').element))
+      .toEqual({ sourceLabel: 'MACD', origin: 'shelf' })
 
     // 扣在一組裡的那一塊也一樣拿得起來——那正是「拖出去就是拆開」的前提。
-    const bundledPiece = wrapper.get('[data-testid="placed-buy-ATR"]')
-    expect(bundledPiece.attributes('data-piece-label')).toBe('ATR')
-    expect(bundledPiece.attributes('data-piece-origin')).toBe('buy')
+    expect(pickedUpPieceOf(wrapper.get('[data-testid="placed-buy-ATR"]').element))
+      .toEqual({ sourceLabel: 'ATR', origin: 'buy' })
   })
 
   it('沒有任何一個角落靠瀏覽器內建的拖放——那正是拖不動的來源', async () => {
@@ -573,23 +582,29 @@ describe('TradingStrategyWorkbench：零件身上沒有一塊拖不動的地方'
     expect(wrapper.html()).not.toContain('draggable')
   })
 
-  it('三種落點各自說得出自己是哪一種：插入帶、另一塊零件、架子', async () => {
+  it('三種落點都認得出來，而且插入帶說得出自己是第幾格', async () => {
     const wrapper = aBundledBoard()
     await flushPromises()
 
-    const slot = wrapper.get('[data-testid="drop-buy-1"]')
-    expect(slot.attributes('data-drop-kind')).toBe('slot')
-    expect(slot.attributes('data-drop-side')).toBe('buy')
-    expect(slot.attributes('data-drop-position')).toBe('1')
+    const pieceDrag = usePieceDrag(place, takeOff, bundleOnto)
+    pieceDrag.pickUp('RSI', 'shelf')
+
+    applyDropOn(wrapper.get('[data-testid="drop-buy-1"]').element, pieceDrag)
+    expect(place).toHaveBeenCalledWith('buy', 'RSI', 1)
 
     // 墊子最底下那一格接的是「排到最後面」，所以位置是現在有幾格。
-    expect(wrapper.get('[data-testid="drop-buy-end"]').attributes('data-drop-position'))
-      .toBe('2')
+    pieceDrag.pickUp('RSI', 'shelf')
+    applyDropOn(wrapper.get('[data-testid="drop-buy-end"]').element, pieceDrag)
+    expect(place).toHaveBeenLastCalledWith('buy', 'RSI', 2)
 
     // 一塊擺著的零件同時是落點：疊上去就扣成一組。
-    expect(wrapper.get('[data-testid="placed-buy-RSI"]').attributes('data-drop-kind'))
-      .toBe('piece')
+    pieceDrag.pickUp('RSI', 'shelf')
+    applyDropOn(wrapper.get('[data-testid="placed-buy-MACD"]').element, pieceDrag)
+    expect(bundleOnto).toHaveBeenCalledWith('buy', 'RSI', 'MACD')
 
-    expect(wrapper.get('[data-testid="shelf"]').attributes('data-drop-kind')).toBe('shelf')
+    // 架子整片都是一個落點：拖回去就是從墊子上收走。
+    pieceDrag.pickUp('MACD', 'buy')
+    applyDropOn(wrapper.get('[data-testid="shelf"]').element, pieceDrag)
+    expect(takeOff).toHaveBeenCalledWith('buy', 'MACD')
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import { SHELF_DROP_MARKUP, pieceDragMarkup } from '~/utilities/piece-drag-markup'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 // 有機體：工作檯左邊那個零件架——這台機器人手上有哪幾塊零件。
@@ -46,12 +47,12 @@ function intervalLabelOf(interval: string): string {
 <template>
   <!--
     架子整片都是一個落點：把零件拖回來就是從墊子上收走它。
-    落點由 data-drop-kind 標出來，手勢那一層照著選擇器認——見 usePieceDragGestures。
+    落點的標記由 piece-drag-markup 給，手勢那一層照著同一份讀回去。
   -->
   <section
     class="shelf"
     data-testid="shelf"
-    data-drop-kind="shelf"
+    v-bind="SHELF_DROP_MARKUP"
   >
     <h3 class="shelf__heading">
       零件架
@@ -95,8 +96,7 @@ function intervalLabelOf(interval: string): string {
           class="shelf__piece"
           :class="{ 'shelf__piece--in-use': isPlaced(source.label) }"
           :data-testid="`shelf-piece-${source.label}`"
-          :data-piece-label="source.label"
-          data-piece-origin="shelf"
+          v-bind="pieceDragMarkup(source.label, 'shelf')"
         >
           <span
             class="shelf__grip"

@@ -25,8 +25,7 @@ function mountMat(carrying: string | null, hoveringAt: number | null = null) {
     props: {
       board: aBoardWithABundle(),
       heading: '買入',
-      tone: 'buy' as const,
-      side: 'buy',
+      side: 'buy' as const,
       hoveringAt,
       carrying,
     },
