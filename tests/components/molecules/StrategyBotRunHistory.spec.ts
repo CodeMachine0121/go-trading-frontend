@@ -18,9 +18,14 @@ function mountHistory(options: {
   })
 }
 
-function runRecord(runNumber: number, resultLabel: string, resultTone: 'success' | 'danger' | 'neutral') {
+function runRecord(
+  runNumber: number,
+  resultLabel: string,
+  resultTone: 'success' | 'danger' | 'neutral' | 'warning',
+  needsAttention = false,
+) {
   return new StrategyBotRunRecordDto(
-    runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone)
+    runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone, needsAttention)
 }
 
 describe('StrategyBotRunHistory', () => {
@@ -60,5 +65,31 @@ describe('StrategyBotRunHistory', () => {
 
     expect(wrapper.find('[data-testid="run-history-empty"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('讀取中')
+  })
+
+  it('要人去處理的那一輪自己說出下一步', () => {
+    // 只多一個詞而不說要做什麼的話，讀的人還是得自己想。
+    const wrapper = mountHistory({
+      runRecords: [runRecord(7, '衝突', 'warning', true)],
+    })
+
+    expect(wrapper.get('[data-testid="run-history-attention"]').text())
+      .toContain('同時成立')
+  })
+
+  it('其餘的那幾輪不說那句話——一排紀錄裡每一列都在講話等於沒有一列在講話', () => {
+    const wrapper = mountHistory({ runRecords: [runRecord(7, '持有', 'neutral')] })
+
+    expect(wrapper.find('[data-testid="run-history-attention"]').exists()).toBe(false)
+  })
+
+  it('要人去處理的那一列在旁邊留一個記號，好讓人用掃的就找得到', () => {
+    const wrapper = mountHistory({
+      runRecords: [runRecord(7, '持有', 'neutral'), runRecord(8, '衝突', 'warning', true)],
+    })
+
+    const rows = wrapper.findAll('[data-testid="run-history-row"]')
+    expect(rows[0]!.classes()).not.toContain('strategy-bot-run-history__row--needs-attention')
+    expect(rows[1]!.classes()).toContain('strategy-bot-run-history__row--needs-attention')
   })
 })
