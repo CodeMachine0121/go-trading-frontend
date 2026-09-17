@@ -1,12 +1,14 @@
 import Decimal from 'decimal.js'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
+import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-vo'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
+import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
@@ -34,6 +36,21 @@ export class BacktestService {
   async runBacktest(backtestRequestDto: BacktestRequestDto): Promise<BacktestResultDto> {
     const requestDomain = new BacktestRequestDomain(backtestRequestDto)
     const backtest = await this.backtestProxy.runBacktest(requestDomain)
+
+    return backtest.toDomain().toDto()
+  }
+
+  /**
+   * 重演一整份交易策略：同樣驗證輸入（不合法就不送出）→ 送出 → 已經可以直接畫的結果。
+   *
+   * 回來的形狀與重演一支腳本完全相同，所以成績單、資金曲線與交易明細三個元件
+   * 一個都不必分兩種讀法。
+   */
+  async runTradingStrategyBacktest(
+    requestDto: TradingStrategyBacktestRequestDto,
+  ): Promise<BacktestResultDto> {
+    const requestDomain = new TradingStrategyBacktestRequestDomain(requestDto)
+    const backtest = await this.backtestProxy.runTradingStrategyBacktest(requestDomain)
 
     return backtest.toDomain().toDto()
   }

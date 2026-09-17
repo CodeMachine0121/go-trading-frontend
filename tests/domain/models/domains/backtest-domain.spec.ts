@@ -23,6 +23,7 @@ function backtestOf(overrides: Partial<{
   maximumDrawdown: number
   winRate: number | null
   positionOpenCount: number
+  conflictedCandleCount: number
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
   finalEquity: string
@@ -39,6 +40,7 @@ function backtestOf(overrides: Partial<{
     overrides.maximumDrawdown ?? 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
     overrides.positionOpenCount ?? 4,
+    overrides.conflictedCandleCount ?? 0,
     overrides.closedTrades ?? [],
     overrides.equityCurve ?? [])
 }

@@ -7,6 +7,7 @@ import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
@@ -22,7 +23,7 @@ const END_TIME = new Date('2026-09-04T23:59:59Z')
 function completedBacktest(): Backtest {
   return new Backtest(
     'BTCUSDT', '1h', START_TIME, END_TIME, 3,
-    new Decimal('10000'), new Decimal('12500'), 0.25, 0.1, 0.75, 4,
+    new Decimal('10000'), new Decimal('12500'), 0.25, 0.1, 0.75, 4, 0,
     [new ClosedTrade(
       'long', START_TIME, new Decimal('100'), END_TIME, new Decimal('110'),
       new Decimal('10000'), new Decimal('1000'))],
@@ -32,6 +33,7 @@ function completedBacktest(): Backtest {
 function buildProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
   return {
     runBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    runTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
     ...overrides,
   }
 }
@@ -197,5 +199,64 @@ describe('BacktestApplication', () => {
       expect(options.map(option => option.value)).toEqual(['allIn', 'percentage', 'fixedAmount'])
       expect(options.map(option => option.requiresValue)).toEqual([false, true, true])
     })
+  })
+})
+
+describe('BacktestApplication 重演一整份交易策略', () => {
+  function tradingStrategyRequest(overrides: Partial<{
+    tradingStrategyId: number
+    symbol: string
+    startTime: Date
+    endTime: Date
+    initialCapital: Decimal
+  }> = {}): TradingStrategyBacktestRequestDto {
+    return new TradingStrategyBacktestRequestDto(
+      overrides.tradingStrategyId ?? 7,
+      overrides.symbol ?? 'BTCUSDT',
+      overrides.startTime ?? START_TIME,
+      overrides.endTime ?? END_TIME,
+      overrides.initialCapital ?? new Decimal('10000'),
+      'percentage',
+      new Decimal('50'))
+  }
+
+  it('回來的形狀與重演一支腳本完全一樣，三個元件一種讀法就夠', async () => {
+    const result = await buildApplication(buildProxy())
+      .runTradingStrategyBacktest(tradingStrategyRequest())
+
+    expect(result.summary.totalReturnRate).toBe('+25.00%')
+    expect(result.closedTrades).toHaveLength(1)
+    expect(result.equityCurve).toHaveLength(1)
+  })
+
+  it('還沒存過的那一份連送都不送——沒有東西可以指名', async () => {
+    const proxy = buildProxy()
+
+    await expect(buildApplication(proxy)
+      .runTradingStrategyBacktest(tradingStrategyRequest({ tradingStrategyId: 0 })))
+      .rejects.toBeInstanceOf(BacktestFieldError)
+    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+  })
+
+  it('起點晚於終點時當場擋下來，一次都沒打出去', async () => {
+    // 驗證的規則與重演一支腳本同一套；少掉的只有算式與彙總刻度那兩格。
+    const proxy = buildProxy()
+
+    await expect(buildApplication(proxy).runTradingStrategyBacktest(tradingStrategyRequest({
+      startTime: END_TIME, endTime: START_TIME })))
+      .rejects.toMatchObject({ field: 'timeRange' })
+    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+  })
+
+  it('本金不是大於零時說在本金那一格', async () => {
+    await expect(buildApplication(buildProxy())
+      .runTradingStrategyBacktest(tradingStrategyRequest({ initialCapital: new Decimal('0') })))
+      .rejects.toMatchObject({ field: 'initialCapital' })
+  })
+
+  it('沒挑標的時說在標的那一格', async () => {
+    await expect(buildApplication(buildProxy())
+      .runTradingStrategyBacktest(tradingStrategyRequest({ symbol: '' })))
+      .rejects.toMatchObject({ field: 'symbol' })
   })
 })
