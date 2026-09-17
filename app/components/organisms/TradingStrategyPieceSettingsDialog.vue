@@ -3,7 +3,7 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 
 // 有機體：一塊零件的設定——它叫什麼、用哪一支策略腳本、看多粗的 K 線、旋鈕調到多少。
@@ -12,7 +12,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 // 一塊零件五個參數的時候，墊子會被推到看不見的地方。而調參數是偶爾才做一次的事。
 const { piece } = defineProps<{
   /** 正在調的那一塊。`null` 就是沒有人在調，彈窗關著。 */
-  piece: StrategyBotSignalSourceDto | null
+  piece: TradingStrategySignalSourceDto | null
   strategyScriptOptions: readonly { value: number, label: string }[]
   intervalOptions: readonly { value: string, label: string }[]
   /** 那支策略腳本宣告了哪幾個旋鈕。挑了策略腳本才知道有哪幾格要填。 */

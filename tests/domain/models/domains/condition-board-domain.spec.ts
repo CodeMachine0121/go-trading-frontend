@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { ConditionBoardDomain } from '~/domain/models/domains/condition-board-domain'
-import { StrategyBotConditionDomain } from '~/domain/models/domains/strategy-bot-condition-domain'
+import { TradingStrategyConditionDomain } from '~/domain/models/domains/trading-strategy-condition-domain'
 import {
   ConditionBoardDto,
   ConditionBoardItemDto,
   ConditionBoardPieceDto,
 } from '~/domain/models/dto/condition-board-dto'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
-  return new StrategyBotConditionDto(nodeId, null, [], sourceLabel, signal)
+  return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
 }
 
-function group(operator: 'and' | 'or', ...children: StrategyBotConditionDto[]) {
-  return new StrategyBotConditionDto(`g-${operator}`, operator, children, '', '')
+function group(operator: 'and' | 'or', ...children: TradingStrategyConditionDto[]) {
+  return new TradingStrategyConditionDto(`g-${operator}`, operator, children, '', '')
 }
 
-function boardOf(condition: StrategyBotConditionDto | null) {
-  return new StrategyBotConditionDomain(condition).toBoardDto()
+function boardOf(condition: TradingStrategyConditionDto | null) {
+  return new TradingStrategyConditionDomain(condition).toBoardDto()
 }
 
 /**
@@ -34,7 +34,7 @@ function readable(board: ConditionBoardDto): string[] {
 }
 
 /** 一棵樹讀成好比對的樣子。 */
-function shapeOf(condition: StrategyBotConditionDto | null): string {
+function shapeOf(condition: TradingStrategyConditionDto | null): string {
   if (condition === null) {
     return '（空）'
   }
@@ -165,7 +165,7 @@ describe('一張表寫回一棵樹', () => {
 })
 
 describe('來回轉換不會改變意思', () => {
-  const cases: { name: string, condition: StrategyBotConditionDto }[] = [
+  const cases: { name: string, condition: TradingStrategyConditionDto }[] = [
     {
       name: '一塊零件',
       condition: comparison('c', 'MACD', 'buy'),

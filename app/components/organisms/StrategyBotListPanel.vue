@@ -34,6 +34,14 @@ onMounted(() => {
         走一條路由而不是開一個對話框：拼一台機器人要看到的東西遠多於一個浮在
         清單上的框裝得下，而一個功能兩個入口，兩邊都要維護、遲早不一致。
       -->
+      <!-- 規則住在另一頁，所以這裡要有一條過去的路——不然使用者得自己猜網址。 -->
+      <AppButton
+        to="/trading-strategies"
+        variant="ghost"
+        data-testid="bot-trading-strategies-link"
+      >
+        我的交易策略
+      </AppButton>
       <AppButton
         to="/strategy-bots/new"
         data-testid="bot-create"
@@ -111,6 +119,17 @@ onMounted(() => {
           <span class="strategy-bot-list__meta">
             {{ strategyBot.symbol }} · 每 {{ strategyBot.triggerIntervalMinutes }} 分鐘
           </span>
+          <!--
+            它照哪一套規則跑。做成連結而不是一行字：一個看得到卻點不進去的名字，
+            只會讓人自己去另一份清單裡找同一個名字。
+          -->
+          <NuxtLink
+            class="strategy-bot-list__meta"
+            :to="`/trading-strategies/${strategyBot.tradingStrategyId}`"
+            data-testid="bot-trading-strategy"
+          >
+            {{ strategyBot.tradingStrategyName === '' ? '（未知的交易策略）' : strategyBot.tradingStrategyName }}
+          </NuxtLink>
         </div>
 
         <StrategyBotStatusBadge :run-state="strategyBot.runState" />

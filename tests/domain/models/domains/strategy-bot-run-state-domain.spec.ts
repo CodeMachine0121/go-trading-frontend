@@ -11,7 +11,7 @@ function aBot(overrides: Partial<{
   conflicting: boolean
 }> = {}) {
   return new StrategyBotRunStateDomain(new StrategyBot(
-    3, '早盤突破', 'BTCUSDT', 5, [], null, null,
+    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     overrides.runState ?? 'stopped',
     overrides.lastSentSignal ?? '',
     'haltReason' in overrides ? overrides.haltReason! : null,

@@ -4,6 +4,7 @@ import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { StrategyScriptProxy } from '~/infrastructure/proxy/strategy-script-proxy'
 import { StrategyBotProxy } from '~/infrastructure/proxy/strategy-bot-proxy'
+import { TradingStrategyProxy } from '~/infrastructure/proxy/trading-strategy-proxy'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
@@ -21,6 +22,7 @@ import { WatchlistProxy } from '~/infrastructure/proxy/watchlist-proxy'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { StrategyScriptService } from '~/domain/service/strategy-script-service'
 import { StrategyBotService } from '~/domain/service/strategy-bot-service'
+import { TradingStrategyService } from '~/domain/service/trading-strategy-service'
 import { TimeZoneService } from '~/domain/service/time-zone-service'
 import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
@@ -33,6 +35,7 @@ import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyScriptApplication } from '~/application/strategy-script-application'
 import { StrategyBotApplication } from '~/application/strategy-bot-application'
+import { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import { StrategyScriptMarketplaceProxy } from '~/infrastructure/proxy/strategy-script-marketplace-proxy'
 import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
 import { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
@@ -131,8 +134,16 @@ export default defineNuxtPlugin(() => {
     new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
+  // 交易策略是中間那一層：策略腳本那一條回答「我寫了什麼」，這一條回答
+  // 「我把它們拼成了什麼判斷」。它有自己的一整條線，因為好幾台機器人共用一份是
+  // 它存在的全部理由——綁在機器人那一條線上的話，那件事就做不到。
+  const tradingStrategyApplication = new TradingStrategyApplication(
+    new TradingStrategyService(
+      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  )
+
   // 策略機器人是操作台上第一件「沒有人看著的時候還在做事」的東西，所以它有自己的一整條線：
-  // 策略腳本那一條回答「我寫了什麼」，這一條回答「我派了誰出去、它現在怎麼樣」。
+  // 交易策略那一條回答「照什麼判斷」，這一條回答「我派了誰出去、它現在怎麼樣」。
   const strategyBotApplication = new StrategyBotApplication(
     new StrategyBotService(
       new StrategyBotProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
@@ -240,6 +251,7 @@ export default defineNuxtPlugin(() => {
       watchlistApplication,
       indicatorCalculationApplication,
       strategyScriptApplication,
+      tradingStrategyApplication,
       strategyBotApplication,
       strategyScriptMarketplaceApplication,
       backtestApplication,

@@ -8,15 +8,15 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
  * 遲早會跟第一個對同一份資料有不同的看法。
  *
  * `nodeId` 只活在畫面上，後端既不收也不給——為什麼需要它，見
- * StrategyBotConditionNodeIdVo。
+ * TradingStrategyConditionNodeIdVo。
  */
-export class StrategyBotConditionDto {
+export class TradingStrategyConditionDto {
   constructor(
     public readonly nodeId: string,
     /** 是群組時才有。是一句比對時為 null。 */
     public readonly operator: ConditionOperatorVo | null,
     /** 群組裡的那幾句。一句比對時為空陣列。 */
-    public readonly conditions: readonly StrategyBotConditionDto[],
+    public readonly conditions: readonly TradingStrategyConditionDto[],
     /** 一句比對讀的是哪一個來源。群組時為空字串。 */
     public readonly sourceLabel: string,
     /** 那個來源要等於什麼。群組時為空字串。 */

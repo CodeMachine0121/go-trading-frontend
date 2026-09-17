@@ -1,18 +1,12 @@
 import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
 import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
-import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
-import {
-  StrategyBot,
-  StrategyBotCondition,
-  StrategyBotParameterValue,
-  StrategyBotSignalSource,
-} from '~/domain/models/entities/strategy-bot'
+import { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { StrategyBotNameConflictError } from '~/domain/errors/strategy-bot-name-conflict-error'
 import { StrategyBotNotFoundError } from '~/domain/errors/strategy-bot-not-found-error'
 import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-error'
-import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
+import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -44,30 +38,13 @@ type StrategyBotRunRecordWire = {
   result: string
 }
 
-/** 後端回來的一個信號來源。**它沒有 script**——那不是漏了，是那一欄不存在。 */
-type StrategyBotSignalSourceWire = {
-  label: string
-  strategyScriptId: number
-  aggregationInterval: string
-  parameterValues?: { name: string, value: number }[] | null
-}
-
-/** 後端回來的一個條件節點，遞迴。 */
-type StrategyBotConditionWire = {
-  operator?: string
-  conditions?: StrategyBotConditionWire[] | null
-  sourceLabel?: string
-  signal?: string
-}
-
 type StrategyBotWire = {
   id: number
   name: string
   symbol: string
   triggerIntervalMinutes: number
-  signalSources?: StrategyBotSignalSourceWire[] | null
-  buyCondition?: StrategyBotConditionWire | null
-  sellCondition?: StrategyBotConditionWire | null
+  tradingStrategyId: number
+  tradingStrategyName?: string
   runState: string
   lastSentSignal?: string
   haltReason?: string
@@ -185,9 +162,11 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     }
 
     if (error.status === NOT_FOUND_STATUS) {
+      // 指名一份看不到的交易策略，後端也回這一個狀態碼。兩者靠訊息分開，
+      // 因為要做的事不同：一個去挑別的規則，一個是這一台根本不在了。
       return error.message.includes('策略機器人')
         ? new StrategyBotNotFoundError(error.message, { cause: error })
-        : new StrategyScriptNotFoundError(error.message, { cause: error })
+        : new TradingStrategyNotFoundError(error.message, { cause: error })
     }
 
     if (error.status === CONFLICT_STATUS) {
@@ -213,40 +192,8 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     return {
       name: writeDto.name,
       symbol: writeDto.symbol,
+      tradingStrategyId: writeDto.tradingStrategyId,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
-      signalSources: writeDto.signalSources.map(signalSource => ({
-        label: signalSource.label,
-        strategyScriptId: signalSource.strategyScriptId,
-        aggregationInterval: signalSource.aggregationInterval,
-        parameterValues: signalSource.parameterValues.map(parameterValue => ({
-          name: parameterValue.name,
-          value: parameterValue.value,
-        })),
-      })),
-      buyCondition: this.toConditionBody(writeDto.buyCondition),
-      sellCondition: this.toConditionBody(writeDto.sellCondition),
-    }
-  }
-
-  /**
-   * 把一棵條件樹送出去，**沿路把畫面用的節點識別碼丟掉**。
-   *
-   * 那個識別碼只活在這一側，是為了讓 Vue 認得出同一個節點；後端既不收也不給。
-   * 順手送過去的話，它會被當成一個後端不認得的欄位——今天無害，
-   * 但它會變成一份沒有人宣告過、卻兩邊都在傳的資料。
-   */
-  private toConditionBody(condition: StrategyBotConditionDto | null): BackendRequestValue {
-    if (condition === null) {
-      return null
-    }
-
-    if (!condition.isGroup) {
-      return { sourceLabel: condition.sourceLabel, signal: condition.signal }
-    }
-
-    return {
-      operator: condition.operator ?? '',
-      conditions: condition.conditions.map(child => this.toConditionBody(child)),
     }
   }
 
@@ -256,50 +203,14 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       botWire.name,
       botWire.symbol,
       botWire.triggerIntervalMinutes,
-      (botWire.signalSources ?? []).map(sourceWire => new StrategyBotSignalSource(
-        sourceWire.label,
-        sourceWire.strategyScriptId,
-        sourceWire.aggregationInterval,
-        (sourceWire.parameterValues ?? []).map(
-          parameterValue => new StrategyBotParameterValue(
-            parameterValue.name, parameterValue.value)),
-      )),
-      this.toCondition(botWire.buyCondition),
-      this.toCondition(botWire.sellCondition),
+      botWire.tradingStrategyId,
+      botWire.tradingStrategyName ?? '',
       botWire.runState as StrategyBotRunStateVo,
       botWire.lastSentSignal ?? '',
       (botWire.haltReason ?? '') === ''
         ? null
         : botWire.haltReason as StrategyBotHaltReasonVo,
       botWire.conflicting ?? false,
-    )
-  }
-
-  /**
-   * 後端用「什麼都沒有的那一個物件」表示一棵空的樹，所以既不是群組也不是一句比對的
-   * 節點一律讀成「沒有條件」——留著它的話，畫面會畫出一個既不能編也不能刪的空框。
-   */
-  private toCondition(
-    conditionWire: StrategyBotConditionWire | null | undefined,
-  ): StrategyBotCondition | null {
-    if (conditionWire === null || conditionWire === undefined) {
-      return null
-    }
-
-    const operator = conditionWire.operator ?? ''
-    const sourceLabel = conditionWire.sourceLabel ?? ''
-
-    if (operator === '' && sourceLabel === '') {
-      return null
-    }
-
-    return new StrategyBotCondition(
-      operator,
-      (conditionWire.conditions ?? [])
-        .map(child => this.toCondition(child))
-        .filter((child): child is StrategyBotCondition => child !== null),
-      sourceLabel,
-      conditionWire.signal ?? '',
     )
   }
 }
