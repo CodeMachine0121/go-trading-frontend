@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
@@ -39,6 +40,7 @@ export class BacktestRequestDomain {
   readonly initialCapital: Decimal
   readonly positionSizingMode: PositionSizingMode
   readonly positionSizingValue: Decimal
+  readonly tradingMode: TradingMode
 
   constructor(backtestRequestDto: BacktestRequestDto) {
     const normalizedSymbol = backtestRequestDto.symbol.trim()
@@ -81,6 +83,9 @@ export class BacktestRequestDomain {
     this.initialCapital = backtestRequestDto.initialCapital
     this.positionSizingMode = backtestRequestDto.positionSizingMode
     this.positionSizingValue = backtestRequestDto.positionSizingValue
+    // 交易模式不做合法性拒絕：使用者是從兩顆並排的按鈕挑的，挑不出非法值。
+    // 與彙總刻度同一套處理。
+    this.tradingMode = backtestRequestDto.tradingMode
 
     // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話。
     // 它落在算式那一格：參數宣告與算式同屬工作區，而回測這一側沒有參數那一列可以標。

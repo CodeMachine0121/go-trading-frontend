@@ -8,6 +8,8 @@ import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-s
 import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
+import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 
 /** Application：回測的用例編排，全程只碰 DTO。 */
 export class BacktestApplication {
@@ -37,6 +39,14 @@ export class BacktestApplication {
 
   listPositionSizingModeOptions(): PositionSizingModeOptionDto[] {
     return this.backtestService.listPositionSizingModeOptions()
+  }
+
+  defaultTradingMode(): TradingMode {
+    return this.backtestService.defaultTradingMode()
+  }
+
+  listTradingModeOptions(): TradingModeOptionDto[] {
+    return this.backtestService.listTradingModeOptions()
   }
 
   listBacktestRules(): BacktestRuleDto[] {

@@ -3,7 +3,8 @@
  * 標錯地方，使用者就會去改一個沒有問題的欄位。
  */
 export type BacktestField
-  = 'symbol' | 'timeRange' | 'initialCapital' | 'positionSizingValue' | 'scriptBody'
+  = 'symbol' | 'timeRange' | 'initialCapital' | 'positionSizingValue' | 'tradingMode'
+    | 'scriptBody'
 
 /** 哨兵錯誤：使用者自己可以修正的輸入錯誤（欄位層級）。 */
 export class BacktestFieldError extends Error {

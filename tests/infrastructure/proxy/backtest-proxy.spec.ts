@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
@@ -17,10 +18,13 @@ const SCRIPT_BODY = 'return indicator.Buy'
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
 
-function requestOf(parameters: StrategyScriptParameterDto[] = []): BacktestRequestDomain {
+function requestOf(
+  parameters: StrategyScriptParameterDto[] = [],
+  tradingMode: TradingMode = 'longShort',
+): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
-    new Decimal('10000'), 'percentage', new Decimal('50')))
+    new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode))
 }
 
 /** 一次成功的回測，wire 上的樣子。金額一律是字串——它們是精確小數。 */
@@ -221,10 +225,12 @@ describe('BacktestProxy', () => {
   })
 })
 
-function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
+function tradingStrategyRequestOf(
+  tradingMode: TradingMode = 'longShort',
+): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
-    new Decimal('10000'), 'percentage', new Decimal('50')))
+    new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {
@@ -308,5 +314,64 @@ describe('BacktestProxy 重演一整份交易策略', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(422, '算式執行失敗')))
 
     expect(await tradingStrategyBacktestFailure()).toBeInstanceOf(IndicatorScriptFailedError)
+  })
+})
+
+describe('BacktestProxy 照哪一套規矩操作', () => {
+  it('挑了什麼就送什麼', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runBacktest(requestOf([], 'spot'))
+
+    expect(fetchMock.mock.calls[0]![1].body.tradingMode).toBe('spot')
+  })
+
+  it('沒有動過它就送既有的那一種', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(fetchMock.mock.calls[0]![1].body.tradingMode).toBe('longShort')
+  })
+
+  it('重演一整份交易策略時同樣送得出去，而且仍然不送刻度與算式', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf('spot'))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.tradingMode).toBe('spot')
+    // 那兩樣是這份交易策略的信號來源自己說的，多送一份等於同一件事有兩個答案。
+    expect(body.aggregationInterval).toBeUndefined()
+    expect(body.script).toBeUndefined()
+  })
+
+  it('後端說交易模式不對時，那句話標在交易模式那一格', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(
+      rejectionOf(400, '交易模式只能是 longShort、spot 其中之一', { field: 'tradingMode' }))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const failure = await backtestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestFieldError)
+    expect((failure as BacktestFieldError).field).toBe('tradingMode')
+    // 使用者要看到有哪兩種可挑，才知道自己該改成什麼。
+    expect((failure as BacktestFieldError).message).toContain('longShort')
+    expect((failure as BacktestFieldError).message).toContain('spot')
+  })
+
+  it('後端拒絕的是別的東西時，交易模式那一格不會被牽連', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(
+      rejectionOf(400, '初始資金必須大於零', { field: 'initialCapital' }))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const failure = await backtestFailure()
+
+    expect((failure as BacktestFieldError).field).toBe('initialCapital')
   })
 })

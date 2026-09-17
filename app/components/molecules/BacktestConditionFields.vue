@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppRadio from '~/components/atoms/AppRadio.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
+import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：回測要問使用者的那幾件事。
@@ -18,17 +20,21 @@ const {
   timeZone,
   aggregationIntervalOptions,
   positionSizingModeOptions,
+  tradingModeOptions,
   running = false,
   disabled = false,
   symbolError = null,
   timeRangeError = null,
   initialCapitalError = null,
   positionSizingValueError = null,
+  tradingModeError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
   aggregationIntervalOptions: readonly AggregationIntervalOptionDto[]
   positionSizingModeOptions: readonly PositionSizingModeOptionDto[]
+  /** 交易模式可以挑的每一個，各自帶著一句話說它做什麼。 */
+  tradingModeOptions: readonly TradingModeOptionDto[]
   running?: boolean
   /** 按了也沒用的時候（例如後端連不上）就不要讓他按。 */
   disabled?: boolean
@@ -36,6 +42,7 @@ const {
   timeRangeError?: string | null
   initialCapitalError?: string | null
   positionSizingValueError?: string | null
+  tradingModeError?: string | null
   /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
@@ -52,6 +59,15 @@ const endTime = defineModel<string>('endTime', { required: true })
 const initialCapital = defineModel<string>('initialCapital', { required: true })
 const positionSizingMode = defineModel<string>('positionSizingMode', { required: true })
 const positionSizingValue = defineModel<string>('positionSizingValue', { required: true })
+const tradingMode = defineModel<string>('tradingMode', { required: true })
+
+/**
+ * 同一組單選鈕共用的名字。
+ *
+ * 它必須每個實例各不相同：兩張表單若同時在頁面上（工作檯的兩個分頁就是），
+ * 共用一個名字會讓兩邊的選項彼此互斥——挑了這一張的現貨，另一張的選擇會被清掉。
+ */
+const tradingModeGroupName = `trading-mode-${useId()}`
 
 /**
  * 目前這個模式旁邊要不要出現一格，以及那一格叫什麼。
@@ -164,6 +180,29 @@ const selectedPositionSizingMode = computed(
       />
     </FormField>
 
+    <FormField
+      label="交易模式"
+      class="backtest-condition-fields__trading-mode"
+      :error-message="tradingModeError"
+      grouped
+    >
+      <!--
+        並排而不是下拉選單：多數使用者根本不知道現在這一種在幫他放空，
+        而一個要點開才看得到的選單，救不了一個不知道要去點的人。
+      -->
+      <AppRadio
+        v-for="modeOption in tradingModeOptions"
+        :key="modeOption.value"
+        v-model="tradingMode"
+        :value="modeOption.value"
+        :label="modeOption.label"
+        :description="modeOption.description"
+        :name="tradingModeGroupName"
+        :disabled="running || disabled"
+        :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
+      />
+    </FormField>
+
     <AppButton
       type="submit"
       class="backtest-condition-fields__action"
@@ -190,6 +229,22 @@ const selectedPositionSizingMode = computed(
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   align-items: start;
   gap: spacing('xs') spacing('sm');
+
+  // 兩個選項要同時看得見，所以這一格佔滿整列——擠在一個 11rem 的格子裡，
+  // 那兩句說明會被折成一疊，而它們正是這一格存在的理由。
+  &__trading-mode {
+    grid-column: 1 / -1;
+
+    // 兩顆並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: spacing('3xs') spacing('2xs');
+
+    // legend 與錯誤訊息橫跨整列，否則它們會被當成第三、第四顆選項擺進格子裡。
+    > :not(.app-radio) {
+      grid-column: 1 / -1;
+    }
+  }
 
   // 按鈕與欄位同一列時要對齊到輸入框，而不是對齊到欄位標籤。
   &__action {

@@ -241,3 +241,47 @@ describe('TradingStrategyBacktestPane', () => {
     })
   })
 })
+
+describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
+  it('兩個選項同時看得見，與指標計算那一頁一樣', async () => {
+    const wrapper = mountPane(buildProxy())
+
+    expect(wrapper.find('[data-testid="backtest-trading-mode-longShort-radio"]').exists())
+      .toBe(true)
+    expect(wrapper.find('[data-testid="backtest-trading-mode-spot-radio"]').exists())
+      .toBe(true)
+  })
+
+  it('那兩句說明與指標計算那一頁一字不差', () => {
+    // 兩頁都跟同一個地方拿這兩句話，所以它們不可能各自漂移。
+    // 這一條釘的就是「不可能」——兩份字串的那一版會先在一頁上被改掉，而沒有人發現。
+    const application = new BacktestApplication(new BacktestService(buildProxy()))
+    const wrapper = mountPane(buildProxy())
+
+    for (const option of application.listTradingModeOptions()) {
+      expect(wrapper.get(`[data-testid="backtest-trading-mode-${option.value}-radio"]`).text())
+        .toContain(option.description)
+    }
+  })
+
+  it('挑了現貨，重演這一份交易策略時送出去的就是現貨', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    await fillSymbolAndRun(wrapper)
+
+    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0].tradingMode)
+      .toBe('spot')
+  })
+
+  it('一打開停在既有的那一種', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await fillSymbolAndRun(wrapper)
+
+    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0].tradingMode)
+      .toBe('longShort')
+  })
+})
