@@ -1,44 +1,31 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import StrategyBotWorkbench from '~/components/organisms/StrategyBotWorkbench.vue'
-import { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
-import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
-import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
-import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
-import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
-
-function stoppedState() {
-  return new StrategyBotRunStateDto(
-    false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
-}
+import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWorkbench.vue'
+import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
+import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
-  return new StrategyBotConditionDto(nodeId, null, [], sourceLabel, signal)
+  return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
 }
 
-function group(operator: 'and' | 'or', ...children: StrategyBotConditionDto[]) {
-  return new StrategyBotConditionDto(`g-${operator}`, operator, children, '', '')
+function group(operator: 'and' | 'or', ...children: TradingStrategyConditionDto[]) {
+  return new TradingStrategyConditionDto(`g-${operator}`, operator, children, '', '')
 }
 
 function aBot(
-  buyCondition: StrategyBotConditionDto | null = comparison('b', 'MACD', 'buy'),
-  sellCondition: StrategyBotConditionDto | null = comparison('s', 'MACD', 'sell'),
-  sources = [new StrategyBotSignalSourceDto('MACD', 9, '5m', [])],
+  buyCondition: TradingStrategyConditionDto | null = comparison('b', 'MACD', 'buy'),
+  sellCondition: TradingStrategyConditionDto | null = comparison('s', 'MACD', 'sell'),
+  sources = [new TradingStrategySignalSourceDto('MACD', 9, '5m', [])],
 ) {
-  return new StrategyBotDto(
-    7, '早盤突破', 'BTCUSDT', 5, sources, buyCondition, sellCondition, stoppedState())
+  return new TradingStrategyDto(7, '黃金交叉', sources, buyCondition, sellCondition)
 }
 
-function mountWorkbench(editing: StrategyBotDto | null = aBot()) {
-  return mount(StrategyBotWorkbench, {
+function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
+  return mount(TradingStrategyWorkbench, {
     props: {
       editing,
-      tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService({
-        findTradingSymbols: vi.fn().mockResolvedValue([buildTradingSymbol('BTCUSDT')]),
-      })),
       strategyScriptOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
       parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
       saving: false,
@@ -53,7 +40,7 @@ function dragEvent() {
   return { dataTransfer: { setData: vi.fn() } as unknown as DataTransfer }
 }
 
-describe('StrategyBotWorkbench：工作檯上的零件', () => {
+describe('TradingStrategyWorkbench：工作檯上的零件', () => {
   it('每一塊零件都在架子上，不管它有沒有被用到', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -85,7 +72,7 @@ describe('StrategyBotWorkbench：工作檯上的零件', () => {
   })
 })
 
-describe('StrategyBotWorkbench：把零件搬來搬去', () => {
+describe('TradingStrategyWorkbench：把零件搬來搬去', () => {
   it('從架子拖到墊子上，它就擺上去了', async () => {
     const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
     await flushPromises()
@@ -145,8 +132,8 @@ describe('StrategyBotWorkbench：把零件搬來搬去', () => {
 
   it('墊子上排的順序會被存下來——那不是一個假的自由度', async () => {
     const twoPieces = [
-      new StrategyBotSignalSourceDto('MACD', 9, '5m', []),
-      new StrategyBotSignalSourceDto('ATR', 10, '1h', []),
+      new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+      new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
     ]
     const wrapper = mountWorkbench(aBot(
       group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
@@ -159,7 +146,7 @@ describe('StrategyBotWorkbench：把零件搬來搬去', () => {
     await wrapper.get('[data-testid="drop-buy-0"]').trigger('drop')
     await flushPromises()
 
-    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
 
     const saved = wrapper.emitted('save')?.[0]?.[0] as {
       buyCondition: { conditions: { sourceLabel: string }[] }
@@ -168,7 +155,7 @@ describe('StrategyBotWorkbench：把零件搬來搬去', () => {
   })
 })
 
-describe('StrategyBotWorkbench：一塊零件收好幾個信號時，把話講明白', () => {
+describe('TradingStrategyWorkbench：一塊零件收好幾個信號時，把話講明白', () => {
   it('只收一個信號時不必解釋什麼', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -198,10 +185,10 @@ describe('StrategyBotWorkbench：一塊零件收好幾個信號時，把話講�
   })
 })
 
-describe('StrategyBotWorkbench：把零件扣成一組', () => {
+describe('TradingStrategyWorkbench：把零件扣成一組', () => {
   const twoPieces = () => [
-    new StrategyBotSignalSourceDto('MACD', 9, '5m', []),
-    new StrategyBotSignalSourceDto('ATR', 10, '1h', []),
+    new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+    new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
   ]
 
   function mountTwoOnBuy() {
@@ -244,9 +231,9 @@ describe('StrategyBotWorkbench：把零件扣成一組', () => {
         comparison('c', 'EMA', 'buy')),
       comparison('s', 'MACD', 'sell'),
       [
-        new StrategyBotSignalSourceDto('MACD', 9, '5m', []),
-        new StrategyBotSignalSourceDto('ATR', 10, '1h', []),
-        new StrategyBotSignalSourceDto('EMA', 10, '1h', []),
+        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
+        new TradingStrategySignalSourceDto('EMA', 10, '1h', []),
       ]))
     await flushPromises()
 
@@ -254,7 +241,7 @@ describe('StrategyBotWorkbench：把零件扣成一組', () => {
     await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('drop')
     await flushPromises()
 
-    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
 
     const saved = wrapper.emitted('save')?.[0]?.[0] as {
       buyCondition: {
@@ -310,7 +297,7 @@ describe('StrategyBotWorkbench：把零件扣成一組', () => {
   })
 })
 
-describe('StrategyBotWorkbench：一塊零件在這一邊要是什麼', () => {
+describe('TradingStrategyWorkbench：一塊零件在這一邊要是什麼', () => {
   it('開關只長在擺上墊子的零件上——架子上的那一塊沒有這個問題', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -356,7 +343,7 @@ describe('StrategyBotWorkbench：一塊零件在這一邊要是什麼', () => {
   })
 })
 
-describe('StrategyBotWorkbench：加一支策略腳本', () => {
+describe('TradingStrategyWorkbench：加一支策略腳本', () => {
   it('加一支就多一列，兩欄都跟著出現', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -385,7 +372,7 @@ describe('StrategyBotWorkbench：加一支策略腳本', () => {
   })
 })
 
-describe('StrategyBotWorkbench：一支策略腳本自己的設定', () => {
+describe('TradingStrategyWorkbench：一支策略腳本自己的設定', () => {
   it('一開始收著——收起來時一支策略腳本就是一列', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -434,36 +421,36 @@ describe('StrategyBotWorkbench：一支策略腳本自己的設定', () => {
   })
 })
 
-describe('StrategyBotWorkbench：存得下去嗎', () => {
+describe('TradingStrategyWorkbench：存得下去嗎', () => {
   it('每一邊都有格子亮著就存得下去', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="bot-form-rejection"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="trading-strategy-form-save"]').attributes('disabled')).toBeUndefined()
   })
 
   it('一邊一格都沒亮就存不下去，並說得出為什麼', async () => {
     const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toContain('兩邊都要')
-    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="trading-strategy-form-rejection"]').text()).toContain('兩邊都要')
+    expect(wrapper.get('[data-testid="trading-strategy-form-save"]').attributes('disabled')).toBeDefined()
   })
 
   it('按儲存交出的是這一刻表上的那一台', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
 
     const saved = wrapper.emitted('save')?.[0]?.[0] as { id: number, name: string }
     expect(saved.id).toBe(7)
-    expect(saved.name).toBe('早盤突破')
+    expect(saved.name).toBe('黃金交叉')
   })
 })
 
-describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
+describe('TradingStrategyWorkbench：畫不出來的舊條件', () => {
   it('一組裡面還有一組的舊條件，照實說這張工作檯排不出它——不默默壓平', async () => {
     // 壓平會得到一個意思不同的條件，而使用者會在完全沒察覺的情況下把它存回去。
     const wrapper = mountWorkbench(aBot(
@@ -474,8 +461,8 @@ describe('StrategyBotWorkbench：畫不出來的舊條件', () => {
         comparison('d', 'ATR', 'sell')),
       comparison('s', 'MACD', 'sell'),
       [
-        new StrategyBotSignalSourceDto('MACD', 9, '5m', []),
-        new StrategyBotSignalSourceDto('ATR', 10, '1h', []),
+        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
       ]))
     await flushPromises()
 

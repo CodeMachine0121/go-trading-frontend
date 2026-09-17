@@ -8,7 +8,7 @@
  * 刻度與參數值掛在這裡而不是掛在機器人上：一台機器人用一小時的均線判方向、
  * 用五分鐘的震盪指標抓時機，是最普通的用法，而整台共用一種刻度講不出這件事。
  */
-export class StrategyBotSignalSourceDto {
+export class TradingStrategySignalSourceDto {
   constructor(
     /** 它在條件裡的名字。同一台機器人內不得重複——條件就是靠它指名的。 */
     public readonly label: string,

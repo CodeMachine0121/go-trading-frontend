@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
-import StrategyBotConditionMat from '~/components/organisms/StrategyBotConditionMat.vue'
-import StrategyBotPieceSettingsDialog from '~/components/organisms/StrategyBotPieceSettingsDialog.vue'
-import StrategyBotPieceShelf from '~/components/organisms/StrategyBotPieceShelf.vue'
+import TradingStrategyConditionMat from '~/components/organisms/TradingStrategyConditionMat.vue'
+import TradingStrategyPieceSettingsDialog from '~/components/organisms/TradingStrategyPieceSettingsDialog.vue'
+import TradingStrategyPieceShelf from '~/components/organisms/TradingStrategyPieceShelf.vue'
 import type { ConditionBoardDto } from '~/domain/models/dto/condition-board-dto'
-import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 
 // 有機體：一張工作檯——左邊零件架，右邊兩張墊子。
@@ -13,7 +13,7 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
 // 那件事沒辦法交給架子或墊子其中之一，因為一次拖曳的起點與落點常常不在同一塊裡——
 // 從架子拖到墊子、從一張墊子拖到另一張，都是。所以它住在唯一同時看得到三者的這一層。
 const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defineProps<{
-  sources: readonly StrategyBotSignalSourceDto[]
+  sources: readonly TradingStrategySignalSourceDto[]
   buyBoard: ConditionBoardDto
   sellBoard: ConditionBoardDto
   strategyScriptOptions: readonly { value: number, label: string }[]
@@ -152,7 +152,7 @@ function dropOnShelf() {
     </AppAlert>
 
     <div class="canvas__bench">
-      <StrategyBotPieceShelf
+      <TradingStrategyPieceShelf
         :sources="sources"
         :placed-labels="placedLabels"
         :interval-options="intervalOptions"
@@ -167,7 +167,7 @@ function dropOnShelf() {
         @drop-back="dropOnShelf"
       />
 
-      <StrategyBotConditionMat
+      <TradingStrategyConditionMat
         v-for="mat in MATS"
         :key="mat.key"
         :board="mat.board()"
@@ -189,7 +189,7 @@ function dropOnShelf() {
       />
     </div>
 
-    <StrategyBotPieceSettingsDialog
+    <TradingStrategyPieceSettingsDialog
       :piece="tuningPiece"
       :strategy-script-options="strategyScriptOptions"
       :interval-options="intervalOptions"

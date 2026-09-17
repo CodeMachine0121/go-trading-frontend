@@ -3,7 +3,7 @@ import {
   ConditionBoardItemDto,
   ConditionBoardPieceDto,
 } from '~/domain/models/dto/condition-board-dto'
-import type { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import type { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 
@@ -17,10 +17,10 @@ import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
  * 操作，那是為了一個由積木與空位組成的畫面。那個畫面被一張表取代了，
  * 而那些操作跟著整批消失——**沒有人在用的能力留著，下一個人會以為它還有意義**。
  */
-export class StrategyBotConditionDomain {
-  constructor(private readonly condition: StrategyBotConditionDto | null) {}
+export class TradingStrategyConditionDomain {
+  constructor(private readonly condition: TradingStrategyConditionDto | null) {}
 
-  get value(): StrategyBotConditionDto | null {
+  get value(): TradingStrategyConditionDto | null {
     return this.condition
   }
 
@@ -56,7 +56,7 @@ export class StrategyBotConditionDomain {
   }
 
   /** 墊子上的每一格——讀不出來時回 `null`。 */
-  private itemsFrom(group: StrategyBotConditionDto): ConditionBoardItemDto[] | null {
+  private itemsFrom(group: TradingStrategyConditionDto): ConditionBoardItemDto[] | null {
     const operator = group.operator!
     const items: ConditionBoardItemDto[] = []
 
@@ -128,7 +128,7 @@ export class StrategyBotConditionDomain {
    * **只提到一塊零件的那一組不是一組**——它就是那一塊，收了好幾個信號。
    */
   private itemFrom(
-    comparisons: readonly StrategyBotConditionDto[],
+    comparisons: readonly TradingStrategyConditionDto[],
     operator: ConditionOperatorVo | null = null,
   ): ConditionBoardItemDto | null {
     const pieces = this.piecesFrom(comparisons)
@@ -143,7 +143,7 @@ export class StrategyBotConditionDomain {
    * 同樣的一塊零件在兩台機器人上要長得一樣。
    */
   private piecesFrom(
-    comparisons: readonly StrategyBotConditionDto[],
+    comparisons: readonly TradingStrategyConditionDto[],
   ): ConditionBoardPieceDto[] {
     const signalsByLabel = new Map<string, string[]>()
     for (const comparison of comparisons) {
@@ -163,7 +163,7 @@ export class StrategyBotConditionDomain {
     return this.collectLabels(this.condition)
   }
 
-  private collectLabels(node: StrategyBotConditionDto | null): string[] {
+  private collectLabels(node: TradingStrategyConditionDto | null): string[] {
     if (node === null) {
       return []
     }

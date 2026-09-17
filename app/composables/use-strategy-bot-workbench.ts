@@ -1,38 +1,26 @@
-import type { StrategyScriptApplication } from '~/application/strategy-script-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
-import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 
 /**
- * 機器人聽得懂的唯一一種指標值種類。
- *
- * 一台機器人的條件比對的是買入／賣出／持有，而只有這一種策略腳本吐得出那三個值。
- * 挑得到一支吐數字的策略腳本，那台機器人第一輪就會算式失敗——而算式失敗是會**停擺**的
- * 那一類，使用者會得到一台按下播放、隔天發現早就停了的機器人。
- */
-const SIGNAL_RESULT_TYPE: IndicatorResultType = 'signal'
-
-/**
- * 一張工作台這一頁自己的狀態：它在改哪一台、可以挑哪幾支策略腳本、存得怎麼樣了。
+ * 拼一台機器人那一頁自己的狀態：它在改哪一台、可以挑哪幾份交易策略、存得怎麼樣了。
  *
  * 它與清單那一頁的 `useStrategyBots` 分開，因為兩頁要的東西幾乎不重疊：
- * 清單要的是每一台的執行狀態與歷史，這裡要的是一台的內容與可用策略腳本。
- * 合成一個的話，打開工作台會連帶去撈一份沒有人會看的清單。
+ * 清單要的是每一台的執行狀態與歷史，這裡要的是一台的內容與可挑的交易策略。
  *
  * @param strategyBotId 有值就是改那一台，`null` 就是新拼一台。
  */
 export function useStrategyBotWorkbench(
   strategyBotApplication: StrategyBotApplication,
-  strategyScriptApplication: StrategyScriptApplication,
+  tradingStrategyApplication: TradingStrategyApplication,
   strategyBotId: number | null,
 ) {
   // 存好了那一句要在**清單**上被看到，因為存完之後使用者已經被送回去了。
   const { announce } = useConsoleAnnouncement()
 
   const editing = ref<StrategyBotDto | null>(null)
-  const strategyScriptOptions = ref<{ value: number, label: string }[]>([])
-  const parameterNamesByStrategyScriptId = ref<Record<number, readonly string[]>>({})
+  const tradingStrategyOptions = ref<{ value: number, label: string }[]>([])
 
   const loading = ref(true)
   const saving = ref(false)
@@ -47,38 +35,17 @@ export function useStrategyBotWorkbench(
     failureMessage.value = ''
 
     try {
-      const [bot, available] = await Promise.all([
+      const [bot, tradingStrategies] = await Promise.all([
         strategyBotId === null
           ? Promise.resolve(null)
           : strategyBotApplication.getStrategyBot(strategyBotId),
-        strategyScriptApplication.listAvailableStrategyScripts(),
+        tradingStrategyApplication.listTradingStrategies(),
       ])
 
       editing.value = bot
-
-      // 自己的與採用來的分開讀，因為它們的形狀本來就不同：採用來的**沒有算式**，
-      // 所以它的旋鈕與指標值種類直接掛在上面，而自己的那幾支掛在算式內容裡。
-      const options = [
-        ...available.mine
-          .filter(strategyScript => strategyScript.content.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategyScript => ({
-            value: strategyScript.id,
-            label: strategyScript.name,
-            parameterNames: strategyScript.content.parameters.map(parameter => parameter.name),
-          })),
-        ...available.adopted
-          .filter(strategyScript => strategyScript.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategyScript => ({
-            value: strategyScript.id,
-            label: strategyScript.name,
-            parameterNames: strategyScript.parameters.map(parameter => parameter.name),
-          })),
-      ]
-
-      strategyScriptOptions.value = options.map(
-        option => ({ value: option.value, label: option.label }))
-      parameterNamesByStrategyScriptId.value = Object.fromEntries(
-        options.map(option => [option.value, option.parameterNames]))
+      // 一次讀完，不為了顯示一個名字而每一列各問一次。
+      tradingStrategyOptions.value = tradingStrategies.map(
+        tradingStrategy => ({ value: tradingStrategy.id, label: tradingStrategy.name }))
     }
     catch (error: unknown) {
       // 要改的那一台不見了與「後端壞了」是兩件事：前者的下一步是回清單，
@@ -96,7 +63,7 @@ export function useStrategyBotWorkbench(
   /**
    * 存起來。存好了就把 `dirty` 放掉——離開這一頁不該再被攔一次。
    *
-   * 被後端拒絕時**這一頁留著**：要使用者把整棵樹重拼一次，
+   * 被後端拒絕時**這一頁留著**：要使用者把四格重填一次，
    * 是拿他的時間賠一個伺服器端才知道的規則。
    */
   async function save(writeDto: StrategyBotWriteDto) {
@@ -129,8 +96,7 @@ export function useStrategyBotWorkbench(
 
   return {
     editing,
-    strategyScriptOptions,
-    parameterNamesByStrategyScriptId,
+    tradingStrategyOptions,
     loading,
     saving,
     saved,

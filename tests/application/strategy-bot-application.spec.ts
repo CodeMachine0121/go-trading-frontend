@@ -2,14 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
-import {
-  StrategyBot,
-  StrategyBotCondition,
-  StrategyBotParameterValue,
-  StrategyBotSignalSource,
-} from '~/domain/models/entities/strategy-bot'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
-import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-error'
 
@@ -36,13 +29,7 @@ function storedBot(overrides: Partial<{
   conflicting: boolean
 }> = {}): StrategyBot {
   return new StrategyBot(
-    3, '早盤突破', 'BTCUSDT', 5,
-    [new StrategyBotSignalSource('A', 9, '1h', [new StrategyBotParameterValue('回看根數', 20)])],
-    new StrategyBotCondition('and', [
-      new StrategyBotCondition('', [], 'A', 'buy'),
-      new StrategyBotCondition('', [], 'B', 'buy'),
-    ], '', ''),
-    new StrategyBotCondition('', [], 'A', 'sell'),
+    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     overrides.runState ?? 'stopped',
     overrides.lastSentSignal ?? '',
     (overrides.haltReason ?? null) as never,
@@ -55,10 +42,8 @@ function aWriteDto(overrides: Partial<{ id: number, name: string }> = {}) {
     overrides.id,
     overrides.name ?? '早盤突破',
     'BTCUSDT',
+    9,
     5,
-    [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
-    new StrategyBotConditionDto('n1', null, [], 'A', 'buy'),
-    new StrategyBotConditionDto('n2', null, [], 'A', 'sell'),
   )
 }
 
@@ -78,19 +63,16 @@ describe('StrategyBotApplication 讀回來的樣子', () => {
     })
   })
 
-  it('條件的巢狀原樣讀回來，而且每一個節點都拿到一個識別碼', async () => {
-    // 那個識別碼是 Vue 的 key；沒有它，刪掉中間一句時會重用錯的那一格 DOM。
+  it('讀回來的那一台說得出它照哪一份規則跑', async () => {
+    // 清單是用來回答「哪一台該管一下」的，而那個問題的一半是「它在做什麼」。
     const application = buildApplication({
       listStrategyBots: vi.fn().mockResolvedValue([storedBot()]),
     })
 
     const bots = await application.listStrategyBots()
 
-    expect(bots[0]?.buyCondition?.isGroup).toBe(true)
-    expect(bots[0]?.buyCondition?.conditions).toHaveLength(2)
-    expect(bots[0]?.buyCondition?.nodeId).not.toBe('')
-    expect(bots[0]?.buyCondition?.conditions[0]?.nodeId)
-      .not.toBe(bots[0]?.buyCondition?.conditions[1]?.nodeId)
+    expect(bots[0]?.tradingStrategyId).toBe(9)
+    expect(bots[0]?.tradingStrategyName).toBe('黃金交叉')
   })
 
   it('一台都沒有是空清單，不是錯誤', async () => {

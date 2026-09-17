@@ -11,7 +11,7 @@
  *
  * 產生在建構子裡而不是一個工廠方法：要一個新的身分，就建一個新的。
  */
-export class StrategyBotConditionNodeIdVo {
+export class TradingStrategyConditionNodeIdVo {
   public readonly value: string
 
   constructor() {

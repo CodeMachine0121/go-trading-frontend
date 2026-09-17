@@ -3,10 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyBotListPanel from '~/components/organisms/StrategyBotListPanel.vue'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
-import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 
 function runningState() {
@@ -27,10 +25,7 @@ function haltedState() {
 
 function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   return new StrategyBotDto(
-    id, name, 'BTCUSDT', 5,
-    [new StrategyBotSignalSourceDto('A', 9, '1h', [])],
-    new StrategyBotConditionDto('n1', null, [], 'A', 'buy'),
-    new StrategyBotConditionDto('n2', null, [], 'A', 'sell'),
+    id, name, 'BTCUSDT', 5, 9, '黃金交叉',
     runState,
   )
 }

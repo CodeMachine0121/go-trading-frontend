@@ -1,42 +1,35 @@
 // @vitest-environment nuxt
 import { describe, expect, it } from 'vitest'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
-import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
-import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
-import { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
+import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 const STRATEGY_OPTIONS = [
   { value: 9, label: '均線' },
   { value: 10, label: '動能' },
 ]
 
-function formUnderTest(editing: StrategyBotDto | null = null) {
-  return useStrategyBotForm(() => editing, () => STRATEGY_OPTIONS)
-}
-
-function aStoppedRunState() {
-  return new StrategyBotRunStateDto(
-    false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
+function formUnderTest(editing: TradingStrategyDto | null = null) {
+  return useTradingStrategyForm(() => editing, () => STRATEGY_OPTIONS)
 }
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
-  return new StrategyBotConditionDto(nodeId, null, [], sourceLabel, signal)
+  return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
 }
 
-/** 一台存好的機器人：買入是「均線＝買 且 動能＝買」，賣出是「均線＝賣」。 */
+/** 一份存好的交易策略：買入是「均線＝買 且 動能＝買」，賣出是「均線＝賣」。 */
 function aStoredBot() {
-  return new StrategyBotDto(
-    3, '早盤突破', 'BTCUSDT', 5,
+  return new TradingStrategyDto(
+    3, '黃金交叉',
     [
-      new StrategyBotSignalSourceDto('均線', 9, '1h', []),
-      new StrategyBotSignalSourceDto('動能', 10, '5m', []),
+      new TradingStrategySignalSourceDto('均線', 9, '1h', []),
+      new TradingStrategySignalSourceDto('動能', 10, '5m', []),
     ],
-    new StrategyBotConditionDto('root', 'and', [
+    new TradingStrategyConditionDto('root', 'and', [
       comparison('a', '均線', 'buy'),
       comparison('b', '動能', 'buy'),
     ], '', ''),
     comparison('s', '均線', 'sell'),
-    aStoppedRunState(),
   )
 }
 
@@ -53,7 +46,7 @@ function readable(form: ReturnType<typeof formUnderTest>, side: 0 | 1): string[]
   })
 }
 
-describe('useStrategyBotForm 的策略腳本清單', () => {
+describe('useTradingStrategyForm 的策略腳本清單', () => {
   it('新加的策略腳本預設就叫它自己的名字，撞名時後面接數字', () => {
     // 「A 等於買入」是一句看不出自己在說什麼的話——使用者得自己記住 A 是哪一支。
     const form = formUnderTest()
@@ -162,7 +155,7 @@ describe('useStrategyBotForm 的策略腳本清單', () => {
   })
 })
 
-describe('useStrategyBotForm 的那張表', () => {
+describe('useTradingStrategyForm 的那張表', () => {
   it('打開一台存好的機器人，兩邊讀回來的格子與存進去時一樣', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
@@ -235,7 +228,7 @@ describe('useStrategyBotForm 的那張表', () => {
   })
 })
 
-describe('useStrategyBotForm 存得下去嗎', () => {
+describe('useTradingStrategyForm 存得下去嗎', () => {
   it('每一格都好了就送得出去', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
@@ -251,13 +244,5 @@ describe('useStrategyBotForm 存得下去嗎', () => {
 
     expect(form.rejection.value).toContain('名稱')
     expect(form.toWriteDto()).toBeNull()
-  })
-
-  it('觸發間隔填 0 就送不出去', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-    form.triggerIntervalText.value = '0'
-
-    expect(form.rejection.value).toContain('大於零')
   })
 })

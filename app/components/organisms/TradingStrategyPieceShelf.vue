@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
-import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
+import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 // 有機體：工作檯左邊那個零件架——這台機器人手上有哪幾塊零件。
 //
@@ -10,7 +10,7 @@ import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bo
 // 拖回架子＝把它從墊子上收走。那個動作由上面那一層決定要做什麼，
 // 這裡只負責說「有東西掉在我身上了」。
 const { sources, placedLabels, intervalOptions } = defineProps<{
-  sources: readonly StrategyBotSignalSourceDto[]
+  sources: readonly TradingStrategySignalSourceDto[]
   /** 已經擺在任何一張墊子上的那幾塊。它們在架子上淡一階。 */
   placedLabels: readonly string[]
   intervalOptions: readonly { value: string, label: string }[]

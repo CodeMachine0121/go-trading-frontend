@@ -3,10 +3,10 @@ import {
   ConditionBoardItemDto,
   ConditionBoardPieceDto,
 } from '~/domain/models/dto/condition-board-dto'
-import { StrategyBotConditionDto } from '~/domain/models/dto/strategy-bot-condition-dto'
+import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
-import { StrategyBotConditionNodeIdVo } from '~/domain/models/vo/strategy-bot-condition-node-id-vo'
+import { TradingStrategyConditionNodeIdVo } from '~/domain/models/vo/trading-strategy-condition-node-id-vo'
 
 /** 剛擺上墊子的零件先收下買入——什麼都不收的零件是一句永遠不成立的話。 */
 const DEFAULT_ACCEPTED_SIGNAL = 'buy'
@@ -147,7 +147,7 @@ export class ConditionBoardDomain {
    * 只有一格時不多包一層：一個只有一種可能的巢狀，存進去之後讀回來會變成另一個形狀，
    * 而那會讓「存進去的與讀出來的一樣」不再成立。
    */
-  toCondition(): StrategyBotConditionDto | null {
+  toCondition(): TradingStrategyConditionDto | null {
     // 一塊什麼都不收的零件寫不出任何一句話，所以它不算數——使用者把最後一個信號
     // 也關掉時，那一塊就等於還沒決定，而不是「決定了一件不可能的事」。
     const clauses = this.board.items
@@ -164,31 +164,31 @@ export class ConditionBoardDomain {
       return clauses[0]!
     }
 
-    return new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, this.board.operator, clauses, '', '')
+    return new TradingStrategyConditionDto(
+      new TradingStrategyConditionNodeIdVo().value, this.board.operator, clauses, '', '')
   }
 
-  private clauseFor(item: ConditionBoardItemDto): StrategyBotConditionDto {
+  private clauseFor(item: ConditionBoardItemDto): TradingStrategyConditionDto {
     const pieceClauses = item.pieces.map(piece => this.clauseForPiece(piece))
 
     if (pieceClauses.length === 1) {
       return pieceClauses[0]!
     }
 
-    return new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, item.operator ?? 'or', pieceClauses, '', '')
+    return new TradingStrategyConditionDto(
+      new TradingStrategyConditionNodeIdVo().value, item.operator ?? 'or', pieceClauses, '', '')
   }
 
-  private clauseForPiece(piece: ConditionBoardPieceDto): StrategyBotConditionDto {
-    const comparisons = piece.acceptedSignals.map(signal => new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, null, [], piece.sourceLabel, signal))
+  private clauseForPiece(piece: ConditionBoardPieceDto): TradingStrategyConditionDto {
+    const comparisons = piece.acceptedSignals.map(signal => new TradingStrategyConditionDto(
+      new TradingStrategyConditionNodeIdVo().value, null, [], piece.sourceLabel, signal))
 
     if (comparisons.length === 1) {
       return comparisons[0]!
     }
 
-    return new StrategyBotConditionDto(
-      new StrategyBotConditionNodeIdVo().value, 'or', comparisons, '', '')
+    return new TradingStrategyConditionDto(
+      new TradingStrategyConditionNodeIdVo().value, 'or', comparisons, '', '')
   }
 
   /** 這塊零件現在的樣子；還沒擺上墊子的話就是一塊新的。 */

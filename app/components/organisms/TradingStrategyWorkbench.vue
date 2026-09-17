@@ -2,19 +2,20 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import SymbolField from '~/components/molecules/SymbolField.vue'
-import StrategyBotCanvas from '~/components/organisms/StrategyBotCanvas.vue'
-import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
-import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
-import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
+import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
+import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
+import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 
-// 有機體：拼一台機器人的整個工作台。
+// 有機體：拼一份交易策略的整個工作台。
 //
-// 它**不知道自己是在新增還是在改**——收到一台機器人（或 null），交出一份要存的東西。
+// 它**不知道自己是在新增還是在改**——收到一份交易策略（或 null），交出一份要存的東西。
 // 知道的話，這裡就會長出兩條各自的路，而它們要做的事其實一模一樣。
 //
-// 整頁只有兩塊：一列「這台機器人是什麼」，和底下那張**工作檯**。
+// 整頁只有兩塊：一格名稱，和底下那張**工作檯**。
+//
+// 交易標的與觸發間隔不在這裡：那兩樣說的是「哪一台機器、盯哪裡、多久看一次」，
+// 是機器的事。分開之後，同一份規則才能被好幾台機器人同時用。
 //
 // 這裡試過表單、樹、抽屜、矩陣、以及一個點兩下就拼好的零件盤，
 // 每一版得到的評語都一樣：「區塊換位置而已」。那是對的——那幾版真正在做的事
@@ -24,9 +25,8 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 把零件拖上墊子、在墊子之間搬、拖回架子就收走。墊子上的順序是使用者自己排的，
 // 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
 const { editing, strategyScriptOptions, saving, failureMessage } = defineProps<{
-  /** 有值就是改那一台，沒有就是新的一台。 */
-  editing: StrategyBotDto | null
-  tradingSymbolApplication: TradingSymbolApplication
+  /** 有值就是改那一份，沒有就是新的一份。 */
+  editing: TradingStrategyDto | null
   strategyScriptOptions: readonly { value: number, label: string }[]
   parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
   saving: boolean
@@ -36,12 +36,12 @@ const { editing, strategyScriptOptions, saving, failureMessage } = defineProps<{
 
 const emit = defineEmits<{
   cancel: []
-  save: [writeDto: StrategyBotWriteDto]
+  save: [writeDto: TradingStrategyWriteDto]
   /** 這一頁被改過了沒有——離開前要不要問，由上面那一層決定。 */
   dirtyChange: [dirty: boolean]
 }>()
 
-const form = useStrategyBotForm(
+const form = useTradingStrategyForm(
   () => editing,
   () => strategyScriptOptions,
 )
@@ -70,33 +70,19 @@ function onSave() {
 <template>
   <div class="workbench">
     <!--
-      這台機器人是什麼：一列就夠。它填一次就不會再動，所以不該佔著畫面——
+      這份交易策略叫什麼：一格就夠。它填一次就不會再動，所以不該佔著畫面——
       而**拼**這件事會做上半小時。
     -->
     <div class="workbench__identity">
       <AppInput
         v-model="form.name.value"
         type="text"
-        placeholder="機器人名稱"
-        data-testid="bot-name-input"
+        placeholder="交易策略名稱"
+        data-testid="trading-strategy-name-input"
       />
-      <SymbolField
-        v-model="form.symbol.value"
-        :trading-symbol-application="tradingSymbolApplication"
-      />
-      <label class="workbench__interval">
-        <span class="workbench__interval-name">每隔幾分鐘</span>
-        <AppInput
-          v-model="form.triggerIntervalText.value"
-          type="number"
-          inputmode="numeric"
-          placeholder="5"
-          data-testid="bot-interval-input"
-        />
-      </label>
     </div>
 
-    <StrategyBotCanvas
+    <TradingStrategyCanvas
       :sources="form.signalSources.value"
       :buy-board="form.conditionSides[0].board.value"
       :sell-board="form.conditionSides[1].board.value"
@@ -131,7 +117,7 @@ function onSave() {
     <AppAlert
       v-if="form.rejection.value !== null"
       tone="warning"
-      data-testid="bot-form-rejection"
+      data-testid="trading-strategy-form-rejection"
     >
       {{ form.rejection.value }}
     </AppAlert>
@@ -139,7 +125,7 @@ function onSave() {
     <AppAlert
       v-else-if="failureMessage !== ''"
       tone="danger"
-      data-testid="bot-form-failure"
+      data-testid="trading-strategy-form-failure"
     >
       {{ failureMessage }}
     </AppAlert>
@@ -155,7 +141,7 @@ function onSave() {
       <AppButton
         type="button"
         :disabled="saving || form.rejection.value !== null"
-        data-testid="bot-form-save"
+        data-testid="trading-strategy-form-save"
         @click="onSave"
       >
         {{ saving ? '儲存中…' : '儲存' }}
@@ -179,23 +165,6 @@ function onSave() {
     background-color: color('surface');
     padding: spacing('sm');
 
-    @include respond-to('md') {
-      // 一列：名稱、標的、間隔。填一次就不會再動的東西不該佔著高度。
-      grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
-      align-items: end;
-    }
-  }
-
-  &__interval {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('3xs');
-    min-width: 0;
-  }
-
-  &__interval-name {
-    color: color('text-faint');
-    font-size: font-size('2xs');
   }
 
   &__actions {
