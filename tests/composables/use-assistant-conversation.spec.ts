@@ -238,6 +238,36 @@ describe('useAssistantConversation 回頭詢問', () => {
 
     expect(applicationMock.getConversation).not.toHaveBeenCalled()
   })
+
+  it('開新對話就取消已經排好的那一次', async () => {
+    // 那一次醒來要問的是一段使用者已經不在看的對話。迴圈本來就會自己停，
+    // 但留著它意味著接下來兩秒內排不進新的一次——而那正好是他挑了另一段
+    // 還在寫的對話的那兩秒。
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask, startNewConversation } = conversationUnderTest()
+    await ask('問一句')
+    applicationMock.getConversation.mockClear()
+
+    startNewConversation()
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS * 3)
+
+    expect(applicationMock.getConversation).not.toHaveBeenCalled()
+  })
+
+  it('換到另一段還在寫的對話時馬上接著問它，不必等舊的那一次先醒來', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation(7))
+    const { ask, selectConversation } = conversationUnderTest()
+    await ask('問一句')
+
+    applicationMock.getConversation.mockResolvedValue(runningConversation(9))
+    await selectConversation(9)
+    applicationMock.getConversation.mockClear()
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(applicationMock.getConversation).toHaveBeenCalledTimes(1)
+    expect(applicationMock.getConversation).toHaveBeenCalledWith(9)
+  })
 })
 
 describe('useAssistantConversation 回到上次看的那一段', () => {

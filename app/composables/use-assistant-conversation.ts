@@ -162,6 +162,10 @@ export function useAssistantConversation(
       messages.value = [...conversation.messages]
       lastQuestion.value = ''
       currentConversationPreferenceProxy.writeCurrentConversationId(conversation.id)
+
+      // 挑到的這一段也還在寫時，要從這裡接上——`pending` 的值沒有變（前一段也
+      // 在寫），所以那個 watcher 不會被叫醒，而剛剛已經把排好的那一次取消掉了。
+      schedulePoll()
     }
     catch (error: unknown) {
       if (error instanceof ConversationNotFoundError) {
@@ -298,8 +302,15 @@ export function useAssistantConversation(
   const pollHandle = useState<ReturnType<typeof setTimeout> | null>(
     'assistant-poll-handle', () => null)
 
+  /**
+   * 排下一次回頭詢問，除非沒有必要或已經排過。
+   *
+   * **兩道判斷都在這裡，不在呼叫端。** 呼叫它的地方有好幾個（狀態變了、剛挑了
+   * 一段對話），而每個呼叫端各自判斷一次，總有一天其中一個會判斷錯——
+   * 錯的方向不是多打一次後端，就是一段還在寫的對話從此沒有人去問它。
+   */
   function schedulePoll(): void {
-    if (pollHandle.value !== null) {
+    if (pollHandle.value !== null || !pending.value) {
       return
     }
 
@@ -330,11 +341,7 @@ export function useAssistantConversation(
     pollHandle.value = null
   }
 
-  watch(pending, (isPending) => {
-    if (isPending) {
-      schedulePoll()
-    }
-  }, { immediate: true })
+  watch(pending, schedulePoll, { immediate: true })
 
   /**
    * 一次失敗要對使用者說的那句話。
