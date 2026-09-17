@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { AssistantConversationApplication } from '~/application/assistant-conversation-application'
 import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant-conversation-proxy'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
-import { AssistantAnswer } from '~/domain/models/entities/assistant-answer'
+import { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
@@ -16,10 +16,11 @@ const MOMENT = new Date('2026-09-04T10:00:00.000Z')
  */
 function buildApplicationUnderTest(overrides: Partial<IAssistantConversationProxy> = {}) {
   const proxy: IAssistantConversationProxy = {
-    ask: vi.fn().mockResolvedValue(new AssistantAnswer(7, '在盤整。', 2, false, 3184)),
+    ask: vi.fn().mockResolvedValue(new AssistantAnswerStarted(7, 9, 'running')),
     listConversations: vi.fn().mockResolvedValue([new ConversationSummary(7, MOMENT, 2)]),
     getConversation: vi.fn().mockResolvedValue(new Conversation(7, MOMENT, [
-      new ConversationMessage('ask', '問 1', MOMENT),
+      new ConversationMessage('ask', '問 1', MOMENT, 'answered'),
+      new ConversationMessage('answer', '答 1', MOMENT, 'answered', '', 2, false, 3184),
     ])),
     ...overrides,
   }
@@ -31,13 +32,16 @@ function buildApplicationUnderTest(overrides: Partial<IAssistantConversationProx
 }
 
 describe('AssistantConversationApplication', () => {
-  it('問一句拿回這一次的產出', async () => {
+  it('問一句拿回去哪裡找答案,而不是答案', async () => {
+    // 助手可能來回幾十趟、要好幾分鐘。把送出的人留在線上等那麼久,
+    // 正是這整套設計要移除的東西。
     const { application } = buildApplicationUnderTest()
 
-    const answerDto = await application.ask(new AssistantAskDto(7, 'BTCUSDT 最近走勢如何'))
+    const startedDto = await application.ask(new AssistantAskDto(7, 'BTCUSDT 最近走勢如何'))
 
-    expect(answerDto?.conversationId).toBe(7)
-    expect(answerDto?.usage).toBe(3184)
+    expect(startedDto?.conversationId).toBe(7)
+    expect(startedDto?.turnId).toBe(9)
+    expect(startedDto?.status).toBe('running')
   })
 
   it('不可送的一句回 null，代表一次呼叫都沒有發生', async () => {
@@ -56,12 +60,13 @@ describe('AssistantConversationApplication', () => {
     expect(summaryDtos[0]?.messageCountLabel).toBe('2 則訊息')
   })
 
-  it('讀一段對話拿回它的每一則', async () => {
+  it('讀一段對話拿回它的每一則,回答那一則帶著附註', async () => {
     const { application } = buildApplicationUnderTest()
 
     const conversationDto = await application.getConversation(7)
 
-    expect(conversationDto.messages).toHaveLength(1)
+    expect(conversationDto.messages).toHaveLength(2)
     expect(conversationDto.messages[0]?.note).toBeNull()
+    expect(conversationDto.messages[1]?.note?.label).toBe('查了 2 次 · 份量 3184')
   })
 })

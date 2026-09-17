@@ -14,11 +14,14 @@ export class AssistantAskDto {
   ) {}
 
   /**
-   * 這一句變成對話串上的一則。
+   * 這一句變成對話串上的一則，狀態是進行中。
    *
    * 轉換寫在來源身上。它存在的理由是**提問要在送出的那一刻就出現在對話串上**，
-   * 而不是等回答回來才一起出現——等待可能長達兩分鐘，那兩分鐘裡使用者得看得到
+   * 而不是等後端回話才出現——一次回答可能好幾分鐘，那幾分鐘裡使用者得看得到
    * 自己問了什麼。時刻由呼叫端給：「剛剛」是畫面才知道的事。
+   *
+   * 進行中是唯一說得通的狀態：這一句剛送出去，答案當然還沒寫完。下一次從後端讀
+   * 回那一段對話時，這一則會被真正的那一份取代，狀態由後端說了算。
    */
   toMessageDto(askedAt: Date): ConversationMessageDto {
     return new ConversationMessageDto(
@@ -26,6 +29,7 @@ export class AssistantAskDto {
       this.question,
       new MessageContentDomain(this.question).toBlocks(),
       askedAt,
+      'running',
     )
   }
 }

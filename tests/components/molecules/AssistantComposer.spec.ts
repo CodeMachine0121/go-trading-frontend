@@ -70,7 +70,7 @@ describe('AssistantComposer 的送出', () => {
   })
 
   it('等待中按 Enter 不會送出第二句', async () => {
-    // 少了這一道，使用者在那可能長達兩分鐘的等待裡多按一次 Enter 就是多花一次錢。
+    // 少了這一道，使用者在那可能長達好幾分鐘的等待裡多按一次 Enter 就是多花一次錢。
     const wrapper = mountComposer({ draft: '問一句', pending: true })
 
     await wrapper.get('[data-testid="assistant-composer-input"]').trigger('keydown', { key: 'Enter' })
@@ -98,10 +98,14 @@ describe('AssistantComposer 的送出', () => {
 })
 
 describe('AssistantComposer 的輸入框', () => {
-  it('等待中鎖住', () => {
+  it('等待中照樣打得了字——鎖住的只有送出', () => {
+    // 一次回答可能好幾分鐘。把輸入框鎖那麼久，等於不准使用者趁等的時候
+    // 先想好下一句。真正該擋的是「送出第二句」，而送出鍵已經擋住了。
     const wrapper = mountComposer({ draft: '', pending: true })
 
     expect(wrapper.get('[data-testid="assistant-composer-input"]').attributes('disabled'))
+      .toBeUndefined()
+    expect(wrapper.get('[data-testid="assistant-composer-send"]').attributes('disabled'))
       .toBeDefined()
   })
 
@@ -142,18 +146,7 @@ describe('AssistantComposer 的焦點', () => {
     wrapper.unmount()
   })
 
-  it('回答回來就把焦點還回來，好接著問下一句', async () => {
-    // 等待中輸入框是鎖住的，焦點會掉。不還回來的話，每問一句都要重新點一次。
-    const wrapper = mountComposer({ draft: '', pending: true })
-    expect(inputHasFocus(wrapper)).toBe(false)
-
-    await wrapper.setProps({ pending: false })
-
-    expect(inputHasFocus(wrapper)).toBe(true)
-    wrapper.unmount()
-  })
-
-  it('還在等的時候不會把焦點搶回來', async () => {
+  it('等待中不搶焦點——使用者可能正在別的地方看東西', async () => {
     const wrapper = mountComposer({ draft: '', pending: false })
 
     await wrapper.setProps({ pending: true })

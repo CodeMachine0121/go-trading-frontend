@@ -48,6 +48,7 @@ import { AssistantTriggerPositionPreferenceProxy } from '~/infrastructure/proxy/
 import { AssistantTriggerService } from '~/domain/service/assistant-trigger-service'
 import { AssistantTriggerApplication } from '~/application/assistant-trigger-application'
 import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
+import { CurrentConversationPreferenceProxy } from '~/infrastructure/proxy/current-conversation-preference-proxy'
 import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
 import { AssistantDrawerWidthApplication } from '~/application/assistant-drawer-width-application'
 import { UserProxy } from '~/infrastructure/proxy/user-proxy'
@@ -186,11 +187,18 @@ export default defineNuxtPlugin(() => {
     new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
   )
 
-  // 助手是後端的一項能力，因此它只吃 base URL——這台瀏覽器上沒有任何要記住的東西。
-  // 「目前這段對話」活在共用的畫面狀態裡，不是留存下來的偏好。
+  // 助手是後端的一項能力，因此它只吃 base URL。
   const assistantConversationApplication = new AssistantConversationApplication(
     new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
+
+  // 「正在看哪一段對話」則要記在這台瀏覽器上。它以前只活在共用的畫面狀態裡，
+  // 而那撐不過整頁重新載入——助手現在可能寫好幾分鐘，而使用者最可能重整的時機，
+  // 正是他等最久、最懷疑畫面壞掉的那一刻。記著的只有識別碼，內容永遠去後端拿。
+  //
+  // 它不跟上面那一支合併：一個是「我們在談什麼」，一個是「這台機器停在哪一段」，
+  // 兩者會分開改變，而且後者換成後端偏好設定時，介面一個字都不必動。
+  const currentConversationPreferenceProxy = new CurrentConversationPreferenceProxy()
 
   // 那顆叫出助手的鍵擺在哪裡，是這台裝置的習慣而不是行情，所以它只碰瀏覽器儲存、
   // 不吃 base URL——與時區、線色那幾份記憶同一類。它與上面那一支分開，
@@ -259,6 +267,7 @@ export default defineNuxtPlugin(() => {
       liveKCandleApplication,
       timeZoneApplication,
       assistantConversationApplication,
+      currentConversationPreferenceProxy,
       assistantTriggerApplication,
       assistantDrawerWidthApplication,
       clipboardApplication,

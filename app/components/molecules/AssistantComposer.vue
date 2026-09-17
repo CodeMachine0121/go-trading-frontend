@@ -45,19 +45,6 @@ function onKeydown(event: KeyboardEvent): void {
   send()
 }
 
-/**
- * 回答回來就把焦點還回來，好接著問下一句。
- *
- * **要等畫面更新完才做**（`flush: 'post'`）：等待中輸入框是鎖住的，
- * 而預設的時機在解鎖之前——對一個還鎖著的輸入框叫 focus 什麼都不會發生，
- * 於是每問一句都得重新點一次。
- */
-watch(() => pending, (isPending, wasPending) => {
-  if (wasPending && !isPending) {
-    textarea.value?.focus()
-  }
-}, { flush: 'post' })
-
 onMounted(() => {
   if (autofocus) {
     textarea.value?.focus()
@@ -75,7 +62,6 @@ onMounted(() => {
         ref="textarea"
         v-model="draft"
         bare
-        :disabled="pending"
         placeholder="問一句行情，例如：BTCUSDT 最近一天每小時的走勢如何？"
         aria-label="問助手"
         data-testid="assistant-composer-input"

@@ -30,6 +30,7 @@ const {
   startNewConversation,
   selectConversation,
   loadConversations,
+  resumeCurrentConversation,
 } = useAssistantConversation()
 const { selectedTimeZone } = useSelectedTimeZone()
 
@@ -106,6 +107,13 @@ onMounted(() => {
   loadTriggerPosition()
   loadDrawerWidth()
   window.addEventListener('resize', keepAssistantUsable)
+
+  // 回到上次看的那一段。這一行是「重新整理之後還看得到助手在寫」發生的地方：
+  // 跨畫面共用的那份狀態撐不過整頁重新載入，所以哪一段要靠瀏覽器記著。
+  //
+  // 它放在這裡而不是助手那一頁，因為抽屜在**每一個畫面**都叫得出來——
+  // 只在那一頁接回去的話，重整之後停在別的畫面的人就接不回去。
+  void resumeCurrentConversation()
 })
 
 onBeforeUnmount(() => {

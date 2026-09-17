@@ -4,7 +4,7 @@ import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-con
 import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
-import { AssistantUnavailableError } from '~/domain/errors/assistant-unavailable-error'
+import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -39,28 +39,35 @@ afterEach(() => {
 })
 
 describe('AssistantConversationProxy.ask', () => {
-  it('把回來的東西收成 entity', async () => {
+  it('收回來的是「去哪裡找答案」,不是答案', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       conversationId: 7,
-      answer: '在盤整。',
-      queryCount: 2,
-      stoppedAtQueryLimit: false,
-      usage: 3184,
+      turnId: 9,
+      status: 'running',
     }))
 
-    const answer = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
+    const started = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
 
-    expect(answer.conversationId).toBe(7)
-    expect(answer.answer).toBe('在盤整。')
-    expect(answer.queryCount).toBe(2)
-    expect(answer.usage).toBe(3184)
+    expect(started.conversationId).toBe(7)
+    expect(started.turnId).toBe(9)
+    expect(started.status).toBe('running')
+  })
+
+  it('認不出來的狀態當成失敗', async () => {
+    // 當成進行中會是一個永遠轉不完的圈,而且那一段再也送不出下一句;
+    // 當成失敗最壞的情況只是叫使用者再問一次。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      conversationId: 7, turnId: 9, status: 'something-new',
+    }))
+
+    const started = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
+
+    expect(started.status).toBe('failed')
   })
 
   it('沒有指名對話時不送出那一格', async () => {
     // 送一個空的識別碼過去，後端會把它當成「指名了第 0 段」而找不到。
-    const fetchMock = vi.fn().mockResolvedValue({
-      conversationId: 1, answer: '好。', queryCount: 0, stoppedAtQueryLimit: false, usage: 100,
-    })
+    const fetchMock = vi.fn().mockResolvedValue({ conversationId: 1, turnId: 9, status: 'running' })
     vi.stubGlobal('$fetch', fetchMock)
 
     await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(null))
@@ -69,9 +76,7 @@ describe('AssistantConversationProxy.ask', () => {
   })
 
   it('指名了就把它一起送出去', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      conversationId: 7, answer: '好。', queryCount: 0, stoppedAtQueryLimit: false, usage: 100,
-    })
+    const fetchMock = vi.fn().mockResolvedValue({ conversationId: 7, turnId: 9, status: 'running' })
     vi.stubGlobal('$fetch', fetchMock)
 
     await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).ask(askDomainOf(7))
@@ -98,13 +103,13 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
       expectedError: DailyUsageAllowanceExhaustedError,
     },
     {
-      name: '助手沒回應',
-      status: 503,
-      message: 'assistant unavailable: 助手目前沒有回應，請稍後再試',
-      expectedError: AssistantUnavailableError,
+      name: '那一段上前一則還在寫',
+      status: 409,
+      message: 'assistant answer in progress: 這段對話上還有一則回答正在進行中，請等它結束再問下一句',
+      expectedError: AssistantAnswerInProgressError,
     },
   ])('$name', async ({ status, message, expectedError }) => {
-    // 三者對使用者的意義完全不同：開一段新的、等到重置、稍後再試。
+    // 三者對使用者的意義完全不同：開一段新的、等到重置、等一下前一則。
     // 合成一種的代價是有人對著一個要等到明天的拒絕重試一整個小時。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({ status, message })))
 
@@ -122,8 +127,9 @@ describe('AssistantConversationProxy 把拒絕分成使用者做得出決定的�
       .rejects.toThrow('2026-09-05T00:00:00Z')
   })
 
-  it('後端自己壞了不說成助手不在', async () => {
-    // 後端讀不到資料庫時，使用者等一位其實好好的助手是白等。
+  it('後端自己壞了維持後端自己的故障', async () => {
+    // 助手不可用已經不從這條路出來：後端收下提問就回,那時它還沒去問助手。
+    // 它會變成那一則的失敗原因,從讀回來的對話裡看得到。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({
       status: 502, message: 'storage unavailable',
     })))
@@ -175,8 +181,11 @@ describe('AssistantConversationProxy.getConversation', () => {
       id: 7,
       lastActiveAt: '2026-09-04T10:30:00Z',
       messages: [
-        { role: 'ask', content: '問 1', createdAt: '2026-09-04T10:00:00Z' },
-        { role: 'answer', content: '答 1', createdAt: '2026-09-04T10:01:00Z' },
+        { role: 'ask', content: '問 1', createdAt: '2026-09-04T10:00:00Z', status: 'answered' },
+        {
+          role: 'answer', content: '答 1', createdAt: '2026-09-04T10:01:00Z', status: 'answered',
+          queryCount: 2, stoppedAtQueryLimit: true, usage: 3184,
+        },
       ],
     }))
 
@@ -184,6 +193,33 @@ describe('AssistantConversationProxy.getConversation', () => {
 
     expect(conversation.messages.map(message => message.role)).toEqual(['ask', 'answer'])
     expect(conversation.messages[0]?.createdAt).toEqual(new Date('2026-09-04T10:00:00Z'))
+    expect(conversation.messages[1]?.queryCount).toBe(2)
+    expect(conversation.messages[1]?.stoppedAtQueryLimit).toBe(true)
+    expect(conversation.messages[1]?.usage).toBe(3184)
+  })
+
+  it('還在寫的那一則與壞掉的那一則各自帶著自己的狀態', async () => {
+    // 這是「重新整理之後還看得到」所依賴的那一個欄位。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7,
+      lastActiveAt: '2026-09-04T10:30:00Z',
+      messages: [
+        {
+          role: 'ask', content: '壞掉的', createdAt: '2026-09-04T10:00:00Z',
+          status: 'failed', failureReason: '助手目前沒有回應，請稍後再試',
+        },
+        { role: 'ask', content: '還在寫的', createdAt: '2026-09-04T10:01:00Z', status: 'running' },
+      ],
+    }))
+
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
+
+    expect(conversation.messages[0]?.status).toBe('failed')
+    expect(conversation.messages[0]?.failureReason).toBe('助手目前沒有回應，請稍後再試')
+    expect(conversation.messages[1]?.status).toBe('running')
+    // 後端在那幾則上不給這些欄位,收進來要有明確的預設而不是 undefined。
+    expect(conversation.messages[1]?.failureReason).toBe('')
+    expect(conversation.messages[1]?.queryCount).toBe(0)
   })
 
   it('來歷不明的那一則當成助手說的，不憑空替使用者發言', async () => {
@@ -191,7 +227,9 @@ describe('AssistantConversationProxy.getConversation', () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       id: 7,
       lastActiveAt: '2026-09-04T10:30:00Z',
-      messages: [{ role: 'something-new', content: '?', createdAt: '2026-09-04T10:00:00Z' }],
+      messages: [{
+        role: 'something-new', content: '?', createdAt: '2026-09-04T10:00:00Z', status: 'answered',
+      }],
     }))
 
     const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)

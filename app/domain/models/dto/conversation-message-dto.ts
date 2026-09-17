@@ -1,5 +1,6 @@
 import type { AssistantAnswerNoteDto } from '~/domain/models/dto/assistant-answer-note-dto'
 import type { AnswerBlockVo } from '~/domain/models/vo/answer-block-vo'
+import type { AssistantTurnStatus } from '~/domain/models/entities/assistant-turn-status'
 import type { ConversationMessageRole } from '~/domain/models/entities/conversation-message'
 
 /**
@@ -8,7 +9,10 @@ import type { ConversationMessageRole } from '~/domain/models/entities/conversat
  * 內容一律是**已經拆好的塊**，提問與回答都是——一句話走同一條路出來，
  * 元件因此只有一種渲染方式，不必分「這一則要不要拆」。
  *
- * `note` 只有剛收到的那一則回答才有。讀回來的每一則都是 `null`。
+ * 它還帶著**那一次問答走到哪裡**。一段對話讀回來可能含著一則還在寫的、一則壞掉的，
+ * 而元件要靠這一個欄位決定在這一則底下畫等待、畫原因，還是什麼都不畫。
+ *
+ * `note` 只有回答那一則有。
  */
 export class ConversationMessageDto {
   constructor(
@@ -22,6 +26,9 @@ export class ConversationMessageDto {
     public readonly content: string,
     public readonly blocks: readonly AnswerBlockVo[],
     public readonly createdAt: Date,
+    public readonly status: AssistantTurnStatus,
     public readonly note: AssistantAnswerNoteDto | null = null,
+    /** 那一次壞掉的原因，後端給的那一句。只有失敗的那一則有內容。 */
+    public readonly failureReason: string = '',
   ) {}
 }

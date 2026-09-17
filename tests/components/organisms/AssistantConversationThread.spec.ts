@@ -135,3 +135,45 @@ describe('AssistantConversationThread 被拒絕的時候', () => {
     expect(wrapper.find('[data-testid="assistant-rejection-retry"]').exists()).toBe(false)
   })
 })
+
+describe('AssistantConversationThread 一次問答沒有走完的時候', () => {
+  it('送不出去的那一句下面看得到原因與再試一次', async () => {
+    // 這一塊只在「不是在等」的時候出現，所以它能不能被看到，完全取決於
+    // 那一則提問有沒有還宣稱自己在寫。宣稱著就什麼都看不到——
+    // 沒有說明、按不到再試一次、也送不出下一句。
+    const wrapper = mountThread({
+      messages: [buildMessage('ask', '問一句', null, 'failed')],
+      pending: false,
+      rejectionMessage: '連不上後端 go-trading API',
+    })
+
+    expect(wrapper.get('[data-testid="assistant-rejection-message"]').text())
+      .toContain('連不上後端')
+
+    await wrapper.get('[data-testid="assistant-rejection-retry"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+  })
+
+  it('寫到一半壞掉的那一句下面看得到後端給的原因', () => {
+    const wrapper = mountThread({
+      messages: [buildMessage('ask', '問一句', null, 'failed', '系統重新啟動時中斷了這則回答')],
+      pending: false,
+      rejectionMessage: '系統重新啟動時中斷了這則回答',
+    })
+
+    expect(wrapper.get('[data-testid="assistant-rejection-message"]').text())
+      .toContain('系統重新啟動時中斷了這則回答')
+    expect(wrapper.find('[data-testid="assistant-pending"]').exists()).toBe(false)
+  })
+
+  it('還在寫的那一句下面是等待，不是原因', () => {
+    const wrapper = mountThread({
+      messages: [buildMessage('ask', '問一句', null, 'running')],
+      pending: true,
+      rejectionMessage: null,
+    })
+
+    expect(wrapper.find('[data-testid="assistant-pending"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="assistant-rejection"]').exists()).toBe(false)
+  })
+})
