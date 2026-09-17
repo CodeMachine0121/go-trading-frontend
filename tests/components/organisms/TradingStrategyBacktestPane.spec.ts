@@ -285,3 +285,19 @@ describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
       .toBe('longShort')
   })
 })
+
+// Setting up a replay for a strategy that has not been saved yet is the ordinary way
+// into this tab, and every other field on it is editable and pre-filled while that is
+// true. The mode has to be too: picking it sends nothing anywhere, and greying out the
+// one field this slice added would make it the only input on the form that greys out.
+it('後端連不上、或這一份還沒存過時，交易模式仍然挑得動', async () => {
+  const wrapper = mountPane(buildProxy(), { tradingStrategyId: null })
+
+  const spotRadio = wrapper.get<HTMLInputElement>(
+    '[data-testid="backtest-trading-mode-spot-radio"] input')
+
+  expect(spotRadio.element.disabled).toBe(false)
+  // 執行鍵仍然停用——按了也沒用的是那一顆，不是這一格。
+  expect(wrapper.get<HTMLButtonElement>(
+    '[data-testid="run-backtest-button"]').element.disabled).toBe(true)
+})

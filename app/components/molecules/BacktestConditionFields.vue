@@ -199,7 +199,7 @@ const selectedPositionSizingMode = computed(
           :label="modeOption.label"
           :description="modeOption.description"
           :name="tradingModeGroupName"
-          :disabled="running || disabled"
+          :disabled="running"
           :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
         />
       </div>
