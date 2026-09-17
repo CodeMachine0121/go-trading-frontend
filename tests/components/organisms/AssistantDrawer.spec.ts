@@ -97,10 +97,14 @@ describe('AssistantDrawer 打開的時候', () => {
     expect(wrapper.emitted('send')).toEqual([[SUGGESTED_PROMPTS[0]]])
   })
 
-  it('等待中輸入框鎖住', () => {
+  it('等待中鎖住的是送出，不是輸入框', () => {
+    // 一次回答可能好幾分鐘。鎖住輸入框等於不准使用者趁等的時候先想好下一句；
+    // 真正該擋的只有「送出第二句」。
     const wrapper = mountDrawer({ open: true, pending: true, draft: '問一句' })
 
     expect(wrapper.get('[data-testid="assistant-composer-input"]').attributes('disabled'))
+      .toBeUndefined()
+    expect(wrapper.get('[data-testid="assistant-composer-send"]').attributes('disabled'))
       .toBeDefined()
   })
 })
