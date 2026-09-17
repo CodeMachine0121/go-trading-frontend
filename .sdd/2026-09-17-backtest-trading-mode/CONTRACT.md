@@ -3,7 +3,7 @@
 **Contract source:** `.sdd/2026-09-17-backtest-trading-mode/PRD.md`（Acceptance Criteria 為 oracle）
 **Design map:** `.sdd/2026-09-17-backtest-trading-mode/ARCH.md`
 **Glossary:** `.sdd/UL-MAP.md`
-**Verified:** 2026-09-17
+**Verified:** 2026-09-17（初稿後收緊兩條斷言，已重驗）
 **Ceiling:** 靜態一致性稽核。逐條把**測試斷言**與**程式路徑**各自對照規格推出的 oracle，
 不以「跑完全套變綠」當判準，也不自行發明並執行新的情境。
 
@@ -33,13 +33,13 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | AC-07 | 換模式不動表單上其他任何一格 | 市場、起訖、本金、押注模式四格內容一個字都沒變 | `StrategyScriptBacktestPane.vue:89`（自己的 ref，換它不觸發任何重置） | `StrategyScriptBacktestPane.spec.ts:536` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-08 | 換模式不清掉上一張成績單 | 成績單還在——他還沒按下執行 | 同上（`backtestRun.clear()` 只綁在工作區換版與送出） | `StrategyScriptBacktestPane.spec.ts:553` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-09 | 換模式不清掉押注那一格填的數字 | **改成現貨再改回多空反手**之後，那格仍然是 50 | 同上 | `StrategyScriptBacktestPane.spec.ts:536`（只換了一次，沒有換回來） | shallow（換回來那一半沒有被走到；若換回時被清掉，這條仍會過） | produces-oracle | 🟠 mis-asserted |
+| AC-09 | 換模式不清掉押注那一格填的數字 | **改成現貨再改回多空反手**之後，那格仍然是 50 | 同上 | `StrategyScriptBacktestPane.spec.ts:536`（換過去再換回來，並一併驗押注模式本身） | asserts-oracle | produces-oracle | ✅ conforms |
 
 ### US-04 — 被拒絕時說在對的那一格旁邊
 
 | ID | Clause | Oracle | Implementation | Test | Test audit | Code audit | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| AC-10 | 後端說交易模式它不認得 | 那句話出現在**交易模式那一格旁邊**，不在頁面頂端 | `backtest-proxy.ts:32`（欄位翻譯）→ `BacktestConditionFields.vue:186` | `backtest-proxy.spec.ts:354`（欄位是 tradingMode）＋`StrategyScriptBacktestPane.spec.ts:564`（整頁文字含那句話） | shallow（只驗「頁面上有這句話」，沒有驗它落在哪一格；標在頁面頂端也會過） | produces-oracle | 🟠 mis-asserted |
+| AC-10 | 後端說交易模式它不認得 | 那句話出現在**交易模式那一格旁邊**，不在頁面頂端 | `backtest-proxy.ts:32`（欄位翻譯）→ `BacktestConditionFields.vue:186` | `backtest-proxy.spec.ts:354`（欄位是 tradingMode）＋`StrategyScriptBacktestPane.spec.ts:564`（斷言那句話就在交易模式那一格的錯誤位置上） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-11 | 後端拒絕的是別的東西 | 那句話照舊落在原本那一格，交易模式那一格沒有任何錯誤 | `backtest-proxy.ts:25-33`（欄位逐一對應，不共用） | `backtest-proxy.spec.ts:368` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-12 | 再按一次會先清掉上一則錯誤 | 上一則錯誤先消失，與其他每一格做法相同 | `useBacktestRun`（既有，未改動；所有欄位共用同一次清除） | — | no-test（既有機制由其他欄位的案例覆蓋，交易模式這一格本身沒有專屬案例） | produces-oracle | 🟡 partial |
 
@@ -84,21 +84,27 @@
 
 | Status | Count |
 | :--- | :--- |
-| ✅ conforms | 17 |
+| ✅ conforms | 19 |
 | 🔴 violation | 0 |
-| 🟠 mis-asserted | 2 |
+| 🟠 mis-asserted | 0 |
 | 🟡 partial | 1 |
 | ❌ gap | 0 |
 | ❔ unclear | 0 |
 | ⚠️ orphan | 2（皆良性且必要） |
 
-**Clauses:** 20 · **Conformance:** 85%（17/20）
+**Clauses:** 20 · **Conformance:** 95%（19/20）
 
-### 兩條要補的測試（程式行為正確，是斷言太鬆）
+### 初稿抓到的兩條，已修
 
-- **AC-09**：只換了一次模式就斷言押注數字還在。規格說的是「改過去**再改回來**」——
-  若換回時被清掉，現在這條仍然會過。
-- **AC-10**：只驗「頁面上有那句話」，沒有驗它**落在哪一格**。
-  而這一條的全部重點就是位置：標在頁面頂端，使用者得自己猜是哪一格不對。
+兩條都不是行為錯誤，是**綠燈不可信**——正是這張表存在的理由。
 
-兩者都不是行為錯誤，是**綠燈不可信**——正是這張表存在的理由。
+- **AC-09** 原本只換一次模式就斷言押注數字還在，而規格說的是「改過去**再改回來**」。
+  收緊後兩趟都走到，並一併驗押注模式本身。
+- **AC-10** 原本只驗「頁面上有那句話」，沒有驗它**落在哪一格**——
+  而這一條的全部重點就是位置。收緊後直接斷言它在交易模式那一格的錯誤位置上。
+
+兩條都以反向驗證確認抓得到問題：把錯誤從那一格拿掉、以及讓換模式順手清掉押注數字，
+收緊後的斷言各自變紅。
+
+剩下的 AC-12（再按一次先清掉上一則錯誤）走的是所有欄位共用、切片前就有的那一次清除，
+交易模式這一格沒有專屬案例；行為正確，記為 partial 而不算綠。

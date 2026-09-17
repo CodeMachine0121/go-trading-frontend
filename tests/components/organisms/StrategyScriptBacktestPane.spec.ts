@@ -543,11 +543,15 @@ describe('StrategyScriptBacktestPane 照哪一套規矩操作', () => {
     await wrapper.get('[data-testid="backtest-position-sizing-value-input"]').setValue('30')
 
     await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    // 換過去再換回來：他會拿同一組條件跑兩次來對照，兩趟都不該弄丟任何東西。
+    await wrapper.get('[data-testid="backtest-trading-mode-longShort-radio"] input').setValue()
 
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="backtest-initial-capital-input"]').element.value).toBe('88888')
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="backtest-position-sizing-value-input"]').element.value).toBe('30')
+    expect(wrapper.get<HTMLSelectElement>(
+      '[data-testid="backtest-position-sizing-mode-select"]').element.value).toBe('percentage')
   })
 
   it('換模式不清掉上一張成績單', async () => {
@@ -570,6 +574,9 @@ describe('StrategyScriptBacktestPane 照哪一套規矩操作', () => {
 
     await runBacktest(wrapper)
 
-    expect(wrapper.text()).toContain('交易模式只能是 longShort、spot 其中之一')
+    // 位置就是這一條的全部重點：標在頁面頂端，使用者得自己猜是哪一格不對。
+    const tradingModeField = wrapper.get('.backtest-condition-fields__trading-mode')
+    expect(tradingModeField.get('[data-testid="field-error"]').text())
+      .toBe('交易模式只能是 longShort、spot 其中之一')
   })
 })
