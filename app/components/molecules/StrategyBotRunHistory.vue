@@ -54,6 +54,9 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
         v-for="runRecord in runRecords"
         :key="runRecord.runNumber"
         class="strategy-bot-run-history__row"
+        :class="{
+          'strategy-bot-run-history__row--needs-attention': runRecord.needsAttention,
+        }"
         data-testid="run-history-row"
       >
         <span class="strategy-bot-run-history__number">Run {{ runRecord.runNumber }}</span>
@@ -66,6 +69,18 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
         >
           {{ runRecord.resultLabel }}
         </AppBadge>
+
+        <!--
+          衝突是這一排裡唯一**要人去處理**的一種，所以它自己說出下一步。
+          只多一個詞而不說要做什麼的話，讀的人還是得自己想。
+        -->
+        <span
+          v-if="runRecord.needsAttention"
+          class="strategy-bot-run-history__attention"
+          data-testid="run-history-attention"
+        >
+          買入與賣出同時成立，在改掉其中一邊之前它不會說話
+        </span>
       </li>
     </ul>
   </div>
@@ -107,6 +122,20 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
     align-items: center;
     gap: spacing('xs');
     padding: spacing('3xs') 0;
+  }
+
+  // 這一列要人去處理。左邊一條線，因為一排紀錄是用掃的——
+  // 掃過去時要看得出哪一列不一樣，而不是每一列都讀完。
+  &__row--needs-attention {
+    border-left: 2px solid color('warning');
+    padding-left: spacing('2xs');
+  }
+
+  &__attention {
+    // 跨過整列，不擠在那三欄裡：它是一句話，不是一個欄位。
+    grid-column: 1 / -1;
+    color: color('warning');
+    font-size: font-size('2xs');
   }
 
   &__number {
