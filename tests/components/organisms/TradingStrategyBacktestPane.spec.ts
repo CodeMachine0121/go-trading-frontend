@@ -291,6 +291,19 @@ describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
       .toContain('多空反手')
   })
 
+  it('存好之後那一句話跟著換', async () => {
+    // 存成功會換掉頁面手上那一份，而那一句話讀的就是它。
+    // 不跟著換的話，使用者會在一張寫著舊模式的標籤底下按執行。
+    const wrapper = mountPane(buildProxy(), { savedTradingMode: 'longShort' })
+    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('多空反手')
+
+    await wrapper.setProps({ savedTradingMode: 'spot' })
+
+    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('現貨')
+  })
+
   it('送出去的請求裡沒有交易模式', async () => {
     const proxy = buildProxy()
     const wrapper = mountPane(proxy, { savedTradingMode: 'spot' })

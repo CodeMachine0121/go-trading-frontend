@@ -36,7 +36,7 @@
 | AC-09 | 多空反手那一份講的是多空反手 | 那一句話講對 | `TradingStrategyBacktestPane.vue:76-77` → `backtest-service.ts:135` | `TradingStrategyBacktestPane.spec.ts:261`（現貨與多空反手各掛一次） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-10 | 送出的請求不帶交易模式 | body 裡沒有那一欄 | `trading-strategy-backtest-request-dto.ts` 已無該欄位；`backtest-proxy.ts` 的 body 少一行 | `TradingStrategyBacktestPane.spec.ts:294`（`not.toHaveProperty`）＋`backtest-proxy.spec.ts:338`（**實際 body** 斷言 `undefined`） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-11 | 還沒存的改動不會改掉那一句話 | 仍然講存著的那一個 | `TradingStrategyWorkbenchPage.vue:186` 讀 `workbench.editing`（伺服器回來的那一份），不讀表單 | `TradingStrategyBacktestPane.spec.ts:261`（note 只由 `savedTradingMode` 決定；元件收不到表單的值） | asserts-oracle | produces-oracle | 🟡 partial |
-| AC-12 | 存好之後那一句話跟著走 | 換成新存的那一個 | `use-trading-strategy-workbench.ts` 存成功時 `editing.value = savedTradingStrategy`（未改動）→ 那一列的 prop 跟著變 | `use-trading-strategy-workbench.spec.ts`（存成功換掉 `editing` 為切片前既有，仍綠） | asserts-oracle | produces-oracle | 🟡 partial |
+| AC-12 | 存好之後那一句話跟著走 | 換成新存的那一個 | `use-trading-strategy-workbench.ts` 存成功時 `editing.value = savedTradingStrategy`（未改動）→ 那一列的 prop 跟著變 | `TradingStrategyBacktestPane.spec.ts:294`（**換 prop 之後那一句話真的換了**）＋`use-trading-strategy-workbench.spec.ts`（存成功換掉 `editing` 為切片前既有，仍綠） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-13 | 還沒存過的那一份講預設值 | 那一句話講多空反手 | `backtest-service.ts:135`（`mode ?? DEFAULT_TRADING_MODE`） | `TradingStrategyBacktestPane.spec.ts:285`（`savedTradingMode: null`） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-14 | 那一句話裡的名字與說明與另外兩處同一份 | 三處同一份字串 | `backtest-service.ts:135` → `TradingModeDomain.toOptionDto()`（未改動） | `TradingStrategyBacktestPane.spec.ts:271`（拿 `listTradingModeOptions()` 的那一份逐字比對 note） | asserts-oracle | produces-oracle | ✅ conforms |
 
@@ -44,9 +44,6 @@
 而「頁面餵進來的就是存著的那一份」由 `TradingStrategyWorkbenchPage.vue:186`
 那一行的字面保證。要端到端斷言它，得掛整個頁面模板加上一個假後端——
 而那條路上每一段都各自被既有測試蓋住了。
-
-**AC-12 為何 partial：** 存成功換掉 `editing` 是切片前就有的行為，由既有測試守著、未改動仍綠；
-這一刀新增的只是「那一列讀 `editing`」，而那一半由 `:186` 那一行保證。
 
 ### US-03 — 重演一支策略腳本那一塊一個字都沒變
 
@@ -78,7 +75,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | EC-01 | 還沒存過的那一份 | 那一句話講預設值 | `backtest-service.ts:135` | `TradingStrategyBacktestPane.spec.ts:285` | asserts-oracle | produces-oracle | ✅ conforms |
 | EC-02 | 表單改了模式但沒存 | 仍然講存著的那一個 | 讀 `editing` 而不是讀表單 | 見 AC-11 | asserts-oracle | produces-oracle | 🟡 partial |
-| EC-03 | 存成功 | 那一句話跟著換 | `editing` 被換掉（未改動） | 見 AC-12 | asserts-oracle | produces-oracle | 🟡 partial |
+| EC-03 | 存成功 | 那一句話跟著換 | `editing` 被換掉（未改動） | 見 AC-12 | asserts-oracle | produces-oracle | ✅ conforms |
 | EC-04 | 後端回來的那一份沒有交易模式（舊版後端） | 讀作預設值 | `trading-strategy-proxy.ts:210`（`?? DEFAULT_TRADING_MODE`） | `trading-strategy-proxy.spec.ts:204` | asserts-oracle | produces-oracle | ✅ conforms |
 | EC-05 | 後端回了一個認不得的拼法 | 同樣讀作預設值——畫面永遠畫得出那一格 | `trading-strategy-proxy.ts:210`（先 `find` 再 fallback） | `trading-strategy-proxy.spec.ts:214` | asserts-oracle | produces-oracle | ✅ conforms |
 
@@ -125,20 +122,25 @@
 
 | Status | Count |
 | :--- | :--- |
-| ✅ conforms | 25 |
+| ✅ conforms | 27 |
 | 🔴 violation | 0 |
 | 🟠 mis-asserted | 0 |
-| 🟡 partial | 5 |
+| 🟡 partial | 3 |
 | ❌ gap | 0 |
 | ❔ unclear | 0 |
 | ⚠️ orphan | 3（皆良性）＋2 正確的移除／不是 orphan |
 
-**Clauses:** 30 · **Conformance:** 83%（25/30 完全一致）
+**Clauses:** 30 · **Conformance:** 90%（27/30 完全一致）
 
-五條 partial 都是**跨層的那一段**（頁面把存著的那一份餵給那一列、存成功換掉 `editing`）
+三條 partial 都是**跨層接起來的那一行**（頁面把存著的那一份餵給那一列）
 或**DOM 祖先關係**（那兩顆按鈕在哪一列裡）。每一段各自都有測試，
 接起來的那一行由字面保證；要端到端斷言，得掛整個頁面模板加上一個假後端，
 而那條路上每一段都已經各自被蓋住了。
+
+**初稿有五條 partial，其中兩條是自己補上來的**：review 時發現
+「存好之後那一句話跟著換」只有兩次獨立掛載各自斷言，沒有一條真的**換過 prop**——
+而那一句話是 `computed` 讀 prop 得來的，靠的是 Vue 的 reactive props destructure。
+那件事會不會動，是一個真的可能壞掉的東西，所以補了一條 `setProps` 的斷言。
 
 ### 值得記下來的兩件事
 
