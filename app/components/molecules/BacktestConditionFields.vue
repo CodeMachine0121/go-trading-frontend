@@ -190,17 +190,19 @@ const selectedPositionSizingMode = computed(
         並排而不是下拉選單：多數使用者根本不知道現在這一種在幫他放空，
         而一個要點開才看得到的選單，救不了一個不知道要去點的人。
       -->
-      <AppRadio
-        v-for="modeOption in tradingModeOptions"
-        :key="modeOption.value"
-        v-model="tradingMode"
-        :value="modeOption.value"
-        :label="modeOption.label"
-        :description="modeOption.description"
-        :name="tradingModeGroupName"
-        :disabled="running || disabled"
-        :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
-      />
+      <div class="backtest-condition-fields__trading-mode-options">
+        <AppRadio
+          v-for="modeOption in tradingModeOptions"
+          :key="modeOption.value"
+          v-model="tradingMode"
+          :value="modeOption.value"
+          :label="modeOption.label"
+          :description="modeOption.description"
+          :name="tradingModeGroupName"
+          :disabled="running || disabled"
+          :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
+        />
+      </div>
     </FormField>
 
     <AppButton
@@ -234,16 +236,15 @@ const selectedPositionSizingMode = computed(
   // 那兩句說明會被折成一疊，而它們正是這一格存在的理由。
   &__trading-mode {
     grid-column: 1 / -1;
+  }
 
+  // 排的是自己這一層的盒子，不是裡面那幾顆按鈕：靠子元件的 class 名來排版，
+  // 哪天那個名字改了，版面會在沒有人收到任何錯誤的情況下垮掉。
+  &__trading-mode-options {
     // 兩顆並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: spacing('3xs') spacing('2xs');
-
-    // legend 與錯誤訊息橫跨整列，否則它們會被當成第三、第四顆選項擺進格子裡。
-    > :not(.app-radio) {
-      grid-column: 1 / -1;
-    }
+    gap: spacing('2xs');
   }
 
   // 按鈕與欄位同一列時要對齊到輸入框，而不是對齊到欄位標籤。
