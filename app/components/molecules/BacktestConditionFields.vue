@@ -36,6 +36,13 @@ const {
   timeRangeError?: string | null
   initialCapitalError?: string | null
   positionSizingValueError?: string | null
+  /**
+   * 彙總刻度不由填表的人挑時，要在那一格說的話。
+   *
+   * 給了它就不畫選單。重演一份交易策略時刻度是那幾個信號來源自己說的——
+   * 畫一個挑得動的選單，等於在畫面上放第二個答案而沒有規則說哪一個贏。
+   */
+  aggregationIntervalNote?: string | null
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -68,6 +75,7 @@ const selectedPositionSizingMode = computed(
       label="彙總刻度"
     >
       <AppSelect
+        v-if="!aggregationIntervalNote"
         v-model="aggregationInterval"
         data-testid="backtest-aggregation-interval-select"
       >
@@ -79,6 +87,13 @@ const selectedPositionSizingMode = computed(
           {{ intervalOption.label }}
         </option>
       </AppSelect>
+      <p
+        v-else
+        class="backtest-condition-fields__note"
+        data-testid="backtest-aggregation-interval-note"
+      >
+        {{ aggregationIntervalNote }}
+      </p>
     </FormField>
 
     <!-- 起訖兩格共用一則說明：起點不能晚於終點是關於這一對，不是關於其中一格。 -->
@@ -162,6 +177,12 @@ const selectedPositionSizingMode = computed(
 
 <style scoped lang="scss">
 .backtest-condition-fields {
+  &__note {
+    // 不是一格可以動的東西，所以它讀起來也不該像：比欄位淡一階，沒有邊框。
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
   display: grid;
 
   // 一整排條件自動排開：寬的時候一列擺完，窄的時候自己折行，
