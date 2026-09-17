@@ -32,11 +32,6 @@ const { board, heading, tone, hoveringAt, carrying } = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  hoverOver: [position: number]
-  dropAt: [position: number]
-  dropOntoPiece: [targetLabel: string]
-  pickUpPiece: [event: DragEvent, sourceLabel: string]
-  letGo: []
   toggleSignal: [sourceLabel: string, signal: string]
   takeOff: [sourceLabel: string]
   unbundle: [sourceLabel: string]
@@ -131,8 +126,9 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             'mat__drop-line--armed': hoveringAt === position,
           }"
           :data-testid="`drop-${side}-${position}`"
-          @dragover.prevent="emit('hoverOver', position)"
-          @drop.prevent="emit('dropAt', position)"
+          data-drop-kind="slot"
+          :data-drop-side="side"
+          :data-drop-position="position"
         >
           <!--
             只有正被懸著的那一條說話。四條帶子同時寫著同一句，那句話就變成背景。
@@ -172,16 +168,19 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             </AppSelect>
           </header>
 
+          <!--
+            一塊擺著的零件同時是**拿得起來的東西**與**放得下去的地方**：
+            拖一塊疊到它身上就把兩塊扣成一組。兩件事都標在同一個元素上。
+          -->
           <div
             v-for="piece in item.pieces"
             :key="piece.sourceLabel"
             class="mat__piece"
-            :draggable="true"
             :data-testid="`placed-${side}-${piece.sourceLabel}`"
-            @dragstart.stop="emit('pickUpPiece', $event, piece.sourceLabel)"
-            @dragend.stop="emit('letGo')"
-            @dragover.prevent.stop="emit('hoverOver', -1)"
-            @drop.prevent.stop="emit('dropOntoPiece', piece.sourceLabel)"
+            :data-piece-label="piece.sourceLabel"
+            :data-piece-origin="side"
+            data-drop-kind="piece"
+            :data-drop-side="side"
           >
             <span
               class="mat__grip"
@@ -189,18 +188,11 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             >⠿</span>
             <span class="mat__piece-name">{{ piece.sourceLabel }}</span>
 
-            <!--
-              零件上的每一顆按鈕都自己也是可拖的，理由見底下 .mat__piece 的註解：
-              原生拖曳**不會**從一個 button 上起頭，而這幾顆按鈕佔了零件的半張臉。
-              它們起頭之後，dragstart 照樣往上冒泡到零件身上，所以拿起來的仍然是
-              整塊零件，不是按鈕。按一下還是按一下——沒有移動就不是一次拖曳。
-            -->
             <AppButton
               v-if="item.isBundle"
               type="button"
               variant="ghost"
               size="small"
-              draggable="true"
               label="把這塊從這一組裡拆出來"
               :data-testid="`unbundle-${side}-${piece.sourceLabel}`"
               @click="emit('unbundle', piece.sourceLabel)"
@@ -211,7 +203,6 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
               type="button"
               variant="ghost"
               size="small"
-              draggable="true"
               label="把這塊拿回架子上"
               :data-testid="`take-off-${side}-${piece.sourceLabel}`"
               @click="emit('takeOff', piece.sourceLabel)"
@@ -230,7 +221,6 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
                 :key="chip.value"
                 type="button"
                 class="mat__chip"
-                draggable="true"
                 :class="[
                   `mat__chip--${chip.value}`,
                   { 'mat__chip--on': piece.acceptedSignals.includes(chip.value) },
@@ -258,8 +248,9 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
           class="mat__landing"
           :class="{ 'mat__landing--armed': hoveringAt === board.items.length }"
           :data-testid="`drop-${side}-end`"
-          @dragover.prevent="emit('hoverOver', board.items.length)"
-          @drop.prevent="emit('dropAt', board.items.length)"
+          data-drop-kind="slot"
+          :data-drop-side="side"
+          :data-drop-position="board.items.length"
         >
           {{ board.items.length === 0 ? '這張墊子還是空的' : '疊在某一塊上就扣成一組' }}
         </div>
@@ -357,13 +348,14 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     gap: spacing('3xs');
   }
 
-  // 整塊都拿得起來，不是只有寫著代號的那一行。
+  // 整塊都拿得起來，不是只有寫著代號的那一行——連上面那幾顆按鈕也是。
+  // 那件事由 usePieceDragGestures 用指標事件做到，不靠瀏覽器內建的拖放；
+  // 為什麼不靠，見那一支的說明。
   //
-  // 一塊零件的下半張臉是三顆信號開關，右上角還有兩顆小按鈕——而原生拖曳**不會**
-  // 從一個 button 上起頭，即使它的祖先是 draggable。所以那幾顆按鈕過去等於在零件
-  // 身上挖了幾個洞：使用者按在上面往下拉，什麼都不會發生，而他看到的是一塊
-  // 有時拖得動、有時拖不動的積木。每一顆按鈕自己也標成可拖，那幾個洞就補起來了。
+  // touch-action 要關掉：在觸控裝置上，手指按住往下滑預設是捲頁面，
+  // 不關的話零件在手機上一塊都拖不動。
   &__piece {
+    touch-action: none;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -456,38 +448,40 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     font-size: font-size('2xs');
   }
 
-  // 格與格之間的縫。平常是一條髮絲；拿著零件的時候張開成一條放得下去的帶子——
-  // 那條帶子就是「把這塊從那一組裡拖出來」唯一的落點。
+  // 格與格之間的縫，也就是「把這塊從那一組裡拖出來」的落點。
+  //
+  // **它的高度從頭到尾不變。** 拿起零件時只換邊框顏色，不長高——長高會讓整張墊子
+  // 在那一刻往下推，而被拿起來的那一塊跟著往下跑；它之後是照著新位置跟游標的，
+  // 於是整段拖曳過程它都與游標差著那一段距離。一條夠寬的縫本來就留著，
+  // 換得的是拖曳全程零重排。
   &__drop-line {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    // 只有顏色過場，高度不過場：張開是在 dragstart 那一刻一次到位的。
-    // 讓它動畫展開，等於讓落點在使用者瞄準的時候還在移動。
+    position: relative;
     transition: border-color duration('fast') ease, background-color duration('fast') ease;
     border: 1px dashed transparent;
     border-radius: radius('sm');
-    height: spacing('3xs');
-    overflow: hidden;
-    color: color('text-faint');
-    font-size: font-size('2xs');
+    height: spacing('sm');
 
     &--open {
       border-color: color('border-strong');
-      height: spacing('lg');
     }
 
     &--armed {
       border-style: solid;
       border-color: color('primary');
       background-color: color('primary-soft');
-      color: color('primary');
     }
   }
 
+  // 那一句話浮在縫上面，不佔位置——它比縫高，長在版面裡就又是一次重排。
   &__drop-line-hint {
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    transform: translateY(-50%);
     pointer-events: none;
+    color: color('primary');
+    font-size: font-size('2xs');
+    text-align: center;
   }
 
   &__landing {

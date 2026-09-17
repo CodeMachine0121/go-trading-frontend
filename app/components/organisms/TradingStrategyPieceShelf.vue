@@ -32,9 +32,6 @@ const emit = defineEmits<{
   add: []
   remove: [index: number]
   tune: [index: number]
-  pickUp: [event: DragEvent, sourceLabel: string]
-  letGo: []
-  dropBack: []
 }>()
 
 function isPlaced(sourceLabel: string): boolean {
@@ -47,11 +44,14 @@ function intervalLabelOf(interval: string): string {
 </script>
 
 <template>
+  <!--
+    架子整片都是一個落點：把零件拖回來就是從墊子上收走它。
+    落點由 data-drop-kind 標出來，手勢那一層照著選擇器認——見 usePieceDragGestures。
+  -->
   <section
     class="shelf"
     data-testid="shelf"
-    @dragover.prevent="undefined"
-    @drop.prevent="emit('dropBack')"
+    data-drop-kind="shelf"
   >
     <h3 class="shelf__heading">
       零件架
@@ -87,13 +87,16 @@ function intervalLabelOf(interval: string): string {
         :key="source.label + index"
         data-testid="strategy-script-row"
       >
+        <!--
+          整塊都拿得起來，包括上面那兩顆按鈕——拿得起來這件事標在零件身上，
+          而不是靠瀏覽器內建的拖放去猜按住的是不是一顆按鈕。
+        -->
         <div
           class="shelf__piece"
           :class="{ 'shelf__piece--in-use': isPlaced(source.label) }"
-          :draggable="true"
           :data-testid="`shelf-piece-${source.label}`"
-          @dragstart="emit('pickUp', $event, source.label)"
-          @dragend="emit('letGo')"
+          :data-piece-label="source.label"
+          data-piece-origin="shelf"
         >
           <span
             class="shelf__grip"
@@ -102,16 +105,10 @@ function intervalLabelOf(interval: string): string {
           <span class="shelf__piece-name">{{ source.label }}</span>
           <span class="shelf__piece-note">{{ intervalLabelOf(source.aggregationInterval) }}</span>
 
-          <!--
-            按鈕自己也標成可拖：原生拖曳不會從一個 button 上起頭，而這兩顆就坐在
-            零件上。不標的話，按在它們身上往外拉什麼都不會發生——同一塊積木
-            有些地方拖得動、有些地方拖不動。dragstart 照樣往上冒泡到零件身上。
-          -->
           <AppButton
             type="button"
             variant="ghost"
             size="small"
-            draggable="true"
             label="這塊零件的設定"
             :data-testid="`strategy-script-settings-${index}`"
             @click="emit('tune', index)"
@@ -122,7 +119,6 @@ function intervalLabelOf(interval: string): string {
             type="button"
             variant="danger-ghost"
             size="small"
-            draggable="true"
             label="丟掉這塊零件"
             data-testid="strategy-script-remove"
             @click="emit('remove', index)"
@@ -182,8 +178,10 @@ function intervalLabelOf(interval: string): string {
     list-style: none;
   }
 
-  /* 一塊零件。厚、圓、底下一條暗邊——它要看起來拿得起來。 */
+  /* 一塊零件。厚、圓、底下一條暗邊——它要看起來拿得起來。
+     touch-action 關掉，否則在觸控裝置上按住往下滑會被當成捲頁面，一塊都拖不動。 */
   &__piece {
+    touch-action: none;
     display: flex;
     align-items: center;
     gap: spacing('3xs');

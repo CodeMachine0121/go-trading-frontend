@@ -1,6 +1,6 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWorkbench.vue'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
@@ -38,11 +38,6 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
   })
 }
 
-/** 拖曳事件要帶得動一個 dataTransfer——瀏覽器會給，happy-dom 不會。 */
-function dragEvent() {
-  return { dataTransfer: { setData: vi.fn() } as unknown as DataTransfer }
-}
-
 describe('TradingStrategyWorkbench：工作檯上的零件', () => {
   it('每一塊零件都在架子上，不管它有沒有被用到', async () => {
     const wrapper = mountWorkbench()
@@ -75,89 +70,6 @@ describe('TradingStrategyWorkbench：工作檯上的零件', () => {
   })
 })
 
-describe('TradingStrategyWorkbench：把零件搬來搬去', () => {
-  it('從架子拖到墊子上，它就擺上去了', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="shelf-piece-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
-  })
-
-  it('剛擺上去的零件預設收下買入——一塊什麼都不收的零件是一句永遠不成立的話', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="shelf-piece-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="chip-sell-MACD-buy"]').attributes('aria-pressed'))
-      .toBe('true')
-  })
-
-  it('從一張墊子拖到另一張，是搬過去，不是複製', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
-  })
-
-  it('拖回架子就從墊子上收走，零件本身還在', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="shelf"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="shelf-piece-MACD"]').exists()).toBe(true)
-  })
-
-  it('那顆返回鍵做的是同一件事——沒有指標裝置的人也拿得回來', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="take-off-buy-MACD"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
-  })
-
-  it('墊子上排的順序會被存下來——那不是一個假的自由度', async () => {
-    const twoPieces = [
-      new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-      new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-    ]
-    const wrapper = mountWorkbench(aBot(
-      group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
-      comparison('s', 'MACD', 'sell'),
-      twoPieces))
-    await flushPromises()
-
-    // 把 ATR 拖到 MACD 前面。
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-buy-0"]').trigger('drop')
-    await flushPromises()
-
-    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
-
-    const saved = wrapper.emitted('save')?.[0]?.[0] as {
-      buyCondition: { conditions: { sourceLabel: string }[] }
-    }
-    expect(saved.buyCondition.conditions.map(child => child.sourceLabel)).toEqual(['ATR', 'MACD'])
-  })
-})
-
 describe('TradingStrategyWorkbench：一塊零件收好幾個信號時，把話講明白', () => {
   it('只收一個信號時不必解釋什麼', async () => {
     const wrapper = mountWorkbench()
@@ -185,118 +97,6 @@ describe('TradingStrategyWorkbench：一塊零件收好幾個信號時，把話�
     await wrapper.get('[data-testid="chip-buy-MACD-sell"]').trigger('click')
 
     expect(wrapper.get('[data-testid="plain-words-buy-MACD"]').text()).toContain('不管')
-  })
-})
-
-describe('TradingStrategyWorkbench：把零件扣成一組', () => {
-  const twoPieces = () => [
-    new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-    new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-  ]
-
-  function mountTwoOnBuy() {
-    return mountWorkbench(aBot(
-      group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
-      comparison('s', 'MACD', 'sell'),
-      twoPieces()))
-  }
-
-  it('把一塊疊到另一塊上，它們就扣成一組', async () => {
-    // 這是墊子上唯一造得出巢狀的動作，也是「A 而且（B 或 C）」唯一的寫法。
-    const wrapper = mountTwoOnBuy()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="item-buy-MACD+ATR"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="bundle-operator-buy-MACD+ATR"]').exists()).toBe(true)
-  })
-
-  it('一組預設用「或」合併——不然它跟直接擺兩塊沒有差別', async () => {
-    const wrapper = mountTwoOnBuy()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('drop')
-    await flushPromises()
-
-    expect((wrapper.get('[data-testid="bundle-operator-buy-MACD+ATR"]')
-      .element as HTMLSelectElement).value).toBe('or')
-  })
-
-  it('扣成一組之後存出去的就是「A 而且（B 或 C）」', async () => {
-    const wrapper = mountWorkbench(aBot(
-      group('and',
-        comparison('a', 'MACD', 'buy'),
-        comparison('b', 'ATR', 'buy'),
-        comparison('c', 'EMA', 'buy')),
-      comparison('s', 'MACD', 'sell'),
-      [
-        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-        new TradingStrategySignalSourceDto('EMA', 10, '5m', []),
-      ]))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-EMA"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('drop')
-    await flushPromises()
-
-    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
-
-    const saved = wrapper.emitted('save')?.[0]?.[0] as {
-      buyCondition: {
-        operator: string
-        conditions: { operator: string | null, sourceLabel: string, conditions: unknown[] }[]
-      }
-    }
-    expect(saved.buyCondition.operator).toBe('and')
-    expect(saved.buyCondition.conditions[0]!.sourceLabel).toBe('MACD')
-    expect(saved.buyCondition.conditions[1]!.operator).toBe('or')
-    expect(saved.buyCondition.conditions[1]!.conditions).toHaveLength(2)
-  })
-
-  it('把一塊從一組裡拆出來，它回到自己一格', async () => {
-    const wrapper = mountWorkbench(aBot(
-      group('and',
-        group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy'))),
-      comparison('s', 'MACD', 'sell'),
-      twoPieces()))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="unbundle-buy-ATR"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="item-buy-MACD+ATR"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="placed-buy-ATR"]').exists()).toBe(true)
-  })
-
-  it('一組只剩一塊時自己散開——一個裝著一塊的組多一層框卻什麼都沒說', async () => {
-    const wrapper = mountWorkbench(aBot(
-      group('and',
-        group('or', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy'))),
-      comparison('s', 'MACD', 'sell'),
-      twoPieces()))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="take-off-buy-ATR"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="bundle-operator-buy-MACD"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(true)
-  })
-
-  it('疊到自己身上什麼都不會發生', async () => {
-    const wrapper = mountTwoOnBuy()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="placed-buy-MACD"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.findAll('[data-testid^="item-buy-"]')).toHaveLength(2)
   })
 })
 
@@ -734,9 +534,12 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子�
   })
 })
 
-describe('TradingStrategyWorkbench：把零件從一組裡拖出來', () => {
-  /** 買入墊子上一組（B、A）加上獨立的 C。 */
-  function withABundle() {
+describe('TradingStrategyWorkbench：零件身上沒有一塊拖不動的地方', () => {
+  // 拖曳走的是指標事件（見 usePieceDragGestures），不是瀏覽器內建的那一套——
+  // 內建那套不會從一個 <button> 上起頭，而一塊零件的下半張臉全是按鈕。
+  // 手勢那一層認的是這幾個 data 屬性，所以這裡驗的就是它們掛對了沒有。
+
+  function aBundledBoard() {
     return mountWorkbench(aBot(
       group('and',
         group('or', comparison('b1', 'MACD', 'buy'), comparison('a1', 'ATR', 'buy')),
@@ -749,167 +552,44 @@ describe('TradingStrategyWorkbench：把零件從一組裡拖出來', () => {
       ]))
   }
 
-  it('沒拿東西的時候格與格之間只是一條髮絲——永遠攤開的帶子多數時間只是噪音', async () => {
-    const wrapper = withABundle()
+  it('架子上與墊子上的每一塊零件都標著自己是誰、從哪裡被拿起來', async () => {
+    const wrapper = aBundledBoard()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
-      .not.toContain('mat__drop-line--open')
+    const shelfPiece = wrapper.get('[data-testid="shelf-piece-MACD"]')
+    expect(shelfPiece.attributes('data-piece-label')).toBe('MACD')
+    expect(shelfPiece.attributes('data-piece-origin')).toBe('shelf')
+
+    // 扣在一組裡的那一塊也一樣拿得起來——那正是「拖出去就是拆開」的前提。
+    const bundledPiece = wrapper.get('[data-testid="placed-buy-ATR"]')
+    expect(bundledPiece.attributes('data-piece-label')).toBe('ATR')
+    expect(bundledPiece.attributes('data-piece-origin')).toBe('buy')
   })
 
-  it('拿起一塊零件，縫就張開成一條真的放得下去的帶子', async () => {
-    // 沒有它，「把零件從一組裡拖出來」唯一的落點是一條看不見的髮絲線——
-    // 也就是做不到。
-    const wrapper = withABundle()
+  it('沒有任何一個角落靠瀏覽器內建的拖放——那正是拖不動的來源', async () => {
+    const wrapper = aBundledBoard()
     await flushPromises()
 
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
-      .toContain('mat__drop-line--open')
-    expect(wrapper.get('[data-testid="drop-buy-1"]').classes())
-      .toContain('mat__drop-line--open')
+    expect(wrapper.html()).not.toContain('draggable')
   })
 
-  it('拖出去放到那條帶子上，它就從那一組裡出來了', async () => {
-    const wrapper = withABundle()
+  it('三種落點各自說得出自己是哪一種：插入帶、另一塊零件、架子', async () => {
+    const wrapper = aBundledBoard()
     await flushPromises()
 
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-buy-1"]').trigger('drop')
-    await flushPromises()
+    const slot = wrapper.get('[data-testid="drop-buy-1"]')
+    expect(slot.attributes('data-drop-kind')).toBe('slot')
+    expect(slot.attributes('data-drop-side')).toBe('buy')
+    expect(slot.attributes('data-drop-position')).toBe('1')
 
-    expect(wrapper.find('[data-testid="item-buy-MACD+ATR"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="item-buy-ATR"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="item-buy-MACD"]').exists()).toBe(true)
-  })
+    // 墊子最底下那一格接的是「排到最後面」，所以位置是現在有幾格。
+    expect(wrapper.get('[data-testid="drop-buy-end"]').attributes('data-drop-position'))
+      .toBe('2')
 
-  it('放掉之後帶子收回去', async () => {
-    const wrapper = withABundle()
-    await flushPromises()
+    // 一塊擺著的零件同時是落點：疊上去就扣成一組。
+    expect(wrapper.get('[data-testid="placed-buy-RSI"]').attributes('data-drop-kind'))
+      .toBe('piece')
 
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragend')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
-      .not.toContain('mat__drop-line--open')
-  })
-})
-
-describe('TradingStrategyWorkbench：帶子說得出放下去會發生什麼', () => {
-  function withABundle() {
-    return mountWorkbench(aBot(
-      group('and',
-        group('or', comparison('b1', 'MACD', 'buy'), comparison('a1', 'ATR', 'buy')),
-        comparison('c1', 'RSI', 'buy')),
-      comparison('s', 'MACD', 'sell'),
-      [
-        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-        new TradingStrategySignalSourceDto('RSI', 9, '5m', []),
-      ]))
-  }
-
-  it('拿的是組裡那一塊時，帶子說它會被拆出來', async () => {
-    // 不說的話，「拖出去就是拆開」這件事只有試過一次的人才知道。
-    const wrapper = withABundle()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-buy-1"]').trigger('dragover')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="drop-buy-1"]').text()).toContain('拆出來')
-  })
-
-  it('拿的是獨立的那一塊時，同一條帶子只說搬到這裡', async () => {
-    const wrapper = withABundle()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-RSI"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-buy-0"]').trigger('dragover')
-    await flushPromises()
-
-    const hint = wrapper.get('[data-testid="drop-buy-0"]').text()
-    expect(hint).toContain('放這裡')
-    expect(hint).not.toContain('拆出來')
-  })
-
-  it('只有正被懸著的那一條說話——四條同時寫同一句，那句就變成背景', async () => {
-    const wrapper = withABundle()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-buy-1"]').trigger('dragover')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="drop-buy-0"]').text()).toBe('')
-  })
-})
-
-describe('TradingStrategyWorkbench：零件的每一處都拿得起來', () => {
-  // 一塊零件的下半張臉是三顆信號開關，右上角還有兩顆小按鈕。原生拖曳不會從一個
-  // button 上起頭，所以那幾顆過去等於在零件身上挖了幾個洞：按在上面往下拉什麼都
-  // 不會發生，而使用者看到的是一塊有時拖得動、有時拖不動的積木。
-
-  it('按在信號開關上拖，拿起來的是整塊零件', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="chip-buy-MACD-buy"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
-  })
-
-  it('按在「拿回架子上」那顆按鈕上拖，也是拿起整塊零件', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="take-off-buy-MACD"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
-  })
-
-  it('那幾顆按鈕仍然是按鈕——沒有移動就不是一次拖曳', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="take-off-buy-MACD"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="chip-sell-MACD-sell"]').attributes('aria-pressed'))
-      .toBe('true')
-  })
-
-  it('零件身上沒有一塊按下去拖不動的地方', async () => {
-    const wrapper = mountWorkbench(aBot(comparison('b', 'MACD', 'buy'), null))
-    await flushPromises()
-
-    const undraggable = wrapper.get('[data-testid="placed-buy-MACD"]')
-      .findAll('button')
-      .filter(button => button.attributes('draggable') !== 'true')
-
-    expect(undraggable).toHaveLength(0)
-  })
-
-  it('架子上那幾塊也一樣——同一塊積木不該有些地方拖得動、有些拖不動', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="strategy-script-remove"]').trigger('dragstart', dragEvent())
-    await wrapper.get('[data-testid="drop-sell-end"]').trigger('drop')
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
-    // 拖過去不等於刪掉：那顆按鈕按下去才是刪掉。
-    expect(wrapper.find('[data-testid="shelf-piece-MACD"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="shelf"]').attributes('data-drop-kind')).toBe('shelf')
   })
 })
