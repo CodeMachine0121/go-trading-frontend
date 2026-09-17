@@ -327,10 +327,12 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     list-style: none;
   }
 
+  // 一組裡面那幾塊之間的距離。它**刻意比組與組之間小**：靠得近的讀成一件事，
+  // 那是這個框子以外、另一個說出「這幾塊是一組」的辦法。小，不等於擠在一起。
   &__item {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
+    gap: spacing('xs');
   }
 
   // 扣在一起的那幾塊共用一個框——那個框就是「A 而且（B 或 C）」裡的那一對括號。
@@ -339,7 +341,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     border-left: 2px solid color('primary');
     border-radius: radius('sm');
     background-color: color('surface-muted');
-    padding: spacing('3xs');
+    padding: spacing('2xs');
   }
 
   &__bundle-head {
@@ -459,7 +461,10 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     transition: border-color duration('fast') ease, background-color duration('fast') ease;
     border: 1px dashed transparent;
     border-radius: radius('sm');
-    height: spacing('sm');
+
+    // 這個高度同時是兩件事：兩塊零件之間看得到的距離，以及拖曳時那個落點有多好瞄。
+    // 它們本來就該一起變——縫變寬，就是更好放，也更好讀。
+    height: spacing('md');
 
     &--open {
       border-color: color('border-strong');
