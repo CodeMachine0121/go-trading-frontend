@@ -50,7 +50,7 @@ describe('StrategyBotRunStateDomain', () => {
   })
 
   it.each([
-    ['strategyScriptUnavailable', '有一支策略腳本找不到了'],
+    ['strategyUnavailable', '有一支策略腳本找不到了'],
     ['scriptFailed', '有一支策略腳本算不出來'],
     ['credentialRejected', '機器人金鑰不被接受'],
     ['destinationNotFound', '找不到這個聊天室'],

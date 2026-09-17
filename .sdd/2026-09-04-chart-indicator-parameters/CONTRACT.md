@@ -1,4 +1,4 @@
-# 在 K 線圖表上調策略的旋鈕 — Contract Verification
+# 在 K 線圖表上調策略腳本的旋鈕 — Contract Verification
 
 **Oracle**：`PRD.md` §3 的 Gherkin 驗收條件（28 條）。
 **Phase 2 紀錄**：oracle 於任何實作之前寫在 scratchpad 的 `oracle-chart-parameters.md`
@@ -19,18 +19,18 @@
 
 | ID | 條款 | Oracle | 實作 | 測試 | 測試 | 程式 | Status |
 |---|---|---|---|---|---|---|---|
-| AC-01.1 | 挑一支有旋鈕的策略，先看到那幾格 | 出現「期數」＝20，**且還沒上圖**（沒有任何計算發生） | `uci:applyIndicator`（`!prepared.readyToApply` → 停在待調整） | `P:130` | asserts-oracle | produces-oracle | ✅ |
+| AC-01.1 | 挑一支有旋鈕的策略腳本，先看到那幾格 | 出現「期數」＝20，**且還沒上圖**（沒有任何計算發生） | `uci:applyIndicator`（`!prepared.readyToApply` → 停在待調整） | `P:130` | asserts-oracle | produces-oracle | ✅ |
 | AC-01.2 | 調好之後才上圖，算的是調過的值 | 上圖並算一次，**用的期數是 60** | `uci:confirmPendingIndicator` → `chart-indicator-service.ts`（送 `appliedIndicator.parameters`） | `P:144` | asserts-oracle | produces-oracle | ✅ |
 | AC-01.3 | 一個旋鈕都沒有就直接上圖 | 直接上圖並算一次，**中間不多一步** | `applied-indicator-dto.ts:readyToApply` | `P:157` | asserts-oracle | produces-oracle | ✅ |
-| AC-01.4 | 上次調過的值是這次的起點 | 那一格是 **60**，不是策略的 20 | `applied-indicator-parameters-domain.ts:toDtos` | `P:169`；`tests/domain/models/domains/applied-indicator-parameters-domain.spec.ts` | asserts-oracle | produces-oracle | ✅ |
-| AC-01.5 | 存不了東西時照樣運作 | 那一格是 **20**；調得動、算得出來，**沒有任何錯誤** | `strategy-parameter-value-preference-proxy.ts` 的 `try/catch` | `P:181`＋`tests/infrastructure/proxy/strategy-parameter-value-preference-proxy.spec.ts`（讀寫各一條） | asserts-oracle | produces-oracle | ✅ |
-| AC-01.6 | 不改動策略記著的預設值 | 那支策略的預設值**仍然是 20** | 值只進 `ChartIndicatorRequestDto` 與偏好儲存，**不經過任何存策略的路徑** | `P:199`（斷言 `updateStrategy`／`createStrategy` **一次都沒被叫到**） | asserts-oracle | produces-oracle | ✅ |
+| AC-01.4 | 上次調過的值是這次的起點 | 那一格是 **60**，不是策略腳本的 20 | `applied-indicator-parameters-domain.ts:toDtos` | `P:169`；`tests/domain/models/domains/applied-indicator-parameters-domain.spec.ts` | asserts-oracle | produces-oracle | ✅ |
+| AC-01.5 | 存不了東西時照樣運作 | 那一格是 **20**；調得動、算得出來，**沒有任何錯誤** | `strategy-script-parameter-value-preference-proxy.ts` 的 `try/catch` | `P:181`＋`tests/infrastructure/proxy/strategy-script-parameter-value-preference-proxy.spec.ts`（讀寫各一條） | asserts-oracle | produces-oracle | ✅ |
+| AC-01.6 | 不改動策略腳本記著的預設值 | 那支策略腳本的預設值**仍然是 20** | 值只進 `ChartIndicatorRequestDto` 與偏好儲存，**不經過任何存策略腳本的路徑** | `P:199`（斷言 `updateStrategyScript`／`createStrategyScript` **一次都沒被叫到**） | asserts-oracle | produces-oracle | ✅ |
 
 ### US-02 同一支可以擺好幾次
 
 | ID | 條款 | Oracle | 實作 | 測試 | 測試 | 程式 | Status |
 |---|---|---|---|---|---|---|---|
-| AC-02.1 | 已套用的仍然挑得到 | 那支**仍然在**可挑清單裡 | `uci:selectableStrategies`（過濾整個移除） | `I:149` | asserts-oracle | produces-oracle | ✅ |
+| AC-02.1 | 已套用的仍然挑得到 | 那支**仍然在**可挑清單裡 | `uci:selectableStrategyScripts`（過濾整個移除） | `I:149` | asserts-oracle | produces-oracle | ✅ |
 | AC-02.2 | 同一支擺第二次 | 清單**兩筆**、圖上**兩條線** | 五處鍵改用 `appliedIndicatorId` | `P:237`；`I`（同一支挑第二次那一條） | asserts-oracle | produces-oracle | ✅ |
 | AC-02.3 | 用值分辨它們 | 一筆標**期數 20**、另一筆**期數 60** | `applied-indicator-dto.ts:parameterSummary` | `P:247`；`tests/domain/models/dto/applied-indicator-dto.spec.ts` | asserts-oracle | produces-oracle | ✅ |
 | AC-02.4 | 移除其中一筆只影響那一筆 | 只剩另一筆；圖上只剩它那條線 | `uci:removeAppliedIndicator` | `P:258`；`I:188`（交給圖表的線只剩序號 2） | asserts-oracle | produces-oracle | ✅ |
@@ -46,7 +46,7 @@
 | AC-03.3 | 清單不留存 | 清單是**空的**；圖上只有 K 線 | **不做任何事**（沒有任何寫入清單的路徑） | `I:201`／`I:285`／`I:338`（一支都沒套用時的三種情況） | asserts-oracle | produces-oracle | ✅ |
 | AC-03.4 | 記住最後設定的那一個 | 那一格是 **60**（後設的那個） | 逐個名稱寫入，後寫蓋前寫 | `applied-indicator-parameters-domain.spec.ts`（`toHaveBeenLastCalledWith`） | asserts-oracle | produces-oracle | ✅ |
 
-### US-04 策略的旋鈕被改過之後
+### US-04 策略腳本的旋鈕被改過之後
 
 | ID | 條款 | Oracle | 實作 | 測試 | 測試 | 程式 | Status |
 |---|---|---|---|---|---|---|---|
@@ -95,7 +95,7 @@
 
 | 舊規則 | 現在 | 為什麼 |
 |---|---|---|
-| 同一支策略**不重複套用** | **可以擺任意多次**（`I` 那條測試已改為斷言「多出一筆、各自算一次」） | 舊規則的前提是「同一支只畫得出同一條線」，旋鈕讓那個前提不成立。擋掉它，使用者就永遠擺不出他真正想要的第二筆。 |
+| 同一支策略腳本**不重複套用** | **可以擺任意多次**（`I` 那條測試已改為斷言「多出一筆、各自算一次」） | 舊規則的前提是「同一支只畫得出同一條線」，旋鈕讓那個前提不成立。擋掉它，使用者就永遠擺不出他真正想要的第二筆。 |
 | 已套用的**不再出現在可挑清單裡** | **仍然出現**（`I:149` 已改為斷言 `toBe(true)`） | 同一個理由的另一面。 |
 
 **沒有被推翻的那一條**：「一條線挑過的顏色即使已經被**別條線**用掉也照樣採用」

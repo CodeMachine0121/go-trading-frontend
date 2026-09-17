@@ -35,7 +35,7 @@
 | `components/molecules/` | `StrategyBotBlockDrawer.vue` | 積木抽屜 |
 | `components/organisms/` | `StrategyBotConditionTree.vue` | 一棵樹（遞迴），取代 `StrategyBotConditionEditor.vue` |
 | `components/organisms/` | `StrategyBotWorkbench.vue` | 整個工作台：三段＋兩棵樹＋抽屜 |
-| `composables/` | `use-strategy-bot-workbench.ts` | **那一頁**的狀態：在改哪一台、可挑哪幾支策略、存得怎麼樣了 |
+| `composables/` | `use-strategy-bot-workbench.ts` | **那一頁**的狀態：在改哪一台、可挑哪幾支策略腳本、存得怎麼樣了 |
 | `components/templates/` | `StrategyBotWorkbenchPage.vue` | 新增與編輯共用的那一張殼（標題、載入、找不到、離開前確認） |
 | `pages/strategy-bots/` | `new.vue`、`[id].vue` | 兩條進得去的路，共用同一個工作台 |
 
@@ -45,7 +45,7 @@
 |---|---|
 | `domain/models/domains/strategy-bot-condition-domain.ts` | 加 `holes()`、`fill()`、`move()`、`accepts()`、`toViewDto()`；`canAddComparisonUnder` 一族由 `accepts()` 取代 |
 | `composables/use-strategy-bot-form.ts` | 條件那一段改走洞與積木（含被點的洞與拖到一半的那一塊）；其餘兩段不動 |
-| `composables/use-strategy-bots.ts` | 拿掉整段表單狀態；不再撈可用策略——那件事搬到工作台了 |
+| `composables/use-strategy-bots.ts` | 拿掉整段表單狀態；不再撈可用策略腳本——那件事搬到工作台了 |
 | `components/atoms/AppButton.vue` | 多一個 `to`：給了它就是一條連結，長相不變 |
 | `domain/models/domains/strategy-bot-write-domain.ts` | 半成品（群組不足兩塊、比對沒選信號、指向沒宣告的代號）現在擋在送出前 |
 | `composables/use-strategy-bots.ts` | `openCreateForm` / `openEditForm` 改成**走頁面**，不再開對話框 |
@@ -217,16 +217,16 @@ ConditionBlockOptionDto
 三個彼此無關的抱怨：
 
 1. 宣告那一塊愈長，拼的地方就被擠得愈下面。
-2. 抽屜裡只看得到代號字母（A、B），說不出那是哪一支策略。
+2. 抽屜裡只看得到代號字母（A、B），說不出那是哪一支策略腳本。
 3. 條件讀起來是「A 等於買入」——一句看不出自己在說什麼的話。
 
 三個都是同一件事：**一個東西被畫了兩次，而第二次是一份說不出話的影子。**
 
-現在它們是同一塊：一個信號來源就是一塊積木，寫著那支策略的名字，拖得動；
-它自己的設定（代號、策略、刻度、旋鈕）收在它底下，按齒輪才打開。
+現在它們是同一塊：一個信號來源就是一塊積木，寫著那支策略腳本的名字，拖得動；
+它自己的設定（代號、策略腳本、刻度、旋鈕）收在它底下，按齒輪才打開。
 收起來時一個來源就是一行——十個來源仍然是十行，而不是把工作區推出畫面。
 
-代號的預設值也跟著改成**那支策略的名字**（撞名時接數字），
+代號的預設值也跟著改成**那支策略腳本的名字**（撞名時接數字），
 所以條件現在讀起來是「MACD 交叉 等於 買入」。代號仍然改得動，
 它只是不再從一個沒有意義的字母開始。
 
@@ -254,12 +254,12 @@ ConditionBlockOptionDto
                        什麼算買入      什麼算賣出
   ⚙ MACD 交叉  5m  ✕    買 賣 持       買 賣 持
   ⚙ ATR 濾網   1h  ✕    買 賣 持       買 賣 持
-  ＋ 加一支策略
+  ＋ 加一支策略腳本
 
   上面勾起來的那幾列要…  全部成立 ▾     全部成立 ▾
 ```
 
-- **列首就是那支策略的名字**，不必去別的地方查它是誰。
+- **列首就是那支策略腳本的名字**，不必去別的地方查它是誰。
 - **一格是一個集合**，不是一個值：「買入或持有都算」是真的有人要說的話，
   而一個下拉選單說不出它。一格都沒亮＝這一支不參與這一邊。
 - **沒有第二塊**，所以沒有東西可以被推走、沒有東西需要拖。

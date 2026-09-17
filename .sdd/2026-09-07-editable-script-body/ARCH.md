@@ -20,12 +20,12 @@
 | :--- | :--- | :--- |
 | `domain/models/domains/indicator-script-domain.ts` | **Modify（重寫）** | `frameHeader()` → 七行固定內容（去掉簽章）；移除 `frameFooter()`；`EXAMPLE_SCRIPT_BODIES` 的每則前面加簽章、後面加 `}`；新增 `blankBody()`（空 stub）與 `retargetReturnType(body)`（重打第一個 Calculate 簽章）；`assemble()` 不再縮排、不再加收尾；`disassemble()` 改為錨定七行固定開頭 |
 | `domain/models/dto/indicator-script-template-dto.ts` | **Modify** | 移除 `frameFooter`；新增 `blankBody`；`frameHeaderLineCount` / `bodyStartLineNumber` 由新的 `frameHeader` 推 |
-| `domain/models/domains/strategy-draft-domain.ts` | **Modify** | 「還沒載入過」分支：`scriptBody` 去空白後為空、**或**等於該種類未改動的 stub，都算沒有未儲存變更 |
+| `domain/models/domains/strategy-script-draft-domain.ts` | **Modify** | 「還沒載入過」分支：`scriptBody` 去空白後為空、**或**等於該種類未改動的 stub，都算沒有未儲存變更 |
 | `domain/service/indicator-calculation-service.ts` | **Modify** | 新增 `retargetScriptReturnType(body, resultType)`（轉呼 domain） |
 | `application/indicator-calculation-application.ts` | **Modify** | 新增 `retargetScriptReturnType` 轉呼 |
 | `components/molecules/IndicatorScriptEditor.vue` | **Modify** | 移除收尾 `AppCodeEditor` 與 `footerLineNumber`；可編輯區去掉 `indented`；提示文字改寫 |
-| `components/organisms/IndicatorCalculationPanel.vue` | **Modify** | `blankStrategyContent.scriptBody` = 預設種類的 `blankBody`；種類 `<select>` 改動時呼叫 `retargetScriptReturnType` 更新 `scriptBody` |
-| `composables/use-strategy-library.ts` | **Not touched** | 它拿 `blankContent` 當參數，內容由 panel 給——panel 換成帶 stub 的那份即可 |
+| `components/organisms/IndicatorCalculationPanel.vue` | **Modify** | `blankStrategyScriptContent.scriptBody` = 預設種類的 `blankBody`；種類 `<select>` 改動時呼叫 `retargetScriptReturnType` 更新 `scriptBody` |
+| `composables/use-strategy-script-library.ts` | **Not touched** | 它拿 `blankContent` 當參數，內容由 panel 給——panel 換成帶 stub 的那份即可 |
 | `domain/models/vo/indicator-script-body-vo.ts` | **Not touched** | `{ body, frameRecognised }` 形狀不變 |
 | backend | **Not touched** | 收整段算式、允許頂層多個宣告 |
 
@@ -59,7 +59,7 @@ flowchart TD
   Panel --> Editor[IndicatorScriptEditor.vue]
   Editor --> FrameRO[AppCodeEditor readonly · 七行]
   Editor --> BodyRW[AppCodeEditor · 檔案主體]
-  Panel --> Draft[StrategyDraftDomain]
+  Panel --> Draft[StrategyScriptDraftDomain]
   Draft -->|未改動的 stub?| ScriptDom
 ```
 
@@ -70,7 +70,7 @@ flowchart TD
 - **最可能的下一個需求：** 讓範例內容也能是「多個函式」的示範。落點：`EXAMPLE_SCRIPT_BODIES` 那張表——它現在是「內部幾行」，屆時直接改成整段主體字串，`exampleBody()` 不再自己加簽章。
 - **Do not hardcode:** 進入點的字面（`func Calculate(...)`）只在 `calculateSignature()` 與 `disassemble` 的錨（七行 header）兩處；`retargetReturnType` 的 regex 也在同一個檔案。
 - **Known debt:** `retargetReturnType` 用 regex 認簽章——使用者把簽章拆成多行就認不出、不會重打（PRD 風險已載明）。若日後要更聰明，落點就是這個方法。
-- 不改 `use-strategy-library`：它對「空白長什麼樣」不知情，那個定義只在 panel 一處（沿用既有註解裡的原則）。
+- 不改 `use-strategy-script-library`：它對「空白長什麼樣」不知情，那個定義只在 panel 一處（沿用既有註解裡的原則）。
 
 ---
 
@@ -81,14 +81,14 @@ flowchart TD
 | US-01 唯讀區不含進入點／不隨種類變 | `frameHeader()`（七行固定）+ `IndicatorScriptEditor.vue`（讀它） |
 | US-01 可編輯區可放進入點以外的函式 | `assemble()`（主體原樣接在 header 後）+ backend（本來就允許） |
 | US-02 空白 stub（信號／一串數字） | `blankBody()` + `calculateSignature()` |
-| US-02 未改動的 stub / 空白 不算變更 | `StrategyDraftDomain`（no-loaded 分支比對 `blankBody()` 或空白） |
+| US-02 未改動的 stub / 空白 不算變更 | `StrategyScriptDraftDomain`（no-loaded 分支比對 `blankBody()` 或空白） |
 | US-03 改種類換回傳型別／helper 不動／找不到不動 | `retargetReturnType()` + `IndicatorCalculationPanel.vue`（種類 select 改動時呼叫） |
-| US-04 載入整個 Calculate／舊編輯器策略／認不出 | `disassemble()`（錨定七行 header） |
+| US-04 載入整個 Calculate／舊編輯器策略腳本／認不出 | `disassemble()`（錨定七行 header） |
 | US-05 行號接續 | `IndicatorScriptTemplateDto.bodyStartLineNumber` + `AppCodeEditor` `start-line-number` |
 
 ---
 
 ## 7. Risks & Open Decisions（定案）
 
-- **Risk:** 大量既有測試要改（`indicator-script-domain.spec.ts` 幾乎重寫、`IndicatorScriptEditor.spec.ts`、`IndicatorCalculationPanel*.spec.ts`、`strategy-draft-domain.spec.ts`、`strategy.spec.ts`、`strategy-write-domain.spec.ts`）。以 round-trip 測試守住 `assemble`/`disassemble`。
+- **Risk:** 大量既有測試要改（`indicator-script-domain.spec.ts` 幾乎重寫、`IndicatorScriptEditor.spec.ts`、`IndicatorCalculationPanel*.spec.ts`、`strategy-script-draft-domain.spec.ts`、`strategyScript.spec.ts`、`strategy-script-write-domain.spec.ts`）。以 round-trip 測試守住 `assemble`/`disassemble`。
 - **Open decisions:** 無——PRD §8 兩項已定案。

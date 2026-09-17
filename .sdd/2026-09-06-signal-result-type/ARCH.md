@@ -39,9 +39,9 @@
 | `application/backtest-application.ts` | **Modify** | 移除轉呼 `signalIndicatorName()` 的方法（若有） |
 | `components/organisms/IndicatorCalculationPanel.vue` | **Modify** | 結果區：`result.isSignal` 時渲染一個結論區塊（買入綠／賣出紅／持有中性），取代名稱-數值表格 |
 | `components/molecules/BacktestRuleGuideDialog.vue` | **Modify** | `<pre><code>` 範例改 `return indicator.Buy`；表頭改「算式回傳」／「意思」；移除 `signalIndicatorName` prop |
-| `components/organisms/StrategyBacktestPane.vue` | **Modify** | 不再傳 `signalIndicatorName` 給 dialog |
-| `domain/models/domains/strategy-domain.ts` | **Not touched** | `drawableOnChart = resultType.holdsNumbers()` 對信號已是 `false` |
-| `domain/models/domains/chart-indicator-domain.ts` · `remembered-applied-indicators-domain.ts` | **Not touched** | 信號種類的策略在 `drawableOnChart` 就被濾掉，到不了這裡 |
+| `components/organisms/StrategyScriptBacktestPane.vue` | **Modify** | 不再傳 `signalIndicatorName` 給 dialog |
+| `domain/models/domains/strategy-script-domain.ts` | **Not touched** | `drawableOnChart = resultType.holdsNumbers()` 對信號已是 `false` |
+| `domain/models/domains/chart-indicator-domain.ts` · `remembered-applied-indicators-domain.ts` | **Not touched** | 信號種類的策略腳本在 `drawableOnChart` 就被濾掉，到不了這裡 |
 | 回測結果（成績單／資金曲線／交易明細）相關 | **Not touched** | 後端這一版沒動 |
 
 ---
@@ -78,7 +78,7 @@ flowchart TD
   CalcDom --> ResultDto[IndicatorCalculationResultDto.signalLabel]
   Panel -->|result.isSignal| Verdict[結論區塊]
 
-  Pane[StrategyBacktestPane.vue] --> BApp[BacktestApplication] --> BSvc[BacktestService]
+  Pane[StrategyScriptBacktestPane.vue] --> BApp[BacktestApplication] --> BSvc[BacktestService]
   Pane --> BReqDom[BacktestRequestDomain]
   BReqDom -->|BACKTEST_RESULT_TYPE = signal| RTDom
   Pane --> Dialog[BacktestRuleGuideDialog.vue]
@@ -90,7 +90,7 @@ flowchart TD
 ## 5. Extensibility & Handoff Notes
 
 - **最可能的下一個需求：信號帶方向以外的資訊**（部位大小、停損、信心）。落點：wire 型別、`SignalDomain`、結論區塊——`SignalVo` 從聯合字串長成一個結構。外框簽章仍是 `indicator.Signal`，`frameHeader` 不動。
-- **第二可能：把信號畫成圖上的買賣標記。** 落點：`drawableOnChart` 現在對信號是 `false`；屆時它要能分「畫成線」與「畫成標記」，那是 `strategy-domain` 與 chart 那一側的切片，不是這裡。
+- **第二可能：把信號畫成圖上的買賣標記。** 落點：`drawableOnChart` 現在對信號是 `false`；屆時它要能分「畫成線」與「畫成標記」，那是 `strategy-script-domain` 與 chart 那一側的切片，不是這裡。
 - **Patterns applied:** 述詞驅動的差異表（沿用既有 `INDICATOR_RESULT_TYPE_DESCRIPTIONS`）——四→五只加一列一述詞。
 - **Do not hardcode:**
   - 買入／賣出／持有的中文——只在 `SignalDomain`。
@@ -119,7 +119,7 @@ flowchart TD
 | AC-04 種類對就不再攔在種類上 | `BacktestRequestDomain` 驗證順序（種類先於本金，種類過了才檢查本金） |
 | AC-05 回測規則講信號種類 | `BACKTEST_RULES` 改寫 |
 | AC-05 讀法表是三個值 | `SIGNAL_READINGS` 改寫（3 列） |
-| AC-06 信號種類策略標明畫不成線 | `StrategyDomain.toDto()` `drawableOnChart = holdsNumbers()`（信號 → false，零改動） |
+| AC-06 信號種類策略腳本標明畫不成線 | `StrategyScriptDomain.toDto()` `drawableOnChart = holdsNumbers()`（信號 → false，零改動） |
 
 ---
 

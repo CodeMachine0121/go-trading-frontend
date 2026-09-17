@@ -43,7 +43,7 @@
 | `app/pages/strategy-bots/` | **Add** | `index.vue` |
 | `app/plugins/dependencies.ts` | **Modify** | 組裝 Proxy → Service → Application |
 | `app/components/atoms/` | **Not touched** | 現有的 `AppSelect`／`AppButton`／`AppBadge`／`AppModal`／`AppAlert` 已經夠用。**不新增任何變體元件**（規則明令禁止） |
-| 既有的策略／市集／設定畫面 | **Not touched** | 只**讀**可用策略、只**連到**帳號設定 |
+| 既有的策略腳本／市集／設定畫面 | **Not touched** | 只**讀**可用策略腳本、只**連到**帳號設定 |
 | 條件求值 | **Not built** | 前端一次都不判斷哪一邊成立 |
 
 ---
@@ -55,7 +55,7 @@
 | Name | Kind | Responsibility | Collaborators | Satisfies |
 | :--- | :--- | :--- | :--- | :--- |
 | `StrategyBot` | Entity | 一台機器人的乾淨資料：名稱、標的、間隔、來源、兩棵樹、執行狀態、上次訊號、停擺原因、打架記號。`toDto()` | — | US-01 全部 |
-| `StrategyBotSignalSource` | Entity | 一個來源：代號、策略識別碼、刻度、參數值。**沒有 script 欄位**——不是留空，是放不進去 | — | NFR 算式不外流 |
+| `StrategyBotSignalSource` | Entity | 一個來源：代號、策略腳本識別碼、刻度、參數值。**沒有 script 欄位**——不是留空，是放不進去 | — | NFR 算式不外流 |
 | `StrategyBotCondition` | Entity | 一個條件節點（遞迴）：運算子 ＋ 子條件，或代號 ＋ 信號 | — | US-04 |
 | `StrategyBotConditionDomain` | Domain Model | **一棵樹的所有編輯操作**：加一句比對、加一個群組、刪掉某個節點、換運算子、把一句換成群組；以及形狀規則（群組至少兩句、深度與節點數上限）。**每個操作回傳一棵新樹，不就地改** | — | US-04 全部 |
 | `StrategyBotWriteDomain` | Domain Model | 送出前的驗證：名稱、標的、間隔、來源（代號不空不重複、數量上限、參數名稱對得上）、兩棵樹不得為空。**通過才生得出 DTO** | `StrategyBotConditionDomain` | US-05 前四個 |
@@ -79,7 +79,7 @@
 | Name | Layer | Responsibility | Satisfies |
 | :--- | :--- | :--- | :--- |
 | `StrategyBotStatusBadge` | molecule | 把一台機器人的狀態畫成一個標籤：執行中／已停止／**停擺＋原因**／**規則打架** | US-01 |
-| `StrategyBotSignalSourceFields` | molecule | 一個信號來源的那一排欄位：策略、刻度、代號、參數值 | US-03 |
+| `StrategyBotSignalSourceFields` | molecule | 一個信號來源的那一排欄位：策略腳本、刻度、代號、參數值 | US-03 |
 | `StrategyBotConditionEditor` | molecule | **一個條件節點**：一句比對（兩個選單）或一個群組（運算子 ＋ 子條件 ＋ 加／刪）。**子條件用它自己渲染** | US-04 全部 |
 | `StrategyBotListPanel` | organism | 清單、四種狀態、三顆按鈕、空清單、錯誤與重試 | US-01、US-02 |
 | `StrategyBotFormDialog` | organism | 三段式表單，存或改一台 | US-03、US-05 |

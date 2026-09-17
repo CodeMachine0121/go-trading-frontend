@@ -38,7 +38,7 @@
 | `app/composables/use-user-session.ts` | **Modify** | 只有一行：`signOut` 要 `await` |
 | `app/plugins/dependencies.ts` | **Modify** | 換一個 proxy 名字 |
 | 登入畫面、把關中介層、五個畫面、側欄那一行 | **Not touched** | 這個切片對它們完全不可見 |
-| 既有 K 線／指標／策略／助手的 proxy | **Not touched** | 後端仍然不問那些請求來者是誰（見 PRD §1） |
+| 既有 K 線／指標／策略腳本／助手的 proxy | **Not touched** | 後端仍然不問那些請求來者是誰（見 PRD §1） |
 
 ---
 

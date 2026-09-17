@@ -1,6 +1,6 @@
-# 在寫策略的地方就把它重演一次 — Architecture Design
+# 在寫策略腳本的地方就把它重演一次 — Architecture Design
 
-**Feature:** 策略回測（前端）
+**Feature:** 策略腳本回測（前端）
 **Status:** Finalized
 **PRD:** `PRD.md`（同一資料夾）
 **Owner:** James Hsueh
@@ -18,7 +18,7 @@
 
 指導原則：**工作區不屬於任何一個去處，所以它自己占一欄。**
 
-這一句同時解決了前兩題。工作區（算式、策略、參數、市場、粗細）留在
+這一句同時解決了前兩題。工作區（算式、策略腳本、參數、市場、粗細）留在
 `IndicatorCalculationPanel` 手上，兩個去處都只是右欄裡的一塊；
 既有的指標預覽因此**原地不動**——它多的只是外面包了一層 `v-show`。
 而編輯器在切換時完全不受影響，這正是本切片最核心的那條要求。
@@ -33,14 +33,14 @@
 
 ```
 ┌─ IndicatorCalculationPanel ──────────────────────────────────┐
-│  策略列（挑策略／存／另存／改名／清單）        ← 共用、橫跨   │
+│  策略腳本列（挑策略腳本／存／另存／改名／清單）        ← 共用、橫跨   │
 ├──────────────────────────┬───────────────────────────────────┤
 │ 左欄：工作區（共用）      │ 右欄：去處                        │
 │                          │  ┌ AppTabs ─────────────────┐     │
 │  算式編輯器              │  │ 指標預覽 │ 回測         │     │
 │  + 種類 / 參數 / 說明     │  └──────────────────────────┘     │
 │                          │  ┌ v-show=預覽 ┐ ┌ v-show=回測 ┐ │
-│                          │  │ 執行條件     │ │ Strategy    │ │
+│                          │  │ 執行條件     │ │ StrategyScript    │ │
 │                          │  │ → 提示       │ │ BacktestPane│ │
 │                          │  │ → 結果       │ │             │ │
 │                          │  └──────────────┘ └─────────────┘ │
@@ -72,13 +72,13 @@
 
 ## 3. 核心決策二：回測整塊自成一個去處
 
-`StrategyBacktestPane` 自己持有：時間區間、本金、押注模式與那一格的數字、
+`StrategyScriptBacktestPane` 自己持有：時間區間、本金、押注模式與那一格的數字、
 以及「最近那一次回測」的狀態（進行中／結果／五種失敗）。
 
 它**不持有**工作區的任何一樣東西——那些以 props 進來。
 因此它與指標預覽之間沒有任何直接關係：兩者都只認識面板。
 
-**「工作區被換掉了」怎麼傳達**：面板在載入另一支策略或開一份空白策略時，
+**「工作區被換掉了」怎麼傳達**：面板在載入另一支策略腳本或開一份空白策略腳本時，
 把一個 `workspaceGeneration` 數字加一。回測那一側看著它，變了就把上一次的結果清掉——
 理由與指標預覽清掉自己的結果一模一樣：換了一份算式，上一次那次重演與畫面上這一份無關了。
 用一個數字而不是比對算式內容，是因為後者每敲一個字都會變。
@@ -138,13 +138,13 @@
 | molecules | `BacktestSummaryCard.vue` | 成績單那六個數字 |
 | molecules | `BacktestEquityCurveChart.vue` | 資金曲線 |
 | molecules | `BacktestTradeTable.vue` | 交易明細，含「一筆都沒有」的說法 |
-| organisms | `StrategyBacktestPane.vue` | 回測這一整個去處 |
+| organisms | `StrategyScriptBacktestPane.vue` | 回測這一整個去處 |
 
 ### 修改
 
 | 檔案 | 改什麼 | 為什麼必須 |
 | :--- | :--- | :--- |
-| `IndicatorCalculationPanel.vue` | 版面改成兩個直欄；加去處切換；既有的預覽內容原封包進 `v-show`；掛上回測去處；載入策略時把 `workspaceGeneration` 加一 | §2、§3 |
+| `IndicatorCalculationPanel.vue` | 版面改成兩個直欄；加去處切換；既有的預覽內容原封包進 `v-show`；掛上回測去處；載入策略腳本時把 `workspaceGeneration` 加一 | §2、§3 |
 | `pages/indicator-calculations/index.vue` | 多注入一個 `$backtestApplication` | 頁面只做接線 |
 | `plugins/dependencies.ts` | 組裝 proxy → service → application | 組裝根 |
 
@@ -154,7 +154,7 @@
 | :--- | :--- |
 | 指標預覽的每一行 | PRD 要求「一個字都沒變」。它唯一的改動是外面多了一層 `v-show` |
 | `useIndicatorCalculationRun` | 回測有自己的一次，兩者的失敗種類不同（回測沒有「要看多長」那一格，卻有本金與押注） |
-| 策略庫、參數宣告、算式編輯器 | 它們**就是**那份共用的工作區。本切片只是多一個去處用它們 |
+| 策略腳本庫、參數宣告、算式編輯器 | 它們**就是**那份共用的工作區。本切片只是多一個去處用它們 |
 | `KCandleChart` | 資金曲線是另一種圖（一條線、沒有 K 棒、沒有跟盤）。共用的是**繪圖函式庫**，不是那個元件 |
 
 ---
@@ -173,7 +173,7 @@
 | `useBacktestRun` | Composable | 最近那一次：進行中／結果／五種失敗，**一次只留一種** | `BacktestApplication` | US-04 全部 |
 | `AppTabs` | Atom | 通用去處切換 | — | US-01 |
 | `BacktestRuleGuideDialog` | Molecule | 回測照什麼規則走：信號怎麼讀、按下去之後會發生什麼、哪些事它不做 | `BacktestRuleDto`、`SignalReadingDto` | 見下方「回測只吃一個數字」 |
-| `StrategyBacktestPane` | Organism | 回測這一整個去處：條件、狀態、三塊結果 | 下面四個 molecule | US-01…US-05 |
+| `StrategyScriptBacktestPane` | Organism | 回測這一整個去處：條件、狀態、三塊結果 | 下面四個 molecule | US-01…US-05 |
 
 ### 為什麼 `BacktestRequestDomain` 建構即驗證
 
@@ -214,7 +214,7 @@ flowchart TD
     Page[pages/indicator-calculations] --> Panel[IndicatorCalculationPanel]
     Panel --> Tabs[AppTabs]
     Panel --> Preview[既有的指標預覽內容 · 原封不動]
-    Panel --> Pane[StrategyBacktestPane]
+    Panel --> Pane[StrategyScriptBacktestPane]
     Pane --> Fields[BacktestConditionFields]
     Pane --> Summary[BacktestSummaryCard]
     Pane --> Curve[BacktestEquityCurveChart]
@@ -232,7 +232,7 @@ flowchart TD
 ## 8. Extensibility & Handoff Notes
 
 - **最可能的下一個需求：第三個去處**（例如「參數掃描」——同一支算式跑一整排參數值）。
-  落點是 `AppTabs` 的選項清單加一項，加一個與 `StrategyBacktestPane` 平行的去處元件。
+  落點是 `AppTabs` 的選項清單加一項，加一個與 `StrategyScriptBacktestPane` 平行的去處元件。
   工作區完全不必動——這正是把它擺在切換之上換來的東西。
 - **第二可能：回測結果的比較**（把兩次的資金曲線疊在一起）。
   落點是 `BacktestEquityCurveChart` 收一組曲線而不是一條。它現在收一個 DTO，

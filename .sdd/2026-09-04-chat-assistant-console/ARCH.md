@@ -49,7 +49,7 @@
 | `app/assets/styles/abstracts/_tokens.scss` | **Modify（若缺）** | 補這個切片需要而目前沒有的 token（抽屜寬度、對話泡泡底色…） |
 | `app/plugins/dependencies.ts` | **Modify** | 組裝新的 proxy → service → application 並 provide |
 | `tests/` | **Add** | 鏡射上面每一個有行為的單位 |
-| **K 線瀏覽／圖表／指標計算／策略庫的任何行為** | **Not touched** | 這個切片只是**多一個地方**。既有畫面唯一的變化是導覽多一列、以及畫面上多一顆浮動的助手鍵 |
+| **K 線瀏覽／圖表／指標計算／策略腳本庫的任何行為** | **Not touched** | 這個切片只是**多一個地方**。既有畫面唯一的變化是導覽多一列、以及畫面上多一顆浮動的助手鍵 |
 | **`ConsoleLayout` 的插槽與版面** | **Not touched** | 抽屜掛在 `app.vue` 而不是塞進樣板，正因為樣板**不得綁任何資料**——抽屜要讀對話，它是 organism 不是骨架 |
 | **後端** | **Not touched** | 三件事已經齊了。「舊訊息拿不到附註」是後端目前的形狀，本切片接受它而不去改（見 §8） |
 
@@ -116,7 +116,7 @@ export interface IAssistantConversationProxy {
 | *(既有)* `BackendUnreachableError` | 連不上後端 | 去把後端啟動 |
 
 四種分開，因為**使用者要做的事不同**。合成一種的代價是有人對著一個要等到明天的
-拒絕重試一整個小時。比照既有的 `StrategyNameConflictError` / `StrategyNotFoundError`。
+拒絕重試一整個小時。比照既有的 `StrategyScriptNameConflictError` / `StrategyScriptNotFoundError`。
 
 ### 3.6 Domain — Service
 

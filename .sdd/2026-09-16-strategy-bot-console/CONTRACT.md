@@ -44,9 +44,9 @@
 | ID | Clause | Oracle | Implementation | Test | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | AC-18 | 填完三段就存得起來，狀態是已停止 | 出現在清單上、已停止 | `StrategyBotFormDialog` ＋ `saveStrategyBot` | application「不帶識別碼是新增」＋ composable「存成功就關起來並重讀」 | ✅ |
-| AC-19 | 信號來源只挑得到自己的可用策略 | 選單裡只有可用策略 | `use-strategy-bots.ts` `strategyOptions` 只來自 `listAvailableStrategies` | composable「機器人與可挑的策略是同一次載入的兩半」 | ✅ |
-| AC-19b | 只挑得到會吐訊號的那幾支 | 選單裡只有訊號種類的 | `use-strategy-bots.ts` 兩邊各自 `filter` 到 `signal` | composable「只挑得到會吐訊號的那幾支策略」（拿掉篩選即轉紅，已驗） | ✅ |
-| AC-20 | 同一支策略加兩次，只要代號不同 | 存成功，兩個各自說話 | `nextLabel()` 自動給下一個沒人用的代號 | form composable「新加的來源自動拿到一個沒人用的代號」 | ✅ |
+| AC-19 | 信號來源只挑得到自己的可用策略腳本 | 選單裡只有可用策略腳本 | `use-strategy-bots.ts` `strategyScriptOptions` 只來自 `listAvailableStrategyScripts` | composable「機器人與可挑的策略腳本是同一次載入的兩半」 | ✅ |
+| AC-19b | 只挑得到會吐訊號的那幾支 | 選單裡只有訊號種類的 | `use-strategy-bots.ts` 兩邊各自 `filter` 到 `signal` | composable「只挑得到會吐訊號的那幾支策略腳本」（拿掉篩選即轉紅，已驗） | ✅ |
+| AC-20 | 同一支策略腳本加兩次，只要代號不同 | 存成功，兩個各自說話 | `nextLabel()` 自動給下一個沒人用的代號 | form composable「新加的來源自動拿到一個沒人用的代號」 | ✅ |
 | AC-21 | 信號來源數量有上限 | 加不了，並說出 10 | `canAddSignalSource` → 新增鍵消失 | form composable「到了上限就加不動」 | ✅ |
 
 ### US-04 — 條件是拼出來的
@@ -70,7 +70,7 @@
 | AC-31 | 觸發間隔不合法時擋在畫面上 | 同上 | 同上 | write domain 的表格 | ✅ |
 | AC-32 | 名稱空白時擋在畫面上 | 同上 | 同上 | write domain 的表格 | ✅ |
 | AC-33 | 撞名由後端說，畫面照它說的講，表單留著 | 顯示後端那一句，內容還在 | `StrategyBotNameConflictError` ＋ `formFailureMessage`（不清表單） | proxy「名稱撞了」＋ composable「被拒絕時表單留著」 | ✅ |
-| AC-34 | 指名一支已經不在的策略由後端說 | 顯示「找不到」 | `StrategyNotFoundError`（與機器人的 not-found 分開） | proxy「看不到那一支策略——它與看不到機器人是兩件事」 | ✅ |
+| AC-34 | 指名一支已經不在的策略腳本由後端說 | 顯示「找不到」 | `StrategyScriptNotFoundError`（與機器人的 not-found 分開） | proxy「看不到那一支策略腳本——它與看不到機器人是兩件事」 | ✅ |
 | AC-35 | 一台已經被刪掉的機器人打不開 | 說找不到，回得到清單 | `StrategyBotNotFoundError` ＋ `getStrategyBot` | proxy「看不到那一台機器人」。**沒有測試演「點開已被刪掉的那一台」這條互動** | 🟡 |
 
 ### Section 4 — Core Business Rules
@@ -86,7 +86,7 @@
 | BR-07 | 一次操作之後清單反映新狀態 | 不必自己重新整理 | `runOnBot` 一律重讀 | composable「播放之後重讀清單，而不是就地改那一列」 | ✅ |
 | BR-08 | 打開編輯時那台已被刪掉 → 說找不到，回清單 | 同 AC-35 | 同 AC-35 | 同 AC-35 | 🟡 |
 | BR-09 | 儲存被拒絕時表單內容留著 | 內容還在 | `formFailureMessage` 不動任何欄位 | composable「被拒絕時表單留著」 | ✅ |
-| BR-10 | 一支會吐信號的都沒有時說得出要先寫一支 | 不是給一個空的下拉選單 | `StrategyBotSignalSourceFields` 的 `signal-sources-no-strategies`：一支都挑不到時**新增鍵換成那一句話** | SignalSourceFields「說出真正的下一步而不是給一顆通往空選單的按鈕」 | ✅ |
+| BR-10 | 一支會吐信號的都沒有時說得出要先寫一支 | 不是給一個空的下拉選單 | `StrategyBotSignalSourceFields` 的 `signal-sources-no-strategy-scripts`：一支都挑不到時**新增鍵換成那一句話** | SignalSourceFields「說出真正的下一步而不是給一顆通往空選單的按鈕」 | ✅ |
 | BR-11 | 刪掉一個還被條件用著的來源要被擋住並說出是哪裡在用 | 刪不掉，且說出代號 | `signalSourceRemovalBlockedReasons` | form composable「還被條件用著的來源刪不掉」 | ✅ |
 
 ### Section 6 — Non-Functional Requirements
@@ -110,7 +110,7 @@
 | 即時更新清單 | 沒有。切片內沒有任何計時器或推播訂閱 |
 | 回測一台機器人 | 沒有 |
 | 執行紀錄 | 沒有（後端也沒有） |
-| 在這個畫面建立或編輯策略 | 沒有。只**讀** `listAvailableStrategies` |
+| 在這個畫面建立或編輯策略腳本 | 沒有。只**讀** `listAvailableStrategyScripts` |
 | 從這個畫面設定 Telegram | 沒有。只有一個到 `/settings` 的連結 |
 | 拖曳排序、複製機器人、分組 | 沒有 |
 
@@ -130,11 +130,11 @@ Conformance: 94%
 
 ### 稽核當場解掉的落差 — BR-10
 
-PRD 第 4 節寫著：「**可用策略是空的**：說得出要先有一支會吐信號的策略，
+PRD 第 4 節寫著：「**可用策略腳本是空的**：說得出要先有一支會吐信號的策略腳本，
 而不是給一個空的下拉選單。」
 
 實作原本只做了一半：沒有信號來源時說「這台機器人還沒有任何信號來源」，
-但一支可用策略都沒有時，新增來源的按鈕仍然在，按下去會得到一個空的策略選單。
+但一支可用策略腳本都沒有時，新增來源的按鈕仍然在，按下去會得到一個空的策略腳本選單。
 
 它不是程式壞了（送出去仍然會被擋），而是**畫面在一個它明明知道原因的地方保持沉默**。
 已改為一支都挑不到時把新增鍵換成那一句話，並加上測試。

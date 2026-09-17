@@ -11,7 +11,7 @@
 - 指標預覽算出信號時，畫面呈現的是一個「買入／賣出／持有」的結論，不是一組帶名稱的值。
 - 回測那一格原本擋「不是一個數字就不讓送」，改成擋「不是信號種類就不讓送」，訊息一併改寫。
 - 「回測怎麼讀信號」的說明——原本那張「大於零＝買入、小於零＝賣出、沒放這個名字＝持平」的對照表，內容整個過時，換成「算式回傳 buy／sell／hold」。
-- 「信號」這個名稱在圖上畫不成線，比照「是非」在挑策略、畫指標線時一併標明並擋下。
+- 「信號」這個名稱在圖上畫不成線，比照「是非」在挑策略腳本、畫指標線時一併標明並擋下。
 
 ## Requirements
 
@@ -47,7 +47,7 @@
 
 **信號畫不成線**
 
-- 「一個信號」種類在圖上畫不成線，比照「是非」：挑策略時標明並擋下、畫指標線時不畫。
+- 「一個信號」種類在圖上畫不成線，比照「是非」：挑策略腳本時標明並擋下、畫指標線時不畫。
 
 ## Examples (Specification by Example)
 
@@ -97,7 +97,7 @@ Each example lists **only** the data that affects the behavior — nothing more.
 
 | # | Given (only relevant data) | When | Then |
 |---|---|---|---|
-| 1 (exception) | 一支策略的指標值種類是「一個信號」 | 在挑策略的清單看它 | 標明畫不成線，套用被擋下（比照「是非」） |
+| 1 (exception) | 一支策略腳本的指標值種類是「一個信號」 | 在挑策略腳本的清單看它 | 標明畫不成線，套用被擋下（比照「是非」） |
 
 ## Out of Scope
 
@@ -119,4 +119,4 @@ Items the PRD author should resolve:
 - 這是跟著後端 `.sdd/2026-09-06-signal-result-type` 的前端切片。後端把信號從「一個叫 signal 的數字＋看正負號」改成第五種指標值種類，回測只吃這種。
 - 前端已經有 `signal-vo`、`signal-reading-vo`、`backtest-rule-vo`、`indicator-result-type-domain` 等模型描述**舊的**信號概念，這個切片把它們更新到新的事實。
 - 破壞性：使用者手上以數字表達信號的算式，改種類為「一個信號」並改寫回傳之前，回測會被前端擋下（訊息已改寫成講這件事）。
-- 相依切片：`.sdd/2026-08-30-indicator-calculation`、`.sdd/2026-09-05-strategy-backtest`、`.sdd/2026-09-02-strategy-script-authoring`、`.sdd/2026-09-03-strategy-library`。
+- 相依切片：`.sdd/2026-08-30-indicator-calculation`、`.sdd/2026-09-05-strategy-script-backtest`、`.sdd/2026-09-02-strategy-script-authoring`、`.sdd/2026-09-03-strategy-script-library`。

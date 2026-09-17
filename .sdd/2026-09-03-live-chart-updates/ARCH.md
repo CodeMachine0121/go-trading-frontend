@@ -214,7 +214,7 @@ KCandleChartPanel.vue
 真正要動的只有畫面：兩個 panel 各自持有自己的那一份。
 
 **「即時更新也要餵給指標」**——**不要做**。系統那頭明確不算進行中的那一根，
-畫面自己算會讓同一支策略在同一時刻有兩個答案。這條在 PRD 與後端切片都有背書。
+畫面自己算會讓同一支策略腳本在同一時刻有兩個答案。這條在 PRD 與後端切片都有背書。
 
 ### 給下一個接手的人
 
@@ -301,7 +301,7 @@ KCandleChartPanel.vue
 | 建議 | 為什麼現在不做 | 該回頭處理的訊號 |
 | :--- | :--- | :--- |
 | 把跟盤那一塊從 `KCandleChartPanel.vue` 抽成 composable | 它會需要**寫呼叫端的 `chart` ref**，還要收一個「一根走完了」的回呼——抽完之後呼叫端對自己的狀態知道得更少，那是比現在更差的邊界。而且規範明訂 composable 是給**跨元件共用**的畫面狀態用的，這一塊只有一個使用者 | 第二個畫面也要即時跟盤時（例如分割畫面同時看兩檔） |
-| 把 `use-chart-indicators` 拆成「清單狀態」與「重算時機」兩個 composable | 兩者都要讀 `appliedStrategies`，拆完之後那份清單得在兩個 composable 之間傳來傳去——共用一份狀態的兩半不是兩個模組 | 它再長出第三種責任時 |
+| 把 `use-chart-indicators` 拆成「清單狀態」與「重算時機」兩個 composable | 兩者都要讀 `appliedStrategyScripts`，拆完之後那份清單得在兩個 composable 之間傳來傳去——共用一份狀態的兩半不是兩個模組 | 它再長出第三種責任時 |
 | 拿掉 `LiveKCandleService`（只有一個方法） | 它一點都不薄：**跨更新累積那張圖**（`liveChart = liveChart.applying(update)`）就住在它裡面。拿掉它，那個累積就得搬進 application 或畫面，兩者都不該持有領域狀態 | 無 |
 | `showViewport` 裡的五路錯誤分流 | 那是本切片之前就存在的形狀，本次沒讓它更糟 | 錯誤種類再多兩種時 |
 

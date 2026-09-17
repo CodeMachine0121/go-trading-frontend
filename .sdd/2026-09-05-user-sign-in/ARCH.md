@@ -45,7 +45,7 @@
 | `app/middleware/` | **Add** | 新資料夾。`signed-in.global.ts`——把關 |
 | `app/components/templates/ConsoleLayout.vue` | **Modify** | 側欄多一個 `account` 插槽（樣板仍然不綁資料） |
 | 既有五個畫面 | **Modify** | 各填一次 `account` 插槽——與它們早就在填 `status`／`timezone` 同一個做法 |
-| 既有 K 線／指標／策略／助手的 proxy | **Not touched** | 後端目前不問那些請求來者是誰。要附憑證的那一天，落點是 `BackendApiProxy`，不是散在各處 |
+| 既有 K 線／指標／策略腳本／助手的 proxy | **Not touched** | 後端目前不問那些請求來者是誰。要附憑證的那一天，落點是 `BackendApiProxy`，不是散在各處 |
 
 ---
 
