@@ -3,35 +3,35 @@ import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
-import { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
+import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /** 圖上正在看的那一段。少帶它，算出來的就是另一段行情的指標。 */
 const CHART_WINDOW = new ObservationWindowVo(
   new Date('2026-09-02T00:00:00.000Z'), new Date('2026-09-02T12:00:00.000Z'))
 
-function strategyOf(resultType = 'float'): ChartApplicableStrategyDto {
-  return new ChartApplicableStrategyDto(7, '二十根均線', resultType, [], true, false)
+function strategyScriptOf(resultType = 'float'): ChartApplicableStrategyScriptDto {
+  return new ChartApplicableStrategyScriptDto(7, '二十根均線', resultType, [], true, false)
 }
 
 /** 一次套用：預設沒有旋鈕，與這個切片之前的行為一模一樣。 */
-function appliedIndicatorOf(strategy = strategyOf(), id = 1): AppliedIndicatorDto {
-  return new AppliedIndicatorDto(id, strategy, strategy.parameters)
+function appliedIndicatorOf(strategyScript = strategyScriptOf(), id = 1): AppliedIndicatorDto {
+  return new AppliedIndicatorDto(id, strategyScript, strategyScript.parameters)
 }
 
 function requestOf(
-  strategy = strategyOf(), takenColorTokens: string[] = [], drawnLineKeys: string[] = [],
+  strategyScript = strategyScriptOf(), takenColorTokens: string[] = [], drawnLineKeys: string[] = [],
 ): ChartIndicatorRequestDto {
   return new ChartIndicatorRequestDto(
-    appliedIndicatorOf(strategy), 'BTCUSDT', '1h', CHART_WINDOW,
+    appliedIndicatorOf(strategyScript), 'BTCUSDT', '1h', CHART_WINDOW,
     new DrawnChartLinesVo(takenColorTokens, drawnLineKeys))
 }
 
@@ -39,7 +39,7 @@ function buildService(
   indicatorCalculation = new IndicatorCalculation(
     'BTCUSDT', '1h', 24, 'float', [new IndicatorValueVo('均價', [115])]),
   colorPreference: Partial<IChartLineColorPreferenceProxy> = {},
-  parameterValuePreference: Partial<IStrategyParameterValuePreferenceProxy> = {},
+  parameterValuePreference: Partial<IStrategyScriptParameterValuePreferenceProxy> = {},
   appliedIndicatorPreference: Partial<IAppliedChartIndicatorPreferenceProxy> = {},
 ) {
   const indicatorCalculationProxy: IIndicatorCalculationProxy = {
@@ -51,7 +51,7 @@ function buildService(
     ...colorPreference,
   }
 
-  const strategyParameterValuePreferenceProxy: IStrategyParameterValuePreferenceProxy = {
+  const strategyScriptParameterValuePreferenceProxy: IStrategyScriptParameterValuePreferenceProxy = {
     readValue: vi.fn().mockReturnValue(null),
     writeValue: vi.fn(),
     ...parameterValuePreference,
@@ -67,11 +67,11 @@ function buildService(
     chartIndicatorService: new ChartIndicatorService(
       indicatorCalculationProxy,
       chartLineColorPreferenceProxy,
-      strategyParameterValuePreferenceProxy,
+      strategyScriptParameterValuePreferenceProxy,
       appliedChartIndicatorPreferenceProxy),
     indicatorCalculationProxy,
     chartLineColorPreferenceProxy,
-    strategyParameterValuePreferenceProxy,
+    strategyScriptParameterValuePreferenceProxy,
     appliedChartIndicatorPreferenceProxy,
   }
 }
@@ -91,28 +91,28 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
       }))
   })
 
-  it('送出去的是策略的識別碼，一個字的算式都不送', async () => {
-    // 圖表套用的是一支**已存的**策略，指名它就夠了——而從市集加入的那些根本沒有算式
+  it('送出去的是策略腳本的識別碼，一個字的算式都不送', async () => {
+    // 圖表套用的是一支**已存的**策略腳本，指名它就夠了——而從市集加入的那些根本沒有算式
     // 可以送，指名是唯一跑得動的方式。這一條因此不只是省一段字串，
-    // 它是「加入來的策略也套得上圖」的成立條件。
+    // 它是「加入來的策略腳本也套得上圖」的成立條件。
     const fixture = buildService()
 
     await fixture.chartIndicatorService.calculateChartIndicator(requestOf())
 
     expect(fixture.indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
-      expect.objectContaining({ strategyId: 7, script: '' }))
+      expect.objectContaining({ strategyScriptId: 7, script: '' }))
   })
 
-  it('交出這一筆該畫的水平線，帶著這一次套用的身分與策略的名字', async () => {
+  it('交出這一筆該畫的水平線，帶著這一次套用的身分與策略腳本的名字', async () => {
     const fixture = buildService()
 
     const chartIndicator
       = await fixture.chartIndicatorService.calculateChartIndicator(requestOf())
 
-    // 畫出來的東西屬於**這一次套用**：同一支策略可以擺好幾筆，
-    // 移除哪一筆、覆蓋哪一筆都認它，而不是認策略。
+    // 畫出來的東西屬於**這一次套用**：同一支策略腳本可以擺好幾筆，
+    // 移除哪一筆、覆蓋哪一筆都認它，而不是認策略腳本。
     expect(chartIndicator.appliedIndicatorId).toBe(1)
-    expect(chartIndicator.strategyName).toBe('二十根均線')
+    expect(chartIndicator.strategyScriptName).toBe('二十根均線')
     expect(chartIndicator.levels.map(level => level.value)).toEqual([115])
     expect(chartIndicator.series).toEqual([])
     expect(chartIndicator.drawsNothing).toBe(false)
@@ -122,7 +122,7 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
     const fixture = buildService()
 
     const chartIndicator = await fixture.chartIndicatorService.calculateChartIndicator(
-      requestOf(strategyOf(), ['--color-chart-line-1']))
+      requestOf(strategyScriptOf(), ['--color-chart-line-1']))
 
     expect(chartIndicator.levels[0]?.colorToken).toBe('--color-chart-line-2')
   })
@@ -229,7 +229,7 @@ describe('ChartIndicatorService：曲線那一半也一樣', () => {
     const fixture = buildService(seriesCalculation)
 
     const chartIndicator = await fixture.chartIndicatorService.calculateChartIndicator(
-      requestOf(strategyOf('floatList')))
+      requestOf(strategyScriptOf('floatList')))
 
     expect(chartIndicator.levels).toEqual([])
     expect(chartIndicator.usedColorTokens).toEqual(['--color-chart-line-1'])
@@ -238,7 +238,7 @@ describe('ChartIndicatorService：曲線那一半也一樣', () => {
   it('換色也換得動曲線', async () => {
     const fixture = buildService(seriesCalculation)
     const chartIndicator = await fixture.chartIndicatorService.calculateChartIndicator(
-      requestOf(strategyOf('floatList')))
+      requestOf(strategyScriptOf('floatList')))
 
     const recoloured = fixture.chartIndicatorService.changeChartLineColor(
       [chartIndicator], '7:線', '--color-chart-line-6')
@@ -251,7 +251,7 @@ describe('ChartIndicatorService：曲線那一半也一樣', () => {
   it('換色時不是這條線的就原樣交回', async () => {
     const fixture = buildService(seriesCalculation)
     const chartIndicator = await fixture.chartIndicatorService.calculateChartIndicator(
-      requestOf(strategyOf('floatList')))
+      requestOf(strategyScriptOf('floatList')))
 
     const recoloured = fixture.chartIndicatorService.changeChartLineColor(
       [chartIndicator], '7:不存在的線', '--color-chart-line-6')
@@ -261,34 +261,34 @@ describe('ChartIndicatorService：曲線那一半也一樣', () => {
 })
 
 describe('ChartIndicatorService.restoreAppliedIndicators', () => {
-  it('讀留存的那幾筆，對照現在的策略清單交出來', () => {
+  it('讀留存的那幾筆，對照現在的策略腳本清單交出來', () => {
     // 呼叫端只說「把上次那幾支還原回來」——它不知道留存存在，也不該知道。
     const fixture = buildService(undefined, {}, {}, {
       readAppliedChartIndicators: vi.fn().mockReturnValue([
         new RememberedAppliedIndicatorVo(7, new Map([['期數', 60]]))]),
     })
-    const strategy = new ChartApplicableStrategyDto(
-      7, '均線', 'float', [new StrategyParameterDto('期數', 'lookbackCount', 20)], true, false)
+    const strategyScript = new ChartApplicableStrategyScriptDto(
+      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false)
 
-    const restored = fixture.chartIndicatorService.restoreAppliedIndicators([strategy], 0)
+    const restored = fixture.chartIndicatorService.restoreAppliedIndicators([strategyScript], 0)
 
-    expect(restored.map(one => [one.id, one.strategy.name, one.parameterSummary]))
+    expect(restored.map(one => [one.id, one.strategyScript.name, one.parameterSummary]))
       .toEqual([[1, '均線', '期數 60']])
   })
 
   it('一筆都沒留存時交出空的一份', () => {
     const fixture = buildService()
 
-    expect(fixture.chartIndicatorService.restoreAppliedIndicators([strategyOf()], 0)).toEqual([])
+    expect(fixture.chartIndicatorService.restoreAppliedIndicators([strategyScriptOf()], 0)).toEqual([])
   })
 
-  it('不為了還原多打一趟後端——策略清單是收進來的', () => {
+  it('不為了還原多打一趟後端——策略腳本清單是收進來的', () => {
     const fixture = buildService(undefined, {}, {}, {
       readAppliedChartIndicators: vi.fn().mockReturnValue([
         new RememberedAppliedIndicatorVo(7, new Map())]),
     })
 
-    fixture.chartIndicatorService.restoreAppliedIndicators([strategyOf()], 0)
+    fixture.chartIndicatorService.restoreAppliedIndicators([strategyScriptOf()], 0)
 
     expect(fixture.indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -297,14 +297,14 @@ describe('ChartIndicatorService.restoreAppliedIndicators', () => {
 describe('ChartIndicatorService.rememberAppliedIndicators', () => {
   it('整份寫下來，依清單的順序', () => {
     const fixture = buildService()
-    const strategy = new ChartApplicableStrategyDto(
-      7, '均線', 'float', [new StrategyParameterDto('期數', 'lookbackCount', 20)], true, false)
+    const strategyScript = new ChartApplicableStrategyScriptDto(
+      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false)
 
     fixture.chartIndicatorService.rememberAppliedIndicators([
-      new AppliedIndicatorDto(1, strategy, [
-        new StrategyParameterDto('期數', 'lookbackCount', 20)]),
-      new AppliedIndicatorDto(2, strategy, [
-        new StrategyParameterDto('期數', 'lookbackCount', 60)]),
+      new AppliedIndicatorDto(1, strategyScript, [
+        new StrategyScriptParameterDto('期數', 'lookbackCount', 20)]),
+      new AppliedIndicatorDto(2, strategyScript, [
+        new StrategyScriptParameterDto('期數', 'lookbackCount', 60)]),
     ])
 
     expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)

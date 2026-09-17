@@ -13,7 +13,7 @@ import { LiveKCandleUpdate, type LiveKCandleStatus } from '~/domain/models/entit
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -96,8 +96,8 @@ async function mountPanel() {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
-      strategyApplication: buildStrategyApplication({
-        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+      strategyScriptApplication: buildStrategyScriptApplication({
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
     },
@@ -290,8 +290,8 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
-        strategyApplication: buildStrategyApplication({
-          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
+        strategyScriptApplication: buildStrategyScriptApplication({
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },

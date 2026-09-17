@@ -67,7 +67,7 @@ onMounted(scrollToBottom)
       </span>
 
       <p class="assistant-conversation-thread__lead">
-        用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略，再用一段話回答。
+        用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略腳本，再用一段話回答。
       </p>
 
       <AssistantSuggestedPrompts

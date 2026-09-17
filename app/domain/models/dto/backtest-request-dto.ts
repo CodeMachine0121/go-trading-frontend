@@ -1,5 +1,5 @@
 import type Decimal from 'decimal.js'
-import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 
 /**
@@ -25,7 +25,7 @@ export class BacktestRequestDto {
      */
     public readonly resultType: string,
     /** 這支算式的旋鈕。空的一份代表一支沒有旋鈕的算式。 */
-    public readonly parameters: readonly StrategyParameterDto[],
+    public readonly parameters: readonly StrategyScriptParameterDto[],
     public readonly initialCapital: Decimal,
     public readonly positionSizingMode: PositionSizingMode,
     /** 押注模式不需要數字時（全押）它被忽略，因此填什麼都不影響結果。 */

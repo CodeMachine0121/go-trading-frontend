@@ -11,24 +11,24 @@ import SymbolField from '~/components/molecules/SymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
 import IndicatorScriptGuideDialog from '~/components/molecules/IndicatorScriptGuideDialog.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
-import StrategyPicker from '~/components/molecules/StrategyPicker.vue'
-import StrategyNameDialog from '~/components/molecules/StrategyNameDialog.vue'
-import StrategyLibraryDialog from '~/components/molecules/StrategyLibraryDialog.vue'
+import StrategyScriptPicker from '~/components/molecules/StrategyScriptPicker.vue'
+import StrategyScriptNameDialog from '~/components/molecules/StrategyScriptNameDialog.vue'
+import StrategyScriptLibraryDialog from '~/components/molecules/StrategyScriptLibraryDialog.vue'
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
-import type { StrategyApplication } from '~/application/strategy-application'
-import type { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
+import type { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
-import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
+import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
-import StrategyParameterDialog from '~/components/molecules/StrategyParameterDialog.vue'
+import StrategyScriptParameterDialog from '~/components/molecules/StrategyScriptParameterDialog.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
-import StrategyBacktestPane from '~/components/organisms/StrategyBacktestPane.vue'
+import StrategyScriptBacktestPane from '~/components/organisms/StrategyScriptBacktestPane.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
-import { useStrategyParameters } from '~/composables/use-strategy-parameters'
+import { useStrategyScriptParameters } from '~/composables/use-strategy-script-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
 
 // 有機體：指標計算這一整塊。Application 由頁面注入。
@@ -36,7 +36,7 @@ import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculat
 // 版面由上而下照著使用者的順序擺，也就是每一台這類工作台的擺法
 // （Databricks、Neon、Supabase 的查詢頁都是同一個形狀）：
 //
-//   現在用的是哪一支策略  →  這一次要算什麼（一條橫列，最右邊是那顆按鈕）
+//   現在用的是哪一支策略腳本  →  這一次要算什麼（一條橫列，最右邊是那顆按鈕）
 //   →  算式與它的旋鈕（獨佔下面那一整片，右邊擺寫的時候要查的東西）
 //   →  結果攤在最下面整排
 //
@@ -45,16 +45,16 @@ import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculat
 // 反而被那根用不到的欄子擠窄。
 const {
   indicatorCalculationApplication,
-  strategyApplication,
-  strategyMarketplaceApplication,
+  strategyScriptApplication,
+  strategyScriptMarketplaceApplication,
   tradingSymbolApplication,
   backtestApplication,
   timeZone,
 } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
-  strategyApplication: StrategyApplication
+  strategyScriptApplication: StrategyScriptApplication
   /** 市集那一條線。這一頁只用它做一件事：把加入來的那一支從清單移除。 */
-  strategyMarketplaceApplication: StrategyMarketplaceApplication
+  strategyScriptMarketplaceApplication: StrategyScriptMarketplaceApplication
   tradingSymbolApplication: TradingSymbolApplication
   backtestApplication: BacktestApplication
   /** 這一頁說時間的地方一律照它——回測的資金曲線與交易明細也不例外。 */
@@ -78,27 +78,27 @@ const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
  * 工作區被整份換掉了幾次。
  *
  * 回測那一側看著它決定何時把上一次的成績單清掉。它是一個數字而不是算式的內容，
- * 因為後者每敲一個字都會變——而敲字不是「換了一支策略」。
+ * 因為後者每敲一個字都會變——而敲字不是「換了一支策略腳本」。
  */
 const workspaceGeneration = ref(0)
 
 /**
- * 一份空白的策略內容——「空白長什麼樣」在這個畫面上只有這一個定義。
+ * 一份空白的策略腳本內容——「空白長什麼樣」在這個畫面上只有這一個定義。
  *
- * 第一次進入畫面時是它，按下「新的空白策略」時也是它。各寫一份的話，
+ * 第一次進入畫面時是它，按下「新的空白策略腳本」時也是它。各寫一份的話，
  * 哪天預設的種類改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
  */
 // 空白長什麼樣：一個空的 Calculate stub，回傳型別跟著預設的指標值種類。
-// 這個定義在這個畫面上只有這一個地方——第一次進來與按「新的空白策略」都用它。
+// 這個定義在這個畫面上只有這一個地方——第一次進來與按「新的空白策略腳本」都用它。
 const defaultResultTypeValue = indicatorCalculationApplication.defaultResultType()
-const blankStrategyContent = new StrategyContentDto(
+const blankStrategyScriptContent = new StrategyScriptContentDto(
   indicatorCalculationApplication.describeIndicatorScript(defaultResultTypeValue).blankBody,
   defaultResultTypeValue,
 )
 
 /*
- * 這一組是「這一次要怎麼算」，不是策略記著的東西：交易標的、彙總刻度、要看多長。
- * 它們因此不在那份空白裡，也不會被載入另一支策略換掉——
+ * 這一組是「這一次要怎麼算」，不是策略腳本記著的東西：交易標的、彙總刻度、要看多長。
+ * 它們因此不在那份空白裡，也不會被載入另一支策略腳本換掉——
  * 使用者正在用一小時的粗細研究一件事，換一支算法不該把他打回五分鐘，
  * 一如換算法向來不會把他丟到別的市場去。
  */
@@ -109,16 +109,16 @@ const aggregationInterval = ref<string>(
 // 改變意義。要幾格由系統從這一段算出來，畫面不必也不能填。
 const span = ref(indicatorCalculationApplication.defaultCalculationSpan())
 
-const scriptBody = ref(blankStrategyContent.scriptBody)
-// 旋鈕是**策略內容**，與算式內容、指標值種類同一層：載入時跟著換，
+const scriptBody = ref(blankStrategyScriptContent.scriptBody)
+// 旋鈕是**策略腳本內容**，與算式內容、指標值種類同一層：載入時跟著換，
 // 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
-const strategyParameters = useStrategyParameters(
-  indicatorCalculationApplication, blankStrategyContent.parameters)
-const resultType = ref<string>(blankStrategyContent.resultType)
+const strategyScriptParameters = useStrategyScriptParameters(
+  indicatorCalculationApplication, blankStrategyScriptContent.parameters)
+const resultType = ref<string>(blankStrategyScriptContent.resultType)
 
 // 換指標值種類時，把可編輯區裡第一個 Calculate 進入點的回傳型別換成新選的——
 // 使用者不必自己回去改簽章。函式主體、helper 一字不動；找不到 Calculate 那一行就整段不動。
-// 只在使用者親手改種類時做，載入策略時不做（那時內容與種類一起換）。
+// 只在使用者親手改種類時做，載入策略腳本時不做（那時內容與種類一起換）。
 function retargetResultType(nextResultType: string) {
   resultType.value = nextResultType
   scriptBody.value = indicatorCalculationApplication.retargetScriptReturnType(
@@ -145,29 +145,29 @@ const scriptTemplate = computed(
 
 const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplication)
 
-// 策略庫拿畫面上這三樣東西當它的輸入，也負責把載入的那一份寫回來。
-// 「這三樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyContentDto——
-// 多一樣東西要跟著策略走，就只有這裡要改，「有沒有還沒存」自動跟著涵蓋它。
-// 彙總刻度與要看多長刻意不在其中：它們不屬於任何一支策略，
+// 策略腳本庫拿畫面上這三樣東西當它的輸入，也負責把載入的那一份寫回來。
+// 「這三樣是什麼」只寫在這兩個函式裡，其餘一律走 StrategyScriptContentDto——
+// 多一樣東西要跟著策略腳本走，就只有這裡要改，「有沒有還沒存」自動跟著涵蓋它。
+// 彙總刻度與要看多長刻意不在其中：它們不屬於任何一支策略腳本，
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
-const strategyLibrary = useStrategyLibrary(
-  strategyApplication,
-  strategyMarketplaceApplication,
-  () => new StrategyContentDto(
-    scriptBody.value, resultType.value, strategyParameters.parameters.value),
+const strategyScriptLibrary = useStrategyScriptLibrary(
+  strategyScriptApplication,
+  strategyScriptMarketplaceApplication,
+  () => new StrategyScriptContentDto(
+    scriptBody.value, resultType.value, strategyScriptParameters.parameters.value),
   (content) => {
     scriptBody.value = content.scriptBody
     resultType.value = content.resultType
-    strategyParameters.replaceAll(content.parameters)
+    strategyScriptParameters.replaceAll(content.parameters)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
     calculationRun.clear()
     // 回測那一側同理，但它有自己的一次，所以由它自己清——這裡只說「換過了」。
     workspaceGeneration.value += 1
   },
-  blankStrategyContent)
+  blankStrategyScriptContent)
 
 onMounted(() => {
-  void strategyLibrary.refreshStrategies()
+  void strategyScriptLibrary.refreshStrategyScripts()
 })
 
 /** 同上：打到一半的東西不往下送。 */
@@ -187,15 +187,15 @@ function fillExampleScriptBody() {
 }
 
 /**
- * 挑策略那一排要顯示的東西：自己的，加上從市集加入的。
+ * 挑策略腳本那一排要顯示的東西：自己的，加上從市集加入的。
  *
  * 兩段在這裡合成一排是因為「要挑哪一支」對使用者是一個動作，不是兩個；
  * 而挑到加入來的那一支會發生什麼，由收下這個選擇的地方決定——那一支沒有算式，
  * 所以它不會被載進編輯器。
  */
-const pickableStrategies = computed(() => [
-  ...strategyLibrary.strategies.value.map(strategy => strategy.toChartApplicable()),
-  ...strategyLibrary.adoptedStrategies.value.map(published => published.toChartApplicable()),
+const pickableStrategyScripts = computed(() => [
+  ...strategyScriptLibrary.strategyScripts.value.map(strategyScript => strategyScript.toChartApplicable()),
+  ...strategyScriptLibrary.adoptedStrategyScripts.value.map(published => published.toChartApplicable()),
 ])
 
 /**
@@ -204,23 +204,23 @@ const pickableStrategies = computed(() => [
  * 「哪一支」不由呼叫端說——它就是眼前這一支。沒有使用中的那一支時按鈕是禁用的，
  * 所以這裡讀到 null 是不會發生的事；讀到了就什麼都不做，而不是拿一個猜的識別碼去打後端。
  */
-async function shareActiveStrategy() {
-  const active = strategyLibrary.activeStrategy.value
+async function shareActiveStrategyScript() {
+  const active = strategyScriptLibrary.activeStrategyScript.value
   if (active === null) {
     return
   }
 
-  await strategyLibrary.publishStrategy(active.id)
+  await strategyScriptLibrary.publishStrategyScript(active.id)
 }
 
 /** 從市集收回使用中的那一支。收回一律先問——理由與那個確認框上寫的一樣。 */
-function withdrawActiveStrategy() {
-  const active = strategyLibrary.activeStrategy.value
+function withdrawActiveStrategyScript() {
+  const active = strategyScriptLibrary.activeStrategyScript.value
   if (active === null) {
     return
   }
 
-  strategyLibrary.askToWithdraw(active.id)
+  strategyScriptLibrary.askToWithdraw(active.id)
 }
 
 async function calculateIndicator() {
@@ -230,38 +230,38 @@ async function calculateIndicator() {
     indicatorCalculationApplication.observationWindowFor(span.value),
     scriptBody.value,
     resultType.value,
-    strategyParameters.parameters.value))
+    strategyScriptParameters.parameters.value))
 }
 </script>
 
 <template>
   <div class="indicator-calculation-panel">
-    <!-- 策略那一列收成一塊面板，才不會一整排控制項懸在工作區的底色上。
-         它不必有標題列——「策略」兩個字就寫在它自己的欄位標籤上了。 -->
-    <AppPanel class="indicator-calculation-panel__strategy">
-      <StrategyPicker
-        :strategies="pickableStrategies"
-        :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
-        @select="strategyLibrary.selectStrategy"
+    <!-- 策略腳本那一列收成一塊面板，才不會一整排控制項懸在工作區的底色上。
+         它不必有標題列——「策略腳本」兩個字就寫在它自己的欄位標籤上了。 -->
+    <AppPanel class="indicator-calculation-panel__strategyScript">
+      <StrategyScriptPicker
+        :strategy-scripts="pickableStrategyScripts"
+        :active-strategy-script-id="strategyScriptLibrary.activeStrategyScript.value?.id ?? null"
+        @select="strategyScriptLibrary.selectStrategyScript"
       >
         <template #actions>
           <!-- 「新的」排第一：每一個檔案選單都是這個順序，肌肉記憶在那裡。 -->
           <AppButton
             type="button"
             variant="secondary"
-            label="新的空白策略"
-            data-testid="new-strategy-button"
-            @click="strategyLibrary.startBlankStrategy"
+            label="新的空白策略腳本"
+            data-testid="new-strategy-script-button"
+            @click="strategyScriptLibrary.startBlankStrategyScript"
           >
             <AppIcon name="new" />
           </AppButton>
           <AppButton
             type="button"
             variant="secondary"
-            :disabled="strategyLibrary.saving.value"
+            :disabled="strategyScriptLibrary.saving.value"
             label="存回目前這一支"
-            data-testid="save-strategy-button"
-            @click="strategyLibrary.saveStrategy"
+            data-testid="save-strategy-script-button"
+            @click="strategyScriptLibrary.saveStrategyScript"
           >
             <AppIcon name="save" />
           </AppButton>
@@ -269,18 +269,18 @@ async function calculateIndicator() {
             type="button"
             variant="secondary"
             label="另存為新的一支"
-            data-testid="save-as-strategy-button"
-            @click="strategyLibrary.openNameDialog"
+            data-testid="save-as-strategy-script-button"
+            @click="strategyScriptLibrary.openNameDialog"
           >
             <AppIcon name="save-as" />
           </AppButton>
           <AppButton
             type="button"
             variant="secondary"
-            :disabled="strategyLibrary.activeStrategy.value === null"
+            :disabled="strategyScriptLibrary.activeStrategyScript.value === null"
             label="重新命名"
-            data-testid="rename-strategy-button"
-            @click="strategyLibrary.openRenameDialog"
+            data-testid="rename-strategy-script-button"
+            @click="strategyScriptLibrary.openRenameDialog"
           >
             <AppIcon name="rename" />
           </AppButton>
@@ -293,14 +293,14 @@ async function calculateIndicator() {
             它是禁用的，與「重新命名」同一條規則、同一個理由：那兩件事都需要先有一支。
           -->
           <AppButton
-            v-if="!strategyLibrary.activeStrategy.value?.published"
+            v-if="!strategyScriptLibrary.activeStrategyScript.value?.published"
             type="button"
             variant="secondary"
-            :disabled="strategyLibrary.activeStrategy.value === null
-              || strategyLibrary.saving.value"
+            :disabled="strategyScriptLibrary.activeStrategyScript.value === null
+              || strategyScriptLibrary.saving.value"
             label="分享到市集"
-            data-testid="share-strategy-button"
-            @click="shareActiveStrategy"
+            data-testid="share-strategy-script-button"
+            @click="shareActiveStrategyScript"
           >
             <AppIcon name="share" />
           </AppButton>
@@ -308,38 +308,38 @@ async function calculateIndicator() {
             v-else
             type="button"
             variant="secondary"
-            :disabled="strategyLibrary.saving.value"
+            :disabled="strategyScriptLibrary.saving.value"
             label="從市集收回"
-            data-testid="withdraw-strategy-button"
-            @click="withdrawActiveStrategy"
+            data-testid="withdraw-strategy-script-button"
+            @click="withdrawActiveStrategyScript"
           >
             <AppIcon name="unshare" />
           </AppButton>
           <AppButton
             type="button"
             variant="ghost"
-            label="策略清單"
+            label="策略腳本清單"
             data-testid="open-library-button"
-            @click="strategyLibrary.openLibrary"
+            @click="strategyScriptLibrary.openLibrary"
           >
             <AppIcon name="library" />
           </AppButton>
         </template>
-      </StrategyPicker>
+      </StrategyScriptPicker>
 
       <p
-        v-if="strategyLibrary.noticeMessage.value"
-        class="indicator-calculation-panel__strategy-notice"
-        data-testid="strategy-notice"
+        v-if="strategyScriptLibrary.noticeMessage.value"
+        class="indicator-calculation-panel__strategy-script-notice"
+        data-testid="strategy-script-notice"
       >
-        {{ strategyLibrary.noticeMessage.value }}
+        {{ strategyScriptLibrary.noticeMessage.value }}
       </p>
       <p
-        v-if="strategyLibrary.errorMessage.value"
-        class="indicator-calculation-panel__strategy-error"
-        data-testid="strategy-error"
+        v-if="strategyScriptLibrary.errorMessage.value"
+        class="indicator-calculation-panel__strategy-script-error"
+        data-testid="strategy-script-error"
       >
-        {{ strategyLibrary.errorMessage.value }}
+        {{ strategyScriptLibrary.errorMessage.value }}
       </p>
     </AppPanel>
 
@@ -366,12 +366,12 @@ async function calculateIndicator() {
         >
           <template #toolbar>
             <!--
-            這個框裡的每一樣東西——算式、指標值種類、旋鈕——都是這支策略記著的。
+            這個框裡的每一樣東西——算式、指標值種類、旋鈕——都是這支策略腳本記著的。
             對面那個「只影響這一次」是它的另一半：兩個標記擺在一起才看得出是一組，
             而這一頁只有這一個分別需要記住。
           -->
             <AppBadge variant="success">
-              跟著策略存
+              跟著策略腳本存
             </AppBadge>
 
             <AppSelect
@@ -408,7 +408,7 @@ async function calculateIndicator() {
               data-testid="parameters-button"
               @click="parametersOpen = true"
             >
-              參數 {{ strategyParameters.fields.value.length }}
+              參數 {{ strategyScriptParameters.fields.value.length }}
             </AppButton>
             <AppButton
               type="button"
@@ -449,7 +449,7 @@ async function calculateIndicator() {
       擺成側欄的代價很具體：它得跟編輯區一樣高，於是三個欄位下面永遠空著一大塊。
     -->
           <!--
-      這一頁只有一個分別要記住：**什麼跟著策略走，什麼只屬於這一次**。
+      這一頁只有一個分別要記住：**什麼跟著策略腳本走，什麼只屬於這一次**。
       它以前被拆成三句小灰字散在三個地方，於是沒有人讀——一句永遠掛著、
       每次都讀到的話，讀的人很快就會學會不讀它。
       改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
@@ -737,7 +737,7 @@ async function calculateIndicator() {
           </AppPanel>
         </form>
 
-        <StrategyBacktestPane
+        <StrategyScriptBacktestPane
           v-show="destination === 'backtest'"
           v-model:symbol="symbol"
           v-model:aggregation-interval="aggregationInterval"
@@ -748,23 +748,23 @@ async function calculateIndicator() {
           :aggregation-interval-options="aggregationIntervalOptions"
           :script-body="scriptBody"
           :result-type="resultType"
-          :parameters="strategyParameters.parameters.value"
+          :parameters="strategyScriptParameters.parameters.value"
           :workspace-generation="workspaceGeneration"
         />
       </div>
     </div>
 
-    <StrategyParameterDialog
+    <StrategyScriptParameterDialog
       :open="parametersOpen"
-      :fields="strategyParameters.fields.value"
-      :kind-options="strategyParameters.kindOptions"
+      :fields="strategyScriptParameters.fields.value"
+      :kind-options="strategyScriptParameters.kindOptions"
       :error-message="calculationRun.messageFor('parameters')"
       @close="parametersOpen = false"
-      @add="strategyParameters.add"
-      @remove="strategyParameters.remove"
-      @rename="strategyParameters.rename"
-      @change-kind="strategyParameters.changeKind"
-      @change-value="strategyParameters.changeValue"
+      @add="strategyScriptParameters.add"
+      @remove="strategyScriptParameters.remove"
+      @rename="strategyScriptParameters.rename"
+      @change-kind="strategyScriptParameters.changeKind"
+      @change-value="strategyScriptParameters.changeValue"
     />
 
     <!-- 兩份要查的清單收在同一個對話框裡：去查它們的時機是同一個。 -->
@@ -776,58 +776,58 @@ async function calculateIndicator() {
       @close="guideOpen = false"
     />
 
-    <StrategyLibraryDialog
-      :open="strategyLibrary.openDialog.value === 'library'"
-      :strategies="strategyLibrary.strategies.value"
-      :adopted-strategies="strategyLibrary.adoptedStrategies.value"
-      :error-message="strategyLibrary.listErrorMessage.value"
-      :active-strategy-id="strategyLibrary.activeStrategy.value?.id ?? null"
-      @load="strategyLibrary.selectStrategy"
-      @remove="strategyLibrary.askToDelete"
-      @abandon="strategyLibrary.abandonStrategy"
-      @close="strategyLibrary.closeDialog"
+    <StrategyScriptLibraryDialog
+      :open="strategyScriptLibrary.openDialog.value === 'library'"
+      :strategy-scripts="strategyScriptLibrary.strategyScripts.value"
+      :adopted-strategy-scripts="strategyScriptLibrary.adoptedStrategyScripts.value"
+      :error-message="strategyScriptLibrary.listErrorMessage.value"
+      :active-strategy-script-id="strategyScriptLibrary.activeStrategyScript.value?.id ?? null"
+      @load="strategyScriptLibrary.selectStrategyScript"
+      @remove="strategyScriptLibrary.askToDelete"
+      @abandon="strategyScriptLibrary.abandonStrategyScript"
+      @close="strategyScriptLibrary.closeDialog"
     />
 
-    <StrategyNameDialog
-      :open="strategyLibrary.openDialog.value === 'name'"
-      title="另存為新策略"
+    <StrategyScriptNameDialog
+      :open="strategyScriptLibrary.openDialog.value === 'name'"
+      title="另存為新策略腳本"
       hint="其餘內容取自畫面上目前的算式、指標值種類與參數。"
-      :error-message="strategyLibrary.nameErrorMessage.value"
-      :submitting="strategyLibrary.saving.value"
-      @submit="strategyLibrary.createStrategy"
-      @cancel="strategyLibrary.closeDialog"
+      :error-message="strategyScriptLibrary.nameErrorMessage.value"
+      :submitting="strategyScriptLibrary.saving.value"
+      @submit="strategyScriptLibrary.createStrategyScript"
+      @cancel="strategyScriptLibrary.closeDialog"
     />
 
-    <StrategyNameDialog
-      :open="strategyLibrary.openDialog.value === 'rename'"
+    <StrategyScriptNameDialog
+      :open="strategyScriptLibrary.openDialog.value === 'rename'"
       title="重新命名"
       hint="只換名字，這一支記著的算式與其餘設定都不會被動到。"
-      :initial-name="strategyLibrary.activeStrategy.value?.name ?? ''"
-      :initial-description="strategyLibrary.activeStrategy.value?.description ?? ''"
-      :error-message="strategyLibrary.nameErrorMessage.value"
-      :submitting="strategyLibrary.saving.value"
+      :initial-name="strategyScriptLibrary.activeStrategyScript.value?.name ?? ''"
+      :initial-description="strategyScriptLibrary.activeStrategyScript.value?.description ?? ''"
+      :error-message="strategyScriptLibrary.nameErrorMessage.value"
+      :submitting="strategyScriptLibrary.saving.value"
       data-testid="rename-dialog"
-      @submit="strategyLibrary.renameStrategy"
-      @cancel="strategyLibrary.closeDialog"
+      @submit="strategyScriptLibrary.renameStrategyScript"
+      @cancel="strategyScriptLibrary.closeDialog"
     />
 
     <ConfirmDialog
-      :open="strategyLibrary.openDialog.value === 'discard'"
+      :open="strategyScriptLibrary.openDialog.value === 'discard'"
       title="放棄尚未儲存的變更？"
       message="編輯區的內容已經改過而且還沒存。接下來這個動作會蓋掉它。"
       confirm-label="放棄並繼續"
-      @confirm="strategyLibrary.confirmDiscard"
-      @cancel="strategyLibrary.closeDialog"
+      @confirm="strategyScriptLibrary.confirmDiscard"
+      @cancel="strategyScriptLibrary.closeDialog"
     />
 
     <ConfirmDialog
-      :open="strategyLibrary.openDialog.value === 'delete'"
-      title="刪除這支策略？"
+      :open="strategyScriptLibrary.openDialog.value === 'delete'"
+      title="刪除這支策略腳本？"
       message="刪掉就沒了，救不回來。編輯區的內容會留著。"
       confirm-label="刪除"
       variant="danger"
-      @confirm="strategyLibrary.confirmDelete"
-      @cancel="strategyLibrary.closeDialog"
+      @confirm="strategyScriptLibrary.confirmDelete"
+      @cancel="strategyScriptLibrary.closeDialog"
     />
 
     <!--
@@ -835,13 +835,13 @@ async function calculateIndicator() {
       收回做錯了，每一個加入過它的人都要重新加入一次，而你不會知道有誰。
     -->
     <ConfirmDialog
-      :open="strategyLibrary.openDialog.value === 'withdraw'"
+      :open="strategyScriptLibrary.openDialog.value === 'withdraw'"
       title="從市集收回這一支？"
       message="收回之後，所有把它加進自己清單的人都會失去它，而且你不會知道有誰。重新分享也不會讓他們自動回來。"
       confirm-label="收回"
       variant="danger"
-      @confirm="strategyLibrary.confirmWithdraw"
-      @cancel="strategyLibrary.closeDialog"
+      @confirm="strategyScriptLibrary.confirmWithdraw"
+      @cancel="strategyScriptLibrary.closeDialog"
     />
   </div>
 </template>
@@ -891,21 +891,21 @@ async function calculateIndicator() {
     gap: spacing('sm');
   }
 
-  &__strategy {
+  &__strategyScript {
     flex: none;
   }
 
-  &__strategy-notice,
-  &__strategy-error {
+  &__strategy-script-notice,
+  &__strategy-script-error {
     margin: 0;
     font-size: font-size('2xs');
   }
 
-  &__strategy-notice {
+  &__strategy-script-notice {
     color: color('text-muted');
   }
 
-  &__strategy-error {
+  &__strategy-script-error {
     color: color('danger');
   }
 

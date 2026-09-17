@@ -4,7 +4,7 @@ import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
-import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 
 /**
  * 指標計算來自後端，線色、旋鈕值與「圖上擺著哪幾支」的偏好來自瀏覽器儲存，
@@ -16,7 +16,7 @@ import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/
 export function buildChartIndicatorApplication(
   indicatorCalculationProxy: Partial<IIndicatorCalculationProxy> = {},
   chartLineColorPreferenceProxy: Partial<IChartLineColorPreferenceProxy> = {},
-  strategyParameterValuePreferenceProxy: Partial<IStrategyParameterValuePreferenceProxy> = {},
+  strategyScriptParameterValuePreferenceProxy: Partial<IStrategyScriptParameterValuePreferenceProxy> = {},
   appliedChartIndicatorPreferenceProxy: Partial<IAppliedChartIndicatorPreferenceProxy> = {},
 ): ChartIndicatorApplication {
   return new ChartIndicatorApplication(new ChartIndicatorService(
@@ -29,7 +29,7 @@ export function buildChartIndicatorApplication(
     {
       readValue: vi.fn().mockReturnValue(null),
       writeValue: vi.fn(),
-      ...strategyParameterValuePreferenceProxy,
+      ...strategyScriptParameterValuePreferenceProxy,
     },
     {
       readAppliedChartIndicators: vi.fn().mockReturnValue([]),

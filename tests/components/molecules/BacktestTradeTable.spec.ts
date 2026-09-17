@@ -50,7 +50,7 @@ describe('BacktestTradeTable', () => {
   })
 
   it('一筆都沒有時明講，而不是一張空白表格', () => {
-    // 空白讓人以為壞了，明講讓人知道是策略沒開口。
+    // 空白讓人以為壞了，明講讓人知道是策略腳本沒開口。
     const wrapper = mountTable([])
 
     expect(wrapper.get('[data-testid="no-trades"]').text())

@@ -1,15 +1,15 @@
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
-import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
 import type { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 
 /**
- * Domain Model：留存下來的那幾筆 × **現在的**策略清單 → 可以直接進清單的那幾筆。
+ * Domain Model：留存下來的那幾筆 × **現在的**策略腳本清單 → 可以直接進清單的那幾筆。
  *
  * **還原是一次對照，不是一次還原。** 留存的內容不是「圖上長什麼樣」，
- * 而是「使用者當時要求了什麼」——那之後策略可能被刪、被改名、改了宣告、
- * 或者現在畫不成線了。**真相在策略清單那一側**，所以每一筆都要對照過才回得來。
+ * 而是「使用者當時要求了什麼」——那之後策略腳本可能被刪、被改名、改了宣告、
+ * 或者現在畫不成線了。**真相在策略腳本清單那一側**，所以每一筆都要對照過才回得來。
  *
  * 把留存當成可以直接搬回畫面的快照，是這裡最容易犯而且**不會報錯**的錯：
  * 圖上會出現一筆使用者現在根本加不進來的東西，而且它永遠算不出線。
@@ -22,8 +22,8 @@ import type { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered
 export class RememberedAppliedIndicatorsDomain {
   constructor(
     private readonly rememberedAppliedIndicatorVos: readonly RememberedAppliedIndicatorVo[],
-    /** **現在**還存在的那幾支策略。它是還原時唯一的真相。 */
-    private readonly strategies: readonly ChartApplicableStrategyDto[],
+    /** **現在**還存在的那幾支策略腳本。它是還原時唯一的真相。 */
+    private readonly strategyScripts: readonly ChartApplicableStrategyScriptDto[],
   ) {}
 
   /**
@@ -39,13 +39,13 @@ export class RememberedAppliedIndicatorsDomain {
    */
   toAppliedIndicatorDtos(lastAppliedIndicatorId: number): AppliedIndicatorDto[] {
     return this.rememberedAppliedIndicatorVos
-      .filter(remembered => this.restorableStrategiesOf(remembered).length > 0)
-      .flatMap((remembered, order) => this.restorableStrategiesOf(remembered).map(
+      .filter(remembered => this.restorableStrategyScriptsOf(remembered).length > 0)
+      .flatMap((remembered, order) => this.restorableStrategyScriptsOf(remembered).map(
         // 那一支現在的樣子——名稱改過就用現在的名字：留存的是它是哪一支，不是它叫什麼。
-        strategy => new AppliedIndicatorDto(
+        strategyScript => new AppliedIndicatorDto(
           lastAppliedIndicatorId + order + 1,
-          strategy,
-          strategy.parameters.map(
+          strategyScript,
+          strategyScript.parameters.map(
             declared => this.toParameter(declared, remembered.parameterValues)),
           // 收起來的那幾筆回來時仍然收著。**照樣算**（誰算不算不歸這裡管）——
           // 收起來的是那條線，而使用者按眼睛拿回它時要的是一條現在的線。
@@ -54,25 +54,25 @@ export class RememberedAppliedIndicatorsDomain {
   }
 
   /**
-   * 這一筆回得來嗎——**對得上一支現在的策略，而且那一支現在畫得成線**。
+   * 這一筆回得來嗎——**對得上一支現在的策略腳本，而且那一支現在畫得成線**。
    * 回得來就交出那一支（一個），回不來就交出零個。
    *
    * 判斷只寫在這裡一次：發號要先知道回得來的有哪幾筆，重建那幾格又要拿到那一支，
    * 兩處各判斷一次就會漂移——而漂移的後果是清單上多一筆、或者少一筆的號被吃掉。
    *
    * 回不來的那兩種情況**都不出聲**：
-   * - **策略被刪了**——使用者刪掉它時就知道自己刪了什麼，一則講著他上個月操作的說明只會擋在畫面上。
+   * - **策略腳本被刪了**——使用者刪掉它時就知道自己刪了什麼，一則講著他上個月操作的說明只會擋在畫面上。
    * - **現在畫不成線**（改成了是非）——它在可挑清單裡本來就列得出來但挑不到，
    *   讓它自己回到圖上等於繞過那道刻意留下的擋。
    */
-  private restorableStrategiesOf(
+  private restorableStrategyScriptsOf(
     rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
-  ): ChartApplicableStrategyDto[] {
-    return this.strategies
-      .filter(strategy => strategy.id === rememberedAppliedIndicatorVo.strategyId
-        && strategy.drawableOnChart)
+  ): ChartApplicableStrategyScriptDto[] {
+    return this.strategyScripts
+      .filter(strategyScript => strategyScript.id === rememberedAppliedIndicatorVo.strategyScriptId
+        && strategyScript.drawableOnChart)
       // **「零個或一個」由結構保證，不是由註解保證。** 發號用的是回得來的**筆數**，
-      // 所以這裡一旦交出兩個（策略清單裡出現兩支同識別碼），兩筆就會共用同一個序號——
+      // 所以這裡一旦交出兩個（策略腳本清單裡出現兩支同識別碼），兩筆就會共用同一個序號——
       // 而那正是這個切片已經踩過一次的撞號：移除一筆時兩筆一起消失，且不報錯。
       .slice(0, 1)
   }
@@ -85,25 +85,25 @@ export class RememberedAppliedIndicatorsDomain {
    * 它就是「少了一個舊的、多了一個新的」。
    *
    * **留存的值要用得了才採用。** 用不了的值本來寫不進去（填得用不了的時候不寫），
-   * 所以它出現在留存裡只有一種可能：那份留存被別的東西動過。這時退回策略的預設值，
+   * 所以它出現在留存裡只有一種可能：那份留存被別的東西動過。這時退回策略腳本的預設值，
    * 與「留存裡本來就沒有這個名字」是同一個落點——讓那一筆照樣回到圖上，
    * 比讓它帶著一個算不出來的值回來、然後在旁邊紅一行更有用。
    *
-   * 「用得了」直接問 `StrategyParameterDomain`：「回看根數必須是大於零的整數」
+   * 「用得了」直接問 `StrategyScriptParameterDomain`：「回看根數必須是大於零的整數」
    * 這條規則只有一份，不在這裡重寫。
    */
   private toParameter(
-    declaredParameter: StrategyParameterDto, parameterValues: ReadonlyMap<string, number>,
-  ): StrategyParameterDto {
+    declaredParameter: StrategyScriptParameterDto, parameterValues: ReadonlyMap<string, number>,
+  ): StrategyScriptParameterDto {
     const rememberedValue = parameterValues.get(declaredParameter.name)
     if (rememberedValue === undefined) {
       return declaredParameter
     }
 
-    const remembered = new StrategyParameterDto(
+    const remembered = new StrategyScriptParameterDto(
       declaredParameter.name, declaredParameter.kind, rememberedValue)
 
-    return new StrategyParameterDomain(remembered).validationMessage() === null
+    return new StrategyScriptParameterDomain(remembered).validationMessage() === null
       ? remembered
       : declaredParameter
   }

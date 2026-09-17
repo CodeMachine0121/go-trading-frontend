@@ -1,7 +1,7 @@
 import { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
-/** 預設回看的天數：一個月夠看出一支策略的脾氣，又不必等太久。 */
+/** 預設回看的天數：一個月夠看出一支策略腳本的脾氣，又不必等太久。 */
 const DEFAULT_LOOKBACK_DAYS = 30
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000

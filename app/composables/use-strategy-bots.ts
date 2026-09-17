@@ -6,8 +6,8 @@ import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configu
 /**
  * 機器人清單這一整塊的狀態與動作。
  *
- * 它**只問機器人那一條線**。挑策略、宣告來源、拼條件現在住在工作台那一頁，
- * 所以這裡不再去撈可用策略——一份沒有人會看的清單，是在為一個已經搬走的畫面付錢。
+ * 它**只問機器人那一條線**。挑策略腳本、宣告來源、拼條件現在住在工作台那一頁，
+ * 所以這裡不再去撈可用策略腳本——一份沒有人會看的清單，是在為一個已經搬走的畫面付錢。
  */
 export function useStrategyBots(strategyBotApplication: StrategyBotApplication) {
   const strategyBots = ref<StrategyBotDto[]>([])

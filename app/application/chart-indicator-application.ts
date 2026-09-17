@@ -3,22 +3,22 @@ import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
-import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
-import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
+import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 
 /** Application：圖表指標的用例編排，全程只碰 DTO。 */
 export class ChartIndicatorApplication {
   constructor(private readonly chartIndicatorService: ChartIndicatorService) {}
 
-  prepareAppliedIndicator(strategy: ChartApplicableStrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
-    return this.chartIndicatorService.prepareAppliedIndicator(strategy, appliedIndicatorId)
+  prepareAppliedIndicator(strategyScript: ChartApplicableStrategyScriptDto, appliedIndicatorId: number): AppliedIndicatorDto {
+    return this.chartIndicatorService.prepareAppliedIndicator(strategyScript, appliedIndicatorId)
   }
 
   restoreAppliedIndicators(
-    strategies: readonly ChartApplicableStrategyDto[], lastAppliedIndicatorId: number,
+    strategyScripts: readonly ChartApplicableStrategyScriptDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
-    return this.chartIndicatorService.restoreAppliedIndicators(strategies, lastAppliedIndicatorId)
+    return this.chartIndicatorService.restoreAppliedIndicators(strategyScripts, lastAppliedIndicatorId)
   }
 
   rememberAppliedIndicators(appliedIndicatorDtos: readonly AppliedIndicatorDto[]): void {
@@ -30,13 +30,13 @@ export class ChartIndicatorApplication {
   }
 
   describeAppliedIndicatorParameters(
-    parameters: readonly StrategyParameterDto[],
-  ): StrategyParameterFieldDto[] {
+    parameters: readonly StrategyScriptParameterDto[],
+  ): StrategyScriptParameterFieldDto[] {
     return this.chartIndicatorService.describeAppliedIndicatorParameters(parameters)
   }
 
   validateAppliedIndicatorParameters(
-    parameters: readonly StrategyParameterDto[],
+    parameters: readonly StrategyScriptParameterDto[],
   ): string | null {
     return this.chartIndicatorService.validateAppliedIndicatorParameters(parameters)
   }

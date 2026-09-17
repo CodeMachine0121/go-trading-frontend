@@ -4,7 +4,7 @@ import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 
 function mountConfirmDialog(props: Record<string, unknown> = {}) {
   return mount(ConfirmDialog, {
-    props: { open: true, title: '刪除策略', message: '刪掉就沒了，救不回來。', ...props },
+    props: { open: true, title: '刪除策略腳本', message: '刪掉就沒了，救不回來。', ...props },
   })
 }
 

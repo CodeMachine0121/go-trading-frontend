@@ -6,7 +6,7 @@ import { BacktestApplication } from '~/application/backtest-application'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
@@ -46,7 +46,7 @@ function backtestRequest(overrides: Partial<{
   endTime: Date
   scriptBody: string
   resultType: string
-  parameters: StrategyParameterDto[]
+  parameters: StrategyScriptParameterDto[]
   initialCapital: Decimal
   positionSizingMode: 'allIn' | 'percentage' | 'fixedAmount'
   positionSizingValue: Decimal
@@ -91,7 +91,7 @@ describe('BacktestApplication', () => {
       const proxy = buildProxy()
 
       await buildApplication(proxy).runBacktest(backtestRequest({
-        parameters: [new StrategyParameterDto('period', 'lookbackCount', 20)],
+        parameters: [new StrategyScriptParameterDto('period', 'lookbackCount', 20)],
       }))
 
       const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain

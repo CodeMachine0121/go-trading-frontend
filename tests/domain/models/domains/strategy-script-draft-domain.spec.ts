@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest'
+import { StrategyScriptDraftDomain } from '~/domain/models/domains/strategy-script-draft-domain'
+import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+
+function contentOf(
+  scriptBody = 'sum := 0.0',
+  resultType: 'float' | 'floatList' = 'floatList',
+  parameters: readonly StrategyScriptParameterDto[] = [],
+): StrategyScriptContentDto {
+  return new StrategyScriptContentDto(scriptBody, resultType, parameters)
+}
+
+const 期數 = new StrategyScriptParameterDto('期數', 'lookbackCount', 20)
+
+describe('StrategyScriptDraftDomain', () => {
+  it('載入之後一個字都沒改，就沒有東西會被弄丟', () => {
+    const draft = new StrategyScriptDraftDomain(contentOf(), contentOf())
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it.each([
+    { changed: '算式內容', current: contentOf('sum := 1.0') },
+    { changed: '指標值種類', current: contentOf('sum := 0.0', 'float') },
+  ])('$changed 改了就算有未儲存的變更', ({ current }) => {
+    const draft = new StrategyScriptDraftDomain(contentOf(), current)
+
+    expect(draft.hasUnsavedChanges()).toBe(true)
+  })
+
+  it('改掉又改回來算沒改——那確實是同一份東西', () => {
+    const draft = new StrategyScriptDraftDomain(contentOf(), contentOf())
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it.each([
+    { name: '完全空白', scriptBody: '' },
+    { name: '只有空白字元', scriptBody: '  \n\t ' },
+  ])('還沒載入過任何策略腳本，且內容$name時不必問', ({ scriptBody }) => {
+    const draft = new StrategyScriptDraftDomain(null, contentOf(scriptBody))
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it.each([
+    { resultType: 'float' as const, stub: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}' },
+    { resultType: 'floatList' as const, stub: 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\t\n}' },
+  ])('還沒載入過任何策略腳本，且內容還是 $resultType 未改動的空白 stub 時不必問', ({ resultType, stub }) => {
+    const draft = new StrategyScriptDraftDomain(null, contentOf(stub, resultType))
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it('還沒載入過任何策略腳本，但已經在 stub 裡寫了東西時要問', () => {
+    // 那些字一樣是使用者寫的。該問卻不問會弄丟它們，不該問卻問只是煩人。
+    const draft = new StrategyScriptDraftDomain(null, contentOf(
+      'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\treturn nil\n}'))
+
+    expect(draft.hasUnsavedChanges()).toBe(true)
+  })
+})
+
+describe('StrategyScriptDraftDomain：旋鈕也是策略腳本記著的東西', () => {
+  // 旋鈕與算式內容、指標值種類同一個層級。宣告了卻不算「改過」，
+  // 使用者剛排好的那幾格會被下一次載入靜靜蓋掉——而他什麼提示都不會看到。
+  it.each([
+    {
+      changed: '多宣告了一個',
+      loaded: contentOf('sum := 0.0', 'floatList', []),
+      current: contentOf('sum := 0.0', 'floatList', [期數]),
+    },
+    {
+      changed: '把宣告的那個刪掉',
+      loaded: contentOf('sum := 0.0', 'floatList', [期數]),
+      current: contentOf('sum := 0.0', 'floatList', []),
+    },
+    {
+      changed: '改了名字',
+      loaded: contentOf('sum := 0.0', 'floatList', [期數]),
+      current: contentOf('sum := 0.0', 'floatList', [
+        new StrategyScriptParameterDto('週期', 'lookbackCount', 20)]),
+    },
+    {
+      changed: '改了種類',
+      loaded: contentOf('sum := 0.0', 'floatList', [期數]),
+      current: contentOf('sum := 0.0', 'floatList', [
+        new StrategyScriptParameterDto('期數', 'number', 20)]),
+    },
+    {
+      changed: '改了預設值',
+      loaded: contentOf('sum := 0.0', 'floatList', [期數]),
+      current: contentOf('sum := 0.0', 'floatList', [
+        new StrategyScriptParameterDto('期數', 'lookbackCount', 50)]),
+    },
+    {
+      changed: '換了順序',
+      loaded: contentOf('sum := 0.0', 'floatList', [
+        期數, new StrategyScriptParameterDto('倍數', 'number', 2)]),
+      current: contentOf('sum := 0.0', 'floatList', [
+        new StrategyScriptParameterDto('倍數', 'number', 2), 期數]),
+    },
+  ])('旋鈕$changed 就算有未儲存的變更', ({ loaded, current }) => {
+    expect(new StrategyScriptDraftDomain(loaded, current).hasUnsavedChanges()).toBe(true)
+  })
+
+  it('旋鈕一模一樣就不算改過', () => {
+    const draft = new StrategyScriptDraftDomain(
+      contentOf('sum := 0.0', 'floatList', [期數]),
+      contentOf('sum := 0.0', 'floatList', [
+        new StrategyScriptParameterDto('期數', 'lookbackCount', 20)]))
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it('還沒載入過任何策略腳本，但已經宣告了一個旋鈕，就要問', () => {
+    const draft = new StrategyScriptDraftDomain(null, contentOf('', 'floatList', [期數]))
+
+    expect(draft.hasUnsavedChanges()).toBe(true)
+  })
+})

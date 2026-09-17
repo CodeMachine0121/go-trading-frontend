@@ -16,7 +16,7 @@ const { currentUser, signOut } = useUserSession()
 <template>
   <ConsoleLayout
     title="策略機器人"
-    subtitle="把幾支策略的訊號拼成兩個條件：什麼情況算買、什麼情況算賣。按下播放之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。"
+    subtitle="把幾支策略腳本的訊號拼成兩個條件：什麼情況算買、什麼情況算賣。按下播放之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。"
   >
     <template #timezone>
       <TimeZoneField

@@ -8,7 +8,7 @@ import { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
 import { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
 
-/** 比率寫到小數點後兩位：再細一位對「這支策略好不好」沒有任何幫助。 */
+/** 比率寫到小數點後兩位：再細一位對「這支策略腳本好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
 
 /**

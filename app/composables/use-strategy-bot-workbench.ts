@@ -1,4 +1,4 @@
-import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -7,32 +7,32 @@ import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-ty
 /**
  * 機器人聽得懂的唯一一種指標值種類。
  *
- * 一台機器人的條件比對的是買入／賣出／持有，而只有這一種策略吐得出那三個值。
- * 挑得到一支吐數字的策略，那台機器人第一輪就會算式失敗——而算式失敗是會**停擺**的
+ * 一台機器人的條件比對的是買入／賣出／持有，而只有這一種策略腳本吐得出那三個值。
+ * 挑得到一支吐數字的策略腳本，那台機器人第一輪就會算式失敗——而算式失敗是會**停擺**的
  * 那一類，使用者會得到一台按下播放、隔天發現早就停了的機器人。
  */
 const SIGNAL_RESULT_TYPE: IndicatorResultType = 'signal'
 
 /**
- * 一張工作台這一頁自己的狀態：它在改哪一台、可以挑哪幾支策略、存得怎麼樣了。
+ * 一張工作台這一頁自己的狀態：它在改哪一台、可以挑哪幾支策略腳本、存得怎麼樣了。
  *
  * 它與清單那一頁的 `useStrategyBots` 分開，因為兩頁要的東西幾乎不重疊：
- * 清單要的是每一台的執行狀態與歷史，這裡要的是一台的內容與可用策略。
+ * 清單要的是每一台的執行狀態與歷史，這裡要的是一台的內容與可用策略腳本。
  * 合成一個的話，打開工作台會連帶去撈一份沒有人會看的清單。
  *
  * @param strategyBotId 有值就是改那一台，`null` 就是新拼一台。
  */
 export function useStrategyBotWorkbench(
   strategyBotApplication: StrategyBotApplication,
-  strategyApplication: StrategyApplication,
+  strategyScriptApplication: StrategyScriptApplication,
   strategyBotId: number | null,
 ) {
   // 存好了那一句要在**清單**上被看到，因為存完之後使用者已經被送回去了。
   const { announce } = useConsoleAnnouncement()
 
   const editing = ref<StrategyBotDto | null>(null)
-  const strategyOptions = ref<{ value: number, label: string }[]>([])
-  const parameterNamesByStrategyId = ref<Record<number, readonly string[]>>({})
+  const strategyScriptOptions = ref<{ value: number, label: string }[]>([])
+  const parameterNamesByStrategyScriptId = ref<Record<number, readonly string[]>>({})
 
   const loading = ref(true)
   const saving = ref(false)
@@ -51,7 +51,7 @@ export function useStrategyBotWorkbench(
         strategyBotId === null
           ? Promise.resolve(null)
           : strategyBotApplication.getStrategyBot(strategyBotId),
-        strategyApplication.listAvailableStrategies(),
+        strategyScriptApplication.listAvailableStrategyScripts(),
       ])
 
       editing.value = bot
@@ -60,24 +60,24 @@ export function useStrategyBotWorkbench(
       // 所以它的旋鈕與指標值種類直接掛在上面，而自己的那幾支掛在算式內容裡。
       const options = [
         ...available.mine
-          .filter(strategy => strategy.content.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategy => ({
-            value: strategy.id,
-            label: strategy.name,
-            parameterNames: strategy.content.parameters.map(parameter => parameter.name),
+          .filter(strategyScript => strategyScript.content.resultType === SIGNAL_RESULT_TYPE)
+          .map(strategyScript => ({
+            value: strategyScript.id,
+            label: strategyScript.name,
+            parameterNames: strategyScript.content.parameters.map(parameter => parameter.name),
           })),
         ...available.adopted
-          .filter(strategy => strategy.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategy => ({
-            value: strategy.id,
-            label: strategy.name,
-            parameterNames: strategy.parameters.map(parameter => parameter.name),
+          .filter(strategyScript => strategyScript.resultType === SIGNAL_RESULT_TYPE)
+          .map(strategyScript => ({
+            value: strategyScript.id,
+            label: strategyScript.name,
+            parameterNames: strategyScript.parameters.map(parameter => parameter.name),
           })),
       ]
 
-      strategyOptions.value = options.map(
+      strategyScriptOptions.value = options.map(
         option => ({ value: option.value, label: option.label }))
-      parameterNamesByStrategyId.value = Object.fromEntries(
+      parameterNamesByStrategyScriptId.value = Object.fromEntries(
         options.map(option => [option.value, option.parameterNames]))
     }
     catch (error: unknown) {
@@ -129,8 +129,8 @@ export function useStrategyBotWorkbench(
 
   return {
     editing,
-    strategyOptions,
-    parameterNamesByStrategyId,
+    strategyScriptOptions,
+    parameterNamesByStrategyScriptId,
     loading,
     saving,
     saved,

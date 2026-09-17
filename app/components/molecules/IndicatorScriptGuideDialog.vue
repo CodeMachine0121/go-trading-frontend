@@ -87,7 +87,7 @@ const emit = defineEmits<{ close: [] }>()
           <li>在下面那一區按<strong>新增參數</strong>，取一個名字、挑一種種類、填一個預設值。</li>
           <li>在算式裡用<strong>同一個名字</strong>把它讀出來。</li>
           <li>
-            參數跟著策略一起存。在 K 線圖表上套用這支策略時，可以替<strong>那一次</strong>
+            參數跟著策略腳本一起存。在 K 線圖表上套用這支策略腳本時，可以替<strong>那一次</strong>
             另外調一個值，而這裡填的預設值不會被動到。
           </li>
         </ol>

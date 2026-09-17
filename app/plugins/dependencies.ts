@@ -2,14 +2,14 @@ import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
-import { StrategyProxy } from '~/infrastructure/proxy/strategy-proxy'
+import { StrategyScriptProxy } from '~/infrastructure/proxy/strategy-script-proxy'
 import { StrategyBotProxy } from '~/infrastructure/proxy/strategy-bot-proxy'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
-import { StrategyParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-parameter-value-preference-proxy'
+import { StrategyScriptParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-script-parameter-value-preference-proxy'
 import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
@@ -19,7 +19,7 @@ import { WatchlistApplication } from '~/application/watchlist-application'
 import { WatchlistService } from '~/domain/service/watchlist-service'
 import { WatchlistProxy } from '~/infrastructure/proxy/watchlist-proxy'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
-import { StrategyService } from '~/domain/service/strategy-service'
+import { StrategyScriptService } from '~/domain/service/strategy-script-service'
 import { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import { TimeZoneService } from '~/domain/service/time-zone-service'
 import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
@@ -31,11 +31,11 @@ import { IndicatorCalculationApplication } from '~/application/indicator-calcula
 import { LiveKCandleApplication } from '~/application/live-k-candle-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
-import { StrategyApplication } from '~/application/strategy-application'
+import { StrategyScriptApplication } from '~/application/strategy-script-application'
 import { StrategyBotApplication } from '~/application/strategy-bot-application'
-import { StrategyMarketplaceProxy } from '~/infrastructure/proxy/strategy-marketplace-proxy'
-import { StrategyMarketplaceService } from '~/domain/service/strategy-marketplace-service'
-import { StrategyMarketplaceApplication } from '~/application/strategy-marketplace-application'
+import { StrategyScriptMarketplaceProxy } from '~/infrastructure/proxy/strategy-script-marketplace-proxy'
+import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
+import { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
@@ -127,28 +127,28 @@ export default defineNuxtPlugin(() => {
     new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
-  const strategyApplication = new StrategyApplication(
-    new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  const strategyScriptApplication = new StrategyScriptApplication(
+    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
   // 策略機器人是操作台上第一件「沒有人看著的時候還在做事」的東西，所以它有自己的一整條線：
-  // 策略那一條回答「我寫了什麼」，這一條回答「我派了誰出去、它現在怎麼樣」。
+  // 策略腳本那一條回答「我寫了什麼」，這一條回答「我派了誰出去、它現在怎麼樣」。
   const strategyBotApplication = new StrategyBotApplication(
     new StrategyBotService(
       new StrategyBotProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
-  // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略那一條：
+  // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略腳本那一條：
   // 那一條回答「我的東西」，這一條回答「外面有什麼」。市集日後長出搜尋、分類或使用次數時，
-  // 長的是這一條，而日常挑策略那條路一行都不會動。
-  const strategyMarketplaceApplication = new StrategyMarketplaceApplication(
-    new StrategyMarketplaceService(
-      new StrategyMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+  // 長的是這一條，而日常挑策略腳本那條路一行都不會動。
+  const strategyScriptMarketplaceApplication = new StrategyScriptMarketplaceApplication(
+    new StrategyScriptMarketplaceService(
+      new StrategyScriptMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
     // 它也要問「哪幾支是我的、哪幾支我收下過」，而那只有自己的清單答得出來。
-    new StrategyService(new StrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
-  // 重演一支策略是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
+  // 重演一支策略腳本是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
   // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
   // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
   const backtestApplication = new BacktestApplication(
@@ -164,7 +164,7 @@ export default defineNuxtPlugin(() => {
     new ChartIndicatorService(
       new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
       new ChartLineColorPreferenceProxy(),
-      new StrategyParameterValuePreferenceProxy(),
+      new StrategyScriptParameterValuePreferenceProxy(),
       new AppliedChartIndicatorPreferenceProxy(),
     ),
   )
@@ -239,9 +239,9 @@ export default defineNuxtPlugin(() => {
       tradingSymbolApplication,
       watchlistApplication,
       indicatorCalculationApplication,
-      strategyApplication,
+      strategyScriptApplication,
       strategyBotApplication,
-      strategyMarketplaceApplication,
+      strategyScriptMarketplaceApplication,
       backtestApplication,
       chartIndicatorApplication,
       liveKCandleApplication,

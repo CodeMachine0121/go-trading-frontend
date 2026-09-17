@@ -12,7 +12,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { StrategyBotNameConflictError } from '~/domain/errors/strategy-bot-name-conflict-error'
 import { StrategyBotNotFoundError } from '~/domain/errors/strategy-bot-not-found-error'
 import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-error'
-import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
+import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -47,7 +47,7 @@ type StrategyBotRunRecordWire = {
 /** 後端回來的一個信號來源。**它沒有 script**——那不是漏了，是那一欄不存在。 */
 type StrategyBotSignalSourceWire = {
   label: string
-  strategyId: number
+  strategyScriptId: number
   aggregationInterval: string
   parameterValues?: { name: string, value: number }[] | null
 }
@@ -77,7 +77,7 @@ type StrategyBotWire = {
 /**
  * Proxy：打策略機器人的七條路由，並把四種各自要做不同事的拒絕分出來。
  *
- * 四種分開，是因為它們要使用者做的事完全不同：改名字、換一支策略、
+ * 四種分開，是因為它們要使用者做的事完全不同：改名字、換一支策略腳本、
  * 先按停止、**離開這個畫面去設定 Telegram**。合成一句「請求被拒絕」，
  * 就沒有人知道該往哪走。
  */
@@ -187,7 +187,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     if (error.status === NOT_FOUND_STATUS) {
       return error.message.includes('策略機器人')
         ? new StrategyBotNotFoundError(error.message, { cause: error })
-        : new StrategyNotFoundError(error.message, { cause: error })
+        : new StrategyScriptNotFoundError(error.message, { cause: error })
     }
 
     if (error.status === CONFLICT_STATUS) {
@@ -216,7 +216,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
       signalSources: writeDto.signalSources.map(signalSource => ({
         label: signalSource.label,
-        strategyId: signalSource.strategyId,
+        strategyScriptId: signalSource.strategyScriptId,
         aggregationInterval: signalSource.aggregationInterval,
         parameterValues: signalSource.parameterValues.map(parameterValue => ({
           name: parameterValue.name,
@@ -258,7 +258,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       botWire.triggerIntervalMinutes,
       (botWire.signalSources ?? []).map(sourceWire => new StrategyBotSignalSource(
         sourceWire.label,
-        sourceWire.strategyId,
+        sourceWire.strategyScriptId,
         sourceWire.aggregationInterval,
         (sourceWire.parameterValues ?? []).map(
           parameterValue => new StrategyBotParameterValue(

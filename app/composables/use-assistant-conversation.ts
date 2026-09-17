@@ -9,7 +9,7 @@ import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-a
 /**
  * 空的對話上那幾句建議提問。
  *
- * 四句剛好涵蓋助手辦得到的四類事：列清單、看行情、讀策略、算指標。
+ * 四句剛好涵蓋助手辦得到的四類事：列清單、看行情、讀策略腳本、算指標。
  * 少於四句會讓人以為它只會其中一件；而它會什麼在畫面上是看不出來的。
  *
  * 寫在這裡而不是元件裡，因為抽屜與整頁都要給同一組——寫兩份就會有一天只改了一邊。
@@ -17,7 +17,7 @@ import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-a
 const SUGGESTED_PROMPTS: readonly string[] = [
   '系統認得哪些交易標的？',
   'BTCUSDT 最近一天每小時的走勢如何？',
-  '我有哪些已存的策略？',
+  '我有哪些已存的策略腳本？',
   '用一條二十根的均線看看 BTCUSDT 現在的位置',
 ]
 

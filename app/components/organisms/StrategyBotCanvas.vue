@@ -12,23 +12,23 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
 // 它自己**不畫任何東西**，只負責一件事：**手上拿著的那一塊要去哪裡**。
 // 那件事沒辦法交給架子或墊子其中之一，因為一次拖曳的起點與落點常常不在同一塊裡——
 // 從架子拖到墊子、從一張墊子拖到另一張，都是。所以它住在唯一同時看得到三者的這一層。
-const { sources, buyBoard, sellBoard, parameterNamesByStrategyId } = defineProps<{
+const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defineProps<{
   sources: readonly StrategyBotSignalSourceDto[]
   buyBoard: ConditionBoardDto
   sellBoard: ConditionBoardDto
-  strategyOptions: readonly { value: number, label: string }[]
+  strategyScriptOptions: readonly { value: number, label: string }[]
   intervalOptions: readonly { value: string, label: string }[]
-  parameterNamesByStrategyId: Readonly<Record<number, readonly string[]>>
+  parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
   canAdd: boolean
   signalSourceLimit: number
-  hasNoStrategies: boolean
+  hasNoStrategyScripts: boolean
 }>()
 
 const emit = defineEmits<{
   add: []
   remove: [index: number]
   changeLabel: [index: number, label: string]
-  changeStrategy: [index: number, strategyId: number]
+  changeStrategyScript: [index: number, strategyScriptId: number]
   changeInterval: [index: number, interval: string]
   changeParameterValue: [index: number, name: string, value: number]
   toggleSignal: [side: Side, sourceLabel: string, signal: string]
@@ -68,7 +68,7 @@ const tuningPiece = computed(
 const tuningParameterNames = computed(
   () => (tuningPiece.value === null
     ? []
-    : parameterNamesByStrategyId[tuningPiece.value.strategyId] ?? []))
+    : parameterNamesByStrategyScriptId[tuningPiece.value.strategyScriptId] ?? []))
 
 const placedLabels = computed(
   () => [...buyBoard.placedLabels, ...sellBoard.placedLabels])
@@ -158,7 +158,7 @@ function dropOnShelf() {
         :interval-options="intervalOptions"
         :can-add="canAdd"
         :signal-source-limit="signalSourceLimit"
-        :has-no-strategies="hasNoStrategies"
+        :has-no-strategy-scripts="hasNoStrategyScripts"
         @add="emit('add')"
         @remove="index => emit('remove', index)"
         @tune="index => tuningIndex = index"
@@ -191,12 +191,12 @@ function dropOnShelf() {
 
     <StrategyBotPieceSettingsDialog
       :piece="tuningPiece"
-      :strategy-options="strategyOptions"
+      :strategy-script-options="strategyScriptOptions"
       :interval-options="intervalOptions"
       :parameter-names="tuningParameterNames"
       @close="tuningIndex = null"
       @change-label="label => emit('changeLabel', tuningIndex!, label)"
-      @change-strategy="strategyId => emit('changeStrategy', tuningIndex!, strategyId)"
+      @change-strategy-script="strategyScriptId => emit('changeStrategyScript', tuningIndex!, strategyScriptId)"
       @change-interval="interval => emit('changeInterval', tuningIndex!, interval)"
       @change-parameter-value="(name, value) =>
         emit('changeParameterValue', tuningIndex!, name, value)"

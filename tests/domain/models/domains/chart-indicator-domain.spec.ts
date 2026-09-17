@@ -159,7 +159,7 @@ describe('ChartIndicatorDomain：顏色', () => {
     expect(domain.toLevelDtos()[0]?.colorToken).toBe(SECOND)
   })
 
-  it('線的身分是策略加指標名稱，所以重新打開畫面後還認得出自己', () => {
+  it('線的身分是策略腳本加指標名稱，所以重新打開畫面後還認得出自己', () => {
     const domain = domainOf(calculationOf('float', [new IndicatorValueVo('均價', [115])]))
 
     expect(domain.toLevelDtos()[0]?.lineKey).toBe('7:均價')
@@ -178,7 +178,7 @@ describe('ChartIndicatorDomain：畫不出來的東西', () => {
     { kind: '一個是非', resultType: 'bool', items: [true] },
     { kind: '一串是非', resultType: 'boolList', items: [true, false] },
   ])('值是$kind 時連一條空的線都不產出', ({ resultType, items }) => {
-    // 是非沒有數值可以擺在價格軸上。挑策略時就該擋下，這裡是最後一道。
+    // 是非沒有數值可以擺在價格軸上。挑策略腳本時就該擋下，這裡是最後一道。
     //
     // 「一條零點的線」與「沒有線」不是同一件事：前者會在已套用清單上長出一列
     // 有名字、有顏色、卻永遠畫不出東西的幽靈線。所以驗的是清單為空，

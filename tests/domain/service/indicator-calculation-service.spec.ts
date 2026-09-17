@@ -5,7 +5,7 @@ import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
-import { StrategyParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyScriptParameterDto, STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 
@@ -232,15 +232,15 @@ describe('IndicatorCalculationService 的執行設定', () => {
 describe('IndicatorCalculationService：改一個不存在的第幾列', () => {
   // 畫面只會交出它自己畫得出來的列號，所以這條路平常走不到。
   // 但「整份原封不動」與「拋錯」對使用者是兩件完全不同的事，值得釘住。
-  const 期數 = new StrategyParameterDto('期數', 'lookbackCount', 20)
+  const 期數 = new StrategyScriptParameterDto('期數', 'lookbackCount', 20)
 
   it.each([
     { changed: '改名', change: (service: IndicatorCalculationService) =>
-      service.renameStrategyParameter([期數], 9, '週期') },
+      service.renameStrategyScriptParameter([期數], 9, '週期') },
     { changed: '改種類', change: (service: IndicatorCalculationService) =>
-      service.changeStrategyParameterKind([期數], 9, 'number') },
+      service.changeStrategyScriptParameterKind([期數], 9, 'number') },
     { changed: '改值', change: (service: IndicatorCalculationService) =>
-      service.changeStrategyParameterValue([期數], 9, 50) },
+      service.changeStrategyScriptParameterValue([期數], 9, 50) },
   ])('$changed 第九列時整份原封不動', ({ change }) => {
     expect(change(new IndicatorCalculationService(buildProxy()))).toEqual([期數])
   })
@@ -254,14 +254,14 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
 
   it('選單上挑得到的就是可宣告的每一種，一種都不少', () => {
     // 少一種就是那一種存得進去卻挑不出來——而漏掉一個列舉點正是這個切片犯過的錯。
-    expect(new IndicatorCalculationService(buildProxy()).listStrategyParameterKindOptions()
+    expect(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
       .map(option => option.value)).toEqual([...STRATEGY_PARAMETER_KINDS])
   })
 
   it('每一種可宣告的種類都有一則，一則都不少', () => {
     // 少一則就是一種讀法沒有人說得出來，而那一種在選單上挑得到。
     expect(accesses.map(access => access.kindLabel))
-      .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyParameterKindOptions()
+      .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
         .map(option => option.label))
   })
 

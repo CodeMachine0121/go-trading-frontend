@@ -54,7 +54,7 @@ type BackendRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   query?: Record<string, string>
   /**
-   * 送出去的內容。值可以是一個巢狀的清單（例如策略的那一份旋鈕），
+   * 送出去的內容。值可以是一個巢狀的清單（例如策略腳本的那一份旋鈕），
    * 但仍然逐項具名——沒有一個「什麼都能裝」的位置。
    *
    * null 是一個真的值而不是「沒填」：後端有幾個欄位可以是**沒有這一項**，

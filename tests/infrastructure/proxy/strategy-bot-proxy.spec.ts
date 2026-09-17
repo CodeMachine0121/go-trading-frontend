@@ -9,7 +9,7 @@ import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { StrategyBotNameConflictError } from '~/domain/errors/strategy-bot-name-conflict-error'
 import { StrategyBotNotFoundError } from '~/domain/errors/strategy-bot-not-found-error'
 import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-error'
-import { StrategyNotFoundError } from '~/domain/errors/strategy-not-found-error'
+import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 
 const BASE_URL = 'http://localhost:8080'
@@ -21,7 +21,7 @@ function botWire(overrides: Record<string, unknown> = {}) {
     symbol: 'BTCUSDT',
     triggerIntervalMinutes: 5,
     signalSources: [{
-      label: 'A', strategyId: 9, aggregationInterval: '1h',
+      label: 'A', strategyScriptId: 9, aggregationInterval: '1h',
       parameterValues: [{ name: '回看根數', value: 20 }],
     }],
     buyCondition: {
@@ -187,13 +187,13 @@ describe('StrategyBotProxy 把拒絕分成說得出下一步的那幾種', () =>
     await expect(proxy().getStrategyBot(3)).rejects.toBeInstanceOf(StrategyBotNotFoundError)
   })
 
-  it('看不到那一支策略——它與看不到機器人是兩件事', async () => {
-    // 兩者要做的事不同：一個回清單，一個換一支策略。
+  it('看不到那一支策略腳本——它與看不到機器人是兩件事', async () => {
+    // 兩者要做的事不同：一個回清單，一個換一支策略腳本。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
-      buildFetchError({ status: 404, message: '找不到識別碼為 9 的策略' })))
+      buildFetchError({ status: 404, message: '找不到識別碼為 9 的策略腳本' })))
 
     await expect(proxy().createStrategyBot(writeDomainOf()))
-      .rejects.toBeInstanceOf(StrategyNotFoundError)
+      .rejects.toBeInstanceOf(StrategyScriptNotFoundError)
   })
 
   it('名稱撞了——改個名字就能過', async () => {

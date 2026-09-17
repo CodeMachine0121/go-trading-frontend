@@ -11,7 +11,7 @@ const strategyBotApplication = {
   saveStrategyBot: vi.fn(),
 }
 
-const strategyApplication = { listAvailableStrategies: vi.fn() }
+const strategyScriptApplication = { listAvailableStrategyScripts: vi.fn() }
 
 function botDto(id: number) {
   return new StrategyBotDto(
@@ -27,7 +27,7 @@ function botDto(id: number) {
 function workbenchUnderTest(strategyBotId: number | null) {
   return useStrategyBotWorkbench(
     strategyBotApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[0],
-    strategyApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[1],
+    strategyScriptApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[1],
     strategyBotId,
   )
 }
@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7))
   strategyBotApplication.saveStrategyBot.mockResolvedValue(botDto(7))
-  strategyApplication.listAvailableStrategies.mockResolvedValue({
+  strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
     mine: [{
       id: 9,
       name: '均線',
@@ -51,13 +51,13 @@ beforeEach(() => {
 })
 
 describe('useStrategyBotWorkbench 讀一台進來', () => {
-  it('新拼一台時不去問任何一台，但照樣要挑得到策略', async () => {
+  it('新拼一台時不去問任何一台，但照樣要挑得到策略腳本', async () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
     expect(strategyBotApplication.getStrategyBot).not.toHaveBeenCalled()
     expect(workbench.editing.value).toBeNull()
-    expect(workbench.strategyOptions.value).toHaveLength(2)
+    expect(workbench.strategyScriptOptions.value).toHaveLength(2)
   })
 
   it('改一台時去問它現在長什麼樣', async () => {
@@ -73,14 +73,14 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.parameterNamesByStrategyId.value[9]).toEqual(['回看根數'])
-    expect(workbench.parameterNamesByStrategyId.value[10]).toEqual(['週期'])
+    expect(workbench.parameterNamesByStrategyScriptId.value[9]).toEqual(['回看根數'])
+    expect(workbench.parameterNamesByStrategyScriptId.value[10]).toEqual(['週期'])
   })
 
-  it('只挑得到會吐訊號的那幾支策略', async () => {
-    // 機器人一律以訊號種類執行一個信號來源，所以一支吐數字的策略會在第一輪算式失敗——
+  it('只挑得到會吐訊號的那幾支策略腳本', async () => {
+    // 機器人一律以訊號種類執行一個信號來源，所以一支吐數字的策略腳本會在第一輪算式失敗——
     // 而算式失敗是會**停擺**的那一類。使用者會得到一台按下播放、隔天發現早就停了的機器人。
-    strategyApplication.listAvailableStrategies.mockResolvedValue({
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
       mine: [
         { id: 9, name: '會吐訊號的', content: { resultType: 'signal', parameters: [] } },
         { id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } },
@@ -91,7 +91,7 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.strategyOptions.value).toEqual([{ value: 9, label: '會吐訊號的' }])
+    expect(workbench.strategyScriptOptions.value).toEqual([{ value: 9, label: '會吐訊號的' }])
   })
 
   it('那一台已經被刪掉時說找不到——它的下一步是回清單，不是重試', async () => {
@@ -104,9 +104,9 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     expect(workbench.missing.value).toBe(true)
   })
 
-  it('新拼一台時讀不到策略清單不算「那一台不見了」', async () => {
+  it('新拼一台時讀不到策略腳本清單不算「那一台不見了」', async () => {
     // 兩件事的下一步不一樣：一個回清單，一個再試一次。
-    strategyApplication.listAvailableStrategies.mockRejectedValue(new Error('後端連不上'))
+    strategyScriptApplication.listAvailableStrategyScripts.mockRejectedValue(new Error('後端連不上'))
 
     const workbench = workbenchUnderTest(null)
     await workbench.load()

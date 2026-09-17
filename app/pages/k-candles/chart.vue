@@ -11,7 +11,7 @@ const {
   $tradingSymbolApplication,
   $chartIndicatorApplication,
   $liveKCandleApplication,
-  $strategyApplication,
+  $strategyScriptApplication,
 } = useNuxtApp()
 
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
@@ -60,7 +60,7 @@ const { currentUser, signOut } = useUserSession()
       :trading-symbol-application="$tradingSymbolApplication"
       :chart-indicator-application="$chartIndicatorApplication"
       :live-k-candle-application="$liveKCandleApplication"
-      :strategy-application="$strategyApplication"
+      :strategy-script-application="$strategyScriptApplication"
       :time-zone="selectedTimeZone"
     />
   </ConsoleLayout>

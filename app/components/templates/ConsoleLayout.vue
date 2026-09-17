@@ -17,7 +17,7 @@ const DESTINATIONS = [
   { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles' },
   { to: '/watchlist', label: '觀察清單', icon: 'table' },
   { to: '/indicator-calculations', label: '指標計算', icon: 'formula' },
-  { to: '/marketplace', label: '策略市集', icon: 'library' },
+  { to: '/marketplace', label: '策略腳本市集', icon: 'library' },
   // 機器人排在市集之後、助手之前：市集是「有什麼可以用」，這裡是「我派了誰出去」，
   // 兩者是同一件事的前後兩步。
   { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot' },

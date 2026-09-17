@@ -8,8 +8,8 @@ import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
 const {
   $indicatorCalculationApplication,
-  $strategyApplication,
-  $strategyMarketplaceApplication,
+  $strategyScriptApplication,
+  $strategyScriptMarketplaceApplication,
   $tradingSymbolApplication,
   $backtestApplication,
 } = useNuxtApp()
@@ -57,8 +57,8 @@ const { currentUser, signOut } = useUserSession()
 
     <IndicatorCalculationPanel
       :indicator-calculation-application="$indicatorCalculationApplication"
-      :strategy-application="$strategyApplication"
-      :strategy-marketplace-application="$strategyMarketplaceApplication"
+      :strategy-script-application="$strategyScriptApplication"
+      :strategy-script-marketplace-application="$strategyScriptMarketplaceApplication"
       :trading-symbol-application="$tradingSymbolApplication"
       :backtest-application="$backtestApplication"
       :time-zone="selectedTimeZone"

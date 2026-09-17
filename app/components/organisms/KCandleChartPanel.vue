@@ -9,7 +9,7 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
-import type { StrategyApplication } from '~/application/strategy-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
 import type { LiveUpdateNoticeValue } from '~/domain/models/vo/live-update-notice-vo'
 import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
@@ -22,7 +22,7 @@ import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
@@ -35,14 +35,14 @@ const {
   tradingSymbolApplication,
   chartIndicatorApplication,
   liveKCandleApplication,
-  strategyApplication,
+  strategyScriptApplication,
   timeZone,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
   chartIndicatorApplication: ChartIndicatorApplication
   liveKCandleApplication: LiveKCandleApplication
-  strategyApplication: StrategyApplication
+  strategyScriptApplication: StrategyScriptApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
 }>()
@@ -93,8 +93,8 @@ let latestRequestNumber = 0
 // 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
 const chartIndicators = useChartIndicators(chartIndicatorApplication)
 
-/** 可以挑來套用的策略。取不到清單時是空的——那是一份清單，不是一個功能。 */
-const strategies = ref<ChartApplicableStrategyDto[]>([])
+/** 可以挑來套用的策略腳本。取不到清單時是空的——那是一份清單，不是一個功能。 */
+const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
@@ -405,21 +405,21 @@ onMounted(async () => {
   try {
     // 兩段都能套到圖上：套用不需要算式，而加入來的那些正好沒有。
     // 在這裡就轉成圖表要的形狀，圖表那一路因此完全不必知道有兩種來源。
-    const available = await strategyApplication.listAvailableStrategies()
-    strategies.value = [
-      ...available.mine.map(strategy => strategy.toChartApplicable()),
+    const available = await strategyScriptApplication.listAvailableStrategyScripts()
+    strategyScripts.value = [
+      ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
       ...available.adopted.map(published => published.toChartApplicable()),
     ]
 
-    // 上次擺著的那幾支自己回來。**要等策略清單到手**——那份清單是還原時唯一的真相：
+    // 上次擺著的那幾支自己回來。**要等策略腳本清單到手**——那份清單是還原時唯一的真相：
     // 留存的是「他要哪幾支」，而那幾支可能已經被刪、改了宣告，或者現在畫不成線。
     // 取不到清單時就還原不了，那與「上次一支都沒擺」對使用者是同一件事：清單是空的。
-    await chartIndicators.restoreAppliedIndicators(strategies.value)
+    await chartIndicators.restoreAppliedIndicators(strategyScripts.value)
   }
   catch {
-    // 取不到策略清單只代表這一次沒有東西可挑，圖表本身照畫——
+    // 取不到策略腳本清單只代表這一次沒有東西可挑，圖表本身照畫——
     // 為此擋掉整張圖，等於讓一個附加功能決定主功能能不能用。
-    strategies.value = []
+    strategyScripts.value = []
   }
 })
 </script>
@@ -445,7 +445,7 @@ onMounted(async () => {
       />
 
       <ChartIndicatorPanel
-        :selectable-strategies="chartIndicators.selectableStrategies(strategies)"
+        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
         :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
         :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"

@@ -16,11 +16,11 @@ import { IndicatorSeriesDto } from '~/domain/models/dto/indicator-series-dto'
  * 不必為了畫指標學會任何一種判斷——它多的是兩個迴圈，不是一個 if。
  *
  * 一支算式可以一次產出好幾個指標名稱，所以產出的是「幾條線」而不是「一條線」。
- * 顏色的身分是**策略識別碼加指標名稱**：同一支策略畫出的兩條線因此各有各的顏色，
+ * 顏色的身分是**策略腳本識別碼加指標名稱**：同一支策略腳本畫出的兩條線因此各有各的顏色，
  * 而重新打開畫面之後同一條線還認得出自己挑過什麼色。
  *
  * **那個身分刻意不含「這是第幾次套用」。** 顏色記的是
- * 「我習慣這支的均線是藍色」，那個習慣屬於策略，不屬於某一次套用——
+ * 「我習慣這支的均線是藍色」，那個習慣屬於策略腳本，不屬於某一次套用——
  * 把套用序號寫進去，下次打開畫面時所有人挑過的顏色會全部失憶。
  * 同一支被套用兩次時該怎麼辦，由配色那個模型看著「圖上畫著什麼」回答。
  */
@@ -28,7 +28,7 @@ export class ChartIndicatorDomain {
   private readonly resultType: IndicatorResultTypeDomain
 
   constructor(
-    private readonly strategyId: number,
+    private readonly strategyScriptId: number,
     private readonly indicatorCalculation: IndicatorCalculation,
     /**
      * 怎麼回想一條線挑過的顏色。
@@ -87,7 +87,7 @@ export class ChartIndicatorDomain {
     const assignedTokens = [...this.drawnLines.takenColorTokens]
 
     return this.numericIndicatorValues().map((indicatorValue) => {
-      const lineKey = `${this.strategyId}:${indicatorValue.name}`
+      const lineKey = `${this.strategyScriptId}:${indicatorValue.name}`
       const colorToken = new ChartLineColorDomain(
         lineKey,
         this.chartLineColorPreferenceProxy.readColorToken(lineKey),
@@ -127,7 +127,7 @@ export class ChartIndicatorDomain {
   /**
    * 依名稱排序，理由與結果表格那邊一字不差：算式產出的順序不保證固定，
    * 而順序在這裡還多決定一件事——沒挑過顏色時是誰先拿到哪個顏色。
-   * 不排的話，同一支策略每算一次，兩條線的顏色就可能對調。
+   * 不排的話，同一支策略腳本每算一次，兩條線的顏色就可能對調。
    *
    * 比的是碼位而不是語系字序：同一組結果在不同瀏覽器上必須排出同一個順序。
    */

@@ -31,7 +31,7 @@ const emit = defineEmits<{
 <template>
   <AppModal
     :open="row !== null"
-    :title="row?.appliedIndicator.strategy.name ?? ''"
+    :title="row?.appliedIndicator.strategyScript.name ?? ''"
     @close="emit('close')"
   >
     <div
@@ -59,7 +59,7 @@ const emit = defineEmits<{
 
         <p class="applied-indicator-dialog__note">
           改了就重算這一筆，圖上其他線不動。這裡填的值只屬於這一次套用，
-          策略記著的預設值不會被動到。
+          策略腳本記著的預設值不會被動到。
         </p>
       </section>
 

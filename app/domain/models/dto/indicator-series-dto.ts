@@ -6,7 +6,7 @@ import type { IndicatorPointDto } from '~/domain/models/dto/indicator-point-dto'
  */
 export class IndicatorSeriesDto {
   constructor(
-    /** 這條線的身分：同一支策略的同一個指標名稱，重新打開畫面後仍是同一條線。 */
+    /** 這條線的身分：同一支策略腳本的同一個指標名稱，重新打開畫面後仍是同一條線。 */
     public readonly lineKey: string,
     public readonly indicatorName: string,
     public readonly colorToken: string,

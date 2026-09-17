@@ -4,9 +4,9 @@ import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 
@@ -15,7 +15,7 @@ const SCRIPT_BODY = 'return indicator.Buy'
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 const END_TIME = new Date('2026-09-04T23:59:59Z')
 
-function requestOf(parameters: StrategyParameterDto[] = []): BacktestRequestDomain {
+function requestOf(parameters: StrategyScriptParameterDto[] = []): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50')))
@@ -126,7 +126,7 @@ describe('BacktestProxy', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
-      requestOf([new StrategyParameterDto('period', 'lookbackCount', 20)]))
+      requestOf([new StrategyScriptParameterDto('period', 'lookbackCount', 20)]))
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.parameters).toEqual([{ name: 'period', kind: 'lookbackCount', defaultValue: 20 }])
@@ -173,8 +173,8 @@ describe('BacktestProxy', () => {
 
     const failure = await backtestFailure()
 
-    expect(failure).toBeInstanceOf(StrategyParameterNotDeclaredError)
-    expect((failure as StrategyParameterNotDeclaredError).parameterName).toBe('期數')
+    expect(failure).toBeInstanceOf(StrategyScriptParameterNotDeclaredError)
+    expect((failure as StrategyScriptParameterNotDeclaredError).parameterName).toBe('期數')
   })
 
   it('算式跑不起來時說成算式的問題', async () => {

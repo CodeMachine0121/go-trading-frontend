@@ -1,16 +1,16 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
-import StrategyBacktestPane from '~/components/organisms/StrategyBacktestPane.vue'
+import StrategyScriptBacktestPane from '~/components/organisms/StrategyScriptBacktestPane.vue'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyMarketplaceApplication, buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyScriptMarketplaceApplication, buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 vi.mock('lightweight-charts', () => ({
@@ -44,7 +44,7 @@ async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody
   await settle()
 }
 
-function mountPanel(strategyApplication = buildStrategyApplication()) {
+function mountPanel(strategyScriptApplication = buildStrategyScriptApplication()) {
   const indicatorCalculationProxy: IIndicatorCalculationProxy = {
     calculateIndicator: vi.fn().mockResolvedValue(
       new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
@@ -54,8 +54,8 @@ function mountPanel(strategyApplication = buildStrategyApplication()) {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
-      strategyApplication,
-      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(),
+      strategyScriptApplication,
+      strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
       timeZone: buildTimeZone(),
@@ -64,7 +64,7 @@ function mountPanel(strategyApplication = buildStrategyApplication()) {
 }
 
 function backtestPane(wrapper: ReturnType<typeof mountPanel>) {
-  return wrapper.findComponent(StrategyBacktestPane)
+  return wrapper.findComponent(StrategyScriptBacktestPane)
 }
 
 describe('IndicatorCalculationPanel 的兩個去處', () => {
@@ -176,19 +176,19 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
     expect(backtestPane(wrapper).props('parameters')).toHaveLength(1)
   })
 
-  it('載入另一支策略時告訴回測那一側工作區被換掉了', async () => {
+  it('載入另一支策略腳本時告訴回測那一側工作區被換掉了', async () => {
     // 換了一份算式，上一次那次重演就與畫面上這一份無關了。
-    const strategyApplication = buildStrategyApplication({
-      listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '另一支', {
+    const strategyScriptApplication = buildStrategyScriptApplication({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '另一支', {
         scriptBody: '另一段算式',
-        parameters: [new StrategyParameterDto('period', 'lookbackCount', 20)],
+        parameters: [new StrategyScriptParameterDto('period', 'lookbackCount', 20)],
       })], adopted: [] }),
     })
-    const wrapper = mountPanel(strategyApplication)
+    const wrapper = mountPanel(strategyScriptApplication)
     await settle()
 
     const generationBefore = backtestPane(wrapper).props('workspaceGeneration')
-    await wrapper.get('[data-testid="strategy-picker-select"]').setValue('7')
+    await wrapper.get('[data-testid="strategy-script-picker-select"]').setValue('7')
     await settle()
 
     expect(backtestPane(wrapper).props('workspaceGeneration'))

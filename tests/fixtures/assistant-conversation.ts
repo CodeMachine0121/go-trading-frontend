@@ -37,4 +37,4 @@ export function buildSummary(
 }
 
 /** 空對話上那幾句建議提問。內容不重要，重要的是有幾句與點下去會發生什麼。 */
-export const SUGGESTED_PROMPTS: readonly string[] = ['系統認得哪些交易標的？', '我有哪些已存的策略？']
+export const SUGGESTED_PROMPTS: readonly string[] = ['系統認得哪些交易標的？', '我有哪些已存的策略腳本？']

@@ -8,8 +8,8 @@ function comparison(sourceLabel: string, signal = 'buy') {
   return new StrategyBotConditionDto('node', null, [], sourceLabel, signal)
 }
 
-function source(label: string, strategyId = 9) {
-  return new StrategyBotSignalSourceDto(label, strategyId, '1h', [])
+function source(label: string, strategyScriptId = 9) {
+  return new StrategyBotSignalSourceDto(label, strategyScriptId, '1h', [])
 }
 
 /** 一台每一條規則都過得了的機器人，好讓每個案例只改它要講的那一格。 */

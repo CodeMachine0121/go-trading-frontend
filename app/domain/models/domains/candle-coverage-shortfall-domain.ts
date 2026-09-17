@@ -28,7 +28,7 @@ export class CandleCoverageShortfallDomain {
 
   message(): string {
     return `這段區間只湊得出 ${this.shortfall.availableCandleCount} 根 K 線，`
-      + `而這支策略至少要 ${this.shortfall.minimumCandleCount} 根才算得出一個值。`
+      + `而這支策略腳本至少要 ${this.shortfall.minimumCandleCount} 根才算得出一個值。`
       + '請改用更細的彙總刻度（每根涵蓋的時間更短，同一段時間就切得出更多根），'
       + '或先補上這段缺的歷史。'
   }

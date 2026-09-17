@@ -5,7 +5,7 @@ import AppModal from '~/components/atoms/AppModal.vue'
 describe('AppModal', () => {
   it('沒打開時什麼都不擺在畫面上', () => {
     const wrapper = mount(AppModal, {
-      props: { open: false, title: '策略清單' },
+      props: { open: false, title: '策略腳本清單' },
       slots: { default: '<p>裡面的東西</p>' },
     })
 
@@ -15,12 +15,12 @@ describe('AppModal', () => {
 
   it('打開時把標題與內容擺出來', () => {
     const wrapper = mount(AppModal, {
-      props: { open: true, title: '策略清單' },
+      props: { open: true, title: '策略腳本清單' },
       slots: { default: '<p>裡面的東西</p>' },
     })
 
-    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('策略清單')
-    expect(wrapper.get('.app-modal__title').text()).toBe('策略清單')
+    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('策略腳本清單')
+    expect(wrapper.get('.app-modal__title').text()).toBe('策略腳本清單')
     expect(wrapper.text()).toContain('裡面的東西')
   })
 
