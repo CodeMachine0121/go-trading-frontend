@@ -9,11 +9,10 @@ import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading
 //
 // 拖回架子＝把它從墊子上收走。那個動作由上面那一層決定要做什麼，
 // 這裡只負責說「有東西掉在我身上了」。
-const { sources, placedLabels, intervalOptions } = defineProps<{
+const { sources, placedLabels } = defineProps<{
   sources: readonly TradingStrategySignalSourceDto[]
   /** 已經擺在任何一張墊子上的那幾塊。它們在架子上淡一階。 */
   placedLabels: readonly string[]
-  intervalOptions: readonly { value: string, label: string }[]
   /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
   canAdd: boolean
   signalSourceLimit: number
@@ -36,10 +35,6 @@ const emit = defineEmits<{
 
 function isPlaced(sourceLabel: string): boolean {
   return placedLabels.includes(sourceLabel)
-}
-
-function intervalLabelOf(interval: string): string {
-  return intervalOptions.find(option => option.value === interval)?.label ?? interval
 }
 </script>
 
@@ -88,7 +83,6 @@ function intervalLabelOf(interval: string): string {
             aria-hidden="true"
           >⠿</span>
           <span class="shelf__piece-name">{{ source.label }}</span>
-          <span class="shelf__piece-note">{{ intervalLabelOf(source.aggregationInterval) }}</span>
 
           <AppButton
             type="button"

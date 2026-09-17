@@ -23,7 +23,7 @@ const SIGNAL_OPTIONS = [
   { value: 'hold', label: '持有' },
 ] as const
 
-/** 新增一個信號來源時它的預設刻度。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
+/** 一份新的交易策略預設看多粗的 K 線。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_AGGREGATION_INTERVAL = '5m'
 
 /**
@@ -41,6 +41,22 @@ export function useTradingStrategyForm(
   strategyScriptOptions: () => readonly { value: number, label: string }[],
 ) {
   const name = ref('')
+  /**
+   * 這一份交易策略看多粗的 K 線。**一份一個**，不是一塊零件一個。
+   *
+   * 零件身上那個欄位仍然存在（送出去的形狀沒變），但它不再是真相：
+   * 要送出去時每一個來源的刻度一律改寫成這裡的值。兩邊各存一份的話，
+   * 第二份遲早會說出第一份沒有的話——而「兩個來源看不同粗細」正是那一類。
+   */
+  const aggregationInterval = ref(DEFAULT_AGGREGATION_INTERVAL)
+  /**
+   * 剛讀進來的那一份原本用了哪幾種刻度，依出現順序、每種一次。
+   *
+   * 不只一種時畫面要明講。存在這條規則之前存下的那些混合資料沒有正確答案可以挑，
+   * 所以取第一個——而讓那個任意選擇可以被接受的不是選法，是說出來。
+   * 悄悄統一才是真正糟糕的做法：他按下儲存，另外幾個零件被改掉，而他不會發現。
+   */
+  const loadedAggregationIntervals = ref<string[]>([])
   const signalSources = ref<TradingStrategySignalSourceDto[]>([])
   /**
    * 條件目前真正指著的那幾個代號——也就是每個來源**最後一個沒有撞名的**代號。
@@ -96,7 +112,13 @@ export function useTradingStrategyForm(
     return new TradingStrategyWriteDto(
       editing()?.id,
       name.value,
-      signalSources.value,
+      // 刻度在這裡鋪開到每一個來源。後端收的形狀沒有變——它只是現在永遠一樣。
+      signalSources.value.map(signalSource => new TradingStrategySignalSourceDto(
+        signalSource.label,
+        signalSource.strategyScriptId,
+        aggregationInterval.value,
+        signalSource.parameterValues,
+      )),
       conditionSides[0].condition.value,
       conditionSides[1].condition.value,
     )
@@ -115,6 +137,10 @@ export function useTradingStrategyForm(
 
     name.value = loaded?.name ?? ''
     signalSources.value = [...(loaded?.signalSources ?? [])]
+    loadedAggregationIntervals.value = [...new Set(
+      signalSources.value.map(signalSource => signalSource.aggregationInterval))]
+    aggregationInterval.value
+      = loadedAggregationIntervals.value[0] ?? DEFAULT_AGGREGATION_INTERVAL
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
     // 存進來的那棵樹在這裡、而且只在這裡，被讀成「墊子上擺了哪幾塊」。
     boards.buy.value = new TradingStrategyConditionDomain(loaded?.buyCondition ?? null).toBoardDto()
@@ -135,7 +161,9 @@ export function useTradingStrategyForm(
       new TradingStrategySignalSourceDto(
         label,
         strategyScriptId,
-        DEFAULT_AGGREGATION_INTERVAL,
+        // 零件身上這個欄位不是真相——送出去的那一份由 buildWriteDto 統一鋪上
+        // 目前挑的刻度。這裡仍然填它，只是為了讓這份清單自己不要前後矛盾。
+        aggregationInterval.value,
         [],
       ),
     ]
@@ -228,11 +256,6 @@ export function useTradingStrategyForm(
   function changeSignalSourceStrategyScript(index: number, strategyScriptId: number) {
     replaceSignalSource(index, signalSource => new TradingStrategySignalSourceDto(
       signalSource.label, strategyScriptId, signalSource.aggregationInterval, []))
-  }
-
-  function changeSignalSourceInterval(index: number, aggregationInterval: string) {
-    replaceSignalSource(index, signalSource => new TradingStrategySignalSourceDto(
-      signalSource.label, signalSource.strategyScriptId, aggregationInterval, signalSource.parameterValues))
   }
 
   function changeSignalSourceParameterValue(index: number, parameterName: string, value: number) {
@@ -341,6 +364,8 @@ export function useTradingStrategyForm(
 
   return {
     name,
+    aggregationInterval,
+    loadedAggregationIntervals,
     signalSources,
     sourceLabels,
     intervalOptions,
@@ -363,7 +388,6 @@ export function useTradingStrategyForm(
     removeSignalSource,
     changeSignalSourceLabel,
     changeSignalSourceStrategyScript,
-    changeSignalSourceInterval,
     changeSignalSourceParameterValue,
   }
 }
