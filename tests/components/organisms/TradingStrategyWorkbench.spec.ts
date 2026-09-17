@@ -390,8 +390,9 @@ describe('TradingStrategyWorkbench：一支策略腳本自己的設定', () => {
 
     const panel = wrapper.get('[data-testid="strategy-script-settings-panel"]')
     expect(panel.find('[data-testid="strategy-script-label-input"]').exists()).toBe(true)
-    expect(panel.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(true)
     expect(panel.find('[data-testid="strategy-script-parameter-input"]').exists()).toBe(true)
+    // 刻度不在這裡：它是整份交易策略的一格，挑在工作檯頂端。
+    expect(panel.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(false)
 
     // 它不在架子那一格裡面——在裡面就是原地展開，那正是這次要換掉的東西。
     expect(wrapper.get('[data-testid="strategy-script-row"]').element
@@ -468,5 +469,105 @@ describe('TradingStrategyWorkbench：畫不出來的舊條件', () => {
 
     expect(wrapper.get('[data-testid="board-unrepresentable-buy"]').text()).toContain('排不出')
     expect(wrapper.find('[data-testid="board-unrepresentable-sell"]').exists()).toBe(false)
+  })
+})
+
+describe('TradingStrategyWorkbench：一份交易策略只看一種粗細', () => {
+  /** 送出去的那一份裡，每個信號來源各自帶的刻度。 */
+  async function savedIntervalsOf(wrapper: ReturnType<typeof mountWorkbench>) {
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
+
+    const saved = wrapper.emitted('save')?.[0]?.[0] as {
+      signalSources: { aggregationInterval: string }[]
+    }
+
+    return saved.signalSources.map(signalSource => signalSource.aggregationInterval)
+  }
+
+  it('刻度挑在工作檯上，不在任何一塊零件裡', async () => {
+    // 挑在零件裡的話，拼得出一份「A 看一小時、B 看五分鐘」的交易策略——
+    // 而那一份存下去之後什麼都做不成。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="trading-strategy-interval-select"]').exists()).toBe(true)
+  })
+
+  it('換掉那一格，架上每一塊零件一起換', async () => {
+    const wrapper = mountWorkbench(aBot(
+      comparison('b', 'MACD', 'buy'),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+      ]))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trading-strategy-interval-select"]').setValue('1d')
+    await flushPromises()
+
+    expect(await savedIntervalsOf(wrapper)).toEqual(['1d', '1d'])
+  })
+
+  it('後來才加的零件也跟著那一格', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trading-strategy-interval-select"]').setValue('1h')
+    await wrapper.get('[data-testid="strategy-script-add"]').trigger('click')
+    await flushPromises()
+
+    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
+  })
+
+  it('讀進來的那一份用它自己的刻度，不是預設值', async () => {
+    const wrapper = mountWorkbench(aBot(
+      comparison('b', 'MACD', 'buy'),
+      comparison('s', 'MACD', 'sell'),
+      [new TradingStrategySignalSourceDto('MACD', 9, '4h', [])]))
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="trading-strategy-interval-select"]')
+      .element as HTMLSelectElement).value).toBe('4h')
+  })
+
+  it('本來就一致的那一份什麼都不必提', async () => {
+    // 一句永遠都在的提醒，讀久了就等於不在。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="trading-strategy-mixed-interval-note"]').exists())
+      .toBe(false)
+  })
+
+  it('打開一份原本混著的舊資料時明講，而不是悄悄統一', async () => {
+    // 悄悄統一是這裡唯一真正糟糕的做法：他按下儲存，另外幾個零件被改掉，
+    // 而他不會發現。
+    const wrapper = mountWorkbench(aBot(
+      comparison('b', 'MACD', 'buy'),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new TradingStrategySignalSourceDto('MACD', 9, '1h', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+      ]))
+    await flushPromises()
+
+    const note = wrapper.get('[data-testid="trading-strategy-mixed-interval-note"]').text()
+    expect(note).toContain('1h')
+    expect(note).toContain('5m')
+  })
+
+  it('混著的那一份直接按儲存就被調成一致了', async () => {
+    const wrapper = mountWorkbench(aBot(
+      comparison('b', 'MACD', 'buy'),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new TradingStrategySignalSourceDto('MACD', 9, '1h', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+      ]))
+    await flushPromises()
+
+    // 取第一個是個任意但說得出口的選擇——畫面剛剛已經說出它原本有哪幾種。
+    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
   })
 })
