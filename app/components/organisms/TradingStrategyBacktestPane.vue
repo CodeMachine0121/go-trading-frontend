@@ -83,9 +83,9 @@ const tradingModeNote = computed(() => {
  * 條件那一塊要一個繫結的值，因為它是兩種受測對象共用的。
  *
  * 這一塊挑不動交易模式，所以它從頭到尾不會變、也不會被送出去——
- * 與彙總刻度那一格同一個狀況。
+ * 與上面那個彙總刻度**同一個狀況、同一個寫法**：空字串說的正是「這裡沒有人挑過」。
  */
-const unpickedTradingMode = ref<string>(backtestApplication.defaultTradingMode())
+const unpickedTradingMode = ref('')
 
 // 回測照什麼規則走。兩種受測對象讀的是同一份——規則本來就是同一套。
 const signalReadings = backtestApplication.listSignalReadings()

@@ -4,8 +4,7 @@ import { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-stra
 import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
-import { DEFAULT_TRADING_MODE, TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
+import { TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
 import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-rejected-error'
 
 /**
@@ -14,17 +13,6 @@ import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-r
  */
 export class TradingStrategyService {
   constructor(private readonly tradingStrategyProxy: ITradingStrategyProxy) {}
-
-  /**
-   * 沒有挑過時這一份是哪一種。
-   *
-   * 與回測那一側問到的是同一個常數。交易模式現在是**一份交易策略的性質**，
-   * 所以拼規則那一頁問這裡；而重演一支還沒存起來的腳本沒有規則可問，
-   * 那一條路仍然問回測那一側。兩處問到的答案必須一樣，所以只有一個常數。
-   */
-  defaultTradingMode(): TradingMode {
-    return DEFAULT_TRADING_MODE
-  }
 
   /**
    * 交易模式：工作檯那一列上可以挑的每一個，連那一句說明一起帶著。
