@@ -114,6 +114,8 @@ describe('TradingStrategyBacktestPane', () => {
 
       expect(wrapper.find('[data-testid="trading-strategy-backtest-unsaved"]').exists())
         .toBe(false)
+      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
+        .toBeUndefined()
     })
   })
 
