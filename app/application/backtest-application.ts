@@ -49,6 +49,10 @@ export class BacktestApplication {
     return this.backtestService.listTradingModeOptions()
   }
 
+  tradingModeOption(mode: TradingMode | null): TradingModeOptionDto {
+    return this.backtestService.tradingModeOption(mode)
+  }
+
   listBacktestRules(): BacktestRuleDto[] {
     return this.backtestService.listBacktestRules()
   }

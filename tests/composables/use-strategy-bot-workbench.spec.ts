@@ -37,8 +37,8 @@ beforeEach(() => {
   strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7))
   strategyBotApplication.saveStrategyBot.mockResolvedValue(botDto(7))
   tradingStrategyApplication.listTradingStrategies.mockResolvedValue([
-    new TradingStrategyDto(9, '黃金交叉', [], null, null),
-    new TradingStrategyDto(10, '死亡交叉', [], null, null),
+    new TradingStrategyDto(9, '黃金交叉', 'longShort', [], null, null),
+    new TradingStrategyDto(10, '死亡交叉', 'longShort', [], null, null),
   ])
 })
 

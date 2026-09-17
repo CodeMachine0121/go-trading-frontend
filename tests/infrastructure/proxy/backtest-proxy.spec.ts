@@ -225,12 +225,10 @@ describe('BacktestProxy', () => {
   })
 })
 
-function tradingStrategyRequestOf(
-  tradingMode: TradingMode = 'longShort',
-): TradingStrategyBacktestRequestDomain {
+function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
-    new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode))
+    new Decimal('10000'), 'percentage', new Decimal('50')))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {
@@ -337,18 +335,18 @@ describe('BacktestProxy 照哪一套規矩操作', () => {
     expect(fetchMock.mock.calls[0]![1].body.tradingMode).toBe('longShort')
   })
 
-  it('重演一整份交易策略時同樣送得出去，而且仍然不送刻度與算式', async () => {
+  it('重演一整份交易策略時不送刻度、算式與交易模式', async () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf('spot'))
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
-    expect(body.tradingMode).toBe('spot')
-    // 那兩樣是這份交易策略的信號來源自己說的，多送一份等於同一件事有兩個答案。
+    // 那三樣都是這份交易策略自己說的，多送一份等於同一件事有兩個答案。
     expect(body.aggregationInterval).toBeUndefined()
     expect(body.script).toBeUndefined()
+    expect(body.tradingMode).toBeUndefined()
   })
 
   it('後端說交易模式不對時，那句話標在交易模式那一格', async () => {

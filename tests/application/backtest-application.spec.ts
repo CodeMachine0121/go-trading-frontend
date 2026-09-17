@@ -221,8 +221,7 @@ describe('BacktestApplication 重演一整份交易策略', () => {
       overrides.endTime ?? END_TIME,
       overrides.initialCapital ?? new Decimal('10000'),
       'percentage',
-      new Decimal('50'),
-      overrides.tradingMode ?? 'longShort')
+      new Decimal('50'))
   }
 
   it('回來的形狀與重演一支腳本完全一樣，三個元件一種讀法就夠', async () => {

@@ -1,7 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
@@ -13,9 +12,10 @@ import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
  * 「不合法就不送出」與「說明留在那一格旁邊」是同一條規則的兩半，
  * 所以驗證在這裡而不在畫面上。
  *
- * 它比重演一支腳本少了兩條規則，而那正是這個切片的重點：
- * **算式與彙總刻度都不由填表的人決定**。算式是那幾個信號來源各自的，
- * 刻度是它們共同說的——而它們是不是真的一致，只有後端看得到全部，
+ * 它比重演一支腳本少了三樣，而那正是這件事的重點：
+ * **算式、彙總刻度與交易模式都不由填表的人決定**。算式是那幾個信號來源各自的，
+ * 刻度是它們共同說的，交易模式是那一份交易策略自己記著的——
+ * 而它們是不是真的一致，只有後端看得到全部，
  * 所以那一條由後端說、畫面照它說的講。
  */
 export class TradingStrategyBacktestRequestDomain {
@@ -26,7 +26,6 @@ export class TradingStrategyBacktestRequestDomain {
   readonly initialCapital: Decimal
   readonly positionSizingMode: PositionSizingMode
   readonly positionSizingValue: Decimal
-  readonly tradingMode: TradingMode
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -52,7 +51,5 @@ export class TradingStrategyBacktestRequestDomain {
     this.initialCapital = requestDto.initialCapital
     this.positionSizingMode = requestDto.positionSizingMode
     this.positionSizingValue = requestDto.positionSizingValue
-    // 與重演一支腳本同一套處理：從兩顆按鈕挑的，挑不出非法值。
-    this.tradingMode = requestDto.tradingMode
   }
 }

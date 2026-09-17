@@ -1,7 +1,10 @@
 import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
+import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
 import { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-strategy-write-domain'
+import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
+import { TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
 import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-rejected-error'
 
 /**
@@ -10,6 +13,16 @@ import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-r
  */
 export class TradingStrategyService {
   constructor(private readonly tradingStrategyProxy: ITradingStrategyProxy) {}
+
+  /**
+   * 交易模式：工作檯那一列上可以挑的每一個，連那一句說明一起帶著。
+   *
+   * 名字與說明來自 TradingModeDomain，與回測那一列是同一份字串——
+   * 使用者在兩塊畫面上讀到的必須是對同一件事的同一種說法。
+   */
+  listTradingModeOptions(): TradingModeOptionDto[] {
+    return TRADING_MODES.map(mode => new TradingModeDomain(mode).toOptionDto())
+  }
 
   /** 自己的每一份。一份都沒有是答案，不是錯誤。 */
   async listTradingStrategies(): Promise<TradingStrategyDto[]> {

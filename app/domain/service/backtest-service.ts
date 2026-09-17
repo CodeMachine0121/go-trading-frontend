@@ -121,4 +121,18 @@ export class BacktestService {
   listTradingModeOptions(): TradingModeOptionDto[] {
     return TRADING_MODES.map(mode => new TradingModeDomain(mode).toOptionDto())
   }
+
+  /**
+   * 一種交易模式的名字與那一句說明。
+   *
+   * 給它 `null` 就是「還沒有人說過」——那時答的是預設值，與後端對一份沒填的
+   * 交易策略的讀法一字不差。那條規則寫在這裡而不在畫面上，
+   * 因為它與預設值本來就是同一件事的兩半。
+   *
+   * 重演一份交易策略那一塊要它：交易模式是那一份自己記著的，所以那一格不是選單、
+   * 而是一句話，而那句話的字必須與挑得動的那兩顆按鈕一模一樣。
+   */
+  tradingModeOption(mode: TradingMode | null): TradingModeOptionDto {
+    return new TradingModeDomain(mode ?? DEFAULT_TRADING_MODE).toOptionDto()
+  }
 }

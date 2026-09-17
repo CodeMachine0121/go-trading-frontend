@@ -1,4 +1,5 @@
 import type { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 /**
@@ -11,6 +12,8 @@ export class TradingStrategyDto {
   constructor(
     public readonly id: number,
     public readonly name: string,
+    /** 這一份是寫給哪一種帳戶的。重演那一塊要它才說得出這一份是照哪一套算的。 */
+    public readonly tradingMode: TradingMode,
     public readonly signalSources: readonly TradingStrategySignalSourceDto[],
     public readonly buyCondition: TradingStrategyConditionDto | null,
     public readonly sellCondition: TradingStrategyConditionDto | null,

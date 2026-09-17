@@ -13,7 +13,8 @@ const tradingStrategyApplication = {
 
 function tradingStrategyDto(id: number, name: string) {
   return new TradingStrategyDto(
-    id, name, [new TradingStrategySignalSourceDto('A', 9, '1h', [])], null, null)
+    id, name, 'longShort',
+    [new TradingStrategySignalSourceDto('A', 9, '1h', [])], null, null)
 }
 
 function underTest() {

@@ -3,6 +3,7 @@ import { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-stra
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 function comparison(sourceLabel: string, signal = 'buy') {
   return new TradingStrategyConditionDto('node', null, [], sourceLabel, signal)
@@ -15,6 +16,7 @@ function source(label: string, strategyScriptId = 9) {
 /** 一份每一條規則都過得了的交易策略，好讓每個案例只改它要講的那一格。 */
 function aBotWrite(overrides: Partial<{
   name: string
+  tradingMode: TradingMode
   signalSources: TradingStrategySignalSourceDto[]
   buyCondition: TradingStrategyConditionDto | null
   sellCondition: TradingStrategyConditionDto | null
@@ -22,6 +24,7 @@ function aBotWrite(overrides: Partial<{
   return new TradingStrategyWriteDomain(new TradingStrategyWriteDto(
     undefined,
     overrides.name ?? '黃金交叉',
+    overrides.tradingMode ?? 'longShort',
     overrides.signalSources ?? [source('A')],
     'buyCondition' in overrides ? overrides.buyCondition! : comparison('A'),
     'sellCondition' in overrides ? overrides.sellCondition! : comparison('A', 'sell'),

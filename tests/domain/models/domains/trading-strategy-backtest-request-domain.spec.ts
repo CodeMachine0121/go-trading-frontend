@@ -27,7 +27,6 @@ function aRequest(overrides: Partial<{
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
     overrides.positionSizingValue ?? new Decimal('50'),
-    overrides.tradingMode ?? 'longShort',
   )
 }
 

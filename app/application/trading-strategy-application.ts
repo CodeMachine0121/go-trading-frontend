@@ -1,10 +1,15 @@
 import type { TradingStrategyService } from '~/domain/service/trading-strategy-service'
+import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 
 /** Application：交易策略的用例編排，全程只碰 DTO。 */
 export class TradingStrategyApplication {
   constructor(private readonly tradingStrategyService: TradingStrategyService) {}
+
+  listTradingModeOptions(): TradingModeOptionDto[] {
+    return this.tradingStrategyService.listTradingModeOptions()
+  }
 
   async listTradingStrategies(): Promise<TradingStrategyDto[]> {
     return this.tradingStrategyService.listTradingStrategies()
