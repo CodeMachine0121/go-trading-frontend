@@ -47,6 +47,57 @@ beforeEach(() => {
   })
 })
 
+describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一種挑不到', () => {
+  it('挑得到就什麼都不必說', async () => {
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.shortage.value).toBeNull()
+    expect(workbench.unusableStrategyScripts.value).toEqual({})
+  })
+
+  it('一支策略腳本都沒建過——下一步是去建一支', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [], adopted: [],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.shortage.value).toBe('noStrategyScripts')
+  })
+
+  it('建了幾支、但沒有一支吐訊號——下一步是去改它們，不是再建一支', async () => {
+    // 這兩種說同一句話的話，後者只會去建第五支同樣用不了的腳本。
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [{ id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } }],
+      adopted: [{ id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] }],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.shortage.value).toBe('noSignalStrategyScripts')
+  })
+
+  it('挑不得的那幾支連同原因一起記著——一塊指著它們的零件要說得出自己指著誰', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [
+        { id: 9, name: '會吐訊號的', content: { resultType: 'signal', parameters: [] } },
+        { id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } },
+      ],
+      adopted: [{ id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] }],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.unusableStrategyScripts.value[11]).toContain('吐一個數字的')
+    expect(workbench.unusableStrategyScripts.value[13]).toContain('採用來、吐是非的')
+    expect(workbench.unusableStrategyScripts.value[9]).toBeUndefined()
+  })
+})
+
 describe('useTradingStrategyWorkbench 讀一份進來', () => {
   it('新拼一份時不去問任何一份，但照樣要挑得到策略腳本', async () => {
     const workbench = workbenchUnderTest(null)

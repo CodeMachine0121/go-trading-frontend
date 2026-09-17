@@ -252,3 +252,71 @@ describe('改一張表', () => {
     expect(start().holds('ATR')).toBe(false)
   })
 })
+
+describe('把零件扣成一組，以及從一組裡拆出來', () => {
+  /** 買入墊子上三塊各自獨立的零件。 */
+  function threeApart() {
+    return new ConditionBoardDomain(boardOf(group('and',
+      comparison('a', 'MACD', 'buy'),
+      comparison('b', 'ATR', 'buy'),
+      comparison('c', 'RSI', 'buy'))))
+  }
+
+  it('把一塊疊到另一塊上，它們就扣成一組', () => {
+    expect(readable(threeApart().bundleOnto('ATR', 'MACD').value))
+      .toEqual(['(or MACD:buy ATR:buy)', 'RSI:buy'])
+  })
+
+  it('一組預設用「或」合併——不然它跟直接擺兩塊沒有差別', () => {
+    // 墊子本身多半是「全部成立」，扣在一起的那幾塊如果也是，那一組就沒有存在的必要。
+    expect(threeApart().bundleOnto('ATR', 'MACD').value.items[0]?.operator).toBe('or')
+  })
+
+  it('扣成一組之後寫回去的就是「A 而且（B 或 C）」', () => {
+    const bundled = threeApart().bundleOnto('RSI', 'ATR')
+
+    expect(shapeOf(bundled.toCondition()))
+      .toBe('and(MACD=buy, or(ATR=buy, RSI=buy))')
+  })
+
+  it('疊到自己身上、或疊到自己已經在的那一組上，什麼都不會發生', () => {
+    const bundled = threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(readable(bundled.bundleOnto('ATR', 'ATR').value)).toEqual(readable(bundled.value))
+    expect(readable(bundled.bundleOnto('ATR', 'MACD').value)).toEqual(readable(bundled.value))
+  })
+
+  it('一組裡面不會再有一組——被拖過來的如果自己是一組，就整組攤進去', () => {
+    // 三層以上的巢狀在實際的條件裡幾乎不出現，而它會讓「把一塊拖到另一塊上」
+    // 這個動作變得沒有人說得準結果。
+    const bundled = threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(readable(bundled.bundleOnto('MACD', 'RSI').value))
+      .toEqual(['ATR:buy', '(or RSI:buy MACD:buy)'])
+  })
+
+  it('把一塊從一組裡拆出來，它回到自己一格，就排在那一組後面', () => {
+    const bundled = threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(readable(bundled.unbundle('ATR').value))
+      .toEqual(['MACD:buy', 'ATR:buy', 'RSI:buy'])
+  })
+
+  it('一組只剩一塊時自己散開——一個裝著一塊的組多一層框卻什麼都沒說', () => {
+    const bundled = threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(bundled.unbundle('ATR').value.items[0]?.isBundle).toBe(false)
+  })
+
+  it('本來就沒扣在一起的那一塊，拆不拆都一樣', () => {
+    expect(readable(threeApart().unbundle('RSI').value))
+      .toEqual(['MACD:buy', 'ATR:buy', 'RSI:buy'])
+  })
+
+  it('換掉一組裡面怎麼合併，哪幾塊擺在哪裡一格都不動', () => {
+    const bundled = threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(readable(bundled.changeBundleOperator('MACD+ATR', 'and').value))
+      .toEqual(['(and MACD:buy ATR:buy)', 'RSI:buy'])
+  })
+})

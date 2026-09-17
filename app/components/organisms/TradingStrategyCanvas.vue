@@ -6,12 +6,19 @@ import TradingStrategyPieceShelf from '~/components/organisms/TradingStrategyPie
 import type { ConditionBoardDto } from '~/domain/models/dto/condition-board-dto'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
+import { usePieceDrag } from '~/composables/use-piece-drag'
+import { usePieceDragGestures } from '~/composables/use-piece-drag-gestures'
 
 // 有機體：一張工作檯——左邊零件架，右邊兩張墊子。
 //
 // 它自己**不畫任何東西**，只負責一件事：**手上拿著的那一塊要去哪裡**。
 // 那件事沒辦法交給架子或墊子其中之一，因為一次拖曳的起點與落點常常不在同一塊裡——
 // 從架子拖到墊子、從一張墊子拖到另一張，都是。所以它住在唯一同時看得到三者的這一層。
+//
+// 拖曳本身不在這裡：手上拿著什麼、放下去算哪一種搬動住在 usePieceDrag，
+// 而怎麼從指標事件讀出那兩件事住在 usePieceDragGestures。這一層只把兩者接上，
+// 並把結果往上報。
 const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defineProps<{
   sources: readonly TradingStrategySignalSourceDto[]
   buyBoard: ConditionBoardDto
@@ -19,9 +26,10 @@ const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defin
   strategyScriptOptions: readonly { value: number, label: string }[]
   intervalOptions: readonly { value: string, label: string }[]
   parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
+  unusableStrategyScripts: Readonly<Record<number, string>>
   canAdd: boolean
   signalSourceLimit: number
-  hasNoStrategyScripts: boolean
+  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
 }>()
 
 const emit = defineEmits<{
@@ -31,33 +39,29 @@ const emit = defineEmits<{
   changeStrategyScript: [index: number, strategyScriptId: number]
   changeInterval: [index: number, interval: string]
   changeParameterValue: [index: number, name: string, value: number]
-  toggleSignal: [side: Side, sourceLabel: string, signal: string]
-  changeOperator: [side: Side, operator: ConditionOperatorVo]
-  changeBundleOperator: [side: Side, itemKey: string, operator: ConditionOperatorVo]
-  place: [side: Side, sourceLabel: string, position: number]
-  takeOff: [side: Side, sourceLabel: string]
-  bundleOnto: [side: Side, sourceLabel: string, targetLabel: string]
-  unbundle: [side: Side, sourceLabel: string]
+  toggleSignal: [side: ConditionSideVo, sourceLabel: string, signal: string]
+  changeOperator: [side: ConditionSideVo, operator: ConditionOperatorVo]
+  changeBundleOperator: [side: ConditionSideVo, itemKey: string, operator: ConditionOperatorVo]
+  place: [side: ConditionSideVo, sourceLabel: string, position: number]
+  takeOff: [side: ConditionSideVo, sourceLabel: string]
+  bundleOnto: [side: ConditionSideVo, sourceLabel: string, targetLabel: string]
+  unbundle: [side: ConditionSideVo, sourceLabel: string]
 }>()
 
-type Side = 'buy' | 'sell'
-
 const MATS = [
-  { key: 'buy' as Side, heading: '買入', board: () => buyBoard },
-  { key: 'sell' as Side, heading: '賣出', board: () => sellBoard },
+  { key: 'buy' as ConditionSideVo, heading: '買入', board: () => buyBoard },
+  { key: 'sell' as ConditionSideVo, heading: '賣出', board: () => sellBoard },
 ]
 
-/**
- * 手上拿著的那一塊，以及它是從哪裡拿起來的。
- *
- * 從哪裡拿起來要記著，因為**同一個放下的動作有兩種意思**：從架子上拿的放到墊子上
- * 是「擺一塊」，從墊子上拿的放到另一張墊子是「搬過去」，而放回架子是「拿走」。
- * 只記「拿著什麼」的話，放下的那一刻答不出該做哪一件。
- */
-const holding = ref<{ sourceLabel: string, from: Side | 'shelf' } | null>(null)
+// 三種搬動往上報。usePieceDrag 只認得這三件事，一句規則都不知道——
+// 墊子上那幾格因此長什麼樣子，仍然只有表單那一層說得出來。
+const pieceDrag = usePieceDrag(
+  (side, sourceLabel, position) => emit('place', side, sourceLabel, position),
+  (side, sourceLabel) => emit('takeOff', side, sourceLabel),
+  (side, sourceLabel, targetLabel) => emit('bundleOnto', side, sourceLabel, targetLabel),
+)
 
-/** 現在游標懸在哪一張墊子的哪一格上——那條插入線就畫在這裡。 */
-const hoveringAt = ref<{ side: Side, position: number } | null>(null)
+const { benchElement } = usePieceDragGestures(pieceDrag)
 
 /** 正在調設定的那一塊零件，用它在架子上的位置記。 */
 const tuningIndex = ref<number | null>(null)
@@ -72,71 +76,6 @@ const tuningParameterNames = computed(
 
 const placedLabels = computed(
   () => [...buyBoard.placedLabels, ...sellBoard.placedLabels])
-
-function pickUp(event: DragEvent, sourceLabel: string, from: Side | 'shelf') {
-  // 瀏覽器的拖放通道要有東西才認得這是一次拖曳，但沒有人會去讀它——
-  // 拿著什麼由這裡記著。
-  event.dataTransfer?.setData('text/plain', sourceLabel)
-  holding.value = { sourceLabel, from }
-}
-
-function letGo() {
-  holding.value = null
-  hoveringAt.value = null
-}
-
-function hoverOver(side: Side, position: number) {
-  if (holding.value !== null) {
-    hoveringAt.value = { side, position }
-  }
-}
-
-function hoveringOn(side: Side): number | null {
-  return hoveringAt.value?.side === side ? hoveringAt.value.position : null
-}
-
-/** 放到某張墊子的第幾格。 */
-function dropOnMat(side: Side, position: number) {
-  const carried = holding.value
-  letGo()
-  if (carried === null) {
-    return
-  }
-
-  if (carried.from !== 'shelf' && carried.from !== side) {
-    emit('takeOff', carried.from, carried.sourceLabel)
-  }
-  emit('place', side, carried.sourceLabel, position)
-}
-
-/**
- * 把一塊疊到另一塊上＝把它們扣成一組。
- *
- * 這是墊子上唯一造得出巢狀的動作，也是「A 而且（B 或 C）」唯一的寫法。
- * 從別張墊子拖過來的要先從那邊收走——不然同一塊會同時在兩張墊子上。
- */
-function dropOntoPiece(side: Side, targetLabel: string) {
-  const carried = holding.value
-  letGo()
-  if (carried === null || carried.sourceLabel === targetLabel) {
-    return
-  }
-
-  if (carried.from !== 'shelf' && carried.from !== side) {
-    emit('takeOff', carried.from, carried.sourceLabel)
-    emit('place', side, carried.sourceLabel, 0)
-  }
-  emit('bundleOnto', side, carried.sourceLabel, targetLabel)
-}
-
-/** 放回架子上＝從它原本那張墊子上拿走。從架子拿起來又放回架子是什麼都沒發生。 */
-function dropOnShelf() {
-  const carried = holding.value
-  letGo()
-  if (carried !== null && carried.from !== 'shelf') {
-    emit('takeOff', carried.from, carried.sourceLabel)
-  }
-}
 </script>
 
 <template>
@@ -151,20 +90,21 @@ function dropOnShelf() {
       在這裡重排一次會換掉原本那一個。
     </AppAlert>
 
-    <div class="canvas__bench">
+    <!-- 選擇器只在這個元素底下生效，所以同一頁上的別的東西不會被當成零件。 -->
+    <div
+      ref="benchElement"
+      class="canvas__bench"
+    >
       <TradingStrategyPieceShelf
         :sources="sources"
         :placed-labels="placedLabels"
         :interval-options="intervalOptions"
         :can-add="canAdd"
         :signal-source-limit="signalSourceLimit"
-        :has-no-strategy-scripts="hasNoStrategyScripts"
+        :shortage="shortage"
         @add="emit('add')"
         @remove="index => emit('remove', index)"
         @tune="index => tuningIndex = index"
-        @pick-up="(event, sourceLabel) => pickUp(event, sourceLabel, 'shelf')"
-        @let-go="letGo"
-        @drop-back="dropOnShelf"
       />
 
       <TradingStrategyConditionMat
@@ -172,14 +112,9 @@ function dropOnShelf() {
         :key="mat.key"
         :board="mat.board()"
         :heading="mat.heading"
-        :tone="mat.key"
         :side="mat.key"
-        :hovering-at="hoveringOn(mat.key)"
-        @hover-over="position => hoverOver(mat.key, position)"
-        @drop-at="position => dropOnMat(mat.key, position)"
-        @drop-onto-piece="targetLabel => dropOntoPiece(mat.key, targetLabel)"
-        @pick-up-piece="(event, sourceLabel) => pickUp(event, sourceLabel, mat.key)"
-        @let-go="letGo"
+        :hovering-at="pieceDrag.hoveringOn(mat.key)"
+        :carrying="pieceDrag.carrying.value"
         @toggle-signal="(sourceLabel, signal) => emit('toggleSignal', mat.key, sourceLabel, signal)"
         @take-off="sourceLabel => emit('takeOff', mat.key, sourceLabel)"
         @unbundle="sourceLabel => emit('unbundle', mat.key, sourceLabel)"
@@ -192,6 +127,7 @@ function dropOnShelf() {
     <TradingStrategyPieceSettingsDialog
       :piece="tuningPiece"
       :strategy-script-options="strategyScriptOptions"
+      :unusable-strategy-scripts="unusableStrategyScripts"
       :interval-options="intervalOptions"
       :parameter-names="tuningParameterNames"
       @close="tuningIndex = null"

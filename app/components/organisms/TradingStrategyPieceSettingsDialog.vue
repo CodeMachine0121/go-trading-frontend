@@ -10,10 +10,17 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 //
 // 它在**彈窗**裡，不是在架子上原地展開：展開會把架子撐長，而架子旁邊就是兩張墊子，
 // 一塊零件五個參數的時候，墊子會被推到看不見的地方。而調參數是偶爾才做一次的事。
-const { piece } = defineProps<{
+const { piece, strategyScriptOptions, unusableStrategyScripts } = defineProps<{
   /** 正在調的那一塊。`null` 就是沒有人在調，彈窗關著。 */
   piece: TradingStrategySignalSourceDto | null
   strategyScriptOptions: readonly { value: number, label: string }[]
+  /**
+   * 存在、但當不了信號來源的那幾支，以及原因。
+   *
+   * 它們**不進選單**——挑得到就等於讓人拼出一份後端會拒絕的交易策略。但一塊
+   * 已經指著它們的零件仍然要說得出自己指著誰，見下面 strayOption。
+   */
+  unusableStrategyScripts: Readonly<Record<number, string>>
   intervalOptions: readonly { value: string, label: string }[]
   /** 那支策略腳本宣告了哪幾個旋鈕。挑了策略腳本才知道有哪幾格要填。 */
   parameterNames: readonly string[]
@@ -26,6 +33,33 @@ const emit = defineEmits<{
   changeInterval: [interval: string]
   changeParameterValue: [name: string, value: number]
 }>()
+
+/**
+ * 這塊零件指著一支**選單裡沒有**的策略腳本時，那一支長什麼樣子。
+ *
+ * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示——而一片空白看起來像「還沒選」。
+ * 使用者因此不知道自己正看著一塊壞掉的零件，更不知道它壞在哪裡；他會按下儲存，
+ * 得到一句後端的拒絕，然後回來對著一個空白的選單。
+ *
+ * 所以這種腳本補進選單裡，選著、但**按不下去**：它說得出是哪一支、為什麼用不了，
+ * 又不會讓任何人真的挑它。挑得到的那幾支就在它下面，換掉它就是換一支。
+ *
+ * 認不得那個識別碼時（腳本被刪了、或那份採用被收回）也照樣說一句——
+ * 「不見了」與「不能用」對使用者是同一件事：這塊零件要重挑一支。
+ */
+const strayOption = computed(() => {
+  const strategyScriptId = piece?.strategyScriptId
+  if (strategyScriptId === undefined
+    || strategyScriptOptions.some(option => option.value === strategyScriptId)) {
+    return null
+  }
+
+  return {
+    value: strategyScriptId,
+    label: unusableStrategyScripts[strategyScriptId]
+      ?? `這支策略腳本（編號 ${strategyScriptId}）已經不在了`,
+  }
+})
 
 /** 沒填過的旋鈕顯示空白，而不是一個假的 0——0 是一個值，空白是還沒決定。 */
 function parameterValueOf(name: string): string {
@@ -70,6 +104,14 @@ function onParameterInput(name: string, raw: string | number) {
           @update:model-value="emit('changeStrategyScript', Number($event))"
         >
           <option
+            v-if="strayOption !== null"
+            :value="String(strayOption.value)"
+            disabled
+            data-testid="strategy-script-stray-option"
+          >
+            {{ strayOption.label }}
+          </option>
+          <option
             v-for="strategyScriptOption in strategyScriptOptions"
             :key="strategyScriptOption.value"
             :value="String(strategyScriptOption.value)"
@@ -77,6 +119,11 @@ function onParameterInput(name: string, raw: string | number) {
             {{ strategyScriptOption.label }}
           </option>
         </AppSelect>
+        <span
+          v-if="strayOption !== null"
+          class="piece-settings__warning"
+          data-testid="strategy-script-stray-note"
+        >這塊零件現在用的那一支挑不得，換一支才存得起來。</span>
       </label>
 
       <label class="piece-settings__field">
@@ -139,6 +186,11 @@ function onParameterInput(name: string, raw: string | number) {
 
   &__name {
     color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  &__warning {
+    color: color('warning');
     font-size: font-size('2xs');
   }
 }

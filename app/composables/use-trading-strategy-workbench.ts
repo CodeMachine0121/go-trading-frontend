@@ -34,6 +34,22 @@ export function useTradingStrategyWorkbench(
   const editing = ref<TradingStrategyDto | null>(null)
   const strategyScriptOptions = ref<{ value: number, label: string }[]>([])
   const parameterNamesByStrategyScriptId = ref<Record<number, readonly string[]>>({})
+  /**
+   * 挑不得、但**確實存在**的那幾支策略腳本，以及它們挑不得的原因。
+   *
+   * 沒有它的話，一塊指著這種腳本的零件，設定裡那個下拉選單會是**一片空白**——
+   * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示。而空白看起來像「還沒選」，
+   * 於是使用者不知道自己正看著一塊已經壞掉的零件，也不知道它壞在哪裡。
+   */
+  const unusableStrategyScripts = ref<Record<number, string>>({})
+  /**
+   * 零件架挑不到任何策略腳本時，是哪一種挑不到。
+   *
+   * 「一支都沒有」與「有，但沒有一支吐訊號」的下一步完全不同：前者是去建一支，
+   * 後者是去把既有那幾支的指標值種類改掉。兩種說同一句話，等於把人推去建第五支
+   * 同樣用不了的腳本。`null` 是挑得到，架子不必說任何話。
+   */
+  const shortage = ref<'noStrategyScripts' | 'noSignalStrategyScripts' | null>(null)
 
   const loading = ref(true)
   const saving = ref(false)
@@ -94,6 +110,24 @@ export function useTradingStrategyWorkbench(
         option => ({ value: option.value, label: option.label }))
       parameterNamesByStrategyScriptId.value = Object.fromEntries(
         options.map(option => [option.value, option.parameterNames]))
+
+      // 挑不得的那幾支也記下來，連同原因。它們不進選單——挑得到就等於讓人拼出一份
+      // 後端會拒絕的交易策略——但一塊**已經**指著它們的零件要說得出自己指著誰。
+      const unusable = [
+        ...available.mine
+          .filter(strategyScript => strategyScript.content.resultType !== SIGNAL_RESULT_TYPE)
+          .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
+        ...available.adopted
+          .filter(strategyScript => strategyScript.resultType !== SIGNAL_RESULT_TYPE)
+          .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
+      ]
+
+      unusableStrategyScripts.value = Object.fromEntries(
+        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了信號來源）`]))
+
+      shortage.value = options.length > 0
+        ? null
+        : (unusable.length === 0 ? 'noStrategyScripts' : 'noSignalStrategyScripts')
     }
     catch (error: unknown) {
       // 要改的那一份不見了與「後端壞了」是兩件事：前者的下一步是回清單，
@@ -156,6 +190,8 @@ export function useTradingStrategyWorkbench(
     editing,
     strategyScriptOptions,
     parameterNamesByStrategyScriptId,
+    unusableStrategyScripts,
+    shortage,
     announcement,
     loading,
     saving,

@@ -4,28 +4,40 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ConditionBoardDto } from '~/domain/models/dto/condition-board-dto'
 import { CONDITION_OPERATORS, CONDITION_OPERATOR_LABELS } from '~/domain/models/vo/condition-operator-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
+import { pieceDragMarkup, pieceDropMarkup, slotDropMarkup } from '~/utilities/piece-drag-markup'
 
 // 有機體：工作檯右邊的一張墊子——買入或賣出其中一邊，以及它上面擺了哪幾塊零件。
 //
 // 兩張墊子是同一個元件的兩份，因為它們要做的事一模一樣。寫兩份的話，
 // 第二份就是那個忘記同步的地方。
-const { board, heading, tone, hoveringAt } = defineProps<{
+const { board, heading, side, hoveringAt, carrying } = defineProps<{
   board: ConditionBoardDto
   heading: string
-  /** 這一邊是買還是賣。只決定顏色，不決定行為。 */
-  tone: 'buy' | 'sell'
   /** 這張墊子上的哪一格正被游標懸著。不是這一張時為 `null`。 */
   hoveringAt: number | null
-  /** 這一邊在畫面上的識別字，用來組出 data-testid。 */
-  side: string
+  /**
+   * 手上正拿著的那一塊零件的代號——不分它是從哪裡拿起來的。沒拿東西時為 `null`。
+   *
+   * 格與格之間的縫平常只有兩三個像素，因為它們多數時間只是噪音。但那也讓
+   * 「把零件從一組裡拖出來」**做不到**：唯一的落點是一條看不見的髮絲線。
+   * 拿著東西的時候縫張開成一條真的放得下去的帶子，拖出來才是一個辦得到的動作。
+   *
+   * 拿的是代號而不是一個是非，因為那條帶子要說得出**放下去會發生什麼**：
+   * 同一個動作，對一塊獨立的零件是搬位置，對一塊扣在組裡的零件是把它拆出來。
+   */
+  carrying: string | null
+  /**
+   * 這是買入還是賣出的那一邊。
+   *
+   * 一個值，不是兩個：它同時決定顏色、決定每個落點屬於哪一邊，也組得出 data-testid。
+   * 拆成「顏色用的」與「識別用的」兩個 prop 時，兩邊永遠被餵同一個值，
+   * 而那只是給了未來某個人一個把它們餵成不同值的機會。
+   */
+  side: ConditionSideVo
 }>()
 
 const emit = defineEmits<{
-  hoverOver: [position: number]
-  dropAt: [position: number]
-  dropOntoPiece: [targetLabel: string]
-  pickUpPiece: [event: DragEvent, sourceLabel: string]
-  letGo: []
   toggleSignal: [sourceLabel: string, signal: string]
   takeOff: [sourceLabel: string]
   unbundle: [sourceLabel: string]
@@ -67,6 +79,15 @@ function inPlainWords(accepted: readonly string[]): string {
   return `也就是「不是${excluded?.label ?? ''}」`
 }
 
+/**
+ * 手上這一塊現在扣在這張墊子的某一組裡。
+ *
+ * 那決定的不是行為——放到帶子上一律是「擺到這一格」——而是帶子上寫什麼。
+ * 不說的話，「拖出去就是拆開」這件事只有試過一次的人才知道。
+ */
+const carryingOutOfBundle = computed(() => carrying !== null
+  && board.items.some(item => item.isBundle && item.holdsLabels.includes(carrying)))
+
 function onOperatorChange(chosen: string) {
   const operator = CONDITION_OPERATORS.find(candidate => candidate === chosen)
   if (operator !== undefined) {
@@ -90,15 +111,15 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     <header class="mat__head">
       <span
         class="mat__name"
-        :class="`mat__name--${tone}`"
+        :class="`mat__name--${side}`"
       >{{ heading }}</span>
       <span class="mat__note">把零件拖進來</span>
     </header>
 
     <ul class="mat__items">
       <!--
-        每一格前面都有一條放置線。它只在拿著東西的時候亮，
-        因為一條永遠掛在那裡的線，多數時間只是噪音。
+        每一格前面都有一條放置線。它只在拿著東西的時候張開，
+        因為一條永遠掛在那裡的帶子，多數時間只是噪音。
       -->
       <li
         v-for="(item, position) in board.items"
@@ -106,11 +127,21 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
       >
         <div
           class="mat__drop-line"
-          :class="{ 'mat__drop-line--armed': hoveringAt === position }"
+          :class="{
+            'mat__drop-line--open': carrying !== null,
+            'mat__drop-line--armed': hoveringAt === position,
+          }"
           :data-testid="`drop-${side}-${position}`"
-          @dragover.prevent="emit('hoverOver', position)"
-          @drop.prevent="emit('dropAt', position)"
-        />
+          v-bind="slotDropMarkup(side, position)"
+        >
+          <!--
+            只有正被懸著的那一條說話。四條帶子同時寫著同一句，那句話就變成背景。
+          -->
+          <span
+            v-if="hoveringAt === position"
+            class="mat__drop-line-hint"
+          >{{ carryingOutOfBundle ? '放這裡＝從那一組拆出來' : '放這裡' }}</span>
+        </div>
 
         <!--
           一組零件：扣在一起的那幾塊共用一個框，框上有它們之間怎麼合併。
@@ -141,16 +172,19 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             </AppSelect>
           </header>
 
+          <!--
+            一塊擺著的零件同時是**拿得起來的東西**與**放得下去的地方**：
+            拖一塊疊到它身上就把兩塊扣成一組。兩件事都標在同一個元素上。
+          -->
           <div
             v-for="piece in item.pieces"
             :key="piece.sourceLabel"
             class="mat__piece"
-            :draggable="true"
             :data-testid="`placed-${side}-${piece.sourceLabel}`"
-            @dragstart.stop="emit('pickUpPiece', $event, piece.sourceLabel)"
-            @dragend.stop="emit('letGo')"
-            @dragover.prevent.stop="emit('hoverOver', -1)"
-            @drop.prevent.stop="emit('dropOntoPiece', piece.sourceLabel)"
+            v-bind="{
+              ...pieceDragMarkup(piece.sourceLabel, side),
+              ...pieceDropMarkup(side),
+            }"
           >
             <span
               class="mat__grip"
@@ -218,8 +252,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
           class="mat__landing"
           :class="{ 'mat__landing--armed': hoveringAt === board.items.length }"
           :data-testid="`drop-${side}-end`"
-          @dragover.prevent="emit('hoverOver', board.items.length)"
-          @drop.prevent="emit('dropAt', board.items.length)"
+          v-bind="slotDropMarkup(side, board.items.length)"
         >
           {{ board.items.length === 0 ? '這張墊子還是空的' : '疊在某一塊上就扣成一組' }}
         </div>
@@ -296,10 +329,12 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     list-style: none;
   }
 
+  // 一組裡面那幾塊之間的距離。它**刻意比組與組之間小**：靠得近的讀成一件事，
+  // 那是這個框子以外、另一個說出「這幾塊是一組」的辦法。小，不等於擠在一起。
   &__item {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
+    gap: spacing('xs');
   }
 
   // 扣在一起的那幾塊共用一個框——那個框就是「A 而且（B 或 C）」裡的那一對括號。
@@ -308,7 +343,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     border-left: 2px solid color('primary');
     border-radius: radius('sm');
     background-color: color('surface-muted');
-    padding: spacing('3xs');
+    padding: spacing('2xs');
   }
 
   &__bundle-head {
@@ -317,7 +352,14 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     gap: spacing('3xs');
   }
 
+  // 整塊都拿得起來，不是只有寫著代號的那一行——連上面那幾顆按鈕也是。
+  // 那件事由 usePieceDragGestures 用指標事件做到，不靠瀏覽器內建的拖放；
+  // 為什麼不靠，見那一支的說明。
+  //
+  // touch-action 要關掉：在觸控裝置上，手指按住往下滑預設是捲頁面，
+  // 不關的話零件在手機上一塊都拖不動。
   &__piece {
+    touch-action: none;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -410,14 +452,43 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     font-size: font-size('2xs');
   }
 
+  // 格與格之間的縫，也就是「把這塊從那一組裡拖出來」的落點。
+  //
+  // **它的高度從頭到尾不變。** 拿起零件時只換邊框顏色，不長高——長高會讓整張墊子
+  // 在那一刻往下推，而被拿起來的那一塊跟著往下跑；它之後是照著新位置跟游標的，
+  // 於是整段拖曳過程它都與游標差著那一段距離。一條夠寬的縫本來就留著，
+  // 換得的是拖曳全程零重排。
   &__drop-line {
+    position: relative;
+    transition: border-color duration('fast') ease, background-color duration('fast') ease;
+    border: 1px dashed transparent;
     border-radius: radius('sm');
-    height: spacing('3xs');
+
+    // 這個高度同時是兩件事：兩塊零件之間看得到的距離，以及拖曳時那個落點有多好瞄。
+    // 它們本來就該一起變——縫變寬，就是更好放，也更好讀。
+    height: spacing('md');
+
+    &--open {
+      border-color: color('border-strong');
+    }
 
     &--armed {
-      box-shadow: inset 0 0 0 1px color('primary');
+      border-style: solid;
+      border-color: color('primary');
       background-color: color('primary-soft');
     }
+  }
+
+  // 那一句話浮在縫上面，不佔位置——它比縫高，長在版面裡就又是一次重排。
+  &__drop-line-hint {
+    position: absolute;
+    inset-inline: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: color('primary');
+    font-size: font-size('2xs');
+    text-align: center;
   }
 
   &__landing {

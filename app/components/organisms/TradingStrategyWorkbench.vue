@@ -30,6 +30,10 @@ const { editing, strategyScriptOptions, saving, failureMessage, savedGeneration 
     editing: TradingStrategyDto | null
     strategyScriptOptions: readonly { value: number, label: string }[]
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
+    /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
+    unusableStrategyScripts: Readonly<Record<number, string>>
+    /** 一支都挑不到時，是哪一種挑不到。挑得到就是 `null`。 */
+    shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
     saving: boolean
     /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
     failureMessage: string
@@ -99,9 +103,10 @@ function onSave() {
       :strategy-script-options="strategyScriptOptions"
       :interval-options="form.intervalOptions"
       :parameter-names-by-strategy-script-id="parameterNamesByStrategyScriptId"
+      :unusable-strategy-scripts="unusableStrategyScripts"
       :can-add="form.canAddSignalSource.value"
       :signal-source-limit="form.signalSourceLimit"
-      :has-no-strategy-scripts="strategyScriptOptions.length === 0"
+      :shortage="shortage"
       @add="form.addSignalSource"
       @remove="form.removeSignalSource"
       @change-label="form.changeSignalSourceLabel"

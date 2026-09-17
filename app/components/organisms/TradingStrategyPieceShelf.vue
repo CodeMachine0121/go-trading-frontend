@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import { SHELF_DROP_MARKUP, pieceDragMarkup } from '~/utilities/piece-drag-markup'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 // 有機體：工作檯左邊那個零件架——這台機器人手上有哪幾塊零件。
@@ -18,20 +19,20 @@ const { sources, placedLabels, intervalOptions } = defineProps<{
   canAdd: boolean
   signalSourceLimit: number
   /**
-   * 一支會吐訊號的策略腳本都沒有。
+   * 一支挑得到的策略腳本都沒有，而且是哪一種沒有。挑得到就是 `null`。
    *
    * 這時按新增只會得到一個空的下拉選單——而畫面**明明知道原因**。
+   * 而且原因有兩種，下一步完全不同：一支都沒建過的人要去建一支；
+   * 建了好幾支卻沒有一支吐訊號的人要去改它們的指標值種類。
+   * 兩種說同一句話，等於把後者推去建第五支同樣用不了的腳本。
    */
-  hasNoStrategyScripts: boolean
+  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
 }>()
 
 const emit = defineEmits<{
   add: []
   remove: [index: number]
   tune: [index: number]
-  pickUp: [event: DragEvent, sourceLabel: string]
-  letGo: []
-  dropBack: []
 }>()
 
 function isPlaced(sourceLabel: string): boolean {
@@ -44,22 +45,34 @@ function intervalLabelOf(interval: string): string {
 </script>
 
 <template>
+  <!--
+    架子整片都是一個落點：把零件拖回來就是從墊子上收走它。
+    落點的標記由 piece-drag-markup 給，手勢那一層照著同一份讀回去。
+  -->
   <section
     class="shelf"
     data-testid="shelf"
-    @dragover.prevent="undefined"
-    @drop.prevent="emit('dropBack')"
+    v-bind="SHELF_DROP_MARKUP"
   >
     <h3 class="shelf__heading">
       零件架
     </h3>
 
     <p
-      v-if="hasNoStrategyScripts"
+      v-if="shortage === 'noStrategyScripts'"
       class="shelf__note"
       data-testid="no-strategy-scripts"
     >
-      還沒有任何會吐訊號的策略腳本。先去策略腳本庫建一支。
+      還沒有任何策略腳本。先去策略腳本庫建一支。
+    </p>
+    <p
+      v-else-if="shortage === 'noSignalStrategyScripts'"
+      class="shelf__note"
+      data-testid="no-signal-strategy-scripts"
+    >
+      你有策略腳本，但沒有一支吐訊號，所以一支都挑不到。
+      條件比對的是買入／賣出／持有，只有指標值種類是「一個信號」的腳本說得出那三個值——
+      去策略腳本庫把要用的那幾支改成「一個信號」（算式要回傳 indicator.Signal）。
     </p>
     <p
       v-else-if="sources.length === 0"
@@ -75,13 +88,15 @@ function intervalLabelOf(interval: string): string {
         :key="source.label + index"
         data-testid="strategy-script-row"
       >
+        <!--
+          整塊都拿得起來，包括上面那兩顆按鈕——拿得起來這件事標在零件身上，
+          而不是靠瀏覽器內建的拖放去猜按住的是不是一顆按鈕。
+        -->
         <div
           class="shelf__piece"
           :class="{ 'shelf__piece--in-use': isPlaced(source.label) }"
-          :draggable="true"
           :data-testid="`shelf-piece-${source.label}`"
-          @dragstart="emit('pickUp', $event, source.label)"
-          @dragend="emit('letGo')"
+          v-bind="pieceDragMarkup(source.label, 'shelf')"
         >
           <span
             class="shelf__grip"
@@ -113,7 +128,7 @@ function intervalLabelOf(interval: string): string {
         </div>
       </li>
 
-      <li v-if="canAdd && !hasNoStrategyScripts">
+      <li v-if="canAdd && shortage === null">
         <AppButton
           type="button"
           variant="secondary"
@@ -125,7 +140,7 @@ function intervalLabelOf(interval: string): string {
           ＋ 加一塊零件
         </AppButton>
       </li>
-      <li v-else-if="!hasNoStrategyScripts">
+      <li v-else-if="shortage === null">
         <span class="shelf__note">架子上最多 {{ signalSourceLimit }} 塊</span>
       </li>
     </ul>
@@ -163,8 +178,10 @@ function intervalLabelOf(interval: string): string {
     list-style: none;
   }
 
-  /* 一塊零件。厚、圓、底下一條暗邊——它要看起來拿得起來。 */
+  /* 一塊零件。厚、圓、底下一條暗邊——它要看起來拿得起來。
+     touch-action 關掉，否則在觸控裝置上按住往下滑會被當成捲頁面，一塊都拖不動。 */
   &__piece {
+    touch-action: none;
     display: flex;
     align-items: center;
     gap: spacing('3xs');
