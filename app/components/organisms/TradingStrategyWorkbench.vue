@@ -24,18 +24,20 @@ import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 // 工作檯做的是**搬東西**：左邊一個零件架，右邊兩張墊子（買入、賣出）。
 // 把零件拖上墊子、在墊子之間搬、拖回架子就收走。墊子上的順序是使用者自己排的，
 // 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
-const { editing, strategyScriptOptions, saving, failureMessage } = defineProps<{
+const { editing, strategyScriptOptions, saving, failureMessage, savedGeneration }
+  = defineProps<{
   /** 有值就是改那一份，沒有就是新的一份。 */
-  editing: TradingStrategyDto | null
-  strategyScriptOptions: readonly { value: number, label: string }[]
-  parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
-  saving: boolean
-  /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
-  failureMessage: string
-}>()
+    editing: TradingStrategyDto | null
+    strategyScriptOptions: readonly { value: number, label: string }[]
+    parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
+    saving: boolean
+    /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
+    failureMessage: string
+    /** 這一份被成功存過幾次。每多一次，「打開時的樣子」就重新記一次。 */
+    savedGeneration: number
+  }>()
 
 const emit = defineEmits<{
-  cancel: []
   save: [writeDto: TradingStrategyWriteDto]
   /** 這一頁被改過了沒有——離開前要不要問，由上面那一層決定。 */
   dirtyChange: [dirty: boolean]
@@ -51,12 +53,20 @@ form.reset()
 /**
  * 這一頁被改過了沒有。
  *
- * 比的是**現在要送出去的那一份**與**剛打開時的那一份**，而不是「有沒有碰過鍵盤」：
- * 打了一個字再刪掉，什麼都沒改，不該為此攔人一次。
+ * 比的是**現在要送出去的那一份**與**上一次存下來的那一份**（沒存過就是剛打開時的），
+ * 而不是「有沒有碰過鍵盤」：打了一個字再刪掉，什麼都沒改，不該為此攔人一次。
+ *
+ * 基準要跟著存成功往前走。存好之後不再離開這一頁，基準留在原地的話，
+ * 他會在一個**已經存好**的頁面上被攔下來問「還沒存，確定要離開嗎」。
  */
-const pristine = JSON.stringify(form.toWriteDto() ?? form.rejection.value)
+const pristine = ref(JSON.stringify(form.toWriteDto() ?? form.rejection.value))
+watch(() => savedGeneration, () => {
+  pristine.value = JSON.stringify(form.toWriteDto() ?? form.rejection.value)
+})
 watchEffect(() => {
-  emit('dirtyChange', JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine)
+  emit(
+    'dirtyChange',
+    JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
 })
 
 function onSave() {
@@ -130,14 +140,12 @@ function onSave() {
       {{ failureMessage }}
     </AppAlert>
 
+    <!--
+      只有一顆鍵。儲存不再離開這一頁之後，一顆叫「取消」的按鈕旁邊放著一顆
+      不會離開的「儲存」，讀起來像在問取消什麼——而回清單那顆按鈕就在這一頁頂端，
+      說得出自己要去哪。
+    -->
     <div class="workbench__actions">
-      <AppButton
-        type="button"
-        variant="ghost"
-        @click="emit('cancel')"
-      >
-        取消
-      </AppButton>
       <AppButton
         type="button"
         :disabled="saving || form.rejection.value !== null"

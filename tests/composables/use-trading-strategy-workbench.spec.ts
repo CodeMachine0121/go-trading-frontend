@@ -133,7 +133,38 @@ describe('useTradingStrategyWorkbench 存起來', () => {
     await workbench.save(aWriteDto(7))
 
     expect(workbench.dirty.value).toBe(false)
-    expect(workbench.saved.value).toBe(true)
+  })
+
+  it('每存成功一次就多記一次——那是上一次重演作廢的訊號', async () => {
+    // 是次數而不是「存過了沒有」：回測那一張成績單說的是存那一刻的規則，
+    // 再存一次它就過時了，而一個布林值只說得出第一次。
+    const workbench = workbenchUnderTest(7)
+    expect(workbench.savedGeneration.value).toBe(0)
+
+    await workbench.save(aWriteDto(7))
+    expect(workbench.savedGeneration.value).toBe(1)
+
+    await workbench.save(aWriteDto(7))
+    expect(workbench.savedGeneration.value).toBe(2)
+  })
+
+  it('拼好一份新的會說出它的識別碼——這一頁從此改的是它', async () => {
+    // 留在「新拼一份」那條網址上而識別碼還是空的話，
+    // 再按一次儲存就會建出第二份一模一樣的。
+    const workbench = workbenchUnderTest(null)
+
+    await workbench.save(aWriteDto(undefined))
+
+    expect(workbench.createdId.value).toBe(7)
+    expect(workbench.editing.value?.id).toBe(7)
+  })
+
+  it('改一份既有的不說識別碼——沒有誰要被接手', async () => {
+    const workbench = workbenchUnderTest(7)
+
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.createdId.value).toBeNull()
   })
 
   it('被拒絕時這一頁留著，一個字都沒說成功', async () => {
@@ -147,7 +178,8 @@ describe('useTradingStrategyWorkbench 存起來', () => {
     workbench.markDirty(true)
     await workbench.save(aWriteDto(7))
 
-    expect(workbench.saved.value).toBe(false)
+    expect(workbench.savedGeneration.value).toBe(0)
+    expect(workbench.createdId.value).toBeNull()
     expect(workbench.dirty.value).toBe(true)
     expect(workbench.failureMessage.value).toBe('機器人名稱「早盤突破」已被使用')
     expect(announcement.value).toBe('')

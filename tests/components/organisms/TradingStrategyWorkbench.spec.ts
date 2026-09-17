@@ -30,6 +30,7 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
       parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
       saving: false,
       failureMessage: '',
+      savedGeneration: 0,
     },
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
@@ -571,5 +572,63 @@ describe('TradingStrategyWorkbench：一份交易策略只看一種粗細', () =
 
     expect(wrapper.get('[data-testid="shelf-piece-MACD"]').text()).toContain('一小時')
     expect(wrapper.get('[data-testid="shelf-piece-ATR"]').text()).toContain('五分鐘')
+  })
+})
+
+describe('TradingStrategyWorkbench：存好之後', () => {
+  it('存好之後再離開不會被攔——基準跟著存成功往前走', async () => {
+    // 儲存不再離開這一頁，所以基準留在原地的話，他會在一個**已經存好**的頁面上
+    // 被問「還沒存，確定要離開嗎」。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trading-strategy-name-input"]').setValue('改過的名字')
+    await flushPromises()
+    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+
+    await wrapper.setProps({ savedGeneration: 1 })
+    await flushPromises()
+
+    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(false)
+  })
+
+  it('存好之後又改了一點東西，就又算改過了', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.setProps({ savedGeneration: 1 })
+    await wrapper.get('[data-testid="trading-strategy-name-input"]').setValue('再改一次')
+    await flushPromises()
+
+    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+  })
+
+  it('表單底下只剩一顆鍵——「取消」旁邊放著一顆不會離開的「儲存」讀不通', async () => {
+    // 回清單那顆按鈕在這一頁頂端，而且說得出自己要去哪。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('取消')
+  })
+  it('要存的是哪一份,每次都重新問一次外面交回來的那一份', async () => {
+    // 這是留在原地最危險的那一個後果擋在哪裡：拼好一份新的存下來之後，
+    // 外面把剛建好的那一份交回來,而下一次儲存必須變成「改它」——
+    // 識別碼沒跟上的話,他再按一次就多出第二份一模一樣的。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
+    expect((wrapper.emitted('save')?.at(-1)?.[0] as { id?: number }).id).toBe(7)
+
+    const anotherOne = new TradingStrategyDto(
+      99, '黃金交叉',
+      [new TradingStrategySignalSourceDto('MACD', 9, '5m', [])],
+      comparison('b', 'MACD', 'buy'),
+      comparison('s', 'MACD', 'sell'))
+    await wrapper.setProps({ editing: anotherOne, savedGeneration: 1 })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
+    expect((wrapper.emitted('save')?.at(-1)?.[0] as { id?: number }).id).toBe(99)
   })
 })

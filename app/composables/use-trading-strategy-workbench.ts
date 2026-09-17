@@ -27,8 +27,9 @@ export function useTradingStrategyWorkbench(
   strategyScriptApplication: StrategyScriptApplication,
   tradingStrategyId: number | null,
 ) {
-  // 存好了那一句要在**清單**上被看到，因為存完之後使用者已經被送回去了。
-  const { announce } = useConsoleAnnouncement()
+  // 存好了那一句現在要在**這一頁**上被看到，因為存完之後使用者留在原地。
+  // 它仍然走跨頁的那一條，因為拼好一份新的會換一次網址（見 createdId）。
+  const { announcement, announce } = useConsoleAnnouncement()
 
   const editing = ref<TradingStrategyDto | null>(null)
   const strategyScriptOptions = ref<{ value: number, label: string }[]>([])
@@ -36,7 +37,21 @@ export function useTradingStrategyWorkbench(
 
   const loading = ref(true)
   const saving = ref(false)
-  const saved = ref(false)
+  /**
+   * 這一份被成功存過幾次。
+   *
+   * 是次數而不是「存過了沒有」，因為看著它的那一側要知道的是**又存了一次**：
+   * 回測那一張成績單說的是存那一刻的規則，再存一次它就過時了。
+   * 一個布林值只說得出第一次。
+   */
+  const savedGeneration = ref(0)
+  /**
+   * 剛剛建好的那一份的識別碼；這一次不是新建就是 `null`。
+   *
+   * 這一頁看著它把網址換成那一份的。**那不是修飾**：留在「新拼一份」那條網址上、
+   * 而表單裡的識別碼還是空的話，再按一次儲存就會建出第二份一模一樣的。
+   */
+  const createdId = ref<number | null>(null)
   const failureMessage = ref('')
   /** 讀不到那一份。與 `failureMessage` 分開，因為它的下一步是回清單，不是重試。 */
   const missing = ref(false)
@@ -94,7 +109,12 @@ export function useTradingStrategyWorkbench(
   }
 
   /**
-   * 存起來。存好了就把 `dirty` 放掉——離開這一頁不該再被攔一次。
+   * 存起來，**存好了不離開這一頁**。
+   *
+   * 存好之後最常做的下一件事是回測它，而那個分頁就在這一頁上。
+   * 把他送回清單，等於在「剛拼好」與「問它行不行」之間隔一次來回。
+   *
+   * 存好了就把 `dirty` 放掉——離開這一頁不該再被攔一次。
    *
    * 被後端拒絕時**這一頁留著**：要使用者把整棵樹重拼一次，
    * 是拿他的時間賠一個伺服器端才知道的規則。
@@ -104,12 +124,17 @@ export function useTradingStrategyWorkbench(
     failureMessage.value = ''
 
     try {
-      await tradingStrategyApplication.saveTradingStrategy(writeDto)
+      const savedTradingStrategy
+        = await tradingStrategyApplication.saveTradingStrategy(writeDto)
       dirty.value = false
       // 改一份與拼一份新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
       announce(writeDto.id === undefined ? '交易策略拼好了' : '更改成功')
-      saved.value = true
+      editing.value = savedTradingStrategy
+      if (writeDto.id === undefined) {
+        createdId.value = savedTradingStrategy.id
+      }
+      savedGeneration.value += 1
     }
     catch (error: unknown) {
       failureMessage.value = messageOf(error)
@@ -131,9 +156,11 @@ export function useTradingStrategyWorkbench(
     editing,
     strategyScriptOptions,
     parameterNamesByStrategyScriptId,
+    announcement,
     loading,
     saving,
-    saved,
+    savedGeneration,
+    createdId,
     failureMessage,
     missing,
     dirty,
