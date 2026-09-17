@@ -1,17 +1,17 @@
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
-import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 import { AppliedIndicatorParametersDomain } from '~/domain/models/domains/applied-indicator-parameters-domain'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
-import type { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
+import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { RememberedAppliedIndicatorsDomain } from '~/domain/models/domains/remembered-applied-indicators-domain'
-import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
-import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
-import { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
+import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
+import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
@@ -26,28 +26,28 @@ export class ChartIndicatorService {
   constructor(
     private readonly indicatorCalculationProxy: IIndicatorCalculationProxy,
     private readonly chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy,
-    private readonly strategyParameterValuePreferenceProxy:
-    IStrategyParameterValuePreferenceProxy,
+    private readonly strategyScriptParameterValuePreferenceProxy:
+    IStrategyScriptParameterValuePreferenceProxy,
     private readonly appliedChartIndicatorPreferenceProxy:
     IAppliedChartIndicatorPreferenceProxy,
   ) {}
 
   /**
-   * 上次圖上擺著的那幾支，對照**現在**的策略清單之後交出來。
+   * 上次圖上擺著的那幾支，對照**現在**的策略腳本清單之後交出來。
    *
-   * 呼叫端只說「把上次那幾支還原回來」。讀留存、對回一支現在的策略、
+   * 呼叫端只說「把上次那幾支還原回來」。讀留存、對回一支現在的策略腳本、
    * 丟掉刪掉的與畫不成線的、依宣告重建那幾格、給序號，五件事都在這裡面——
    * **呼叫端不知道留存存在，也不該知道**。
    *
-   * 收「現在的策略清單」而不自己去取：那份清單是畫面本來就會取的東西
+   * 收「現在的策略腳本清單」而不自己去取：那份清單是畫面本來就會取的東西
    * （取不到時圖表照畫），為了還原再打一趟等於讓一個附加功能多花一次往返。
    */
   restoreAppliedIndicators(
-    strategies: readonly ChartApplicableStrategyDto[], lastAppliedIndicatorId: number,
+    strategyScripts: readonly ChartApplicableStrategyScriptDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
     return new RememberedAppliedIndicatorsDomain(
       this.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators(),
-      strategies,
+      strategyScripts,
     ).toAppliedIndicatorDtos(lastAppliedIndicatorId)
   }
 
@@ -69,31 +69,31 @@ export class ChartIndicatorService {
    * 準備一次套用：交出這一支這一次要用的那幾格。
    *
    * 呼叫端只說「我要套用這一支」。讀記憶、對照宣告、丟掉已經不存在的名字、
-   * 補上策略的預設值，四件事都在這裡面——**呼叫端不知道記憶存在，也不該知道**。
+   * 補上策略腳本的預設值，四件事都在這裡面——**呼叫端不知道記憶存在，也不該知道**。
    */
-  prepareAppliedIndicator(strategy: ChartApplicableStrategyDto, appliedIndicatorId: number): AppliedIndicatorDto {
+  prepareAppliedIndicator(strategyScript: ChartApplicableStrategyScriptDto, appliedIndicatorId: number): AppliedIndicatorDto {
     return new AppliedIndicatorDto(
       appliedIndicatorId,
-      strategy,
+      strategyScript,
       new AppliedIndicatorParametersDomain(
-        strategy.id,
-        strategy.parameters,
-        this.strategyParameterValuePreferenceProxy).toDtos(),
+        strategyScript.id,
+        strategyScript.parameters,
+        this.strategyScriptParameterValuePreferenceProxy).toDtos(),
     )
   }
 
   /**
    * 把這一次調成的值記下來。
    *
-   * 記的是「**這支策略的這個旋鈕**上次被調成什麼」，不是「這一次套用」——
+   * 記的是「**這支策略腳本的這個旋鈕**上次被調成什麼」，不是「這一次套用」——
    * 清單本來就不留存，所以下次打開時「這一次」已經不存在了；
    * 能被記住而且有意義的，是「我習慣把這支的期數調成 60」。
    */
   rememberAppliedIndicatorParameters(appliedIndicatorDto: AppliedIndicatorDto): void {
     new AppliedIndicatorParametersDomain(
-      appliedIndicatorDto.strategy.id,
+      appliedIndicatorDto.strategyScript.id,
       appliedIndicatorDto.parameters,
-      this.strategyParameterValuePreferenceProxy).remember(appliedIndicatorDto.parameters)
+      this.strategyScriptParameterValuePreferenceProxy).remember(appliedIndicatorDto.parameters)
   }
 
   /**
@@ -103,12 +103,12 @@ export class ChartIndicatorService {
    * 所以與指標計算畫面那一側借用同一份模型，而不是各判斷一次。
    */
   describeAppliedIndicatorParameters(
-    parameters: readonly StrategyParameterDto[],
-  ): StrategyParameterFieldDto[] {
+    parameters: readonly StrategyScriptParameterDto[],
+  ): StrategyScriptParameterFieldDto[] {
     return parameters.map((parameter) => {
-      const parameterDomain = new StrategyParameterDomain(parameter)
+      const parameterDomain = new StrategyScriptParameterDomain(parameter)
 
-      return new StrategyParameterFieldDto(
+      return new StrategyScriptParameterFieldDto(
         parameter,
         parameterDomain.control(),
         parameterDomain.valueOptions(),
@@ -120,13 +120,13 @@ export class ChartIndicatorService {
 
   /** 這幾格哪裡不對——沒有就是 null。規則與宣告在哪裡編輯無關，所以借用同一份。 */
   validateAppliedIndicatorParameters(
-    parameters: readonly StrategyParameterDto[],
+    parameters: readonly StrategyScriptParameterDto[],
   ): string | null {
-    return new StrategyParametersDomain(parameters).validationMessage()
+    return new StrategyScriptParametersDomain(parameters).validationMessage()
   }
 
   /**
-   * 拿一支策略對圖上那批 K 線算一次，交出它該畫的那幾條線。
+   * 拿一支策略腳本對圖上那批 K 線算一次，交出它該畫的那幾條線。
    *
    * 送出去的是**圖上正在畫的那一批**的每一個條件，因此算回來的值與圖上的 K 線是同一段行情。
    * 顏色在這裡就配好——畫面收到的每一條線都已經知道自己是什麼顏色，
@@ -141,22 +141,22 @@ export class ChartIndicatorService {
         chartIndicatorRequestDto.symbol,
         chartIndicatorRequestDto.aggregationInterval,
         chartIndicatorRequestDto.observationWindow,
-        // 算式一個字都不送：圖表套用的是一支**已存的**策略，指名它就夠了——
+        // 算式一個字都不送：圖表套用的是一支**已存的**策略腳本，指名它就夠了——
         // 而從市集加入的那些根本沒有算式可以送，指名是唯一跑得動的方式。
         '',
-        appliedIndicator.strategy.resultType,
-        // **這一次**的值，不是策略記著的預設值。同一支策略的另一筆套用
+        appliedIndicator.strategyScript.resultType,
+        // **這一次**的值，不是策略腳本記著的預設值。同一支策略腳本的另一筆套用
         // 可能填著完全不同的數字，而它們必須各自算各自的。
         appliedIndicator.parameters,
-        appliedIndicator.strategy.id,
+        appliedIndicator.strategyScript.id,
       ))
 
     const indicatorCalculation
       = await this.indicatorCalculationProxy.calculateIndicator(requestDomain)
 
     const chartIndicatorDomain = new ChartIndicatorDomain(
-      // 線的記憶身分掛在**策略**上，不在這一次套用上：顏色記的是跨越每一次打開畫面的習慣。
-      appliedIndicator.strategy.id,
+      // 線的記憶身分掛在**策略腳本**上，不在這一次套用上：顏色記的是跨越每一次打開畫面的習慣。
+      appliedIndicator.strategyScript.id,
       indicatorCalculation,
       this.chartLineColorPreferenceProxy,
       chartIndicatorRequestDto.drawnLines,
@@ -165,7 +165,7 @@ export class ChartIndicatorService {
     return new ChartIndicatorDto(
       // 畫出來的東西屬於**這一次套用**：移除哪一筆、覆蓋哪一筆都認它。
       appliedIndicator.id,
-      appliedIndicator.strategy.name,
+      appliedIndicator.strategyScript.name,
       chartIndicatorDomain.toLevelDtos(),
       chartIndicatorDomain.toSeriesDtos(),
     )

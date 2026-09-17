@@ -1,8 +1,8 @@
 import type { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
-import type { StrategyParameterKindOptionDto } from '~/domain/models/dto/strategy-parameter-kind-option-dto'
-import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
-import type { StrategyParameterDto, StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
+import type { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
+import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
+import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
@@ -58,44 +58,44 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.observationWindowFor(span)
   }
 
-  listStrategyParameterKindOptions(): StrategyParameterKindOptionDto[] {
-    return this.indicatorCalculationService.listStrategyParameterKindOptions()
+  listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
+    return this.indicatorCalculationService.listStrategyScriptParameterKindOptions()
   }
 
-  describeStrategyParameters(
-    parameters: readonly StrategyParameterDto[],
-  ): StrategyParameterFieldDto[] {
-    return this.indicatorCalculationService.describeStrategyParameters(parameters)
+  describeStrategyScriptParameters(
+    parameters: readonly StrategyScriptParameterDto[],
+  ): StrategyScriptParameterFieldDto[] {
+    return this.indicatorCalculationService.describeStrategyScriptParameters(parameters)
   }
 
-  addStrategyParameter(
-    parameters: readonly StrategyParameterDto[],
-  ): readonly StrategyParameterDto[] {
-    return this.indicatorCalculationService.addStrategyParameter(parameters)
+  addStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[],
+  ): readonly StrategyScriptParameterDto[] {
+    return this.indicatorCalculationService.addStrategyScriptParameter(parameters)
   }
 
-  removeStrategyParameter(
-    parameters: readonly StrategyParameterDto[], index: number,
-  ): readonly StrategyParameterDto[] {
-    return this.indicatorCalculationService.removeStrategyParameter(parameters, index)
+  removeStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[], index: number,
+  ): readonly StrategyScriptParameterDto[] {
+    return this.indicatorCalculationService.removeStrategyScriptParameter(parameters, index)
   }
 
-  renameStrategyParameter(
-    parameters: readonly StrategyParameterDto[], index: number, name: string,
-  ): readonly StrategyParameterDto[] {
-    return this.indicatorCalculationService.renameStrategyParameter(parameters, index, name)
+  renameStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[], index: number, name: string,
+  ): readonly StrategyScriptParameterDto[] {
+    return this.indicatorCalculationService.renameStrategyScriptParameter(parameters, index, name)
   }
 
-  changeStrategyParameterKind(
-    parameters: readonly StrategyParameterDto[], index: number, kind: StrategyParameterKind,
-  ): readonly StrategyParameterDto[] {
-    return this.indicatorCalculationService.changeStrategyParameterKind(parameters, index, kind)
+  changeStrategyScriptParameterKind(
+    parameters: readonly StrategyScriptParameterDto[], index: number, kind: StrategyScriptParameterKind,
+  ): readonly StrategyScriptParameterDto[] {
+    return this.indicatorCalculationService.changeStrategyScriptParameterKind(parameters, index, kind)
   }
 
-  changeStrategyParameterValue(
-    parameters: readonly StrategyParameterDto[], index: number, value: number,
-  ): readonly StrategyParameterDto[] {
-    return this.indicatorCalculationService.changeStrategyParameterValue(parameters, index, value)
+  changeStrategyScriptParameterValue(
+    parameters: readonly StrategyScriptParameterDto[], index: number, value: number,
+  ): readonly StrategyScriptParameterDto[] {
+    return this.indicatorCalculationService.changeStrategyScriptParameterValue(parameters, index, value)
   }
 
   listResultTypeOptions(): IndicatorResultTypeOptionDto[] {

@@ -13,7 +13,7 @@
   Postman 或 curl 操作——看一段時間的行情要自己拼 query string，修一根 K 線要手打整包 JSON，
   試一條指標算式要把 Go 程式碼壓成一行帶跳脫字元的字串。本專案提供一個能直接操作這些能力的介面：
   查行情、維護資料、試算指標，都在畫面上完成。
-- **Target Users:** 專案作者本人（James Hsueh）——同時是後端開發者與策略研究者。單人使用、
+- **Target Users:** 專案作者本人（James Hsueh）——同時是後端開發者與策略腳本研究者。單人使用、
   本機或內網執行，**無登入機制、無多人協作需求**。
 - **Success Metrics:**
   1. 後端每一條既有路由都能從畫面操作，不必再開 Postman。
@@ -57,7 +57,7 @@
 - **Naming:** 見 `.claude/rules/naming.md`。角色後綴固定（`Application` / `Service` / `Proxy`），
   四種 model 後綴一眼可辨（entity 無後綴、`Domain`、`Dto`、`Vo`），介面 `I` 前綴且以**能力**命名。
   領域詞彙一律沿用 `.sdd/UL-MAP.md`，不自創同義詞。
-- **Branching Strategy:** feature branch → PR → merge 回 `main`。一個功能切片一條 branch、一個 PR；
+- **Branching StrategyScript:** feature branch → PR → merge 回 `main`。一個功能切片一條 branch、一個 PR；
   branch 名 `feat/{slug}`、`docs/{slug}`、`chore/{slug}`。
 - **Testing Requirements:** Vitest。Domain Model 測試密度最高；Application 測試注入**真實的**
   domain service 與 domain model，**只 mock proxy 介面**（測試力度放大）；元件測試只寫有互動邏輯的。

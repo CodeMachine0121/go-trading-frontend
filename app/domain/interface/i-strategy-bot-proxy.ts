@@ -18,7 +18,7 @@ export interface IStrategyBotProxy {
 
   /**
    * 存一台。撞名時拋 StrategyBotNameConflictError，
-   * 指名的策略看不到時拋 StrategyNotFoundError。
+   * 指名的策略腳本看不到時拋 StrategyScriptNotFoundError。
    */
   createStrategyBot(strategyBotWriteDomain: StrategyBotWriteDomain): Promise<StrategyBot>
 

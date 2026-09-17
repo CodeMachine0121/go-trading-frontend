@@ -12,6 +12,8 @@ const APPLIED_CHART_INDICATORS_STORAGE_KEY = 'go-trading:chart-applied-indicator
  * 型別上不先假設它是對的，編譯器就會逼著這裡逐個欄位驗過才收。
  */
 type AppliedChartIndicatorWire = {
+  // 這個欄位停在 `strategyId` 而沒有跟著更名為 `strategyScriptId`：改掉的那一刻，
+  // 每個人上次擺好的那幾支都還在瀏覽器裡，只是再也對不上這裡要的名字。
   strategyId: unknown
   parameterValues: unknown
   shownOnChart: unknown
@@ -74,7 +76,7 @@ implements IAppliedChartIndicatorPreferenceProxy {
     }
 
     const { strategyId, parameterValues, shownOnChart } = wire as AppliedChartIndicatorWire
-    // 識別碼是拿去對回一支策略的鑰匙。它不是整數就沒有任何策略對得上。
+    // 識別碼是拿去對回一支策略腳本的鑰匙。它不是整數就沒有任何策略腳本對得上。
     if (typeof strategyId !== 'number' || !Number.isInteger(strategyId)) {
       return []
     }
@@ -112,7 +114,7 @@ implements IAppliedChartIndicatorPreferenceProxy {
     rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
   ): Record<string, unknown> {
     return {
-      strategyId: rememberedAppliedIndicatorVo.strategyId,
+      strategyId: rememberedAppliedIndicatorVo.strategyScriptId,
       parameterValues: Object.fromEntries(rememberedAppliedIndicatorVo.parameterValues),
       shownOnChart: rememberedAppliedIndicatorVo.shownOnChart,
     }

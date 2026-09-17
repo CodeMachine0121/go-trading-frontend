@@ -54,7 +54,7 @@ describe('ChartLineColorDomain', () => {
 })
 
 describe('ChartLineColorDomain：同一條線已經在圖上了', () => {
-  // 同一支策略被套用兩次時，兩次畫的是**同一條線**——記憶身分一模一樣，
+  // 同一支策略腳本被套用兩次時，兩次畫的是**同一條線**——記憶身分一模一樣，
   // 於是都會去拿同一個記住的顏色。占著它的不是「別條線」，是它自己的第一份。
   it('這條線已經有一條在圖上時，不拿記住的顏色', () => {
     const drawn = new DrawnChartLinesVo([THIRD], [LINE])

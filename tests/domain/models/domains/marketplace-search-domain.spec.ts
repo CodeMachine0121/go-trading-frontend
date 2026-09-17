@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MarketplaceSearchDomain } from '~/domain/models/domains/marketplace-search-domain'
 import { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
-import { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
+import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 
 /** 一列，只帶會影響比對結果的那幾個字。 */
 function rowOf(
@@ -9,7 +9,7 @@ function rowOf(
   { description = '', publisherEmail = 'someone@example.com' } = {},
 ): MarketplaceListingRowDto {
   return new MarketplaceListingRowDto(
-    new PublishedStrategyDto(
+    new PublishedStrategyScriptDto(
       id, name, description, 'floatList', publisherEmail,
       new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字'),
     false,
@@ -21,7 +21,7 @@ const twentyMovingAverage = rowOf(1, '二十根均線')
 const bollinger = rowOf(2, '布林通道')
 
 function namesMatching(query: string, rows = [twentyMovingAverage, bollinger]): string[] {
-  return new MarketplaceSearchDomain(query).matching(rows).map(row => row.strategy.name)
+  return new MarketplaceSearchDomain(query).matching(rows).map(row => row.strategyScript.name)
 }
 
 describe('MarketplaceSearchDomain', () => {
@@ -71,7 +71,7 @@ describe('MarketplaceSearchDomain', () => {
   })
 
   it('指標值種類不比對——那是一個代號，沒有人拿它來找東西', () => {
-    // 搜「floatList」搜出一堆策略，只會讓人以為搜尋壞了。
+    // 搜「floatList」搜出一堆策略腳本，只會讓人以為搜尋壞了。
     expect(namesMatching('floatList')).toEqual([])
   })
 
@@ -88,6 +88,6 @@ describe('MarketplaceSearchDomain', () => {
 
     new MarketplaceSearchDomain('均線').matching(rows)
 
-    expect(rows.map(row => row.strategy.name)).toEqual(['二十根均線', '布林通道'])
+    expect(rows.map(row => row.strategyScript.name)).toEqual(['二十根均線', '布林通道'])
   })
 })

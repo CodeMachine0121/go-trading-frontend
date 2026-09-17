@@ -40,7 +40,7 @@ export class StrategyBotDomain {
   private toSignalSourceDto(source: StrategyBotSignalSource): StrategyBotSignalSourceDto {
     return new StrategyBotSignalSourceDto(
       source.label,
-      source.strategyId,
+      source.strategyScriptId,
       source.aggregationInterval,
       source.parameterValues.map(
         parameterValue => new StrategyBotParameterValueDto(

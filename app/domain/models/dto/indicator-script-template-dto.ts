@@ -1,6 +1,6 @@
 /**
  * DTO：算式編輯器要的三樣東西——唯讀外框、一段可直接執行的範例主體、
- * 以及開新的空白策略時預填的那個 stub。
+ * 以及開新的空白策略腳本時預填的那個 stub。
  *
  * 三樣一起給，是因為畫面每次只在「種類換了」這一個時機需要它們；
  * 拆成三次呼叫只會讓畫面自己去記得要問齊。
@@ -11,7 +11,7 @@ export class IndicatorScriptTemplateDto {
     public readonly frameHeader: string,
     /** 這個種類可直接執行的範例主體——整個 `Calculate` 函式。 */
     public readonly exampleBody: string,
-    /** 開新的空白策略時，可編輯區預填的那個空 `Calculate`——回傳型別跟著這個種類。 */
+    /** 開新的空白策略腳本時，可編輯區預填的那個空 `Calculate`——回傳型別跟著這個種類。 */
     public readonly blankBody: string,
   ) {}
 

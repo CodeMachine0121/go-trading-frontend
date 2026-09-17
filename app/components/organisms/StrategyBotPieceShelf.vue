@@ -18,11 +18,11 @@ const { sources, placedLabels, intervalOptions } = defineProps<{
   canAdd: boolean
   signalSourceLimit: number
   /**
-   * 一支會吐訊號的策略都沒有。
+   * 一支會吐訊號的策略腳本都沒有。
    *
    * 這時按新增只會得到一個空的下拉選單——而畫面**明明知道原因**。
    */
-  hasNoStrategies: boolean
+  hasNoStrategyScripts: boolean
 }>()
 
 const emit = defineEmits<{
@@ -55,11 +55,11 @@ function intervalLabelOf(interval: string): string {
     </h3>
 
     <p
-      v-if="hasNoStrategies"
+      v-if="hasNoStrategyScripts"
       class="shelf__note"
-      data-testid="no-strategies"
+      data-testid="no-strategy-scripts"
     >
-      還沒有任何會吐訊號的策略。先去策略庫建一支。
+      還沒有任何會吐訊號的策略腳本。先去策略腳本庫建一支。
     </p>
     <p
       v-else-if="sources.length === 0"
@@ -73,7 +73,7 @@ function intervalLabelOf(interval: string): string {
       <li
         v-for="(source, index) in sources"
         :key="source.label + index"
-        data-testid="strategy-row"
+        data-testid="strategy-script-row"
       >
         <div
           class="shelf__piece"
@@ -95,7 +95,7 @@ function intervalLabelOf(interval: string): string {
             variant="ghost"
             size="small"
             label="這塊零件的設定"
-            :data-testid="`strategy-settings-${index}`"
+            :data-testid="`strategy-script-settings-${index}`"
             @click="emit('tune', index)"
           >
             ⚙
@@ -105,7 +105,7 @@ function intervalLabelOf(interval: string): string {
             variant="danger-ghost"
             size="small"
             label="丟掉這塊零件"
-            data-testid="strategy-remove"
+            data-testid="strategy-script-remove"
             @click="emit('remove', index)"
           >
             ✕
@@ -113,19 +113,19 @@ function intervalLabelOf(interval: string): string {
         </div>
       </li>
 
-      <li v-if="canAdd && !hasNoStrategies">
+      <li v-if="canAdd && !hasNoStrategyScripts">
         <AppButton
           type="button"
           variant="secondary"
           size="small"
           block
-          data-testid="strategy-add"
+          data-testid="strategy-script-add"
           @click="emit('add')"
         >
           ＋ 加一塊零件
         </AppButton>
       </li>
-      <li v-else-if="!hasNoStrategies">
+      <li v-else-if="!hasNoStrategyScripts">
         <span class="shelf__note">架子上最多 {{ signalSourceLimit }} 塊</span>
       </li>
     </ul>

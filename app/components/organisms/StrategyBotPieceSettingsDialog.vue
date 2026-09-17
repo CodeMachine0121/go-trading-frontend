@@ -6,23 +6,23 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { StrategyBotSignalSourceDto } from '~/domain/models/dto/strategy-bot-signal-source-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 
-// 有機體：一塊零件的設定——它叫什麼、用哪一支策略、看多粗的 K 線、旋鈕調到多少。
+// 有機體：一塊零件的設定——它叫什麼、用哪一支策略腳本、看多粗的 K 線、旋鈕調到多少。
 //
 // 它在**彈窗**裡，不是在架子上原地展開：展開會把架子撐長，而架子旁邊就是兩張墊子，
 // 一塊零件五個參數的時候，墊子會被推到看不見的地方。而調參數是偶爾才做一次的事。
 const { piece } = defineProps<{
   /** 正在調的那一塊。`null` 就是沒有人在調，彈窗關著。 */
   piece: StrategyBotSignalSourceDto | null
-  strategyOptions: readonly { value: number, label: string }[]
+  strategyScriptOptions: readonly { value: number, label: string }[]
   intervalOptions: readonly { value: string, label: string }[]
-  /** 那支策略宣告了哪幾個旋鈕。挑了策略才知道有哪幾格要填。 */
+  /** 那支策略腳本宣告了哪幾個旋鈕。挑了策略腳本才知道有哪幾格要填。 */
   parameterNames: readonly string[]
 }>()
 
 const emit = defineEmits<{
   close: []
   changeLabel: [label: string]
-  changeStrategy: [strategyId: number]
+  changeStrategyScript: [strategyScriptId: number]
   changeInterval: [interval: string]
   changeParameterValue: [name: string, value: number]
 }>()
@@ -50,31 +50,31 @@ function onParameterInput(name: string, raw: string | number) {
     <div
       v-if="piece !== null"
       class="piece-settings"
-      data-testid="strategy-settings-panel"
+      data-testid="strategy-script-settings-panel"
     >
       <label class="piece-settings__field">
         <span class="piece-settings__name">這塊零件叫什麼</span>
         <AppInput
           :model-value="piece.label"
           type="text"
-          data-testid="strategy-label-input"
+          data-testid="strategy-script-label-input"
           @update:model-value="emit('changeLabel', String($event))"
         />
       </label>
 
       <label class="piece-settings__field">
-        <span class="piece-settings__name">用哪一支策略</span>
+        <span class="piece-settings__name">用哪一支策略腳本</span>
         <AppSelect
-          :model-value="String(piece.strategyId)"
-          data-testid="strategy-select"
-          @update:model-value="emit('changeStrategy', Number($event))"
+          :model-value="String(piece.strategyScriptId)"
+          data-testid="strategy-script-select"
+          @update:model-value="emit('changeStrategyScript', Number($event))"
         >
           <option
-            v-for="strategyOption in strategyOptions"
-            :key="strategyOption.value"
-            :value="String(strategyOption.value)"
+            v-for="strategyScriptOption in strategyScriptOptions"
+            :key="strategyScriptOption.value"
+            :value="String(strategyScriptOption.value)"
           >
-            {{ strategyOption.label }}
+            {{ strategyScriptOption.label }}
           </option>
         </AppSelect>
       </label>
@@ -83,7 +83,7 @@ function onParameterInput(name: string, raw: string | number) {
         <span class="piece-settings__name">看多粗的 K 線</span>
         <AppSelect
           :model-value="piece.aggregationInterval"
-          data-testid="strategy-interval-select"
+          data-testid="strategy-script-interval-select"
           @update:model-value="emit('changeInterval', String($event))"
         >
           <option
@@ -107,7 +107,7 @@ function onParameterInput(name: string, raw: string | number) {
           type="number"
           inputmode="decimal"
           placeholder="用它的預設值"
-          data-testid="strategy-parameter-input"
+          data-testid="strategy-script-parameter-input"
           @update:model-value="onParameterInput(name, $event)"
         />
       </label>
@@ -116,7 +116,7 @@ function onParameterInput(name: string, raw: string | number) {
     <template #actions>
       <AppButton
         type="button"
-        data-testid="strategy-settings-done"
+        data-testid="strategy-script-settings-done"
         @click="emit('close')"
       >
         好了

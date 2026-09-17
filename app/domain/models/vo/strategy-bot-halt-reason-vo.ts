@@ -8,6 +8,8 @@
  * 「通知他的那條路壞了」，所以沒有任何一條主動通知的路走得通。
  */
 export const STRATEGY_BOT_HALT_REASONS = [
+  // 後端送來的字停在 `strategy`，沒有跟著更名為 `strategy-script`：改掉的那一刻，
+  // 每一台在更名前就停擺的機器人都會報出另一個拼法，而畫面認不得它。
   'strategyUnavailable',
   'scriptFailed',
   'credentialRejected',
@@ -18,8 +20,8 @@ export type StrategyBotHaltReasonVo = typeof STRATEGY_BOT_HALT_REASONS[number]
 
 /** 畫面上要說的那一句。說的是「發生了什麼」，因為要做什麼由使用者自己決定。 */
 export const STRATEGY_BOT_HALT_REASON_LABELS: Readonly<Record<StrategyBotHaltReasonVo, string>> = {
-  strategyUnavailable: '有一支策略找不到了',
-  scriptFailed: '有一支策略算不出來',
+  strategyUnavailable: '有一支策略腳本找不到了',
+  scriptFailed: '有一支策略腳本算不出來',
   credentialRejected: '機器人金鑰不被接受',
   destinationNotFound: '找不到這個聊天室',
 }

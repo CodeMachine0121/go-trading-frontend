@@ -35,7 +35,7 @@ export class StrategyBot {
 export class StrategyBotSignalSource {
   constructor(
     public readonly label: string,
-    public readonly strategyId: number,
+    public readonly strategyScriptId: number,
     public readonly aggregationInterval: string,
     public readonly parameterValues: readonly StrategyBotParameterValue[],
   ) {}

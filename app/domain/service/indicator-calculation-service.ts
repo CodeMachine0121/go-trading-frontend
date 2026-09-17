@@ -1,9 +1,9 @@
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
-import { StrategyParameterKindOptionDto } from '~/domain/models/dto/strategy-parameter-kind-option-dto'
-import { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
-import { StrategyParameterDomain } from '~/domain/models/domains/strategy-parameter-domain'
-import type { StrategyParameterDto, StrategyParameterKind } from '~/domain/models/dto/strategy-parameter-dto'
-import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
+import { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
+import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
+import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
+import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
 import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
@@ -56,7 +56,7 @@ export class IndicatorCalculationService {
 
   /**
    * 這個種類之下，算式長什麼樣：唯讀外框、一段可直接執行的範例主體，
-   * 以及開新的空白策略時預填的那個 stub。
+   * 以及開新的空白策略腳本時預填的那個 stub。
    */
   describeIndicatorScript(resultType: string): IndicatorScriptTemplateDto {
     return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).toTemplateDto()
@@ -79,8 +79,8 @@ export class IndicatorCalculationService {
   /**
    * 使用者可以挑的彙總刻度，含給人看的名字。
    *
-   * 它從策略那邊搬過來的判準是「這個問題屬於誰」：一次計算要吃多粗的 K 線，
-   * 不是一支策略的事——同一支策略本來就該能在不同粗細下反覆執行。
+   * 它從策略腳本那邊搬過來的判準是「這個問題屬於誰」：一次計算要吃多粗的 K 線，
+   * 不是一支策略腳本的事——同一支策略腳本本來就該能在不同粗細下反覆執行。
    */
   listAggregationIntervalOptions(): AggregationIntervalOptionDto[] {
     return AGGREGATION_INTERVALS.map(
@@ -133,11 +133,11 @@ export class IndicatorCalculationService {
   }
 
   /** 種類選單上可以挑的每一個。 */
-  listStrategyParameterKindOptions(): StrategyParameterKindOptionDto[] {
+  listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
     return [
-      new StrategyParameterKindOptionDto('lookbackCount', '回看根數'),
-      new StrategyParameterKindOptionDto('number', '數值'),
-      new StrategyParameterKindOptionDto('boolean', '是非'),
+      new StrategyScriptParameterKindOptionDto('lookbackCount', '回看根數'),
+      new StrategyScriptParameterKindOptionDto('number', '數值'),
+      new StrategyScriptParameterKindOptionDto('boolean', '是非'),
     ]
   }
 
@@ -147,13 +147,13 @@ export class IndicatorCalculationService {
    * 畫面問這個而不是自己判斷種類——「回看根數要整數鍵盤」是業務規則，
    * 寫進畫面就是把規則搬到了它不該在的地方。
    */
-  describeStrategyParameters(
-    parameters: readonly StrategyParameterDto[],
-  ): StrategyParameterFieldDto[] {
+  describeStrategyScriptParameters(
+    parameters: readonly StrategyScriptParameterDto[],
+  ): StrategyScriptParameterFieldDto[] {
     return parameters.map((parameter) => {
-      const parameterDomain = new StrategyParameterDomain(parameter)
+      const parameterDomain = new StrategyScriptParameterDomain(parameter)
 
-      return new StrategyParameterFieldDto(
+      return new StrategyScriptParameterFieldDto(
         parameter,
         parameterDomain.control(),
         parameterDomain.valueOptions(),
@@ -169,44 +169,44 @@ export class IndicatorCalculationService {
    * 它們在這裡而不在畫面上，是因為「新增出來的那一列長什麼樣子」是規則：
    * 名稱留白、種類預設回看根數、預設值二十，每一項都有理由（見那個模型）。
    */
-  addStrategyParameter(
-    parameters: readonly StrategyParameterDto[],
-  ): readonly StrategyParameterDto[] {
-    return new StrategyParametersDomain(parameters).addingNew().all
+  addStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[],
+  ): readonly StrategyScriptParameterDto[] {
+    return new StrategyScriptParametersDomain(parameters).addingNew().all
   }
 
-  removeStrategyParameter(
-    parameters: readonly StrategyParameterDto[], index: number,
-  ): readonly StrategyParameterDto[] {
-    return new StrategyParametersDomain(parameters).removingAt(index).all
+  removeStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[], index: number,
+  ): readonly StrategyScriptParameterDto[] {
+    return new StrategyScriptParametersDomain(parameters).removingAt(index).all
   }
 
-  renameStrategyParameter(
-    parameters: readonly StrategyParameterDto[], index: number, name: string,
-  ): readonly StrategyParameterDto[] {
+  renameStrategyScriptParameter(
+    parameters: readonly StrategyScriptParameterDto[], index: number, name: string,
+  ): readonly StrategyScriptParameterDto[] {
     return this.replacing(parameters, index,
       parameter => parameter.renamedTo(name))
   }
 
-  changeStrategyParameterKind(
-    parameters: readonly StrategyParameterDto[], index: number, kind: StrategyParameterKind,
-  ): readonly StrategyParameterDto[] {
+  changeStrategyScriptParameterKind(
+    parameters: readonly StrategyScriptParameterDto[], index: number, kind: StrategyScriptParameterKind,
+  ): readonly StrategyScriptParameterDto[] {
     return this.replacing(parameters, index, parameter => parameter.withKind(kind))
   }
 
-  changeStrategyParameterValue(
-    parameters: readonly StrategyParameterDto[], index: number, value: number,
-  ): readonly StrategyParameterDto[] {
+  changeStrategyScriptParameterValue(
+    parameters: readonly StrategyScriptParameterDto[], index: number, value: number,
+  ): readonly StrategyScriptParameterDto[] {
     return this.replacing(parameters, index, parameter => parameter.withValue(value))
   }
 
   /** 三個改法只差在改哪一樣，其餘完全相同——共用的是「換掉第幾列」這件事。 */
   private replacing(
-    parameters: readonly StrategyParameterDto[],
+    parameters: readonly StrategyScriptParameterDto[],
     index: number,
-    change: (parameter: StrategyParameterDomain) => StrategyParameterDto,
-  ): readonly StrategyParameterDto[] {
-    const wholeSet = new StrategyParametersDomain(parameters)
+    change: (parameter: StrategyScriptParameterDomain) => StrategyScriptParameterDto,
+  ): readonly StrategyScriptParameterDto[] {
+    const wholeSet = new StrategyScriptParametersDomain(parameters)
     const parameter = wholeSet.at(index)
     if (parameter === null) {
       return parameters

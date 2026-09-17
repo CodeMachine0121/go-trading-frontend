@@ -1,7 +1,7 @@
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 
 /**
- * DTO：墊子上的一塊零件——它是哪一支策略，以及它要是哪幾個信號才算數。
+ * DTO：墊子上的一塊零件——它是哪一支策略腳本，以及它要是哪幾個信號才算數。
  *
  * `acceptedSignals` 是一個**集合**而不是一個值，因為「A 是買入或持有都算」是真的有人
  * 要說的話。空集合是一塊擺著卻什麼都不收的零件，也就是一句永遠不成立的話——

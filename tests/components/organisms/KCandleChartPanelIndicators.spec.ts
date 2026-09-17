@@ -16,8 +16,8 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy, buildAdoptedStrategy }
-  from '../../fixtures/strategy-application'
+import { buildStrategyScriptApplication, buildStoredStrategyScript, buildAdoptedStrategyScript }
+  from '../../fixtures/strategy-script-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -61,13 +61,13 @@ function aShortCalculation(usedCandleCount: number, indicatorName = '均價') {
 }
 
 async function mountPanel(overrides: {
-  strategies?: ReturnType<typeof buildStoredStrategy>[]
+  strategyScripts?: ReturnType<typeof buildStoredStrategyScript>[]
   /** 從市集加入來的那些。它們沒有算式，而圖表照樣套得上。 */
-  adopted?: ReturnType<typeof buildAdoptedStrategy>[]
+  adopted?: ReturnType<typeof buildAdoptedStrategyScript>[]
   calculateIndicator?: IIndicatorCalculationProxy['calculateIndicator']
 } = {}) {
-  const strategies = overrides.strategies
-    ?? [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })]
+  const strategyScripts = overrides.strategyScripts
+    ?? [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })]
   const calculateIndicator = overrides.calculateIndicator
     ?? vi.fn().mockResolvedValue(aCalculation())
 
@@ -78,9 +78,9 @@ async function mountPanel(overrides: {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
-      strategyApplication: buildStrategyApplication({
-        listAvailableStrategies: vi.fn().mockResolvedValue({
-          mine: strategies, adopted: overrides.adopted ?? [],
+      strategyScriptApplication: buildStrategyScriptApplication({
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+          mine: strategyScripts, adopted: overrides.adopted ?? [],
         }),
       }),
       timeZone: buildTimeZone(),
@@ -92,7 +92,7 @@ async function mountPanel(overrides: {
   return { wrapper, calculateIndicator }
 }
 
-async function applyStrategy(wrapper: Awaited<ReturnType<typeof mountPanel>>['wrapper'], id: number) {
+async function applyStrategyScript(wrapper: Awaited<ReturnType<typeof mountPanel>>['wrapper'], id: number) {
   await wrapper.get('[data-testid="chart-indicator-picker"]').setValue(String(id))
   await flushPromises()
 }
@@ -142,7 +142,7 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('挑一支就立刻算，不必再按任何按鈕', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
@@ -154,7 +154,7 @@ describe('圖表上的指標：挑一支套上去', () => {
     // 「算哪一段」則由顯示區間決定，由「什麼時候重算」那一組釘住。
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'BTCUSDT',
@@ -165,24 +165,24 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('畫出來的線交給圖表', async () => {
     const { wrapper } = await mountPanel()
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
   })
 
   it('可以同時疊兩支', async () => {
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategy(8, '第二支', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
       ],
       calculateIndicator: vi.fn()
         .mockResolvedValueOnce(aCalculation('甲'))
         .mockResolvedValueOnce(aCalculation('乙')),
     })
 
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(2)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(2)
@@ -194,7 +194,7 @@ describe('圖表上的指標：挑一支套上去', () => {
     // 二十期與六十期是兩條不同的線，只是恰好共用同一段算法。
     const { wrapper } = await mountPanel()
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
       .map(option => option.text())
@@ -203,11 +203,11 @@ describe('圖表上的指標：挑一支套上去', () => {
 
   it.each([
     { kind: 'bool', name: '是非題' },
-    { kind: 'signal', name: '信號策略' },
-  ])('$kind 類型的策略列得出來但挑不到', async ({ kind, name }) => {
-    // 直接讓它消失會讓使用者以為策略不見了；挑了才失敗又太晚。
+    { kind: 'signal', name: '信號策略腳本' },
+  ])('$kind 類型的策略腳本列得出來但挑不到', async ({ kind, name }) => {
+    // 直接讓它消失會讓使用者以為策略腳本不見了；挑了才失敗又太晚。
     const { wrapper } = await mountPanel({
-      strategies: [buildStoredStrategy(9, name, { resultType: kind })],
+      strategyScripts: [buildStoredStrategyScript(9, name, { resultType: kind })],
     })
 
     const option = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
@@ -218,13 +218,13 @@ describe('圖表上的指標：挑一支套上去', () => {
 
   it('移除一支時只移除它，另一支照樣留在圖上', async () => {
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '要移除的', { resultType: 'float' }),
-        buildStoredStrategy(8, '要留著的', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '要移除的', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '要留著的', { resultType: 'float' }),
       ],
     })
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     await wrapper.get('[data-testid="remove-indicator-1"]').trigger('click')
     await flushPromises()
@@ -232,14 +232,14 @@ describe('圖表上的指標：挑一支套上去', () => {
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="applied-indicator"]').text()).toContain('要留著的')
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
-    // 留下來的是「第二筆套用」，序號 2——移除認的是那一筆，不是那一支策略。
+    // 留下來的是「第二筆套用」，序號 2——移除認的是那一筆，不是那一支策略腳本。
     expect(indicators.map(indicator => indicator.appliedIndicatorId)).toEqual([2])
   })
 
-  it('一支策略都還沒存過時明說，而不是留一個空選單', async () => {
-    const { wrapper } = await mountPanel({ strategies: [] })
+  it('一支策略腳本都還沒存過時明說，而不是留一個空選單', async () => {
+    const { wrapper } = await mountPanel({ strategyScripts: [] })
 
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
     expect(wrapper.find('[data-testid="chart-indicator-picker"]').exists()).toBe(false)
   })
 
@@ -254,7 +254,7 @@ describe('圖表上的指標：把一支先收起來', () => {
   it('收起來的那一支不畫在圖上，但仍然留在清單上', async () => {
     // 收的是那條線，不是那一支指標——要真的拿掉它，清單上另有一顆按鈕。
     const { wrapper } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
     await flushPromises()
@@ -265,16 +265,16 @@ describe('圖表上的指標：把一支先收起來', () => {
 
   it('收起來的只有它自己，另一支照樣畫著', async () => {
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '要收起來的', { resultType: 'float' }),
-        buildStoredStrategy(8, '要留著的', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '要收起來的', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '要留著的', { resultType: 'float' }),
       ],
       calculateIndicator: vi.fn()
         .mockResolvedValueOnce(aCalculation('甲'))
         .mockResolvedValueOnce(aCalculation('乙')),
     })
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
     await flushPromises()
@@ -287,7 +287,7 @@ describe('圖表上的指標：把一支先收起來', () => {
     // 收起來的那一支仍然佔著它的顏色。不然拿回來時會換一個顏色，
     // 看起來像是另一條線——而使用者只是把眼睛按了兩下。
     const { wrapper } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     const before = wrapper.findComponent(KCandleChart).props('indicators') ?? []
 
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
@@ -300,7 +300,7 @@ describe('圖表上的指標：把一支先收起來', () => {
 
   it('收起來時不重算——算出來的值一個字都不會變', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
     await flushPromises()
@@ -311,7 +311,7 @@ describe('圖表上的指標：把一支先收起來', () => {
 
   it('收起來的那一支照樣跟著重算，拿回來時線就是最新的', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
     await flushPromises()
 
@@ -328,7 +328,7 @@ describe('圖表上的指標：把一支先收起來', () => {
 describe('圖表上的指標：什麼時候重算', () => {
   it('換交易標的就重算一次', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
     await flushPromises()
@@ -342,7 +342,7 @@ describe('圖表上的指標：什麼時候重算', () => {
   it('拖到另一段就重算，即使手上那批 K 線一根都沒換', async () => {
     // 一支「這段區間的最高價」換一段就該有不同答案，即使那幾根 K 線早就在手上。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-02T09:00:00.000Z'),
@@ -359,7 +359,7 @@ describe('圖表上的指標：什麼時候重算', () => {
     // 這一段看得到最新那一根（它在 10:00，區間到 11:00），所以算到的是「現在」，
     // 由「算到哪一刻」那一組釘住；這裡只管起點是不是他看的那一段。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-02T09:00:00.000Z'),
@@ -378,7 +378,7 @@ describe('圖表上的指標：什麼時候重算', () => {
   it('拉遠時以新的那一段重算', async () => {
     // 拉遠換掉的是要算哪一段行情；那一段裡有幾格由系統照市場的作息回答。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-02T10:00:00.000Z'),
@@ -423,7 +423,7 @@ describe('圖表上的指標：什麼時候重算', () => {
   it('顯示區間沒真的變就不重算', async () => {
     // 同一段區間算出來的必然一樣。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     const sameRange = {
       startTime: new Date('2026-09-02T09:00:00.000Z'),
       endTime: new Date('2026-09-02T11:00:00.000Z'),
@@ -442,7 +442,7 @@ describe('圖表上的指標：什麼時候重算', () => {
 
   it('使用者還在動的時候一次都不算', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     for (const hour of [10, 11, 12, 13]) {
       wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -478,7 +478,7 @@ describe('圖表上的指標：算不出來的時候', () => {
         new IndicatorScriptFailedError('算式執行失敗：boom')),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('boom')
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
@@ -490,7 +490,7 @@ describe('圖表上的指標：算不出來的時候', () => {
         new BackendUnreachableError('http://localhost:8080')),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('連不上')
   })
@@ -500,15 +500,15 @@ describe('圖表上的指標：算不出來的時候', () => {
       .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗'))
       .mockResolvedValue(aCalculation())
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '會失敗的', { resultType: 'float' }),
-        buildStoredStrategy(8, '算得出來的', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '會失敗的', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '算得出來的', { resultType: 'float' }),
       ],
       calculateIndicator,
     })
 
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
@@ -522,7 +522,7 @@ describe('圖表上的指標：算不出來的時候', () => {
       .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
       .mockResolvedValue(aCalculation())
     const { wrapper } = await mountPanel({ calculateIndicator })
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -540,7 +540,7 @@ describe('圖表上的指標：算不出來的時候', () => {
       .mockResolvedValueOnce(aCalculation())
       .mockRejectedValue(new IndicatorScriptFailedError('算式執行失敗：index out of range'))
     const { wrapper } = await mountPanel({ calculateIndicator })
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -556,7 +556,7 @@ describe('圖表上的指標：線的顏色', () => {
   it('換一條線的顏色，圖上立刻換，且不重算', async () => {
     // 重算一次只為了換顏色是荒謬的——算出來的值一個字都不會變。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     const before = wrapper.findComponent(KCandleChart).props('indicators')
 
     await openSettings(wrapper, 1)
@@ -582,8 +582,8 @@ describe('圖表上的指標：線的顏色', () => {
           { calculateIndicator: vi.fn().mockResolvedValue(aCalculation()) },
           // 上一次打開這個畫面時，使用者替這條線挑過粉色。
           { readColorToken: vi.fn().mockReturnValue('--color-chart-line-5') }),
-        strategyApplication: buildStrategyApplication({
-          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+        strategyScriptApplication: buildStrategyScriptApplication({
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -603,15 +603,15 @@ describe('圖表上的指標：線的顏色', () => {
       .mockResolvedValueOnce(aCalculation('甲'))
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategy(8, '第二支', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
       ],
       calculateIndicator,
     })
 
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
     expect(indicators[0]?.levels[0]?.colorToken)
@@ -624,9 +624,9 @@ describe('圖表上的指標：邊界', () => {
     // 這裡曾經斷言第二次會被擋掉。**那是刻意的行為變更**：擋掉它，
     // 使用者就永遠擺不出他真正想要的第二筆（同一支配另一個值）。
     const { wrapper, calculateIndicator } = await mountPanel()
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(calculateIndicator).toHaveBeenCalledTimes(2)
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(2)
@@ -646,8 +646,8 @@ describe('圖表上的指標：邊界', () => {
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
-        strategyApplication: buildStrategyApplication({
-          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+        strategyScriptApplication: buildStrategyScriptApplication({
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -661,7 +661,7 @@ describe('圖表上的指標：邊界', () => {
     expect(calculateIndicator).not.toHaveBeenCalled()
   })
 
-  it('挑到選單上那個「套用一支策略…」時什麼都不做', async () => {
+  it('挑到選單上那個「套用一支策略腳本…」時什麼都不做', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
 
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('')
@@ -677,7 +677,7 @@ describe('圖表上的指標：邊界', () => {
         new IndicatorCalculation('BTCUSDT', '5m', 1, 'float', [])),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-draws-nothing"]').text()).toContain('沒有線')
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
@@ -688,7 +688,7 @@ describe('圖表上的指標：邊界', () => {
       calculateIndicator: vi.fn().mockRejectedValue('這不是一個 Error'),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('未預期')
   })
@@ -698,12 +698,12 @@ describe('圖表上的指標：邊界', () => {
       calculateIndicator: vi.fn().mockRejectedValue(new Error('後端說了一句話')),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('後端說了一句話')
   })
 
-  it('取不到策略清單時圖表照畫，只是沒有東西可挑', async () => {
+  it('取不到策略腳本清單時圖表照畫，只是沒有東西可挑', async () => {
     // 為此擋掉整張圖，等於讓一個附加功能決定主功能能不能用。
     const wrapper = mount(KCandleChartPanel, {
       props: {
@@ -712,8 +712,8 @@ describe('圖表上的指標：邊界', () => {
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
-        strategyApplication: buildStrategyApplication({
-          listAvailableStrategies: vi.fn().mockRejectedValue(
+        strategyScriptApplication: buildStrategyScriptApplication({
+          listAvailableStrategyScripts: vi.fn().mockRejectedValue(
             new BackendUnreachableError('http://localhost:8080')),
         }),
         timeZone: buildTimeZone(),
@@ -723,7 +723,7 @@ describe('圖表上的指標：邊界', () => {
     await flushPromises()
 
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
   })
 
   it('一支畫出兩條線時兩條都列出來，各有各的顏色', async () => {
@@ -735,7 +735,7 @@ describe('圖表上的指標：邊界', () => {
         ], [new Date('2026-09-02T10:00:00.000Z'), new Date('2026-09-02T10:05:00.000Z')])),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(await linesOf(wrapper, 1)).toHaveLength(2)
     const indicators = wrapper.findComponent(KCandleChart).props('indicators') ?? []
@@ -834,14 +834,14 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
       .mockResolvedValueOnce(aCalculation('甲'))
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategy(8, '第二支', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
       ],
       calculateIndicator,
     })
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -870,8 +870,8 @@ describe('圖表上的指標：圖沒了的時候', () => {
         chartIndicatorApplication: buildChartIndicatorApplication({
           calculateIndicator: vi.fn().mockResolvedValue(aCalculation()),
         }),
-        strategyApplication: buildStrategyApplication({
-          listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+        strategyScriptApplication: buildStrategyScriptApplication({
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
       },
@@ -909,7 +909,7 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(119)),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -920,7 +920,7 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(50)),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -931,7 +931,7 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       calculateIndicator: vi.fn().mockResolvedValue(aShortCalculation(20)),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
@@ -942,15 +942,15 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       .mockResolvedValueOnce(aShortCalculation(119, '畫得滿的'))
       .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '畫得滿的', { resultType: 'float' }),
-        buildStoredStrategy(8, '畫不滿的', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '畫得滿的', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '畫不滿的', { resultType: 'float' }),
       ],
       calculateIndicator,
     })
 
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
@@ -962,7 +962,7 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       .mockResolvedValueOnce(aShortCalculation(50))
       .mockResolvedValue(aShortCalculation(119))
     const { wrapper } = await mountPanel({ calculateIndicator })
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -977,14 +977,14 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
 describe('連一個值都算不出來的時候，那一列要說話', () => {
   /** 系統認出「湊不出最少可算根數」之後，交到這一層的樣子。 */
   const tooThin = new IndicatorCalculationFieldError(
-    'span', '這段區間只湊得出 19 根 K 線，而這支策略至少要 20 根才算得出一個值。')
+    'span', '這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。')
 
   it('那一列說出系統給的原因', async () => {
     const { wrapper } = await mountPanel({
       calculateIndicator: vi.fn().mockRejectedValue(tooThin),
     })
 
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
 
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('19')
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('20')
@@ -996,15 +996,15 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
       .mockRejectedValueOnce(tooThin)
       .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
     const { wrapper } = await mountPanel({
-      strategies: [
-        buildStoredStrategy(7, '算不出來的', { resultType: 'float' }),
-        buildStoredStrategy(8, '畫不滿的', { resultType: 'float' }),
+      strategyScripts: [
+        buildStoredStrategyScript(7, '算不出來的', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '畫不滿的', { resultType: 'float' }),
       ],
       calculateIndicator,
     })
 
-    await applyStrategy(wrapper, 7)
-    await applyStrategy(wrapper, 8)
+    await applyStrategyScript(wrapper, 7)
+    await applyStrategyScript(wrapper, 8)
 
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
@@ -1017,7 +1017,7 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
       .mockResolvedValueOnce(aShortCalculation(50))
       .mockRejectedValue(tooThin)
     const { wrapper } = await mountPanel({ calculateIndicator })
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -1033,7 +1033,7 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
       .mockRejectedValueOnce(tooThin)
       .mockResolvedValue(aShortCalculation(119))
     const { wrapper } = await mountPanel({ calculateIndicator })
-    await applyStrategy(wrapper, 7)
+    await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
@@ -1045,22 +1045,22 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
   })
 })
 
-describe('K 線圖表：加入來的策略', () => {
+describe('K 線圖表：加入來的策略腳本', () => {
   it('挑得到，也套得上——套用不需要算式，而它正好沒有', async () => {
-    // 這是這個切片在圖表上唯一看得出來的差別：一支讀不到算式的策略，照樣畫得出線。
+    // 這是這個切片在圖表上唯一看得出來的差別：一支讀不到算式的策略腳本，照樣畫得出線。
     const { wrapper, calculateIndicator } = await mountPanel({
-      strategies: [],
-      adopted: [buildAdoptedStrategy(9, '別人的', { resultType: 'float' })],
+      strategyScripts: [],
+      adopted: [buildAdoptedStrategyScript(9, '別人的', { resultType: 'float' })],
     })
 
     const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
       .map(option => option.text())
     expect(options).toContain('別人的')
 
-    await applyStrategy(wrapper, 9)
+    await applyStrategyScript(wrapper, 9)
 
     expect(calculateIndicator).toHaveBeenCalledWith(
-      expect.objectContaining({ strategyId: 9, script: '' }))
+      expect.objectContaining({ strategyScriptId: 9, script: '' }))
     expect(wrapper.text()).toContain('別人的')
   })
 })

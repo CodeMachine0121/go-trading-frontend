@@ -5,10 +5,10 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
-import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import AppliedIndicatorParameterFields from '~/components/molecules/AppliedIndicatorParameterFields.vue'
 import AppliedIndicatorDialog from '~/components/molecules/AppliedIndicatorDialog.vue'
 
@@ -18,24 +18,24 @@ import AppliedIndicatorDialog from '~/components/molecules/AppliedIndicatorDialo
  *
  * 它一個業務判斷都不做，**也不逐列查表**：每一列拿到手上就已經知道自己是什麼樣子——
  * 有沒有在算、算不出來的原因、畫出哪幾條線、那幾格長什麼樣。
- * 連「是非畫不成線」都是策略自己說的，「這一筆要不要先停下來調」也是。
+ * 連「是非畫不成線」都是策略腳本自己說的，「這一筆要不要先停下來調」也是。
  *
- * **清單上的每一把鑰匙都是「這一次套用」的序號，不是策略識別碼**——
- * 同一支策略可以擺好幾筆，用後者當鍵會讓移除一筆時兩筆一起消失。
+ * **清單上的每一把鑰匙都是「這一次套用」的序號，不是策略腳本識別碼**——
+ * 同一支策略腳本可以擺好幾筆，用後者當鍵會讓移除一筆時兩筆一起消失。
  */
-const { selectableStrategies, appliedIndicatorRows, colorOptions } = defineProps<{
-  /** 還可以挑的策略。**已經在圖上的那幾支仍然在裡面**——同一支可以擺好幾次。 */
-  selectableStrategies: readonly ChartApplicableStrategyDto[]
+const { selectableStrategyScripts, appliedIndicatorRows, colorOptions } = defineProps<{
+  /** 還可以挑的策略腳本。**已經在圖上的那幾支仍然在裡面**——同一支可以擺好幾次。 */
+  selectableStrategyScripts: readonly ChartApplicableStrategyScriptDto[]
   appliedIndicatorRows: readonly AppliedIndicatorRowDto[]
   colorOptions: readonly ChartLineColorOptionDto[]
   /** 還沒上圖、正在調的那一筆。沒有就是 null。 */
   pendingAppliedIndicator: AppliedIndicatorDto | null
-  pendingParameterFields: readonly StrategyParameterFieldDto[]
+  pendingParameterFields: readonly StrategyScriptParameterFieldDto[]
   pendingParametersMessage: string | null
 }>()
 
 const emit = defineEmits<{
-  apply: [strategy: ChartApplicableStrategyDto]
+  apply: [strategyScript: ChartApplicableStrategyScriptDto]
   changePendingParameterValue: [parameterName: string, value: number]
   confirmPending: []
   cancelPending: []
@@ -65,14 +65,14 @@ const openedRow = computed(() => appliedIndicatorRows.find(
   row => row.appliedIndicator.id === openedAppliedIndicatorId.value) ?? null)
 
 function applyPicked(value: string) {
-  // 選單永遠停回「套用一支策略…」：挑完就加進去了，它不代表任何持續的狀態。
+  // 選單永遠停回「套用一支策略腳本…」：挑完就加進去了，它不代表任何持續的狀態。
   pickerValue.value = ''
 
   // 選項本來就是從可挑清單長出來的，所以「找不到」到不了——
   // 走訪找到的那些（零個或一個），比寫一個永遠不成立的 else 誠實。
-  selectableStrategies
+  selectableStrategyScripts
     .filter(candidate => String(candidate.id) === value)
-    .forEach(strategy => emit('apply', strategy))
+    .forEach(strategyScript => emit('apply', strategyScript))
 }
 </script>
 
@@ -82,11 +82,11 @@ function applyPicked(value: string) {
       <span class="chart-indicator-panel__label">指標</span>
 
       <p
-        v-if="selectableStrategies.length === 0"
+        v-if="selectableStrategyScripts.length === 0"
         class="chart-indicator-panel__empty"
         data-testid="chart-indicator-empty"
       >
-        還沒有任何策略。到指標計算畫面寫一支存起來，就能套到圖上。
+        還沒有任何策略腳本。到指標計算畫面寫一支存起來，就能套到圖上。
       </p>
 
       <AppSelect
@@ -96,29 +96,29 @@ function applyPicked(value: string) {
         @update:model-value="applyPicked"
       >
         <option value="">
-          套用一支策略…
+          套用一支策略腳本…
         </option>
-        <!-- 畫不成線的那幾支照樣列出來但挑不到：直接消失會讓使用者以為策略不見了。 -->
+        <!-- 畫不成線的那幾支照樣列出來但挑不到：直接消失會讓使用者以為策略腳本不見了。 -->
         <option
-          v-for="strategy in selectableStrategies"
-          :key="strategy.id"
-          :value="String(strategy.id)"
-          :disabled="!strategy.drawableOnChart"
+          v-for="strategyScript in selectableStrategyScripts"
+          :key="strategyScript.id"
+          :value="String(strategyScript.id)"
+          :disabled="!strategyScript.drawableOnChart"
         >
-          {{ strategy.drawableOnChart ? strategy.name : `${strategy.name}（畫不成線）` }}
+          {{ strategyScript.drawableOnChart ? strategyScript.name : `${strategyScript.name}（畫不成線）` }}
         </option>
       </AppSelect>
     </label>
 
     <!-- 挑了一支有旋鈕的：先停在這裡讓使用者調，調好才上圖。
-         一個旋鈕都沒有的策略不會走到這裡——那個判斷不在畫面上。 -->
+         一個旋鈕都沒有的策略腳本不會走到這裡——那個判斷不在畫面上。 -->
     <section
       v-if="pendingAppliedIndicator"
       class="chart-indicator-panel__pending"
       data-testid="pending-indicator"
     >
       <p class="chart-indicator-panel__pending-title">
-        {{ pendingAppliedIndicator.strategy.name }}
+        {{ pendingAppliedIndicator.strategyScript.name }}
       </p>
 
       <AppliedIndicatorParameterFields
@@ -208,7 +208,7 @@ function applyPicked(value: string) {
             </span>
 
             <span class="chart-indicator-panel__name">
-              {{ row.appliedIndicator.strategy.name }}
+              {{ row.appliedIndicator.strategyScript.name }}
               <!-- 同一支擺好幾筆時靠這一句分辨：值本身就是它們唯一的差別。 -->
               <span
                 v-if="row.appliedIndicator.parameterSummary"

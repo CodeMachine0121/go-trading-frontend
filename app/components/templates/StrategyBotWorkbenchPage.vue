@@ -16,10 +16,10 @@ const { strategyBotId } = defineProps<{
   strategyBotId: number | null
 }>()
 
-const { $strategyBotApplication, $strategyApplication, $tradingSymbolApplication } = useNuxtApp()
+const { $strategyBotApplication, $strategyScriptApplication, $tradingSymbolApplication } = useNuxtApp()
 
 const workbench = useStrategyBotWorkbench(
-  $strategyBotApplication, $strategyApplication, strategyBotId)
+  $strategyBotApplication, $strategyScriptApplication, strategyBotId)
 
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 const { currentUser, signOut } = useUserSession()
@@ -92,8 +92,8 @@ onBeforeRouteLeave(() => workbench.dirty.value
       v-else
       :editing="workbench.editing.value"
       :trading-symbol-application="$tradingSymbolApplication"
-      :strategy-options="workbench.strategyOptions.value"
-      :parameter-names-by-strategy-id="workbench.parameterNamesByStrategyId.value"
+      :strategy-script-options="workbench.strategyScriptOptions.value"
+      :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
       :saving="workbench.saving.value"
       :failure-message="workbench.failureMessage.value"
       @cancel="navigateTo('/strategy-bots')"

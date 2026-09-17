@@ -5,7 +5,7 @@ import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-ty
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
-import { StrategyParametersDomain } from '~/domain/models/domains/strategy-parameters-domain'
+import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
@@ -34,7 +34,7 @@ export class BacktestRequestDomain {
   readonly startTime: Date
   readonly endTime: Date
   readonly script: string
-  readonly parameters: StrategyParametersDomain
+  readonly parameters: StrategyScriptParametersDomain
   readonly initialCapital: Decimal
   readonly positionSizingMode: PositionSizingMode
   readonly positionSizingValue: Decimal
@@ -86,7 +86,7 @@ export class BacktestRequestDomain {
 
     // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話。
     // 它落在算式那一格：參數宣告與算式同屬工作區，而回測這一側沒有參數那一列可以標。
-    this.parameters = new StrategyParametersDomain(backtestRequestDto.parameters)
+    this.parameters = new StrategyScriptParametersDomain(backtestRequestDto.parameters)
     const parametersMessage = this.parameters.validationMessage()
     if (parametersMessage !== null) {
       throw new BacktestFieldError('scriptBody', parametersMessage)

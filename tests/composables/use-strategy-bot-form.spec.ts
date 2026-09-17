@@ -53,8 +53,8 @@ function readable(form: ReturnType<typeof formUnderTest>, side: 0 | 1): string[]
   })
 }
 
-describe('useStrategyBotForm 的策略清單', () => {
-  it('新加的策略預設就叫它自己的名字，撞名時後面接數字', () => {
+describe('useStrategyBotForm 的策略腳本清單', () => {
+  it('新加的策略腳本預設就叫它自己的名字，撞名時後面接數字', () => {
     // 「A 等於買入」是一句看不出自己在說什麼的話——使用者得自己記住 A 是哪一支。
     const form = formUnderTest()
     form.reset()
@@ -99,7 +99,7 @@ describe('useStrategyBotForm 的策略清單', () => {
     expect(form.sourceLabels.value).toContain('均線')
   })
 
-  it('刪掉一支策略，兩邊的表立刻各少一列', () => {
+  it('刪掉一支策略腳本，兩邊的表立刻各少一列', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
@@ -108,7 +108,7 @@ describe('useStrategyBotForm 的策略清單', () => {
     expect(readable(form, 0)).toEqual(['動能:buy'])
   })
 
-  it('改一支策略的名字，表上那一列跟著改，格子一個都不動', () => {
+  it('改一支策略腳本的名字，表上那一列跟著改，格子一個都不動', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
@@ -127,12 +127,12 @@ describe('useStrategyBotForm 的策略清單', () => {
     expect(form.rejection.value).toContain('重複')
   })
 
-  it('換策略時把舊策略的旋鈕值清掉——它們屬於另一支算式', () => {
+  it('換策略腳本時把舊策略腳本的旋鈕值清掉——它們屬於另一支算式', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
     form.changeSignalSourceParameterValue(0, '回看根數', 20)
-    form.changeSignalSourceStrategy(0, 10)
+    form.changeSignalSourceStrategyScript(0, 10)
 
     expect(form.signalSources.value[0]!.parameterValues).toEqual([])
   })
@@ -148,8 +148,8 @@ describe('useStrategyBotForm 的策略清單', () => {
     expect(form.canAddSignalSource.value).toBe(false)
   })
 
-  it('還被條件用著的策略刪得掉，只是先說一聲', () => {
-    // 擋住它的代價比想像中大：只有一支策略、而兩邊都在用它的人，
+  it('還被條件用著的策略腳本刪得掉，只是先說一聲', () => {
+    // 擋住它的代價比想像中大：只有一支策略腳本、而兩邊都在用它的人，
     // 得先把兩邊拆光才換得掉那一支。
     const form = formUnderTest(aStoredBot())
     form.reset()

@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { MarketplaceListingDomain } from '~/domain/models/domains/marketplace-listing-domain'
-import { AvailableStrategiesDto } from '~/domain/models/dto/available-strategies-dto'
-import { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
-import { StrategyContentDto } from '~/domain/models/dto/strategy-content-dto'
-import { StrategyDto } from '~/domain/models/dto/strategy-dto'
+import { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
+import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
+import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
+import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 
-function publishedOf(id: number, name: string): PublishedStrategyDto {
-  return new PublishedStrategyDto(
+function publishedOf(id: number, name: string): PublishedStrategyScriptDto {
+  return new PublishedStrategyScriptDto(
     id, name, '', 'floatList', 'someone@example.com',
     new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
 }
 
-function ownStrategyOf(id: number, name: string): StrategyDto {
-  return new StrategyDto(
-    id, name, '', new StrategyContentDto('sum := 0.0', 'floatList'), true, true, true)
+function ownStrategyScriptOf(id: number, name: string): StrategyScriptDto {
+  return new StrategyScriptDto(
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true, true)
 }
 
 describe('MarketplaceListingDomain', () => {
@@ -22,12 +22,12 @@ describe('MarketplaceListingDomain', () => {
     // 就多一個會悄悄算錯的地方，而算錯的後果是一顆按不動的按鈕。
     const listing = new MarketplaceListingDomain(
       [publishedOf(1, '我分享的'), publishedOf(2, '我加入的'), publishedOf(3, '還沒收的')],
-      new AvailableStrategiesDto([ownStrategyOf(1, '我分享的')], [publishedOf(2, '我加入的')]),
+      new AvailableStrategyScriptsDto([ownStrategyScriptOf(1, '我分享的')], [publishedOf(2, '我加入的')]),
     )
 
     const rows = listing.toRowDtos()
 
-    expect(rows.map(row => [row.strategy.id, row.mine, row.adopted])).toEqual([
+    expect(rows.map(row => [row.strategyScript.id, row.mine, row.adopted])).toEqual([
       [1, true, false],
       [2, false, true],
       [3, false, false],
@@ -38,10 +38,10 @@ describe('MarketplaceListingDomain', () => {
     // 市集的順序是「最近分享的在前」，而那件事只有市集知道。
     const listing = new MarketplaceListingDomain(
       [publishedOf(3, '丙'), publishedOf(1, '甲'), publishedOf(2, '乙')],
-      new AvailableStrategiesDto([], []),
+      new AvailableStrategyScriptsDto([], []),
     )
 
-    expect(listing.toRowDtos().map(row => row.strategy.name)).toEqual(['丙', '甲', '乙'])
+    expect(listing.toRowDtos().map(row => row.strategyScript.name)).toEqual(['丙', '甲', '乙'])
   })
 
   it('自己分享的那一支留在清單上', () => {
@@ -49,7 +49,7 @@ describe('MarketplaceListingDomain', () => {
     // 把它藏起來會讓人以為分享沒有成功。
     const listing = new MarketplaceListingDomain(
       [publishedOf(1, '我分享的')],
-      new AvailableStrategiesDto([ownStrategyOf(1, '我分享的')], []),
+      new AvailableStrategyScriptsDto([ownStrategyScriptOf(1, '我分享的')], []),
     )
 
     const rows = listing.toRowDtos()
@@ -60,7 +60,7 @@ describe('MarketplaceListingDomain', () => {
 
   it('市集是空的時候就是沒有列', () => {
     const listing = new MarketplaceListingDomain(
-      [], new AvailableStrategiesDto([ownStrategyOf(1, '我的')], []))
+      [], new AvailableStrategyScriptsDto([ownStrategyScriptOf(1, '我的')], []))
 
     expect(listing.toRowDtos()).toEqual([])
   })

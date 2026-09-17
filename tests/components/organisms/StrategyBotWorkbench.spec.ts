@@ -39,8 +39,8 @@ function mountWorkbench(editing: StrategyBotDto | null = aBot()) {
       tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService({
         findTradingSymbols: vi.fn().mockResolvedValue([buildTradingSymbol('BTCUSDT')]),
       })),
-      strategyOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
-      parameterNamesByStrategyId: { 9: ['快線期數'] },
+      strategyScriptOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
+      parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
       saving: false,
       failureMessage: '',
     },
@@ -177,7 +177,7 @@ describe('StrategyBotWorkbench：一塊零件收好幾個信號時，把話講�
   })
 
   it('收兩個時說出它其實在說什麼——三塊並排的開關看起來像「而且」', async () => {
-    // 一支策略同一時間只吐一個信號，所以「賣出、持有」是「不是買入」，
+    // 一支策略腳本同一時間只吐一個信號，所以「賣出、持有」是「不是買入」，
     // 而不是一件不可能的事。使用者盯著那塊零件是想不通這件事的。
     const wrapper = mountWorkbench()
     await flushPromises()
@@ -356,28 +356,28 @@ describe('StrategyBotWorkbench：一塊零件在這一邊要是什麼', () => {
   })
 })
 
-describe('StrategyBotWorkbench：加一支策略', () => {
+describe('StrategyBotWorkbench：加一支策略腳本', () => {
   it('加一支就多一列，兩欄都跟著出現', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="strategy-add"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-add"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="strategy-row"]')).toHaveLength(2)
+    expect(wrapper.findAll('[data-testid="strategy-script-row"]')).toHaveLength(2)
   })
 
   it('刪一支就少一列，而那一列還被用著也刪得掉', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="strategy-remove"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-remove"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="strategy-row"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="strategy-script-row"]')).toHaveLength(0)
   })
 
-  it('一支策略都還沒有時說得出下一步', async () => {
+  it('一支策略腳本都還沒有時說得出下一步', async () => {
     const wrapper = mountWorkbench(aBot(null, null, []))
     await flushPromises()
 
@@ -385,12 +385,12 @@ describe('StrategyBotWorkbench：加一支策略', () => {
   })
 })
 
-describe('StrategyBotWorkbench：一支策略自己的設定', () => {
-  it('一開始收著——收起來時一支策略就是一列', async () => {
+describe('StrategyBotWorkbench：一支策略腳本自己的設定', () => {
+  it('一開始收著——收起來時一支策略腳本就是一列', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-settings-panel"]').exists()).toBe(false)
   })
 
   it('按齒輪才打開，而且它開在一個彈窗裡', async () => {
@@ -399,15 +399,15 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
 
-    const panel = wrapper.get('[data-testid="strategy-settings-panel"]')
-    expect(panel.find('[data-testid="strategy-label-input"]').exists()).toBe(true)
-    expect(panel.find('[data-testid="strategy-interval-select"]').exists()).toBe(true)
-    expect(panel.find('[data-testid="strategy-parameter-input"]').exists()).toBe(true)
+    const panel = wrapper.get('[data-testid="strategy-script-settings-panel"]')
+    expect(panel.find('[data-testid="strategy-script-label-input"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="strategy-script-parameter-input"]').exists()).toBe(true)
 
     // 它不在架子那一格裡面——在裡面就是原地展開，那正是這次要換掉的東西。
-    expect(wrapper.get('[data-testid="strategy-row"]').element
+    expect(wrapper.get('[data-testid="strategy-script-row"]').element
       .contains(panel.element)).toBe(false)
   })
 
@@ -416,21 +416,21 @@ describe('StrategyBotWorkbench：一支策略自己的設定', () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
-    await wrapper.get('[data-testid="strategy-label-input"]').setValue('改過名字了')
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-label-input"]').setValue('改過名字了')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-script-settings-panel"]').exists()).toBe(true)
   })
 
   it('按「好了」就關起來', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="strategy-settings-0"]').trigger('click')
-    await wrapper.get('[data-testid="strategy-settings-done"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-settings-done"]').trigger('click')
 
-    expect(wrapper.find('[data-testid="strategy-settings-panel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-settings-panel"]').exists()).toBe(false)
   })
 })
 

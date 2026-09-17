@@ -41,9 +41,9 @@ export class MarketplaceSearchDomain {
 
     return rows.filter((row) => {
       const searchableText = [
-        row.strategy.name,
-        row.strategy.description,
-        row.strategy.publisherEmail,
+        row.strategyScript.name,
+        row.strategyScript.description,
+        row.strategyScript.publisherEmail,
       ].join('\n').toLowerCase()
 
       return this.terms.every(term => searchableText.includes(term))

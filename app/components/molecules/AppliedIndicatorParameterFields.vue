@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 
 /**
@@ -17,7 +17,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
  * 不是版面問題，所以這裡不寫任何 `if (kind === ...)`。
  */
 const { fields } = defineProps<{
-  fields: readonly StrategyParameterFieldDto[]
+  fields: readonly StrategyScriptParameterFieldDto[]
 }>()
 
 const emit = defineEmits<{

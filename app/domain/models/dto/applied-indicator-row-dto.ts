@@ -1,5 +1,5 @@
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
-import type { StrategyParameterFieldDto } from '~/domain/models/dto/strategy-parameter-field-dto'
+import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 
 /** 清單上那一列畫著的一條線：身分、名字、顏色。 */
 export class AppliedIndicatorLineDto {
@@ -23,7 +23,7 @@ export class AppliedIndicatorRowDto {
   constructor(
     public readonly appliedIndicator: AppliedIndicatorDto,
     /** 這一列可以調的那幾格。一個旋鈕都沒有時是空的。 */
-    public readonly parameterFields: readonly StrategyParameterFieldDto[],
+    public readonly parameterFields: readonly StrategyScriptParameterFieldDto[],
     public readonly isCalculating: boolean,
     /** 這一列算不出來的原因，算得出來時是 `null`。 */
     public readonly failureMessage: string | null,

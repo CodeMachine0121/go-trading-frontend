@@ -41,7 +41,7 @@ const DEFAULT_AGGREGATION_INTERVAL = '5m'
  */
 export function useStrategyBotForm(
   editing: () => StrategyBotDto | null,
-  strategyOptions: () => readonly { value: number, label: string }[],
+  strategyScriptOptions: () => readonly { value: number, label: string }[],
 ) {
   const name = ref('')
   const symbol = ref('')
@@ -80,7 +80,7 @@ export function useStrategyBotForm(
    * 而那件事現在**看得見**：那幾句會自己標成「找不到這個來源」，而且送不出去。
    *
    * 擋住的代價比想像中大：使用者只有一個來源、而兩棵樹都在用它的時候，
-   * 他得先把兩棵樹拆光才刪得掉那一個來源，才換得掉一支策略。
+   * 他得先把兩棵樹拆光才刪得掉那一個來源，才換得掉一支策略腳本。
    * 那是要他為了改一個地方先毀掉另外兩個地方。
    *
    * 所以這裡只剩**說一聲**：刪之前告訴他有誰在用，刪之後那幾句自己會喊。
@@ -143,14 +143,14 @@ export function useStrategyBotForm(
       return
     }
 
-    const strategyId = strategyOptions()[0]?.value ?? 0
-    const label = nextLabel(strategyId)
+    const strategyScriptId = strategyScriptOptions()[0]?.value ?? 0
+    const label = nextLabel(strategyScriptId)
 
     signalSources.value = [
       ...signalSources.value,
       new StrategyBotSignalSourceDto(
         label,
-        strategyId,
+        strategyScriptId,
         DEFAULT_AGGREGATION_INTERVAL,
         [],
       ),
@@ -159,22 +159,22 @@ export function useStrategyBotForm(
   }
 
   /**
-   * 下一個沒人用的代號，預設就是**那支策略的名字**。
+   * 下一個沒人用的代號，預設就是**那支策略腳本的名字**。
    *
    * 原本給的是 A、B、C，而那讓條件讀起來是「A 等於買入」——一句看不出自己在說什麼的話。
    * 使用者得自己記住 A 是哪一支，而他同時在讀的是一棵三層深的樹。
-   * 用策略的名字，同一句就變成「MACD 交叉 等於買入」，不必記任何東西。
+   * 用策略腳本的名字，同一句就變成「MACD 交叉 等於買入」，不必記任何東西。
    *
-   * 撞名時後面接一個數字而不是換一個字母：同一支策略用兩次（不同參數）正是代號
+   * 撞名時後面接一個數字而不是換一個字母：同一支策略腳本用兩次（不同參數）正是代號
    * 存在的理由，而「MACD 交叉 2」仍然說得出它是哪一支。
    */
-  function nextLabel(strategyId: number): string {
+  function nextLabel(strategyScriptId: number): string {
     const taken = new Set(signalSources.value.map(signalSource => signalSource.label))
-    const strategyName = strategyOptions().find(
-      option => option.value === strategyId)?.label.trim() ?? ''
+    const strategyScriptName = strategyScriptOptions().find(
+      option => option.value === strategyScriptId)?.label.trim() ?? ''
 
-    // 一支策略都還沒得挑時只能退回舊做法——那時畫面上已經在說「先去建一支策略」了。
-    if (strategyName === '') {
+    // 一支策略腳本都還沒得挑時只能退回舊做法——那時畫面上已經在說「先去建一支策略腳本」了。
+    if (strategyScriptName === '') {
       for (let offset = 0; offset < 26; offset += 1) {
         const candidate = String.fromCharCode('A'.charCodeAt(0) + offset)
         if (!taken.has(candidate)) {
@@ -185,12 +185,12 @@ export function useStrategyBotForm(
       return `來源${signalSources.value.length + 1}`
     }
 
-    if (!taken.has(strategyName)) {
-      return strategyName
+    if (!taken.has(strategyScriptName)) {
+      return strategyScriptName
     }
 
     for (let suffix = 2; ; suffix += 1) {
-      const candidate = `${strategyName} ${suffix}`
+      const candidate = `${strategyScriptName} ${suffix}`
       if (!taken.has(candidate)) {
         return candidate
       }
@@ -212,7 +212,7 @@ export function useStrategyBotForm(
    * 條件只記得代號那一串字，所以改名是一次全樹的字串取代。使用者在兩個來源之間
    * 對調代號時必然會經過一個「兩個都叫 A」的瞬間（欄位是逐字觸發的），
    * 那一刻如果照改，兩個來源的條件就**永久合併成同一句**——他把第二個改走之後，
-   * 原本屬於另一支策略的那一句已經悄悄變成重複的一句，而畫面上一個字都沒提。
+   * 原本屬於另一支策略腳本的那一句已經悄悄變成重複的一句，而畫面上一個字都沒提。
    *
    * 所以條件記著的是 committedLabels：**最後一個沒有撞名的代號**。撞名期間欄位照改
    * （使用者才看得到那句重複的提醒），條件按兵不動；等他把名字弄乾淨了，
@@ -220,7 +220,7 @@ export function useStrategyBotForm(
    */
   function changeSignalSourceLabel(index: number, label: string) {
     replaceSignalSource(index, signalSource => new StrategyBotSignalSourceDto(
-      label, signalSource.strategyId, signalSource.aggregationInterval, signalSource.parameterValues))
+      label, signalSource.strategyScriptId, signalSource.aggregationInterval, signalSource.parameterValues))
 
     const committedLabel = committedLabels.value[index]
     const takenByOthers = signalSources.value
@@ -233,28 +233,28 @@ export function useStrategyBotForm(
     }
 
     // 表上那一列跟著改名。代號是列的身分，改了名卻不跟著改的話，
-    // 使用者會看到一列空白的新策略，和一列指著一個已經不存在的名字的舊資料。
+    // 使用者會看到一列空白的新策略腳本，和一列指著一個已經不存在的名字的舊資料。
     boards.buy.value = renamedPieces(boards.buy.value, committedLabel, label)
     boards.sell.value = renamedPieces(boards.sell.value, committedLabel, label)
     committedLabels.value = committedLabels.value.map(
       (existing, position) => (position === index ? label : existing))
   }
 
-  /** 換策略時把舊策略的旋鈕值清掉——它們屬於另一支算式，留著只會被後端拒絕。 */
-  function changeSignalSourceStrategy(index: number, strategyId: number) {
+  /** 換策略腳本時把舊策略腳本的旋鈕值清掉——它們屬於另一支算式，留著只會被後端拒絕。 */
+  function changeSignalSourceStrategyScript(index: number, strategyScriptId: number) {
     replaceSignalSource(index, signalSource => new StrategyBotSignalSourceDto(
-      signalSource.label, strategyId, signalSource.aggregationInterval, []))
+      signalSource.label, strategyScriptId, signalSource.aggregationInterval, []))
   }
 
   function changeSignalSourceInterval(index: number, aggregationInterval: string) {
     replaceSignalSource(index, signalSource => new StrategyBotSignalSourceDto(
-      signalSource.label, signalSource.strategyId, aggregationInterval, signalSource.parameterValues))
+      signalSource.label, signalSource.strategyScriptId, aggregationInterval, signalSource.parameterValues))
   }
 
   function changeSignalSourceParameterValue(index: number, parameterName: string, value: number) {
     replaceSignalSource(index, signalSource => new StrategyBotSignalSourceDto(
       signalSource.label,
-      signalSource.strategyId,
+      signalSource.strategyScriptId,
       signalSource.aggregationInterval,
       [
         ...signalSource.parameterValues.filter(existing => existing.name !== parameterName),
@@ -307,7 +307,7 @@ export function useStrategyBotForm(
     /**
      * 每次讀之前先跟這一刻的來源對齊。
      *
-     * 表的列是由**來源**決定的：加一支策略就多一列，刪一支就少一列，改代號就跟著改。
+     * 表的列是由**來源**決定的：加一支策略腳本就多一列，刪一支就少一列，改代號就跟著改。
      * 對齊寫在讀的路上而不是各個改動的路上，是因為來源有五種改法，
      * 而每一種都要記得同步一次的話，第五種就是那個被忘記的。
      */
@@ -380,7 +380,7 @@ export function useStrategyBotForm(
     addSignalSource,
     removeSignalSource,
     changeSignalSourceLabel,
-    changeSignalSourceStrategy,
+    changeSignalSourceStrategyScript,
     changeSignalSourceInterval,
     changeSignalSourceParameterValue,
   }

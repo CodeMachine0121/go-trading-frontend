@@ -17,7 +17,7 @@ const strategyBotApplication = {
   listRunRecords: vi.fn(),
 }
 
-const strategyApplication = { listAvailableStrategies: vi.fn() }
+const strategyScriptApplication = { listAvailableStrategyScripts: vi.fn() }
 
 function runStateOf(isRunning: boolean) {
   return new StrategyBotRunStateDto(
@@ -45,7 +45,7 @@ function botsUnderTest() {
 beforeEach(() => {
   vi.clearAllMocks()
   strategyBotApplication.listStrategyBots.mockResolvedValue([botDto(3, '早盤突破')])
-  strategyApplication.listAvailableStrategies.mockResolvedValue({
+  strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
     mine: [{
       id: 9,
       name: '均線',
@@ -56,14 +56,14 @@ beforeEach(() => {
 })
 
 describe('useStrategyBots 載入', () => {
-  it('清單就是清單——不再去撈可挑的策略', async () => {
-    // 挑策略、宣告來源、拼條件都搬到工作台那一頁了。這裡再撈一次，
+  it('清單就是清單——不再去撈可挑的策略腳本', async () => {
+    // 挑策略腳本、宣告來源、拼條件都搬到工作台那一頁了。這裡再撈一次，
     // 是為一個已經不在的畫面付錢。
     const bots = botsUnderTest()
     await bots.load()
 
     expect(bots.strategyBots.value).toHaveLength(1)
-    expect(strategyApplication.listAvailableStrategies).not.toHaveBeenCalled()
+    expect(strategyScriptApplication.listAvailableStrategyScripts).not.toHaveBeenCalled()
   })
 
   it('讀不到時說得出原因，而且清單不變成半殘的樣子', async () => {

@@ -1,6 +1,6 @@
-# 在指標計算畫面上調策略的旋鈕 — Architecture Design
+# 在指標計算畫面上調策略腳本的旋鈕 — Architecture Design
 
-**Feature:** 在指標計算畫面上調策略的旋鈕
+**Feature:** 在指標計算畫面上調策略腳本的旋鈕
 **Status:** Finalized
 **PRD:** `PRD.md`（同一資料夾）
 **Owner:** James Hsueh
@@ -14,7 +14,7 @@
 
 三個問題要正面回答，其餘都是它們的後果：
 
-1. `StrategyContentDto` 上一個切片才縮到兩個欄位，現在要加回第三個——**這不是走回頭路。**
+1. `StrategyScriptContentDto` 上一個切片才縮到兩個欄位，現在要加回第三個——**這不是走回頭路。**
 2. 兩種種類怎麼在 TypeScript 這一側表達成同一份清單，**且不使用 `any`**。
 3. 「名字對不上」怎麼一路辨識到畫面，**且不與「算式跑不動」混在一起**。
 
@@ -22,7 +22,7 @@
 
 ## 2. 為什麼加回第三個欄位不是走回頭路
 
-上一個切片把 `StrategyContentDto` 從四個欄位縮到兩個，拿掉的是
+上一個切片把 `StrategyScriptContentDto` 從四個欄位縮到兩個，拿掉的是
 **彙總刻度**與**計算根數**。那次的判準寫得很清楚：
 
 > **不含交易標的、彙總刻度與計算根數**——那三樣描述的是**某一次執行**，不是這套算法。
@@ -32,15 +32,15 @@
 
 判準沒有改變，改變的是被放進去的東西：
 
-| 欄位 | 屬於誰 | 在 `StrategyContentDto` 裡嗎 |
+| 欄位 | 屬於誰 | 在 `StrategyScriptContentDto` 裡嗎 |
 | :--- | :--- | :--- |
 | 算式內容 | 這套算法 | ✅（一直都在） |
 | 指標值種類 | 這套算法 | ✅（一直都在） |
-| **策略參數** | **這套算法** | ✅（本切片加入） |
+| **策略腳本參數** | **這套算法** | ✅（本切片加入） |
 | 彙總刻度、要看多長、交易標的 | 某一次執行 | ❌（上一個切片拿掉，維持不變） |
 
-**測它的方式與上次相同**：載入另一支策略時，參數必須跟著換；改動參數必須算「還沒存」。
-既有的策略庫因此**一行都不用改**——它比對的是整個 `StrategyContentDto`，
+**測它的方式與上次相同**：載入另一支策略腳本時，參數必須跟著換；改動參數必須算「還沒存」。
+既有的策略腳本庫因此**一行都不用改**——它比對的是整個 `StrategyScriptContentDto`，
 多一個欄位就自動被比對到。這正是那個切片把三處合成一處的回報。
 
 ---
@@ -50,12 +50,12 @@
 沿用系統那一側的答案：**值是一個 `number`，種類說明怎麼讀它。**
 
 ```ts
-export type StrategyParameterKind = 'lookbackCount' | 'number'   // 有限字面量聯合，規範允許的唯一 type 用途
+export type StrategyScriptParameterKind = 'lookbackCount' | 'number'   // 有限字面量聯合，規範允許的唯一 type 用途
 
-export class StrategyParameterDto {
+export class StrategyScriptParameterDto {
   constructor(
     public readonly name: string,
-    public readonly kind: StrategyParameterKind,
+    public readonly kind: StrategyScriptParameterKind,
     public readonly value: number,
   ) {}
 }
@@ -67,7 +67,7 @@ export class StrategyParameterDto {
 畫面據此長出正確的格子，**判斷不寫在畫面裡**：
 
 ```ts
-// StrategyParameterDomain
+// StrategyScriptParameterDomain
 inputMode(): 'numeric' | 'decimal'   // 回看根數給整數鍵盤，數值給小數鍵盤
 step(): number                        // 1 或任意
 validationMessage(): string | null    // 「回看根數必須是大於零的整數」
@@ -109,13 +109,13 @@ export class CalculationSpanVo {
 **它與「算式跑不動」的 422 是不同的回應**——那正是兩者分得開的依據。
 
 > 補記：這一條在系統那一側**原本沒有被對映**，會掉成 502「系統壞了」。
-> 寫這份設計時發現並修掉了（見 go-trading 的 `.sdd/2026-09-04-strategy-parameters/CONTRACT.md`）。
+> 寫這份設計時發現並修掉了（見 go-trading 的 `.sdd/2026-09-04-strategy-script-parameters/CONTRACT.md`）。
 
 前端這一側：
 
 ```
 IndicatorCalculationProxy
-  400 且訊息指名了參數 → StrategyParameterNotDeclaredError（新的哨兵）
+  400 且訊息指名了參數 → StrategyScriptParameterNotDeclaredError（新的哨兵）
   422                  → IndicatorScriptFailedError（既有）
   其餘 400             → IndicatorCalculationFieldError（既有）
 ```
@@ -133,31 +133,31 @@ IndicatorCalculationProxy
 
 | 層 | 檔案 | 為什麼 |
 | :--- | :--- | :--- |
-| domain/models/dto | `strategy-parameter-dto.ts` | 一個參數的唯一形狀（雙向） |
-| domain/models/domains | `strategy-parameter-domain.ts` | 一個參數的所有規則與畫面要問的問題 |
-| domain/models/domains | `strategy-parameters-domain.ts` | **整份**的規則：名稱不重複、有沒有可用的一份 |
+| domain/models/dto | `strategy-script-parameter-dto.ts` | 一個參數的唯一形狀（雙向） |
+| domain/models/domains | `strategy-script-parameter-domain.ts` | 一個參數的所有規則與畫面要問的問題 |
+| domain/models/domains | `strategy-script-parameters-domain.ts` | **整份**的規則：名稱不重複、有沒有可用的一份 |
 | domain/models/vo | `calculation-span-vo.ts` | 「要看多長」與它換算格數的方式 |
-| domain/errors | `strategy-parameter-not-declared-error.ts` | 第五則說明的哨兵 |
-| components/molecules | `StrategyParameterList.vue` | 參數這一整塊（宣告 ＋ 值 ＋ 新增／移除） |
+| domain/errors | `strategy-script-parameter-not-declared-error.ts` | 第五則說明的哨兵 |
+| components/molecules | `StrategyScriptParameterList.vue` | 參數這一整塊（宣告 ＋ 值 ＋ 新增／移除） |
 
 ### 修改
 
 | 檔案 | 改什麼 |
 | :--- | :--- |
-| `dto/strategy-content-dto.ts` | 多一個 `parameters` |
-| `domains/strategy-domain.ts`／`strategy-write-domain.ts` | 參數的往返與驗證 |
+| `dto/strategy-script-content-dto.ts` | 多一個 `parameters` |
+| `domains/strategy-script-domain.ts`／`strategy-script-write-domain.ts` | 參數的往返與驗證 |
 | `dto/indicator-calculation-request-dto.ts` | 帶參數；`candleCount` 由「要看多長」推導 |
-| `proxy/strategy-proxy.ts`／`indicator-calculation-proxy.ts` | wire 形狀與第五種錯誤的辨識 |
+| `proxy/strategy-script-proxy.ts`／`indicator-calculation-proxy.ts` | wire 形狀與第五種錯誤的辨識 |
 | `IndicatorCalculationPanel.vue` | 參數區、「計算根數」換成「要看多長」、第五則說明 |
 
 ### 刻意不動
 
-- ~~**策略庫（載入／另存／未儲存判斷）一行不改**——它比對整個 `StrategyContentDto`。~~
-  > **實作時發現這句是錯的。** 載入與另存確實不必改（它們整份搬運 `StrategyContentDto`），
-  > 但「未儲存判斷」不是整份比對——`StrategyDraftDomain` 是**逐欄位**列出來比的，
+- ~~**策略腳本庫（載入／另存／未儲存判斷）一行不改**——它比對整個 `StrategyScriptContentDto`。~~
+  > **實作時發現這句是錯的。** 載入與另存確實不必改（它們整份搬運 `StrategyScriptContentDto`），
+  > 但「未儲存判斷」不是整份比對——`StrategyScriptDraftDomain` 是**逐欄位**列出來比的，
   > 於是新的那一欄它看不見：宣告了幾個旋鈕、改了名字、換了順序，
   > 全都不算「有東西還沒存」，下一次載入會把它們靜靜蓋掉。已補上比對
-  > （`StrategyParametersDomain.isSameAs`，順序算數），並補了七條測試釘住它。
+  > （`StrategyScriptParametersDomain.isSameAs`，順序算數），並補了七條測試釘住它。
   > **教訓**：「整份比對」與「逐欄位比對」在型別上長得一模一樣，
   > 只有打開來看才分得出——設計時憑欄位名稱推斷它是哪一種，是在猜。
 - **彙總刻度的既有規則**：仍屬於這一次執行。
@@ -168,7 +168,7 @@ IndicatorCalculationProxy
 | 診斷 | 結果 |
 | :--- | :--- |
 | 元件需要自己判斷種類嗎？ | 否。`inputMode()`／`step()`／`validationMessage()` 由 domain 回答 |
-| 呼叫端需要自己把整份兜起來嗎？ | 否。`StrategyParametersDomain` 回答整份的問題 |
+| 呼叫端需要自己把整份兜起來嗎？ | 否。`StrategyScriptParametersDomain` 回答整份的問題 |
 | 新增了幾個元件？ | 一個。參數清單是一個 UI 概念，不是「一列」加「一塊」兩個 |
 | 有 `any` 嗎？ | 沒有。值是 `number`，種類是有限字面量聯合 |
 
@@ -179,7 +179,7 @@ IndicatorCalculationProxy
 ### 最可能的下一個需求
 
 **「圖表上套用時也要能調這些參數」**——那正是下一個切片，而且接縫已經在對的位置：
-`StrategyParameterDto` 是雙向的，圖表那一側直接拿它當「這一份的值」的形狀。
+`StrategyScriptParameterDto` 是雙向的，圖表那一側直接拿它當「這一份的值」的形狀。
 真正要新增的是「**每一份各自一組值**」這個概念，它屬於圖表，不屬於這裡。
 
 **「多一種參數種類」**——`kind` 是有限字面量聯合，多一個**數字類**的種類
@@ -200,21 +200,21 @@ IndicatorCalculationProxy
 
 | PRD 情境 | 由誰滿足 |
 | :--- | :--- |
-| US-01.1 新增一個參數 | `StrategyParameterList.vue` 的新增，預設值由 `StrategyParameterDomain` 給 |
-| US-01.2 參數跟著策略一起存 | `StrategyContentDto.parameters` ＋ 既有策略庫 |
-| US-01.3 載入時參數跟著換 | 同上（載入覆蓋整個 `StrategyContentDto`） |
-| US-01.4 刪掉一個參數 | `StrategyParameterList.vue` 的移除 |
-| US-01.5 一個都不宣告時照常運作 | `StrategyParametersDomain` 允許空的一份 |
-| US-01.6 改動算是還沒存的東西 | 既有策略庫比對整個 `StrategyContentDto`——**靠不做額外的事達成** |
-| US-01.7 名稱空白就地說明 | `StrategyParametersDomain` 的驗證 |
+| US-01.1 新增一個參數 | `StrategyScriptParameterList.vue` 的新增，預設值由 `StrategyScriptParameterDomain` 給 |
+| US-01.2 參數跟著策略腳本一起存 | `StrategyScriptContentDto.parameters` ＋ 既有策略腳本庫 |
+| US-01.3 載入時參數跟著換 | 同上（載入覆蓋整個 `StrategyScriptContentDto`） |
+| US-01.4 刪掉一個參數 | `StrategyScriptParameterList.vue` 的移除 |
+| US-01.5 一個都不宣告時照常運作 | `StrategyScriptParametersDomain` 允許空的一份 |
+| US-01.6 改動算是還沒存的東西 | 既有策略腳本庫比對整個 `StrategyScriptContentDto`——**靠不做額外的事達成** |
+| US-01.7 名稱空白就地說明 | `StrategyScriptParametersDomain` 的驗證 |
 | US-01.8 名稱重複就地說明 | 同上（整份的性質） |
-| US-01.9 回看根數不合法就地說明 | `StrategyParameterDomain.validationMessage()` |
+| US-01.9 回看根數不合法就地說明 | `StrategyScriptParameterDomain.validationMessage()` |
 | US-02.1 說要看多長就夠了 | `CalculationSpanVo.kCandleCountAt` |
 | US-02.2 換粗一點格數跟著變 | 同上 |
 | US-02.3 有回看根數也不必填 | 格數仍由 §4 得出；回看由系統那一側加上 |
 | US-02.4 畫面上沒有「計算根數」 | `IndicatorCalculationPanel.vue` 移除該欄位 |
 | US-02.5 看不了那麼長就地說明 | 系統那一側的 400 → `IndicatorCalculationFieldError`，標在「要看多長」旁 |
-| US-03.1 名字對不上就失敗並指名 | `StrategyParameterNotDeclaredError` |
+| US-03.1 名字對不上就失敗並指名 | `StrategyScriptParameterNotDeclaredError` |
 | US-03.2 與「算式跑不動」是兩則 | 同上（不同的哨兵、不同的呈現位置） |
 | US-03.3 改對就算得出來 | 無特別機制——改對之後就是一次普通的成功計算 |
 
@@ -224,11 +224,11 @@ IndicatorCalculationProxy
 
 ### 對既有測試的影響
 
-- **`StrategyContentDto` 變寬**：每一處建構它的測試都要多帶一個參數清單。
+- **`StrategyScriptContentDto` 變寬**：每一處建構它的測試都要多帶一個參數清單。
   斷言的行為**一條都沒變**——載入會覆蓋、改動算未存，這兩件事本來就是這樣。
 - **「計算根數」欄位消失**：指標計算畫面的測試中，填那一格、斷言它的錯誤訊息的那幾條
   要改成「要看多長」。**這是刻意的行為變更**，PRD US-02.4 明文要求它不存在。
-- **`StrategyDraftDomain` 多比一個欄位**：既有斷言一條都沒改，只多了七條新的。
+- **`StrategyScriptDraftDomain` 多比一個欄位**：既有斷言一條都沒改，只多了七條新的。
 - 其餘測試不受影響。
 
 ### Risks / trade-offs
@@ -243,7 +243,7 @@ IndicatorCalculationProxy
 
 ### 實作期間的兩處設計調整
 
-- **`StrategyParameterFieldDto` 改成把旋鈕本身一起帶著**，而不是讓畫面拿
+- **`StrategyScriptParameterFieldDto` 改成把旋鈕本身一起帶著**，而不是讓畫面拿
   「旋鈕清單」與「呈現方式清單」兩份平行資料靠 index 對位。對位一旦交給畫面，
   它就得回答「第 n 列的描述不存在時怎麼辦」——一個永遠不會發生、
   卻必須寫在畫面上的分支，寫下去之後就沒有人能再證明它不會發生
@@ -257,7 +257,7 @@ IndicatorCalculationProxy
 - **`readNumberInput`（`app/utilities/`）**：`type="number"` 的框交出來的可能是數字、
   也可能是還沒讀成數字的那一段文字，兩處要一模一樣地處理。它過得了 helper 的門檻
   （無狀態、不碰領域資料、純框架黏合）；哪些數字合法仍然由領域回答。
-- **`useStrategyParameters`**：改一列旋鈕原本是「讀出整份 → 交給 Application → 寫回去」
+- **`useStrategyScriptParameters`**：改一列旋鈕原本是「讀出整份 → 交給 Application → 寫回去」
   三步，而那三步在面板裡重複了五次。順序搬到它操作的資料旁邊。
 - **`useIndicatorCalculationRun`**：七個 ref 加一段二十行的失敗分流。它們的不變式是
   **一次計算只會留下其中一樣**，而那條不變式原本只靠一個「記得每一樣都要清掉」的
@@ -271,12 +271,12 @@ IndicatorCalculationProxy
 - **不把 `IndicatorCalculationService` 那五個維護旋鈕的方法收成一個。**
   合成一個吃命令物件的方法會讓介面**更淺**：呼叫端仍得知道那五個動詞，
   還多一個要建的物件。**該回頭處理的訊號**：當第二個畫面也要編輯旋鈕，
-  或這五個方法之中有任何一個不再只是轉呼叫時，把它們抽成 `StrategyParameterService`。
+  或這五個方法之中有任何一個不再只是轉呼叫時，把它們抽成 `StrategyScriptParameterService`。
 - **不按版面把 `IndicatorCalculationPanel` 拆成子有機體。**
-  那幾塊（策略列／編輯區／參數／執行欄／結果）共用同一份互相牽動的狀態，
+  那幾塊（策略腳本列／編輯區／參數／執行欄／結果）共用同一份互相牽動的狀態，
   照版面拆會換來二十幾條 props 與 emits——那是把耦合搬到介面上，不是解耦。
   真正的接縫在**狀態歸屬**，而三組狀態現在都已經在自己的 composable 裡
-  （策略庫、旋鈕、最近那一次計算），面板本身只剩「使用者按了什麼」與版面。
+  （策略腳本庫、旋鈕、最近那一次計算），面板本身只剩「使用者按了什麼」與版面。
   **該回頭處理的訊號**：當面板裡又長出第四組彼此獨立的 ref，
   或某一塊開始需要被別的畫面重用時。
 

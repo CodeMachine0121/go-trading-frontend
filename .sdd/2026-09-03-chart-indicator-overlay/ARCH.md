@@ -1,4 +1,4 @@
-# 在 K 線圖表上套用策略 — Architecture Design
+# 在 K 線圖表上套用策略腳本 — Architecture Design
 
 **Status:** Confirmed
 **Source PRD:** `.sdd/2026-09-03-chart-indicator-overlay/PRD.md`
@@ -9,7 +9,7 @@
 ## 1. Design Goal & Guiding Principle
 
 - **In one sentence:**
-  讓圖表畫面能對「圖上正在畫的那批 K 線」執行任意幾支已存策略，
+  讓圖表畫面能對「圖上正在畫的那批 K 線」執行任意幾支已存策略腳本，
   並把結果交給圖表以**已經算好的線**（位置、顏色、標籤都定好）畫出來。
 
 - **Guiding principle：`KCandleChart.vue` 不得學會任何新的判斷。**
@@ -44,23 +44,23 @@
 | `domain/models/dto/indicator-point-dto.ts` | **Add** | 曲線上的一點：起始時間與值 |
 | `domain/models/dto/indicator-level-dto.ts` | **Add** | 一條水平線：線的身分、指標名稱、顏色 token、值 |
 | `domain/models/dto/indicator-series-dto.ts` | **Add** | 一條曲線：同上，外加一串點 |
-| `domain/models/dto/chart-indicator-dto.ts` | **Add** | 一支已套用指標算成功後該畫的東西：策略身分與名稱、levels、series |
-| `domain/models/dto/chart-indicator-request-dto.ts` | **Add** | 「拿這支策略對這張圖算一次」要給的東西 |
+| `domain/models/dto/chart-indicator-dto.ts` | **Add** | 一支已套用指標算成功後該畫的東西：策略腳本身分與名稱、levels、series |
+| `domain/models/dto/chart-indicator-request-dto.ts` | **Add** | 「拿這支策略腳本對這張圖算一次」要給的東西 |
 | `domain/models/domains/chart-line-color-domain.ts` | **Add** | 一條線的顏色：記住的優先，沒記過就從沒被用掉的裡面依序取 |
 | `domain/models/domains/chart-indicator-domain.ts` | **Add** | 一次計算的結果在圖上該畫成什麼——**唯一知道「一個數字→水平線、一串→曲線」的地方** |
 | `domain/interface/i-chart-line-color-preference-proxy.ts` | **Add** | 記住／讀回一條線的顏色（能力抽象，不綁瀏覽器儲存） |
 | `infrastructure/proxy/chart-line-color-preference-proxy.ts` | **Add** | 上者的實作，**第二個碰瀏覽器儲存的地方**，比照既有的時區偏好 |
 | `domain/service/chart-indicator-service.ts` | **Add** | 圖表指標的三個用例：算一支、換一條線的顏色、列出可挑的顏色 |
 | `application/chart-indicator-application.ts` | **Add** | 上者的用例入口 |
-| `composables/use-chart-indicators.ts` | **Add** | 已套用清單這一塊的**畫面狀態**，比照既有的 `use-strategy-library` |
+| `composables/use-chart-indicators.ts` | **Add** | 已套用清單這一塊的**畫面狀態**，比照既有的 `use-strategy-script-library` |
 | `components/molecules/ChartIndicatorPanel.vue` | **Add** | 加入的選單、已套用清單、換色與移除 |
 | `assets/styles/abstracts/_tokens.scss` | **Modify** | 新增一組線色 token（目前一個都沒有） |
 | `domain/models/entities/indicator-calculation.ts` | **Modify** | 新增「這次讀了哪幾根」——一串數字靠它對回 K 線 |
 | `infrastructure/proxy/indicator-calculation-proxy.ts` | **Modify** | wire 多收那份起始時間 |
 | `domain/models/dto/indicator-calculation-request-dto.ts` | **Modify** | 新增「算到哪一刻」（圖表要算到它畫得到的右緣） |
 | `domain/models/domains/indicator-calculation-request-domain.ts` | **Modify** | 攜帶它 |
-| `domain/models/dto/strategy-dto.ts` | **Modify** | 新增「畫不畫得成線」——**是非畫不成線是領域的判斷**，元件不得自己比對種類 |
-| `domain/models/domains/strategy-domain.ts` | **Modify** | 由既有的 `IndicatorResultTypeDomain.holdsNumbers()` 算出上者 |
+| `domain/models/dto/strategy-script-dto.ts` | **Modify** | 新增「畫不畫得成線」——**是非畫不成線是領域的判斷**，元件不得自己比對種類 |
+| `domain/models/domains/strategy-script-domain.ts` | **Modify** | 由既有的 `IndicatorResultTypeDomain.holdsNumbers()` 算出上者 |
 | `components/molecules/KCandleChart.vue` | **Modify** | 多收一個 `indicators` prop，兩個迴圈畫出來。**不新增任何業務判斷** |
 | `components/organisms/KCandleChartPanel.vue` | **Modify** | 掛上指標那一塊，並在「圖上那批真的換了」時要求重算 |
 | `pages/k-candles/chart.vue`／`plugins/dependencies.ts` | **Modify** | 注入與組裝 |
@@ -91,8 +91,8 @@
 「這條線該什麼顏色」有三個輸入（記住的、已經被用掉的、清單順序）與一條優先序規則。
 把它塞進後者，會讓後者同時負責「畫成什麼」與「什麼顏色」——兩件會各自改變的事。
 
-**為什麼 `ChartIndicatorService` 不需要 `StrategyService`。**
-畫面上挑策略時手上已經有那支策略的完整內容（算式與種類），
+**為什麼 `ChartIndicatorService` 不需要 `StrategyScriptService`。**
+畫面上挑策略腳本時手上已經有那支策略腳本的完整內容（算式與種類），
 再用識別碼回頭讀一次只是多一趟往返。它收的是**已經在手上的那份**。
 
 ---
@@ -103,7 +103,7 @@
 | :--- | :--- | :--- |
 | `IndicatorCalculation`（entity） | 一次計算的結果本體 | 新增「這次讀了哪幾根」。**一串數字唯一正確的對位依據**，而且要**靠右**對齊——滾動窗口的指標前幾根湊不滿窗口，靠左會讓整條線往左位移一個窗口，而位移的線看起來完全正常 |
 | `IndicatorCalculationRequestDto` / `Domain` | 一次計算的請求 | 新增「算到哪一刻」。圖表要算到它畫得到的右緣，而不是「現在」 |
-| `StrategyDto` / `StrategyDomain` | 一支已存策略對畫面的樣子 | 新增「畫不畫得成線」。判斷來自既有的 `IndicatorResultTypeDomain.holdsNumbers()`——**不新增第二套種類判斷** |
+| `StrategyScriptDto` / `StrategyScriptDomain` | 一支已存策略腳本對畫面的樣子 | 新增「畫不畫得成線」。判斷來自既有的 `IndicatorResultTypeDomain.holdsNumbers()`——**不新增第二套種類判斷** |
 | `KCandleChart.vue` | 全站唯一認識繪圖函式庫的檔案 | 多收 `indicators`；每個 level 一條價格線、每個 series 一條線圖。**零個新的業務判斷**（見 §1） |
 | `KCandleChartPanel.vue` | K 線圖表這一整塊 | 掛上指標那一塊；在既有的「這一批真的換了」那一個點上要求重算 |
 
@@ -171,19 +171,19 @@ flowchart TD
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| US-01.1 挑一支就立刻算並畫出來 | `useChartIndicators.applyStrategy` + `ChartIndicatorService.calculateChartIndicator` |
+| US-01.1 挑一支就立刻算並畫出來 | `useChartIndicators.applyStrategyScript` + `ChartIndicatorService.calculateChartIndicator` |
 | US-01.2 可以同時疊好幾支 | `useChartIndicators` 持有的是一份清單 |
-| US-01.3 已套用的不再出現在可挑清單 | `useChartIndicators.selectableStrategies` |
-| US-01.4 移除一支就只移除它 | `useChartIndicators.removeStrategy` |
+| US-01.3 已套用的不再出現在可挑清單 | `useChartIndicators.selectableStrategyScripts` |
+| US-01.4 移除一支就只移除它 | `useChartIndicators.removeStrategyScript` |
 | US-01.5 一支都沒套用時圖表與先前一樣 | `KCandleChart.vue` 的 `indicators` 預設空陣列 |
-| US-01.6 一支策略都還沒存過 | `ChartIndicatorPanel.vue` 的空狀態 |
+| US-01.6 一支策略腳本都還沒存過 | `ChartIndicatorPanel.vue` 的空狀態 |
 | US-02.1 用圖上那批 K 線去算 | `KCandleChartPanel` 由 `KCandleChartDto` 組請求 + `ChartIndicatorService` |
 | US-02.2／02.3 換標的／換到需重取時重算 | `reloadedChart !== null` 這一個觸發點 |
 | US-02.4／02.5 那批沒換不重算／沒套用不計算 | 同上（既有取回計畫 + 空清單） |
 | US-03.1 一個數字畫成水平線 | `ChartIndicatorDomain.toLevelDtos` |
 | US-03.2／03.3 一串數字畫成曲線、靠右對齊 | `ChartIndicatorDomain.pointsOf` 以「這次讀了哪幾根」靠右對位 |
 | US-03.4 好幾個指標名稱就畫好幾條線 | 同上（逐個指標名稱產出一條） |
-| US-03.5 是非類型挑不到 | `StrategyDto.drawableOnChart` + `ChartIndicatorPanel` 停用該選項 |
+| US-03.5 是非類型挑不到 | `StrategyScriptDto.drawableOnChart` + `ChartIndicatorPanel` 停用該選項 |
 | US-03.6 一個指標名稱都沒產出不是失敗 | `ChartIndicatorDto` 交出空的兩份清單，狀態仍是成功 |
 | US-04.1 剛套上去就分得出來 | `ChartLineColorDomain` 依序取沒被用掉的 |
 | US-04.2 換色只換那一條 | `ChartIndicatorDto.withLineColor` + `ChartIndicatorService.changeChartLineColor` |

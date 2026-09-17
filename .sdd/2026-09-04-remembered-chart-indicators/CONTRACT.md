@@ -29,17 +29,17 @@
 | **US-03 這台瀏覽器不讓存東西時** | | | | |
 | 12 | 寫不進去不影響這一次 | `AppliedChartIndicatorPreferenceProxy` 寫不了時不影響這一次的操作 | proxy 的 `catch` 吞掉 | CONFORMANT |
 | 13 | 讀不出來就當成沒擺過 | 同上 讀不了時當成沒擺過＋`KCandleChartPanelRestore` 留存讀不出來時清單是空的 | proxy 的 `catch` 交出空的一份 | CONFORMANT |
-| **US-04 策略在這段時間裡被改過** | | | | |
-| 14 | 策略被刪掉的那一筆不回來 | `RememberedAppliedIndicatorsDomain` 策略已經被刪掉的那一筆不回來＋`KCandleChartPanelRestore` 同名情境（另斷言沒有錯誤呈現） | `restorableStrategiesOf` 對不上就交出零個 | CONFORMANT |
-| 15 | 現在畫不成線的那一筆不回來 | 同上兩支各一條 | `restorableStrategiesOf` 的 `drawableOnChart` | CONFORMANT |
-| 16 | 多宣告一個旋鈕時新的那一格用預設值 | `RememberedAppliedIndicatorsDomain` 策略多宣告了一個旋鈕時… | `toAppliedIndicatorDtos` 逐條走**宣告** | CONFORMANT |
-| 17 | 不再宣告某個旋鈕時留存的值整個消失 | 同上 策略不再宣告某個旋鈕時… | 同上（走宣告，留存裡多的名字走不到） | CONFORMANT |
+| **US-04 策略腳本在這段時間裡被改過** | | | | |
+| 14 | 策略腳本被刪掉的那一筆不回來 | `RememberedAppliedIndicatorsDomain` 策略腳本已經被刪掉的那一筆不回來＋`KCandleChartPanelRestore` 同名情境（另斷言沒有錯誤呈現） | `restorableStrategyScriptsOf` 對不上就交出零個 | CONFORMANT |
+| 15 | 現在畫不成線的那一筆不回來 | 同上兩支各一條 | `restorableStrategyScriptsOf` 的 `drawableOnChart` | CONFORMANT |
+| 16 | 多宣告一個旋鈕時新的那一格用預設值 | `RememberedAppliedIndicatorsDomain` 策略腳本多宣告了一個旋鈕時… | `toAppliedIndicatorDtos` 逐條走**宣告** | CONFORMANT |
+| 17 | 不再宣告某個旋鈕時留存的值整個消失 | 同上 策略腳本不再宣告某個旋鈕時… | 同上（走宣告，留存裡多的名字走不到） | CONFORMANT |
 | 18 | 旋鈕被改名時舊值丟掉、新名字用預設值 | 同上 旋鈕被改名時… | 同上（改名＝少一個舊的、多一個新的） | CONFORMANT |
-| 19 | 策略改名時用現在的名字 | 同上 策略改過名字時用現在的名字 | 交出的是**現在**那份 `StrategyDto` | CONFORMANT |
+| 19 | 策略腳本改名時用現在的名字 | 同上 策略腳本改過名字時用現在的名字 | 交出的是**現在**那份 `StrategyScriptDto` | CONFORMANT |
 | **US-05 留存的東西壞掉時** | | | | |
 | 20 | 整份讀不出來就當成沒擺過 | `AppliedChartIndicatorPreferenceProxy` 四種壞法（壞 JSON／物件／字串／數字） | `Array.isArray` 擋下＋`catch` | CONFORMANT |
 | 21 | 其中一筆讀不出來就跳過那一筆 | 同上 五種壞法（缺識別碼／非數字／非整數／非物件／null） | `toRememberedAppliedIndicatorVos` 交出零個 | CONFORMANT |
-| 22 | 某一格的值用不了時退回預設值 | `RememberedAppliedIndicatorsDomain` 三種用不了的回看根數＋「同一筆其他格照樣採用」 | `toParameter` 問 `StrategyParameterDomain.validationMessage()` | CONFORMANT |
+| 22 | 某一格的值用不了時退回預設值 | `RememberedAppliedIndicatorsDomain` 三種用不了的回看根數＋「同一筆其他格照樣採用」 | `toParameter` 問 `StrategyScriptParameterDomain.validationMessage()` | CONFORMANT |
 | **US-06 既有的兩種記憶不變** | | | | |
 | 23 | 回來的那一筆用挑過的顏色 | `KCandleChartPanelRestore` 回來的那一筆用挑過的顏色 | 配色仍在 `ChartIndicatorDomain`，本切片沒動 | CONFORMANT |
 | 24 | 挑一支新的仍然帶上次調過的值 | `KCandleChartPanelParameters` 上次調過的值就是這次那一格的起點（既有測試，仍然綠） | `AppliedIndicatorParametersDomain` 沒動 | CONFORMANT |
@@ -50,8 +50,8 @@
 
 | 要求 | 守著它的測試 | Verdict |
 | :--- | :--- | :--- |
-| 不擋主功能（讀寫失敗都不影響圖表） | #12、#13，以及「取不到策略清單時清單是空的，圖表本身照畫」 | CONFORMANT |
-| 不多打一趟後端 | `ChartIndicatorService` 不為了還原多打一趟後端——策略清單是收進來的 | CONFORMANT |
+| 不擋主功能（讀寫失敗都不影響圖表） | #12、#13，以及「取不到策略腳本清單時清單是空的，圖表本身照畫」 | CONFORMANT |
+| 不多打一趟後端 | `ChartIndicatorService` 不為了還原多打一趟後端——策略腳本清單是收進來的 | CONFORMANT |
 | 還原後只算一次 | `KCandleChartPanelRestore` 行情到手時不等停手就補算（`toHaveBeenCalledTimes(1)`）＋**行情延後 0–3 個微任務回來時也只算一次**（四向參數化） | CONFORMANT（初版不符，見下方缺陷 2） |
 | 順序穩定 | #2 | CONFORMANT |
 
@@ -59,7 +59,7 @@
 
 | ARCH 列的風險 | 守著它的測試 |
 | :--- | :--- |
-| 行情與策略清單誰先回來不確定 | 策略清單先回來、行情後到：那幾筆在行情到手時被補算；一筆都沒留存時行情到手不會憑空算一次 |
+| 行情與策略腳本清單誰先回來不確定 | 策略腳本清單先回來、行情後到：那幾筆在行情到手時被補算；一筆都沒留存時行情到手不會憑空算一次 |
 | 用留存的清單去推「這支上次調成什麼」 | #3（兩筆的期數是 20 與 60，不是兩個 60） |
 | 留存裡混進用不了的值 | #22 |
 | 把種類也留存下來 | `AppliedIndicatorDto` 種類不帶走；proxy 種類不寫進去 |
@@ -80,9 +80,9 @@
 
 | # | 缺陷 | 違反的條款 | 修法 |
 | :-- | :--- | :--- | :--- |
-| 1 | **「不寫」擋不住下一次寫入。** 值用不了那一次不寫（正確），但畫面上那一份仍帶著那個值，而清單的下一次改動（移除、加入）寫的是**整份**——於是它照樣被寫下去。下次打開時它退回策略的**預設值**，使用者自己調過的那個值就這樣消失了，且不報錯 | US-02「值填得用不了的時候不寫；留存的內容仍然是期數 20」 | `useChartIndicators` 另記**每一筆最後一次「值用得了」的樣子**（以序號為鍵的查詢表），唯一的寫入點寫的是「成員與順序照畫面上那一份、值照最後一次用得了的」。查詢表不是第二份清單，要寫的那一份由畫面上那一份推導，因此不會漂移 |
+| 1 | **「不寫」擋不住下一次寫入。** 值用不了那一次不寫（正確），但畫面上那一份仍帶著那個值，而清單的下一次改動（移除、加入）寫的是**整份**——於是它照樣被寫下去。下次打開時它退回策略腳本的**預設值**，使用者自己調過的那個值就這樣消失了，且不報錯 | US-02「值填得用不了的時候不寫；留存的內容仍然是期數 20」 | `useChartIndicators` 另記**每一筆最後一次「值用得了」的樣子**（以序號為鍵的查詢表），唯一的寫入點寫的是「成員與順序照畫面上那一份、值照最後一次用得了的」。查詢表不是第二份清單，要寫的那一份由畫面上那一份推導，因此不會漂移 |
 | 2 | **還原時同一批被算兩遍。** 還原「附加整份、再逐筆 `await`」，而每個 `await` 都是空檔；行情的續段落在裡面時，補算會與還原的迴圈同時跑。後端負載加倍，且兩次都對著空的 `chartIndicators` 配色，短暫配到同一個顏色——兩次都畫得出線，圖上沒有任何異狀 | NFR「還原後只算一次…不因為『還原』與『第一次擺好位置』而算兩遍」 | 還原一進來就先看「算哪一段」在不在：不在就只放進清單、直接回頭，計算全交給第一次擺好位置那條路 |
-| 3 | **「零個或一個」只由註解保證。** `restorableStrategiesOf` 交出陣列，發號用的是筆數——策略清單裡若出現兩支同識別碼，兩筆會共用同一個序號，正是上面那個已修過的撞號 | 無直接條款（是缺陷 0 的復發面） | 交出前 `.slice(0, 1)`，讓「一筆只回得來一次」由結構保證 |
+| 3 | **「零個或一個」只由註解保證。** `restorableStrategyScriptsOf` 交出陣列，發號用的是筆數——策略腳本清單裡若出現兩支同識別碼，兩筆會共用同一個序號，正是上面那個已修過的撞號 | 無直接條款（是缺陷 0 的復發面） | 交出前 `.slice(0, 1)`，讓「一筆只回得來一次」由結構保證 |
 
 **未修（記錄在案）**：review 的第 3 項——回不來的那幾筆會被下一次寫入永久抹掉。
 理由與真要修的落點見 [`ARCH.md`](ARCH.md) 第 10 節。
@@ -90,5 +90,5 @@
 ## Orphans
 
 無。本切片新增的每一段產品程式碼都對應到至少一條驗收條件；
-`RememberedAppliedIndicatorsDomain` 私有的 `restorableStrategiesOf` 與 `toParameter`
+`RememberedAppliedIndicatorsDomain` 私有的 `restorableStrategyScriptsOf` 與 `toParameter`
 各由 #14/#15 與 #16–#19/#22 覆蓋。

@@ -16,7 +16,7 @@ import { seriesOf } from '../../fixtures/k-candle-series'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -55,8 +55,8 @@ async function mountPanel(
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
-      strategyApplication: buildStrategyApplication({
-        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: [buildStoredStrategy(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+      strategyScriptApplication: buildStrategyScriptApplication({
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
     },

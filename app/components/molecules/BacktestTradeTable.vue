@@ -5,7 +5,7 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 分子：交易明細，一筆一列。
 //
 // 「一筆都沒有」由這裡明講，而不是留一張空表格：空白讓人以為壞了，
-// 明講讓人知道是策略沒開口。
+// 明講讓人知道是策略腳本沒開口。
 const { closedTrades, timeZone } = defineProps<{
   closedTrades: readonly ClosedTradeDto[]
   timeZone: TimeZoneDto

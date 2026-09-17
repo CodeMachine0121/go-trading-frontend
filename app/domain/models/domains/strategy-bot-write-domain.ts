@@ -12,7 +12,7 @@ import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
  * 所以它們不在這裡重寫一次。把「做不到的事」再寫成一條驗證，是替一個不會發生的情況
  * 維護一段程式。
  *
- * 撞名與「指名一支已經不在的策略」也不在這裡：那兩件事光看這份表單看不出來，
+ * 撞名與「指名一支已經不在的策略腳本」也不在這裡：那兩件事光看這份表單看不出來，
  * 必須問過伺服器才知道，所以由後端說、由畫面照它說的講。
  */
 export class StrategyBotWriteDomain {
@@ -72,7 +72,7 @@ export class StrategyBotWriteDomain {
       this.writeDto.triggerIntervalMinutes,
       this.writeDto.signalSources.map(signalSource => new StrategyBotSignalSourceDto(
         signalSource.label.trim(),
-        signalSource.strategyId,
+        signalSource.strategyScriptId,
         signalSource.aggregationInterval,
         signalSource.parameterValues,
       )),
@@ -123,8 +123,8 @@ export class StrategyBotWriteDomain {
         return `信號來源代號「${label}」重複了，同一台機器人內的代號必須各不相同`
       }
 
-      if (signalSource.strategyId === 0) {
-        return `信號來源「${label}」必須指名一支策略`
+      if (signalSource.strategyScriptId === 0) {
+        return `信號來源「${label}」必須指名一支策略腳本`
       }
 
       takenLabels.push(label)
@@ -157,6 +157,6 @@ export class StrategyBotWriteDomain {
 
     return orphan === undefined
       ? null
-      : `條件裡還指著「${orphan}」，但已經沒有這一支策略了`
+      : `條件裡還指著「${orphan}」，但已經沒有這一支策略腳本了`
   }
 }

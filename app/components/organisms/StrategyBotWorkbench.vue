@@ -23,12 +23,12 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 工作檯做的是**搬東西**：左邊一個零件架，右邊兩張墊子（買入、賣出）。
 // 把零件拖上墊子、在墊子之間搬、拖回架子就收走。墊子上的順序是使用者自己排的，
 // 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
-const { editing, strategyOptions, saving, failureMessage } = defineProps<{
+const { editing, strategyScriptOptions, saving, failureMessage } = defineProps<{
   /** 有值就是改那一台，沒有就是新的一台。 */
   editing: StrategyBotDto | null
   tradingSymbolApplication: TradingSymbolApplication
-  strategyOptions: readonly { value: number, label: string }[]
-  parameterNamesByStrategyId: Readonly<Record<number, readonly string[]>>
+  strategyScriptOptions: readonly { value: number, label: string }[]
+  parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
   saving: boolean
   /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
   failureMessage: string
@@ -43,7 +43,7 @@ const emit = defineEmits<{
 
 const form = useStrategyBotForm(
   () => editing,
-  () => strategyOptions,
+  () => strategyScriptOptions,
 )
 
 form.reset()
@@ -100,16 +100,16 @@ function onSave() {
       :sources="form.signalSources.value"
       :buy-board="form.conditionSides[0].board.value"
       :sell-board="form.conditionSides[1].board.value"
-      :strategy-options="strategyOptions"
+      :strategy-script-options="strategyScriptOptions"
       :interval-options="form.intervalOptions"
-      :parameter-names-by-strategy-id="parameterNamesByStrategyId"
+      :parameter-names-by-strategy-script-id="parameterNamesByStrategyScriptId"
       :can-add="form.canAddSignalSource.value"
       :signal-source-limit="form.signalSourceLimit"
-      :has-no-strategies="strategyOptions.length === 0"
+      :has-no-strategy-scripts="strategyScriptOptions.length === 0"
       @add="form.addSignalSource"
       @remove="form.removeSignalSource"
       @change-label="form.changeSignalSourceLabel"
-      @change-strategy="form.changeSignalSourceStrategy"
+      @change-strategy-script="form.changeSignalSourceStrategyScript"
       @change-interval="form.changeSignalSourceInterval"
       @change-parameter-value="form.changeSignalSourceParameterValue"
       @toggle-signal="(side, sourceLabel, signal) => form.conditionSides.find(

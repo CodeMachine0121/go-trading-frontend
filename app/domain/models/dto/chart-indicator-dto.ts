@@ -14,7 +14,7 @@ export class ChartIndicatorDto {
   constructor(
     /** 這是哪一次套用畫出來的。移除、覆蓋、收線都認它。 */
     public readonly appliedIndicatorId: number,
-    public readonly strategyName: string,
+    public readonly strategyScriptName: string,
     public readonly levels: readonly IndicatorLevelDto[],
     public readonly series: readonly IndicatorSeriesDto[],
   ) {}
@@ -36,7 +36,7 @@ export class ChartIndicatorDto {
    * 這一筆畫著哪幾條線的**記憶身分**。
    *
    * 它與上面那個是兩件事：顏色答的是「哪些色不能再用」，這個答的是
-   * 「哪幾條線已經在圖上」。同一支策略被套用兩次時，兩次的記憶身分一模一樣——
+   * 「哪幾條線已經在圖上」。同一支策略腳本被套用兩次時，兩次的記憶身分一模一樣——
    * 那正是第二次不該再拿記住的顏色的唯一情況。
    */
   get drawnLineKeys(): string[] {
@@ -55,7 +55,7 @@ export class ChartIndicatorDto {
   withLineColor(lineKey: string, colorToken: string): ChartIndicatorDto {
     return new ChartIndicatorDto(
       this.appliedIndicatorId,
-      this.strategyName,
+      this.strategyScriptName,
       this.levels.map(level => (level.lineKey === lineKey
         ? new IndicatorLevelDto(level.lineKey, level.indicatorName, colorToken, level.value)
         : level)),

@@ -104,7 +104,7 @@ export class IndicatorScriptDomain {
     return `func Calculate(data []indicator.KCandle) ${returnShape} {`
   }
 
-  /** 新的空白策略的主體：一個空的 `Calculate`，回傳型別跟著目前的種類。 */
+  /** 新的空白策略腳本的主體：一個空的 `Calculate`，回傳型別跟著目前的種類。 */
   blankBody(): string {
     return `${this.calculateSignature()}\n${BODY_INDENT}\n}`
   }

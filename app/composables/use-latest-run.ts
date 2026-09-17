@@ -2,7 +2,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 
 /**
  * 一種「這次拒絕是關於哪一格」的錯誤。
@@ -80,7 +80,7 @@ export function useLatestRun<TResult, TField extends string>(
       result.value = await execute()
     }
     catch (error: unknown) {
-      if (error instanceof StrategyParameterNotDeclaredError) {
+      if (error instanceof StrategyScriptParameterNotDeclaredError) {
         parameterNotDeclaredMessage.value = error.message
       }
       else if (error instanceof fieldErrorType) {

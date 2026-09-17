@@ -11,12 +11,12 @@
 這個切片加的是**第三種**，而它與前兩種有一個關鍵差別：
 
 > 前兩種記的是**一個問題的答案**（這條線什麼顏色／這個旋鈕調成幾），
-> 第三種記的是**一份有順序的清單**，而清單裡的每一筆都要對回一支**現在還存在**的策略。
+> 第三種記的是**一份有順序的清單**，而清單裡的每一筆都要對回一支**現在還存在**的策略腳本。
 
 指導原則：**還原是一次對照，不是一次還原。**
 
 留存下來的東西不是「圖上長什麼樣」，而是「使用者當時要求了什麼」。
-策略可能被刪、被改名、被改宣告、變成畫不成線——**還原時真相在策略清單那一側**，
+策略腳本可能被刪、被改名、被改宣告、變成畫不成線——**還原時真相在策略腳本清單那一側**，
 留存的內容只提供「他要哪幾支、各配什麼值」。把留存當成可以直接搬回畫面的快照，
 是這個切片最容易犯而且**不會報錯**的錯：圖上會出現一筆使用者現在加不進來的東西。
 
@@ -24,8 +24,8 @@
 
 ## 2. 為什麼不能用既有的旋鈕記憶還原清單
 
-既有的 `IStrategyParameterValuePreferenceProxy` 記的是
-「**這支策略的這個旋鈕**上次被調成什麼」——鍵是 `(策略識別碼, 參數名稱)`。
+既有的 `IStrategyScriptParameterValuePreferenceProxy` 記的是
+「**這支策略腳本的這個旋鈕**上次被調成什麼」——鍵是 `(策略腳本識別碼, 參數名稱)`。
 
 用它還原清單會這樣壞掉：
 
@@ -40,11 +40,11 @@
 | 記憶 | 鍵 | 回答的問題 | 誰在用 |
 | :--- | :--- | :--- | :--- |
 | 線色 | 線的鍵 | 這條線什麼顏色 | 每次計算完配色 |
-| 旋鈕習慣值 | (策略, 參數名稱) | 我習慣把這支調成幾 | **挑一支新的**時帶起始值 |
+| 旋鈕習慣值 | (策略腳本, 參數名稱) | 我習慣把這支調成幾 | **挑一支新的**時帶起始值 |
 | **已套用的清單**（本切片） | 單一鍵，整份清單 | 圖上擺著哪幾筆、各配什麼值 | **打開畫面時還原** |
 
 三種都留著。刪掉旋鈕習慣值、改用清單去推，代價是：把一筆從圖上移除之後，
-那支策略的習慣值跟著消失——而使用者只是想暫時把它拿下來。
+那支策略腳本的習慣值跟著消失——而使用者只是想暫時把它拿下來。
 
 ---
 
@@ -60,7 +60,7 @@
 | 6 | domain / service | `service/chart-indicator-service.ts` | 吃第四個 proxy；加兩個用例方法 |
 | 7 | application | `chart-indicator-application.ts` | 兩個轉呼叫 |
 | 8 | controller | `composables/use-chart-indicators.ts` | 還原、每次改動寫下來、第一次擺好位置時補算 |
-| 9 | controller | `components/organisms/KCandleChartPanel.vue` | 取到策略清單之後還原 |
+| 9 | controller | `components/organisms/KCandleChartPanel.vue` | 取到策略腳本清單之後還原 |
 | 10 | 組裝根 | `plugins/dependencies.ts` | 接上新 proxy |
 
 **不動的**：`AppliedIndicatorParametersDomain`（它的身分是「旋鈕習慣值那一份」，見 §5）、
@@ -75,12 +75,12 @@
 留存下來的**一筆**，離開 proxy 之後在 domain 裡的形狀。
 
 ```
-strategyId:      number
+strategyScriptId:      number
 parameterValues: ReadonlyMap<string, number>   // 名稱 → 值
 ```
 
 **種類刻意不在裡面。** 種類是宣告說的，留存它只會讓一份過期的種類贏過宣告——
-後端在「策略讀回來時參數的種類」上踩過同一個坑，這裡不重蹈。
+後端在「策略腳本讀回來時參數的種類」上踩過同一個坑，這裡不重蹈。
 
 **值用 `Map` 而不是第二個 VO**：還原時對它做的唯一一件事就是「按名稱查」，
 而那正是 `Map` 的形狀。多一個只有兩個欄位的 VO 換不到任何東西。
@@ -101,13 +101,13 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 ### 4.3 `RememberedAppliedIndicatorsDomain`（Domain Model）
 
-**還原的規則全部住在這裡。** 建構子收留存的那幾筆與**現在的策略清單**，
+**還原的規則全部住在這裡。** 建構子收留存的那幾筆與**現在的策略腳本清單**，
 `toAppliedIndicatorDtos(lastAppliedIndicatorId)` 交出可以直接進清單的那幾筆。
 
 逐筆的判斷順序（順序有意義）：
 
 ```
-1. 對得上一支現在的策略嗎？        找不到 → 跳過（策略被刪了）
+1. 對得上一支現在的策略腳本嗎？        找不到 → 跳過（策略腳本被刪了）
 2. 那支現在畫得成線嗎？            畫不成 → 跳過（可挑清單裡本來就挑不到）
 3. 依「宣告」重建那幾格：
      每一格 = (宣告的名稱, 宣告的種類, 值)
@@ -119,7 +119,7 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 第 1、2 步是**同一個判斷**（「這一筆回得來嗎」），因此只寫在一個私有 helper 裡：
 發號要先知道回得來的有哪幾筆，重建那幾格又要拿到那一支——兩處各判斷一次就會漂移。
 
-第 3 步的「用得了」直接問既有的 `StrategyParameterDomain.validationMessage()`——
+第 3 步的「用得了」直接問既有的 `StrategyScriptParameterDomain.validationMessage()`——
 「回看根數必須是大於零的整數」這條規則只有一份，不在這裡重寫一次。
 
 **為什麼序號由外面給。** 「這一次套用」的序號由 `useChartIndicators` 一處產生
@@ -141,9 +141,9 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 | | `AppliedIndicatorParametersDomain` | `RememberedAppliedIndicatorsDomain` |
 | :--- | :--- | :--- |
-| 它是什麼 | **旋鈕習慣值那一份記憶本身**——它持有 proxy，`remember()` 也在它身上 | 一次**對照**：留存的清單 × 現在的策略清單 |
+| 它是什麼 | **旋鈕習慣值那一份記憶本身**——它持有 proxy，`remember()` 也在它身上 | 一次**對照**：留存的清單 × 現在的策略腳本清單 |
 | 值從哪來 | 它自己去問 proxy（逐個名稱） | 隨著留存的那一筆一起進來 |
-| 處理的單位 | 一支策略的那幾格 | 一份**有順序的清單**，還要決定哪幾筆不回來 |
+| 處理的單位 | 一支策略腳本的那幾格 | 一份**有順序的清單**，還要決定哪幾筆不回來 |
 
 要併就得把 proxy 從前者的建構子裡拿掉、把 `remember()` 搬去別的地方，
 換來的只是省下一段三行的對映——**把一個完整的領域物件拆成兩半，去換三行**。
@@ -154,16 +154,16 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 ---
 
-## 6. 兩件事的順序：行情與策略清單誰先回來
+## 6. 兩件事的順序：行情與策略腳本清單誰先回來
 
 `onMounted` 裡兩件事各自進行，**誰先回來都可以**——這是既有的設計
-（取不到策略清單不擋圖表）。但還原之後要「算一次」，而計算需要「算哪一段」，
+（取不到策略腳本清單不擋圖表）。但還原之後要「算一次」，而計算需要「算哪一段」，
 那個東西只有行情回來之後才存在。
 
 | 誰先回來 | 會發生什麼 | 怎麼處理 |
 | :--- | :--- | :--- |
 | 行情先 | 還原時「算哪一段」已經在了 | 每一筆立刻各算一次（與手動加入完全同一條路） |
-| 策略清單先 | 還原時「算哪一段」還不存在，`calculateOne` 會安靜地回頭——**清單上有列、圖上永遠沒有線** | 第一次擺好位置時，若清單上已經有東西，就把它們算一次 |
+| 策略腳本清單先 | 還原時「算哪一段」還不存在，`calculateOne` 會安靜地回頭——**清單上有列、圖上永遠沒有線** | 第一次擺好位置時，若清單上已經有東西，就把它們算一次 |
 
 **要不要算，在還原時就決定一次，不要邊算邊等。**
 還原是「附加整份、然後逐筆 `await calculateOne`」，而**每一個 `await` 都是一個空檔**。
@@ -218,7 +218,7 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 「值用不了就不寫」只擋得住**那一次**。清單的下一次改動（移除、加入）寫的是**整份**，
 而畫面上那一份仍然帶著使用者剛打的那個用不了的值——於是它照樣被寫下去，
-下次打開時退回策略的預設值，**使用者自己調過的那個值就這樣消失了**，
+下次打開時退回策略腳本的預設值，**使用者自己調過的那個值就這樣消失了**，
 而從頭到尾沒有任何地方報錯。
 
 所以 `useChartIndicators` 另外記著 **每一筆最後一次「值用得了」的樣子**
@@ -240,12 +240,12 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 ```
 打開畫面（KCandleChartPanel）
-  └─ 取到策略清單之後
-     └─ useChartIndicators.restoreAppliedIndicators(strategies)
-        └─ ChartIndicatorApplication.restoreAppliedIndicators(strategies, lastId)
+  └─ 取到策略腳本清單之後
+     └─ useChartIndicators.restoreAppliedIndicators(strategyScripts)
+        └─ ChartIndicatorApplication.restoreAppliedIndicators(strategyScripts, lastId)
            └─ ChartIndicatorService
               ├─ IAppliedChartIndicatorPreferenceProxy.readAppliedChartIndicators()
-              └─ new RememberedAppliedIndicatorsDomain(留存的, 策略清單)
+              └─ new RememberedAppliedIndicatorsDomain(留存的, 策略腳本清單)
                    .toAppliedIndicatorDtos(lastId)   ← 還原的規則全在這裡
         └─ 進清單，各自 calculateOne（算不了就等第一次擺好位置）
 
@@ -267,9 +267,9 @@ writeAppliedChartIndicators(remembered: readonly RememberedAppliedIndicatorVo[])
 
 ```json
 [
-  { "strategyId": 7, "parameterValues": { "期數": 20 } },
-  { "strategyId": 7, "parameterValues": { "期數": 60 } },
-  { "strategyId": 9, "parameterValues": {} }
+  { "strategyScriptId": 7, "parameterValues": { "期數": 20 } },
+  { "strategyScriptId": 7, "parameterValues": { "期數": 60 } },
+  { "strategyScriptId": 9, "parameterValues": {} }
 ]
 ```
 
@@ -282,7 +282,7 @@ wire 形狀只住在 proxy 檔內，**每個欄位都宣告成 `unknown`**——
 | :--- | :--- |
 | 整份不是讀得出來的陣列（壞掉的 JSON、一個物件、一個字串） | 空的一份 |
 | 存取本身就拋例外（無痕視窗、封鎖網站資料） | 空的一份 |
-| 某一筆沒有 `strategyId`、或它不是整數 | 跳過那一筆 |
+| 某一筆沒有 `strategyScriptId`、或它不是整數 | 跳過那一筆 |
 | 某一格的值不是有限的數字 | 跳過那一格（那一格之後會拿到宣告的預設值） |
 | `parameterValues` 不是一份鍵值對 | 那一筆沒有任何留存的值（全部用預設值） |
 
@@ -294,17 +294,17 @@ wire 形狀只住在 proxy 檔內，**每個欄位都宣告成 `unknown`**——
 
 **回不來的那幾筆會被下一次寫入永久抹掉。**
 
-還原會濾掉「策略被刪」與「現在畫不成線」的那幾筆，而之後任何一次寫入寫的是**濾過的那一份**。
+還原會濾掉「策略腳本被刪」與「現在畫不成線」的那幾筆，而之後任何一次寫入寫的是**濾過的那一份**。
 於是：留存著 [均線, RSI] → 使用者把 RSI 改成回傳是非（畫不成線）→ 打開圖表（RSI 被跳過，
 留存還在）→ 隨便加一支 → 留存變成 [均線, 新的那支]，**RSI 那一筆再也回不來**，
-即使他之後把策略改回去。
+即使他之後把策略腳本改回去。
 
 PRD 只說那一筆「不回來且不出聲」，永久抹掉比這句話更強，而且不是使用者任何一個動作瞄準的結果。
 
 **不修的理由**：要保住它，留存就不再是「圖上擺著哪幾筆」，而是「圖上那幾筆 ＋ 幾個幽靈」——
 順序怎麼算、重複怎麼算、幽靈什麼時候才真的死掉，全都要另立規則；
 而那個幽靈是使用者**看不到也移除不了**的東西。以一個人自己用的側項目來說，
-「策略改回去之後要再擺一次」這個代價比那套規則便宜得多。
+「策略腳本改回去之後要再擺一次」這個代價比那套規則便宜得多。
 
 真的要修的話，落點是把跳過的那幾筆留在留存裡並保持原位，
 而不是在寫入時想辦法補回來。
@@ -315,7 +315,7 @@ PRD 只說那一筆「不回來且不出聲」，永久抹掉比這句話更強�
 
 | 層 | 測什麼 | 檔案 |
 | :--- | :--- | :--- |
-| **Domain Model** | 還原的每一條規則：找不到策略、畫不成線、多／少／改名的旋鈕、用不了的值、順序、序號接續 | `tests/domain/models/domains/remembered-applied-indicators-domain.spec.ts` |
+| **Domain Model** | 還原的每一條規則：找不到策略腳本、畫不成線、多／少／改名的旋鈕、用不了的值、順序、序號接續 | `tests/domain/models/domains/remembered-applied-indicators-domain.spec.ts` |
 | **DTO** | `toRememberedVo()` 只帶名稱與值，不帶種類 | 併入既有 `tests/domain/models/dto/applied-indicator-dto.spec.ts` |
 | **Domain Service** | 讀留存 → 對照 → 交出那幾筆；寫留存寫的是整份 | 併入既有 `tests/domain/service/chart-indicator-service.spec.ts` |
 | **Proxy** | 讀壞掉的東西、存取拋例外、寫下來的形狀 | `tests/infrastructure/proxy/applied-chart-indicator-preference-proxy.spec.ts` |

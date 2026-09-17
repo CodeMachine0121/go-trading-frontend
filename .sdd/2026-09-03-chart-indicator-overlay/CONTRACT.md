@@ -1,4 +1,4 @@
-# 在 K 線圖表上套用策略 — Contract Verification
+# 在 K 線圖表上套用策略腳本 — Contract Verification
 
 **Contract source:** `.sdd/2026-09-03-chart-indicator-overlay/PRD.md`（Section 3 驗收條件）
 **Design map:** `ARCH.md`（同資料夾）
@@ -15,12 +15,12 @@
 
 | ID | Clause（PRD scenario） | Oracle（實作前釘住） | Implementation | Test | Test audit | Code audit | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| AC-01.1 | 挑一支就立刻算並畫出來 | O-01：清單 1 列、計算恰好 1 次、圖上多 1 條線 | `use-chart-indicators.ts:applyStrategy` | `KCandleChartPanelIndicators.spec.ts:挑一支就立刻算，不必再按任何按鈕` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.1 | 挑一支就立刻算並畫出來 | O-01：清單 1 列、計算恰好 1 次、圖上多 1 條線 | `use-chart-indicators.ts:applyStrategyScript` | `KCandleChartPanelIndicators.spec.ts:挑一支就立刻算，不必再按任何按鈕` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-01.2 | 可以同時疊好幾支 | O-02：清單 2 列、圖上 2 條線 | 同上（持有的是一份清單） | 同檔:`可以同時疊兩支` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-01.3 | 已套用的不再出現在可挑清單 | O-03：可挑選項不含它的名字 | `use-chart-indicators.ts:selectableStrategies` | 同檔:`已經套用的那一支不再出現在可挑清單裡` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-01.4 | 移除一支就只移除它 | O-04：清單只剩另一支、圖上只剩它的線 | `use-chart-indicators.ts:removeStrategy` | 同檔:`移除一支時只移除它，另一支照樣留在圖上` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.3 | 已套用的不再出現在可挑清單 | O-03：可挑選項不含它的名字 | `use-chart-indicators.ts:selectableStrategyScripts` | 同檔:`已經套用的那一支不再出現在可挑清單裡` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.4 | 移除一支就只移除它 | O-04：清單只剩另一支、圖上只剩它的線 | `use-chart-indicators.ts:removeStrategyScript` | 同檔:`移除一支時只移除它，另一支照樣留在圖上` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-01.5 | 一支都沒套用時圖表與先前完全一樣 | O-05：交給圖表的線是空陣列 | `KCandleChart.vue` 的 `indicators` 預設空陣列 | 同檔:`一支都沒套用時，交給圖表的線是空的`；`KCandleChart.spec.ts:一支都沒套用時，一條指標線都不畫` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-01.6 | 一支策略都還沒存過 | O-06：出現說明、沒有可挑的選單 | `ChartIndicatorPanel.vue` 的空狀態 | 同檔:`一支策略都還沒存過時明說，而不是留一個空選單` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-01.6 | 一支策略腳本都還沒存過 | O-06：出現說明、沒有可挑的選單 | `ChartIndicatorPanel.vue` 的空狀態 | 同檔:`一支策略腳本都還沒存過時明說，而不是留一個空選單` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-02.1 | 用圖上正在畫的那批 K 線去算 | O-07：標的／刻度／根數／算到哪一刻全部來自圖上那批 | `KCandleChartPanel.vue` 組請求 + `chart-indicator-service.ts` | 同檔:`算的是圖上正在畫的那批 K 線`；`chart-indicator-service.spec.ts:拿圖上那批 K 線的每一個條件去算` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-02.2 | 換交易標的時每一支都重算 | O-08：再發生 1 次，帶新標的 | `reloadedChart !== null` 這一個觸發點 | 同檔:`換交易標的就重算一次` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-02.3 | 換到需重新取 K 線的區間時重算 | O-09：再發生 1 次 | 同上 | 同檔:`拉到需要重新取一批 K 線的區間時，也重算一次` | asserts-oracle | produces-oracle | ✅ conforms |
@@ -30,13 +30,13 @@
 | AC-03.2 | 一串數字畫成曲線，第 n 個值對第 n 根 | O-13：值與起始時間逐一對上；水平線為空 | `chart-indicator-domain.ts:pointsOf` | `chart-indicator-domain.spec.ts:第 n 個值配上第 n 根 K 線的起始時間`；`KCandleChart.spec.ts:一串數字畫成一條曲線` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.3 | 值比 K 線少時靠右對齊 | O-14：2 個值、3 根 → 2 點，時間為**後** 2 根；最後一個值落在最後一根 | 同上 | `chart-indicator-domain.spec.ts:值比 K 線少時靠右對齊——少掉的是最前面那幾根`、`最後一個值永遠落在最後一根 K 線上`、`值比 K 線多時，多出來的那幾個落在頭部之外，不畫` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.4 | 好幾個指標名稱就畫好幾條線 | O-15：2 條線、各有名稱、**顏色不同** | `chart-indicator-domain.ts:drawableLines` | `chart-indicator-domain.spec.ts:一次產出好幾個指標名稱就畫好幾條，且各有各的顏色`；`KCandleChartPanelIndicators.spec.ts:一支畫出兩條線時兩條都列出來` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-03.5 | 是非類型挑不到 | O-16：選項被停用且標明畫不成線 | `StrategyDto.drawableOnChart` + `ChartIndicatorPanel.vue` | `KCandleChartPanelIndicators.spec.ts:是非類型的策略列得出來但挑不到` | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-03.5 | 是非類型挑不到 | O-16：選項被停用且標明畫不成線 | `StrategyScriptDto.drawableOnChart` + `ChartIndicatorPanel.vue` | `KCandleChartPanelIndicators.spec.ts:是非類型的策略腳本列得出來但挑不到` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-03.6 | 一個指標名稱都沒產出不是失敗 | O-17：兩份清單都空、**沒有**失敗說明 | `ChartIndicatorDto.drawsNothing` | `chart-indicator-domain.spec.ts:一個指標名稱都沒有時兩份清單都是空的`；`KCandleChartPanelIndicators.spec.ts:算完但一個指標都沒有時明說，而不是當成失敗` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-04.1 | 剛套上去就已經分得出來 | O-18：3 條線 3 種不同顏色，使用者未挑 | `chart-line-color-domain.ts` 依序取沒被用掉的 | `chart-line-color-domain.spec.ts:沒挑過時避開已經用掉的`（涵蓋到第三個顏色）；`KCandleChartPanelIndicators.spec.ts:連續套用兩支時，它們是不同顏色` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-04.2 | 換一條線的顏色只換那一條 | O-19：那條變新色、另一條不變、**不重算** | `ChartIndicatorDto.withLineColor` | `chart-indicator-service.spec.ts:只換那一條，其他線不動`；`KCandleChartPanelIndicators.spec.ts:換一條線的顏色，圖上立刻換，且不重算` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-04.3 | 這台瀏覽器記住挑過的顏色 | O-20：記住後再套用同一條線 → 用記住的那個 | `ChartLineColorPreferenceProxy` + `chart-indicator-domain.ts` | `KCandleChartPanelIndicators.spec.ts:重新打開畫面再套用同一支，用的是上次挑過的那個顏色`（**本次稽核補上**）；`chart-line-color-preference-proxy.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-04.4 | 瀏覽器不讓存東西時照樣換色 | O-21：讀＝視為沒挑過、寫＝不拋錯 | `ChartLineColorPreferenceProxy` 的 try/catch | `chart-line-color-preference-proxy.spec.ts:瀏覽器不讓寫時…`、`不讓讀時…` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-04.5 | 同一支策略畫出的兩條線是不同顏色 | O-22：同 AC-03.4 | `chart-indicator-domain.ts:drawableLines` 逐條配色 | 同 AC-03.4 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-04.5 | 同一支策略腳本畫出的兩條線是不同顏色 | O-22：同 AC-03.4 | `chart-indicator-domain.ts:drawableLines` 逐條配色 | 同 AC-03.4 | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-04.6 | 挑過的顏色即使被用掉也照樣採用 | O-23：記住＝X 且 X 已被用掉 → 仍用 X | `chart-line-color-domain.ts` 的優先序 | `chart-line-color-domain.spec.ts:挑過的顏色即使已經被別條線用掉了，還是用它` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-05.1 | 算式跑不動時就地說明 | O-24：該支旁邊有含該原因的說明；圖上線數＝0 | `use-chart-indicators.ts` 的失敗路徑 | `KCandleChartPanelIndicators.spec.ts:算式跑不動時就地說明，且圖上沒有它的線` | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-05.2 | K 線根數不足時就地說明 | O-25：同上，說明含系統給的原因 | 同上（原因原樣轉達） | 同檔:`失敗的那一支留在清單上，換了資料就再試一次`（以「K 線不足」為例） | asserts-oracle | produces-oracle | ✅ conforms |
@@ -49,12 +49,12 @@
 
 | ID | Rule | 判定 |
 | :--- | :--- | :--- |
-| BR-1 | 套用的單位是策略，畫線的單位是指標名稱 | 由 AC-03.4 覆蓋 ✅ |
-| BR-2 | 同一支策略不重複套用 | 由 AC-01.3 + `KCandleChartPanelIndicators.spec.ts:同一支重複挑不會被套用第二次` 覆蓋 ✅ |
+| BR-1 | 套用的單位是策略腳本，畫線的單位是指標名稱 | 由 AC-03.4 覆蓋 ✅ |
+| BR-2 | 同一支策略腳本不重複套用 | 由 AC-01.3 + `KCandleChartPanelIndicators.spec.ts:同一支重複挑不會被套用第二次` 覆蓋 ✅ |
 | BR-3 | 是非類型不可套用 | 由 AC-03.5 覆蓋 ✅ |
 | BR-4 | 重算的觸發沿用既有的「要不要重新取」 | 由 AC-02.2～02.4 覆蓋 ✅ |
 | BR-5 | 每一支各自成敗，並收掉上一輪的線 | 由 AC-05.4／05.6 覆蓋 ✅ |
-| BR-6 | 顏色身分＝策略＋指標名稱；挑過的優先於避開重複 | 由 AC-04.3／04.6 覆蓋 ✅ |
+| BR-6 | 顏色身分＝策略腳本＋指標名稱；挑過的優先於避開重複 | 由 AC-04.3／04.6 覆蓋 ✅ |
 | BR-7 | 一串數字以「這次讀了哪幾根」**靠右**對位 | 由 AC-03.2／03.3 覆蓋 ✅ |
 | BR-8 | 一個指標名稱都沒產出是成功 | 由 AC-03.6 覆蓋 ✅ |
 
@@ -65,12 +65,12 @@
 | Behavior | Site | 判定 |
 | :--- | :--- | :--- |
 | 圖上一根 K 線都沒有時不發計算 | `use-chart-indicators.ts:87` | PRD Section 4 的 Edge Case 明列，非孤兒。已有測試 |
-| 挑到選單上那個「套用一支策略…」時什麼都不做 | `ChartIndicatorPanel.vue:applyPicked` | 選單自身的空選項，非業務規則。已有測試 |
+| 挑到選單上那個「套用一支策略腳本…」時什麼都不做 | `ChartIndicatorPanel.vue:applyPicked` | 選單自身的空選項，非業務規則。已有測試 |
 | 沒見過的失敗也說得出一句話 | `use-chart-indicators.ts:messageOf` 的 fallback | PRD 未明列，但「不吞錯誤、不留白」是專案既有規範。已有測試 |
-| 取不到策略清單時圖表照畫 | `KCandleChartPanel.vue:onMounted` 的 catch | PRD 未明列。判斷理由寫在程式碼註解裡：讓一個附加功能決定主功能能不能用是錯的。已有測試 |
+| 取不到策略腳本清單時圖表照畫 | `KCandleChartPanel.vue:onMounted` 的 catch | PRD 未明列。判斷理由寫在程式碼註解裡：讓一個附加功能決定主功能能不能用是錯的。已有測試 |
 | 換一批指標時先整批收掉上一批 | `KCandleChart.vue:drawIndicators` | 繪圖函式庫的必要動作（沒有「清掉全部」的呼叫），非業務規則。已有測試 |
 
-**無違反 Out of Scope 的實作。** 逐條確認：未在圖表上編輯或新增策略、未實作是非類型的呈現、
+**無違反 Out of Scope 的實作。** 逐條確認：未在圖表上編輯或新增策略腳本、未實作是非類型的呈現、
 未留存已套用的清單、未做線寬／線型／副圖／數值標籤、未動指標計算畫面。
 
 ---
@@ -93,7 +93,7 @@ Conformance: 100%
 
 **覆蓋率**（`vitest --coverage`）：本切片新增／改動的**每一個檔案**皆
 100% 敘述、100% 分支、100% 行。達成過程中刪掉了兩段到不了的防衛分支
-（選單找不到策略、序列在但加線能力不在），而不是替不可能的狀態寫測試。
+（選單找不到策略腳本、序列在但加線能力不在），而不是替不可能的狀態寫測試。
 
 **突變測試**：十一個針對本切片新規則的突變，第一輪有一個倖存
 （「是非也被當成線畫」——原測試只涵蓋一個是非，沒涵蓋一串是非，

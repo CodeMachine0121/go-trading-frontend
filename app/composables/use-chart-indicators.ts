@@ -6,7 +6,7 @@ import { DrawnChartLinesVo } from '~/domain/models/vo/drawn-chart-lines-vo'
 import { AppliedIndicatorLineDto, AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicator-row-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
-import type { ChartApplicableStrategyDto } from '~/domain/models/dto/chart-applicable-strategy-dto'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 
@@ -17,11 +17,11 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
  * 一律問 Application。它持有的是狀態，不是規則。
  *
  * 清單**留存**：打開畫面時上次擺著的那幾支自己回來。留存的是「他要哪幾支、各配什麼值」，
- * 對照現在的策略清單之後才回得來——那個判斷不在這裡，由領域那一側負責。
+ * 對照現在的策略腳本清單之後才回得來——那個判斷不在這裡，由領域那一側負責。
  * 顏色與旋鈕習慣值仍然各自留存，各自回答自己的問題。
  *
- * **同一支策略可以擺好幾筆**，所以這裡的每一把鑰匙都是「**這一次套用**」的序號，
- * 不是策略識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
+ * **同一支策略腳本可以擺好幾筆**，所以這裡的每一把鑰匙都是「**這一次套用**」的序號，
+ * 不是策略腳本識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
  * 一筆算完會覆蓋掉另一筆的線——而這四件事沒有一件會報錯。
  */
 export function useChartIndicators(chartIndicatorApplication: ChartIndicatorApplication) {
@@ -41,7 +41,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const parameterMessages = ref<Map<number, string>>(new Map())
 
   /**
-   * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略，正在調它的值。
+   * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略腳本，正在調它的值。
    *
    * 它與已經在圖上的那幾筆是不同的東西——**還沒有人算過它**，
    * 圖上也還沒有屬於它的線。放在這裡而不另開一個地方，是因為
@@ -64,7 +64,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 那是刻意的，畫面必須顯示他剛剛打的東西。但**留存的不能是那一份**，
    * 而清單的下一次改動（移除、加入）寫的是**整份**：
    * 少了這裡，那一次改動就會把用不了的值一起寫下去，
-   * 下次打開時它退回策略的預設值，**使用者自己調過的那個值就這樣消失了**——
+   * 下次打開時它退回策略腳本的預設值，**使用者自己調過的那個值就這樣消失了**——
    * 而從頭到尾沒有任何地方報錯。
    *
    * 它是一張以序號為鍵的查詢表，不是第二份清單：要寫下去的那一份永遠**由畫面上那一份推導**
@@ -180,19 +180,19 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       pendingAppliedIndicator.value?.parameters ?? []))
 
   /**
-   * 還可以挑的策略：**全部**——已經在圖上的那幾支仍然挑得到。
+   * 還可以挑的策略腳本：**全部**——已經在圖上的那幾支仍然挑得到。
    *
    * 這裡曾經把已套用的那幾支濾掉，前提是「同一支只畫得出同一條線」。
    * 旋鈕讓那個前提不成立了：二十期與六十期是兩條不同的線，只是恰好共用同一段算法。
    * 規則沒有錯，是它的前提消失了。
    */
-  function selectableStrategies(strategies: readonly ChartApplicableStrategyDto[]): ChartApplicableStrategyDto[] {
-    return [...strategies]
+  function selectableStrategyScripts(strategyScripts: readonly ChartApplicableStrategyScriptDto[]): ChartApplicableStrategyScriptDto[] {
+    return [...strategyScripts]
   }
 
   /**
-   * 把上次擺著的那幾支還原回來。**取到策略清單之後才叫得動**——
-   * 那份清單是還原時唯一的真相（策略可能被刪、改了宣告、現在畫不成線）。
+   * 把上次擺著的那幾支還原回來。**取到策略腳本清單之後才叫得動**——
+   * 那份清單是還原時唯一的真相（策略腳本可能被刪、改了宣告、現在畫不成線）。
    *
    * 「哪幾筆回得來」這個判斷不在這裡：這個 composable 持有的是狀態，不是規則。
    *
@@ -202,9 +202,9 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    *
    * **還原不寫回留存**：留存的內容一個字都沒有變，寫它只是把剛讀到的東西寫回去。
    */
-  async function restoreAppliedIndicators(strategies: readonly ChartApplicableStrategyDto[]) {
+  async function restoreAppliedIndicators(strategyScripts: readonly ChartApplicableStrategyScriptDto[]) {
     const restored = chartIndicatorApplication.restoreAppliedIndicators(
-      strategies, lastAppliedIndicatorId)
+      strategyScripts, lastAppliedIndicatorId)
     if (restored.length === 0) {
       return
     }
@@ -234,13 +234,13 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 使用者挑了一支——**唯一的入口**。
    *
    * 有旋鈕的先停下來讓他調；一個旋鈕都沒有的直接上圖，中間不多一步。
-   * **這個判斷不是畫面的事**，而是那一筆自己答得出來的：多數策略沒有旋鈕，
-   * 為了少數有旋鈕的讓所有策略都多一次確認，是拿多數人的每一次操作去補貼少數情況。
+   * **這個判斷不是畫面的事**，而是那一筆自己答得出來的：多數策略腳本沒有旋鈕，
+   * 為了少數有旋鈕的讓所有策略腳本都多一次確認，是拿多數人的每一次操作去補貼少數情況。
    */
-  async function applyIndicator(strategy: ChartApplicableStrategyDto) {
+  async function applyIndicator(strategyScript: ChartApplicableStrategyScriptDto) {
     lastAppliedIndicatorId += 1
     const prepared = chartIndicatorApplication.prepareAppliedIndicator(
-      strategy, lastAppliedIndicatorId)
+      strategyScript, lastAppliedIndicatorId)
 
     if (!prepared.readyToApply) {
       pendingAppliedIndicator.value = prepared
@@ -545,7 +545,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   /**
    * 除了這一筆之外，圖上其他線的樣子。重算它時要避開那些顏色。
    *
-   * 記憶身分也一起交出去：同一支策略的另一筆畫的是**同一條線**，
+   * 記憶身分也一起交出去：同一支策略腳本的另一筆畫的是**同一條線**，
    * 而那正是唯一該跳過記住的顏色的情況。
    */
   function drawnLinesExcept(appliedIndicatorId: number): DrawnChartLinesVo {
@@ -591,7 +591,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     pendingAppliedIndicator,
     pendingParameterFields,
     pendingParametersMessage,
-    selectableStrategies,
+    selectableStrategyScripts,
     restoreAppliedIndicators,
     applyIndicator,
     changePendingParameterValue,

@@ -9,17 +9,17 @@ import { KCandleChartApplication } from '~/application/k-candle-chart-applicatio
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
-import type { IStrategyParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-parameter-value-preference-proxy'
+import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
-import type { IStrategyProxy } from '~/domain/interface/i-strategy-proxy'
+import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyApplication, buildStoredStrategy } from '../../fixtures/strategy-application'
+import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -46,27 +46,27 @@ function aCalculation(indicatorName = '均價') {
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo(indicatorName, [115])])
 }
 
-/** 一支帶著一個旋鈕的策略：期數，預設 20。 */
-function strategyWithLookback(id = 7, name = '均線') {
-  return buildStoredStrategy(id, name, {
+/** 一支帶著一個旋鈕的策略腳本：期數，預設 20。 */
+function strategyScriptWithLookback(id = 7, name = '均線') {
+  return buildStoredStrategyScript(id, name, {
     resultType: 'float',
-    parameters: [new StrategyParameterDto('期數', 'lookbackCount', 20)],
+    parameters: [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
   })
 }
 
 async function mountPanel(overrides: {
-  strategies?: ReturnType<typeof buildStoredStrategy>[]
+  strategyScripts?: ReturnType<typeof buildStoredStrategyScript>[]
   calculateIndicator?: Mock<IIndicatorCalculationProxy['calculateIndicator']>
-  parameterValuePreference?: Partial<IStrategyParameterValuePreferenceProxy>
+  parameterValuePreference?: Partial<IStrategyScriptParameterValuePreferenceProxy>
   colorPreference?: Partial<IChartLineColorPreferenceProxy>
-  strategyProxy?: Partial<IStrategyProxy>
+  strategyScriptProxy?: Partial<IStrategyScriptProxy>
 } = {}) {
-  const strategies = overrides.strategies ?? [strategyWithLookback()]
+  const strategyScripts = overrides.strategyScripts ?? [strategyScriptWithLookback()]
   const calculateIndicator = overrides.calculateIndicator
     ?? vi.fn().mockResolvedValue(aCalculation())
   const writeValue = vi.fn()
-  const updateStrategy = vi.fn()
-  const createStrategy = vi.fn()
+  const updateStrategyScript = vi.fn()
+  const createStrategyScript = vi.fn()
 
   const wrapper = mount(KCandleChartPanel, {
     props: {
@@ -79,11 +79,11 @@ async function mountPanel(overrides: {
         overrides.colorPreference ?? {},
         { writeValue, ...overrides.parameterValuePreference },
       ),
-      strategyApplication: buildStrategyApplication({
-        listAvailableStrategies: vi.fn().mockResolvedValue({ mine: strategies, adopted: [] }),
-        updateStrategy,
-        createStrategy,
-        ...overrides.strategyProxy,
+      strategyScriptApplication: buildStrategyScriptApplication({
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: strategyScripts, adopted: [] }),
+        updateStrategyScript,
+        createStrategyScript,
+        ...overrides.strategyScriptProxy,
       }),
       timeZone: buildTimeZone(),
     },
@@ -91,12 +91,12 @@ async function mountPanel(overrides: {
   })
   await flushPromises()
 
-  return { wrapper, calculateIndicator, writeValue, updateStrategy, createStrategy }
+  return { wrapper, calculateIndicator, writeValue, updateStrategyScript, createStrategyScript }
 }
 
 type Panel = Awaited<ReturnType<typeof mountPanel>>['wrapper']
 
-async function pickStrategy(wrapper: Panel, id: number) {
+async function pickStrategyScript(wrapper: Panel, id: number) {
   await wrapper.get('[data-testid="chart-indicator-picker"]').setValue(String(id))
   await flushPromises()
 }
@@ -150,7 +150,7 @@ async function changeAppliedValue(
 
 /** 挑一支、把期數調成某個值、加進來——三步併成使用者眼中的一件事。 */
 async function applyWithLookback(wrapper: Panel, id: number, value: string) {
-  await pickStrategy(wrapper, id)
+  await pickStrategyScript(wrapper, id)
   await setPendingValue(wrapper, '期數', value)
   await confirmPending(wrapper)
 }
@@ -170,7 +170,7 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
     // 然後立刻被第二次計算蓋掉——圖上會閃一下，而那一瞬間的線是錯的。
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await pickStrategy(wrapper, 7)
+    await pickStrategyScript(wrapper, 7)
 
     const field = wrapper.get<HTMLInputElement>(
       '[data-testid="pending-indicator"] [data-testid="applied-parameter-期數"]')
@@ -192,12 +192,12 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
     }))
   })
 
-  it('一個旋鈕都沒有的策略挑了就直接上圖，中間不多一步', async () => {
+  it('一個旋鈕都沒有的策略腳本挑了就直接上圖，中間不多一步', async () => {
     const { wrapper, calculateIndicator } = await mountPanel({
-      strategies: [buildStoredStrategy(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
     })
 
-    await pickStrategy(wrapper, 9)
+    await pickStrategyScript(wrapper, 9)
 
     expect(wrapper.find('[data-testid="pending-indicator"]').exists()).toBe(false)
     expect(calculateIndicator).toHaveBeenCalledTimes(1)
@@ -209,21 +209,21 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
       parameterValuePreference: { readValue: vi.fn().mockReturnValue(60) },
     })
 
-    await pickStrategy(wrapper, 7)
+    await pickStrategyScript(wrapper, 7)
 
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="pending-indicator"] [data-testid="applied-parameter-期數"]').element.value)
       .toBe('60')
   })
 
-  it('這台瀏覽器不讓網站存東西時，起點是策略記著的預設值且照樣算得出來', async () => {
+  it('這台瀏覽器不讓網站存東西時，起點是策略腳本記著的預設值且照樣算得出來', async () => {
     // 存不了東西對這一層長得就是「沒調過」——真正的吞例外發生在儲存那一側，
-    // 由它自己的測試釘住（見 strategy-parameter-value-preference-proxy 那一份）。
+    // 由它自己的測試釘住（見 strategy-script-parameter-value-preference-proxy 那一份）。
     const { wrapper, calculateIndicator } = await mountPanel({
       parameterValuePreference: { readValue: vi.fn().mockReturnValue(null) },
     })
 
-    await pickStrategy(wrapper, 7)
+    await pickStrategyScript(wrapper, 7)
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="pending-indicator"] [data-testid="applied-parameter-期數"]').element.value)
       .toBe('20')
@@ -234,21 +234,21 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
     expect(wrapper.findAll('[data-testid="indicator-error-1"]')).toHaveLength(0)
   })
 
-  it('在圖上調過的值不會改動策略記著的預設值', async () => {
-    // 這裡套用的是一支已經定案的策略。改掉它的預設值，使用者明天打開別的圖
-    // 會發現策略被自己改過，而他根本不記得改過。
-    const { wrapper, updateStrategy, createStrategy } = await mountPanel()
+  it('在圖上調過的值不會改動策略腳本記著的預設值', async () => {
+    // 這裡套用的是一支已經定案的策略腳本。改掉它的預設值，使用者明天打開別的圖
+    // 會發現策略腳本被自己改過，而他根本不記得改過。
+    const { wrapper, updateStrategyScript, createStrategyScript } = await mountPanel()
 
     await applyWithLookback(wrapper, 7, '60')
 
-    expect(updateStrategy).not.toHaveBeenCalled()
-    expect(createStrategy).not.toHaveBeenCalled()
+    expect(updateStrategyScript).not.toHaveBeenCalled()
+    expect(createStrategyScript).not.toHaveBeenCalled()
   })
 
   it('值不合法時就地說明，而且完全不算', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await pickStrategy(wrapper, 7)
+    await pickStrategyScript(wrapper, 7)
     await setPendingValue(wrapper, '期數', '0')
     await confirmPending(wrapper)
 
@@ -261,7 +261,7 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
   it('取消就什麼都沒發生——那一筆從來沒上過圖', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await pickStrategy(wrapper, 7)
+    await pickStrategyScript(wrapper, 7)
     await wrapper.get('[data-testid="cancel-pending-indicator"]').trigger('click')
     await flushPromises()
 
@@ -306,13 +306,13 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
     expect(remaining).toEqual(['期數 60'])
   })
 
-  it('沒有旋鈕的策略也可以擺兩次，只是沒有值可標', async () => {
+  it('沒有旋鈕的策略腳本也可以擺兩次，只是沒有值可標', async () => {
     const { wrapper } = await mountPanel({
-      strategies: [buildStoredStrategy(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
     })
 
-    await pickStrategy(wrapper, 9)
-    await pickStrategy(wrapper, 9)
+    await pickStrategyScript(wrapper, 9)
+    await pickStrategyScript(wrapper, 9)
 
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(2)
     expect(wrapper.findAll('[data-testid="applied-indicator-summary"]')).toHaveLength(0)
@@ -362,7 +362,7 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
 describe('圖表上的旋鈕：調完之後', () => {
   it('改一筆的值只有那一筆重算', async () => {
     const { wrapper, calculateIndicator } = await mountPanel({
-      strategies: [strategyWithLookback(7, '均線'), strategyWithLookback(8, '布林')],
+      strategyScripts: [strategyScriptWithLookback(7, '均線'), strategyScriptWithLookback(8, '布林')],
     })
     await applyWithLookback(wrapper, 7, '20')
     await applyWithLookback(wrapper, 8, '2')
@@ -400,7 +400,7 @@ describe('圖表上的旋鈕：調完之後', () => {
 describe('圖表上的旋鈕：算不出來的時候', () => {
   it('名字對不上時就地指名，而且不說算式跑不動', async () => {
     const { wrapper } = await mountPanel({
-      calculateIndicator: vi.fn().mockRejectedValue(new StrategyParameterNotDeclaredError(
+      calculateIndicator: vi.fn().mockRejectedValue(new StrategyScriptParameterNotDeclaredError(
         '期數', '算式取用了參數 "期數"，但這一次沒有宣告這個名字')),
     })
 
@@ -508,12 +508,12 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(0)
   })
 
-  it('畫成曲線的策略擺兩次，兩條曲線也是不同顏色', async () => {
+  it('畫成曲線的策略腳本擺兩次，兩條曲線也是不同顏色', async () => {
     // 一串數字走的是另一條路：它畫成跟著 K 線走的曲線，不是水平線。
     const { wrapper } = await mountPanel({
-      strategies: [buildStoredStrategy(7, '均線', {
+      strategyScripts: [buildStoredStrategyScript(7, '均線', {
         resultType: 'floatList',
-        parameters: [new StrategyParameterDto('期數', 'lookbackCount', 20)],
+        parameters: [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
       })],
       calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation(
         'BTCUSDT', '5m', 1, 'floatList', [new IndicatorValueVo('均線', [115])],

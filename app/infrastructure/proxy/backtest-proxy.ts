@@ -7,7 +7,7 @@ import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const BACKTESTS_ENDPOINT = '/backtests'
@@ -124,7 +124,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       // 狀態碼與回應欄位只在這一層被解讀，與指標計算同一套分流——
       // 同一份算式壞掉，兩個去處不該講出兩種故事。
       if (error instanceof BackendRequestRejectedError && error.parameterName !== undefined) {
-        throw new StrategyParameterNotDeclaredError(
+        throw new StrategyScriptParameterNotDeclaredError(
           error.parameterName, error.message, { cause: error })
       }
 

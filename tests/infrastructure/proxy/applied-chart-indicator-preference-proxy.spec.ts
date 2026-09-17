@@ -10,16 +10,16 @@ afterEach(() => {
 })
 
 function rememberedOf(
-  strategyId: number, parameterValues: Record<string, number> = {}, shownOnChart = true,
+  strategyScriptId: number, parameterValues: Record<string, number> = {}, shownOnChart = true,
 ): RememberedAppliedIndicatorVo {
   return new RememberedAppliedIndicatorVo(
-    strategyId, new Map(Object.entries(parameterValues)), shownOnChart)
+    strategyScriptId, new Map(Object.entries(parameterValues)), shownOnChart)
 }
 
 /** 讀回來的那幾筆攤成好比對的形狀。 */
 function readAsPlain(proxy: AppliedChartIndicatorPreferenceProxy) {
   return proxy.readAppliedChartIndicators().map(
-    one => ({ strategyId: one.strategyId, parameterValues: Object.fromEntries(one.parameterValues) }))
+    one => ({ strategyScriptId: one.strategyScriptId, parameterValues: Object.fromEntries(one.parameterValues) }))
 }
 
 describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', () => {
@@ -34,9 +34,9 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
     ])
 
     expect(readAsPlain(proxy)).toEqual([
-      { strategyId: 7, parameterValues: { 期數: 20 } },
-      { strategyId: 9, parameterValues: { 倍數: 1.5 } },
-      { strategyId: 7, parameterValues: { 期數: 60 } },
+      { strategyScriptId: 7, parameterValues: { 期數: 20 } },
+      { strategyScriptId: 9, parameterValues: { 倍數: 1.5 } },
+      { strategyScriptId: 7, parameterValues: { 期數: 60 } },
     ])
   })
 
@@ -45,7 +45,7 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
 
     proxy.writeAppliedChartIndicators([rememberedOf(7)])
 
-    expect(readAsPlain(proxy)).toEqual([{ strategyId: 7, parameterValues: {} }])
+    expect(readAsPlain(proxy)).toEqual([{ strategyScriptId: 7, parameterValues: {} }])
   })
 
   it('後寫的整份蓋掉前寫的——留存的是現在圖上那幾筆', () => {
@@ -54,7 +54,7 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
     proxy.writeAppliedChartIndicators([rememberedOf(7), rememberedOf(9)])
     proxy.writeAppliedChartIndicators([rememberedOf(9)])
 
-    expect(readAsPlain(proxy)).toEqual([{ strategyId: 9, parameterValues: {} }])
+    expect(readAsPlain(proxy)).toEqual([{ strategyScriptId: 9, parameterValues: {} }])
   })
 
   it('一支都沒擺過就是空的一份', () => {
@@ -104,9 +104,9 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
   })
 
   it.each([
-    { name: '沒有策略識別碼', entry: '{"parameterValues":{}}' },
-    { name: '策略識別碼不是數字', entry: '{"strategyId":"7","parameterValues":{}}' },
-    { name: '策略識別碼不是整數', entry: '{"strategyId":7.5,"parameterValues":{}}' },
+    { name: '沒有策略腳本識別碼', entry: '{"parameterValues":{}}' },
+    { name: '策略腳本識別碼不是數字', entry: '{"strategyId":"7","parameterValues":{}}' },
+    { name: '策略腳本識別碼不是整數', entry: '{"strategyId":7.5,"parameterValues":{}}' },
     { name: '根本不是一個物件', entry: '"7"' },
     { name: '是 null', entry: 'null' },
   ])('其中一筆$name：跳過那一筆，其餘照樣回來', ({ entry }) => {
@@ -114,7 +114,7 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
     localStorage.setItem(STORAGE_KEY, `[${entry},{"strategyId":9,"parameterValues":{}}]`)
 
     expect(readAsPlain(new AppliedChartIndicatorPreferenceProxy()))
-      .toEqual([{ strategyId: 9, parameterValues: {} }])
+      .toEqual([{ strategyScriptId: 9, parameterValues: {} }])
   })
 
   it.each([
@@ -126,7 +126,7 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
     localStorage.setItem(STORAGE_KEY, `[${stored}]`)
 
     expect(readAsPlain(new AppliedChartIndicatorPreferenceProxy()))
-      .toEqual([{ strategyId: 7, parameterValues: {} }])
+      .toEqual([{ strategyScriptId: 7, parameterValues: {} }])
   })
 
   it.each([
@@ -150,7 +150,7 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
     localStorage.setItem(STORAGE_KEY, `[${stored}]`)
 
     expect(readAsPlain(new AppliedChartIndicatorPreferenceProxy()))
-      .toEqual([{ strategyId: 7, parameterValues: {} }])
+      .toEqual([{ strategyScriptId: 7, parameterValues: {} }])
   })
 })
 

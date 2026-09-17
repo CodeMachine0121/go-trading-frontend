@@ -50,12 +50,12 @@ describe('StrategyBotRunStateDomain', () => {
   })
 
   it.each([
-    ['strategyUnavailable', '有一支策略找不到了'],
-    ['scriptFailed', '有一支策略算不出來'],
+    ['strategyUnavailable', '有一支策略腳本找不到了'],
+    ['scriptFailed', '有一支策略腳本算不出來'],
     ['credentialRejected', '機器人金鑰不被接受'],
     ['destinationNotFound', '找不到這個聊天室'],
   ])('四種停擺原因各自說得出是哪一種（%s）', (haltReason, expectedLabel) => {
-    // 四者要做的事完全不同：換一支策略、修算式、重填金鑰、重填代號。
+    // 四者要做的事完全不同：換一支策略腳本、修算式、重填金鑰、重填代號。
     expect(aBot({ haltReason: haltReason as StrategyBotHaltReasonVo }).toDto().haltReasonLabel)
       .toBe(expectedLabel)
   })

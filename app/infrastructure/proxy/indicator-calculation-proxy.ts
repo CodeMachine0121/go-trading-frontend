@@ -6,7 +6,7 @@ import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { CandleCoverageShortfallDomain } from '~/domain/models/domains/candle-coverage-shortfall-domain'
 import { MarketClosedThroughoutDomain } from '~/domain/models/domains/market-closed-throughout-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -79,10 +79,10 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
                   endTime: indicatorCalculationRequestDomain.observationWindow
                     .endTime.toISOString(),
                 }),
-            // 指名一支策略時**只送識別碼**：算式、指標值種類與旋鈕宣告都在那一支身上，
+            // 指名一支策略腳本時**只送識別碼**：算式、指標值種類與旋鈕宣告都在那一支身上，
             // 再送一份只會多出一個可能與它不一致的答案。帶算式內容時反過來，
             // 那三樣沒有別的地方可以取。
-            ...(indicatorCalculationRequestDomain.strategyId === undefined
+            ...(indicatorCalculationRequestDomain.strategyScriptId === undefined
               ? {
                   resultType: indicatorCalculationRequestDomain.resultType.value,
                   script: indicatorCalculationRequestDomain.script,
@@ -93,7 +93,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
                       defaultValue: parameter.value,
                     })),
                 }
-              : { strategyId: indicatorCalculationRequestDomain.strategyId }),
+              : { strategyScriptId: indicatorCalculationRequestDomain.strategyScriptId }),
             // 宣告與這一次的值分兩份送：系統要先知道這支算式**宣告**了哪些名字，
             // 才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
             //
@@ -130,7 +130,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
       // 名字對不上先問：它與「算式跑不動」都是被拒絕，但使用者要去改的地方完全不同。
       // 判準是回應帶回來的那個欄位，不是訊息的文字——文字是寫給人看的。
       if (error instanceof BackendRequestRejectedError && error.parameterName !== undefined) {
-        throw new StrategyParameterNotDeclaredError(
+        throw new StrategyScriptParameterNotDeclaredError(
           error.parameterName, error.message, { cause: error })
       }
 

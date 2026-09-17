@@ -4,8 +4,8 @@ import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calc
 import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
-import { StrategyParameterDto } from '~/domain/models/dto/strategy-parameter-dto'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
@@ -83,9 +83,9 @@ describe('IndicatorCalculationProxy', () => {
     await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
       new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
         'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [
-          new StrategyParameterDto('期數', 'lookbackCount', 20),
-          new StrategyParameterDto('倍數', 'number', 1.5),
-          new StrategyParameterDto('只看多方', 'boolean', 0),
+          new StrategyScriptParameterDto('期數', 'lookbackCount', 20),
+          new StrategyScriptParameterDto('倍數', 'number', 1.5),
+          new StrategyScriptParameterDto('只看多方', 'boolean', 0),
         ])))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -300,8 +300,8 @@ describe('名字對不上與算式跑不動是兩件事', () => {
 
     const failure = await calculationFailure()
 
-    expect(failure).toBeInstanceOf(StrategyParameterNotDeclaredError)
-    expect((failure as StrategyParameterNotDeclaredError).parameterName).toBe('期數')
+    expect(failure).toBeInstanceOf(StrategyScriptParameterNotDeclaredError)
+    expect((failure as StrategyScriptParameterNotDeclaredError).parameterName).toBe('期數')
     expect(failure).not.toBeInstanceOf(IndicatorScriptFailedError)
   })
 
@@ -313,7 +313,7 @@ describe('名字對不上與算式跑不動是兩件事', () => {
     const failure = await calculationFailure()
 
     expect(failure).toBeInstanceOf(IndicatorScriptFailedError)
-    expect(failure).not.toBeInstanceOf(StrategyParameterNotDeclaredError)
+    expect(failure).not.toBeInstanceOf(StrategyScriptParameterNotDeclaredError)
   })
 
   it('訊息裡剛好提到參數兩個字也不會被誤認', async () => {
@@ -322,7 +322,7 @@ describe('名字對不上與算式跑不動是兩件事', () => {
 
     const failure = await calculationFailure()
 
-    expect(failure).not.toBeInstanceOf(StrategyParameterNotDeclaredError)
+    expect(failure).not.toBeInstanceOf(StrategyScriptParameterNotDeclaredError)
   })
 })
 

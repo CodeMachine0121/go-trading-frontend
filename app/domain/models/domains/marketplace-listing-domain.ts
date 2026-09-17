@@ -1,5 +1,5 @@
-import type { AvailableStrategiesDto } from '~/domain/models/dto/available-strategies-dto'
-import type { PublishedStrategyDto } from '~/domain/models/dto/published-strategy-dto'
+import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
+import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 
 /**
@@ -12,8 +12,8 @@ import { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listin
  */
 export class MarketplaceListingDomain {
   constructor(
-    private readonly publishedStrategies: readonly PublishedStrategyDto[],
-    private readonly available: AvailableStrategiesDto,
+    private readonly publishedStrategyScripts: readonly PublishedStrategyScriptDto[],
+    private readonly available: AvailableStrategyScriptsDto,
   ) {}
 
   /**
@@ -23,13 +23,13 @@ export class MarketplaceListingDomain {
    * 把它藏起來會讓人以為分享沒有成功。
    */
   toRowDtos(): MarketplaceListingRowDto[] {
-    const ownStrategyIds = new Set(this.available.mine.map(strategy => strategy.id))
-    const adoptedStrategyIds = new Set(this.available.adopted.map(published => published.id))
+    const ownStrategyScriptIds = new Set(this.available.mine.map(strategyScript => strategyScript.id))
+    const adoptedStrategyScriptIds = new Set(this.available.adopted.map(published => published.id))
 
-    return this.publishedStrategies.map(strategy => new MarketplaceListingRowDto(
-      strategy,
-      ownStrategyIds.has(strategy.id),
-      adoptedStrategyIds.has(strategy.id),
+    return this.publishedStrategyScripts.map(strategyScript => new MarketplaceListingRowDto(
+      strategyScript,
+      ownStrategyScriptIds.has(strategyScript.id),
+      adoptedStrategyScriptIds.has(strategyScript.id),
     ))
   }
 }

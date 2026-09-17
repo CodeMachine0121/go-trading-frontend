@@ -7,10 +7,10 @@ import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
-import { StrategyParameterNotDeclaredError } from '~/domain/errors/strategy-parameter-not-declared-error'
+import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
-import { buildStrategyMarketplaceApplication, buildStrategyApplication } from '../../fixtures/strategy-application'
+import { buildStrategyScriptMarketplaceApplication, buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -29,8 +29,8 @@ function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService(indicatorCalculationProxy)),
-      strategyMarketplaceApplication: buildStrategyMarketplaceApplication(),
-      strategyApplication: buildStrategyApplication(),
+      strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(),
+      strategyScriptApplication: buildStrategyScriptApplication(),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       backtestApplication: buildBacktestApplication(),
       timeZone: buildTimeZone(),
@@ -288,7 +288,7 @@ describe('指標計算畫面上的參數', () => {
 describe('名字對不上時，畫面不能說算式壞了', () => {
   it('說的是哪一個名字對不上，而且與算式那一則分開', async () => {
     const wrapper = mountPanel(buildProxy(vi.fn().mockRejectedValue(
-      new StrategyParameterNotDeclaredError('期數', '算式取用了參數「期數」，但這一次沒有宣告這個名字'))))
+      new StrategyScriptParameterNotDeclaredError('期數', '算式取用了參數「期數」，但這一次沒有宣告這個名字'))))
     await flushPromises()
     await typeScriptBody(wrapper, SCRIPT_BODY)
 

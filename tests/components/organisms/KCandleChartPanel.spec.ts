@@ -12,7 +12,7 @@ import { KCandleChartApplication } from '~/application/k-candle-chart-applicatio
 import { buildTradingSymbol, buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
-import { buildStrategyApplication } from '../../fixtures/strategy-application'
+import { buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
@@ -63,7 +63,7 @@ async function mountPanel(
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication(),
-      strategyApplication: buildStrategyApplication(),
+      strategyScriptApplication: buildStrategyScriptApplication(),
       timeZone: buildTimeZone(),
     },
     global: { stubs: { KCandleChart: true } },
@@ -290,7 +290,7 @@ describe('KCandleChartPanel', () => {
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
-        strategyApplication: buildStrategyApplication(),
+        strategyScriptApplication: buildStrategyScriptApplication(),
         timeZone: buildTimeZone(),
       },
       global: { stubs: { KCandleChart: true } },
