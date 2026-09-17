@@ -4,6 +4,8 @@ import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
+import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
+import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
@@ -216,5 +218,95 @@ describe('BacktestProxy', () => {
 
     expect(failure).not.toBeInstanceOf(BacktestFieldError)
     expect(failure).toBeInstanceOf(BackendRequestRejectedError)
+  })
+})
+
+function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
+  return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
+    7, 'BTCUSDT', START_TIME, END_TIME,
+    new Decimal('10000'), 'percentage', new Decimal('50')))
+}
+
+async function tradingStrategyBacktestFailure(): Promise<unknown> {
+  try {
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+  }
+  catch (error: unknown) {
+    return error
+  }
+
+  throw new Error('這次重演應該要失敗才對')
+}
+
+describe('BacktestProxy 重演一整份交易策略', () => {
+  it('打的是那一份底下的重演端點', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${BASE_URL}/trading-strategies/7/backtests`)
+    expect(fetchMock.mock.calls[0]![1].method).toBe('POST')
+  })
+
+  it('送出去的沒有彙總刻度，也沒有算式', async () => {
+    // 那兩樣是那份交易策略自己說的。順手送過去的話，同一件事就有兩個答案。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body).not.toHaveProperty('aggregationInterval')
+    expect(body).not.toHaveProperty('script')
+    expect(body).not.toHaveProperty('parameters')
+    expect(body.symbol).toBe('BTCUSDT')
+    // 金額以字串送出：它是精確小數，經過浮點數就再也回不來了。
+    expect(body.initialCapital).toBe('10000')
+    expect(body.positionSizingValue).toBe('50')
+  })
+
+  it('讀回來的那一份說得出打架了幾棒', async () => {
+    const wire = completedWire()
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      { ...wire, summary: { ...wire.summary, conflictedCandleCount: 180 } }))
+
+    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+
+    expect(backtest.conflictedCandleCount).toBe(180)
+  })
+
+  it('沒有那一項時當成一棒都沒打架過', async () => {
+    // 單獨重演一支策略腳本從來不會打架，後端那一邊也就不說這件事。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
+
+    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+
+    expect(backtest.conflictedCandleCount).toBe(0)
+  })
+
+  it('後端說來源對不起來時，說明落在市場那一格旁邊', async () => {
+    // 畫面上沒有「信號來源」那一格可以標——市場是這張表單上唯一與
+    // 「要重演什麼」有關的地方。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, '這一份交易策略的信號來源目前用了 1h、5m 這幾種彙總刻度',
+      { field: 'signalSources' })))
+
+    const failure = await tradingStrategyBacktestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestFieldError)
+    expect((failure as BacktestFieldError).field).toBe('symbol')
+  })
+
+  it('算式跑不起來時說成算式的問題', async () => {
+    // 一份交易策略裡任何一支腳本壞了都走同一條路，訊息由後端指名是哪一支。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(422, '算式執行失敗')))
+
+    expect(await tradingStrategyBacktestFailure()).toBeInstanceOf(IndicatorScriptFailedError)
   })
 })
