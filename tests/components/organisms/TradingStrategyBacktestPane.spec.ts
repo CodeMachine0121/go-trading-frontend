@@ -65,6 +65,7 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(),
       tradingStrategyId: 7,
+      savedTradingMode: 'longShort',
       savedGeneration: 0,
       ...props,
     },
@@ -242,62 +243,63 @@ describe('TradingStrategyBacktestPane', () => {
   })
 })
 
+// 交易模式是那一份交易策略記著的性質，不是這一次重演的旋鈕。
+// 這一塊因此挑不動它——它讀出來給人看。
 describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
-  it('兩個選項同時看得見，與指標計算那一頁一樣', async () => {
+  it('那裡沒有可以按的東西，只有一句話', () => {
     const wrapper = mountPane(buildProxy())
 
+    // 不是停用的按鈕：一顆灰掉的按鈕還在說「這裡有兩個選項，只是你現在不能動」，
+    // 而真相是這裡已經沒有選項了、答案在別的地方。
     expect(wrapper.find('[data-testid="backtest-trading-mode-longShort-radio"]').exists())
-      .toBe(true)
+      .toBe(false)
     expect(wrapper.find('[data-testid="backtest-trading-mode-spot-radio"]').exists())
-      .toBe(true)
+      .toBe(false)
+    expect(wrapper.find('[data-testid="backtest-trading-mode-note"]').exists()).toBe(true)
   })
 
-  it('那兩句說明與指標計算那一頁一字不差', () => {
-    // 兩頁都跟同一個地方拿這兩句話，所以它們不可能各自漂移。
-    // 這一條釘的就是「不可能」——兩份字串的那一版會先在一頁上被改掉，而沒有人發現。
+  it('那一句話講出這一份存著的是哪一種', () => {
+    const spotPane = mountPane(buildProxy(), { savedTradingMode: 'spot' })
+    const longShortPane = mountPane(buildProxy(), { savedTradingMode: 'longShort' })
+
+    expect(spotPane.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('現貨')
+    expect(longShortPane.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('多空反手')
+  })
+
+  it('那一句話裡的名字與說明與工作檯、與重演一支腳本讀的是同一份', () => {
+    // 三塊畫面都跟同一個地方拿這兩句話，所以它們不可能各自漂移。
+    // 這一條釘的就是「不可能」——三份字串的那一版會先在一頁上被改掉，而沒有人發現。
     const application = new BacktestApplication(new BacktestService(buildProxy()))
-    const wrapper = mountPane(buildProxy())
+    const spotOption = application.listTradingModeOptions()
+      .find(option => option.value === 'spot')!
 
-    for (const option of application.listTradingModeOptions()) {
-      expect(wrapper.get(`[data-testid="backtest-trading-mode-${option.value}-radio"]`).text())
-        .toContain(option.description)
-    }
+    const wrapper = mountPane(buildProxy(), { savedTradingMode: 'spot' })
+
+    const note = wrapper.get('[data-testid="backtest-trading-mode-note"]').text()
+    expect(note).toContain(spotOption.label)
+    expect(note).toContain(spotOption.description)
   })
 
-  it('挑了現貨，重演這一份交易策略時送出去的就是現貨', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
+  it('還沒存過的那一份講預設值', () => {
+    // 與後端對一份沒填的交易策略的讀法一字不差。
+    const wrapper = mountPane(
+      buildProxy(), { tradingStrategyId: null, savedTradingMode: null })
 
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('多空反手')
+  })
+
+  it('送出去的請求裡沒有交易模式', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy, { savedTradingMode: 'spot' })
+
     await fillSymbolAndRun(wrapper)
 
-    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0].tradingMode)
-      .toBe('spot')
+    // 後端從那一份交易策略讀它。這一側送過去只會是第二個答案，
+    // 而沒有規則說哪一個贏。
+    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0])
+      .not.toHaveProperty('tradingMode')
   })
-
-  it('一打開停在既有的那一種', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await fillSymbolAndRun(wrapper)
-
-    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0].tradingMode)
-      .toBe('longShort')
-  })
-})
-
-// Setting up a replay for a strategy that has not been saved yet is the ordinary way
-// into this tab, and every other field on it is editable and pre-filled while that is
-// true. The mode has to be too: picking it sends nothing anywhere, and greying out the
-// one field this slice added would make it the only input on the form that greys out.
-it('後端連不上、或這一份還沒存過時，交易模式仍然挑得動', async () => {
-  const wrapper = mountPane(buildProxy(), { tradingStrategyId: null })
-
-  const spotRadio = wrapper.get<HTMLInputElement>(
-    '[data-testid="backtest-trading-mode-spot-radio"] input')
-
-  expect(spotRadio.element.disabled).toBe(false)
-  // 執行鍵仍然停用——按了也沒用的是那一顆，不是這一格。
-  expect(wrapper.get<HTMLButtonElement>(
-    '[data-testid="run-backtest-button"]').element.disabled).toBe(true)
 })

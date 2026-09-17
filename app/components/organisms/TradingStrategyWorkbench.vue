@@ -2,7 +2,9 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppRadio from '~/components/atoms/AppRadio.vue'
 import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
+import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
@@ -17,6 +19,9 @@ import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 // 交易標的與觸發間隔不在這裡：那兩樣說的是「哪一台機器、盯哪裡、多久看一次」，
 // 是機器的事。分開之後，同一份規則才能被好幾台機器人同時用。
 //
+// **交易模式在這裡**，而且與名稱同一列：它變的是規則的語意——同一棵條件樹在
+// 「賣出＝出清回現金」與「賣出＝反手做空」兩種讀法下，講的是兩件不同的事。
+//
 // 這裡試過表單、樹、抽屜、矩陣、以及一個點兩下就拼好的零件盤，
 // 每一版得到的評語都一樣：「區塊換位置而已」。那是對的——那幾版真正在做的事
 // 都是「填欄位」，只是欄位排得不同。
@@ -24,11 +29,20 @@ import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 // 工作檯做的是**搬東西**：左邊一個零件架，右邊兩張墊子（買入、賣出）。
 // 把零件拖上墊子、在墊子之間搬、拖回架子就收走。墊子上的順序是使用者自己排的，
 // 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
-const { editing, strategyScriptOptions, saving, failureMessage, savedGeneration }
+const {
+  editing,
+  strategyScriptOptions,
+  tradingModeOptions,
+  saving,
+  failureMessage,
+  savedGeneration,
+}
   = defineProps<{
   /** 有值就是改那一份，沒有就是新的一份。 */
     editing: TradingStrategyDto | null
     strategyScriptOptions: readonly { value: number, label: string }[]
+    /** 交易模式挑得到的那兩個，各自帶著一句話說它拿賣出信號做什麼。 */
+    tradingModeOptions: readonly TradingModeOptionDto[]
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
     /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
     unusableStrategyScripts: Readonly<Record<number, string>>
@@ -53,6 +67,14 @@ const form = useTradingStrategyForm(
 )
 
 form.reset()
+
+/**
+ * 這一組單選鈕共用的名字。
+ *
+ * 每個實例各不相同，理由與回測那一列相同：兩張表單若同時在頁面上，
+ * 共用一個名字會讓兩邊的選項彼此互斥。
+ */
+const tradingModeGroupName = `trading-strategy-trading-mode-${useId()}`
 
 /**
  * 這一頁被改過了沒有。
@@ -94,6 +116,24 @@ function onSave() {
         placeholder="交易策略名稱"
         data-testid="trading-strategy-name-input"
       />
+
+      <!--
+        並排而不是下拉選單，理由與回測那一列一字不差：多數使用者根本不知道
+        現在這一種在幫他放空，而一個要點開才看得到的選單，救不了一個不知道要去點的人。
+      -->
+      <div class="workbench__trading-mode">
+        <AppRadio
+          v-for="modeOption in tradingModeOptions"
+          :key="modeOption.value"
+          v-model="form.tradingMode.value"
+          :value="modeOption.value"
+          :label="modeOption.label"
+          :description="modeOption.description"
+          :name="tradingModeGroupName"
+          :disabled="saving"
+          :data-testid="`trading-strategy-trading-mode-${modeOption.value}-radio`"
+        />
+      </div>
     </div>
 
     <TradingStrategyCanvas
@@ -177,6 +217,14 @@ function onSave() {
     border-radius: radius('md');
     background-color: color('surface');
     padding: spacing('sm');
+  }
+
+  &__trading-mode {
+    // 兩顆並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
+    // 與回測那一列同一個寫法——同一件事在兩塊畫面上不該長得不一樣。
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: spacing('2xs');
   }
 
   &__actions {

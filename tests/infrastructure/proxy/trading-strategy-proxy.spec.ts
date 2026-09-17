@@ -11,6 +11,7 @@ import { TradingStrategyInUseError } from '~/domain/errors/trading-strategy-in-u
 import { TradingStrategyNameConflictError } from '~/domain/errors/trading-strategy-name-conflict-error'
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -34,9 +35,9 @@ function tradingStrategyWire(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function writeDomainOf(id?: number) {
+function writeDomainOf(id?: number, tradingMode: TradingMode = 'longShort') {
   return new TradingStrategyWriteDomain(new TradingStrategyWriteDto(
-    id, '黃金交叉',
+    id, '黃金交叉', tradingMode,
     [new TradingStrategySignalSourceDto('A', 9, '1h', [])],
     new TradingStrategyConditionDto('n1', 'and', [
       new TradingStrategyConditionDto('n2', null, [], 'A', 'buy'),
@@ -175,5 +176,47 @@ describe('TradingStrategyProxy 把拒絕翻成該做什麼', () => {
 
     await expect(proxy().getTradingStrategy(3)).rejects.not.toBeInstanceOf(
       TradingStrategyNotFoundError)
+  })
+})
+
+// 交易模式現在是一份交易策略記著的欄位，所以它必須走完整條路：
+// 存進去送得出去、讀回來讀得出來。
+describe('TradingStrategyProxy 帶著交易模式進出', () => {
+  it('新增與改寫都把交易模式送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(tradingStrategyWire({ tradingMode: 'spot' }))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createTradingStrategy(writeDomainOf(undefined, 'spot'))
+    await proxy().updateTradingStrategy(writeDomainOf(3, 'spot'))
+
+    // 改寫是整份改寫，所以沒有哪個欄位只在其中一條路上送得出去。
+    expect(fetchMock.mock.calls[0]![1].body.tradingMode).toBe('spot')
+    expect(fetchMock.mock.calls[1]![1].body.tradingMode).toBe('spot')
+  })
+
+  it('讀的時候把交易模式讀回來', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      tradingStrategyWire({ tradingMode: 'spot' })))
+
+    expect((await proxy().getTradingStrategy(3)).tradingMode).toBe('spot')
+  })
+
+  it('後端沒回交易模式時讀作預設值', async () => {
+    // 一個還沒認得這個欄位的後端不會回它。讀作預設值，
+    // 與後端自己對一份沒填的交易策略的讀法一字不差——
+    // 而畫面永遠畫得出那一格，不會出現一個空的選項。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      tradingStrategyWire({ tradingMode: undefined })))
+
+    expect((await proxy().getTradingStrategy(3)).tradingMode).toBe('longShort')
+  })
+
+  it('後端回了一個認不得的拼法時同樣讀作預設值', async () => {
+    // 這一側不是那個規則的家——後端存的時候就擋掉了。這裡要的是
+    // 「畫面永遠畫得出來」，而一個畫不出來的值會讓那一格兩顆都沒選。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      tradingStrategyWire({ tradingMode: 'dayTrade' })))
+
+    expect((await proxy().getTradingStrategy(3)).tradingMode).toBe('longShort')
   })
 })

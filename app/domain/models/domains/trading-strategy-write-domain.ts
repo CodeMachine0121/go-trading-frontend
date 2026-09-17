@@ -57,6 +57,9 @@ export class TradingStrategyWriteDomain {
     return new TradingStrategyWriteDto(
       this.writeDto.id,
       this.writeDto.name.trim(),
+      // 沒有要正規化的東西：它是從兩顆並排的按鈕挑的，挑不出前後空白，
+      // 也挑不出非法值——與彙總刻度、押注模式同一套處理。
+      this.writeDto.tradingMode,
       this.writeDto.signalSources.map(signalSource => new TradingStrategySignalSourceDto(
         signalSource.label.trim(),
         signalSource.strategyScriptId,

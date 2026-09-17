@@ -164,6 +164,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
       -->
       <TradingStrategyWorkbench
         v-show="destination === 'workbench'"
+        :trading-mode-options="$tradingStrategyApplication.listTradingModeOptions()"
         :editing="workbench.editing.value"
         :strategy-script-options="workbench.strategyScriptOptions.value"
         :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
@@ -182,6 +183,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :trading-symbol-application="$tradingSymbolApplication"
         :time-zone="selectedTimeZone"
         :trading-strategy-id="tradingStrategyId"
+        :saved-trading-mode="workbench.editing.value?.tradingMode ?? null"
         :saved-generation="workbench.savedGeneration.value"
       />
     </template>

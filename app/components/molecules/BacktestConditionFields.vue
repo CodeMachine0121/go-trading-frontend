@@ -50,6 +50,16 @@ const {
    * 畫一個挑得動的選單，等於在畫面上放第二個答案而沒有規則說哪一個贏。
    */
   aggregationIntervalNote?: string | null
+  /**
+   * 交易模式不由填表的人挑時，要在那一格說的話。
+   *
+   * 與上面那一個是**同一件事**：重演一份交易策略時，交易模式是那一份自己記著的。
+   * 給了它就不畫那兩顆按鈕。
+   *
+   * 不畫成停用的按鈕，因為一顆灰掉的按鈕還在說「這裡有兩個選項，只是你現在不能動」，
+   * 而真相是這裡已經沒有選項了、答案在別的地方。一句話說得出答案是什麼。
+   */
+  tradingModeNote?: string | null
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -190,7 +200,10 @@ const selectedPositionSizingMode = computed(
         並排而不是下拉選單：多數使用者根本不知道現在這一種在幫他放空，
         而一個要點開才看得到的選單，救不了一個不知道要去點的人。
       -->
-      <div class="backtest-condition-fields__trading-mode-options">
+      <div
+        v-if="!tradingModeNote"
+        class="backtest-condition-fields__trading-mode-options"
+      >
         <AppRadio
           v-for="modeOption in tradingModeOptions"
           :key="modeOption.value"
@@ -203,6 +216,13 @@ const selectedPositionSizingMode = computed(
           :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
         />
       </div>
+      <p
+        v-else
+        class="backtest-condition-fields__note"
+        data-testid="backtest-trading-mode-note"
+      >
+        {{ tradingModeNote }}
+      </p>
     </FormField>
 
     <AppButton

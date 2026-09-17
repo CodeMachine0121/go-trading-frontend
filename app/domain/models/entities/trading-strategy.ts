@@ -1,4 +1,5 @@
 import { TradingStrategyDomain } from '~/domain/models/domains/trading-strategy-domain'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 /**
  * Entity：後端那一份交易策略的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -11,6 +12,13 @@ export class TradingStrategy {
   constructor(
     public readonly id: number,
     public readonly name: string,
+    /**
+     * 這一份是寫給哪一種帳戶的：賣出要出清回現金，還是要反手做空。
+     *
+     * 它在這裡而不在機器人身上，因為它變的是**規則的語意**——
+     * 同一棵條件樹在兩種模式下講的是兩件不同的事。
+     */
+    public readonly tradingMode: TradingMode,
     public readonly signalSources: readonly TradingStrategySignalSource[],
     /** 兩棵條件樹。後端保證兩邊都不為空，但讀回來的是資料，所以這裡仍然允許沒有。 */
     public readonly buyCondition: TradingStrategyCondition | null,

@@ -139,7 +139,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             initialCapital: requestDomain.initialCapital.toString(),
             positionSizingMode: requestDomain.positionSizingMode,
             positionSizingValue: requestDomain.positionSizingValue.toString(),
-            tradingMode: requestDomain.tradingMode,
+            // 交易模式不在這裡：它是那一份交易策略自己記著的，後端從那一份讀。
           },
         })
 

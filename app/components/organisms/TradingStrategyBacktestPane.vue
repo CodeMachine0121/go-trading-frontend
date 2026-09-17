@@ -20,14 +20,15 @@ import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strateg
 
 // 有機體：重演這一份交易策略。
 //
-// 它與重演一支策略腳本那一塊做的是同一件事，少了兩格：**算式與彙總刻度**。
-// 那兩樣是那份交易策略自己說的——每個信號來源各帶一支腳本與一個刻度，
-// 而這一版要求它們的刻度一致。畫一個挑得動的選單，等於在畫面上放第二個答案。
+// 它與重演一支策略腳本那一塊做的是同一件事，少了三格：**算式、彙總刻度與交易模式**。
+// 那三樣都是那份交易策略自己說的——每個信號來源各帶一支腳本與一個刻度，
+// 而交易模式是那一份記著的性質。畫一個挑得動的選單，等於在畫面上放第二個答案。
 const {
   backtestApplication,
   tradingSymbolApplication,
   timeZone,
   tradingStrategyId,
+  savedTradingMode,
   savedGeneration,
   backendUnreachable = false,
 } = defineProps<{
@@ -36,6 +37,14 @@ const {
   timeZone: TimeZoneDto
   /** 要重演哪一份。還沒存過的那一份是 `null`——沒有東西可以指名。 */
   tradingStrategyId: number | null
+  /**
+   * **存起來的那一份**是哪一種交易模式。還沒存過的那一份是 `null`。
+   *
+   * 是存起來的那一個，不是表單上正在改的那一個：重演打的是
+   * `/trading-strategies/{id}/backtests`，跑的是伺服器上那一份。
+   * 顯示未存的值，會讓使用者拿著一張「現貨」標籤底下的多空反手成績單。
+   */
+  savedTradingMode: TradingMode | null
   /**
    * 這一份被存過幾次。
    *
@@ -55,8 +64,28 @@ const aggregationInterval = ref('')
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
-// 交易模式的選項與說明來自同一個地方，所以這一頁與指標計算那一頁說的是同一句話。
-const tradingModeOptions = backtestApplication.listTradingModeOptions()
+
+/**
+ * 交易模式那一格要說的那一句話。
+ *
+ * 名字與說明來自 `TradingModeDomain`，與工作檯那一列、與重演一支腳本那兩顆按鈕
+ * 讀的是同一份字串——使用者在三塊畫面上讀到的必須是對同一件事的同一種說法。
+ *
+ * 還沒存過的那一份用預設值，與後端對一份沒填的交易策略的讀法一字不差。
+ */
+const tradingModeNote = computed(() => {
+  const optionDto = backtestApplication.tradingModeOption(savedTradingMode)
+
+  return `由這份交易策略決定：${optionDto.label}——${optionDto.description}`
+})
+
+/**
+ * 條件那一塊要一個繫結的值，因為它是兩種受測對象共用的。
+ *
+ * 這一塊挑不動交易模式，所以它從頭到尾不會變、也不會被送出去——
+ * 與彙總刻度那一格同一個狀況。
+ */
+const unpickedTradingMode = ref<string>(backtestApplication.defaultTradingMode())
 
 // 回測照什麼規則走。兩種受測對象讀的是同一份——規則本來就是同一套。
 const signalReadings = backtestApplication.listSignalReadings()
@@ -70,7 +99,6 @@ const endTime = ref(timeZone.formatMinuteInput(defaultTimeRange.endTime))
 const initialCapital = ref(backtestApplication.defaultInitialCapital().toString())
 const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizingMode())
 const positionSizingValue = ref('50')
-const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -84,7 +112,6 @@ async function runBacktest() {
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
-    tradingMode.value as TradingMode,
   ))
 }
 </script>
@@ -131,13 +158,14 @@ async function runBacktest() {
         v-model:initial-capital="initialCapital"
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
-        v-model:trading-mode="tradingMode"
+        v-model:trading-mode="unpickedTradingMode"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
         :aggregation-interval-note="'由這份交易策略的信號來源決定——這一版要求它們一致'"
         :position-sizing-mode-options="positionSizingModeOptions"
-        :trading-mode-options="tradingModeOptions"
+        :trading-mode-options="[]"
+        :trading-mode-note="tradingModeNote"
         :running="backtestRun.running.value"
         :disabled="tradingStrategyId === null
           || backendUnreachable || backtestRun.backendUnreachable.value"
@@ -145,7 +173,6 @@ async function runBacktest() {
         :time-range-error="backtestRun.messageFor('timeRange')"
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
-        :trading-mode-error="backtestRun.messageFor('tradingMode')"
       />
     </AppPanel>
 
