@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
@@ -25,6 +26,7 @@ export class TradingStrategyBacktestRequestDomain {
   readonly initialCapital: Decimal
   readonly positionSizingMode: PositionSizingMode
   readonly positionSizingValue: Decimal
+  readonly tradingMode: TradingMode
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -50,5 +52,7 @@ export class TradingStrategyBacktestRequestDomain {
     this.initialCapital = requestDto.initialCapital
     this.positionSizingMode = requestDto.positionSizingMode
     this.positionSizingValue = requestDto.positionSizingValue
+    // 與重演一支腳本同一套處理：從兩顆按鈕挑的，挑不出非法值。
+    this.tradingMode = requestDto.tradingMode
   }
 }

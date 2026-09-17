@@ -13,6 +13,7 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -489,5 +490,93 @@ describe('StrategyScriptBacktestPane', () => {
 
       expect(wrapper.emitted('update:symbol')?.at(-1)).toEqual(['ETHUSDT'])
     })
+  })
+})
+
+describe('StrategyScriptBacktestPane 照哪一套規矩操作', () => {
+  it('兩個選項同時看得見，不必點開任何東西', async () => {
+    // 這件事的價值就在於多數人不知道現在這一種在幫他放空。
+    // 藏進一個要點開才看得到的選單裡，救不了一個不知道要去點的人。
+    const wrapper = mountPane(buildProxy())
+
+    expect(wrapper.find('[data-testid="backtest-trading-mode-longShort-radio"]').exists())
+      .toBe(true)
+    expect(wrapper.find('[data-testid="backtest-trading-mode-spot-radio"]').exists())
+      .toBe(true)
+  })
+
+  it('每個選項都說得出它拿賣出信號做什麼', () => {
+    const wrapper = mountPane(buildProxy())
+
+    expect(wrapper.get('[data-testid="backtest-trading-mode-longShort-radio"]').text())
+      .toContain('反手做空')
+    expect(wrapper.get('[data-testid="backtest-trading-mode-spot-radio"]').text())
+      .toContain('不放空')
+  })
+
+  it('一打開停在既有的那一種', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await runBacktest(wrapper)
+
+    expect(vi.mocked(proxy.runBacktest).mock.calls[0]![0].tradingMode).toBe('longShort')
+  })
+
+  it('挑了現貨，送出去的就是現貨', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    await runBacktest(wrapper)
+
+    expect(vi.mocked(proxy.runBacktest).mock.calls[0]![0].tradingMode).toBe('spot')
+  })
+
+  it('換模式不動表單上任何一格', async () => {
+    // 他會拿同一組條件跑兩次來對照，所以換這一格不該讓他重填其他四格。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+    await wrapper.get('[data-testid="backtest-initial-capital-input"]').setValue('88888')
+    await wrapper.get('[data-testid="backtest-position-sizing-mode-select"]')
+      .setValue('percentage')
+    await wrapper.get('[data-testid="backtest-position-sizing-value-input"]').setValue('30')
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    // 換過去再換回來：他會拿同一組條件跑兩次來對照，兩趟都不該弄丟任何東西。
+    await wrapper.get('[data-testid="backtest-trading-mode-longShort-radio"] input').setValue()
+
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-initial-capital-input"]').element.value).toBe('88888')
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-position-sizing-value-input"]').element.value).toBe('30')
+    expect(wrapper.get<HTMLSelectElement>(
+      '[data-testid="backtest-position-sizing-mode-select"]').element.value).toBe('percentage')
+  })
+
+  it('換模式不清掉上一張成績單', async () => {
+    // 他還沒按執行，什麼都還沒發生。
+    const wrapper = mountPane(buildProxy())
+    await runBacktest(wrapper)
+    expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+
+    expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
+  })
+
+  it('後端說交易模式不對時，那句話留在那一格旁邊', async () => {
+    const proxy = buildProxy({
+      runBacktest: vi.fn().mockRejectedValue(new BacktestFieldError(
+        'tradingMode', '交易模式只能是 longShort、spot 其中之一')),
+    })
+    const wrapper = mountPane(proxy)
+
+    await runBacktest(wrapper)
+
+    // 位置就是這一條的全部重點：標在頁面頂端，使用者得自己猜是哪一格不對。
+    const tradingModeField = wrapper.get('.backtest-condition-fields__trading-mode')
+    expect(tradingModeField.get('[data-testid="field-error"]').text())
+      .toBe('交易模式只能是 longShort、spot 其中之一')
   })
 })

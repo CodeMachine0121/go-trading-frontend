@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { describe, expect, it } from 'vitest'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
@@ -16,6 +17,7 @@ function aRequest(overrides: Partial<{
   initialCapital: Decimal
   positionSizingMode: PositionSizingMode
   positionSizingValue: Decimal
+  tradingMode: TradingMode
 }> = {}) {
   return new TradingStrategyBacktestRequestDto(
     overrides.tradingStrategyId ?? 7,
@@ -25,6 +27,7 @@ function aRequest(overrides: Partial<{
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
     overrides.positionSizingValue ?? new Decimal('50'),
+    overrides.tradingMode ?? 'longShort',
   )
 }
 

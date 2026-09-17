@@ -29,6 +29,7 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   timeRange: 'timeRange',
   initialCapital: 'initialCapital',
   positionSizingValue: 'positionSizingValue',
+  tradingMode: 'tradingMode',
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
   // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要重演什麼」有關的地方。
   signalSources: 'symbol',
@@ -95,6 +96,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           initialCapital: backtestRequestDomain.initialCapital.toString(),
           positionSizingMode: backtestRequestDomain.positionSizingMode,
           positionSizingValue: backtestRequestDomain.positionSizingValue.toString(),
+          tradingMode: backtestRequestDomain.tradingMode,
           // 宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
           // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
           parameters: backtestRequestDomain.parameters.all.map(parameter => ({
@@ -137,6 +139,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             initialCapital: requestDomain.initialCapital.toString(),
             positionSizingMode: requestDomain.positionSizingMode,
             positionSizingValue: requestDomain.positionSizingValue.toString(),
+            tradingMode: requestDomain.tradingMode,
           },
         })
 

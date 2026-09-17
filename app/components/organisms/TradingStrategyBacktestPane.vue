@@ -14,6 +14,7 @@ import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
 
@@ -54,6 +55,8 @@ const aggregationInterval = ref('')
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
+// 交易模式的選項與說明來自同一個地方，所以這一頁與指標計算那一頁說的是同一句話。
+const tradingModeOptions = backtestApplication.listTradingModeOptions()
 
 // 回測照什麼規則走。兩種受測對象讀的是同一份——規則本來就是同一套。
 const signalReadings = backtestApplication.listSignalReadings()
@@ -67,6 +70,7 @@ const endTime = ref(timeZone.formatMinuteInput(defaultTimeRange.endTime))
 const initialCapital = ref(backtestApplication.defaultInitialCapital().toString())
 const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizingMode())
 const positionSizingValue = ref('50')
+const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -80,6 +84,7 @@ async function runBacktest() {
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
+    tradingMode.value as TradingMode,
   ))
 }
 </script>
@@ -126,11 +131,13 @@ async function runBacktest() {
         v-model:initial-capital="initialCapital"
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
+        v-model:trading-mode="tradingMode"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
         :aggregation-interval-note="'由這份交易策略的信號來源決定——這一版要求它們一致'"
         :position-sizing-mode-options="positionSizingModeOptions"
+        :trading-mode-options="tradingModeOptions"
         :running="backtestRun.running.value"
         :disabled="tradingStrategyId === null
           || backendUnreachable || backtestRun.backendUnreachable.value"
@@ -138,6 +145,7 @@ async function runBacktest() {
         :time-range-error="backtestRun.messageFor('timeRange')"
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
+        :trading-mode-error="backtestRun.messageFor('tradingMode')"
       />
     </AppPanel>
 

@@ -16,6 +16,7 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
 
@@ -62,6 +63,7 @@ const aggregationInterval = defineModel<string>('aggregationInterval', { require
 const backtestRun = useBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
+const tradingModeOptions = backtestApplication.listTradingModeOptions()
 
 // 回測照什麼規則走。三份都不會變，取一次就好——它們描述的是系統的行為，不是這一次的資料。
 const signalReadings = backtestApplication.listSignalReadings()
@@ -82,6 +84,9 @@ const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizing
 // 那一格的數字活在自己的 ref 裡，切換模式時不清掉：使用者在百分比填了 50、
 // 切去全押看一眼再切回來，50 還在——他本來就沒有改過它。
 const positionSizingValue = ref('50')
+// 這一次照哪一套規矩操作。它與上面那幾格一樣活在自己的 ref 裡，
+// 所以換它不會動到任何別的東西，也不會清掉上一張成績單。
+const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
@@ -98,6 +103,7 @@ async function runBacktest() {
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
+    tradingMode.value as TradingMode,
   ))
 }
 </script>
@@ -136,16 +142,19 @@ async function runBacktest() {
         v-model:initial-capital="initialCapital"
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
+        v-model:trading-mode="tradingMode"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
         :position-sizing-mode-options="positionSizingModeOptions"
+        :trading-mode-options="tradingModeOptions"
         :running="backtestRun.running.value"
         :disabled="backendUnreachable || backtestRun.backendUnreachable.value"
         :symbol-error="backtestRun.messageFor('symbol')"
         :time-range-error="backtestRun.messageFor('timeRange')"
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
+        :trading-mode-error="backtestRun.messageFor('tradingMode')"
       />
 
       <p

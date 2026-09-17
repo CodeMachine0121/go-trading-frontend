@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 /**
  * DTO：使用者在重演一份交易策略那一格填的原始輸入。
@@ -17,5 +18,7 @@ export class TradingStrategyBacktestRequestDto {
     public readonly positionSizingMode: PositionSizingMode,
     /** 押注模式不需要數字時（全押）它被忽略，因此填什麼都不影響結果。 */
     public readonly positionSizingValue: Decimal,
+    /** 這一次照哪一套規矩操作：賣出時要反手做空，還是平倉把錢收回來。 */
+    public readonly tradingMode: TradingMode,
   ) {}
 }
