@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppTabs from '~/components/atoms/AppTabs.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
+import TradingStrategyBacktestPane from '~/components/organisms/TradingStrategyBacktestPane.vue'
 import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWorkbench.vue'
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import { useTradingStrategyWorkbench } from '~/composables/use-trading-strategy-workbench'
@@ -16,7 +18,28 @@ const { tradingStrategyId } = defineProps<{
   tradingStrategyId: number | null
 }>()
 
-const { $tradingStrategyApplication, $strategyScriptApplication } = useNuxtApp()
+const {
+  $tradingStrategyApplication,
+  $strategyScriptApplication,
+  $backtestApplication,
+  $tradingSymbolApplication,
+} = useNuxtApp()
+
+/**
+ * 這一頁有兩個去處：拼規則，與拿歷史問它一次。
+ *
+ * 打開時停在工作檯，那是這一頁原本就在做的事。切換不清空任何東西——
+ * 兩邊都還掛在畫面上，只是其中一邊此刻看得見，所以填到一半的回測條件不會掉。
+ */
+const WORKBENCH_DESTINATIONS = [
+  { value: 'workbench', label: '拼規則' },
+  { value: 'backtest', label: '回測' },
+] as const
+
+const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
+
+/** 這一份被存過幾次。回測那一側看著它決定何時把上一次的成績單清掉。 */
+const savedGeneration = ref(0)
 
 const workbench = useTradingStrategyWorkbench(
   $tradingStrategyApplication, $strategyScriptApplication, tradingStrategyId)
@@ -39,6 +62,8 @@ watch([() => workbench.saved.value, () => workbench.missing.value], ([justSaved,
     void navigateTo('/trading-strategies')
   }
 })
+
+const { selectedTimeZone } = useSelectedTimeZone()
 
 /**
  * 改到一半想離開就先問過。
@@ -88,16 +113,38 @@ onBeforeRouteLeave(() => workbench.dirty.value
       找不到這一份交易策略，它可能已經被刪掉了。
     </AppAlert>
 
-    <TradingStrategyWorkbench
-      v-else
-      :editing="workbench.editing.value"
-      :strategy-script-options="workbench.strategyScriptOptions.value"
-      :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
-      :saving="workbench.saving.value"
-      :failure-message="workbench.failureMessage.value"
-      @cancel="navigateTo('/trading-strategies')"
-      @save="workbench.save"
-      @dirty-change="workbench.markDirty"
-    />
+    <template v-else>
+      <!-- 切換擺在工作檯上面：兩個去處問的是同一份規則的兩個問題。 -->
+      <AppTabs
+        v-model="destination"
+        :options="WORKBENCH_DESTINATIONS"
+      />
+
+      <!--
+        兩個去處都掛著，只有一個看得見。用 v-show 而不是 v-if，
+        是因為填到一半的回測條件與已經算出來的結果都必須留著——
+        切過去再切回來，畫面與離開時一樣。
+      -->
+      <TradingStrategyWorkbench
+        v-show="destination === 'workbench'"
+        :editing="workbench.editing.value"
+        :strategy-script-options="workbench.strategyScriptOptions.value"
+        :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
+        :saving="workbench.saving.value"
+        :failure-message="workbench.failureMessage.value"
+        @cancel="navigateTo('/trading-strategies')"
+        @save="workbench.save"
+        @dirty-change="workbench.markDirty"
+      />
+
+      <TradingStrategyBacktestPane
+        v-show="destination === 'backtest'"
+        :backtest-application="$backtestApplication"
+        :trading-symbol-application="$tradingSymbolApplication"
+        :time-zone="selectedTimeZone"
+        :trading-strategy-id="tradingStrategyId"
+        :saved-generation="savedGeneration"
+      />
+    </template>
   </ConsoleLayout>
 </template>

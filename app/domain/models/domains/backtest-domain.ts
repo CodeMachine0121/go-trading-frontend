@@ -77,6 +77,7 @@ export class BacktestDomain {
         ? WIN_RATE_NOT_APPLICABLE
         : this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS),
       this.backtest.closedTrades.length,
+      this.backtest.conflictedCandleCount,
     )
   }
 

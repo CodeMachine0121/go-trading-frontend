@@ -3,6 +3,7 @@ import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dt
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
+import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
@@ -53,10 +54,7 @@ export class BacktestRequestDomain {
     new BacktestTimeRangeDomain(
       backtestRequestDto.startTime, backtestRequestDto.endTime).validate()
 
-    if (backtestRequestDto.initialCapital.isNaN()
-      || backtestRequestDto.initialCapital.lessThanOrEqualTo(0)) {
-      throw new BacktestFieldError('initialCapital', '請填一個大於零的數。')
-    }
+    new BacktestInitialCapitalDomain(backtestRequestDto.initialCapital).validate()
 
     new PositionSizingDomain(
       backtestRequestDto.positionSizingMode, backtestRequestDto.positionSizingValue).validate()

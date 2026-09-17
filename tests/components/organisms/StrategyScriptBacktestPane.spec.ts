@@ -52,6 +52,7 @@ function completedBacktest(overrides: Partial<{
     overrides.totalReturnRate ?? 0.25, 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
     4,
+    0,
     overrides.closedTrades ?? [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
       new Decimal('10000'), new Decimal('1000'))],
@@ -64,6 +65,7 @@ function completedBacktest(overrides: Partial<{
 function buildProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
   return {
     runBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    runTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
     ...overrides,
   }
 }

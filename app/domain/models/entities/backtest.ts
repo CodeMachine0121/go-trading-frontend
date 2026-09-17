@@ -46,6 +46,17 @@ export class Backtest {
     public readonly maximumDrawdown: number,
     public readonly winRate: number | null,
     public readonly positionOpenCount: number,
+    /**
+     * 買入與賣出條件**同時成立**的棒數。
+     *
+     * 那幾棒什麼都不做——替他挑一邊等於讓他照一個系統自己編出來的意見操作。
+     * 它是一個數字而不是一個是非，因為要知道的是**多常**：一次是巧合，
+     * 兩百棒裡一百八十次代表這份交易策略根本沒有在做決定，
+     * 而那張幾乎沒有交易的漂亮成績單會被讀成「很穩」。
+     *
+     * 重演一支策略腳本時它恆為零——一支腳本不會與自己打架。
+     */
+    public readonly conflictedCandleCount: number,
     public readonly closedTrades: readonly ClosedTrade[],
     public readonly equityCurve: readonly EquityPoint[],
   ) {}

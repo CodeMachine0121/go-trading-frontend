@@ -18,5 +18,10 @@ export class BacktestSummaryDto {
     /** 一筆都沒平倉時是「不適用」，不是 `'0%'`。 */
     public readonly winRate: string,
     public readonly tradeCount: number,
+    /**
+     * 兩邊條件同時成立的棒數，**零的時候不顯示**——一支策略腳本的成績單上
+     * 多一個永遠是零的格子，只會讓人以為它有什麼意思。
+     */
+    public readonly conflictedCandleCount: number,
   ) {}
 }

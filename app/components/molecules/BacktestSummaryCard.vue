@@ -52,6 +52,21 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
         {{ summary.tradeCount }}
       </dd>
     </div>
+    <!--
+      打架過才出現。零的時候多一格永遠是零的數字，只會讓人以為它有什麼意思——
+      而重演一支策略腳本時它永遠是零。
+      出現的時候它要被看見：一份一直在打架的交易策略幾乎不交易，
+      而那張漂亮的成績單會被讀成「很穩」。
+    -->
+    <div
+      v-if="summary.conflictedCandleCount > 0"
+      class="backtest-summary-card__item backtest-summary-card__item--warning"
+    >
+      <dt>規則打架的棒數</dt>
+      <dd data-testid="summary-conflicted-candle-count">
+        {{ summary.conflictedCandleCount }}
+      </dd>
+    </div>
   </dl>
 </template>
 
@@ -70,6 +85,15 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
     flex-direction: column;
     gap: spacing('3xs');
     min-width: 0;
+  }
+
+  &__item--warning {
+    // 打架過的那一格要被看見：它解釋了上面那幾個數字為什麼好看。
+    border-color: color('border-strong');
+
+    dt {
+      color: color('text');
+    }
   }
 
   dt {
