@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
+import AppToast from '~/components/atoms/AppToast.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import TradingStrategyBacktestPane from '~/components/organisms/TradingStrategyBacktestPane.vue'
@@ -38,9 +40,6 @@ const WORKBENCH_DESTINATIONS = [
 
 const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
 
-/** 這一份被存過幾次。回測那一側看著它決定何時把上一次的成績單清掉。 */
-const savedGeneration = ref(0)
-
 const workbench = useTradingStrategyWorkbench(
   $tradingStrategyApplication, $strategyScriptApplication, tradingStrategyId)
 
@@ -51,15 +50,35 @@ onMounted(() => {
   void workbench.load()
 })
 
+const TRADING_STRATEGY_LIST = '/trading-strategies'
+
 /**
- * 存好了、或那一份根本不在了，就回清單。
+ * 那一份根本不在了就回清單——這一頁沒有東西可以留。
+ *
+ * **存好了不在此列**：存好之後最常做的下一件事是回測它，而那個分頁就在這一頁上。
  *
  * 用 watch 而不是在 save 裡直接跳轉：跳轉是這一頁的事，存是那個 composable 的事，
  * 而一個知道怎麼跳轉的 composable 就跟著知道了它被放在哪一條路由底下。
  */
-watch([() => workbench.saved.value, () => workbench.missing.value], ([justSaved, notThere]) => {
-  if (justSaved || notThere) {
-    void navigateTo('/trading-strategies')
+watch(() => workbench.missing.value, (notThere) => {
+  if (notThere) {
+    void navigateTo(TRADING_STRATEGY_LIST)
+  }
+})
+
+/**
+ * 剛拼好的那一份存下來之後，這一頁從此改的就是它。
+ *
+ * **這不是修飾**：留在「新拼一份」那條網址上、而表單裡的識別碼還是空的話，
+ * 他再按一次儲存就會建出第二份一模一樣的。換過去同時讓重新整理留在那一份上，
+ * 也讓回測那一側拿得到識別碼——它在存之前是停用的。
+ *
+ * 用 replace 而不是 push：那條「新拼一份」的網址已經不再指向任何存在的狀態，
+ * 留在上一頁堆疊裡只會讓上一頁變成一個回不去的地方。
+ */
+watch(() => workbench.createdId.value, (createdId) => {
+  if (createdId !== null) {
+    void navigateTo(`${TRADING_STRATEGY_LIST}/${createdId}`, { replace: true })
   }
 })
 
@@ -114,6 +133,24 @@ onBeforeRouteLeave(() => workbench.dirty.value
     </AppAlert>
 
     <template v-else>
+      <AppToast :message="workbench.announcement.value" />
+
+      <!--
+        回清單的出口擺在**分頁切換之上**，所以它與現在在哪一個分頁無關：
+        剛回測完想回去，與剛存完想回去，是一樣常見的事。
+        沒存的改動由這一頁的離開提醒接手，這裡不必自己問一次。
+      -->
+      <div class="workbench-page__exit">
+        <AppButton
+          type="button"
+          variant="ghost"
+          data-testid="back-to-trading-strategies"
+          @click="navigateTo(TRADING_STRATEGY_LIST)"
+        >
+          ← 回交易策略列表
+        </AppButton>
+      </div>
+
       <!-- 切換擺在工作檯上面：兩個去處問的是同一份規則的兩個問題。 -->
       <AppTabs
         v-model="destination"
@@ -132,7 +169,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
         :saving="workbench.saving.value"
         :failure-message="workbench.failureMessage.value"
-        @cancel="navigateTo('/trading-strategies')"
+        :saved-generation="workbench.savedGeneration.value"
         @save="workbench.save"
         @dirty-change="workbench.markDirty"
       />
@@ -143,8 +180,16 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :trading-symbol-application="$tradingSymbolApplication"
         :time-zone="selectedTimeZone"
         :trading-strategy-id="tradingStrategyId"
-        :saved-generation="savedGeneration"
+        :saved-generation="workbench.savedGeneration.value"
       />
     </template>
   </ConsoleLayout>
 </template>
+
+<style scoped lang="scss">
+.workbench-page {
+  &__exit {
+    display: flex;
+  }
+}
+</style>
