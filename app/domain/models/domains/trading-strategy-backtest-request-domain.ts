@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
@@ -37,9 +38,7 @@ export class TradingStrategyBacktestRequestDomain {
 
     new BacktestTimeRangeDomain(requestDto.startTime, requestDto.endTime).validate()
 
-    if (requestDto.initialCapital.isNaN() || requestDto.initialCapital.lessThanOrEqualTo(0)) {
-      throw new BacktestFieldError('initialCapital', '請填一個大於零的數。')
-    }
+    new BacktestInitialCapitalDomain(requestDto.initialCapital).validate()
 
     new PositionSizingDomain(
       requestDto.positionSizingMode, requestDto.positionSizingValue).validate()
