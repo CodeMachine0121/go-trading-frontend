@@ -28,6 +28,8 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
       editing,
       strategyScriptOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
       parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
+      unusableStrategyScripts: {},
+      shortage: null,
       saving: false,
       failureMessage: '',
       savedGeneration: 0,
@@ -630,5 +632,219 @@ describe('TradingStrategyWorkbench：存好之後', () => {
 
     await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
     expect((wrapper.emitted('save')?.at(-1)?.[0] as { id?: number }).id).toBe(99)
+  })
+})
+
+describe('TradingStrategyWorkbench：零件指著一支挑不得的策略腳本', () => {
+  /** 一塊指著 11 號的零件，而 11 號不在選單裡。 */
+  function withAStrayPiece(unusableStrategyScripts: Record<number, string>) {
+    return mount(TradingStrategyWorkbench, {
+      props: {
+        editing: aBot(
+          comparison('b', '壞掉的', 'buy'),
+          comparison('s', '壞掉的', 'sell'),
+          [new TradingStrategySignalSourceDto('壞掉的', 11, '5m', [])]),
+        strategyScriptOptions: [{ value: 9, label: 'MACD' }],
+        parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
+        unusableStrategyScripts,
+        shortage: null,
+        saving: false,
+        failureMessage: '',
+        savedGeneration: 0,
+      },
+    })
+  }
+
+  it('選單不是一片空白——它說得出這塊零件用的是哪一支、為什麼用不了', async () => {
+    // 空白看起來像「還沒選」。使用者因此不知道自己正看著一塊壞掉的零件，
+    // 會按下儲存、得到一句後端的拒絕，然後回來對著一個空白的選單。
+    const wrapper = withAStrayPiece({ 11: '吐一個數字的（這支不吐訊號，當不了信號來源）' })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await flushPromises()
+
+    const strayOption = wrapper.get('[data-testid="strategy-script-stray-option"]')
+    expect(strayOption.text()).toContain('吐一個數字的')
+    // 說得出，但按不下去——挑得到就等於讓人拼出一份後端會拒絕的交易策略。
+    expect(strayOption.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="strategy-script-stray-note"]').exists()).toBe(true)
+  })
+
+  it('那一支根本不在了也照樣說一句——「不見了」與「不能用」要做的事一樣', async () => {
+    const wrapper = withAStrayPiece({})
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="strategy-script-stray-option"]').text()).toContain('11')
+  })
+
+  it('指著一支挑得到的策略腳本時，選單裡沒有那一行多出來的東西', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="strategy-script-stray-option"]').exists()).toBe(false)
+  })
+})
+
+describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子說得出是哪一種', () => {
+  function withShortage(shortage: 'noStrategyScripts' | 'noSignalStrategyScripts') {
+    return mount(TradingStrategyWorkbench, {
+      props: {
+        editing: null,
+        strategyScriptOptions: [],
+        parameterNamesByStrategyScriptId: {},
+        unusableStrategyScripts: {},
+        shortage,
+        saving: false,
+        failureMessage: '',
+        savedGeneration: 0,
+      },
+    })
+  }
+
+  it('一支都沒建過——下一步是去建一支', async () => {
+    const wrapper = withShortage('noStrategyScripts')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="no-strategy-scripts"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="no-signal-strategy-scripts"]').exists()).toBe(false)
+  })
+
+  it('建了幾支、但沒有一支吐訊號——下一步是去改它們的指標值種類', async () => {
+    // 兩種說同一句話的話，他只會去建第五支同樣用不了的腳本。
+    const wrapper = withShortage('noSignalStrategyScripts')
+    await flushPromises()
+
+    const note = wrapper.get('[data-testid="no-signal-strategy-scripts"]')
+    expect(note.text()).toContain('一個信號')
+    expect(wrapper.find('[data-testid="no-strategy-scripts"]').exists()).toBe(false)
+  })
+
+  it('挑不到的時候加不了零件——按了只會得到一個空的下拉選單', async () => {
+    const wrapper = withShortage('noSignalStrategyScripts')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="strategy-script-add"]').exists()).toBe(false)
+  })
+})
+
+describe('TradingStrategyWorkbench：把零件從一組裡拖出來', () => {
+  /** 買入墊子上一組（B、A）加上獨立的 C。 */
+  function withABundle() {
+    return mountWorkbench(aBot(
+      group('and',
+        group('or', comparison('b1', 'MACD', 'buy'), comparison('a1', 'ATR', 'buy')),
+        comparison('c1', 'RSI', 'buy')),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+        new TradingStrategySignalSourceDto('RSI', 9, '5m', []),
+      ]))
+  }
+
+  it('沒拿東西的時候格與格之間只是一條髮絲——永遠攤開的帶子多數時間只是噪音', async () => {
+    const wrapper = withABundle()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
+      .not.toContain('mat__drop-line--open')
+  })
+
+  it('拿起一塊零件，縫就張開成一條真的放得下去的帶子', async () => {
+    // 沒有它，「把零件從一組裡拖出來」唯一的落點是一條看不見的髮絲線——
+    // 也就是做不到。
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
+      .toContain('mat__drop-line--open')
+    expect(wrapper.get('[data-testid="drop-buy-1"]').classes())
+      .toContain('mat__drop-line--open')
+  })
+
+  it('拖出去放到那條帶子上，它就從那一組裡出來了', async () => {
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-buy-1"]').trigger('drop')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="item-buy-MACD+ATR"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="item-buy-ATR"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="item-buy-MACD"]').exists()).toBe(true)
+  })
+
+  it('放掉之後帶子收回去', async () => {
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragend')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="drop-buy-0"]').classes())
+      .not.toContain('mat__drop-line--open')
+  })
+})
+
+describe('TradingStrategyWorkbench：帶子說得出放下去會發生什麼', () => {
+  function withABundle() {
+    return mountWorkbench(aBot(
+      group('and',
+        group('or', comparison('b1', 'MACD', 'buy'), comparison('a1', 'ATR', 'buy')),
+        comparison('c1', 'RSI', 'buy')),
+      comparison('s', 'MACD', 'sell'),
+      [
+        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+        new TradingStrategySignalSourceDto('RSI', 9, '5m', []),
+      ]))
+  }
+
+  it('拿的是組裡那一塊時，帶子說它會被拆出來', async () => {
+    // 不說的話，「拖出去就是拆開」這件事只有試過一次的人才知道。
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-buy-1"]').trigger('dragover')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="drop-buy-1"]').text()).toContain('拆出來')
+  })
+
+  it('拿的是獨立的那一塊時，同一條帶子只說搬到這裡', async () => {
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-RSI"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-buy-0"]').trigger('dragover')
+    await flushPromises()
+
+    const hint = wrapper.get('[data-testid="drop-buy-0"]').text()
+    expect(hint).toContain('放這裡')
+    expect(hint).not.toContain('拆出來')
+  })
+
+  it('只有正被懸著的那一條說話——四條同時寫同一句，那句就變成背景', async () => {
+    const wrapper = withABundle()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="placed-buy-ATR"]').trigger('dragstart', dragEvent())
+    await wrapper.get('[data-testid="drop-buy-1"]').trigger('dragover')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="drop-buy-0"]').text()).toBe('')
   })
 })

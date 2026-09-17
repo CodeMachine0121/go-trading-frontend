@@ -18,11 +18,14 @@ const { sources, placedLabels, intervalOptions } = defineProps<{
   canAdd: boolean
   signalSourceLimit: number
   /**
-   * 一支會吐訊號的策略腳本都沒有。
+   * 一支挑得到的策略腳本都沒有，而且是哪一種沒有。挑得到就是 `null`。
    *
    * 這時按新增只會得到一個空的下拉選單——而畫面**明明知道原因**。
+   * 而且原因有兩種，下一步完全不同：一支都沒建過的人要去建一支；
+   * 建了好幾支卻沒有一支吐訊號的人要去改它們的指標值種類。
+   * 兩種說同一句話，等於把後者推去建第五支同樣用不了的腳本。
    */
-  hasNoStrategyScripts: boolean
+  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
 }>()
 
 const emit = defineEmits<{
@@ -55,11 +58,20 @@ function intervalLabelOf(interval: string): string {
     </h3>
 
     <p
-      v-if="hasNoStrategyScripts"
+      v-if="shortage === 'noStrategyScripts'"
       class="shelf__note"
       data-testid="no-strategy-scripts"
     >
-      還沒有任何會吐訊號的策略腳本。先去策略腳本庫建一支。
+      還沒有任何策略腳本。先去策略腳本庫建一支。
+    </p>
+    <p
+      v-else-if="shortage === 'noSignalStrategyScripts'"
+      class="shelf__note"
+      data-testid="no-signal-strategy-scripts"
+    >
+      你有策略腳本，但沒有一支吐訊號，所以一支都挑不到。
+      條件比對的是買入／賣出／持有，只有指標值種類是「一個信號」的腳本說得出那三個值——
+      去策略腳本庫把要用的那幾支改成「一個信號」（算式要回傳 indicator.Signal）。
     </p>
     <p
       v-else-if="sources.length === 0"
@@ -113,7 +125,7 @@ function intervalLabelOf(interval: string): string {
         </div>
       </li>
 
-      <li v-if="canAdd && !hasNoStrategyScripts">
+      <li v-if="canAdd && shortage === null">
         <AppButton
           type="button"
           variant="secondary"
@@ -125,7 +137,7 @@ function intervalLabelOf(interval: string): string {
           ＋ 加一塊零件
         </AppButton>
       </li>
-      <li v-else-if="!hasNoStrategyScripts">
+      <li v-else-if="shortage === null">
         <span class="shelf__note">架子上最多 {{ signalSourceLimit }} 塊</span>
       </li>
     </ul>

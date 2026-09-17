@@ -19,9 +19,10 @@ const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defin
   strategyScriptOptions: readonly { value: number, label: string }[]
   intervalOptions: readonly { value: string, label: string }[]
   parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
+  unusableStrategyScripts: Readonly<Record<number, string>>
   canAdd: boolean
   signalSourceLimit: number
-  hasNoStrategyScripts: boolean
+  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
 }>()
 
 const emit = defineEmits<{
@@ -158,7 +159,7 @@ function dropOnShelf() {
         :interval-options="intervalOptions"
         :can-add="canAdd"
         :signal-source-limit="signalSourceLimit"
-        :has-no-strategy-scripts="hasNoStrategyScripts"
+        :shortage="shortage"
         @add="emit('add')"
         @remove="index => emit('remove', index)"
         @tune="index => tuningIndex = index"
@@ -175,6 +176,7 @@ function dropOnShelf() {
         :tone="mat.key"
         :side="mat.key"
         :hovering-at="hoveringOn(mat.key)"
+        :carrying="holding?.sourceLabel ?? null"
         @hover-over="position => hoverOver(mat.key, position)"
         @drop-at="position => dropOnMat(mat.key, position)"
         @drop-onto-piece="targetLabel => dropOntoPiece(mat.key, targetLabel)"
@@ -192,6 +194,7 @@ function dropOnShelf() {
     <TradingStrategyPieceSettingsDialog
       :piece="tuningPiece"
       :strategy-script-options="strategyScriptOptions"
+      :unusable-strategy-scripts="unusableStrategyScripts"
       :interval-options="intervalOptions"
       :parameter-names="tuningParameterNames"
       @close="tuningIndex = null"

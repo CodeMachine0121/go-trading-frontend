@@ -9,13 +9,24 @@ import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-
 //
 // 兩張墊子是同一個元件的兩份，因為它們要做的事一模一樣。寫兩份的話，
 // 第二份就是那個忘記同步的地方。
-const { board, heading, tone, hoveringAt } = defineProps<{
+const { board, heading, tone, hoveringAt, carrying } = defineProps<{
   board: ConditionBoardDto
   heading: string
   /** 這一邊是買還是賣。只決定顏色，不決定行為。 */
   tone: 'buy' | 'sell'
   /** 這張墊子上的哪一格正被游標懸著。不是這一張時為 `null`。 */
   hoveringAt: number | null
+  /**
+   * 手上正拿著的那一塊零件的代號——不分它是從哪裡拿起來的。沒拿東西時為 `null`。
+   *
+   * 格與格之間的縫平常只有兩三個像素，因為它們多數時間只是噪音。但那也讓
+   * 「把零件從一組裡拖出來」**做不到**：唯一的落點是一條看不見的髮絲線。
+   * 拿著東西的時候縫張開成一條真的放得下去的帶子，拖出來才是一個辦得到的動作。
+   *
+   * 拿的是代號而不是一個是非，因為那條帶子要說得出**放下去會發生什麼**：
+   * 同一個動作，對一塊獨立的零件是搬位置，對一塊扣在組裡的零件是把它拆出來。
+   */
+  carrying: string | null
   /** 這一邊在畫面上的識別字，用來組出 data-testid。 */
   side: string
 }>()
@@ -67,6 +78,15 @@ function inPlainWords(accepted: readonly string[]): string {
   return `也就是「不是${excluded?.label ?? ''}」`
 }
 
+/**
+ * 手上這一塊現在扣在這張墊子的某一組裡。
+ *
+ * 那決定的不是行為——放到帶子上一律是「擺到這一格」——而是帶子上寫什麼。
+ * 不說的話，「拖出去就是拆開」這件事只有試過一次的人才知道。
+ */
+const carryingOutOfBundle = computed(() => carrying !== null
+  && board.items.some(item => item.isBundle && item.holdsLabels.includes(carrying)))
+
 function onOperatorChange(chosen: string) {
   const operator = CONDITION_OPERATORS.find(candidate => candidate === chosen)
   if (operator !== undefined) {
@@ -97,8 +117,8 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
 
     <ul class="mat__items">
       <!--
-        每一格前面都有一條放置線。它只在拿著東西的時候亮，
-        因為一條永遠掛在那裡的線，多數時間只是噪音。
+        每一格前面都有一條放置線。它只在拿著東西的時候張開，
+        因為一條永遠掛在那裡的帶子，多數時間只是噪音。
       -->
       <li
         v-for="(item, position) in board.items"
@@ -106,11 +126,22 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
       >
         <div
           class="mat__drop-line"
-          :class="{ 'mat__drop-line--armed': hoveringAt === position }"
+          :class="{
+            'mat__drop-line--open': carrying !== null,
+            'mat__drop-line--armed': hoveringAt === position,
+          }"
           :data-testid="`drop-${side}-${position}`"
           @dragover.prevent="emit('hoverOver', position)"
           @drop.prevent="emit('dropAt', position)"
-        />
+        >
+          <!--
+            只有正被懸著的那一條說話。四條帶子同時寫著同一句，那句話就變成背景。
+          -->
+          <span
+            v-if="hoveringAt === position"
+            class="mat__drop-line-hint"
+          >{{ carryingOutOfBundle ? '放這裡＝從那一組拆出來' : '放這裡' }}</span>
+        </div>
 
         <!--
           一組零件：扣在一起的那幾塊共用一個框，框上有它們之間怎麼合併。
@@ -410,14 +441,38 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
     font-size: font-size('2xs');
   }
 
+  // 格與格之間的縫。平常是一條髮絲；拿著零件的時候張開成一條放得下去的帶子——
+  // 那條帶子就是「把這塊從那一組裡拖出來」唯一的落點。
   &__drop-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // 只有顏色過場，高度不過場：張開是在 dragstart 那一刻一次到位的。
+    // 讓它動畫展開，等於讓落點在使用者瞄準的時候還在移動。
+    transition: border-color duration('fast') ease, background-color duration('fast') ease;
+    border: 1px dashed transparent;
     border-radius: radius('sm');
     height: spacing('3xs');
+    overflow: hidden;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+
+    &--open {
+      border-color: color('border-strong');
+      height: spacing('lg');
+    }
 
     &--armed {
-      box-shadow: inset 0 0 0 1px color('primary');
+      border-style: solid;
+      border-color: color('primary');
       background-color: color('primary-soft');
+      color: color('primary');
     }
+  }
+
+  &__drop-line-hint {
+    pointer-events: none;
   }
 
   &__landing {
