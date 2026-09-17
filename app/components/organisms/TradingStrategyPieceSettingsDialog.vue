@@ -14,6 +14,7 @@ const { piece } = defineProps<{
   /** 正在調的那一塊。`null` 就是沒有人在調，彈窗關著。 */
   piece: TradingStrategySignalSourceDto | null
   strategyScriptOptions: readonly { value: number, label: string }[]
+  intervalOptions: readonly { value: string, label: string }[]
   /** 那支策略腳本宣告了哪幾個旋鈕。挑了策略腳本才知道有哪幾格要填。 */
   parameterNames: readonly string[]
 }>()
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   close: []
   changeLabel: [label: string]
   changeStrategyScript: [strategyScriptId: number]
+  changeInterval: [interval: string]
   changeParameterValue: [name: string, value: number]
 }>()
 
@@ -73,6 +75,23 @@ function onParameterInput(name: string, raw: string | number) {
             :value="String(strategyScriptOption.value)"
           >
             {{ strategyScriptOption.label }}
+          </option>
+        </AppSelect>
+      </label>
+
+      <label class="piece-settings__field">
+        <span class="piece-settings__name">看多粗的 K 線</span>
+        <AppSelect
+          :model-value="piece.aggregationInterval"
+          data-testid="strategy-script-interval-select"
+          @update:model-value="emit('changeInterval', String($event))"
+        >
+          <option
+            v-for="intervalOption in intervalOptions"
+            :key="intervalOption.value"
+            :value="intervalOption.value"
+          >
+            {{ intervalOption.label }}
           </option>
         </AppSelect>
       </label>
