@@ -117,7 +117,31 @@ export class TradingStrategyWriteDomain {
       takenLabels.push(label)
     }
 
-    return null
+    return this.mixedCoarsenessRejection()
+  }
+
+  /**
+   * 幾塊零件看的粗細不一樣時擋下來。
+   *
+   * 這是少數幾條**畫面上真的做得出來、而且仍然不對**的規則之一：每一塊零件各自挑
+   * 自己看多粗的 K 線，所以挑出彼此不同的組合是一次點擊的事。
+   *
+   * 而那樣的一份什麼都做不成——「一小時的那一棒」與「五分鐘的那一棒」不是同一根，
+   * 所以重演讀不了它，上線之後條件樹也會把兩個時間軸上的意見當成同一棒的兩句話。
+   *
+   * 那句話**說出它現在有哪幾種**。只說「不一樣」的話，他得把每一塊零件的設定
+   * 都打開一次才知道差在哪，而要做的事就是把它們調成同一個。
+   */
+  private mixedCoarsenessRejection(): string | null {
+    const coarsenesses = [...new Set(
+      this.writeDto.signalSources.map(signalSource => signalSource.aggregationInterval))]
+
+    if (coarsenesses.length <= 1) {
+      return null
+    }
+
+    return `這幾塊零件看的 K 線粗細不一樣（${coarsenesses.join('、')}）。`
+      + '一份交易策略只看一種——請把每一塊都調成同一個。'
   }
 
   /**

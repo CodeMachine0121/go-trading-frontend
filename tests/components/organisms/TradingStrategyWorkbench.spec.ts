@@ -133,7 +133,7 @@ describe('TradingStrategyWorkbench：把零件搬來搬去', () => {
   it('墊子上排的順序會被存下來——那不是一個假的自由度', async () => {
     const twoPieces = [
       new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-      new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
+      new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
     ]
     const wrapper = mountWorkbench(aBot(
       group('and', comparison('a', 'MACD', 'buy'), comparison('b', 'ATR', 'buy')),
@@ -188,7 +188,7 @@ describe('TradingStrategyWorkbench：一塊零件收好幾個信號時，把話�
 describe('TradingStrategyWorkbench：把零件扣成一組', () => {
   const twoPieces = () => [
     new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-    new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
+    new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
   ]
 
   function mountTwoOnBuy() {
@@ -232,8 +232,8 @@ describe('TradingStrategyWorkbench：把零件扣成一組', () => {
       comparison('s', 'MACD', 'sell'),
       [
         new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '1h', []),
-        new TradingStrategySignalSourceDto('EMA', 10, '1h', []),
+        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
+        new TradingStrategySignalSourceDto('EMA', 10, '5m', []),
       ]))
     await flushPromises()
 
@@ -390,9 +390,8 @@ describe('TradingStrategyWorkbench：一支策略腳本自己的設定', () => {
 
     const panel = wrapper.get('[data-testid="strategy-script-settings-panel"]')
     expect(panel.find('[data-testid="strategy-script-label-input"]').exists()).toBe(true)
+    expect(panel.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(true)
     expect(panel.find('[data-testid="strategy-script-parameter-input"]').exists()).toBe(true)
-    // 刻度不在這裡：它是整份交易策略的一格，挑在工作檯頂端。
-    expect(panel.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(false)
 
     // 它不在架子那一格裡面——在裡面就是原地展開，那正是這次要換掉的東西。
     expect(wrapper.get('[data-testid="strategy-script-row"]').element
@@ -484,90 +483,93 @@ describe('TradingStrategyWorkbench：一份交易策略只看一種粗細', () =
     return saved.signalSources.map(signalSource => signalSource.aggregationInterval)
   }
 
-  it('刻度挑在工作檯上，不在任何一塊零件裡', async () => {
-    // 挑在零件裡的話，拼得出一份「A 看一小時、B 看五分鐘」的交易策略——
-    // 而那一份存下去之後什麼都做不成。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="trading-strategy-interval-select"]').exists()).toBe(true)
-  })
-
-  it('換掉那一格，架上每一塊零件一起換', async () => {
-    const wrapper = mountWorkbench(aBot(
+  function twoPiecesReading(firstInterval: string, secondInterval: string) {
+    return aBot(
       comparison('b', 'MACD', 'buy'),
       comparison('s', 'MACD', 'sell'),
       [
-        new TradingStrategySignalSourceDto('MACD', 9, '5m', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-      ]))
-    await flushPromises()
+        new TradingStrategySignalSourceDto('MACD', 9, firstInterval, []),
+        new TradingStrategySignalSourceDto('ATR', 10, secondInterval, []),
+      ])
+  }
 
-    await wrapper.get('[data-testid="trading-strategy-interval-select"]').setValue('1d')
-    await flushPromises()
-
-    expect(await savedIntervalsOf(wrapper)).toEqual(['1d', '1d'])
-  })
-
-  it('後來才加的零件也跟著那一格', async () => {
+  it('每一塊零件的設定裡都調得動它自己的粗細', async () => {
     const wrapper = mountWorkbench()
     await flushPromises()
 
-    await wrapper.get('[data-testid="trading-strategy-interval-select"]').setValue('1h')
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="strategy-script-interval-select"]').exists()).toBe(true)
+  })
+
+  it('調完就存得下去，而且存的是他挑的那一個', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-interval-select"]').setValue('4h')
+    await flushPromises()
+
+    expect(await savedIntervalsOf(wrapper)).toEqual(['4h'])
+  })
+
+  it('每一塊都一樣時什麼都不必提', async () => {
+    const wrapper = mountWorkbench(twoPiecesReading('1h', '1h'))
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
+  })
+
+  it('粗細不一樣時擋下來，並說出現在有哪幾種', async () => {
+    // 只說「不一樣」的話，他得把每一塊零件的設定都打開一次才知道差在哪——
+    // 而要做的事就是把它們調成同一個。
+    const wrapper = mountWorkbench(twoPiecesReading('1h', '5m'))
+    await flushPromises()
+
+    const rejection = wrapper.get('[data-testid="trading-strategy-form-rejection"]').text()
+    expect(rejection).toContain('1h')
+    expect(rejection).toContain('5m')
+  })
+
+  it('擋著的時候儲存鍵按不下去', async () => {
+    const wrapper = mountWorkbench(twoPiecesReading('1h', '5m'))
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="trading-strategy-form-save"]').attributes('disabled'))
+      .toBeDefined()
+  })
+
+  it('把那一塊調回來就送得出去了', async () => {
+    const wrapper = mountWorkbench(twoPiecesReading('1h', '5m'))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-1"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-interval-select"]').setValue('1h')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
+    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
+  })
+
+  it('後來才加的零件跟著架上已經有的那幾塊', async () => {
+    // 一加零件就撞到那句提醒，等於每次都要他去修一件他沒做過的事。
+    const wrapper = mountWorkbench(twoPiecesReading('1d', '1d'))
+    await flushPromises()
+
     await wrapper.get('[data-testid="strategy-script-add"]').trigger('click')
     await flushPromises()
 
-    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
+    expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
+    expect(await savedIntervalsOf(wrapper)).toEqual(['1d', '1d', '1d'])
   })
 
-  it('讀進來的那一份用它自己的刻度，不是預設值', async () => {
-    const wrapper = mountWorkbench(aBot(
-      comparison('b', 'MACD', 'buy'),
-      comparison('s', 'MACD', 'sell'),
-      [new TradingStrategySignalSourceDto('MACD', 9, '4h', [])]))
+  it('架上每一塊零件旁邊看得到它自己的粗細', async () => {
+    // 它們現在真的可能不一樣，所以那一行又是資訊了——
+    // 而且是他不必打開任何設定就找得出哪一塊落單的方式。
+    const wrapper = mountWorkbench(twoPiecesReading('1h', '5m'))
     await flushPromises()
 
-    expect((wrapper.get('[data-testid="trading-strategy-interval-select"]')
-      .element as HTMLSelectElement).value).toBe('4h')
-  })
-
-  it('本來就一致的那一份什麼都不必提', async () => {
-    // 一句永遠都在的提醒，讀久了就等於不在。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="trading-strategy-mixed-interval-note"]').exists())
-      .toBe(false)
-  })
-
-  it('打開一份原本混著的舊資料時明講，而不是悄悄統一', async () => {
-    // 悄悄統一是這裡唯一真正糟糕的做法：他按下儲存，另外幾個零件被改掉，
-    // 而他不會發現。
-    const wrapper = mountWorkbench(aBot(
-      comparison('b', 'MACD', 'buy'),
-      comparison('s', 'MACD', 'sell'),
-      [
-        new TradingStrategySignalSourceDto('MACD', 9, '1h', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-      ]))
-    await flushPromises()
-
-    const note = wrapper.get('[data-testid="trading-strategy-mixed-interval-note"]').text()
-    expect(note).toContain('1h')
-    expect(note).toContain('5m')
-  })
-
-  it('混著的那一份直接按儲存就被調成一致了', async () => {
-    const wrapper = mountWorkbench(aBot(
-      comparison('b', 'MACD', 'buy'),
-      comparison('s', 'MACD', 'sell'),
-      [
-        new TradingStrategySignalSourceDto('MACD', 9, '1h', []),
-        new TradingStrategySignalSourceDto('ATR', 10, '5m', []),
-      ]))
-    await flushPromises()
-
-    // 取第一個是個任意但說得出口的選擇——畫面剛剛已經說出它原本有哪幾種。
-    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
+    expect(wrapper.get('[data-testid="shelf-piece-MACD"]').text()).toContain('一小時')
+    expect(wrapper.get('[data-testid="shelf-piece-ATR"]').text()).toContain('五分鐘')
   })
 })

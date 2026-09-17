@@ -2,7 +2,6 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppSelect from '~/components/atoms/AppSelect.vue'
 import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
@@ -60,17 +59,6 @@ watchEffect(() => {
   emit('dirtyChange', JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine)
 })
 
-/**
- * 這一份讀進來時原本用了不只一種刻度。
- *
- * 只在這種時候說話。原本就一致的那一份什麼都不必提——
- * 一句永遠都在的提醒，讀久了就等於不在。
- */
-const loadedMixedIntervals = computed(
-  () => (form.loadedAggregationIntervals.value.length > 1
-    ? form.loadedAggregationIntervals.value.join('、')
-    : ''))
-
 function onSave() {
   const writeDto = form.toWriteDto()
   if (writeDto !== null) {
@@ -92,49 +80,14 @@ function onSave() {
         placeholder="交易策略名稱"
         data-testid="trading-strategy-name-input"
       />
-
-      <!--
-        刻度是**一份交易策略的一格**，不是一塊零件一個。
-        「一小時的那一棒」與「五分鐘的那一棒」不是同一根，所以幾個來源看不同粗細時，
-        條件樹會把兩個時間軸上的意見當成同一棒的兩句話來讀。
-        挑在這裡，那種組合就拼不出來——不必再有一句紅字去攔它。
-      -->
-      <label class="workbench__coarseness">
-        <span class="workbench__coarseness-name">看多粗的 K 線</span>
-        <AppSelect
-          v-model="form.aggregationInterval.value"
-          data-testid="trading-strategy-interval-select"
-        >
-          <option
-            v-for="intervalOption in form.intervalOptions"
-            :key="intervalOption.value"
-            :value="intervalOption.value"
-          >
-            {{ intervalOption.label }}
-          </option>
-        </AppSelect>
-      </label>
     </div>
-
-    <!--
-      存在這條規則之前存下來的那些沒有正確答案可以挑，所以取第一個——
-      而讓那個任意的選擇可以被接受的不是選法，是說出來。悄悄統一才是糟糕的做法：
-      他按下儲存，另外幾個零件被改掉，而他不會發現。
-    -->
-    <AppAlert
-      v-if="loadedMixedIntervals !== ''"
-      tone="info"
-      data-testid="trading-strategy-mixed-interval-note"
-    >
-      這一份原本的幾個零件看的是 {{ loadedMixedIntervals }}，粗細不一樣。
-      一份交易策略只看一種——存下去之後，每一個零件都會變成上面選的那一個。
-    </AppAlert>
 
     <TradingStrategyCanvas
       :sources="form.signalSources.value"
       :buy-board="form.conditionSides[0].board.value"
       :sell-board="form.conditionSides[1].board.value"
       :strategy-script-options="strategyScriptOptions"
+      :interval-options="form.intervalOptions"
       :parameter-names-by-strategy-script-id="parameterNamesByStrategyScriptId"
       :can-add="form.canAddSignalSource.value"
       :signal-source-limit="form.signalSourceLimit"
@@ -143,6 +96,7 @@ function onSave() {
       @remove="form.removeSignalSource"
       @change-label="form.changeSignalSourceLabel"
       @change-strategy-script="form.changeSignalSourceStrategyScript"
+      @change-interval="form.changeSignalSourceInterval"
       @change-parameter-value="form.changeSignalSourceParameterValue"
       @toggle-signal="(side, sourceLabel, signal) => form.conditionSides.find(
         candidate => candidate.key === side)?.toggleSignal(sourceLabel, signal)"
@@ -204,26 +158,12 @@ function onSave() {
 
   &__identity {
     display: grid;
-
-    // 名稱吃剩下的寬度，刻度那一格只佔它需要的——它是一個六選一的選單，
-    // 拉滿一整行只會讓人以為那裡還有別的東西要填。
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: spacing('xs');
+    grid-template-columns: minmax(0, 1fr);
+    gap: spacing('2xs');
     border: 1px solid color('border');
     border-radius: radius('md');
     background-color: color('surface');
     padding: spacing('sm');
-  }
-
-  &__coarseness {
-    display: grid;
-    gap: spacing('3xs');
-  }
-
-  &__coarseness-name {
-    color: color('text-muted');
-    font-size: font-size('xs');
   }
 
   &__actions {

@@ -23,7 +23,7 @@ function aStoredBot() {
     3, '黃金交叉',
     [
       new TradingStrategySignalSourceDto('均線', 9, '1h', []),
-      new TradingStrategySignalSourceDto('動能', 10, '5m', []),
+      new TradingStrategySignalSourceDto('動能', 10, '1h', []),
     ],
     new TradingStrategyConditionDto('root', 'and', [
       comparison('a', '均線', 'buy'),
