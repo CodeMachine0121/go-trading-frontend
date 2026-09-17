@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant-conversation-proxy'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
-import { AssistantAnswer } from '~/domain/models/entities/assistant-answer'
+import { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
@@ -13,7 +13,7 @@ const MOMENT = new Date('2026-09-04T10:00:00.000Z')
 // 替身一律用 vi.fn() 對介面產生，不手刻 Fake class（見 .claude/rules/testing.md）
 function buildProxyMock(overrides: Partial<IAssistantConversationProxy> = {}): IAssistantConversationProxy {
   return {
-    ask: vi.fn().mockResolvedValue(new AssistantAnswer(7, '在盤整。', 2, false, 3184)),
+    ask: vi.fn().mockResolvedValue(new AssistantAnswerStarted(7, 9, 'running')),
     listConversations: vi.fn().mockResolvedValue([]),
     getConversation: vi.fn().mockResolvedValue(new Conversation(7, MOMENT, [])),
     ...overrides,
@@ -21,15 +21,15 @@ function buildProxyMock(overrides: Partial<IAssistantConversationProxy> = {}): I
 }
 
 describe('AssistantConversationService.ask', () => {
-  it('把 proxy 回來的產出轉成 DTO', async () => {
+  it('把 proxy 回來的「去哪裡找答案」轉成 DTO', async () => {
     const proxy = buildProxyMock()
 
-    const answerDto = await new AssistantConversationService(proxy)
+    const startedDto = await new AssistantConversationService(proxy)
       .ask(new AssistantAskDto(7, 'BTCUSDT 最近走勢如何'))
 
-    expect(answerDto?.conversationId).toBe(7)
-    expect(answerDto?.blocks).toHaveLength(1)
-    expect(answerDto?.queryCount).toBe(2)
+    expect(startedDto?.conversationId).toBe(7)
+    expect(startedDto?.turnId).toBe(9)
+    expect(startedDto?.status).toBe('running')
     expect(proxy.ask).toHaveBeenCalledTimes(1)
   })
 
@@ -48,10 +48,10 @@ describe('AssistantConversationService.ask', () => {
     // 判定寫在打後端之前：空白送出去只是花錢換一句「必須寫點什麼」。
     const proxy = buildProxyMock()
 
-    const answerDto = await new AssistantConversationService(proxy)
+    const startedDto = await new AssistantConversationService(proxy)
       .ask(new AssistantAskDto(null, question))
 
-    expect(answerDto).toBeNull()
+    expect(startedDto).toBeNull()
     expect(proxy.ask).not.toHaveBeenCalled()
   })
 
@@ -91,8 +91,8 @@ describe('AssistantConversationService.getConversation', () => {
   it('那一段的每一則都轉成 DTO', async () => {
     const proxy = buildProxyMock({
       getConversation: vi.fn().mockResolvedValue(new Conversation(7, MOMENT, [
-        new ConversationMessage('ask', '問 1', MOMENT),
-        new ConversationMessage('answer', '答 1', MOMENT),
+        new ConversationMessage('ask', '問 1', MOMENT, 'answered'),
+        new ConversationMessage('answer', '答 1', MOMENT, 'answered'),
       ])),
     })
 

@@ -1,13 +1,13 @@
 import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant-conversation-proxy'
 import type { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
-import { AssistantAnswer } from '~/domain/models/entities/assistant-answer'
+import { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
+import { assistantTurnStatusOf } from '~/domain/models/entities/assistant-turn-status'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import type { ConversationMessageRole } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
-import { AssistantUnavailableError } from '~/domain/errors/assistant-unavailable-error'
+import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
-import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -16,20 +16,21 @@ const CHAT_ENDPOINT = '/chat'
 const CONVERSATIONS_ENDPOINT = '/chat/conversations'
 
 /**
- * 後端用這三個狀態碼分別表示「沒有那一段對話」、「今日額度用盡」與「助手沒回應」。
- * 只有這裡需要知道它們——領域與畫面一律只認錯誤型別。
+ * 後端用這三個狀態碼分別表示「沒有那一段對話」、「今日額度用盡」與
+ * 「那一段上前一則還在寫」。只有這裡需要知道它們——領域與畫面一律只認錯誤型別。
+ *
+ * **助手沒回應不再是一個狀態碼。** 後端收下提問就回，那時它還沒去問助手；
+ * 助手不可用會變成那一則的失敗原因，從對話裡讀得到。
  */
 const NOT_FOUND_STATUS = 404
 const ALLOWANCE_EXHAUSTED_STATUS = 429
-const ASSISTANT_UNAVAILABLE_STATUS = 503
+const ANSWER_IN_PROGRESS_STATUS = 409
 
 /** 後端回傳的原始 wire 形狀，只存在於本檔內。 */
-type AssistantAnswerWire = {
+type AssistantAnswerStartedWire = {
   conversationId: number
-  answer: string
-  queryCount: number
-  stoppedAtQueryLimit: boolean
-  usage: number
+  turnId: number
+  status: string
 }
 
 type ConversationSummaryWire = {
@@ -42,6 +43,11 @@ type ConversationMessageWire = {
   role: string
   content: string
   createdAt: string
+  status: string
+  failureReason?: string
+  queryCount?: number
+  stoppedAtQueryLimit?: boolean
+  usage?: number
 }
 
 type ConversationWire = {
@@ -53,18 +59,20 @@ type ConversationWire = {
 /**
  * Proxy：打助手的三條路徑，把時刻正規化成瞬間，並把三種拒絕從一般的拒絕裡分出來。
  *
- * 分出來的理由是**使用者要做的事不同**：等到明天、稍後再試、開一段新對話。
+ * 分出來的理由是**使用者要做的事不同**：等到明天、開一段新對話、等一下前一則。
  * 三者若都以同一種錯誤上去，畫面就只能講一句含混的話，而含混的話會讓人
  * 對著一個要等到明天的拒絕重試一整個小時。
  *
  * 「後端拒絕 vs 後端自己壞了 vs 連不上」那一層沿用 BackendApiProxy 的翻譯，
- * 這裡只在它之上再細分。助手沒回應時後端回的是伺服器級的狀態碼，
- * 因此那一種要從 BackendServerError 認出來，不是從一般的拒絕。
+ * 這裡只在它之上再細分。
+ *
+ * **助手不可用已經不從這裡出來。** 後端收下提問就回，那時它還沒去問助手；
+ * 助手不可用會變成那一則的失敗原因，從讀回來的對話裡看得到。
  */
 export class AssistantConversationProxy extends BackendApiProxy implements IAssistantConversationProxy {
-  async ask(assistantAskDomain: AssistantAskDomain): Promise<AssistantAnswer> {
+  async ask(assistantAskDomain: AssistantAskDomain): Promise<AssistantAnswerStarted> {
     try {
-      const answerWire = await this.requestBackend<AssistantAnswerWire>(CHAT_ENDPOINT, {
+      const startedWire = await this.requestBackend<AssistantAnswerStartedWire>(CHAT_ENDPOINT, {
         method: 'POST',
         body: assistantAskDomain.conversationId === null
           ? { question: assistantAskDomain.question }
@@ -74,12 +82,10 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
             },
       })
 
-      return new AssistantAnswer(
-        answerWire.conversationId,
-        answerWire.answer,
-        answerWire.queryCount,
-        answerWire.stoppedAtQueryLimit,
-        answerWire.usage,
+      return new AssistantAnswerStarted(
+        startedWire.conversationId,
+        startedWire.turnId,
+        assistantTurnStatusOf(startedWire.status),
       )
     }
     catch (error: unknown) {
@@ -109,6 +115,11 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
           this.roleOf(messageWire.role),
           messageWire.content,
           new Date(messageWire.createdAt),
+          assistantTurnStatusOf(messageWire.status),
+          messageWire.failureReason ?? '',
+          messageWire.queryCount ?? 0,
+          messageWire.stoppedAtQueryLimit ?? false,
+          messageWire.usage ?? 0,
         )),
       )
     }
@@ -132,15 +143,6 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
    * 認不出來的一律原樣丟出去，交給 BackendApiProxy 已經分好的那三類。
    */
   private assistantFailureOf(error: unknown): unknown {
-    // 助手沒回應時後端回的是伺服器級的狀態碼，所以那一種要從這裡認出來。
-    // 其餘五百開頭的一律留給後端自己的故障——後端讀不到資料庫不是助手不在，
-    // 說成助手不在會讓人一直等一位其實好好的助手。
-    if (error instanceof BackendServerError) {
-      return error.status === ASSISTANT_UNAVAILABLE_STATUS
-        ? new AssistantUnavailableError(error.message, { cause: error })
-        : error
-    }
-
     if (!(error instanceof BackendRequestRejectedError)) {
       return error
     }
@@ -151,6 +153,10 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
 
     if (error.status === ALLOWANCE_EXHAUSTED_STATUS) {
       return new DailyUsageAllowanceExhaustedError(error.message, { cause: error })
+    }
+
+    if (error.status === ANSWER_IN_PROGRESS_STATUS) {
+      return new AssistantAnswerInProgressError(error.message, { cause: error })
     }
 
     return error

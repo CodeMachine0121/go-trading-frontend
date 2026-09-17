@@ -1,5 +1,5 @@
 import type { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
-import type { AssistantAnswer } from '~/domain/models/entities/assistant-answer'
+import type { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
 import type { Conversation } from '~/domain/models/entities/conversation'
 import type { ConversationSummary } from '~/domain/models/entities/conversation-summary'
 
@@ -13,11 +13,16 @@ import type { ConversationSummary } from '~/domain/models/entities/conversation-
  */
 export interface IAssistantConversationProxy {
   /**
-   * 問一句。沒有指名對話時後端會開一段新的，並在回答裡說出它落在哪一段。
+   * 問一句，拿回**去哪裡找答案**——不是答案本身。
    *
-   * 三種拒絕各自以自己的領域錯誤回報：今日額度用盡、助手沒回應、指名的對話不存在。
+   * 後端收下就回，不等助手寫完：一次回答可能來回幾十趟、長達數分鐘。
+   * 沒有指名對話時後端會開一段新的，並說出它落在哪一段。
+   *
+   * 三種拒絕各自以自己的領域錯誤回報：今日額度用盡、指名的對話不存在、
+   * 那一段對話上前一則還在寫。**助手沒回應不在其中**——那要等它真的去問才知道，
+   * 而那時這一次呼叫早就結束了；它會變成那一則的失敗原因，從對話裡讀得到。
    */
-  ask(assistantAskDomain: AssistantAskDomain): Promise<AssistantAnswer>
+  ask(assistantAskDomain: AssistantAskDomain): Promise<AssistantAnswerStarted>
 
   /** 每一段對話，最近有動靜的在最前面。一段都沒有時是空陣列，不是錯誤。 */
   listConversations(): Promise<ConversationSummary[]>

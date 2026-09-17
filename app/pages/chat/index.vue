@@ -31,6 +31,9 @@ const {
 } = useAssistantConversation()
 
 // 清單只在瀏覽器端讀：它是一份會變的東西，伺服器端算出來的那一份到畫面上就過期了。
+//
+// 回到上次看的那一段不在這裡接——抽屜在每一個畫面都叫得出來，所以那一步在 app.vue，
+// 只做一次。這一頁若也接一次，只是同一段對話被讀兩遍。
 onMounted(() => {
   void loadConversations()
 })
