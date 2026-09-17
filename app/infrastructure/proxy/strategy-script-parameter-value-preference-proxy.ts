@@ -1,7 +1,12 @@
 import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 
-/** 記在瀏覽器儲存裡的鍵前綴。換名字等於忘掉所有調過的值，所以只寫在這裡一次。 */
-const STRATEGY_PARAMETER_VALUE_STORAGE_PREFIX = 'go-trading:chart-strategy-script-parameter:'
+/**
+ * 記在瀏覽器儲存裡的鍵前綴。換名字等於忘掉所有調過的值，所以只寫在這裡一次。
+ *
+ * 它停在 `strategy` 而沒有跟著更名為 `strategy-script`：改掉的那一刻，每個人
+ * 已經調好的值都還在瀏覽器裡，只是再也沒有人去問它們。
+ */
+const STRATEGY_SCRIPT_PARAMETER_VALUE_STORAGE_PREFIX = 'go-trading:chart-strategy-parameter:'
 
 /**
  * Proxy：允許碰瀏覽器儲存的第三個地方（另外兩個是顯示時區與指標線色）。
@@ -41,6 +46,6 @@ implements IStrategyScriptParameterValuePreferenceProxy {
   }
 
   private storageKeyOf(strategyScriptId: number, parameterName: string): string {
-    return `${STRATEGY_PARAMETER_VALUE_STORAGE_PREFIX}${strategyScriptId}:${parameterName}`
+    return `${STRATEGY_SCRIPT_PARAMETER_VALUE_STORAGE_PREFIX}${strategyScriptId}:${parameterName}`
   }
 }

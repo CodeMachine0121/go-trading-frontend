@@ -12,7 +12,9 @@ const APPLIED_CHART_INDICATORS_STORAGE_KEY = 'go-trading:chart-applied-indicator
  * 型別上不先假設它是對的，編譯器就會逼著這裡逐個欄位驗過才收。
  */
 type AppliedChartIndicatorWire = {
-  strategyScriptId: unknown
+  // 這個欄位停在 `strategyId` 而沒有跟著更名為 `strategyScriptId`：改掉的那一刻，
+  // 每個人上次擺好的那幾支都還在瀏覽器裡，只是再也對不上這裡要的名字。
+  strategyId: unknown
   parameterValues: unknown
   shownOnChart: unknown
 }
@@ -69,18 +71,18 @@ implements IAppliedChartIndicatorPreferenceProxy {
    * 那個 null 會一路往上，而上面沒有任何一層需要知道「有一筆壞掉了」。
    */
   private toRememberedAppliedIndicatorVos(wire: unknown): RememberedAppliedIndicatorVo[] {
-    if (typeof wire !== 'object' || wire === null || !('strategyScriptId' in wire)) {
+    if (typeof wire !== 'object' || wire === null || !('strategyId' in wire)) {
       return []
     }
 
-    const { strategyScriptId, parameterValues, shownOnChart } = wire as AppliedChartIndicatorWire
+    const { strategyId, parameterValues, shownOnChart } = wire as AppliedChartIndicatorWire
     // 識別碼是拿去對回一支策略腳本的鑰匙。它不是整數就沒有任何策略腳本對得上。
-    if (typeof strategyScriptId !== 'number' || !Number.isInteger(strategyScriptId)) {
+    if (typeof strategyId !== 'number' || !Number.isInteger(strategyId)) {
       return []
     }
 
     return [new RememberedAppliedIndicatorVo(
-      strategyScriptId,
+      strategyId,
       this.toParameterValues(parameterValues),
       // 讀不出一個是非就是「看得見」：這一項是後來才加的，先前存下去的那幾筆沒有它，
       // 而它們當時就是看得見的。壞掉的值落在同一個答案上，剛好也是安全的那一個。
@@ -112,7 +114,7 @@ implements IAppliedChartIndicatorPreferenceProxy {
     rememberedAppliedIndicatorVo: RememberedAppliedIndicatorVo,
   ): Record<string, unknown> {
     return {
-      strategyScriptId: rememberedAppliedIndicatorVo.strategyScriptId,
+      strategyId: rememberedAppliedIndicatorVo.strategyScriptId,
       parameterValues: Object.fromEntries(rememberedAppliedIndicatorVo.parameterValues),
       shownOnChart: rememberedAppliedIndicatorVo.shownOnChart,
     }

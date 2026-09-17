@@ -94,7 +94,7 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
 describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () => {
   it.each([
     { name: '讀不出來的 JSON', stored: '{{{' },
-    { name: '一個物件而不是清單', stored: '{"strategyScriptId":7}' },
+    { name: '一個物件而不是清單', stored: '{"strategyId":7}' },
     { name: '一個字串', stored: '"7"' },
     { name: '一個數字', stored: '7' },
   ])('$name：當成沒擺過', ({ stored }) => {
@@ -105,22 +105,22 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
 
   it.each([
     { name: '沒有策略腳本識別碼', entry: '{"parameterValues":{}}' },
-    { name: '策略腳本識別碼不是數字', entry: '{"strategyScriptId":"7","parameterValues":{}}' },
-    { name: '策略腳本識別碼不是整數', entry: '{"strategyScriptId":7.5,"parameterValues":{}}' },
+    { name: '策略腳本識別碼不是數字', entry: '{"strategyId":"7","parameterValues":{}}' },
+    { name: '策略腳本識別碼不是整數', entry: '{"strategyId":7.5,"parameterValues":{}}' },
     { name: '根本不是一個物件', entry: '"7"' },
     { name: '是 null', entry: 'null' },
   ])('其中一筆$name：跳過那一筆，其餘照樣回來', ({ entry }) => {
     // 三支裡壞掉一支時，讓另外兩支照樣回來比讓使用者從零開始有用得多。
-    localStorage.setItem(STORAGE_KEY, `[${entry},{"strategyScriptId":9,"parameterValues":{}}]`)
+    localStorage.setItem(STORAGE_KEY, `[${entry},{"strategyId":9,"parameterValues":{}}]`)
 
     expect(readAsPlain(new AppliedChartIndicatorPreferenceProxy()))
       .toEqual([{ strategyScriptId: 9, parameterValues: {} }])
   })
 
   it.each([
-    { name: '不是數字', stored: '{"strategyScriptId":7,"parameterValues":{"期數":"20"}}' },
-    { name: '是 null', stored: '{"strategyScriptId":7,"parameterValues":{"期數":null}}' },
-    { name: '不是有限的數字', stored: '{"strategyScriptId":7,"parameterValues":{"期數":1e999}}' },
+    { name: '不是數字', stored: '{"strategyId":7,"parameterValues":{"期數":"20"}}' },
+    { name: '是 null', stored: '{"strategyId":7,"parameterValues":{"期數":null}}' },
+    { name: '不是有限的數字', stored: '{"strategyId":7,"parameterValues":{"期數":1e999}}' },
   ])('某一格的值$name：跳過那一格，那一筆照樣回來', ({ stored }) => {
     // 那一格之後會拿到宣告的預設值，與「留存裡本來就沒有這個名字」是同一個落點。
     localStorage.setItem(STORAGE_KEY, `[${stored}]`)
@@ -130,9 +130,9 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
   })
 
   it.each([
-    { name: '整個不存在（先前存下去的那幾筆沒有它）', stored: '{"strategyScriptId":7}' },
-    { name: '不是一個是非', stored: '{"strategyScriptId":7,"shownOnChart":"false"}' },
-    { name: '是 null', stored: '{"strategyScriptId":7,"shownOnChart":null}' },
+    { name: '整個不存在（先前存下去的那幾筆沒有它）', stored: '{"strategyId":7}' },
+    { name: '不是一個是非', stored: '{"strategyId":7,"shownOnChart":"false"}' },
+    { name: '是 null', stored: '{"strategyId":7,"shownOnChart":null}' },
   ])('收起來與否$name：當成看得見', ({ stored }) => {
     // 「看得見」是先前存下去的那幾筆當時的樣子，也是壞掉時安全的那一個答案——
     // 猜錯成「收起來」的話，使用者會看到一份少了幾條線的圖而找不出原因。
@@ -143,9 +143,9 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
   })
 
   it.each([
-    { name: '不是一份鍵值對', stored: '{"strategyScriptId":7,"parameterValues":20}' },
-    { name: '是 null', stored: '{"strategyScriptId":7,"parameterValues":null}' },
-    { name: '整個不存在', stored: '{"strategyScriptId":7}' },
+    { name: '不是一份鍵值對', stored: '{"strategyId":7,"parameterValues":20}' },
+    { name: '是 null', stored: '{"strategyId":7,"parameterValues":null}' },
+    { name: '整個不存在', stored: '{"strategyId":7}' },
   ])('那幾格$name：那一筆沒有任何留存的值，但照樣回來', ({ stored }) => {
     localStorage.setItem(STORAGE_KEY, `[${stored}]`)
 
