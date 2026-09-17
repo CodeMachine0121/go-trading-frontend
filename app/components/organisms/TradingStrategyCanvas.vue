@@ -17,6 +17,7 @@ const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defin
   buyBoard: ConditionBoardDto
   sellBoard: ConditionBoardDto
   strategyScriptOptions: readonly { value: number, label: string }[]
+  intervalOptions: readonly { value: string, label: string }[]
   parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
   canAdd: boolean
   signalSourceLimit: number
@@ -28,6 +29,7 @@ const emit = defineEmits<{
   remove: [index: number]
   changeLabel: [index: number, label: string]
   changeStrategyScript: [index: number, strategyScriptId: number]
+  changeInterval: [index: number, interval: string]
   changeParameterValue: [index: number, name: string, value: number]
   toggleSignal: [side: Side, sourceLabel: string, signal: string]
   changeOperator: [side: Side, operator: ConditionOperatorVo]
@@ -153,6 +155,7 @@ function dropOnShelf() {
       <TradingStrategyPieceShelf
         :sources="sources"
         :placed-labels="placedLabels"
+        :interval-options="intervalOptions"
         :can-add="canAdd"
         :signal-source-limit="signalSourceLimit"
         :has-no-strategy-scripts="hasNoStrategyScripts"
@@ -189,10 +192,12 @@ function dropOnShelf() {
     <TradingStrategyPieceSettingsDialog
       :piece="tuningPiece"
       :strategy-script-options="strategyScriptOptions"
+      :interval-options="intervalOptions"
       :parameter-names="tuningParameterNames"
       @close="tuningIndex = null"
       @change-label="label => emit('changeLabel', tuningIndex!, label)"
       @change-strategy-script="strategyScriptId => emit('changeStrategyScript', tuningIndex!, strategyScriptId)"
+      @change-interval="interval => emit('changeInterval', tuningIndex!, interval)"
       @change-parameter-value="(name, value) =>
         emit('changeParameterValue', tuningIndex!, name, value)"
     />

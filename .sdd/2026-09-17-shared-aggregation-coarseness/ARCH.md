@@ -1,4 +1,4 @@
-# Architecture Design — 刻度是整份交易策略的一格
+# Architecture Design — 一份交易策略只看一種粗細
 
 **PRD:** `.sdd/2026-09-17-shared-aggregation-coarseness/PRD.md`
 **Status:** Implemented
@@ -7,11 +7,14 @@
 
 ## 1. Design Goal
 
-把「一份交易策略只有一種刻度」從**一條要驗的規則**變成**一個拼不出反例的形狀**。
+消滅的是**不一致**，不是「各自挑」這個能力。
 
-這個 repo 的前端規矩本來就這麼寫：畫面按不出來的錯不要再驗一次，
-因為那是替一個不會發生的情況維護一段程式。所以這個切片的正確結果是
-**`TradingStrategyWriteDomain` 一個字都不必加**。
+第一版把刻度搬成整份交易策略的一格，讓不一致拼不出來。
+那確實消滅了不一致——連同「調某一塊零件的粗細」這件事一起消滅了，
+而那是使用者真的要做的事。
+
+所以這一版回到：**每一塊零件各自帶著自己的粗細**，
+送出之前檢查它們是否相同。
 
 ---
 
@@ -21,52 +24,50 @@
 
 | 檔案 | 改動 |
 | :--- | :--- |
-| `app/composables/use-trading-strategy-form.ts` | 多一個 `aggregationInterval`，整份共用；`changeSignalSourceInterval` 換成 `changeAggregationInterval`；送出去時每個來源都帶它。 |
-| `app/components/organisms/TradingStrategyWorkbench.vue` | 頂端多一格選單，以及讀進來原本混著時的那一句話。 |
-| `app/components/organisms/TradingStrategyCanvas.vue` | 不再往下傳刻度選項與換刻度那個事件。 |
-| `app/components/organisms/TradingStrategyPieceSettingsDialog.vue` | 刻度那一格拿掉。 |
-| `app/components/organisms/TradingStrategyPieceShelf.vue` | 每塊零件旁邊那一行刻度拿掉。 |
+| `app/domain/models/domains/trading-strategy-write-domain.ts` | 多一條送不出去的理由：幾塊零件粗細不一樣，並列出現在有哪幾種。 |
+| `app/composables/use-trading-strategy-form.ts` | 新加的零件跟著架上第一塊的粗細，而不是一律用預設值。 |
 
 ### 明確不動
 
-- **`TradingStrategyWriteDomain`**：見上。拼不出來的東西不驗。
-- **`TradingStrategySignalSourceDto` 與送出去的形狀**：每個來源仍然各自帶一個刻度欄位。
-  後端收的是那個形狀，而它只是現在永遠一樣。
-- **回測分頁**：它那一格早就是一句唯讀的話。
-- **機器人表單與清單。**
+- **零件設定彈窗、零件架、工作檯**：刻度那一格留在它原本的位置。
+- **`TradingStrategySignalSourceDto` 與送出去的形狀。**
+- **回測分頁、機器人表單與清單。**
 
 ---
 
 ## 3. Key Decisions
 
-### 真相只有一份，在送出去的那一刻才鋪開
+### 為什麼這一條規則值得驗
 
-`aggregationInterval` 是一個 ref，零件身上那個欄位不再是真相——
-組要送出去的那一份時，每個來源的刻度一律改寫成它。
+這個 repo 的前端規矩是「畫面按不出來的錯不要再驗一次」——
+代號重複、群組只剩一句、第 11 個信號來源，那幾種在畫面上根本按不出來。
 
-兩邊各存一份的話（ref 一份、每個零件一份），第二份遲早會說出第一份沒有的話，
-而那正是這個切片要消滅的那一類 bug。
+粗細不一致**按得出來**，而且是一次點擊的事。所以它正好落在這條規矩的另一邊：
+它是少數幾條「打得出來但仍然不對」的規則之一，與代號重複同一類。
 
-### 讀進來取第一個，並且說出來
+### 那句話要說出現在有哪幾種
 
-一份舊的混合資料沒有「正確答案」可以挑。取第一個是個**任意但可解釋**的選擇，
-而讓它可以接受的不是那個選法，是**說出來**：
-畫面明講它原本有哪幾種、存下去會變成什麼。
+只說「不一樣」的話，他得把每一塊零件的設定都打開一次才知道差在哪，
+而要做的事就是把它們調成同一個。措辭與後端那一句講的是同一件事。
 
-悄悄統一是這裡唯一真正糟糕的做法——他按下儲存，另外幾個零件被改掉，而他不會發現。
+### 新零件跟著架上，不跟著預設值
 
-### 零件架上不再寫刻度
+一加零件就撞到那句提醒，等於每次都要他去修一件他沒做過的事。
+跟著架上第一塊，一般情況下那句話就永遠不會出現——
+它只在使用者**自己去改某一塊**的時候說話，而那時他知道自己剛做了什麼。
 
-每一塊零件旁邊寫著同一個值不是資訊。它現在寫在頂端一次。
+### 架上重新寫出每一塊的粗細
+
+它們現在真的可能不一樣，所以那一行又是資訊了——
+而且是他不必打開任何設定就找得出哪一塊落單的方式。
 
 ---
 
 ## 4. 下一個需求會打在哪裡
 
-下一個需求若是**允許不同刻度並自動對齊**，它會打在這一格上：
-那時它從「整份的刻度」變成「對齊到哪一個」，而零件身上那個欄位會重新變成真相。
-
-送出去的形狀從來沒有改過，正是為了那一天不必再動一次後端。
+下一個需求若是**允許不同刻度並自動對齊**，它會打在
+`TradingStrategyWriteDomain` 的那一條上：拒絕變成一個選擇。
+零件身上那個欄位從頭到尾沒有搬過家，所以那一天不必再動一次資料形狀。
 
 ---
 
@@ -74,10 +75,12 @@
 
 | PRD 情境 | 由誰滿足 |
 | :--- | :--- |
-| 刻度在工作檯頂端 | `TradingStrategyWorkbench.vue` |
-| 零件設定裡沒有刻度了 | `TradingStrategyPieceSettingsDialog.vue` |
-| 換掉那一格、每個零件一起換 | `use-trading-strategy-form.ts` 的 `buildWriteDto` |
-| 新加的零件也跟著 | `use-trading-strategy-form.ts` 的 `addSignalSource` |
-| 一致的那一份安安靜靜 | `use-trading-strategy-form.ts` 的 `loadedIntervals` |
-| 混著的那一份明講 | `TradingStrategyWorkbench.vue` |
-| 直接儲存就調一致了 | `use-trading-strategy-form.ts` 的 `buildWriteDto` |
+| 零件設定裡有那一格 | `TradingStrategyPieceSettingsDialog.vue` |
+| 調完就存得下去 | `use-trading-strategy-form.ts` 的 `changeSignalSourceInterval` |
+| 架上看得出每一塊現在是哪一種 | `TradingStrategyPieceShelf.vue` |
+| 每一塊都一樣時什麼都不必提 | `TradingStrategyWriteDomain.mixedCoarsenessRejection` |
+| 不一樣時擋下來、說出有哪幾種 | 同上 |
+| 儲存鍵按不下去 | `TradingStrategyWorkbench.vue`（既有的 `rejection` 那條路） |
+| 調回來就送得出去 | 同上 |
+| 新零件跟著架上已經有的 | `use-trading-strategy-form.ts` 的 `addSignalSource` |
+| 架上一塊都沒有時用預設值 | 同上 |
