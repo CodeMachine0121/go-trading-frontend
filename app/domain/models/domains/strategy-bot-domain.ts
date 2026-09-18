@@ -24,6 +24,8 @@ export class StrategyBotDomain {
       this.strategyBot.tradingStrategyId,
       this.strategyBot.tradingStrategyName,
       new StrategyBotRunStateDomain(this.strategyBot).toDto(),
+      // 原樣交出去：那五個數字是表單要填回去的值，不是這一層要判斷的東西。
+      this.strategyBot.positionPlan,
     )
   }
 }

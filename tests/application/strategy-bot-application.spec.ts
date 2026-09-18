@@ -34,6 +34,7 @@ function storedBot(overrides: Partial<{
     overrides.lastSentSignal ?? '',
     (overrides.haltReason ?? null) as never,
     overrides.conflicting ?? false,
+    null,
   )
 }
 
@@ -44,6 +45,7 @@ function aWriteDto(overrides: Partial<{ id: number, name: string }> = {}) {
     'BTCUSDT',
     9,
     5,
+    null,
   )
 }
 

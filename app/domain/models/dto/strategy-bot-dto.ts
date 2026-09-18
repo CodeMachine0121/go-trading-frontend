@@ -1,4 +1,5 @@
 import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
+import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 
 /**
  * DTO：一台機器人交給畫面的樣子。
@@ -22,5 +23,12 @@ export class StrategyBotDto {
      * 原因怎麼講、播放還是停止、編輯給不給按。
      */
     public readonly runState: StrategyBotRunStateDto,
+    /**
+     * 這台機器人每一輪要建議押多少、停在哪裡。**沒填過的那一台是 `null`**。
+     *
+     * 表單靠它決定那個區塊打開時是展開還是收著——有值而收著等於藏起來，
+     * 而藏起來的值會在某天變成一個他不記得填過的數字。
+     */
+    public readonly positionPlan: PositionPlanDto | null,
   ) {}
 }

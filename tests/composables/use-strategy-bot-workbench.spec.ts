@@ -17,6 +17,7 @@ function botDto(id: number) {
     id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
       false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+    null,
   )
 }
 
@@ -29,7 +30,7 @@ function workbenchUnderTest(strategyBotId: number | null) {
 }
 
 function aWriteDto(id: number | undefined) {
-  return new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5)
+  return new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5, null)
 }
 
 beforeEach(() => {

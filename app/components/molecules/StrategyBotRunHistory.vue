@@ -71,6 +71,25 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
         </AppBadge>
 
         <!--
+          那一輪建議過的數字，**只在建議過的時候**。沒有建議是常態
+          （沒填部位規劃的機器人、判出持有的那幾輪），而一排寫著「—」的欄位
+          會讓這張表讀起來像壞掉的。
+        -->
+        <span
+          v-if="runRecord.suggestedStakeText !== null"
+          class="strategy-bot-run-history__plan"
+          data-testid="run-history-plan"
+        >
+          押 {{ runRecord.suggestedStakeText }}
+          <template v-if="runRecord.suggestedStopLossText !== null">
+            · 止損 {{ runRecord.suggestedStopLossText }}
+          </template>
+          <template v-if="runRecord.suggestedTakeProfitText !== null">
+            · 止盈 {{ runRecord.suggestedTakeProfitText }}
+          </template>
+        </span>
+
+        <!--
           衝突是這一排裡唯一**要人去處理**的一種，所以它自己說出下一步。
           只多一個詞而不說要做什麼的話，讀的人還是得自己想。
         -->
@@ -94,6 +113,12 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
   padding: spacing('xs');
   border-radius: radius('md');
   background: color('surface');
+
+  &__plan {
+    // 讀起來是註腳而不是一格資料：它是那一輪的來歷，不是那一輪的結論。
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
 
   &__notice {
     margin: 0;

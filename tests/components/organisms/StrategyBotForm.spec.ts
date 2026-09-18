@@ -5,12 +5,16 @@ import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import Decimal from 'decimal.js'
+import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 
-function aStoredBot() {
+function aStoredBot(positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotDto(
     7, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
       false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+    positionPlan,
   )
 }
 
@@ -126,6 +130,129 @@ describe('StrategyBotForm 存得下去嗎', () => {
     await flushPromises()
 
     await wrapper.find('[data-testid="bot-name-input"]').setValue('收盤反轉')
+
+    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+  })
+})
+
+/** 一組存好的部位規劃：五萬、押一成、三倍、停損三個點、停利五個點。 */
+function aStoredPositionPlan() {
+  return new PositionPlanDto(
+    new Decimal(50000), 'percentage', new Decimal(10),
+    new Decimal(3), new Decimal(3), new Decimal(5))
+}
+
+// 那五格收在一個問句底下，就是為了守住「開一台機器是填四格就走的事」。
+// 五個常駐欄位會把它變成「填九格才走」，而多數人在開機器人的那一刻
+// 還沒決定要押多少。
+describe('StrategyBotForm 的建議部位', () => {
+  it('新的一台預設收著，四格照舊', () => {
+    const wrapper = mountForm({ editing: null })
+
+    expect(wrapper.find('[data-testid="bot-position-plan-toggle"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(false)
+    // 原本那四格一格都沒少。
+    expect(wrapper.find('[data-testid="bot-name-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bot-trading-strategy-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="bot-interval-input"]').exists()).toBe(true)
+  })
+
+  it('沒填過部位規劃的那一台打開也是收著', () => {
+    const wrapper = mountForm({ editing: aStoredBot(null) })
+
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(false)
+  })
+
+  it('填過的那一台打開就是展開，而且帶著它存著的值', () => {
+    // 有值而收著等於藏起來，而藏起來的值會在某天變成一個他不記得填過的數字。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(true)
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="bot-position-capital-input"]').element.value).toBe('50000')
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="bot-position-stop-loss-input"]').element.value).toBe('3')
+  })
+
+  it('按一下就展開', async () => {
+    const wrapper = mountForm({ editing: null })
+
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(true)
+  })
+
+  it('填了就送', async () => {
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    await wrapper.find('[data-testid="bot-form-save"]').trigger('click')
+
+    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
+    expect(saved.positionPlan?.capital.toString()).toBe('50000')
+    expect(saved.positionPlan?.sizingMode).toBe('percentage')
+    expect(saved.positionPlan?.leverage.toString()).toBe('3')
+    expect(saved.positionPlan?.stopLossPercentage.toString()).toBe('3')
+    expect(saved.positionPlan?.takeProfitPercentage.toString()).toBe('5')
+  })
+
+  it('收起來就是不要', async () => {
+    // 最誠實的讀法：使用者看得到的就是他要送的。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(false)
+    await wrapper.find('[data-testid="bot-form-save"]').trigger('click')
+
+    expect((wrapper.emitted('save')?.at(-1)?.[0] as StrategyBotWriteDto).positionPlan)
+      .toBeNull()
+  })
+
+  it('資金留空就整組不算', async () => {
+    // 那是後端的規則（資金是這一組的開關），這一側照它講。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('')
+    await wrapper.find('[data-testid="bot-form-save"]').trigger('click')
+
+    expect((wrapper.emitted('save')?.at(-1)?.[0] as StrategyBotWriteDto).positionPlan)
+      .toBeNull()
+  })
+
+  it('只有全押不必填那一格數字', async () => {
+    // 那件事是既有那個模型答的，不是這張表單自己記的。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+    expect(wrapper.find('[data-testid="bot-position-sizing-value-input"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="bot-position-sizing-mode-select"]').setValue('allIn')
+
+    expect(wrapper.find('[data-testid="bot-position-sizing-value-input"]').exists()).toBe(false)
+  })
+
+  it('填錯就送不出去，而那句話與回測那一列一字不差', async () => {
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    await wrapper.get('[data-testid="bot-position-sizing-value-input"]').setValue('150')
+
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text())
+      .toContain('百分比要大於零且不超過一百')
+    expect(wrapper.find('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('填錯了但把區塊收起來，就送得出去', async () => {
+    // 那一台不建議部位，那一格填什麼都不影響它。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+    await wrapper.get('[data-testid="bot-position-sizing-value-input"]').setValue('150')
+
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(false)
+
+    expect(wrapper.find('[data-testid="bot-form-rejection"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="bot-form-save"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('只改停損距離也算改過', async () => {
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(false)
+
+    await wrapper.get('[data-testid="bot-position-stop-loss-input"]').setValue('4')
 
     expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
   })

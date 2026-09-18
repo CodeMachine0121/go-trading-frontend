@@ -16,6 +16,7 @@ function aBot(overrides: Partial<{
     overrides.lastSentSignal ?? '',
     'haltReason' in overrides ? overrides.haltReason! : null,
     overrides.conflicting ?? false,
+    null,
   ))
 }
 

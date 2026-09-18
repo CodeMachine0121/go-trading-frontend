@@ -1,3 +1,5 @@
+import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+
 /**
  * DTO：表單交出來要存的那一台，還沒有被任何規則看過。
  *
@@ -18,5 +20,12 @@ export class StrategyBotWriteDto {
     public readonly symbol: string,
     public readonly tradingStrategyId: number,
     public readonly triggerIntervalMinutes: number,
+    /**
+     * 這台機器人每一輪要建議押多少、停在哪裡，**或 `null`**。
+     *
+     * `null` 就是不建議——而它同時是表單上那個區塊收著的意思。
+     * 「使用者看得到的就是他要送的」寫在型別上：一份看不到的值沒有地方放。
+     */
+    public readonly positionPlan: PositionPlanDto | null,
   ) {}
 }
