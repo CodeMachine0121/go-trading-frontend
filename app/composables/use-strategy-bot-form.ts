@@ -42,9 +42,15 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
   const stopLossText = ref('')
   const takeProfitText = ref('')
 
-  /** 押多少那一格旁邊要不要出現一格數字。問的是既有那個模型，不自己記。 */
-  const sizingRequiresValue = computed(
-    () => new PositionSizingDomain(sizingMode.value, new Decimal(0)).requiresValue)
+  /**
+   * 押多少那一格旁邊要不要出現一格數字。問的是既有那個模型，不自己記——
+   * 多一種不必填的模式時，自己記的那一版會安靜地繼續要求填數字。
+   *
+   * 連現在填著的數字一起交給它，而不是交一個湊出來的零：那個問題只讀模式，
+   * 但交一個假的值進去，下一個人會以為它讀了。
+   */
+  const sizingRequiresValue = computed(() => new PositionSizingDomain(
+    sizingMode.value, decimalOfText(sizingValueText.value)).requiresValue)
 
   /** 押多少挑得到的那三個，各自帶著名字與那一格叫什麼。也是既有那個模型答的。 */
   const sizingModeOptions = POSITION_SIZING_MODES.map(
