@@ -27,6 +27,7 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   return new StrategyBotDto(
     id, name, 'BTCUSDT', 5, 9, '黃金交叉',
     runState,
+    null,
   )
 }
 

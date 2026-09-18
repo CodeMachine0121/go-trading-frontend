@@ -1,8 +1,10 @@
+import Decimal from 'decimal.js'
 import { describe, expect, it } from 'vitest'
 import { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 
 function recordOf(result: string) {
-  return new StrategyBotRunRecord(1, new Date('2026-09-16T05:05:00Z'), result).toDomain().toDto()
+  return new StrategyBotRunRecord(
+    1, new Date('2026-09-16T05:05:00Z'), result, null, null, null).toDomain().toDto()
 }
 
 describe('StrategyBotRunRecordDomain', () => {
@@ -57,10 +59,44 @@ describe('StrategyBotRunRecordDomain', () => {
   })
 
   it('第幾輪與什麼時候原樣帶過來', () => {
-    const runRecord = new StrategyBotRunRecord(42, new Date('2026-09-16T05:05:00Z'), 'buy')
-      .toDomain().toDto()
+    const runRecord = new StrategyBotRunRecord(
+      42, new Date('2026-09-16T05:05:00Z'), 'buy', null, null, null).toDomain().toDto()
 
     expect(runRecord.runNumber).toBe(42)
     expect(runRecord.ranAt.toISOString()).toBe('2026-09-16T05:05:00.000Z')
+  })
+})
+
+// 「有沒有那一格」是業務決定（沒有建議是常態），而不是元件該去判斷一個 null
+// 要畫成什麼——所以它在這裡變成字。
+describe('StrategyBotRunRecordDomain 那一輪建議過什麼', () => {
+  it('建議過的三個數字算成字交出去', () => {
+    const runRecord = new StrategyBotRunRecord(
+      1, new Date('2026-09-16T05:05:00Z'), 'sell',
+      new Decimal(5000), new Decimal('66105.915'), new Decimal('60971.475'),
+    ).toDomain().toDto()
+
+    expect(runRecord.suggestedStakeText).toBe('5000')
+    expect(runRecord.suggestedStopLossText).toBe('66105.915')
+    expect(runRecord.suggestedTakeProfitText).toBe('60971.475')
+  })
+
+  it('沒有建議的那一輪三個都是 null', () => {
+    const runRecord = recordOf('hold')
+
+    expect(runRecord.suggestedStakeText).toBeNull()
+    expect(runRecord.suggestedStopLossText).toBeNull()
+    expect(runRecord.suggestedTakeProfitText).toBeNull()
+  })
+
+  it('一個零的止損價算成「0」，不算成 null', () => {
+    // 距離整個價格那麼遠的止損價正好是零——荒謬但合法，
+    // 而把它算成 null 會讓那一輪少講一件它真的講過的事。
+    const runRecord = new StrategyBotRunRecord(
+      1, new Date('2026-09-16T05:05:00Z'), 'buy',
+      new Decimal(5000), new Decimal(0), null,
+    ).toDomain().toDto()
+
+    expect(runRecord.suggestedStopLossText).toBe('0')
   })
 })

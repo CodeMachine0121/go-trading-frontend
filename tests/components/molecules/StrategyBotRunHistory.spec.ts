@@ -23,9 +23,15 @@ function runRecord(
   resultLabel: string,
   resultTone: 'success' | 'danger' | 'neutral' | 'warning',
   needsAttention = false,
+  suggested: {
+    stake?: string | null
+    stopLoss?: string | null
+    takeProfit?: string | null
+  } = {},
 ) {
   return new StrategyBotRunRecordDto(
-    runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone, needsAttention)
+    runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone, needsAttention,
+    suggested.stake ?? null, suggested.stopLoss ?? null, suggested.takeProfit ?? null)
 }
 
 describe('StrategyBotRunHistory', () => {
@@ -91,5 +97,43 @@ describe('StrategyBotRunHistory', () => {
     const rows = wrapper.findAll('[data-testid="run-history-row"]')
     expect(rows[0]!.classes()).not.toContain('strategy-bot-run-history__row--needs-attention')
     expect(rows[1]!.classes()).toContain('strategy-bot-run-history__row--needs-attention')
+  })
+})
+
+// 那一輪建議過的數字是它的來歷：使用者手機上收到一則訊息、照著做了，
+// 三天後想確認當時是什麼數字——而他那期間可能已經改過停損距離了。
+describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
+  it('建議過的那一輪三個數字都看得到', () => {
+    const wrapper = mountHistory({
+      runRecords: [runRecord(1, '賣出', 'danger', false, {
+        stake: '5000', stopLoss: '66105.915', takeProfit: '60971.475',
+      })],
+    })
+
+    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
+    expect(plan).toContain('5000')
+    expect(plan).toContain('66105.915')
+    expect(plan).toContain('60971.475')
+  })
+
+  it('沒有建議的那一輪一個字都不加', () => {
+    // 沒有建議是常態（沒填部位規劃的機器人、判出持有的那幾輪），
+    // 而一排寫著「—」的欄位會讓這張表讀起來像壞掉的。
+    const wrapper = mountHistory({ runRecords: [runRecord(1, '持有', 'neutral')] })
+
+    expect(wrapper.find('[data-testid="run-history-plan"]').exists()).toBe(false)
+  })
+
+  it('只建議過止損的那一輪就只多出金額與止損', () => {
+    const wrapper = mountHistory({
+      runRecords: [runRecord(1, '買入', 'success', false, {
+        stake: '5000', stopLoss: '62255.085',
+      })],
+    })
+
+    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
+    expect(plan).toContain('5000')
+    expect(plan).toContain('62255.085')
+    expect(plan).not.toContain('止盈')
   })
 })

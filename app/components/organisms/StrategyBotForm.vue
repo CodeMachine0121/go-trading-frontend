@@ -17,6 +17,12 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 這裡只剩「哪一台機器、照哪一套規則、盯哪裡、多久看一次」。
 // 開一台機器是填四格就走的事；拼規則是坐下來調半小時的事。
 // 兩件事綁在同一張表單上，代價是同一套規則想盯第二個市場只能從頭再拼一次。
+//
+// 建議部位那五格**收在一個問句底下、預設收著**，就是為了守住上面那句話：
+// 五個常駐欄位會把「填四格就走」變成「填九格才走」，
+// 而多數人在開一台機器人的那一刻還沒決定要押多少。
+// 那個區塊的開合不只是顯示——**收著就是不建議部位**，
+// 因為使用者看得到的就是他要送的。
 const { editing, tradingStrategyOptions, saving, failureMessage } = defineProps<{
   /** 有值就是改那一台，沒有就是新的一台。 */
   editing: StrategyBotDto | null
@@ -131,6 +137,100 @@ function onSave() {
       />
     </label>
 
+    <!--
+      一個問句而不是一個標題：使用者要決定的是「要不要」，不是「填什麼」。
+    -->
+    <div class="bot-form__plan">
+      <label class="bot-form__plan-toggle">
+        <input
+          v-model="form.suggestsPosition.value"
+          type="checkbox"
+          data-testid="bot-position-plan-toggle"
+        >
+        <span>要不要順便算部位？訊息會多講押多少、止損與止盈</span>
+      </label>
+
+      <div
+        v-if="form.suggestsPosition.value"
+        class="bot-form__plan-fields"
+        data-testid="bot-position-plan-fields"
+      >
+        <label class="bot-form__field">
+          <span class="bot-form__field-name">部位資金</span>
+          <AppInput
+            v-model="form.capitalText.value"
+            type="number"
+            inputmode="decimal"
+            placeholder="50000"
+            data-testid="bot-position-capital-input"
+          />
+        </label>
+
+        <label class="bot-form__field">
+          <span class="bot-form__field-name">每次開倉押多少</span>
+          <AppSelect
+            v-model="form.sizingMode.value"
+            data-testid="bot-position-sizing-mode-select"
+          >
+            <option
+              v-for="modeOption in form.sizingModeOptions"
+              :key="modeOption.value"
+              :value="modeOption.value"
+            >
+              {{ modeOption.label }}
+            </option>
+          </AppSelect>
+        </label>
+
+        <!-- 只有全押不必填，而那件事是既有那個模型答的，不是這裡記的。 -->
+        <label
+          v-if="form.sizingRequiresValue.value"
+          class="bot-form__field"
+        >
+          <span class="bot-form__field-name">押多少的數字</span>
+          <AppInput
+            v-model="form.sizingValueText.value"
+            type="number"
+            inputmode="decimal"
+            data-testid="bot-position-sizing-value-input"
+          />
+        </label>
+
+        <label class="bot-form__field">
+          <span class="bot-form__field-name">槓桿倍數（留空就是不上槓桿）</span>
+          <AppInput
+            v-model="form.leverageText.value"
+            type="number"
+            inputmode="decimal"
+            placeholder="1"
+            data-testid="bot-position-leverage-input"
+          />
+        </label>
+
+        <label class="bot-form__field">
+          <span class="bot-form__field-name">停損距離（百分點，留空就不設）</span>
+          <AppInput
+            v-model="form.stopLossText.value"
+            type="number"
+            inputmode="decimal"
+            placeholder="3"
+            data-testid="bot-position-stop-loss-input"
+          />
+        </label>
+
+        <label class="bot-form__field">
+          <span class="bot-form__field-name">停利距離（百分點，留空就不設）</span>
+          <AppInput
+            v-model="form.takeProfitText.value"
+            type="number"
+            inputmode="decimal"
+            placeholder="5"
+            data-testid="bot-position-take-profit-input"
+          />
+        </label>
+      </div>
+    </div>
+
     <AppAlert
       v-if="form.rejection.value !== null"
       tone="warning"
@@ -187,6 +287,32 @@ function onSave() {
   &__field-name {
     color: color('text-faint');
     font-size: font-size('2xs');
+  }
+
+  &__plan {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('2xs');
+
+    // 與四格之間畫一條線：上面那四格是必答的，這一段是選答的。
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
+  }
+
+  &__plan-toggle {
+    display: flex;
+    align-items: center;
+    gap: spacing('3xs');
+    color: color('text-muted');
+    font-size: font-size('2xs');
+    cursor: pointer;
+  }
+
+  &__plan-fields {
+    // 窄的時候自己折行，而不是把五格擠成一條。
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: spacing('2xs');
   }
 
   &__actions {

@@ -20,5 +20,14 @@ export class StrategyBotRunRecordDto {
      * 持有是在等市場，衝突是在等人——一排紀錄裡只有這一種需要被找出來。
      */
     public readonly needsAttention: boolean,
+    /**
+     * 那一輪建議的開倉金額、止損價與止盈價，**已經算成畫面直接畫得出來的字**。
+     *
+     * 三個各自可以是 `null`，而 `null` 就是那一格不畫。
+     * 沒有建議的那幾輪是常態——一排寫著「—」的欄位會讓那張表讀起來像壞掉的。
+     */
+    public readonly suggestedStakeText: string | null,
+    public readonly suggestedStopLossText: string | null,
+    public readonly suggestedTakeProfitText: string | null,
   ) {}
 }

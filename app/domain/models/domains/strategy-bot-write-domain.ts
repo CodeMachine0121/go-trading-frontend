@@ -1,3 +1,4 @@
+import { PositionPlanDomain } from '~/domain/models/domains/position-plan-domain'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
@@ -51,7 +52,16 @@ export class StrategyBotWriteDomain {
       return `觸發間隔上限是 ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} 分鐘`
     }
 
-    return null
+    // 問在最後，因為前面那四格是必填的：一台連名字都沒有的機器人，
+    // 先講它的槓桿沒有意義。
+    //
+    // 沒有部位規劃就**一句都不問**——那一台不建議部位，那五格填什麼都不影響它。
+    // 這一行就是「區塊收著的時候一格都不看」。
+    if (this.writeDto.positionPlan === null) {
+      return null
+    }
+
+    return new PositionPlanDomain(this.writeDto.positionPlan).rejection
   }
 
   get isSendable(): boolean {
@@ -66,6 +76,8 @@ export class StrategyBotWriteDomain {
       this.writeDto.symbol.trim(),
       this.writeDto.tradingStrategyId,
       this.writeDto.triggerIntervalMinutes,
+      // 沒有要正規化的東西：那五格是數字，沒有前後空白可以去。
+      this.writeDto.positionPlan,
     )
   }
 }

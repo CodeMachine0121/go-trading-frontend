@@ -9,6 +9,8 @@ import { StrategyBotNotFoundError } from '~/domain/errors/strategy-bot-not-found
 import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-error'
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import Decimal from 'decimal.js'
+import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -25,9 +27,9 @@ function botWire(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function writeDomainOf(id?: number) {
+function writeDomainOf(id?: number, positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotWriteDomain(
-    new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5))
+    new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5, positionPlan))
 }
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
@@ -193,5 +195,128 @@ describe('StrategyBotProxy 把拒絕分成說得出下一步的那幾種', () =>
       buildFetchError({ status: 400, message: '同時執行中的機器人上限是 10 台' })))
 
     await expect(proxy().startStrategyBot(3)).rejects.toThrow('上限是 10 台')
+  })
+})
+
+// 那五個數字要走完整條路：存進去送得出去、讀回來讀得出來。
+describe('StrategyBotProxy 帶著部位規劃進出', () => {
+  it('有部位規劃時把那一組送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createStrategyBot(writeDomainOf(undefined, new PositionPlanDto(
+      new Decimal(50000), 'percentage', new Decimal(10),
+      new Decimal(3), new Decimal(3), new Decimal(5))))
+
+    // 金額以字串送，理由與回來時相同：它是精確小數。
+    expect(fetchMock.mock.calls[0]![1].body.positionPlan).toEqual({
+      capital: '50000',
+      sizingMode: 'percentage',
+      sizingValue: '10',
+      leverage: '3',
+      stopLossPercentage: '3',
+      takeProfitPercentage: '5',
+    })
+  })
+
+  it('沒有部位規劃時整個鍵都不放', async () => {
+    // 不是放一組零：後端讀零與讀「沒有」是同一件事，但送一組零過去，
+    // 讀這段程式的人會以為這一側替他填了什麼。
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createStrategyBot(writeDomainOf())
+
+    expect(fetchMock.mock.calls[0]![1].body).not.toHaveProperty('positionPlan')
+  })
+
+  it('讀回來時把那一組讀出來', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
+      positionPlan: {
+        capital: '50000',
+        sizingMode: 'percentage',
+        sizingValue: '10',
+        leverage: '3',
+        stopLossPercentage: '3',
+        takeProfitPercentage: '5',
+      },
+    })))
+
+    const positionPlan = (await proxy().getStrategyBot(3)).positionPlan
+
+    expect(positionPlan?.capital.toString()).toBe('50000')
+    expect(positionPlan?.sizingMode).toBe('percentage')
+    expect(positionPlan?.stopLossPercentage.toString()).toBe('3')
+  })
+
+  it.each([
+    ['後端完全沒回那一組', undefined],
+    ['資金是零', { capital: '0' }],
+  ])('%s 就讀作沒有部位規劃', async (_name, positionPlan) => {
+    // 資金是那一組的開關，而那是後端的規則——這一側照它講，
+    // 不替它補一個預設資金。零也不是「有一組資金為零的規劃」。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ positionPlan })))
+
+    expect((await proxy().getStrategyBot(3)).positionPlan).toBeNull()
+  })
+
+  it('後端沒回槓桿時讀作不上槓桿', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
+      positionPlan: { capital: '50000' },
+    })))
+
+    const positionPlan = (await proxy().getStrategyBot(3)).positionPlan
+
+    expect(positionPlan?.leverage.toString()).toBe('1')
+    expect(positionPlan?.sizingMode).toBe('allIn')
+  })
+})
+
+// 那一輪建議過的三個數字也要讀得回來，而「沒有」與「零」是兩回事——
+// 止損價真的可以是零。
+describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
+  it('建議過的那一輪三個都讀得出來', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 1,
+      ranAt: '2026-09-16T05:05:00Z',
+      result: 'sell',
+      suggestedStake: '5000',
+      suggestedStopLossPrice: '66105.915',
+      suggestedTakeProfitPrice: '60971.475',
+    }]))
+
+    const runRecords = await proxy().listRunRecords(3)
+
+    expect(runRecords[0]?.suggestedStake?.toString()).toBe('5000')
+    expect(runRecords[0]?.suggestedStopLossPrice?.toString()).toBe('66105.915')
+    expect(runRecords[0]?.suggestedTakeProfitPrice?.toString()).toBe('60971.475')
+  })
+
+  it('沒有建議的那一輪三個都是 null', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 1, ranAt: '2026-09-16T05:05:00Z', result: 'hold',
+    }]))
+
+    const runRecords = await proxy().listRunRecords(3)
+
+    expect(runRecords[0]?.suggestedStake).toBeNull()
+    expect(runRecords[0]?.suggestedStopLossPrice).toBeNull()
+    expect(runRecords[0]?.suggestedTakeProfitPrice).toBeNull()
+  })
+
+  it('建議過一個零的止損價時讀得出零,而不是讀作沒有', async () => {
+    // 距離整個價格那麼遠的止損價正好是零——荒謬但合法，
+    // 而把它讀作「沒有」會讓那一輪的歷史少講一件它真的講過的事。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 1,
+      ranAt: '2026-09-16T05:05:00Z',
+      result: 'buy',
+      suggestedStake: '5000',
+      suggestedStopLossPrice: '0',
+    }]))
+
+    const runRecords = await proxy().listRunRecords(3)
+
+    expect(runRecords[0]?.suggestedStopLossPrice?.toString()).toBe('0')
   })
 })

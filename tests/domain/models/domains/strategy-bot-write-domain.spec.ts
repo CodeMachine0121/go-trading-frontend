@@ -1,6 +1,8 @@
+import Decimal from 'decimal.js'
 import { describe, expect, it } from 'vitest'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 
 /** 一台每一條規則都過得了的機器人，好讓每個案例只改它要講的那一格。 */
 function aBotWrite(overrides: Partial<{
@@ -8,6 +10,7 @@ function aBotWrite(overrides: Partial<{
   symbol: string
   tradingStrategyId: number
   triggerIntervalMinutes: number
+  positionPlan: PositionPlanDto | null
 }> = {}) {
   return new StrategyBotWriteDomain(new StrategyBotWriteDto(
     undefined,
@@ -15,6 +18,7 @@ function aBotWrite(overrides: Partial<{
     overrides.symbol ?? 'BTCUSDT',
     overrides.tradingStrategyId ?? 9,
     overrides.triggerIntervalMinutes ?? 5,
+    'positionPlan' in overrides ? overrides.positionPlan! : null,
   ))
 }
 
@@ -55,5 +59,46 @@ describe('StrategyBotWriteDomain', () => {
     expect(sendable.tradingStrategyId).toBe(9)
     expect(Object.keys(sendable)).not.toContain('buyCondition')
     expect(Object.keys(sendable)).not.toContain('signalSources')
+  })
+})
+
+// 「區塊收著的時候一格都不看」在這裡落地：沒有部位規劃就一句都不問。
+// 那一台不建議部位，那五格填什麼都不影響它。
+describe('StrategyBotWriteDomain 的部位規劃', () => {
+  it('沒有部位規劃時一句都不問', () => {
+    expect(aBotWrite({ positionPlan: null }).rejection).toBeNull()
+  })
+
+  it('有部位規劃就問它，而它說不出去的理由原樣交出來', () => {
+    const botWrite = aBotWrite({
+      positionPlan: new PositionPlanDto(
+        new Decimal(50000), 'percentage', new Decimal(150),
+        new Decimal(3), new Decimal(3), new Decimal(5)),
+    })
+
+    // 押多少那一條由回測那一列已經在用的模型答，所以兩張表單對同一個 150
+    // 講的是同一句話。
+    expect(botWrite.rejection).toContain('百分比要大於零且不超過一百')
+  })
+
+  it('四格的理由先講完，才輪到部位規劃', () => {
+    // 一台連名字都沒有的機器人，先講它的槓桿沒有意義。
+    const botWrite = aBotWrite({
+      name: '   ',
+      positionPlan: new PositionPlanDto(
+        new Decimal(50000), 'allIn', new Decimal(0),
+        new Decimal('0.5'), new Decimal(3), new Decimal(5)),
+    })
+
+    expect(botWrite.rejection).toContain('名稱')
+    expect(botWrite.rejection).not.toContain('槓桿')
+  })
+
+  it('交出去的那一份原樣帶著那一組', () => {
+    const positionPlan = new PositionPlanDto(
+      new Decimal(50000), 'allIn', new Decimal(0),
+      new Decimal(1), new Decimal(3), new Decimal(0))
+
+    expect(aBotWrite({ positionPlan }).sendable.positionPlan).toBe(positionPlan)
   })
 })

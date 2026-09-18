@@ -12,6 +12,9 @@ import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-pro
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
 import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
+import Decimal from 'decimal.js'
+import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 
 const STRATEGY_BOTS_ENDPOINT = '/strategy-bots'
 
@@ -36,6 +39,25 @@ type StrategyBotRunRecordWire = {
   runNumber: number
   ranAt: string
   result: string
+  /**
+   * 那一輪建議的三個數字。
+   *
+   * 三個都可以沒有，而沒有是常態：後端對沒有建議的那幾輪**整個欄位不回**，
+   * 所以「沒有」與「零」分得出來——止損價真的可以是零。
+   */
+  suggestedStake?: string | null
+  suggestedStopLossPrice?: string | null
+  suggestedTakeProfitPrice?: string | null
+}
+
+/** 後端回來的那一組部位規劃。整組可以沒有——那台機器人就是不建議部位。 */
+type PositionPlanWire = {
+  capital?: string | null
+  sizingMode?: string | null
+  sizingValue?: string | null
+  leverage?: string | null
+  stopLossPercentage?: string | null
+  takeProfitPercentage?: string | null
 }
 
 type StrategyBotWire = {
@@ -49,6 +71,7 @@ type StrategyBotWire = {
   lastSentSignal?: string
   haltReason?: string
   conflicting?: boolean
+  positionPlan?: PositionPlanWire | null
 }
 
 /**
@@ -122,6 +145,9 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         runRecordWire.runNumber,
         new Date(runRecordWire.ranAt),
         runRecordWire.result,
+        this.toSuggestedFigure(runRecordWire.suggestedStake),
+        this.toSuggestedFigure(runRecordWire.suggestedStopLossPrice),
+        this.toSuggestedFigure(runRecordWire.suggestedTakeProfitPrice),
       ))
     }
     catch (error: unknown) {
@@ -189,12 +215,59 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
 
     // 這裡不再自己去空白：正規化是 StrategyBotWriteDomain.sendable 整份一起做的。
     // 在這裡補一格，就是讓「哪幾格正規化過」有兩個答案。
-    return {
+    const body: Record<string, BackendRequestValue> = {
       name: writeDto.name,
       symbol: writeDto.symbol,
       tradingStrategyId: writeDto.tradingStrategyId,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
     }
+
+    // 沒有部位規劃就**整個鍵都不放**，而不是放一組零。
+    // 後端讀零與讀「沒有」是同一件事，但送一組零過去，
+    // 讀這段程式的人會以為這一側替他填了什麼。
+    if (writeDto.positionPlan !== null) {
+      body.positionPlan = {
+        // 金額一律以字串送，理由與回來時相同：它是精確小數。
+        capital: writeDto.positionPlan.capital.toString(),
+        sizingMode: writeDto.positionPlan.sizingMode,
+        sizingValue: writeDto.positionPlan.sizingValue.toString(),
+        leverage: writeDto.positionPlan.leverage.toString(),
+        stopLossPercentage: writeDto.positionPlan.stopLossPercentage.toString(),
+        takeProfitPercentage: writeDto.positionPlan.takeProfitPercentage.toString(),
+      }
+    }
+
+    return body
+  }
+
+  /**
+   * 後端那一組部位規劃讀成領域看得懂的形狀，或 `null`。
+   *
+   * **資金非正就是 `null`**——那是後端自己的規則（資金是這一組的開關），
+   * 這一側照它講而不是再定一條。一個還沒認得這個欄位的後端不回它，
+   * 而那也讀作 `null`。
+   */
+  private toPositionPlan(positionPlanWire?: PositionPlanWire | null): PositionPlanDto | null {
+    const capital = new Decimal(positionPlanWire?.capital ?? 0)
+    // 大於零，不是 `isPositive()`：decimal.js 的零是正的，
+    // 而零正是後端表示「沒有部位規劃」的方式。
+    if (!capital.greaterThan(0)) {
+      return null
+    }
+
+    return new PositionPlanDto(
+      capital,
+      (positionPlanWire?.sizingMode ?? 'allIn') as PositionSizingMode,
+      new Decimal(positionPlanWire?.sizingValue ?? 0),
+      new Decimal(positionPlanWire?.leverage ?? 1),
+      new Decimal(positionPlanWire?.stopLossPercentage ?? 0),
+      new Decimal(positionPlanWire?.takeProfitPercentage ?? 0),
+    )
+  }
+
+  /** 那一輪建議過的一個數字，或 `null`。零與沒有是兩回事。 */
+  private toSuggestedFigure(figure?: string | null): Decimal | null {
+    return figure === undefined || figure === null ? null : new Decimal(figure)
   }
 
   private toStrategyBot(botWire: StrategyBotWire): StrategyBot {
@@ -211,6 +284,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         ? null
         : botWire.haltReason as StrategyBotHaltReasonVo,
       botWire.conflicting ?? false,
+      this.toPositionPlan(botWire.positionPlan),
     )
   }
 }
