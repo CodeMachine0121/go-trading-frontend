@@ -5,6 +5,9 @@
 export type BacktestField
   = 'symbol' | 'timeRange' | 'initialCapital' | 'positionSizingValue' | 'tradingMode'
     | 'scriptBody'
+  // 出場價位是**一格**，蓋住止損與止盈兩個輸入框：它們併排填成一組，
+  // 而拒絕的句子已經說出是哪一個距離。後端也是這樣回的。
+    | 'exitLevels'
 
 /** 哨兵錯誤：使用者自己可以修正的輸入錯誤（欄位層級）。 */
 export class BacktestFieldError extends Error {
