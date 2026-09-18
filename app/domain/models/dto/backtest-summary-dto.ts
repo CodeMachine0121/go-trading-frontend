@@ -23,5 +23,14 @@ export class BacktestSummaryDto {
      * 多一個永遠是零的格子，只會讓人以為它有什麼意思。
      */
     public readonly conflictedCandleCount: number,
+    /**
+     * 被止損掃出場、被止盈帶走的筆數，**兩者都是零時不顯示**——
+     * 與打架棒數同一條規則：一格永遠是零的數字只會讓人以為它有什麼意思。
+     *
+     * 「我設了停損但它一次都沒被碰到」這件事不由這兩格說，
+     * 而是交易明細那一欄說（每一列都寫著「訊號」）。
+     */
+    public readonly stopLossExitCount: number,
+    public readonly takeProfitExitCount: number,
   ) {}
 }

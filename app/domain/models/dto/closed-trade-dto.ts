@@ -15,5 +15,7 @@ export class ClosedTradeDto {
     public readonly exitPrice: string,
     public readonly profit: string,
     public readonly profitTone: ProfitTone,
+    /** 這一筆怎麼出場的，已經是中文：訊號／止損／止盈。 */
+    public readonly exitReasonLabel: string,
   ) {}
 }

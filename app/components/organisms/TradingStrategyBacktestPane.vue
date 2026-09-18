@@ -99,6 +99,12 @@ const endTime = ref(timeZone.formatMinuteInput(defaultTimeRange.endTime))
 const initialCapital = ref(backtestApplication.defaultInitialCapital().toString())
 const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizingMode())
 const positionSizingValue = ref('50')
+// 兩個出場距離。預設留白，而留白就是不模擬。
+//
+// 它們在這一邊是**填得動的輸入框**，而不是彙總刻度與交易模式那種一句話：
+// 那两樣是那份交易策略自己說的，而一份交易策略對「它的主人能忍多少」沒有意見。
+const stopLossPercentage = ref('')
+const takeProfitPercentage = ref('')
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -112,6 +118,11 @@ async function runBacktest() {
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
+    // 留白是零，而零就是「沒有這個出場」。上面兩格留白讀成 `NaN`（一個錯誤），
+    // 這兩格讀成零（一個意思）——因為沒填初始資金是一件事情沒講完，
+    // 而沒填停損距離本來就是一個完整的回答。
+    new Decimal(stopLossPercentage.value === '' ? 0 : stopLossPercentage.value),
+    new Decimal(takeProfitPercentage.value === '' ? 0 : takeProfitPercentage.value),
   ))
 }
 </script>
@@ -159,6 +170,8 @@ async function runBacktest() {
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
         v-model:trading-mode="unpickedTradingMode"
+        v-model:stop-loss-percentage="stopLossPercentage"
+        v-model:take-profit-percentage="takeProfitPercentage"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
@@ -173,6 +186,7 @@ async function runBacktest() {
         :time-range-error="backtestRun.messageFor('timeRange')"
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
+        :exit-levels-error="backtestRun.messageFor('exitLevels')"
       />
     </AppPanel>
 

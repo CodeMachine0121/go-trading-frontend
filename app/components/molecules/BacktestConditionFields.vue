@@ -28,6 +28,7 @@ const {
   initialCapitalError = null,
   positionSizingValueError = null,
   tradingModeError = null,
+  exitLevelsError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
@@ -43,6 +44,13 @@ const {
   initialCapitalError?: string | null
   positionSizingValueError?: string | null
   tradingModeError?: string | null
+  /**
+   * 出場價位那一組旁邊要說的話。
+   *
+   * 一則訊息蓋住兩格，因為它們併排填成一組，
+   * 而那句話已經說出是止損還是止盈那一格。
+   */
+  exitLevelsError?: string | null
   /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
@@ -70,6 +78,11 @@ const initialCapital = defineModel<string>('initialCapital', { required: true })
 const positionSizingMode = defineModel<string>('positionSizingMode', { required: true })
 const positionSizingValue = defineModel<string>('positionSizingValue', { required: true })
 const tradingMode = defineModel<string>('tradingMode', { required: true })
+// 兩個出場距離。預設留白，而留白就是不模擬——這張表單上唯一
+// 「不填也是一個意思」的兩格，所以那一組旁邊要把這件事說出來。
+const stopLossPercentage = defineModel<string>('stopLossPercentage', { required: true })
+const takeProfitPercentage = defineModel<string>(
+  'takeProfitPercentage', { required: true })
 
 /**
  * 同一組單選鈕共用的名字。
@@ -225,6 +238,41 @@ const selectedPositionSizingMode = computed(
       </p>
     </FormField>
 
+    <!--
+      兩格擺成一組佔滿整列，與交易模式同一個理由：
+      「留白就不模擬」那句話被摺成一疊時，就沒有人會讀它。
+    -->
+    <FormField
+      label="出場價位"
+      class="backtest-condition-fields__exit-levels"
+      hint="留白就不模擬。距離從進場價量起"
+      :error-message="exitLevelsError"
+      grouped
+    >
+      <div class="backtest-condition-fields__exit-levels-inputs">
+        <label class="backtest-condition-fields__exit-level">
+          <span>止損距離（%）</span>
+          <AppInput
+            v-model="stopLossPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(exitLevelsError)"
+            data-testid="backtest-stop-loss-percentage-input"
+          />
+        </label>
+        <label class="backtest-condition-fields__exit-level">
+          <span>止盈距離（%）</span>
+          <AppInput
+            v-model="takeProfitPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(exitLevelsError)"
+            data-testid="backtest-take-profit-percentage-input"
+          />
+        </label>
+      </div>
+    </FormField>
+
     <AppButton
       type="submit"
       class="backtest-condition-fields__action"
@@ -256,6 +304,27 @@ const selectedPositionSizingMode = computed(
   // 那兩句說明會被折成一疊，而它們正是這一格存在的理由。
   &__trading-mode {
     grid-column: 1 / -1;
+  }
+
+  // 兩格也佔滿整列：那句「留白就不模擬」是這一組存在的一半理由，
+  // 而它被摺成一疊時沒有人會讀。
+  &__exit-levels {
+    grid-column: 1 / -1;
+  }
+
+  &__exit-levels-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: spacing('2xs');
+  }
+
+  &__exit-level {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    min-width: 0;
+    color: color('text-muted');
+    font-size: font-size('2xs');
   }
 
   // 排的是自己這一層的盒子，不是裡面那幾顆按鈕：靠子元件的 class 名來排版，

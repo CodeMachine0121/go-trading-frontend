@@ -3,6 +3,7 @@ import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trad
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
+import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
@@ -26,6 +27,10 @@ export class TradingStrategyBacktestRequestDomain {
   readonly initialCapital: Decimal
   readonly positionSizingMode: PositionSizingMode
   readonly positionSizingValue: Decimal
+  // 出場距離在這裡，而彙總刻度與交易模式不在：那两樣是那份交易策略自己說的，
+  // 而一份交易策略對「它的主人能忍多少」沒有意見。
+  readonly stopLossPercentage: Decimal
+  readonly takeProfitPercentage: Decimal
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -44,6 +49,9 @@ export class TradingStrategyBacktestRequestDomain {
     new PositionSizingDomain(
       requestDto.positionSizingMode, requestDto.positionSizingValue).validate()
 
+    new BacktestExitLevelsDomain(
+      requestDto.stopLossPercentage, requestDto.takeProfitPercentage).validate()
+
     this.tradingStrategyId = requestDto.tradingStrategyId
     this.symbol = normalizedSymbol
     this.startTime = requestDto.startTime
@@ -51,5 +59,7 @@ export class TradingStrategyBacktestRequestDomain {
     this.initialCapital = requestDto.initialCapital
     this.positionSizingMode = requestDto.positionSizingMode
     this.positionSizingValue = requestDto.positionSizingValue
+    this.stopLossPercentage = requestDto.stopLossPercentage
+    this.takeProfitPercentage = requestDto.takeProfitPercentage
   }
 }

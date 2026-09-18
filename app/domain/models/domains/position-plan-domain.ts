@@ -1,13 +1,11 @@
 import Decimal from 'decimal.js'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /** 不上槓桿：名目部位就等於押下去的那筆錢。小於它的不是槓桿。 */
 const NO_LEVERAGE = new Decimal(1)
-
-/** 距離的上限：整個價格。正好一百允許——荒謬但算得出來；再多價格會變成負數。 */
-const WHOLE_PRICE_PERCENTAGE = new Decimal(100)
 
 /**
  * Domain Model：一組部位規劃送不送得出去。
@@ -49,33 +47,16 @@ export class PositionPlanDomain {
       return '槓桿倍數不得小於 1 倍'
     }
 
-    return this.distanceRejection(this.positionPlan.stopLossPercentage, '停損距離')
-      ?? this.distanceRejection(this.positionPlan.takeProfitPercentage, '停利距離')
+    // 兩個距離的規則也是**委派**出去的，與上面押多少那一段同一個理由：
+    // 回測那一列現在也在問同樣兩個距離，而同一個 150 在兩張表單上
+    // 必須得到同一句話。
+    return new ExitDistanceDomain(this.positionPlan.stopLossPercentage, '停損距離')
+      .validationMessage()
+      ?? new ExitDistanceDomain(this.positionPlan.takeProfitPercentage, '停利距離')
+        .validationMessage()
   }
 
   get isSendable(): boolean {
     return this.rejection === null
-  }
-
-  /**
-   * 一個出口的距離講不講得通。
-   *
-   * 兩個出口共用，因為兩邊要擋的是同樣兩件事：負的會跑到價格的另一邊，
-   * 超過一百會讓價格變成負數。兩份之後會有一邊放過另一邊擋著的值。
-   */
-  private distanceRejection(distance: Decimal, name: string): string | null {
-    if (distance.isNaN()) {
-      return `${name}請填一個數字`
-    }
-
-    if (distance.isNegative()) {
-      return `${name}不得為負`
-    }
-
-    if (distance.greaterThan(WHOLE_PRICE_PERCENTAGE)) {
-      return `${name}不得超過 100%——那會讓價格變成負數`
-    }
-
-    return null
   }
 }

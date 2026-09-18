@@ -31,4 +31,32 @@ describe('回測照什麼規則走', () => {
     expect(text).toContain('不開空')
     expect(text).toContain('平倉')
   })
+
+  // 這三條存在的理由與交易模式那一條一字不差：這份說明曾經說過一句
+  // 已經不再成立的話。它寫著「不算…止損」，而重演現在算得出來了。
+  it('不再說回測一概不算止損', () => {
+    expect(guideText()).not.toContain('不算手續費、滑點、止損')
+  })
+
+  it('說得出出場價位是填了才模擬、且從進場價量起', () => {
+    const text = guideText()
+
+    expect(text).toContain('留白就完全不模擬')
+    expect(text).toContain('進場價')
+  })
+
+  it('說得出那三條判法——高低點、進場那一棒不判、兩個都碰到算止損', () => {
+    const text = guideText()
+
+    expect(text).toContain('最高最低價')
+    expect(text).toContain('進場那一棒不判')
+    expect(text).toContain('一律算止損')
+  })
+
+  it('手續費與滑點那一條還在——它們真的仍然不算', () => {
+    const text = guideText()
+
+    expect(text).toContain('手續費')
+    expect(text).toContain('滑點')
+  })
 })

@@ -87,6 +87,11 @@ const positionSizingValue = ref('50')
 // 這一次照哪一套規矩操作。它與上面那幾格一樣活在自己的 ref 裡，
 // 所以換它不會動到任何別的東西，也不會清掉上一張成績單。
 const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
+// 兩個出場距離。**預設留白，而留白就是不模擬**——
+// 這一刀之前的每一次重演都沒有停損，替它們補一個就是在沒有人動手的
+// 情況下改掉使用者手上每一張成績單。
+const stopLossPercentage = ref('')
+const takeProfitPercentage = ref('')
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
@@ -104,6 +109,11 @@ async function runBacktest() {
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
     tradingMode.value as TradingMode,
+    // 留白是零，而零就是「沒有這個出場」。上面兩格留白讀成 `NaN`（一個錯誤），
+    // 這兩格讀成零（一個意思）——因為沒填初始資金是一件事情沒講完，
+    // 而沒填停損距離本來就是一個完整的回答。
+    new Decimal(stopLossPercentage.value === '' ? 0 : stopLossPercentage.value),
+    new Decimal(takeProfitPercentage.value === '' ? 0 : takeProfitPercentage.value),
   ))
 }
 </script>
@@ -143,6 +153,8 @@ async function runBacktest() {
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
         v-model:trading-mode="tradingMode"
+        v-model:stop-loss-percentage="stopLossPercentage"
+        v-model:take-profit-percentage="takeProfitPercentage"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
@@ -155,6 +167,7 @@ async function runBacktest() {
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
         :trading-mode-error="backtestRun.messageFor('tradingMode')"
+        :exit-levels-error="backtestRun.messageFor('exitLevels')"
       />
 
       <p
