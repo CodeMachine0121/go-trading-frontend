@@ -18,10 +18,10 @@ export function buildBacktestApplication(
   return new BacktestApplication(new BacktestService({
     runBacktest: vi.fn().mockResolvedValue(new Backtest(
       'BTCUSDT', '5m', new Date(0), new Date(0), 0,
-      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, [], [])),
+      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0, [], [])),
     runTradingStrategyBacktest: vi.fn().mockResolvedValue(new Backtest(
       'BTCUSDT', '5m', new Date(0), new Date(0), 0,
-      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, [], [])),
+      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0, [], [])),
     ...overrides,
   }))
 }

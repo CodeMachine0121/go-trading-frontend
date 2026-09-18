@@ -2,11 +2,13 @@ import Decimal from 'decimal.js'
 import { describe, expect, it } from 'vitest'
 import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
+import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
 
 const REPLAY_START = new Date('2026-09-01T00:00:00Z')
 
 function closedTradeOf(
   direction: PositionDirection, profit: string, entryPrice = '100', exitPrice = '110',
+  exitReason: TradeExitReason = 'signal',
 ): ClosedTrade {
   return new ClosedTrade(
     direction,
@@ -15,7 +17,7 @@ function closedTradeOf(
     new Date('2026-09-02T00:00:00Z'),
     new Decimal(exitPrice),
     new Decimal('10000'),
-    new Decimal(profit))
+    new Decimal(profit), exitReason)
 }
 
 function backtestOf(overrides: Partial<{
@@ -24,6 +26,8 @@ function backtestOf(overrides: Partial<{
   winRate: number | null
   positionOpenCount: number
   conflictedCandleCount: number
+  stopLossExitCount: number
+  takeProfitExitCount: number
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
   finalEquity: string
@@ -41,11 +45,35 @@ function backtestOf(overrides: Partial<{
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
     overrides.positionOpenCount ?? 4,
     overrides.conflictedCandleCount ?? 0,
+    overrides.stopLossExitCount ?? 0,
+    overrides.takeProfitExitCount ?? 0,
     overrides.closedTrades ?? [],
     overrides.equityCurve ?? [])
 }
 
 describe('BacktestDomain', () => {
+  it('兩個出場筆數原樣交出去，進位與說法都不必經手', () => {
+    const resultDto = backtestOf({ stopLossExitCount: 2, takeProfitExitCount: 1 })
+      .toDomain().toDto()
+
+    expect(resultDto.summary.stopLossExitCount).toBe(2)
+    expect(resultDto.summary.takeProfitExitCount).toBe(1)
+  })
+
+  it.each([
+    ['signal' as TradeExitReason, '訊號'],
+    ['stopLoss' as TradeExitReason, '止損'],
+    ['takeProfit' as TradeExitReason, '止盈'],
+  ])('%s 寫成中文的「%s」', (exitReason, expectedLabel) => {
+    // 與方向那一組同一條規則：畫面一旦開始判断「這個值該寫成什麼字」，
+    // 同一個判断就會出現在每一個顯示它的地方。
+    const resultDto = backtestOf({
+      closedTrades: [closedTradeOf('long', '1000', '100', '110', exitReason)],
+    }).toDomain().toDto()
+
+    expect(resultDto.closedTrades[0]!.exitReasonLabel).toBe(expectedLabel)
+  })
+
   describe('成績單', () => {
     it('把六個數字都寫成可以直接畫的樣子', () => {
       const summary = backtestOf().toDomain().toDto().summary

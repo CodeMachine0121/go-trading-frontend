@@ -21,10 +21,14 @@ const END_TIME = new Date('2026-09-04T23:59:59Z')
 function requestOf(
   parameters: StrategyScriptParameterDto[] = [],
   tradingMode: TradingMode = 'longShort',
+  // 留白就是不模擬，也就是這一刀之前的每一次重演。
+  stopLossPercentage = new Decimal(0),
+  takeProfitPercentage = new Decimal(0),
 ): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
-    new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode))
+    new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode,
+    stopLossPercentage, takeProfitPercentage))
 }
 
 /** 一次成功的回測，wire 上的樣子。金額一律是字串——它們是精確小數。 */
@@ -42,6 +46,15 @@ function completedWire() {
       maximumDrawdown: 0.1,
       winRate: 0.75,
       positionOpenCount: 4,
+    } as {
+      initialCapital: string
+      finalEquity: string
+      totalReturnRate: number
+      maximumDrawdown: number
+      winRate: number | null
+      positionOpenCount: number
+      stopLossExitCount?: number
+      takeProfitExitCount?: number
     },
     closedTrades: [{
       direction: 'long',
@@ -51,7 +64,16 @@ function completedWire() {
       exitPrice: '110.25',
       stake: '10000',
       profit: '970.14',
-    }],
+    }] as {
+      direction: string
+      entryTime: string
+      entryPrice: string
+      exitTime: string
+      exitPrice: string
+      stake: string
+      profit: string
+      exitReason?: string
+    }[],
     equityCurve: [{ openTime: '2026-08-06T00:00:00Z', equity: '10000.123456789012345678' }],
   }
 }
@@ -113,6 +135,82 @@ describe('BacktestProxy', () => {
     const body = fetchMock.mock.calls[0]![1].body
     expect(typeof body.initialCapital).toBe('string')
     expect(typeof body.positionSizingValue).toBe('string')
+  })
+
+  it('填了的出場距離以字串送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal('2'), new Decimal('5')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.stopLossPercentage).toBe('2')
+    expect(body.takeProfitPercentage).toBe('5')
+  })
+
+  it('留白的出場距離**根本不出現在請求裡**', async () => {
+    // 送一個零雖然等價（後端把零讀成「沒有這個出場」），
+    // 但那個等價是巧合：一個空輸入框轉成的零不是使用者的意思。
+    // 不送它，「留白就不模擬」在線上就是字面的意思。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body).not.toHaveProperty('stopLossPercentage')
+    expect(body).not.toHaveProperty('takeProfitPercentage')
+  })
+
+  it('只填一個就只送那一個', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal('2'), new Decimal(0)))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.stopLossPercentage).toBe('2')
+    expect(body).not.toHaveProperty('takeProfitPercentage')
+  })
+
+  it('讀回來的那一份說得出幾筆是被掃出場的、以及每一筆怎麼出場', async () => {
+    const wire = completedWire()
+    wire.summary.stopLossExitCount = 2
+    wire.summary.takeProfitExitCount = 1
+    wire.closedTrades[0]!.exitReason = 'stopLoss'
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
+
+    const backtest = await new BacktestProxy(
+      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(backtest.stopLossExitCount).toBe(2)
+    expect(backtest.takeProfitExitCount).toBe(1)
+    expect(backtest.closedTrades[0]!.exitReason).toBe('stopLoss')
+  })
+
+  it('沒說出場原因時當成訊號出場，兩個筆數當成零', async () => {
+    // 比這一刀早的後端不說這三件事，而那時每一筆都只可能是訊號出場。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
+
+    const backtest = await new BacktestProxy(
+      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(backtest.stopLossExitCount).toBe(0)
+    expect(backtest.takeProfitExitCount).toBe(0)
+    expect(backtest.closedTrades[0]!.exitReason).toBe('signal')
+  })
+
+  it('後端指名出場價位時，說明落在那一組旁邊', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, 'backtest validation failed: 停損距離不得為負',
+      { field: 'exitLevels' })))
+
+    const failure = await backtestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestFieldError)
+    expect((failure as BacktestFieldError).field).toBe('exitLevels')
   })
 
   it('宣告與這一次的值分兩份送，空的也送', async () => {
@@ -228,7 +326,7 @@ describe('BacktestProxy', () => {
 function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
-    new Decimal('10000'), 'percentage', new Decimal('50')))
+    new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0)))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {

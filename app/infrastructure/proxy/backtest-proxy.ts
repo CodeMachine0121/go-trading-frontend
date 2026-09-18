@@ -3,15 +3,40 @@ import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import type { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import type { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
+import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
 import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
+import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const BACKTESTS_ENDPOINT = '/backtests'
+
+/**
+ * 兩個出場距離在請求裡的那一段，而留白的那一個**根本不出現**。
+ *
+ * 送一個零雖然等價（後端把零讀成「沒有這個出場」），但那個等價是巧合：
+ * 一個空輸入框轉成的零不是使用者的意思，而是 `new Decimal('')` 的結果。
+ * 不送它讓「留白就不模擬」在線上就是字面的意思，
+ * 而不是兩邊各自把零讀成同一件事的巧合。
+ *
+ * 「零就是沒有」的判断向那個共用模型要，不在這裡再寫一次 `greaterThan(0)`：
+ * `decimal.js` 把零當成正的，而這個專案已經踩過一次那條差別。
+ */
+function exitLevelsBody(
+  stopLossPercentage: Decimal, takeProfitPercentage: Decimal,
+): Record<string, string> {
+  const stopLoss = new ExitDistanceDomain(stopLossPercentage, '停損距離')
+  const takeProfit = new ExitDistanceDomain(takeProfitPercentage, '停利距離')
+
+  return {
+    ...(stopLoss.isSet ? { stopLossPercentage: stopLossPercentage.toString() } : {}),
+    ...(takeProfit.isSet ? { takeProfitPercentage: takeProfitPercentage.toString() } : {}),
+  }
+}
 
 /** 重演一份交易策略掛在那一份底下，因為那是對它做的事。 */
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
@@ -30,6 +55,9 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   initialCapital: 'initialCapital',
   positionSizingValue: 'positionSizingValue',
   tradingMode: 'tradingMode',
+  // 一個名字蓋住止損與止盈兩格：它們併排填成一組，
+  // 而後端那句話已經說出是哪一個距離。
+  exitLevels: 'exitLevels',
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
   // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要重演什麼」有關的地方。
   signalSources: 'symbol',
@@ -47,6 +75,13 @@ type ClosedTradeWire = {
   exitPrice: string
   stake: string
   profit: string
+  /**
+   * 這一筆是怎麼出場的。
+   *
+   * 它是選填的，因為比這一刀早的後端不說這件事——
+   * 而那時每一筆都只可能是訊號出場，所以沒有就是訊號。
+   */
+  exitReason?: string
 }
 
 type EquityPointWire = {
@@ -75,6 +110,14 @@ type BacktestWire = {
      * 所以它是選填的，沒有就是一棒都沒有。
      */
     conflictedCandleCount?: number
+    /**
+     * 被止損掃出場、被止盈帶走的筆數。
+     *
+     * 這一次沒有給距離時兩個都是零，而比這一刀早的後端根本不說，
+     * 所以它們是選填的：沒有就是一筆都沒有。
+     */
+    stopLossExitCount?: number
+    takeProfitExitCount?: number
   }
   closedTrades: ClosedTradeWire[] | null
   equityCurve: EquityPointWire[] | null
@@ -97,6 +140,9 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           positionSizingMode: backtestRequestDomain.positionSizingMode,
           positionSizingValue: backtestRequestDomain.positionSizingValue.toString(),
           tradingMode: backtestRequestDomain.tradingMode,
+          ...exitLevelsBody(
+            backtestRequestDomain.stopLossPercentage,
+            backtestRequestDomain.takeProfitPercentage),
           // 宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
           // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
           parameters: backtestRequestDomain.parameters.all.map(parameter => ({
@@ -140,6 +186,9 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             positionSizingMode: requestDomain.positionSizingMode,
             positionSizingValue: requestDomain.positionSizingValue.toString(),
             // 交易模式不在這裡：它是那一份交易策略自己記著的，後端從那一份讀。
+            // 而出場距離在：那一份對「它的主人能忍多少」沒有意見。
+            ...exitLevelsBody(
+              requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
           },
         })
 
@@ -165,6 +214,8 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       wire.summary.winRate,
       wire.summary.positionOpenCount,
       wire.summary.conflictedCandleCount ?? 0,
+      wire.summary.stopLossExitCount ?? 0,
+      wire.summary.takeProfitExitCount ?? 0,
       (wire.closedTrades ?? []).map(closedTrade => new ClosedTrade(
         closedTrade.direction as PositionDirection,
         new Date(closedTrade.entryTime),
@@ -172,7 +223,9 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
         new Date(closedTrade.exitTime),
         new Decimal(closedTrade.exitPrice),
         new Decimal(closedTrade.stake),
-        new Decimal(closedTrade.profit))),
+        new Decimal(closedTrade.profit),
+        // 沒說就是訊號出場——比這一刀早的後端只有那一種出場。
+        (closedTrade.exitReason ?? 'signal') as TradeExitReason)),
       (wire.equityCurve ?? []).map(equityPoint => new EquityPoint(
         new Date(equityPoint.openTime),
         new Decimal(equityPoint.equity))),

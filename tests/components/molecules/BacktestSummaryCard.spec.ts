@@ -8,7 +8,7 @@ function mountCard(summary: BacktestSummaryDto) {
 }
 
 const SUMMARY = new BacktestSummaryDto(
-  '10000', '12500', '+25.00%', 'positive', '10.00%', '75.0%', 4, 0)
+  '10000', '12500', '+25.00%', 'positive', '10.00%', '75.0%', 4, 0, 0, 0)
 
 describe('BacktestSummaryCard', () => {
   it('交代六件事，每一件都照 DTO 已經決定好的樣子寫', () => {
@@ -40,7 +40,7 @@ describe('BacktestSummaryCard', () => {
     ['neutral', '--neutral'],
   ] as const)('總報酬率的色調 %s 照 DTO 說的來', (tone, expectedSuffix) => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '12500', '+25.00%', tone, '10.00%', '75.0%', 4, 0))
+      '10000', '12500', '+25.00%', tone, '10.00%', '75.0%', 4, 0, 0, 0))
 
     expect(wrapper.get('[data-testid="summary-total-return-rate"]').classes()
       .some(name => name.endsWith(expectedSuffix))).toBe(true)
@@ -48,14 +48,33 @@ describe('BacktestSummaryCard', () => {
 
   it('勝率不適用時原樣寫出來，不擅自換成 0%', () => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0))
 
     expect(wrapper.get('[data-testid="summary-win-rate"]').text()).toBe('不適用')
   })
+  it('被掃出場過才多那兩格', () => {
+    // 同一個報酬率，兩個完全不同的故事：十次出場八次靡停損的策略，
+    // 與十次都靡訊號的，報酬率可以一模一樣。
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '9800', '-2.00%', 'negative', '2.00%', '0.0%', 3, 0, 2, 1))
+
+    expect(wrapper.get('[data-testid="summary-stop-loss-exit-count"]').text()).toBe('2')
+    expect(wrapper.get('[data-testid="summary-take-profit-exit-count"]').text()).toBe('1')
+  })
+
+  it('一筆都沒被掃出場時那兩格不出現', () => {
+    // 與打架棒數同一條規則：一格永遠是零的數字只會讓人以為它有什麼意思，
+    // 而沒模擬出場的那一次兩個零沒有任何資訊。
+    const wrapper = mountCard(SUMMARY)
+
+    expect(wrapper.find('[data-testid="summary-stop-loss-exit-count"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-take-profit-exit-count"]').exists()).toBe(false)
+  })
+
   it('打架過才多一格，說出幾棒', () => {
     // 一份一直在打架的交易策略幾乎不進場，那張漂亮的成績單會被讀成「很穩」。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 180))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 180, 0, 0))
 
     expect(wrapper.get('[data-testid="summary-conflicted-candle-count"]').text()).toBe('180')
     expect(wrapper.text()).toContain('規則打架的棒數')

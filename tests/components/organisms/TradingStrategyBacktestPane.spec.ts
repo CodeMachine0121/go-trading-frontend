@@ -41,9 +41,11 @@ function completedBacktest(conflictedCandleCount = 0): Backtest {
     new Decimal('10000'), new Decimal('12500'),
     0.25, 0.1, 0.75, 4,
     conflictedCandleCount,
+    0,
+    0,
     [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'))],
+      new Decimal('10000'), new Decimal('1000'), 'signal')],
     [
       new EquityPoint(REPLAY_START, new Decimal('10000')),
       new EquityPoint(REPLAY_END, new Decimal('12500')),
@@ -314,5 +316,34 @@ describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
     // 而沒有規則說哪一個贏。
     expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0])
       .not.toHaveProperty('tradingMode')
+  })
+})
+
+describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
+  it('兩個出場距離在這一邊是填得動的輸入框，不是一句話', async () => {
+    // 彙總刻度與交易模式在這一邊是一句話（那份交易策略自己說的），
+    // 而這兩格不是：一份交易策略對「它的主人能忍多少」沒有意見。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('2')
+    await wrapper.get('[data-testid="backtest-take-profit-percentage-input"]').setValue('5')
+    await fillSymbolAndRun(wrapper)
+
+    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
+    expect(request.stopLossPercentage.toString()).toBe('2')
+    expect(request.takeProfitPercentage.toString()).toBe('5')
+  })
+
+  it('這一邊的距離填錯也不送出，句子一字不差', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-take-profit-percentage-input"]').setValue('-5')
+    await fillSymbolAndRun(wrapper)
+
+    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+    expect(wrapper.get('.backtest-condition-fields__exit-levels')
+      .get('[data-testid="field-error"]').text()).toContain('停利距離不得為負')
   })
 })

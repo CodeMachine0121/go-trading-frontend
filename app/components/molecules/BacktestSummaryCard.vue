@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
 
-// 分子：成績單那六個數字。
+// 分子：成績單那幾個數字。
 //
 // 它一個都不算、一個都不進位、也不判斷正負——收到的 DTO 已經全部決定好了。
 // 賺綠賠紅尤其如此：那是「這個數字是好消息嗎」，而那是領域知識，不是樣式。
@@ -67,6 +67,30 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
         {{ summary.conflictedCandleCount }}
       </dd>
     </div>
+    <!--
+      被掃出場過才出現，與打架棒數同一條規則——
+      沒模擬出場的那一次兩個零沒有任何資訊。
+      出現的時候它們要被看見：**同一個報酬率，兩個完全不同的故事**——
+      十次出場八次靡停損的策略，與十次都靡訊號的，報酬率可以一模一樣。
+    -->
+    <div
+      v-if="summary.stopLossExitCount > 0"
+      class="backtest-summary-card__item"
+    >
+      <dt>止損出場</dt>
+      <dd data-testid="summary-stop-loss-exit-count">
+        {{ summary.stopLossExitCount }}
+      </dd>
+    </div>
+    <div
+      v-if="summary.takeProfitExitCount > 0"
+      class="backtest-summary-card__item"
+    >
+      <dt>止盈出場</dt>
+      <dd data-testid="summary-take-profit-exit-count">
+        {{ summary.takeProfitExitCount }}
+      </dd>
+    </div>
   </dl>
 </template>
 
@@ -74,8 +98,8 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
 .backtest-summary-card {
   display: grid;
 
-  // 六格自動排開：寬的時候一排、窄的時候折成兩排三排，
-  // 而不是固定六欄然後在筆電上把數字擠成兩行。
+  // 每一格自動排開：寬的時候一排、窄的時候折成兩排三排，
+  // 而不是固定欄數然後在筆電上把數字擠成兩行。
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: spacing('sm');
   margin: 0;

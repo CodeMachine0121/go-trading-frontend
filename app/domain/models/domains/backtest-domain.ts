@@ -2,6 +2,7 @@ import type Decimal from 'decimal.js'
 import type { Backtest, ClosedTrade } from '~/domain/models/entities/backtest'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
 import type { ProfitTone } from '~/domain/models/vo/profit-tone-vo'
+import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
@@ -43,6 +44,18 @@ const POSITION_DIRECTION_LABELS: Readonly<Record<PositionDirection, string>> = {
 }
 
 /**
+ * 一筆交易怎麼出場的，寫成中文。
+ *
+ * 與方向那一組並排，同一條規則：畫面一旦開始判断「這個值該寫成什麼字」，
+ * 同一個判断就會出現在每一個顯示它的地方。
+ */
+const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, string>> = {
+  signal: '訊號',
+  stopLoss: '止損',
+  takeProfit: '止盈',
+}
+
+/**
  * Domain Model：一次回測的結果，負責把它變成**可以直接畫**的樣子。
  *
  * 每一個進位、每一個色調、每一個中文說法都在這裡決定。畫面只負責畫——
@@ -78,6 +91,8 @@ export class BacktestDomain {
         : this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS),
       this.backtest.closedTrades.length,
       this.backtest.conflictedCandleCount,
+      this.backtest.stopLossExitCount,
+      this.backtest.takeProfitExitCount,
     )
   }
 
@@ -90,6 +105,7 @@ export class BacktestDomain {
       this.price(closedTrade.exitPrice),
       this.amount(closedTrade.profit),
       this.toneOfDecimal(closedTrade.profit),
+      TRADE_EXIT_REASON_LABELS[closedTrade.exitReason],
     )
   }
 

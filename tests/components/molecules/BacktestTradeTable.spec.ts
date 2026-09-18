@@ -7,8 +7,13 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 const ENTRY_TIME = new Date('2026-09-01T04:00:00Z')
 const EXIT_TIME = new Date('2026-09-02T04:00:00Z')
 
-function tradeOf(profit: string, tone: 'positive' | 'negative' | 'neutral'): ClosedTradeDto {
-  return new ClosedTradeDto('做多', ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone)
+function tradeOf(
+  profit: string,
+  tone: 'positive' | 'negative' | 'neutral',
+  exitReasonLabel = '訊號',
+): ClosedTradeDto {
+  return new ClosedTradeDto(
+    '做多', ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone, exitReasonLabel)
 }
 
 function mountTable(closedTrades: ClosedTradeDto[], timeZoneIdentifier = 'UTC') {
@@ -18,11 +23,25 @@ function mountTable(closedTrades: ClosedTradeDto[], timeZoneIdentifier = 'UTC') 
 }
 
 describe('BacktestTradeTable', () => {
-  it('一筆一列，每一列交代方向、兩端的時間與價格、以及賺賠', () => {
+  it('一筆一列，每一列交代方向、兩端的時間與價格、怎麼出場、以及賺賠', () => {
     const wrapper = mountTable([tradeOf('1000', 'positive')])
 
+    // 「怎麼出場」擺在出場價之後、賺賠之前：它說的是那一次出場的事。
     const cells = wrapper.findAll('[data-testid="trade-row"] td').map(cell => cell.text())
-    expect(cells).toEqual(['做多', '2026-09-01 04:00', '100', '2026-09-02 04:00', '110', '1000'])
+    expect(cells).toEqual([
+      '做多', '2026-09-01 04:00', '100', '2026-09-02 04:00', '110', '訊號', '1000'])
+  })
+
+  it.each([
+    ['被停損掃出場的那一筆', '止損'],
+    ['被停利帶走的那一筆', '止盈'],
+    ['靡訊號出場的那一筆', '訊號'],
+  ])('%s 自己說出來', (_name, expectedLabel) => {
+    // 總數答得出「有幾筆」、答不出「是哪幾筆」——
+    // 而看這張明細的人問的正是後者。
+    const wrapper = mountTable([tradeOf('1000', 'positive', expectedLabel)])
+
+    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe(expectedLabel)
   })
 
   it('時間照使用者選的顯示時區寫出來', () => {

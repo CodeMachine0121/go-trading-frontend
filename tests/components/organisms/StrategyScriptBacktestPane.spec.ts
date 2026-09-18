@@ -54,9 +54,11 @@ function completedBacktest(overrides: Partial<{
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
     4,
     0,
+    0,
+    0,
     overrides.closedTrades ?? [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'))],
+      new Decimal('10000'), new Decimal('1000'), 'signal')],
     overrides.equityCurve ?? [
       new EquityPoint(REPLAY_START, new Decimal('10000')),
       new EquityPoint(REPLAY_END, new Decimal('12500')),
@@ -372,9 +374,9 @@ describe('StrategyScriptBacktestPane', () => {
         runBacktest: vi.fn().mockResolvedValue(completedBacktest({
           closedTrades: [
             new ClosedTrade('long', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('300')),
+              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal'),
             new ClosedTrade('short', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('-120')),
+              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal'),
           ],
         })),
       }))
@@ -578,5 +580,73 @@ describe('StrategyScriptBacktestPane 照哪一套規矩操作', () => {
     const tradingModeField = wrapper.get('.backtest-condition-fields__trading-mode')
     expect(tradingModeField.get('[data-testid="field-error"]').text())
       .toBe('交易模式只能是 longShort、spot 其中之一')
+  })
+})
+
+describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
+  it('兩個出場距離填了就送出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('2')
+    await wrapper.get('[data-testid="backtest-take-profit-percentage-input"]').setValue('5')
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.stopLossPercentage.toString()).toBe('2')
+    expect(request.takeProfitPercentage.toString()).toBe('5')
+  })
+
+  it('預設兩格都留白，而留白就是不模擬', async () => {
+    // 這一刀之前的每一次重演都沒有停損，替它們補一個就是在沒有人動手的
+    // 情況下改掉使用者手上每一張成績單。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-stop-loss-percentage-input"]').element.value).toBe('')
+
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.stopLossPercentage.isZero()).toBe(true)
+    expect(request.takeProfitPercentage.isZero()).toBe(true)
+  })
+
+  it('距離填錯就**不送出**，而那句話留在那一組旁邊', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('-2')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    // 位置就是這一條的全部重點：一則標在頁面頂端的訊息，指不出下一步。
+    const exitLevelsField = wrapper.get('.backtest-condition-fields__exit-levels')
+    expect(exitLevelsField.get('[data-testid="field-error"]').text())
+      .toContain('停損距離不得為負')
+  })
+
+  it('那句拒絕與機器人表單上那兩格逐字相同', async () => {
+    // 兩張表單問同一件事，而同一個 150 不該有兩種說法。
+    // 這一條釘的就是那份共用模型的措詞。
+    const wrapper = mountPane(buildProxy())
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('120')
+    await runBacktest(wrapper)
+
+    expect(wrapper.get('.backtest-condition-fields__exit-levels')
+      .get('[data-testid="field-error"]').text())
+      .toBe('停損距離不得超過 100%——那會讓價格變成負數')
+  })
+
+  it('正好 100 送得出去——止損價正好是零，荒謬但算得出來', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('100')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).toHaveBeenCalled()
   })
 })

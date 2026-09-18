@@ -43,6 +43,10 @@ const { closedTrades, timeZone } = defineProps<{
           <th scope="col">
             出場價
           </th>
+          <!-- 擺在出場價之後、賺賠之前：它說的是**那一次出場**的事。 -->
+          <th scope="col">
+            怎麼出場
+          </th>
           <th scope="col">
             賺賠
           </th>
@@ -62,6 +66,9 @@ const { closedTrades, timeZone } = defineProps<{
           <td>{{ timeZone.formatDateTime(closedTrade.exitTime) }}</td>
           <td class="backtest-trade-table__number">
             {{ closedTrade.exitPrice }}
+          </td>
+          <td data-testid="trade-exit-reason">
+            {{ closedTrade.exitReasonLabel }}
           </td>
           <!-- 賺綠賠紅：同一欄裡掃下去，方向比數值先被看見。 -->
           <td

@@ -33,5 +33,15 @@ export class BacktestRequestDto {
     public readonly positionSizingValue: Decimal,
     /** 這一次照哪一套規矩操作：賣出時要反手做空，還是平倉把錢收回來。 */
     public readonly tradingMode: TradingMode,
+    /**
+     * 這一次要模擬的止損距離（百分點，從**進場價**量起）。
+     *
+     * **留白就是完全不模擬止損**——不是套用一個常見的預設值。
+     * 這兩格跟著這一次走，與初始資金、押多少同一類；
+     * 它們與一台機器人身上同名的那兩格**不是同一件事**（那一組從最新價量起）。
+     */
+    public readonly stopLossPercentage: Decimal,
+    /** 這一次要模擬的止盈距離，規則與止損一字不差，方向相反。 */
+    public readonly takeProfitPercentage: Decimal,
   ) {}
 }

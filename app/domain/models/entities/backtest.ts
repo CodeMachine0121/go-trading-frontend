@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
+import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
 import { BacktestDomain } from '~/domain/models/domains/backtest-domain'
 
 /**
@@ -16,6 +17,13 @@ export class ClosedTrade {
     public readonly stake: Decimal,
     /** 賠錢時是負的；沒有另一個「虧損」欄位。 */
     public readonly profit: Decimal,
+    /**
+     * 這一筆是怎麼結束的：訊號叫它出場，還是碰到了這一次重演給的出場價位。
+     *
+     * 它在每一筆上而不只是成績單那兩個總數，因為總數答得出「有幾筆」、
+     * 答不出「是哪幾筆」——而看這張明細的人問的正是後者。
+     */
+    public readonly exitReason: TradeExitReason,
   ) {}
 }
 
@@ -57,6 +65,16 @@ export class Backtest {
      * 重演一支策略腳本時它恆為零——一支腳本不會與自己打架。
      */
     public readonly conflictedCandleCount: number,
+    /**
+     * 被止損掃出場、被止盈帶走的筆數。這一次沒有給距離時兩個都是零。
+     *
+     * 它們存在的理由是：**同一個報酬率，兩個完全不同的故事**。
+     * 十次出場八次是被停損掃出去的策略，是停損在支撑它；
+     * 十次都靡訊號出場的，是還沒遇到那個掃光它的盤。
+     * 少了這兩個數字，那兩件事在成績單上長得一模一樣。
+     */
+    public readonly stopLossExitCount: number,
+    public readonly takeProfitExitCount: number,
     public readonly closedTrades: readonly ClosedTrade[],
     public readonly equityCurve: readonly EquityPoint[],
   ) {}
