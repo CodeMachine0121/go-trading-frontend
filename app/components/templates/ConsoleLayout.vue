@@ -1,39 +1,51 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppModal from '~/components/atoms/AppModal.vue'
 import { useLayoutDensity } from '~/composables/use-layout-density'
 
 // 樣板：全站共用的版面骨架，只有結構與插槽，不綁任何資料。
 //
-// 這一版把版面從「置中的一欄文件」換成交易終端機的外框：
-// 導覽收進左邊一條固定的側欄，頂上留一條窄帶說「我在哪一個畫面」，
-// 剩下的整片都是工作區。四個畫面走到哪裡，外框都在同一個位置，
-// 而且工作區永遠填滿視窗——表格與圖在自己的框裡捲，不是整頁一起捲。
+// **兩種外框，同一份去處。**
 //
-// 窄螢幕上那條側欄改成**一片叫得出來的抽屜**：平時不佔任何高度，
-// 按一下蓋在畫面上，九個去處一次全看得到，選一個就收起來。
-// 它取代的是更早那一版「躺平成頂上一條橫著捲的窄帶」——九個去處
-// 在平板的寬度也塞不滿一條而不捲，於是第七、八、九個永遠藏在捲動之外，
-// 而那條窄帶還一直吃著手機上最稀缺的高度。
+// 寬螢幕是交易終端機的樣子：導覽收在左邊一條固定的側欄，頂上一條窄帶說「我在哪一個
+// 畫面」，剩下的整片都是工作區。工作區永遠填滿視窗——表格與圖在自己的框裡捲，
+// 不是整頁一起捲。
 //
-// **去處的清單只寫一次**，兩種形狀由樣式決定。複製第二份標記的話，
-// 讀螢幕的人會聽到兩份導覽，而其中一份永遠是看不見的那一份。
+// 窄螢幕是一台 app 的樣子：**去處貼在畫面底部**，常用的四個直接露出來，其餘收進
+// 「更多」。這不是把側欄縮小，是換一種東西：
 //
-// 導覽是骨架的一部分（「這個操作台有哪幾個地方可去」），不是資料；
-// 需要即時去問後端的東西（那顆燈、時區）一律由頁面填進插槽。
+// - 去處**永遠看得見**。藏在一顆鍵後面的清單，每次換畫面都是兩下（開、選），
+//   而且使用者不按下去就不知道自己還能去哪裡。
+// - 拇指**構得到**。畫面最上緣是單手握著時最遠的地方，而導覽是全站按最多次的東西。
+// - 它是這一類 app 的既有慣例：交易 app 幾乎一律如此（TradingView、Yahoo Finance、
+//   Bloomberg、Fidelity、Stake、Wealthsimple 都是底部一排分頁），使用者不必重新學。
+//
+// 頂上那條窄帶在窄螢幕上也換了角色：它不再是一條有底色的帶子，而是**內容裡的一行
+// 大字**。一條永遠佔著高度的窄帶，在手機上換來的只是少掉一行內容。
 const DESTINATIONS = [
-  { to: '/', label: '連線狀態', icon: 'connection' },
-  { to: '/k-candles', label: 'K 線瀏覽', icon: 'table' },
-  { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles' },
-  { to: '/watchlist', label: '觀察清單', icon: 'table' },
-  { to: '/indicator-calculations', label: '指標計算', icon: 'formula' },
-  { to: '/marketplace', label: '策略腳本市集', icon: 'library' },
+  { to: '/', label: '連線狀態', icon: 'connection', primary: false },
+  { to: '/k-candles', label: 'K 線瀏覽', icon: 'table', primary: false },
+  { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles', primary: true },
+  { to: '/watchlist', label: '觀察清單', icon: 'table', primary: true },
+  { to: '/indicator-calculations', label: '指標計算', icon: 'formula', primary: false },
+  { to: '/marketplace', label: '策略腳本市集', icon: 'library', primary: false },
   // 機器人排在市集之後、助手之前：市集是「有什麼可以用」，這裡是「我派了誰出去」，
   // 兩者是同一件事的前後兩步。
-  { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot' },
-  { to: '/chat', label: '行情助手', icon: 'robot' },
-  { to: '/settings', label: '設定', icon: 'settings' },
+  { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot', primary: true },
+  { to: '/chat', label: '行情助手', icon: 'robot', primary: true },
+  { to: '/settings', label: '設定', icon: 'settings', primary: false },
 ] as const
+
+/**
+ * 底部那一排放哪幾個。
+ *
+ * 四個，不是九個：一排超過五格之後，每一格就窄到放不下一個讀得出來的名字，
+ * 而沒有名字的圖示等於要使用者猜。挑的是**看的次數**最多的那四個——
+ * 圖、清單、我派出去的機器人、隨口問一句——其餘的走「更多」。
+ */
+const PRIMARY_DESTINATIONS = DESTINATIONS.filter(destination => destination.primary)
+const SECONDARY_DESTINATIONS = DESTINATIONS.filter(destination => !destination.primary)
 
 defineProps<{
   title: string
@@ -41,12 +53,13 @@ defineProps<{
 }>()
 
 const { layoutDensity } = useLayoutDensity()
+const route = useRoute()
 
 /**
  * 側欄收起來了沒有。
  *
  * **收起來的是那幾個字，不是那幾個地方**：側欄縮成一條只剩圖示的窄邊，
- * 五個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
+ * 九個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
  * 而他多數時候只是想讓圖寬一點。
  *
  * 它是跨畫面共用的狀態（`useState`）而不是這個元件裡的一個 `ref`：
@@ -54,47 +67,34 @@ const { layoutDensity } = useLayoutDensity()
  */
 const railStowed = useState('console-rail-stowed', () => false)
 
-/**
- * 抽屜開著沒有。
- *
- * 與側欄收合相反，它**不**跨畫面共用：抽屜是「我現在要去別的地方」這個當下的動作，
- * 到了那個地方它的任務就結束了。換頁時它跟著這個元件一起重新掛載成關著的樣子，
- * 正是它該有的行為。
- */
-const navigationDrawerOpen = ref(false)
+/** 「更多」那張紙開著沒有。它是當下的動作，換了畫面就結束，所以不跨畫面共用。 */
+const moreOpen = ref(false)
 
 /**
- * 視窗變寬到不再需要抽屜時，把它關掉。
+ * 現在待的這個畫面藏在「更多」裡。
  *
- * 不關的話，那個「開著」會留在狀態裡：使用者把視窗拉寬、再拉窄回來，
- * 抽屜就會自己跳出來，而他沒有按過任何東西。
+ * 那時候底下四格沒有一格是亮的，而一排全暗的分頁讀起來像「我不在任何地方」。
+ * 把「更多」點亮，那一排才說得出使用者現在在哪裡。
  */
-watch(() => layoutDensity.value.usesNavigationDrawer, (usesDrawer) => {
-  if (!usesDrawer) {
-    navigationDrawerOpen.value = false
-  }
+const insideMore = computed(
+  () => SECONDARY_DESTINATIONS.some(destination => destination.to === route.path))
+
+// 走到別的畫面就把那張紙收起來——它的任務在使用者挑完那一刻就結束了。
+watch(() => route.fullPath, () => {
+  moreOpen.value = false
 })
 
-// Esc 關掉疊在畫面上的東西，是使用者對它既有的預期；只在開著的時候聽，
-// 免得與對話框搶同一個按鍵。
-watch(navigationDrawerOpen, (isOpen) => {
-  if (isOpen) {
-    document.addEventListener('keydown', closeNavigationDrawerOnEscape)
-  }
-  else {
-    document.removeEventListener('keydown', closeNavigationDrawerOnEscape)
+/**
+ * 視窗變寬到不再需要底部那一排時，把那張紙也收掉。
+ *
+ * 不收的話那個「開著」會留在狀態裡：使用者把視窗拉寬、再拉窄回來，
+ * 紙就自己跳出來，而他沒有按過任何東西。
+ */
+watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => {
+  if (!usesBottomNavigation) {
+    moreOpen.value = false
   }
 })
-
-onBeforeUnmount(() => {
-  document.removeEventListener('keydown', closeNavigationDrawerOnEscape)
-})
-
-function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    navigationDrawerOpen.value = false
-  }
-}
 </script>
 
 <template>
@@ -102,31 +102,13 @@ function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
     class="console-layout"
     :class="{
       'console-layout--stowed': railStowed,
-      'console-layout--drawer-open': navigationDrawerOpen,
+      'console-layout--bottom-navigation': layoutDensity.usesBottomNavigation,
     }"
   >
-    <!--
-      點在抽屜以外的地方只是把它收起來，**不是**換到別的畫面——
-      使用者叫出去處清單之後改變主意，那是最常見的一件事。
-    -->
-    <div
-      v-if="layoutDensity.usesNavigationDrawer && navigationDrawerOpen"
-      class="console-layout__scrim"
-      data-testid="navigation-scrim"
-      @click="navigationDrawerOpen = false"
-    />
-
-    <!--
-      抽屜關著的時候，那九條連結**不在鍵盤的路線上**。
-      光把它推出畫面是不夠的：元素還在，按 Tab 會一條一條走進一片看不見的導覽，
-      而使用者完全不知道焦點跑到哪裡去了。
-      這只在它真的是一片關著的抽屜時成立——寬螢幕上那條側欄一直都在，走得到才對。
-    -->
     <nav
-      id="console-destinations"
+      v-if="!layoutDensity.usesBottomNavigation"
       class="console-layout__rail"
       aria-label="操作台"
-      :inert="layoutDensity.usesNavigationDrawer && !navigationDrawerOpen"
     >
       <div class="console-layout__brand">
         <span class="console-layout__brand-mark" />
@@ -159,13 +141,12 @@ function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
         >
           <!--
             收起來時名字仍然在 DOM 裡，只是看不見：拿掉它，讀螢幕的人聽到的
-            就是五條沒有名字的連結；停在上面的人則靠 title 讀出它是哪一個。
+            就是九條沒有名字的連結；停在上面的人則靠 title 讀出它是哪一個。
           -->
           <NuxtLink
             :to="destination.to"
             class="console-layout__link"
             :title="destination.label"
-            @click="navigationDrawerOpen = false"
           >
             <AppIcon
               :name="destination.icon"
@@ -192,27 +173,6 @@ function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
 
     <div class="console-layout__frame">
       <header class="console-layout__strip">
-        <!--
-          窄螢幕上唯一的導覽入口。它**只在那時候才畫出來**：
-          一顆在寬螢幕上什麼都不做的鍵，對讀螢幕的人是一條假的路。
-        -->
-        <AppButton
-          v-if="layoutDensity.usesNavigationDrawer"
-          variant="ghost"
-          size="small"
-          class="console-layout__menu"
-          :label="navigationDrawerOpen ? '關閉導覽' : '開啟導覽'"
-          :aria-expanded="navigationDrawerOpen"
-          aria-controls="console-destinations"
-          data-testid="toggle-navigation"
-          @click="navigationDrawerOpen = !navigationDrawerOpen"
-        >
-          <AppIcon
-            :name="navigationDrawerOpen ? 'close' : 'menu'"
-            size="small"
-          />
-        </AppButton>
-
         <div class="console-layout__heading">
           <h1 class="console-layout__title">
             {{ title }}
@@ -235,75 +195,119 @@ function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
         <slot />
       </main>
     </div>
+
+    <!--
+      窄螢幕上的導覽。它是版面的一格（不是浮在內容上），所以內容永遠不會被它蓋住，
+      也不需要任何層級——這一點與一片疊上來的抽屜正好相反。
+    -->
+    <nav
+      v-if="layoutDensity.usesBottomNavigation"
+      class="console-layout__tabs"
+      aria-label="操作台"
+    >
+      <NuxtLink
+        v-for="destination in PRIMARY_DESTINATIONS"
+        :key="destination.to"
+        :to="destination.to"
+        class="console-layout__tab"
+        :data-testid="`tab-${destination.to}`"
+      >
+        <AppIcon :name="destination.icon" />
+        <span class="console-layout__tab-label">{{ destination.label }}</span>
+      </NuxtLink>
+
+      <button
+        type="button"
+        class="console-layout__tab"
+        :class="{ 'console-layout__tab--current': insideMore }"
+        :aria-expanded="moreOpen"
+        data-testid="tab-more"
+        @click="moreOpen = true"
+      >
+        <AppIcon name="menu" />
+        <span class="console-layout__tab-label">更多</span>
+      </button>
+    </nav>
+
+    <!--
+      其餘的去處，加上那顆燈與現在是誰在用——側欄底部那兩樣在窄螢幕上沒有側欄可待，
+      而它們說的是「這條線路現在怎麼了」，與「我還能去哪裡」屬於同一個問題。
+    -->
+    <AppModal
+      v-if="layoutDensity.usesBottomNavigation"
+      :open="moreOpen"
+      title="更多"
+      @close="moreOpen = false"
+    >
+      <ul class="console-layout__more-list">
+        <li
+          v-for="destination in SECONDARY_DESTINATIONS"
+          :key="destination.to"
+        >
+          <NuxtLink
+            :to="destination.to"
+            class="console-layout__more-link"
+            :data-testid="`more-${destination.to}`"
+          >
+            <AppIcon
+              :name="destination.icon"
+              size="small"
+            />
+            <span class="console-layout__more-label">{{ destination.label }}</span>
+            <AppIcon
+              name="chevron"
+              size="small"
+              class="console-layout__more-chevron"
+            />
+          </NuxtLink>
+        </li>
+      </ul>
+
+      <div class="console-layout__more-footer">
+        <slot name="status" />
+        <slot name="account" />
+      </div>
+    </AppModal>
   </div>
 </template>
 
 <style scoped lang="scss">
-/** 抽屜蓋出來時有多寬。留一段讓底下的畫面露出來，人才看得出它只是疊在上面。 */
-$navigation-drawer-width: 15rem;
-
 .console-layout {
   display: grid;
 
-  // 窄螢幕：只有一欄，整片都是工作區——導覽疊在它上面，不佔格子。
-  grid-template-rows: minmax(0, 1fr);
+  // 窄螢幕：工作區一格，底下那一排分頁一格。分頁是版面的一部分而不是浮在上面，
+  // 所以內容不會有一截藏在它底下，也不必替它保留內距。
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100%;
 
   @include respond-to('lg') {
+    grid-template-rows: minmax(0, 1fr);
     grid-template-columns: 13rem minmax(0, 1fr);
   }
 
-  // 收起來只在側欄真的是一條側欄時才成立。窄螢幕上它是一片叫得出來的抽屜，
-  // 那時候「收起來」與「關起來」是同一件事，不需要第二顆鍵。
   &--stowed {
     @include respond-to('lg') {
       grid-template-columns: 3rem minmax(0, 1fr);
     }
   }
 
-  // 抽屜後面那一層。它是可以點的，而點它只是把抽屜收起來。
-  //
-  // 它與抽屜同一個層級，靠**先後順序**決定誰在上面——抽屜在它後面畫，所以在它上面。
-  // 給它們兩個不同的層級沒有好處：那會多出一個要跟著維護的名字，
-  // 而它們永遠是一起出現、一起消失的同一件東西。
-  &__scrim {
-    position: fixed;
-    z-index: z-index('modal');
-    inset: 0;
-    background-color: color('backdrop');
+  // 伺服器端量不到視窗，所以它畫出來的一律是側欄那一版（見 useLayoutDensity）。
+  // 在手機上，那一版在補正之前會**真的佔掉版面的第一列**，把整個工作區推到摺線以下。
+  // 因此這裡還要再擋一次：程式決定要不要渲染它，樣式決定它在這個寬度看不看得見。
+  // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條九個項目的側欄。
+  &__rail {
+    display: none;
+    flex-direction: column;
 
     @include respond-to('lg') {
-      display: none;
+      display: flex;
     }
-  }
 
-  &__rail {
-    position: fixed;
-    z-index: z-index('modal');
-    inset: 0 auto 0 0;
-    display: flex;
-    flex-direction: column;
     gap: spacing('lg');
-    transition: transform duration('normal') ease;
-
-    // 平時整片推到畫面外：它不佔高度、不佔寬度，工作區因此是完整的一整片。
-    transform: translateX(-100%);
     border-right: 1px solid color('border');
     background-color: color('surface');
     padding: spacing('md') spacing('sm');
-    width: $navigation-drawer-width;
     overflow-y: auto;
-
-    @include respond-to('lg') {
-      position: static;
-      transform: none;
-      width: auto;
-      overflow-y: visible;
-    }
-  }
-
-  &--drawer-open &__rail {
-    transform: translateX(0);
   }
 
   &__brand {
@@ -314,15 +318,10 @@ $navigation-drawer-width: 15rem;
     padding: 0 spacing('2xs');
   }
 
-  // 收起來那顆鍵只在側欄真的是一條側欄時才畫得出來——見上面 --stowed 的理由。
   &__stow {
-    display: none;
-
-    @include respond-to('lg') {
-      display: inline-flex;
-      margin-left: auto;
-      color: color('text-faint');
-    }
+    display: inline-flex;
+    margin-left: auto;
+    color: color('text-faint');
   }
 
   // 那個角指著它按下去會往哪裡走：開著時往左（收過去），收著時往右（拉回來）。
@@ -356,48 +355,36 @@ $navigation-drawer-width: 15rem;
   }
 
   // 收起來時那幾個字退到看不見，**但留在 DOM 裡**：拿掉它們，
-  // 讀螢幕的人聽到的就是五條沒有名字的連結，而那條側欄等於壞了。
+  // 讀螢幕的人聽到的就是九條沒有名字的連結，而那條側欄等於壞了。
   &--stowed &__brand-name {
-    @include respond-to('lg') {
-      @include visually-hidden;
-    }
+    @include visually-hidden;
   }
 
   // 名字不見了，那顆點就不再是標記而只是一個點——三公分寬的邊上，
   // 它佔的是那顆「把側欄拿回來」的鍵需要的位置。
   &--stowed &__brand-mark {
-    @include respond-to('lg') {
-      display: none;
-    }
+    display: none;
   }
 
   &--stowed &__link-label {
-    @include respond-to('lg') {
-      @include visually-hidden;
-    }
+    @include visually-hidden;
   }
 
   // 只剩圖示時，一條左邊留著字距的連結會讓那排圖示歪在一邊。
   &--stowed &__link {
-    @include respond-to('lg') {
-      justify-content: center;
-      padding: spacing('xs') 0;
-    }
+    justify-content: center;
+    padding: spacing('xs') 0;
   }
 
   // 側欄自己也收窄：留著給文字的內距，那條邊就不是三公分而是四公分。
   &--stowed &__rail {
-    @include respond-to('lg') {
-      padding-right: spacing('2xs');
-      padding-left: spacing('2xs');
-    }
+    padding-right: spacing('2xs');
+    padding-left: spacing('2xs');
   }
 
   &--stowed &__brand {
-    @include respond-to('lg') {
-      justify-content: center;
-      padding: 0;
-    }
+    justify-content: center;
+    padding: 0;
   }
 
   &__destinations {
@@ -439,8 +426,6 @@ $navigation-drawer-width: 15rem;
 
   &__status {
     flex: none;
-
-    // 燈釘在側欄最底下——那是終端機放「線路狀態」的位置。
     margin-top: auto;
     border-top: 1px solid color('border');
     padding: spacing('sm') spacing('2xs') 0;
@@ -454,10 +439,8 @@ $navigation-drawer-width: 15rem;
   // 側欄收起來時那一行電子郵件沒有地方站——三公分寬的邊上，它只會被切成
   // 兩個字。那顆離開仍然在，因為它是一個動作，而動作只需要一個圖示。
   &--stowed &__account {
-    @include respond-to('lg') {
-      padding-right: 0;
-      padding-left: 0;
-    }
+    padding-right: 0;
+    padding-left: 0;
   }
 
   &__frame {
@@ -467,43 +450,52 @@ $navigation-drawer-width: 15rem;
     min-height: 0;
   }
 
+  // 窄螢幕上這不是一條帶子，是內容的第一行：沒有底色、沒有框線，字大一階。
+  // 一條有底色的窄帶會把畫面切成「介面」與「內容」兩塊，而手機上整片都該是內容。
   &__strip {
     display: flex;
     flex: none;
     gap: spacing('sm');
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid color('border');
-    background-color: color('surface');
-    padding: spacing('xs') spacing('md');
+    background-color: color('background');
+    padding: spacing('sm') spacing('md') spacing('2xs');
 
     @include respond-to('lg') {
       align-items: baseline;
       gap: spacing('md');
+      border-bottom: 1px solid color('border');
+      background-color: color('surface');
+      padding: spacing('xs') spacing('md');
     }
-  }
-
-  &__menu {
-    flex: none;
-    color: color('text-faint');
   }
 
   &__heading {
     display: flex;
     flex: 1;
-    flex-wrap: wrap;
-    gap: spacing('xs') spacing('sm');
-    align-items: baseline;
+    flex-direction: column;
+    gap: spacing('3xs');
     min-width: 0;
+
+    @include respond-to('lg') {
+      flex-flow: row wrap;
+      gap: spacing('xs') spacing('sm');
+      align-items: baseline;
+    }
   }
 
   &__title {
     flex: none;
     margin: 0;
+    font-size: font-size('xl');
+
+    @include respond-to('lg') {
+      font-size: font-size('lg');
+    }
   }
 
-  // 副標與標題同一行：它說的是「這個畫面怎麼用」，看過一次就不必再看，
-  // 不值得為它多佔一整行的高度。
+  // 副標說的是「這個畫面怎麼用」，看過一次就不必再看。窄螢幕上它接在標題底下
+  // 自成一行（那裡本來就是讀字的地方），寬螢幕上與標題同一行，不多佔高度。
   &__subtitle {
     margin: 0;
     color: color('text-faint');
@@ -527,6 +519,96 @@ $navigation-drawer-width: 15rem;
     background-color: color('background');
     padding: spacing('sm');
     overflow: auto;
+  }
+
+  // 底部那一排。每一格是一個等寬的直欄：圖示在上、名字在下，整格都按得到。
+  // 同上，反過來：底部那一排在寬螢幕上不該出現，即使有誰把它渲染出來。
+  &__tabs {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+
+    @include respond-to('lg') {
+      display: none;
+    }
+
+    border-top: 1px solid color('border');
+    background-color: color('surface');
+
+    // 讓開手機自己的那一條橫條，否則最底下那一排有一半按不到。
+    @include safe-area-bottom;
+  }
+
+  &__tab {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    align-items: center;
+    justify-content: center;
+    transition: color duration('fast') ease;
+    border: none;
+    cursor: pointer;
+    background-color: transparent;
+
+    // 一格分頁要放得下一根手指，而且上下都要留出餘地——這是全站按最多次的東西。
+    padding: spacing('xs') spacing('3xs');
+    min-height: 3.25rem;
+    color: color('text-faint');
+    text-decoration: none;
+
+    @include focus-ring;
+
+    &.router-link-exact-active,
+    &--current {
+      color: color('primary');
+    }
+  }
+
+  &__tab-label {
+    font-size: font-size('2xs');
+    line-height: line-height('tight');
+    white-space: nowrap;
+  }
+
+  &__more-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__more-link {
+    border-radius: radius('sm');
+    padding: spacing('xs') spacing('2xs');
+    color: color('text');
+    font-size: font-size('md');
+    text-decoration: none;
+
+    @include pressable-row;
+
+    &.router-link-exact-active {
+      color: color('primary');
+    }
+  }
+
+  &__more-label {
+    flex: 1;
+  }
+
+  // 那個角只是說「按下去會走到別的地方」，不該與名字爭。
+  &__more-chevron {
+    flex: none;
+    color: color('text-faint');
+  }
+
+  &__more-footer {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    margin-top: spacing('sm');
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
   }
 }
 </style>

@@ -135,13 +135,17 @@ const strategyScript = computed(() => row.strategyScript)
 
   &__header {
     display: flex;
+    flex-wrap: wrap;
+    gap: spacing('xs') spacing('sm');
     align-items: center;
-    gap: spacing('sm');
   }
 
+  // 卡片的名字是它的身分，要比卡片裡其他字大一階、亮一階——
+  // 與說明同一個字級的話，整張卡片讀起來是一段文字而不是一個東西。
   &__name {
     margin: 0;
-    font-size: font-size('sm');
+    color: color('text-strong');
+    font-size: font-size('md');
   }
 
   &__description {

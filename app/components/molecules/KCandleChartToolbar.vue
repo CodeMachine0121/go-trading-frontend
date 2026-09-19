@@ -99,37 +99,39 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
       每顆按鈕自己說得出自己叫什麼；下拉選單說不出來——包起來，
       「每根涵蓋」才會成為它的名字（讀螢幕的人聽得到，點那四個字也能打開它）。
     -->
-    <label class="k-candle-chart-toolbar__group">
-      <span class="k-candle-chart-toolbar__group-label">每根涵蓋</span>
-      <AppSelect
-        v-model="selectedAggregationIntervalValue"
-        class="k-candle-chart-toolbar__interval"
-        :disabled="loading"
-        data-testid="aggregation-interval-choice-select"
-      >
-        <option
-          v-for="choice in aggregationIntervalChoices"
-          :key="choice.value"
-          :value="choice.value"
+    <div class="k-candle-chart-toolbar__pair">
+      <label class="k-candle-chart-toolbar__group">
+        <span class="k-candle-chart-toolbar__group-label">每根涵蓋</span>
+        <AppSelect
+          v-model="selectedAggregationIntervalValue"
+          class="k-candle-chart-toolbar__interval"
+          :disabled="loading"
+          data-testid="aggregation-interval-choice-select"
         >
-          {{ choice.label }}
-        </option>
-      </AppSelect>
-    </label>
+          <option
+            v-for="choice in aggregationIntervalChoices"
+            :key="choice.value"
+            :value="choice.value"
+          >
+            {{ choice.label }}
+          </option>
+        </AppSelect>
+      </label>
 
-    <div class="k-candle-chart-toolbar__group">
-      <span class="k-candle-chart-toolbar__group-label">畫法</span>
-      <div class="k-candle-chart-toolbar__buttons">
-        <AppButton
-          v-for="option in DRAWINGS"
-          :key="option.value"
-          :variant="option.value === drawing ? 'primary' : 'ghost'"
-          size="small"
-          data-testid="drawing-button"
-          @click="emit('update:drawing', option.value)"
-        >
-          {{ option.label }}
-        </AppButton>
+      <div class="k-candle-chart-toolbar__group">
+        <span class="k-candle-chart-toolbar__group-label">畫法</span>
+        <div class="k-candle-chart-toolbar__buttons">
+          <AppButton
+            v-for="option in DRAWINGS"
+            :key="option.value"
+            :variant="option.value === drawing ? 'primary' : 'ghost'"
+            size="small"
+            data-testid="drawing-button"
+            @click="emit('update:drawing', option.value)"
+          >
+            {{ option.label }}
+          </AppButton>
+        </div>
       </div>
     </div>
   </div>
@@ -138,16 +140,26 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 <style scoped lang="scss">
 .k-candle-chart-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: spacing('sm') spacing('lg');
 
-  // 從上面對齊：每一組的標籤因此排成一條線，控制項也跟著排成一條線。
-  // 靠底部對齊的話，帶說明文字的那一欄會把其他組往下拉。
-  align-items: flex-start;
+  // 窄螢幕：一組一行，由上往下。橫著擠的話，五個區間的按鈕會折成兩排，
+  // 而一排折了行的「軌道」看起來就不再是一條軌道。
+  flex-direction: column;
+  gap: spacing('sm');
+
+  @include respond-to('md') {
+    flex-flow: row wrap;
+    gap: spacing('sm') spacing('lg');
+
+    // 從上面對齊：每一組的標籤因此排成一條線，控制項也跟著排成一條線。
+    // 靠底部對齊的話，帶說明文字的那一欄會把其他組往下拉。
+    align-items: flex-start;
+  }
 
   &__symbol {
-    min-width: min(10rem, 100%);
-    max-width: 14rem;
+    @include respond-to('md') {
+      min-width: min(10rem, 100%);
+      max-width: 14rem;
+    }
   }
 
   &__group {
@@ -167,17 +179,60 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
     min-width: min(6rem, 100%);
   }
 
+  // 窄螢幕上「每根涵蓋」與「畫法」併成一行：兩者都是一次挑一個的小選擇，
+  // 各佔一整行會把圖往下推兩格，而圖才是這一頁的主角。
+  &__pair {
+    display: flex;
+    gap: spacing('sm');
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
+
+    // 寬螢幕上這一層整個讓開，於是它那兩個孩子變成工具列的直接成員——
+    // 那時候 `flex: 1` 會讓它們撐滿整排，而旁邊兩組維持內容寬，看起來就歪了。
+    // 讓開的同時也要把那條規則收回去。
+    @include respond-to('md') {
+      display: contents;
+
+      > * {
+        flex: 0 1 auto;
+      }
+    }
+  }
+
   // 一組互斥的選擇擺成一條連在一起的軌道，而不是幾顆各自獨立的按鈕——
   // 連在一起才看得出「只能選一個」，這也是每一台交易終端機講區間的方式。
-  // 這一排的選項多到窄螢幕擺不完，所以它折行，而不是把整條軌道推出畫面外。
+  //
+  // **窄螢幕上它橫著捲，不折行。** 折行的那一版是上一刀的作法，而它有兩個問題：
+  // 一排折成兩排之後看起來是兩組東西，而且每次選中的那一顆換位置時整塊會跳高跳矮。
+  // 橫著捲是手機上這排籌碼的既有作法（Revolut、Phantom、Stake 的 1D/1W/1M 都是），
+  // 而且捲到哪裡都還看得到「還有更多」。
   &__buttons {
     display: flex;
-    flex-wrap: wrap;
     gap: spacing('3xs');
     border: 1px solid color('border');
     border-radius: radius('md');
     background-color: color('background');
     padding: spacing('3xs');
+    overflow-x: auto;
+
+    // 捲到底時最後一顆不要貼著邊，看起來才像「這裡結束了」。
+    scroll-padding-inline: spacing('3xs');
+
+    // 一顆一顆停，不會停在兩顆中間切一半。
+    scroll-snap-type: x proximity;
+
+    > * {
+      flex: none;
+      scroll-snap-align: start;
+    }
+
+    @include respond-to('md') {
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
   }
 }
 </style>

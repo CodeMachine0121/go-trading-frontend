@@ -14,6 +14,20 @@ export class KCandleDomain {
     return this.kCandle.close.minus(this.kCandle.open)
   }
 
+  /**
+   * 漲跌佔開盤價的多少（百分點）。
+   *
+   * 開盤價是零時回 `null` 而不是零：除不出來與「沒有漲跌」是兩件事，
+   * 而把它講成零，畫面上會出現一個看起來很篤定的 `0.00%`。
+   */
+  priceChangePercent(): Decimal | null {
+    if (this.kCandle.open.isZero()) {
+      return null
+    }
+
+    return this.priceChange().dividedBy(this.kCandle.open).times(100)
+  }
+
   trend(): KCandleTrendVo {
     const priceChange = this.priceChange()
 
@@ -39,6 +53,8 @@ export class KCandleDomain {
       this.kCandle.takerBuyBaseVolume,
       this.kCandle.takerBuyQuoteVolume,
       this.trend(),
+      this.priceChange(),
+      this.priceChangePercent(),
     )
   }
 }

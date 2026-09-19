@@ -40,3 +40,20 @@ describe('這批 K 線裡最新那一根是幾點開始的', () => {
     expect(chart.isEmpty).toBe(true)
   })
 })
+
+describe('這批 K 線裡最新那一根', () => {
+  it('是最後那一根，因為「現在多少錢」說的就是它的收盤價', () => {
+    const chart = chartOf(['2026-09-03T09:30:00.000Z', '2026-09-03T09:31:00.000Z'])
+
+    expect(chart.latestKCandle?.openTime)
+      .toEqual(new Date('2026-09-03T09:31:00.000Z'))
+    expect(chart.latestKCandle?.close.toString()).toBe('110')
+  })
+
+  it('一根都沒有時是 null——與「這批是空的」是同一件事的兩種問法', () => {
+    const chart = chartOf([])
+
+    expect(chart.latestKCandle).toBeNull()
+    expect(chart.isEmpty).toBe(true)
+  })
+})

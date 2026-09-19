@@ -45,6 +45,8 @@ function buildEditingKCandleDto(reportsEveryFigure = true): KCandleDto {
     new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
     new Decimal('11'), optional('1200'), optional('5'), optional('600'),
     new KCandleTrendVo('up', '上漲', 'success'),
+    new Decimal('10'),
+    new Decimal('10'),
   )
 }
 

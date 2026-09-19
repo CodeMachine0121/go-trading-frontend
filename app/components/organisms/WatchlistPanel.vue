@@ -153,20 +153,29 @@ onMounted(reload)
         v-else
         class="watchlist-panel__list"
       >
+        <!--
+          一列兩行加一個狀態：代號粗、來歷暗、狀態靠右。
+          原本四樣東西並排在同一行，在一支手機上那是代號被擠成兩個字、
+          兩個牌子疊在一起、而「移除」貼著螢幕邊緣。
+        -->
         <li
           v-for="tradingSymbol in watchedTradingSymbols"
           :key="tradingSymbol.symbol"
           class="watchlist-panel__item"
         >
-          <span class="watchlist-panel__symbol">{{ tradingSymbol.label }}</span>
-          <AppBadge tone="neutral">
-            {{ tradingSymbol.market.label }}
-          </AppBadge>
+          <div class="watchlist-panel__identity">
+            <span class="watchlist-panel__symbol">{{ tradingSymbol.label }}</span>
+            <span class="watchlist-panel__market">{{ tradingSymbol.market.label }}</span>
+          </div>
+
+          <!-- 有沒有即時更新是這一列唯一會變的東西，所以它是這裡唯一的牌子。 -->
           <AppBadge :tone="tradingSymbol.liveUpdateAvailability.tone">
             {{ tradingSymbol.liveUpdateAvailability.label }}
           </AppBadge>
+
           <AppButton
-            variant="danger"
+            variant="danger-ghost"
+            size="small"
             :data-testid="`watchlist-remove-${tradingSymbol.symbol}`"
             @click="removingSymbol = tradingSymbol.symbol"
           >
@@ -223,15 +232,41 @@ onMounted(reload)
     list-style: none;
   }
 
+  // 每一列是一張卡片，不是一條文字：一疊卡片讀起來是「幾個東西」，
+  // 一疊文字讀起來是「一段內容」，而這裡的每一列都是一個可以動它的東西。
   &__item {
     display: flex;
-    align-items: center;
     gap: spacing('sm');
+    align-items: center;
+    border: 1px solid color('border');
+    border-radius: radius('md');
+    background-color: color('surface');
+    padding: spacing('xs') spacing('sm');
+
+    @include tap-target;
   }
 
-  &__symbol {
+  &__identity {
+    display: flex;
     flex: 1;
-    font-size: font-size('sm');
+    flex-direction: column;
+    gap: spacing('3xs');
+    min-width: 0;
+  }
+
+  // 代號是這一列的身分，所以它是這一列最亮、最大的東西。
+  &__symbol {
+    color: color('text-strong');
+    font-weight: font-weight('medium');
+    font-size: font-size('md');
+
+    @include numeric;
+  }
+
+  // 它屬於哪個市場是來歷，不是讀數——在那裡，但不請你讀。
+  &__market {
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 }
 </style>

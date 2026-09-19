@@ -14,8 +14,13 @@ export class LayoutDensityDto {
   constructor(
     /** 現在是哪一套鬆緊。純視覺的部分由樣式自己換，這一項是給需要知道的程式用的。 */
     public readonly density: LayoutDensity,
-    /** 導覽現在是一片叫得出來的抽屜（而不是一條固定側欄）。 */
-    public readonly usesNavigationDrawer: boolean,
+    /**
+     * 導覽現在貼在畫面底部（而不是側邊那條固定側欄）。
+     *
+     * 一排拇指按得到的分頁，而不是藏在一顆鍵後面的清單：去處**永遠看得見**，
+     * 換一個畫面是一下不是兩下，而手不必伸到螢幕最上緣。
+     */
+    public readonly usesBottomNavigation: boolean,
     /** 積木工作檯現在編得動。編不動的時候內容一個字都不少，只是改不了。 */
     public readonly allowsBlockEditing: boolean,
     /** K 線圖表的「看什麼」一開始就是收起的——高度先讓給圖。 */
@@ -44,7 +49,7 @@ export class LayoutDensityDto {
    */
   sameAs(other: LayoutDensityDto): boolean {
     return this.density === other.density
-      && this.usesNavigationDrawer === other.usesNavigationDrawer
+      && this.usesBottomNavigation === other.usesBottomNavigation
       && this.allowsBlockEditing === other.allowsBlockEditing
       && this.startsChartControlsCollapsed === other.startsChartControlsCollapsed
       && this.assistantCoversScreen === other.assistantCoversScreen

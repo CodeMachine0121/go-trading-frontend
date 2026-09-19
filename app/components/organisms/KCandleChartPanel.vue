@@ -6,6 +6,7 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
+import KCandleQuote from '~/components/molecules/KCandleQuote.vue'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
@@ -541,6 +542,18 @@ onMounted(async () => {
     >
       取行情中…
     </AppAlert>
+
+    <!--
+      這一頁最大的那個數字，擺在控制項與圖之間：**先說現在多少錢，再說它怎麼走的**。
+      它跟著畫出來的那批資料走（不是選單上剛選的那一檔），所以換標的的空窗期裡
+      它不會先跳成新的名字配舊的價。
+    -->
+    <KCandleQuote
+      v-if="chart?.latestKCandle"
+      :latest="chart.latestKCandle"
+      :symbol="chart.symbol"
+      :time-zone="timeZone"
+    />
 
     <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
          換標的到取回來之間有一段空窗，那段時間標題若先跳掉，

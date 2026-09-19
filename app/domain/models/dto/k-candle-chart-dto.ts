@@ -49,10 +49,21 @@ export class KCandleChartDto {
   }
 
   /**
-   * 最新那一根是幾點開始的。空的時候是 `null`——與 `isEmpty` 是同一件事的兩種問法。
+   * 最新那一根。空的時候是 `null`——與 `isEmpty` 是同一件事的兩種問法。
+   *
+   * 畫面上最大的那個數字說的就是它：一批 K 線的「現在多少錢」，
+   * 是最後那一根的收盤價。漲跌與百分比它自己帶著（domain 算好的），
+   * 這裡不再算第二次。
+   */
+  get latestKCandle(): KCandleDto | null {
+    return this.kCandles[this.kCandles.length - 1] ?? null
+  }
+
+  /**
+   * 最新那一根是幾點開始的。空的時候是 `null`。
    * 它是判斷「使用者看的是不是現在」的另一半資料。
    */
   get latestKCandleOpenTime(): Date | null {
-    return this.kCandles[this.kCandles.length - 1]?.openTime ?? null
+    return this.latestKCandle?.openTime ?? null
   }
 }

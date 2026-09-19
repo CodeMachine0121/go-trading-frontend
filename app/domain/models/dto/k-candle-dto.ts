@@ -21,5 +21,9 @@ export class KCandleDto {
     public readonly takerBuyBaseVolume: Decimal | null,
     public readonly takerBuyQuoteVolume: Decimal | null,
     public readonly trend: KCandleTrendVo,
+    /** 這一根漲跌了多少（收盤減開盤）。與 trend 同一個判斷的兩種說法。 */
+    public readonly priceChange: Decimal,
+    /** 那個漲跌佔開盤價的多少（百分點）。開盤價是零時除不出來，為 `null`。 */
+    public readonly priceChangePercent: Decimal | null,
   ) {}
 }

@@ -25,6 +25,8 @@ function buildKCandleDto(
     optional('5'),
     optional('600'),
     trend,
+    new Decimal('10'),
+    new Decimal('10'),
   )
 }
 

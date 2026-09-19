@@ -7,7 +7,7 @@ describe('LayoutDensityApplication', () => {
   it('手機直立的寬度回的是窄螢幕那一組答案', () => {
     expect(layoutDensityApplication.resolveLayoutDensity(390)).toEqual({
       density: 'roomy',
-      usesNavigationDrawer: true,
+      usesBottomNavigation: true,
       allowsBlockEditing: false,
       startsChartControlsCollapsed: true,
       assistantCoversScreen: true,
@@ -17,7 +17,7 @@ describe('LayoutDensityApplication', () => {
   it('桌機的寬度回的是寬螢幕那一組答案', () => {
     expect(layoutDensityApplication.resolveLayoutDensity(1024)).toEqual({
       density: 'compact',
-      usesNavigationDrawer: false,
+      usesBottomNavigation: false,
       allowsBlockEditing: true,
       startsChartControlsCollapsed: false,
       assistantCoversScreen: false,

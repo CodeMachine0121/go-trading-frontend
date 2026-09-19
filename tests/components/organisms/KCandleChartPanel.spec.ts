@@ -357,6 +357,23 @@ describe('KCandleChartPanel', () => {
       .toBe(String(controlsAreShown))
   })
 
+  it('最上面先說現在多少錢，再說它怎麼走的', async () => {
+    const wrapper = await mountPanel(buildProxy({
+      findKCandleSeries: vi.fn().mockResolvedValue(
+        seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')])),
+    }))
+
+    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('110')
+  })
+
+  it('一根都沒有時那一塊整個不畫——一個沒有數字的價格區只是一塊空白', async () => {
+    const wrapper = await mountPanel(buildProxy({
+      findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([])),
+    }))
+
+    expect(wrapper.find('[data-testid="k-candle-quote"]').exists()).toBe(false)
+  })
+
   it('把控制項收起來，一則「連不上後端」照樣看得見', async () => {
     // 收起「看什麼」的人收的是控制項。一則說「圖現在怎麼了」的訊息跟著被收走，
     // 正好是在他最需要看到它的時候把它藏起來。

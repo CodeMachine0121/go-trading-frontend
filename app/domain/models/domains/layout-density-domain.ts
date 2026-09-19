@@ -17,13 +17,13 @@ const DENSITY_BOUNDARY_PIXELS = 768
 /**
  * 導覽形狀分界。
  *
- * 未滿它導覽是一片抽屜，達到它是那條固定側欄。它比疏密分界寬，
+ * 未滿它導覽貼在畫面底部（一排分頁），達到它是那條固定側欄。它比疏密分界寬，
  * 因為平板的寬度雖然放得下寬鬆的表單，卻放不下九個並排的去處而不橫捲——
  * 刻意不為那一段另做第三種樣子。
  *
  * **樣式那一側有一份同名的副本**（`_breakpoints.scss` 的 `lg`）。改一個就要改另一個。
  */
-const NAVIGATION_DRAWER_BOUNDARY_PIXELS = 1024
+const BOTTOM_NAVIGATION_BOUNDARY_PIXELS = 1024
 
 /**
  * Domain Model：一個寬度代表什麼。
@@ -41,7 +41,7 @@ export class LayoutDensityDomain {
   toDto(): LayoutDensityDto {
     return new LayoutDensityDto(
       this.density,
-      this.usesNavigationDrawer,
+      this.usesBottomNavigation,
       this.allowsBlockEditing,
       this.startsChartControlsCollapsed,
       this.assistantCoversScreen,
@@ -56,8 +56,8 @@ export class LayoutDensityDomain {
     return this.holdableInOneHand ? 'roomy' : 'compact'
   }
 
-  private get usesNavigationDrawer(): boolean {
-    return this.viewportWidthInPixels < NAVIGATION_DRAWER_BOUNDARY_PIXELS
+  private get usesBottomNavigation(): boolean {
+    return this.viewportWidthInPixels < BOTTOM_NAVIGATION_BOUNDARY_PIXELS
   }
 
   /**
