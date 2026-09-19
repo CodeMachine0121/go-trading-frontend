@@ -200,12 +200,27 @@ describe('useUserSession：送出那兩格', () => {
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    const localMoment = new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date('2026-09-12T08:00:00Z'))
+    // The hour is worked out with getHours() rather than with the formatter the
+    // implementation uses. Recomputing the expected string the same way the code
+    // builds it asserts only that the code equals itself, and would stay green if
+    // both were changed to print UTC together.
+    //
+    // Whether the clock reads twelve or twenty-four hours is the viewer's locale,
+    // which this deliberately does not pin — so either rendering of that hour
+    // counts, and the point being made is the hour itself.
+    //
+    // The minutes are worked out too rather than assumed to be the UTC ones: half
+    // an hour of the world sits on a thirty- or forty-five-minute offset, and a
+    // test that hard-codes :00 fails in Adelaide for a reason that has nothing to
+    // do with what it is checking.
+    const shutUntil = new Date('2026-09-12T08:00:00Z')
+    const localHour = shutUntil.getHours()
+    const twelveHourClock = localHour % 12 === 0 ? 12 : localHour % 12
+    const localMinutes = String(shutUntil.getMinutes()).padStart(2, '0')
     expect(errorMessage.value).toContain('被鎖住')
-    expect(errorMessage.value).toContain(localMoment)
+    expect(errorMessage.value).toMatch(
+      new RegExp(`\\b(${localHour}|${twelveHourClock}):${localMinutes}\\b`))
+    expect(errorMessage.value).not.toContain('08:00:00')
     expect(errorMessage.value).not.toContain('電子郵件或密碼不正確')
   })
 
