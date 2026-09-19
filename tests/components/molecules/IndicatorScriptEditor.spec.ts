@@ -1,20 +1,27 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
-import { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 
-const FRAME_HEADER = 'package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)'
-
-const TEMPLATE = new IndicatorScriptTemplateDto(
-  FRAME_HEADER,
-  'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}',
-  'func Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}')
+const WHOLE_SCRIPT = [
+  'package main',
+  '',
+  'import (',
+  '\t"indicator"',
+  '\t"math"',
+  '\t"sort"',
+  ')',
+  '',
+  'func Calculate(data []indicator.KCandle) map[string]float64 {',
+  '\treturn nil',
+  '}',
+].join('\n')
 
 async function mountEditor(overrides: { errorMessage?: string | null, modelValue?: string } = {}) {
   const wrapper = mount(IndicatorScriptEditor, {
+    // 掛到真正的文件上：這一份裡有一條驗的是游標落在哪裡，而沒進文件的元素收不到焦點。
+    attachTo: document.body,
     props: {
-      scriptTemplate: TEMPLATE,
-      modelValue: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}',
+      modelValue: WHOLE_SCRIPT,
       ...overrides,
     },
   })
@@ -24,15 +31,15 @@ async function mountEditor(overrides: { errorMessage?: string | null, modelValue
   return wrapper
 }
 
-/** 讀某一段程式碼「寫了什麼」——不含行號欄。 */
-function codeOf(wrapper: Awaited<ReturnType<typeof mountEditor>>, testId: string): string {
-  return wrapper.get(`[data-testid="${testId}"]`).element
+/** 讀那一段程式碼「寫了什麼」——不含行號欄。 */
+function codeOf(wrapper: Awaited<ReturnType<typeof mountEditor>>): string {
+  return wrapper.get('[data-testid="script"]').element
     .querySelector('.cm-content')?.textContent ?? ''
 }
 
-/** 讀某一段程式碼的行號。第一個是編輯器用來量寬度的隱藏元素，不算數。 */
-function lineNumbersOf(wrapper: Awaited<ReturnType<typeof mountEditor>>, testId: string): string[] {
-  const gutter = wrapper.get(`[data-testid="${testId}"]`).element
+/** 讀行號。第一個是編輯器用來量寬度的隱藏元素，不算數。 */
+function lineNumbersOf(wrapper: Awaited<ReturnType<typeof mountEditor>>): string[] {
+  const gutter = wrapper.get('[data-testid="script"]').element
     .querySelector('.cm-lineNumbers')
 
   return [...gutter?.querySelectorAll('.cm-gutterElement') ?? []]
@@ -41,45 +48,38 @@ function lineNumbersOf(wrapper: Awaited<ReturnType<typeof mountEditor>>, testId:
 }
 
 describe('IndicatorScriptEditor', () => {
-  it('唯讀外框只到 import，進入點與收尾都在可編輯區', async () => {
+  it('整份算式都在同一塊可編輯區裡，含最上面的宣告與匯入', async () => {
     const wrapper = await mountEditor()
 
-    const frameHeader = codeOf(wrapper, 'script-frame-header')
-    expect(frameHeader).toContain('package main')
-    expect(frameHeader).toContain('"indicator"')
-    expect(frameHeader).not.toContain('func Calculate')
-    expect(wrapper.find('[data-testid="script-frame-footer"]').exists()).toBe(false)
-    expect(codeOf(wrapper, 'script-body')).toContain('func Calculate(data []indicator.KCandle)')
+    const code = codeOf(wrapper)
+    expect(code).toContain('package main')
+    expect(code).toContain('"indicator"')
+    expect(code).toContain('func Calculate(data []indicator.KCandle)')
   })
 
-  it('外框改不動——它不是輸入欄位', async () => {
+  it('畫面上沒有任何唯讀的算式區塊——每一行都改得動', async () => {
     const wrapper = await mountEditor()
 
-    const frameHeader = wrapper.get('[data-testid="script-frame-header"]').element
-    expect(frameHeader.querySelector('.cm-content')?.getAttribute('contenteditable')).toBe('false')
+    expect(wrapper.get('[data-testid="script"]').element
+      .querySelector('.cm-content')?.getAttribute('contenteditable')).toBe('true')
+    expect(wrapper.findAll('.cm-content')).toHaveLength(1)
   })
 
-  it('行號連著整份檔案數下去，主體從第九行開始', async () => {
-    const wrapper = await mountEditor({ modelValue: 'func Calculate() {}\nhelper()' })
+  it('行號從第 1 行算起', async () => {
+    const wrapper = await mountEditor({ modelValue: 'package main\n\nfunc Calculate() {}' })
 
-    // 外框七行加一個分隔的空行 = 八行 → 主體從第九行開始
-    expect(lineNumbersOf(wrapper, 'script-frame-header'))
-      .toEqual(['1', '2', '3', '4', '5', '6', '7', '8'])
-    expect(lineNumbersOf(wrapper, 'script-body')).toEqual(['9', '10'])
+    expect(lineNumbersOf(wrapper)).toEqual(['1', '2', '3'])
   })
 
-  it('外框不隨樣板換掉——它是固定的七行', async () => {
+  it('點在程式碼下面那片空白上，游標接著最後一行', async () => {
+    // 那片空白看起來就是檔案的後面，點下去卻沒反應的話，使用者會以為編輯區壞了。
     const wrapper = await mountEditor()
 
-    await wrapper.setProps({
-      scriptTemplate: new IndicatorScriptTemplateDto(
-        FRAME_HEADER,
-        'func Calculate(data []indicator.KCandle) indicator.Signal {\n\treturn indicator.Hold\n}',
-        'func Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}'),
-    })
+    await wrapper.get('[data-testid="script-filler"]').trigger('mousedown')
     await flushPromises()
 
-    expect(codeOf(wrapper, 'script-frame-header')).not.toContain('func Calculate')
+    expect(document.activeElement)
+      .toBe(wrapper.get('[data-testid="script"]').element.querySelector('.cm-content'))
   })
 
   it('內容出錯時把訊息標在算式旁邊', async () => {

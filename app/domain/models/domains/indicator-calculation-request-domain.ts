@@ -3,14 +3,13 @@ import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 
 /**
  * Domain Model：一次指標計算的請求，建構當下即驗證。
  *
- * 使用者只寫算式**內容**；送出去的 `script` 是這裡把內容放進外框之後的整段算式。
- * 畫面因此不持有、也不需要知道一整段算式長什麼樣。
+ * 送出去的 `script` 就是使用者在編輯器裡的那一份，**一字不改**——他看到的與跑的是同一份。
+ * 這裡只判斷「有沒有東西可以跑」，不判斷它寫得對不對：那只有真正跑它的那一方說了算。
  *
  * 要跑什麼有兩種說法，**恰好挑一種**：指名一支已存的策略腳本，或帶一段算式內容。
  * 指名策略腳本是圖表那一邊走的路——它套用的可能是從市集加入的策略腳本，那種沒有算式可以送；
@@ -37,16 +36,17 @@ export class IndicatorCalculationRequestDomain {
       throw new IndicatorCalculationFieldError('symbol', '請指定交易標的')
     }
 
-    const normalizedScriptBody = indicatorCalculationRequestDto.scriptBody.trim()
+    // 只有「整份是空白」才擋：前後多餘的空白行不影響算式成立，但也不會被砍掉——
+    // 判斷讀的是去空白後的樣子，送出去的仍是原文。
     const namesAStrategyScript = indicatorCalculationRequestDto.strategyScriptId !== undefined
-    const carriesAnAlgorithm = normalizedScriptBody !== ''
+    const carriesAnAlgorithm = indicatorCalculationRequestDto.script.trim() !== ''
 
     if (namesAStrategyScript && carriesAnAlgorithm) {
       throw new IndicatorCalculationFieldError(
-        'scriptBody', '指名一支策略腳本與自帶一段算式只能挑一種')
+        'script', '指名一支策略腳本與自帶一段算式只能挑一種')
     }
     if (!namesAStrategyScript && !carriesAnAlgorithm) {
-      throw new IndicatorCalculationFieldError('scriptBody', '請填寫算式內容')
+      throw new IndicatorCalculationFieldError('script', '請填寫算式內容')
     }
 
     this.symbol = normalizedSymbol
@@ -57,10 +57,8 @@ export class IndicatorCalculationRequestDomain {
     this.observationWindow = indicatorCalculationRequestDto.observationWindow
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.strategyScriptId = indicatorCalculationRequestDto.strategyScriptId
-    // 指名策略腳本時沒有算式要包外框——那一段從頭到尾不離開系統，正是它跑得動卻讀不到的理由。
-    this.script = namesAStrategyScript
-      ? ''
-      : new IndicatorScriptDomain(this.resultType).assemble(normalizedScriptBody)
+    // 指名策略腳本時沒有算式要送——那一段從頭到尾不離開系統，正是它跑得動卻讀不到的理由。
+    this.script = namesAStrategyScript ? '' : indicatorCalculationRequestDto.script
 
     // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話：
     // 錯的是「參數」那一塊，不是算式、也不是任何一個執行條件。

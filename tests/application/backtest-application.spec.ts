@@ -12,7 +12,11 @@ import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-s
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
-const SCRIPT_BODY = [
+const WHOLE_SCRIPT = [
+  'package main',
+  '',
+  'import "indicator"',
+  '',
   'func Calculate(data []indicator.KCandle) indicator.Signal {',
   '\treturn indicator.Buy',
   '}',
@@ -49,7 +53,7 @@ function backtestRequest(overrides: Partial<{
   symbol: string
   startTime: Date
   endTime: Date
-  scriptBody: string
+  script: string
   resultType: string
   parameters: StrategyScriptParameterDto[]
   initialCapital: Decimal
@@ -62,7 +66,7 @@ function backtestRequest(overrides: Partial<{
     '1h',
     overrides.startTime ?? START_TIME,
     overrides.endTime ?? END_TIME,
-    overrides.scriptBody ?? SCRIPT_BODY,
+    overrides.script ?? WHOLE_SCRIPT,
     overrides.resultType ?? 'signal',
     overrides.parameters ?? [],
     overrides.initialCapital ?? new Decimal('10000'),
@@ -83,15 +87,14 @@ describe('BacktestApplication', () => {
       expect(result.equityCurve).toHaveLength(1)
     })
 
-    it('把算式主體接上固定外框之後才送出去', async () => {
-      // 兩個去處讀的是同一份算式，所以走的也是同一條組裝路徑。
+    it('送出去的就是畫面上那一整份算式，一字不改', async () => {
+      // 兩個去處讀的是同一份算式，所以送出去的也是同一份。
       const proxy = buildProxy()
 
       await buildApplication(proxy).runBacktest(backtestRequest())
 
       const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
-      expect(sent.script).toContain('package main')
-      expect(sent.script).toContain(`)\n\n${SCRIPT_BODY}`)
+      expect(sent.script).toBe(WHOLE_SCRIPT)
     })
 
     it('宣告的旋鈕跟著一起送出去', async () => {
@@ -110,7 +113,7 @@ describe('BacktestApplication', () => {
   describe('不合法就不送出', () => {
     it.each([
       ['交易標的空白', { symbol: '  ' }, 'symbol'],
-      ['算式空白', { scriptBody: '   ' }, 'scriptBody'],
+      ['算式空白', { script: '   ' }, 'script'],
       ['起點晚於終點', { startTime: END_TIME, endTime: START_TIME }, 'timeRange'],
       ['本金為零', { initialCapital: new Decimal(0) }, 'initialCapital'],
       ['本金為負', { initialCapital: new Decimal(-100) }, 'initialCapital'],
@@ -140,7 +143,7 @@ describe('BacktestApplication', () => {
 
       await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'floatList' })).catch(
         (error: BacktestFieldError) => {
-          expect(error.field).toBe('scriptBody')
+          expect(error.field).toBe('script')
           expect(error.message).toContain('一個信號')
           expect(error.message).toContain('一串數字')
         })

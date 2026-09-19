@@ -10,7 +10,6 @@ import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /**
@@ -51,9 +50,10 @@ export class BacktestRequestDomain {
       throw new BacktestFieldError('symbol', '請指定交易標的')
     }
 
-    const normalizedScriptBody = backtestRequestDto.scriptBody.trim()
-    if (normalizedScriptBody === '') {
-      throw new BacktestFieldError('scriptBody', '請填寫算式內容')
+    // 與指標預覽同一條規則：只有「整份是空白」才擋，而判斷讀的是去空白後的樣子，
+    // 送出去的仍是使用者眼前那一份原文。
+    if (backtestRequestDto.script.trim() === '') {
+      throw new BacktestFieldError('script', '請填寫算式內容')
     }
 
     new BacktestTimeRangeDomain(
@@ -68,13 +68,13 @@ export class BacktestRequestDomain {
       backtestRequestDto.stopLossPercentage,
       backtestRequestDto.takeProfitPercentage).validate()
 
-    // 種類不對就當場說清楚，而不是硬套一個「一個信號」的外框送出去。
+    // 種類不對就當場說清楚，而不是硬套一個「一個信號」的簽章送出去。
     // 硬套的代價是：使用者什麼都沒改，卻收到一句直譯器的型別抱怨——
     // 那句話不會告訴他該去按哪一個下拉選單。
     const resultType = new IndicatorResultTypeDomain(backtestRequestDto.resultType)
     if (resultType.value !== BACKTEST_RESULT_TYPE) {
       throw new BacktestFieldError(
-        'scriptBody',
+        'script',
         `回測只跑「一個信號」的算式：它一根 K 線問一次，每一次讀一個信號——`
         + `買入、賣出、還是持有。這支目前宣告的是「${resultType.label()}」，`
         + `請把指標值種類改成「一個信號」。`)
@@ -86,7 +86,7 @@ export class BacktestRequestDomain {
       = new AggregationIntervalDomain(backtestRequestDto.aggregationInterval)
     this.startTime = backtestRequestDto.startTime
     this.endTime = backtestRequestDto.endTime
-    this.script = new IndicatorScriptDomain(resultType).assemble(normalizedScriptBody)
+    this.script = backtestRequestDto.script
     this.initialCapital = backtestRequestDto.initialCapital
     this.positionSizingMode = backtestRequestDto.positionSizingMode
     this.positionSizingValue = backtestRequestDto.positionSizingValue
@@ -101,7 +101,7 @@ export class BacktestRequestDomain {
     this.parameters = new StrategyScriptParametersDomain(backtestRequestDto.parameters)
     const parametersMessage = this.parameters.validationMessage()
     if (parametersMessage !== null) {
-      throw new BacktestFieldError('scriptBody', parametersMessage)
+      throw new BacktestFieldError('script', parametersMessage)
     }
   }
 }

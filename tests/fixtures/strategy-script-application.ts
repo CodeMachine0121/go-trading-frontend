@@ -7,8 +7,6 @@ import { StrategyScriptMarketplaceApplication } from '~/application/strategy-scr
 import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
 import { PublishedStrategyScript } from '~/domain/models/entities/published-strategy-script'
 import { StrategyScript } from '~/domain/models/entities/strategy-script'
-import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 /**
@@ -29,24 +27,28 @@ export function buildStrategyScriptApplication(
   }))
 }
 
-/** 一支存在後端那頭的策略腳本，算式是**一整段**——與後端存的形狀一致。 */
+/**
+ * 一支存在後端那頭的策略腳本。算式是**一整份**——後端存的與畫面上看到的是同一份，
+ * 這裡因此直接給整份，不再有「主體」與「外框」兩個形狀要拼。
+ */
 export function buildStoredStrategyScript(
   id: number,
   name: string,
   overrides: {
-    scriptBody?: string
-    /** 整段算式直接給——用來造一支「不是在這裡寫出來的」策略腳本。 */
-    rawScript?: string
+    script?: string
     resultType?: string
     parameters?: readonly StrategyScriptParameterDto[]
   } = {},
 ): StrategyScript {
-  const resultType = overrides.resultType ?? 'floatList'
-  const script = overrides.rawScript
-    ?? new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
-      .assemble(overrides.scriptBody ?? 'sum := 0.0')
-
-  return new StrategyScript(id, name, '', script, resultType, overrides.parameters ?? [])
+  return new StrategyScript(
+    id,
+    name,
+    '',
+    overrides.script ?? 'package main\n\nimport "indicator"\n\n'
+    + 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\tsum := 0.0\n\treturn nil\n}',
+    overrides.resultType ?? 'floatList',
+    overrides.parameters ?? [],
+  )
 }
 
 /** 一支從市集加入來的策略腳本，如同後端交出來的樣子——**它沒有算式**。 */

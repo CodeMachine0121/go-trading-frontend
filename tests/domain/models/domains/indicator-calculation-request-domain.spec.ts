@@ -4,7 +4,11 @@ import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-ca
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 
-const SCRIPT_BODY = [
+const WHOLE_SCRIPT = [
+  'package main',
+  '',
+  'import "indicator"',
+  '',
   'func Calculate(data []indicator.KCandle) map[string]float64 {',
   '\treturn map[string]float64{"均價": 110}',
   '}',
@@ -19,7 +23,7 @@ function buildRequest(
     symbol?: string
     aggregationInterval?: string
     observationWindow?: ObservationWindowVo
-    scriptBody?: string
+    script?: string
     resultType?: string
   } = {},
 ) {
@@ -27,7 +31,7 @@ function buildRequest(
     overrides.symbol ?? 'BTCUSDT',
     overrides.aggregationInterval ?? '5m',
     overrides.observationWindow ?? OBSERVATION_WINDOW,
-    overrides.scriptBody ?? SCRIPT_BODY,
+    overrides.script ?? WHOLE_SCRIPT,
     overrides.resultType ?? 'float',
   )
 }
@@ -54,20 +58,26 @@ describe('IndicatorCalculationRequestDomain', () => {
     expect(requestDomain.observationWindow).toBe(OBSERVATION_WINDOW)
   })
 
-  it('送出的是固定外框加上使用者寫的檔案主體', () => {
+  it('送出的就是使用者眼前那一整份算式', () => {
     const requestDomain = new IndicatorCalculationRequestDomain(buildRequest())
 
-    expect(requestDomain.script).toContain('package main')
-    expect(requestDomain.script).toContain(`)\n\n${SCRIPT_BODY}`)
+    expect(requestDomain.script).toBe(WHOLE_SCRIPT)
   })
 
-  it('指標值種類是分開帶著的，不由請求域改主體', () => {
-    // 改種類會改主體的那件事發生在畫面上；請求域只是把主體接上固定外框。
+  it('指標值種類是分開帶著的，不由請求域改算式', () => {
+    // 改種類會改進入點那一行的事發生在畫面上；請求域一個字都不碰。
     const requestDomain = new IndicatorCalculationRequestDomain(
       buildRequest({ resultType: 'boolList' }))
 
     expect(requestDomain.resultType.value).toBe('boolList')
-    expect(requestDomain.script).toContain(SCRIPT_BODY)
+    expect(requestDomain.script).toBe(WHOLE_SCRIPT)
+  })
+
+  it('開頭被使用者刪掉了也照樣送出——寫得對不對由執行的那一方說', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      buildRequest({ script: 'func Calculate() {}' }))
+
+    expect(requestDomain.script).toBe('func Calculate() {}')
   })
 
   it('沒有宣告種類時當作一個數字', () => {
@@ -76,13 +86,12 @@ describe('IndicatorCalculationRequestDomain', () => {
     expect(requestDomain.resultType.value).toBe('float')
   })
 
-  it('內容前後多餘的空白不影響組出來的算式', () => {
+  it('前後多餘的空白行不影響算式成立，也不會被砍掉', () => {
+    const paddedScript = `\n\n${WHOLE_SCRIPT}\n\n`
     const requestDomain = new IndicatorCalculationRequestDomain(
-      buildRequest({ scriptBody: `\n\n${SCRIPT_BODY}\n\n` }))
+      buildRequest({ script: paddedScript }))
 
-    expect(requestDomain.script).toContain(`)\n\n${SCRIPT_BODY}\n`)
-    expect(requestDomain.script.split('\n').filter(line => line.trim() !== ''))
-      .toHaveLength(9)
+    expect(requestDomain.script).toBe(paddedScript)
   })
 
   it.each([
@@ -107,13 +116,31 @@ describe('IndicatorCalculationRequestDomain', () => {
     expect(requestDomain.observationWindow).toBe(anotherWindow)
   })
 
-  it.each([
-    { description: '完全沒填', scriptBody: '' },
-    { description: '只有空白字元', scriptBody: '  \n  ' },
-  ])('算式內容 $description 時拒絕', ({ scriptBody }) => {
-    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(buildRequest({ scriptBody })))
+  it('同時指名一支策略腳本又自帶一段算式時拒絕——說不出實際要跑哪一個', () => {
+    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(
+      new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float', [], 7)))
 
-    expect(fieldError.field).toBe('scriptBody')
+    expect(fieldError.field).toBe('script')
+    expect(fieldError.message).toBe('指名一支策略腳本與自帶一段算式只能挑一種')
+  })
+
+  it('指名一支策略腳本時不帶算式出去——那一段從頭到尾不離開系統', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, '', 'float', [], 7))
+
+    expect(requestDomain.strategyScriptId).toBe(7)
+    expect(requestDomain.script).toBe('')
+  })
+
+  it.each([
+    { description: '完全沒填', script: '' },
+    { description: '只有空白字元', script: '  \n  ' },
+  ])('算式 $description 時拒絕', ({ script }) => {
+    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(buildRequest({ script })))
+
+    expect(fieldError.field).toBe('script')
     expect(fieldError.message).toBe('請填寫算式內容')
   })
 })

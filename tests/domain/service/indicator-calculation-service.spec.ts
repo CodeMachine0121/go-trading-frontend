@@ -13,7 +13,11 @@ import { CalculationSpanDto } from '~/domain/models/dto/calculation-span-dto'
 const OBSERVATION_WINDOW = new ObservationWindowVo(
   new Date('2026-09-03T09:00:00.000Z'), null)
 
-const SCRIPT_BODY = [
+const PREAMBLE = 'package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)'
+
+const WHOLE_SCRIPT = [
+  PREAMBLE,
+  '',
   'func Calculate(data []indicator.KCandle) map[string]float64 {',
   '\treturn map[string]float64{"均價": 110}',
   '}',
@@ -34,7 +38,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     const resultDto = await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -47,17 +51,15 @@ describe('IndicatorCalculationService', () => {
       .toEqual(['均價', '最高'])
   })
 
-  it('交出去的算式是固定外框加上使用者寫的檔案主體', async () => {
+  it('交出去的算式就是使用者眼前那一整份', async () => {
     const indicatorCalculationProxy = buildProxy()
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'boolList'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '5m', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'boolList'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
-      expect.objectContaining({
-        script: expect.stringContaining(`)\n\n${SCRIPT_BODY}`),
-      }))
+      expect.objectContaining({ script: WHOLE_SCRIPT }))
   })
 
   it('輸入不合法時完全不去執行計算', async () => {
@@ -65,7 +67,7 @@ describe('IndicatorCalculationService', () => {
     const indicatorCalculationService = new IndicatorCalculationService(indicatorCalculationProxy)
 
     await expect(indicatorCalculationService.calculateIndicator(
-      new IndicatorCalculationRequestDto('', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'),
+      new IndicatorCalculationRequestDto('', '5m', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'),
     )).rejects.toBeInstanceOf(IndicatorCalculationFieldError)
     expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -75,28 +77,30 @@ describe('IndicatorCalculationService', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
-  ])('$resultType 的算式樣板：外框固定，範例主體與空白 stub 帶對應的簽章', ({ resultType, valueShape }) => {
-    const templateDto = new IndicatorCalculationService(buildProxy())
-      .describeIndicatorScript(resultType)
+  ])('$resultType 的範例算式是一整份，帶對應的簽章', ({ resultType, valueShape }) => {
+    const exampleScript = new IndicatorCalculationService(buildProxy())
+      .describeExampleScript(resultType)
 
-    expect(templateDto.frameHeader).toBe('package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)')
-    expect(templateDto.exampleBody)
-      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
-    expect(templateDto.exampleBody).toContain(`return ${valueShape}{`)
-    expect(templateDto.blankBody)
-      .toBe(`func Calculate(data []indicator.KCandle) ${valueShape} {\n\t\n}`)
+    expect(exampleScript).toContain(PREAMBLE)
+    expect(exampleScript).toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
+    expect(exampleScript).toContain(`return ${valueShape}{`)
   })
 
-  it('改指標值種類：把第一個 Calculate 的回傳型別換成新選的', () => {
+  it('改指標值種類：把第一個 Calculate 的回傳型別換成新選的，開頭不動', () => {
     const service = new IndicatorCalculationService(buildProxy())
-    const body = 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}'
+    const script = `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string]float64 {\n\treturn nil\n}`
 
-    expect(service.retargetScriptReturnType(body, 'signal'))
-      .toBe('func Calculate(data []indicator.KCandle) indicator.Signal {\n\treturn nil\n}')
+    expect(service.retargetScriptReturnType(script, 'signal'))
+      .toBe(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) indicator.Signal {\n\treturn nil\n}`)
   })
 
-  it('沒有特別挑時算的是一個數字', () => {
-    expect(new IndicatorCalculationService(buildProxy()).defaultResultType()).toBe('float')
+  it('一份空白的策略腳本：預設是一個數字，算式是那一種的空白算式，沒有旋鈕', () => {
+    const content = new IndicatorCalculationService(buildProxy()).describeBlankStrategyScript()
+
+    expect(content.resultType).toBe('float')
+    expect(content.script).toBe(
+      `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}`)
+    expect(content.parameters).toEqual([])
   })
 
   it('可以挑的指標值種類就是那五種，帶著給人看的名字', () => {
@@ -108,16 +112,12 @@ describe('IndicatorCalculationService', () => {
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
   })
 
-  it('信號種類的算式樣板：範例主體回傳一個信號，用系統提供的方式選一個', () => {
-    const templateDto = new IndicatorCalculationService(buildProxy()).describeIndicatorScript('signal')
+  it('信號種類的範例算式回傳一個信號，用系統提供的方式選一個', () => {
+    const exampleScript = new IndicatorCalculationService(buildProxy()).describeExampleScript('signal')
 
-    expect(templateDto.frameHeader).not.toContain('func Calculate')
-    expect(templateDto.exampleBody)
-      .toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
-    expect(templateDto.exampleBody).toContain('\treturn indicator.Buy')
-    expect(templateDto.exampleBody).not.toContain('map[string]')
-    expect(templateDto.blankBody)
-      .toBe('func Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}')
+    expect(exampleScript).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(exampleScript).toContain('\treturn indicator.Buy')
+    expect(exampleScript).not.toContain('map[string]')
   })
 
   it('說得出「一個信號」種類的算式能回傳哪三個值', () => {
@@ -194,7 +194,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
     const indicatorCalculationProxy = buildProxy()
 
     await new IndicatorCalculationService(indicatorCalculationProxy).calculateIndicator(
-      new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
+      new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
     expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -211,7 +211,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
     expect(resultDto.intervalLabel).toBe('五分鐘')
   })
@@ -222,7 +222,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
 
     const resultDto = await new IndicatorCalculationService(indicatorCalculationProxy)
       .calculateIndicator(
-        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, SCRIPT_BODY, 'float'))
+        new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
     expect(resultDto.isEmpty).toBe(true)
     expect(resultDto.intervalLabel).toBe('一小時')

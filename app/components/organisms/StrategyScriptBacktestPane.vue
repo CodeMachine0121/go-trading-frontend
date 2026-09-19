@@ -30,7 +30,7 @@ const {
   tradingSymbolApplication,
   timeZone,
   aggregationIntervalOptions,
-  scriptBody,
+  script,
   resultType,
   parameters,
   workspaceGeneration,
@@ -40,7 +40,7 @@ const {
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
   aggregationIntervalOptions: readonly AggregationIntervalOptionDto[]
-  scriptBody: string
+  script: string
   /** 工作區宣告的指標值種類。回測只跑「一個數字」，不對就當場說清楚。 */
   resultType: string
   parameters: readonly StrategyScriptParameterDto[]
@@ -102,7 +102,7 @@ async function runBacktest() {
     aggregationInterval.value,
     timeZone.parseMinuteInput(startTime.value),
     timeZone.parseMinuteInput(endTime.value),
-    scriptBody,
+    script,
     resultType,
     parameters,
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
@@ -171,11 +171,11 @@ async function runBacktest() {
       />
 
       <p
-        v-if="backtestRun.messageFor('scriptBody')"
+        v-if="backtestRun.messageFor('script')"
         class="strategy-script-backtest-pane__script-error"
-        data-testid="backtest-script-body-error"
+        data-testid="backtest-script-error"
       >
-        {{ backtestRun.messageFor('scriptBody') }}
+        {{ backtestRun.messageFor('script') }}
       </p>
     </AppPanel>
 

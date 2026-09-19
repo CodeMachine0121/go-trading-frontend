@@ -1,31 +1,26 @@
 <script setup lang="ts">
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
-import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 
-// 分子：一整塊「看起來就是一份 Go 檔案」的編輯區。
+// 分子：一整塊「就是一份 Go 檔案」的編輯區。
 //
-// 唯讀的外框（package 與 import）與可編輯的檔案主體是同一個原子的兩份，因此著色、
-// 行號欄與字體行高天生一致，讀起來是一份連續的程式碼。行號也是連續的：外框從第一行
-// 開始，主體接在一個空行之後——後端說「第 12 行出錯」時，畫面上就是那一行。
+// **整份都是使用者的**——最上面的 package 與 import 也一樣。它們是開一份新的空白
+// 策略腳本時預填進來的內容，不是畫面把持的外框：改得動、刪得掉，而畫面上這一份
+// 就是送出去、存下去的那一份。
 //
-// **進入點與收尾的括號都在可編輯區裡**：使用者可以自訂進入點的長相、也可以在它旁邊
-// 寫 helper 函式。外框只固定最上面那七行——它不隨指標值種類變。
-const { scriptTemplate } = defineProps<{
-  scriptTemplate: IndicatorScriptTemplateDto
+// 因此這裡只有一個編輯器、一欄行號，從第 1 行算起——後端說「第 12 行出錯」時，
+// 畫面上就是那一行。
+defineProps<{
   errorMessage?: string | null
 }>()
 
-const scriptBody = defineModel<string>({ required: true })
+const script = defineModel<string>({ required: true })
 
-// 外框之後留一個空行（Go 慣例），主體接在它下面。
-const frameWithSeparator = computed(() => `${scriptTemplate.frameHeader}\n`)
-
-const bodyEditor = useTemplateRef('bodyEditor')
+const scriptEditor = useTemplateRef('scriptEditor')
 
 // 整塊留著一份夠大的高度，多出來的空白落在整份檔案的後面（就像編輯器裡的檔尾），
 // 而不是把收尾的括號推得離程式碼老遠。點在那片空白上照樣接著最後一行打字。
 function continueWriting() {
-  bodyEditor.value?.focusAtEnd()
+  scriptEditor.value?.focusAtEnd()
 }
 </script>
 
@@ -38,7 +33,7 @@ function continueWriting() {
       <div class="indicator-script-editor__identity">
         <span class="indicator-script-editor__filename">indicator.go</span>
         <span class="indicator-script-editor__hint">
-          在 import 底下寫，至少要有一個 Calculate 進入點；換指標值種類會改它的回傳型別
+          整份都改得動，至少要有一個 Calculate 進入點；換指標值種類會改它的回傳型別
         </span>
       </div>
       <div class="indicator-script-editor__tools">
@@ -48,18 +43,9 @@ function continueWriting() {
 
     <div class="indicator-script-editor__file">
       <AppCodeEditor
-        :model-value="frameWithSeparator"
-        class="indicator-script-editor__frame"
-        readonly
-        data-testid="script-frame-header"
-      />
-
-      <AppCodeEditor
-        ref="bodyEditor"
-        v-model="scriptBody"
-        class="indicator-script-editor__body"
-        data-testid="script-body"
-        :start-line-number="scriptTemplate.bodyStartLineNumber"
+        ref="scriptEditor"
+        v-model="script"
+        data-testid="script"
         :invalid="Boolean(errorMessage)"
       />
 

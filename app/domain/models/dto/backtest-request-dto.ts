@@ -16,12 +16,13 @@ export class BacktestRequestDto {
     public readonly aggregationInterval: string,
     public readonly startTime: Date,
     public readonly endTime: Date,
-    public readonly scriptBody: string,
+    /** 要重演的那**一整份**算式——畫面上看到的那一份，逐字送出。 */
+    public readonly script: string,
     /**
      * 這支算式宣告的指標值種類。
      *
      * 它跟著送進來而不是由回測自己假定，因為工作區是兩個去處共用的：
-     * 假定一種，就等於在使用者沒有改任何東西的情況下換掉他的算式外框，
+     * 假定一種，就等於在使用者沒有改任何東西的情況下改掉他的進入點簽章，
      * 而換出來的東西編不過——那時他看到的會是直譯器的抱怨，不是一句他讀得懂的話。
      */
     public readonly resultType: string,

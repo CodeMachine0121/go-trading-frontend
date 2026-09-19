@@ -15,7 +15,7 @@ import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
  * 不是「一直看著」；常駐在畫面上只會跟編輯區搶同一塊寬度，
  * 而使用者九成的時間並不在查它們。
  *
- * 兩份清單都由 Application 給——它們與外框描述的是同一份沙箱契約，
+ * 兩份清單都由 Application 給——它們與預填的算式描述的是同一份沙箱契約，
  * 這裡一個欄位名、一行範例都不自己寫。
  */
 defineProps<{
@@ -72,7 +72,7 @@ const emit = defineEmits<{ close: [] }>()
             <li>沒有 <code>ID</code>。</li>
             <li>時間是 Unix 秒的整數，不是 <code>time.Time</code>。</li>
             <li>價量一律是 <code>float64</code>，直接算就好。</li>
-            <li>只開放 <code>math</code> 與 <code>sort</code>，外框已經幫你匯入。</li>
+            <li>只開放 <code>math</code> 與 <code>sort</code>，開新的空白算式時已經先幫你匯入。</li>
             <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
           </ul>
         </div>
@@ -124,7 +124,7 @@ const emit = defineEmits<{ close: [] }>()
         </h3>
 
         <p class="indicator-script-guide-dialog__kind-usage">
-          指標值種類挑「一個信號」時，外框的進入點回傳一個信號。用系統提供的三個值選一個
+          指標值種類挑「一個信號」時，進入點回傳一個信號。用系統提供的三個值選一個
           <code>return</code> 出去，沒有第四種、也不能自己組一個。回測讀的就是它。
         </p>
 

@@ -1,34 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { StrategyScript } from '~/domain/models/entities/strategy-script'
-import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
-
-function wholeScriptOf(resultType: string, scriptBody: string): string {
-  return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).assemble(scriptBody)
-}
 
 describe('StrategyScript', () => {
-  it('交出去的形狀帶著它記住的算法', () => {
-    const scriptBody = 'sum := 0.0\nreturn nil'
-    const strategyScript = new StrategyScript(
-      7, '二十根均線', '', wholeScriptOf('floatList', scriptBody), 'floatList')
+  it('交出去的形狀帶著它記住的那一整份算式', () => {
+    const script = 'package main\n\nimport "indicator"\n\n'
+      + 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\treturn nil\n}\n'
+    const strategyScript = new StrategyScript(7, '二十根均線', '', script, 'floatList')
 
     const strategyScriptDto = strategyScript.toDomain().toDto()
 
     expect(strategyScriptDto.id).toBe(7)
     expect(strategyScriptDto.name).toBe('二十根均線')
-    expect(strategyScriptDto.content.scriptBody).toBe(scriptBody)
+    expect(strategyScriptDto.content.script).toBe(script)
     expect(strategyScriptDto.content.resultType).toBe('floatList')
-    expect(strategyScriptDto.frameRecognised).toBe(true)
   })
 
-  it('算式認不出外框時整段原樣交出並說明', () => {
+  it('開頭與這裡預填的不一樣時，照樣一字不動地交出去', () => {
     const strategyScript = new StrategyScript(7, '手寫的', '', '這根本不是一段程式碼', 'float')
 
-    const strategyScriptDto = strategyScript.toDomain().toDto()
-
-    expect(strategyScriptDto.content.scriptBody).toBe('這根本不是一段程式碼')
-    expect(strategyScriptDto.frameRecognised).toBe(false)
+    expect(strategyScript.toDomain().toDto().content.script).toBe('這根本不是一段程式碼')
   })
 
   it.each([
