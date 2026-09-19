@@ -324,6 +324,26 @@ describe('IndicatorCalculationPanel', () => {
     expect(editorText).toContain('均價')
   })
 
+  it('填入範例之後直接送得出去，送出的就是那一整份範例', async () => {
+    // 範例要「填了就能跑」，所以這一條走完整條路：按範例、按送出，看送出去的是什麼。
+    // 只驗填進去的內容長什麼樣，等於放過「填進去之後到送出之間有人動了它」這種壞法。
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+    await settle()
+
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const sent = vi.mocked(indicatorCalculationProxy.calculateIndicator).mock.calls[0]![0]
+    expect(sent.script.startsWith('package main')).toBe(true)
+    expect(sent.script).toContain('import (')
+    expect(sent.script).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+    expect(sent.script).toContain('均價')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
   it('指標值種類就是領域給的那五種', async () => {
     const wrapper = mountPanel(buildProxy())
 
