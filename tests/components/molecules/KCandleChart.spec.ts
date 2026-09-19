@@ -103,6 +103,8 @@ function kCandleDto(openTime: string, closePrice: string, trend: KCandleTrendVo)
     new Decimal('100'), new Decimal('130'), new Decimal('90'), new Decimal(closePrice),
     new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
     trend,
+    new Decimal(closePrice).minus('100'),
+    new Decimal(closePrice).minus('100'),
   )
 }
 

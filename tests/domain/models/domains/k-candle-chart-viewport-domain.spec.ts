@@ -37,6 +37,8 @@ function loadedChart(
       new Decimal('100'), new Decimal('110'), new Decimal('90'), new Decimal('105'),
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
       new KCandleTrendVo('up', '上漲', 'success'),
+      new Decimal('5'),
+      new Decimal('5'),
     )],
     choice,
   )
