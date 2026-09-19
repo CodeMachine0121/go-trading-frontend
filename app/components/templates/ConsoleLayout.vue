@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import { useLayoutDensity } from '~/composables/use-layout-density'
 
 // 樣板：全站共用的版面骨架，只有結構與插槽，不綁任何資料。
 //
@@ -8,6 +9,15 @@ import AppButton from '~/components/atoms/AppButton.vue'
 // 導覽收進左邊一條固定的側欄，頂上留一條窄帶說「我在哪一個畫面」，
 // 剩下的整片都是工作區。四個畫面走到哪裡，外框都在同一個位置，
 // 而且工作區永遠填滿視窗——表格與圖在自己的框裡捲，不是整頁一起捲。
+//
+// 窄螢幕上那條側欄改成**一片叫得出來的抽屜**：平時不佔任何高度，
+// 按一下蓋在畫面上，九個去處一次全看得到，選一個就收起來。
+// 它取代的是更早那一版「躺平成頂上一條橫著捲的窄帶」——九個去處
+// 在平板的寬度也塞不滿一條而不捲，於是第七、八、九個永遠藏在捲動之外，
+// 而那條窄帶還一直吃著手機上最稀缺的高度。
+//
+// **去處的清單只寫一次**，兩種形狀由樣式決定。複製第二份標記的話，
+// 讀螢幕的人會聽到兩份導覽，而其中一份永遠是看不見的那一份。
 //
 // 導覽是骨架的一部分（「這個操作台有哪幾個地方可去」），不是資料；
 // 需要即時去問後端的東西（那顆燈、時區）一律由頁面填進插槽。
@@ -30,6 +40,8 @@ defineProps<{
   subtitle?: string
 }>()
 
+const { layoutDensity } = useLayoutDensity()
+
 /**
  * 側欄收起來了沒有。
  *
@@ -41,14 +53,71 @@ defineProps<{
  * 每換一個畫面，樣板就重新掛載一次，而使用者收起來的側欄不該在他走到下一頁時彈回來。
  */
 const railStowed = useState('console-rail-stowed', () => false)
+
+/**
+ * 抽屜開著沒有。
+ *
+ * 與側欄收合相反，它**不**跨畫面共用：抽屜是「我現在要去別的地方」這個當下的動作，
+ * 到了那個地方它的任務就結束了。換頁時它跟著這個元件一起重新掛載成關著的樣子，
+ * 正是它該有的行為。
+ */
+const navigationDrawerOpen = ref(false)
+
+/**
+ * 視窗變寬到不再需要抽屜時，把它關掉。
+ *
+ * 不關的話，那個「開著」會留在狀態裡：使用者把視窗拉寬、再拉窄回來，
+ * 抽屜就會自己跳出來，而他沒有按過任何東西。
+ */
+watch(() => layoutDensity.value.usesNavigationDrawer, (usesDrawer) => {
+  if (!usesDrawer) {
+    navigationDrawerOpen.value = false
+  }
+})
+
+// Esc 關掉疊在畫面上的東西，是使用者對它既有的預期；只在開著的時候聽，
+// 免得與對話框搶同一個按鍵。
+watch(navigationDrawerOpen, (isOpen) => {
+  if (isOpen) {
+    document.addEventListener('keydown', closeNavigationDrawerOnEscape)
+  }
+  else {
+    document.removeEventListener('keydown', closeNavigationDrawerOnEscape)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', closeNavigationDrawerOnEscape)
+})
+
+function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    navigationDrawerOpen.value = false
+  }
+}
 </script>
 
 <template>
   <div
     class="console-layout"
-    :class="{ 'console-layout--stowed': railStowed }"
+    :class="{
+      'console-layout--stowed': railStowed,
+      'console-layout--drawer-open': navigationDrawerOpen,
+    }"
   >
+    <!--
+      點在抽屜以外的地方只是把它收起來，**不是**換到別的畫面——
+      使用者叫出去處清單之後改變主意，那是最常見的一件事。
+    -->
+    <div
+      v-if="layoutDensity.usesNavigationDrawer && navigationDrawerOpen"
+      class="console-layout__scrim"
+      data-testid="navigation-scrim"
+      @click="navigationDrawerOpen = false"
+    />
+
     <nav
+      id="console-destinations"
       class="console-layout__rail"
       aria-label="操作台"
     >
@@ -89,6 +158,7 @@ const railStowed = useState('console-rail-stowed', () => false)
             :to="destination.to"
             class="console-layout__link"
             :title="destination.label"
+            @click="navigationDrawerOpen = false"
           >
             <AppIcon
               :name="destination.icon"
@@ -115,6 +185,27 @@ const railStowed = useState('console-rail-stowed', () => false)
 
     <div class="console-layout__frame">
       <header class="console-layout__strip">
+        <!--
+          窄螢幕上唯一的導覽入口。它**只在那時候才畫出來**：
+          一顆在寬螢幕上什麼都不做的鍵，對讀螢幕的人是一條假的路。
+        -->
+        <AppButton
+          v-if="layoutDensity.usesNavigationDrawer"
+          variant="ghost"
+          size="small"
+          class="console-layout__menu"
+          :label="navigationDrawerOpen ? '關閉導覽' : '開啟導覽'"
+          :aria-expanded="navigationDrawerOpen"
+          aria-controls="console-destinations"
+          data-testid="toggle-navigation"
+          @click="navigationDrawerOpen = !navigationDrawerOpen"
+        >
+          <AppIcon
+            :name="navigationDrawerOpen ? 'close' : 'menu'"
+            size="small"
+          />
+        </AppButton>
+
         <div class="console-layout__heading">
           <h1 class="console-layout__title">
             {{ title }}
@@ -141,44 +232,67 @@ const railStowed = useState('console-rail-stowed', () => false)
 </template>
 
 <style scoped lang="scss">
+/** 抽屜蓋出來時有多寬。留一段讓底下的畫面露出來，人才看得出它只是疊在上面。 */
+$navigation-drawer-width: 15rem;
+
 .console-layout {
   display: grid;
 
-  // 窄螢幕：側欄躺平成頂上一條，工作區接在下面。
-  grid-template-rows: auto minmax(0, 1fr);
+  // 窄螢幕：只有一欄，整片都是工作區——導覽疊在它上面，不佔格子。
+  grid-template-rows: minmax(0, 1fr);
   height: 100%;
 
   @include respond-to('lg') {
-    grid-template-rows: minmax(0, 1fr);
     grid-template-columns: 13rem minmax(0, 1fr);
   }
 
-  // 收起來只在側欄真的是一條側欄時才成立。窄螢幕上它躺平成頂上一條，
-  // 那時候收起來的是「一條窄帶的高度」——省不到什麼，卻讓五個畫面變得難按。
+  // 收起來只在側欄真的是一條側欄時才成立。窄螢幕上它是一片叫得出來的抽屜，
+  // 那時候「收起來」與「關起來」是同一件事，不需要第二顆鍵。
   &--stowed {
     @include respond-to('lg') {
       grid-template-columns: 3rem minmax(0, 1fr);
     }
   }
 
-  &__rail {
-    display: flex;
-    gap: spacing('md');
-    align-items: center;
-    border-bottom: 1px solid color('border');
-    background-color: color('surface');
-    padding: spacing('xs') spacing('sm');
-    overflow-x: auto;
+  // 抽屜後面那一層。它是可以點的，而點它只是把抽屜收起來。
+  &__scrim {
+    position: fixed;
+    z-index: z-index('modal');
+    inset: 0;
+    background-color: color('backdrop');
 
     @include respond-to('lg') {
-      flex-direction: column;
-      gap: spacing('lg');
-      align-items: stretch;
-      border-right: 1px solid color('border');
-      border-bottom: none;
-      padding: spacing('md') spacing('sm');
-      overflow-x: visible;
+      display: none;
     }
+  }
+
+  &__rail {
+    position: fixed;
+    z-index: z-index('modal');
+    inset: 0 auto 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: spacing('lg');
+    transition: transform duration('normal') ease;
+
+    // 平時整片推到畫面外：它不佔高度、不佔寬度，工作區因此是完整的一整片。
+    transform: translateX(-100%);
+    border-right: 1px solid color('border');
+    background-color: color('surface');
+    padding: spacing('md') spacing('sm');
+    width: $navigation-drawer-width;
+    overflow-y: auto;
+
+    @include respond-to('lg') {
+      position: static;
+      transform: none;
+      width: auto;
+      overflow-y: visible;
+    }
+  }
+
+  &--drawer-open &__rail {
+    transform: translateX(0);
   }
 
   &__brand {
@@ -277,14 +391,11 @@ const railStowed = useState('console-rail-stowed', () => false)
 
   &__destinations {
     display: flex;
+    flex-direction: column;
     gap: spacing('3xs');
     margin: 0;
     padding: 0;
     list-style: none;
-
-    @include respond-to('lg') {
-      flex-direction: column;
-    }
   }
 
   &__link {
@@ -298,6 +409,8 @@ const railStowed = useState('console-rail-stowed', () => false)
     font-size: font-size('sm');
     text-decoration: none;
     white-space: nowrap;
+
+    @include tap-target;
 
     &:hover {
       background-color: color('surface-muted');
@@ -316,20 +429,15 @@ const railStowed = useState('console-rail-stowed', () => false)
   &__status {
     flex: none;
 
-    @include respond-to('lg') {
-      // 燈釘在側欄最底下——那是終端機放「線路狀態」的位置。
-      margin-top: auto;
-      border-top: 1px solid color('border');
-      padding: spacing('sm') spacing('2xs') 0;
-    }
+    // 燈釘在側欄最底下——那是終端機放「線路狀態」的位置。
+    margin-top: auto;
+    border-top: 1px solid color('border');
+    padding: spacing('sm') spacing('2xs') 0;
   }
 
   &__account {
     flex: none;
-
-    @include respond-to('lg') {
-      padding: spacing('2xs') spacing('2xs') 0;
-    }
+    padding: spacing('2xs') spacing('2xs') 0;
   }
 
   // 側欄收起來時那一行電子郵件沒有地方站——三公分寬的邊上，它只會被切成
@@ -351,16 +459,27 @@ const railStowed = useState('console-rail-stowed', () => false)
   &__strip {
     display: flex;
     flex: none;
-    gap: spacing('md');
-    align-items: baseline;
+    gap: spacing('sm');
+    align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid color('border');
     background-color: color('surface');
     padding: spacing('xs') spacing('md');
+
+    @include respond-to('lg') {
+      align-items: baseline;
+      gap: spacing('md');
+    }
+  }
+
+  &__menu {
+    flex: none;
+    color: color('text-faint');
   }
 
   &__heading {
     display: flex;
+    flex: 1;
     flex-wrap: wrap;
     gap: spacing('xs') spacing('sm');
     align-items: baseline;

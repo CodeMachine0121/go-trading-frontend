@@ -48,6 +48,7 @@ type IconName
     | 'hidden'
     | 'sign-out'
     | 'settings'
+    | 'menu'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -106,6 +107,10 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6',
     'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
     'M10 11v6M14 11v6',
+  ],
+  // 三條橫線——把去處都叫出來。窄螢幕上導覽收起來時，它是唯一的入口。
+  'menu': [
+    'M4 6h16M4 12h16M4 18h16',
   ],
   // 叉
   'close': [
