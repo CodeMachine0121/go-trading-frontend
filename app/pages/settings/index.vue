@@ -100,7 +100,13 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .settings-page {
-  padding: spacing('lg');
+  // 窄螢幕上不再加自己的內距：工作區已經給過一層，兩層疊起來
+  // 在 390 寬的螢幕上左右各吃掉近三成。
+  padding: 0;
+
+  @include respond-to('md') {
+    padding: spacing('lg');
+  }
 
   // 這一頁不是一整塊儀表，是一張要讀的紙——所以它自己捲，而且置中。
   //

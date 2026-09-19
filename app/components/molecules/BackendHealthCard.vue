@@ -113,6 +113,10 @@ defineEmits<{
     font-weight: font-weight('semibold');
     font-size: font-size('2xl');
 
+    @include respond-to('md') {
+      font-size: font-size('3xl');
+    }
+
     &--success {
       color: color('success');
     }

@@ -169,15 +169,19 @@ onMounted(() => {
     list-style: none;
   }
 
+  // 一列是一張卡片：名字在上、有幾支腳本在下、動作靠右。
+  // 窄螢幕上那兩顆鍵會掉到第二行去，所以它們自己成一組靠右對齊，
+  // 而不是散在名字後面——散著的話，兩行讀起來像是兩列。
   &__row {
     display: flex;
     flex-wrap: wrap;
-    gap: spacing('2xs');
+    gap: spacing('xs');
     align-items: center;
     justify-content: space-between;
     border: 1px solid color('border');
-    border-radius: radius('sm');
-    padding: spacing('2xs');
+    border-radius: radius('md');
+    background-color: color('surface');
+    padding: spacing('xs') spacing('sm');
   }
 
   &__identity {
@@ -187,8 +191,11 @@ onMounted(() => {
     min-width: 0;
   }
 
+  // 名字是這一列的身分，所以它最亮、比周圍大一階。
   &__name {
+    color: color('text-strong');
     font-weight: font-weight('medium');
+    font-size: font-size('md');
   }
 
   &__meta {
@@ -199,6 +206,7 @@ onMounted(() => {
   &__actions {
     display: flex;
     gap: spacing('3xs');
+    margin-left: auto;
   }
 }
 </style>

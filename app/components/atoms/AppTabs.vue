@@ -44,6 +44,14 @@ const modelValue = defineModel<string>({ required: true })
   // 沒選的縮在線後面。少了這條線，兩顆按鈕看起來只是兩顆按鈕。
   border-bottom: 1px solid color('border');
 
+  // 窄螢幕上分頁多到擺不下時橫著捲，而不是折行——折了行的分頁，
+  // 那條底線會斷成兩截，於是它不再把分頁與內容綁在一起。
+  overflow-x: auto;
+
+  > * {
+    flex: none;
+  }
+
   &__tab {
     transition: color duration('fast') ease, border-color duration('fast') ease;
     margin-bottom: -1px;
@@ -55,8 +63,10 @@ const modelValue = defineModel<string>({ required: true })
     color: color('text-muted');
     font-weight: font-weight('medium');
     font-size: font-size('sm');
+    white-space: nowrap;
 
     @include focus-ring;
+    @include tap-target;
 
     &:hover:not(&--selected) {
       color: color('text-strong');

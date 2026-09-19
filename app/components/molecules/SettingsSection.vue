@@ -49,7 +49,11 @@ defineProps<{
     display: flex;
     flex-direction: column;
     gap: spacing('md');
-    padding: spacing('lg');
+    padding: spacing('md');
+
+    @include respond-to('md') {
+      padding: spacing('lg');
+    }
   }
 
   &__heading {

@@ -59,11 +59,19 @@ const MASKED_PASSWORD = '••••••••'
   // 而看起來可以填的東西會讓人一直想去點它。
   &__row {
     display: grid;
-    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
-    gap: spacing('sm');
-    align-items: baseline;
+
+    // 窄螢幕上標籤在上、值在下。並排的話，值只剩不到一半的寬度，
+    // 而這裡的值是一個電子郵件——它會被折成三行，或被切掉。
+    grid-template-columns: minmax(0, 1fr);
+    gap: spacing('3xs');
     border-bottom: 1px solid color('border');
     padding-bottom: spacing('sm');
+
+    @include respond-to('md') {
+      grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+      gap: spacing('sm');
+      align-items: baseline;
+    }
 
     &:last-child {
       border-bottom: none;
