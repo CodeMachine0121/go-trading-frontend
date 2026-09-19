@@ -79,7 +79,9 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
-  min-width: 30rem;
+
+  // 想要這麼寬，但螢幕放不下就跟著螢幕——見 AppliedIndicatorDialog 的同一行。
+  min-width: min(30rem, 100%);
 
   &__lead {
     margin: 0;

@@ -252,7 +252,7 @@ onMounted(reload)
     list-style: none;
 
     // 一列一張時每一張都很寬，讀起來像一份表格；兩欄起就看得出它們是一組可以挑的東西。
-    @media (width >= 60rem) {
+    @include respond-to('lg') {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }

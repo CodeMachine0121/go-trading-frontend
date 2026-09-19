@@ -294,7 +294,7 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');
-    min-width: 12rem;
+    min-width: min(12rem, 100%);
   }
 
   &__name {

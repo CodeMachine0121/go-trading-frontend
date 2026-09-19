@@ -146,7 +146,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
   align-items: flex-start;
 
   &__symbol {
-    min-width: 10rem;
+    min-width: min(10rem, 100%);
     max-width: 14rem;
   }
 
@@ -164,7 +164,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
   // 比旁邊那兩組重要，而它們是同一級的選擇。
   &__interval {
     width: auto;
-    min-width: 6rem;
+    min-width: min(6rem, 100%);
   }
 
   // 一組互斥的選擇擺成一條連在一起的軌道，而不是幾顆各自獨立的按鈕——
