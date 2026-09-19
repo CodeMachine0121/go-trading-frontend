@@ -1,0 +1,26 @@
+# 建置產出與依賴:映像檔裡要的是從原始碼重新建一次的結果,
+# 不是這台機器上那份。
+node_modules
+.output
+.nuxt
+dist
+coverage
+
+# 版本控制與工具設定。
+.git
+.github
+.claude
+.idea
+.vscode
+.husky
+.DS_Store
+
+# 規格文件與測試,都不會進到那包靜態檔裡。
+.sdd
+tests
+*.md
+
+# 本機的環境變數。後端網址是 build 參數,不從這裡來。
+.env
+.env.*
+!.env.example
