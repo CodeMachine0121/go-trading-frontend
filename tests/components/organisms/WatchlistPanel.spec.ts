@@ -332,4 +332,16 @@ describe('WatchlistPanel 加進來的是哪個市場', () => {
 
     expect(wrapper.text()).toContain('加入失敗')
   })
+
+  it('一列說得出代號、它屬於哪個市場，以及它現在有沒有即時更新', async () => {
+    // 三樣東西各有各的份量：代號是身分（最亮）、市場是來歷（最暗）、
+    // 有沒有即時更新是唯一會變的那一個（唯一的牌子）。
+    const wrapper = await mountPanel()
+
+    const row = wrapper.get('.watchlist-panel__item')
+
+    expect(row.get('.watchlist-panel__symbol').text()).toBe('2330')
+    expect(row.get('.watchlist-panel__market').text()).toBe('台股')
+    expect(row.text()).toContain('即時更新中')
+  })
 })
