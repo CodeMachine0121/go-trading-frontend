@@ -37,7 +37,7 @@ describe('KCandleQuote', () => {
   it.each([
     ['漲的時候帶正號、走綠的', '100', '110', '+10', '+10.00%', 'success'],
     ['跌的時候本來就帶負號、走紅的', '100', '90', '-10', '-10.00%', 'danger'],
-    ['不漲不跌是中性的，不是綠的', '100', '100', '+0', '+0.00%', 'neutral'],
+    ['不漲不跌是中性的，不是綠的', '100', '100', '+0', '0.00%', 'neutral'],
   ])('%s', (_name, open, close, change, percent, tone) => {
     const wrapper = mountQuote(candle(open, close))
     const changeLine = wrapper.get('[data-testid="k-candle-quote-change"]')
@@ -45,6 +45,18 @@ describe('KCandleQuote', () => {
     expect(changeLine.text()).toContain(change)
     expect(changeLine.text()).toContain(percent)
     expect(changeLine.classes()).toContain(`k-candle-quote__change--${tone}`)
+  })
+
+  it('小數點後兩位看不出方向時，不硬掛一個符號上去', () => {
+    // 一個寫著 `-0.00%` 的數字讀起來像是壞了。方向仍然說得出來：
+    // 旁邊那個金額帶著負號，而整行是紅的。
+    const wrapper = mountQuote(candle('81280', '81278.68'))
+    const changeLine = wrapper.get('[data-testid="k-candle-quote-change"]')
+
+    expect(changeLine.text()).toContain('-1.32')
+    expect(changeLine.text()).toContain('0.00%')
+    expect(changeLine.text()).not.toContain('-0.00%')
+    expect(changeLine.classes()).toContain('k-candle-quote__change--danger')
   })
 
   it('開盤價是零時不說百分比——除不出來與「沒有漲跌」是兩件事', () => {

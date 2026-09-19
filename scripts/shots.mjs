@@ -61,17 +61,25 @@ const hasFlag = name => process.argv.includes(`--${name}`)
 /** 生產後端不認得 localhost 這個來源，所以由我們自己轉一手並補上放行標頭。 */
 async function letTheBrowserReadProduction(context) {
   await context.route(`${BACKEND}/**`, async (route) => {
-    const response = await route.fetch()
+    try {
+      const response = await route.fetch()
 
-    await route.fulfill({
-      response,
-      headers: {
-        ...response.headers(),
-        'access-control-allow-origin': SITE,
-        'access-control-allow-credentials': 'true',
-        'access-control-allow-headers': '*',
-      },
-    })
+      await route.fulfill({
+        response,
+        headers: {
+          ...response.headers(),
+          'access-control-allow-origin': SITE,
+          'access-control-allow-credentials': 'true',
+          'access-control-allow-headers': '*',
+        },
+      })
+    }
+    catch {
+      // 轉不了的那幾種就原樣放行：即時更新那條是一直開著的串流，
+      // 轉一手會卡住；而畫面上的即時更新對一張截圖沒有意義。
+      // 放行之後瀏覽器會因為跨來源擋掉它，那正是我們要的——別讓它拖住整頁。
+      await route.continue().catch(() => {})
+    }
   })
 }
 
@@ -184,6 +192,11 @@ for (const viewport of viewports) {
 
   for (const screen of screens) {
     await page.goto(`${SITE}${screen.path}`, { waitUntil: 'networkidle' }).catch(() => {})
+
+    // Nuxt 在開發模式會在畫面右下角掛一顆自己的工具鍵。它不是這個 app 的一部分，
+    // 卻會擋住那個角落的東西、出現在每一張截圖上。每導覽一次就要再蓋一次。
+    await page.addStyleTag({ content: '#nuxt-devtools-container, #vue-tracer-overlay { display: none !important }' })
+      .catch(() => {})
     await page.waitForTimeout(600)
 
     const suffix = hasFlag('no-js') ? '-nojs' : ''

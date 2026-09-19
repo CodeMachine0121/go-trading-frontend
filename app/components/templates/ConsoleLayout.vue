@@ -461,7 +461,11 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     flex: none;
 
     // 窄螢幕：標題與那顆控制項並排，副標自己一整行。
-    grid-template-columns: minmax(0, 1fr) auto;
+    //
+    // 第二欄給上限而不是讓它跟著內容長：時區選單的字很長（「世界標準時間
+    // （UTC+00:00）」），跟著內容長的話它會佔掉三分之二，把一個五個字的標題
+    // 擠到換行。這一行的主角是「我在哪一個畫面」，時區是設好就不太動的偏好。
+    grid-template-columns: minmax(0, 1fr) minmax(0, 10rem);
     gap: spacing('3xs') spacing('sm');
     align-items: center;
     background-color: color('background');

@@ -36,9 +36,16 @@ const signedPercent = computed(() => {
     return null
   }
 
-  const sign = latest.priceChangePercent.isNegative() ? '' : '+'
+  const rounded = latest.priceChangePercent.toFixed(2)
 
-  return `${sign}${latest.priceChangePercent.toFixed(2)}%`
+  // 小數點後兩位之後就看不出方向的漲跌，不要硬掛一個符號上去：
+  // 一個寫著 `-0.00%` 的數字讀起來像是壞了。方向仍然說得出來——
+  // 旁邊那個金額帶著負號，而整行是紅的。
+  if (Number.parseFloat(rounded) === 0) {
+    return `${rounded.replace('-', '')}%`
+  }
+
+  return `${latest.priceChangePercent.isNegative() ? '' : '+'}${rounded}%`
 })
 </script>
 

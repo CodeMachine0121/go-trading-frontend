@@ -152,10 +152,14 @@ function toggle() {
   background-color: color('surface');
   overflow: hidden;
 
+  // 標題與右邊那組動作排不下時換行，而不是把標題壓扁。
+  // 動作那一組的字不折行（按鈕本來就不折），所以會被壓扁的一定是標題——
+  // 而一個一行一個字的標題，比多佔一行還難讀。
   &__bar {
     display: flex;
+    flex-wrap: wrap;
     flex: none;
-    gap: spacing('md');
+    gap: spacing('2xs') spacing('md');
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid color('border');
