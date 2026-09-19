@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { CredentialsFieldError } from '~/domain/errors/credentials-field-error'
 import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
+import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-field-errors-dto'
@@ -188,6 +189,47 @@ describe('useUserSession：送出那兩格', () => {
 
     expect(errorMessage.value).toContain(expected)
     expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('被鎖住時說的是另一句話，而且寫出使用者自己時區的那個時刻', async () => {
+    // 後端給的是世界標準時間。照抄的話，一個在台北的人會讀到一個早他八小時的
+    // 時間，然後以為已經可以進去了。
+    userSessionApplication.signIn.mockRejectedValue(
+      new SignInLockedError('已被鎖住', new Date('2026-09-12T08:00:00Z')))
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    const localMoment = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date('2026-09-12T08:00:00Z'))
+    expect(errorMessage.value).toContain('被鎖住')
+    expect(errorMessage.value).toContain(localMoment)
+    expect(errorMessage.value).not.toContain('電子郵件或密碼不正確')
+  })
+
+  it('那句話同時寫得出日期與時間——只有時間的話，一週的鎖會被讀成再等幾分鐘', async () => {
+    userSessionApplication.signIn.mockRejectedValue(
+      new SignInLockedError('已被鎖住', new Date('2026-09-12T08:00:00Z')))
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(errorMessage.value).toContain('2026')
+    expect(errorMessage.value).toMatch(/\d{1,2}:\d{2}/)
+  })
+
+  it('說不出時刻時仍然說他被鎖住，絕不退回去說帳密不正確', async () => {
+    // 退回去的那一句會讓他繼續試密碼，而那正是這道鎖要終結的行為。
+    userSessionApplication.signIn.mockRejectedValue(new SignInLockedError('已被鎖住', null))
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(errorMessage.value).toContain('被鎖住')
+    expect(errorMessage.value).not.toContain('電子郵件或密碼不正確')
+    expect(errorMessage.value).not.toBe('登入時發生未預期的錯誤。')
   })
 
   it('沒見過的失敗也要說一句人看得懂的話，而不是把原始訊息丟出去', async () => {
