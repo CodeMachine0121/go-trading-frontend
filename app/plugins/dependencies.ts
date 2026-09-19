@@ -63,6 +63,7 @@ import { TelegramDeliveryApplication } from '~/application/telegram-delivery-app
 import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
+import { LayoutDensityApplication } from '~/application/layout-density-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -245,6 +246,10 @@ export default defineNuxtPlugin(() => {
       new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
   )
 
+  // 現在這個寬度代表什麼。它連瀏覽器儲存都不碰——問的是視窗本身，
+  // 所以既沒有 proxy 也沒有 domain service，只有一個把寬度翻成答案的 model。
+  const layoutDensityApplication = new LayoutDensityApplication()
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -274,6 +279,7 @@ export default defineNuxtPlugin(() => {
       userSessionApplication,
       passwordChangeApplication,
       telegramDeliveryApplication,
+      layoutDensityApplication,
     },
   }
 })
