@@ -114,8 +114,17 @@ onMounted(() => {
         class="strategy-bot-list__row"
         data-testid="bot-row"
       >
-        <div class="strategy-bot-list__identity">
+        <!--
+          名字與狀態同一行、其餘往下疊：一列機器人要回答的第一個問題是
+          「它現在跑著嗎」，而那個答案要與名字在同一條視線上。
+          原本狀態牌子排在名字**後面**，於是在窄螢幕上它會被擠到第三行去。
+        -->
+        <div class="strategy-bot-list__headline">
           <span class="strategy-bot-list__name">{{ strategyBot.name }}</span>
+          <StrategyBotStatusBadge :run-state="strategyBot.runState" />
+        </div>
+
+        <div class="strategy-bot-list__identity">
           <span class="strategy-bot-list__meta">
             {{ strategyBot.symbol }} · 每 {{ strategyBot.triggerIntervalMinutes }} 分鐘
           </span>
@@ -132,103 +141,103 @@ onMounted(() => {
           </NuxtLink>
         </div>
 
-        <StrategyBotStatusBadge :run-state="strategyBot.runState" />
+        <div class="strategy-bot-list__footer">
+          <span
+            class="strategy-bot-list__meta"
+            data-testid="bot-last-sent-signal"
+          >
+            上次訊號：{{ strategyBot.runState.lastSentSignalLabel }}
+          </span>
 
-        <span
-          class="strategy-bot-list__meta"
-          data-testid="bot-last-sent-signal"
-        >
-          上次訊號：{{ strategyBot.runState.lastSentSignalLabel }}
-        </span>
-
-        <div class="strategy-bot-list__actions">
-          <!--
+          <div class="strategy-bot-list__actions">
+            <!--
             電源鍵，不是播放鍵。播放說的是「跑一次這個東西」；一台常駐機器人是
             開著或關著，而那是兩張完全不同的心智圖。同一個位置的兩種樣子，
             因為一台機器人只有兩種狀態。
           -->
-          <AppButton
-            v-if="strategyBot.runState.canStart"
-            type="button"
-            variant="secondary"
-            :disabled="bots.busyId.value === strategyBot.id"
-            title="啟動這台機器人"
-            data-testid="bot-start"
-            @click="bots.start(strategyBot.id)"
-          >
-            <AppIcon name="power" />
-            啟動
-          </AppButton>
-          <AppButton
-            v-else
-            type="button"
-            :disabled="bots.busyId.value === strategyBot.id"
-            title="停止這台機器人"
-            data-testid="bot-stop"
-            @click="bots.stop(strategyBot.id)"
-          >
-            <AppIcon name="power" />
-            停止
-          </AppButton>
+            <AppButton
+              v-if="strategyBot.runState.canStart"
+              type="button"
+              variant="secondary"
+              :disabled="bots.busyId.value === strategyBot.id"
+              title="啟動這台機器人"
+              data-testid="bot-start"
+              @click="bots.start(strategyBot.id)"
+            >
+              <AppIcon name="power" />
+              啟動
+            </AppButton>
+            <AppButton
+              v-else
+              type="button"
+              :disabled="bots.busyId.value === strategyBot.id"
+              title="停止這台機器人"
+              data-testid="bot-stop"
+              @click="bots.stop(strategyBot.id)"
+            >
+              <AppIcon name="power" />
+              停止
+            </AppButton>
 
-          <!--
+            <!--
             試一次，不等排程。它走的是排程那一輪同一條路，所以按下去看到的
             就是它自己跑會做的事——這顆鍵要用來確認的正是那件事。
           -->
-          <AppButton
-            type="button"
-            variant="secondary"
-            :disabled="bots.busyId.value === strategyBot.id"
-            title="不等排程，現在就跑一輪"
-            data-testid="bot-run-now"
-            @click="bots.runNow(strategyBot.id)"
-          >
-            立即運算
-          </AppButton>
+            <AppButton
+              type="button"
+              variant="secondary"
+              :disabled="bots.busyId.value === strategyBot.id"
+              title="不等排程，現在就跑一輪"
+              data-testid="bot-run-now"
+              @click="bots.runNow(strategyBot.id)"
+            >
+              立即運算
+            </AppButton>
 
-          <AppButton
-            type="button"
-            variant="ghost"
-            :aria-expanded="bots.expandedBotId.value === strategyBot.id"
-            data-testid="bot-history-toggle"
-            @click="bots.toggleRunHistory(strategyBot.id)"
-          >
-            {{ bots.expandedBotId.value === strategyBot.id ? '收起紀錄' : '執行紀錄' }}
-          </AppButton>
+            <AppButton
+              type="button"
+              variant="ghost"
+              :aria-expanded="bots.expandedBotId.value === strategyBot.id"
+              data-testid="bot-history-toggle"
+              @click="bots.toggleRunHistory(strategyBot.id)"
+            >
+              {{ bots.expandedBotId.value === strategyBot.id ? '收起紀錄' : '執行紀錄' }}
+            </AppButton>
 
-          <!--
+            <!--
             執行中不給按，並說得出為什麼——按了才被拒絕是把看得出來的事留到送出才講。
 
             不給按的那一版**不是連結**：一個帶著 disabled 的連結照樣點得進去，
             而點得進去就等於那條規則只是畫上去的。
           -->
-          <AppButton
-            v-if="strategyBot.runState.canEdit"
-            :to="`/strategy-bots/${strategyBot.id}`"
-            variant="ghost"
-            data-testid="bot-edit"
-          >
-            編輯
-          </AppButton>
-          <AppButton
-            v-else
-            type="button"
-            variant="ghost"
-            disabled
-            :title="strategyBot.runState.editBlockedReason"
-            data-testid="bot-edit"
-          >
-            編輯
-          </AppButton>
+            <AppButton
+              v-if="strategyBot.runState.canEdit"
+              :to="`/strategy-bots/${strategyBot.id}`"
+              variant="ghost"
+              data-testid="bot-edit"
+            >
+              編輯
+            </AppButton>
+            <AppButton
+              v-else
+              type="button"
+              variant="ghost"
+              disabled
+              :title="strategyBot.runState.editBlockedReason"
+              data-testid="bot-edit"
+            >
+              編輯
+            </AppButton>
 
-          <AppButton
-            type="button"
-            variant="danger-ghost"
-            data-testid="bot-delete"
-            @click="bots.askToDelete(strategyBot)"
-          >
-            刪除
-          </AppButton>
+            <AppButton
+              type="button"
+              variant="danger-ghost"
+              data-testid="bot-delete"
+              @click="bots.askToDelete(strategyBot)"
+            >
+              刪除
+            </AppButton>
+          </div>
         </div>
 
         <StrategyBotRunHistory
@@ -279,32 +288,51 @@ onMounted(() => {
 
   // 一列一台。窄螢幕時它自己疊成一張卡——這幾樣東西天生是一份清單，
   // 欄位一樣、每一列讀法相同，對齊才看得出哪一台不一樣。
+  // 由上往下讀：叫什麼／跑著沒有、盯哪裡多久、照哪一套規則、上次說了什麼。
+  // 原本是一整列橫著排，在窄螢幕上那四樣會折成看不出先後的一團。
   &__row {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: spacing('xs');
-    padding: spacing('xs');
+    flex-direction: column;
+    gap: spacing('2xs');
     border: 1px solid color('border');
     border-radius: radius('md');
     background: color('surface-muted');
+    padding: spacing('sm');
+  }
+
+  &__headline {
+    display: flex;
+    gap: spacing('sm');
+    align-items: center;
+    justify-content: space-between;
   }
 
   &__identity {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');
-    min-width: min(12rem, 100%);
+    min-width: 0;
   }
 
   &__name {
     color: color('text-strong');
     font-weight: font-weight('semibold');
+    font-size: font-size('md');
   }
 
   &__meta {
     color: color('text-muted');
-    font-size: font-size('sm');
+    font-size: font-size('xs');
+  }
+
+  // 上次說了什麼與那幾顆鍵同一行：前者是這一台最新的結果，後者是對它的處置，
+  // 讀完結果的下一個動作就在旁邊。
+  &__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('xs');
+    align-items: center;
+    justify-content: space-between;
   }
 
   &__actions {

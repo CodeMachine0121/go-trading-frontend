@@ -310,4 +310,21 @@ describe('StrategyBotListPanel 上那一句「存好了」', () => {
 
     expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
   })
+
+  it('一列由上往下讀：叫什麼與跑著沒有同一行，其餘往下疊', async () => {
+    // 一列機器人要回答的第一個問題是「它現在跑著嗎」，
+    // 而那個答案要與名字在同一條視線上——排在名字後面的話，
+    // 窄螢幕上它會被擠到第三行去。
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botDto(1, '早盤突破', runningState()),
+      ]),
+    })
+    await flushPromises()
+
+    const headline = wrapper.get('.strategy-bot-list__headline')
+
+    expect(headline.get('.strategy-bot-list__name').text()).toBe('早盤突破')
+    expect(headline.text()).toContain('執行中')
+  })
 })
