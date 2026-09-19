@@ -17,6 +17,37 @@
   min-height: control-size('tap-target');
 }
 
+// 貼在畫面最底下的東西要讓開手機自己的那一條橫條。
+//
+// `env()` 在沒有安全區的裝置上回傳零，所以桌機與一般瀏覽器完全不受影響；
+// 少了它，底部那一排分頁會有一半被系統的橫條蓋住，而那是每一次操作都會碰到的地方。
+@mixin safe-area-bottom($extra: 0px) {
+  padding-bottom: calc(#{$extra} + env(safe-area-inset-bottom, 0px));
+}
+
+// 一列可以點的東西：整列都按得到，而不是只有列尾那顆小鍵。
+//
+// 手機上的清單是用拇指點的，而拇指落點的精度大約是一枚硬幣——
+// 把命中範圍收在一顆 16 像素的圖示上，等於要求使用者瞄準。
+@mixin pressable-row {
+  display: flex;
+  gap: spacing('sm');
+  align-items: center;
+  transition: background-color duration('fast') ease;
+  cursor: pointer;
+  border: none;
+  background-color: transparent;
+  width: 100%;
+  text-align: left;
+
+  @include tap-target;
+  @include focus-ring;
+
+  &:hover {
+    background-color: color('surface-muted');
+  }
+}
+
 @mixin visually-hidden {
   position: absolute;
   overflow: hidden;
