@@ -12,9 +12,15 @@ import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButto
 // 剛才那一則還在。
 const { open, openDrawer, closeDrawer } = useAssistantDrawer()
 
-// 助手要花錢，而且它讀得到行情——沒登入的人不該叫得出它。
-// 那顆鍵與抽屜因此跟著「現在是誰在用」出現與消失，而不是永遠掛在那裡。
-const { currentUser } = useUserSession()
+// 助手要花錢，而且它讀得到行情——沒登入的人不該叫得出它，**還沒被放行的人也一樣**。
+// 那顆鍵與抽屜因此跟著「這個人能不能用這台操作台」出現與消失，而不是永遠掛在那裡。
+//
+// 後端會擋下他，所以這不是安全上的必要；它是為了不要在一個他唯一到得了的畫面上，
+// 擺一顆按下去只會失敗的鍵。
+const { currentUser, awaitingActivation } = useUserSession()
+
+/** 這個人進得了操作台。助手那兩塊只對他存在。 */
+const mayUseConsole = computed(() => currentUser.value !== null && !awaitingActivation.value)
 
 const {
   suggestedPrompts,
@@ -126,7 +132,7 @@ onBeforeUnmount(() => {
   <NuxtPage />
 
   <AssistantTriggerButton
-    v-if="currentUser && !open"
+    v-if="mayUseConsole && !open"
     :position="position"
     :size="triggerSize"
     :dragging="dragging"
@@ -134,7 +140,7 @@ onBeforeUnmount(() => {
   />
 
   <AssistantDrawer
-    v-if="currentUser"
+    v-if="mayUseConsole"
     v-model:draft="draft"
     :open="open"
     :messages="messages"

@@ -9,6 +9,13 @@ import signedInMiddleware from '~/middleware/signed-in.global'
 const { session, navigateToSpy } = vi.hoisted(() => ({
   session: {
     currentUser: { value: null as SignedInUserDto | null },
+    // 與真的那一支一樣，這是**算出來的**而不是另存一份：測試若能自己指定
+    // 「登入著但還沒開通」，它就能測出一個真實世界裡不存在的組合。
+    awaitingActivation: {
+      get value(): boolean {
+        return session.currentUser.value !== null && !session.currentUser.value.isEnabled
+      },
+    },
     ensureSessionRestored: vi.fn().mockResolvedValue(undefined),
     rememberRedirectTo: vi.fn(),
   },
@@ -36,7 +43,17 @@ async function walkTo(path: string, signedInUser: SignedInUserDto | null, matche
     to: never, from: never) => Promise<unknown>)(routeTo(path, matchedPath), routeTo('/'))
 }
 
-const SIGNED_IN_USER = { id: 7, email: 'james@example.com' } as SignedInUserDto
+const SIGNED_IN_USER = {
+  id: 7, email: 'james@example.com', isEnabled: true, activationInstruction: null,
+} as SignedInUserDto
+
+/** 同一個人，但還沒有人放行他。 */
+const AWAITING_ACTIVATION_USER = {
+  id: 7,
+  email: 'james@example.com',
+  isEnabled: false,
+  activationInstruction: { requestMailbox: 'gatekeeper@example.com', subject: '申請' },
+} as SignedInUserDto
 
 describe('把關：沒登入就只看得到登入畫面', () => {
   it('沒登入時走到操作台會被帶到登入畫面', async () => {
@@ -94,5 +111,54 @@ describe('把關：沒登入就只看得到登入畫面', () => {
     await walkTo('/k-candles', SIGNED_IN_USER)
 
     expect(session.ensureSessionRestored).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
+  it('待開通的人走到操作台會被帶到等待開通那一頁', async () => {
+    await walkTo('/k-candles', AWAITING_ACTIVATION_USER)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
+  })
+
+  it('手動打別的網址一樣跳不掉', async () => {
+    await walkTo('/strategy-bots', AWAITING_ACTIVATION_USER)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
+  })
+
+  it('待開通的人走到登入畫面會被帶到等待開通那一頁，不是首頁', async () => {
+    // 送去首頁的話，首頁又會把他送回這裡——多繞一趟，還在網址列閃一下。
+    await walkTo('/login', AWAITING_ACTIVATION_USER)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
+  })
+
+  it('待開通的人走到等待開通那一頁就讓他待在那裡', async () => {
+    await walkTo('/pending-approval', AWAITING_ACTIVATION_USER)
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('沒登入的人走到等待開通那一頁會被帶到登入畫面', async () => {
+    // 那一頁說的是「你是誰、你在等什麼」，而這兩件事對一個沒登入的人都答不出來。
+    await walkTo('/pending-approval', null)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('已經被放行的人走到等待開通那一頁會被帶回首頁', async () => {
+    await walkTo('/pending-approval', SIGNED_IN_USER)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
+  })
+
+  it('被放行之後，操作台每一頁都走得到了——而且不必重新登入', async () => {
+    await walkTo('/k-candles', AWAITING_ACTIVATION_USER)
+    expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
+
+    await walkTo('/k-candles', SIGNED_IN_USER)
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
   })
 })

@@ -7,6 +7,7 @@ import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavai
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-field-errors-dto'
 import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
+import { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
 
 // 工廠會被提升，所以它要用到的東西也得跟著提升。
 const { navigateToSpy } = vi.hoisted(() => ({
@@ -33,7 +34,7 @@ function sessionUnderTest() {
     userSessionApplication as unknown as Parameters<typeof useUserSession>[0])
 }
 
-const SIGNED_IN_USER = new SignedInUserDto(7, 'james@example.com')
+const SIGNED_IN_USER = new SignedInUserDto(7, 'james@example.com', true, null)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -408,5 +409,93 @@ describe('useUserSession：帶去登入畫面的那一句話', () => {
 
   it('沒有人留話時就沒有話', () => {
     expect(sessionUnderTest().takeSignInNotice()).toBeNull()
+  })
+})
+
+describe('useUserSession：還沒被放行的那一段', () => {
+  const AWAITING_USER = new SignedInUserDto(
+    7, 'james@example.com', false,
+    new AccountActivationInstructionDto('gatekeeper@example.com', '申請：james@example.com'))
+
+  it('登入著但還沒開通時說得出來，並交得出那份指示', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
+    const { awaitingActivation, activationInstruction, ensureSessionRestored } = sessionUnderTest()
+
+    await ensureSessionRestored()
+
+    expect(awaitingActivation.value).toBe(true)
+    expect(activationInstruction.value?.requestMailbox).toBe('gatekeeper@example.com')
+  })
+
+  it('被放行之後就不再說他在等，指示也跟著消失', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    const { awaitingActivation, activationInstruction, ensureSessionRestored } = sessionUnderTest()
+
+    await ensureSessionRestored()
+
+    expect(awaitingActivation.value).toBe(false)
+    expect(activationInstruction.value).toBeNull()
+  })
+
+  it('根本沒登入的人不算在等——他要做的是登入', async () => {
+    const { awaitingActivation, ensureSessionRestored } = sessionUnderTest()
+
+    await ensureSessionRestored()
+
+    expect(awaitingActivation.value).toBe(false)
+  })
+
+  it('重新檢查是真的再問一次後端，不是回用上一次的答案', async () => {
+    // 放行發生在這個系統之外，這一側永遠不會被通知。回用上一次的答案，
+    // 那顆鍵就是一顆假的鍵——他會一直按，而畫面永遠不變。
+    userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
+    const { awaitingActivation, ensureSessionRestored, recheckActivation } = sessionUnderTest()
+    await ensureSessionRestored()
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
+
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    await recheckActivation()
+
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(2)
+    expect(awaitingActivation.value).toBe(false)
+  })
+
+  it('發現自己被放行了就直接進操作台', async () => {
+    // 把關只在**換頁的當下**跑。不在這裡換頁的話，他會停在一個已經不該看到的畫面上，
+    // 而畫面上什麼都沒變——看起來就像那顆鍵壞了。
+    userSessionApplication.restoreSession.mockResolvedValue(SIGNED_IN_USER)
+    const { recheckActivation } = sessionUnderTest()
+
+    await recheckActivation()
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/')
+  })
+
+  it('還沒被放行就不換頁——把他送去首頁，首頁只會再把他送回來', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
+    const { recheckActivation } = sessionUnderTest()
+
+    await recheckActivation()
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('還沒被放行時，重新檢查之後留在原地，指示照舊', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
+    const { awaitingActivation, activationInstruction, recheckActivation } = sessionUnderTest()
+
+    await recheckActivation()
+
+    expect(awaitingActivation.value).toBe(true)
+    expect(activationInstruction.value?.subject).toBe('申請：james@example.com')
+  })
+
+  it('檢查中不會被按第二次——每一下都是一趟後端', async () => {
+    userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
+    const { recheckActivation } = sessionUnderTest()
+
+    await Promise.all([recheckActivation(), recheckActivation()])
+
+    expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
   })
 })

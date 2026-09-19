@@ -1,6 +1,7 @@
 import type { IUserProxy } from '~/domain/interface/i-user-proxy'
 import { Session } from '~/domain/models/entities/session'
 import { SignedInUser } from '~/domain/models/entities/signed-in-user'
+import { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
@@ -31,6 +32,17 @@ const CURRENT_PASSWORD_REJECTED_STATUS = 403
 type SignedInUserWire = {
   id: number
   email: string
+  isEnabled: boolean
+  /**
+   * 還沒被放行時後端會附上的那一段；放行之後**整個欄位不存在**。
+   *
+   * 所以它是選填的，而不是一個永遠在那裡、有時候是空的物件：後端刻意讓它消失，
+   * 這一側照著把「沒有」表示成沒有，而不是表示成一份空的指示。
+   */
+  activationInstruction?: {
+    requestMailbox: string
+    subject: string
+  }
 }
 
 type SessionWire = {
@@ -182,7 +194,17 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
   }
 
   private toSignedInUser(signedInUserWire: SignedInUserWire): SignedInUser {
-    return new SignedInUser(signedInUserWire.id, signedInUserWire.email)
+    const instructionWire = signedInUserWire.activationInstruction
+
+    return new SignedInUser(
+      signedInUserWire.id,
+      signedInUserWire.email,
+      signedInUserWire.isEnabled,
+      instructionWire === undefined
+        ? null
+        : new AccountActivationInstructionDto(
+            instructionWire.requestMailbox, instructionWire.subject),
+    )
   }
 
   /**
