@@ -4,25 +4,39 @@ import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-co
 import { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
 import { StrategyScriptFieldError } from '~/domain/errors/strategy-script-field-error'
 
-const CALCULATE = [
+const WHOLE_SCRIPT = [
+  'package main',
+  '',
+  'import "indicator"',
+  '',
   'func Calculate(data []indicator.KCandle) map[string][]float64 {',
   '\treturn nil',
   '}',
 ].join('\n')
 
-function contentOf(scriptBody = CALCULATE): StrategyScriptContentDto {
-  return new StrategyScriptContentDto(scriptBody, 'floatList')
+function contentOf(script = WHOLE_SCRIPT): StrategyScriptContentDto {
+  return new StrategyScriptContentDto(script, 'floatList')
 }
 
 describe('StrategyScriptWriteDomain', () => {
-  it('把使用者寫的檔案主體接上固定外框，成為一整段能跑的算式', () => {
+  it('存下去的就是畫面上那一份，一字不改', () => {
     const strategyScriptWriteDomain = new StrategyScriptWriteDomain(
       new StrategyScriptWriteDto('二十根均線', contentOf()))
 
     expect(strategyScriptWriteDomain.name).toBe('二十根均線')
-    expect(strategyScriptWriteDomain.script).toContain('package main')
-    expect(strategyScriptWriteDomain.script).toContain(`)\n\n${CALCULATE}`)
+    expect(strategyScriptWriteDomain.script).toBe(WHOLE_SCRIPT)
     expect(strategyScriptWriteDomain.resultType).toBe('floatList')
+  })
+
+  it.each([
+    { name: '前後有空白行', script: `\n\n${WHOLE_SCRIPT}\n\n` },
+    { name: '開頭被使用者刪掉了', script: 'func Calculate() {}' },
+    { name: '完全不是一段程式碼', script: '這根本不是一段程式碼' },
+  ])('載入後原封不動再存一次，內容逐字相同：$name', ({ script }) => {
+    const strategyScriptWriteDomain = new StrategyScriptWriteDomain(
+      new StrategyScriptWriteDto('原封不動', new StrategyScriptContentDto(script, 'floatList')))
+
+    expect(strategyScriptWriteDomain.script).toBe(script)
   })
 
   it('名稱前後的空白不予保留', () => {
@@ -74,11 +88,11 @@ describe('StrategyScriptWriteDomain', () => {
     expect(strategyScriptWriteDomain.id).toBe(expectedId)
   })
 
-  it('主體原樣接上外框——進入點的形狀是使用者自己寫在主體裡的', () => {
-    const calculate = 'func Calculate(data []indicator.KCandle) map[string]bool {\n\treturn nil\n}'
+  it('進入點的形狀是使用者自己寫的，指標值種類不會回頭改它', () => {
+    const script = 'package main\n\nfunc Calculate(data []indicator.KCandle) map[string]bool {\n\treturn nil\n}'
     const strategyScriptWriteDomain = new StrategyScriptWriteDomain(
-      new StrategyScriptWriteDto('是非題', new StrategyScriptContentDto(calculate, 'bool')))
+      new StrategyScriptWriteDto('是非題', new StrategyScriptContentDto(script, 'bool')))
 
-    expect(strategyScriptWriteDomain.script).toContain(`)\n\n${calculate}`)
+    expect(strategyScriptWriteDomain.script).toBe(script)
   })
 })

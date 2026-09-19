@@ -1,7 +1,7 @@
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 /**
- * DTO：一支策略腳本記著的三樣東西——算式內容、指標值種類，與它自己的旋鈕。
+ * DTO：一支策略腳本記著的三樣東西——指標算式、指標值種類，與它自己的旋鈕。
  *
  * **這兩樣只有這一種形狀。** 它同時是「載入時帶進畫面的東西」、「儲存時送出去的東西」、
  * 以及「拿來比對有沒有被改過的東西」。三處各自定義一份就有三份會漂移的複本，
@@ -19,7 +19,8 @@ import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-sc
  */
 export class StrategyScriptContentDto {
   constructor(
-    public readonly scriptBody: string,
+    /** 那一整份算式，從第一行到最後一行——畫面上看到的就是它本身。 */
+    public readonly script: string,
     public readonly resultType: string,
     /**
      * 這支算式自己的旋鈕。

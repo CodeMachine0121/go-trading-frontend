@@ -30,8 +30,8 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.describeIndicatorScript(resultType)
   }
 
-  retargetScriptReturnType(scriptBody: string, resultType: string): string {
-    return this.indicatorCalculationService.retargetScriptReturnType(scriptBody, resultType)
+  retargetScriptReturnType(script: string, resultType: string): string {
+    return this.indicatorCalculationService.retargetScriptReturnType(script, resultType)
   }
 
   defaultResultType(): IndicatorResultType {

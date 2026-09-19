@@ -7,7 +7,7 @@ import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strate
 
 function strategyScriptOf(id: number, name: string): StrategyScriptDto {
   return new StrategyScriptDto(
-    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true, false)
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, false)
 }
 
 function mountLibrary(props: Record<string, unknown> = {}) {
@@ -179,5 +179,5 @@ describe('StrategyScriptLibraryDialog：分享狀態', () => {
 /** 自己的一支，已經分享到市集上。 */
 function publishedStrategyScriptOf(id: number, name: string): StrategyScriptDto {
   return new StrategyScriptDto(
-    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true, true)
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true)
 }

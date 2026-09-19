@@ -200,11 +200,6 @@ export function useStrategyScriptLibrary(
     loadedContent.value = strategyScript.content
     openDialog.value = 'none'
     clearMessages()
-
-    if (!strategyScript.frameRecognised) {
-      noticeMessage.value
-        = `「${strategyScript.name}」的算式認不出外框，已整段帶進編輯區——它看起來不是在這裡寫出來的。`
-    }
   }
 
   /**

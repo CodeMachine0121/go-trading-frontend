@@ -37,7 +37,7 @@ vi.mock('lightweight-charts', () => ({
   LineSeries: 'LineSeries',
 }))
 
-const SCRIPT_BODY = 'return indicator.Buy'
+const WHOLE_SCRIPT = 'return indicator.Buy'
 const REPLAY_START = new Date('2026-08-06T00:00:00Z')
 const REPLAY_END = new Date('2026-09-04T23:00:00Z')
 
@@ -80,7 +80,7 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(),
       aggregationIntervalOptions: [new AggregationIntervalDomain('1h').toOptionDto()],
-      scriptBody: SCRIPT_BODY,
+      script: WHOLE_SCRIPT,
       resultType: 'signal',
       parameters: [] as StrategyScriptParameterDto[],
       workspaceGeneration: 0,
@@ -215,19 +215,19 @@ describe('StrategyScriptBacktestPane', () => {
       await runBacktest(wrapper)
 
       expect(proxy.runBacktest).not.toHaveBeenCalled()
-      const message = wrapper.get('[data-testid="backtest-script-body-error"]').text()
+      const message = wrapper.get('[data-testid="backtest-script-error"]').text()
       expect(message).toContain('一個信號')
       expect(message).toContain('一串數字')
     })
 
     it('算式空白時說在算式那裡——與指標預覽同一條規則', async () => {
       const proxy = buildProxy()
-      const wrapper = mountPane(proxy, { scriptBody: '   ' })
+      const wrapper = mountPane(proxy, { script: '   ' })
 
       await runBacktest(wrapper)
 
       expect(proxy.runBacktest).not.toHaveBeenCalled()
-      expect(wrapper.get('[data-testid="backtest-script-body-error"]').text())
+      expect(wrapper.get('[data-testid="backtest-script-error"]').text())
         .toContain('請填寫算式內容')
     })
   })

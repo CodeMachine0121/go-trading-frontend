@@ -3,14 +3,14 @@
 // 全部都只是**撰寫時的協助**：這裡不執行、也不驗證任何程式碼。
 //
 // 唯讀與可編輯是同一個元件的兩種樣子（`readonly`），不是兩個元件：
-// 兩者要並排成同一份檔案，就必須共用同一套著色、同一條行號欄與同一組字體行高，
+// 助手圈起來的那幾行與使用者自己寫的算式要看起來是同一種東西，
 // 拆成兩個元件只會讓它們慢慢對不齊。
 //
 // 編輯器在掛載後才動態載入，理由有兩個：它碰得到 document（伺服器端沒有），
 // 以及不讓它的體積擋在畫面第一次顯示的路上。載入完成前先呈現一個空的容器。
 
 // 常用片段：走訪每一根 K 線、收集收盤價、加總平均、找極值。
-// 都是「怎麼寫程式」的協助，不是任何一段算式的外框——外框由領域產生，這裡一個字也不碰。
+// 都是「怎麼寫程式」的協助，不是任何一段算式的內容——預填什麼由領域決定，這裡一個字也不碰。
 const SNIPPETS = [
   {
     label: 'forcandle',
@@ -38,27 +38,22 @@ const SNIPPETS = [
   },
 ]
 
-const { invalid = false, readonly = false, indented = false, startLineNumber = 1 } = defineProps<{
+const { invalid = false, readonly = false, indented = false } = defineProps<{
   invalid?: boolean
   /** 唯讀的一段程式碼：一樣著色、一樣有行號，但改不動也不吃鍵盤。 */
   readonly?: boolean
   /** 內容整段往內縮一層，用在住在某個區塊裡面的那幾行。 */
   indented?: boolean
-  /** 第一行要標成幾號。內容接在別段程式碼後面時，行號從那裡接續下去。 */
-  startLineNumber?: number
 }>()
 
 const modelValue = defineModel<string>({ required: true })
 
 const editorHost = ref<HTMLElement | null>(null)
 const editorView = shallowRef<import('@codemirror/view').EditorView | null>(null)
-// 起始行號會變（它前面那段程式碼變長了），而擴充是建立編輯器時就固定下來的東西，
-// 所以行號這一塊要能單獨換掉——這就是 compartment 的用途。
-const reconfigureLineNumbers = shallowRef<((firstLineNumber: number) => void) | null>(null)
 
 onMounted(async () => {
   const [{ EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection },
-    { EditorState, Compartment }, { indentWithTab, defaultKeymap, history, historyKeymap },
+    { EditorState }, { indentWithTab, defaultKeymap, history, historyKeymap },
     { indentUnit, bracketMatching, indentOnInput }, { autocompletion, completionKeymap, snippetCompletion },
     { go, goLanguage }, { oneDark }] = await Promise.all([
     import('@codemirror/view'),
@@ -76,12 +71,6 @@ onMounted(async () => {
 
   const indicatorSnippets = SNIPPETS.map(
     snippet => snippetCompletion(snippet.template, { label: snippet.label, detail: snippet.detail }))
-
-  // 行號從外面指定的號碼接續，這樣後端說「第幾行出錯」時，畫面上就是那一行。
-  const lineNumbersFrom = (firstLineNumber: number) => lineNumbers({
-    formatNumber: lineIndex => String(lineIndex + firstLineNumber - 1),
-  })
-  const lineNumbering = new Compartment()
 
   // 唯讀那一份不必帶編輯用的行李——歷史、補齊、快捷鍵對它都沒有意義。
   const writingExtensions = readonly
@@ -106,7 +95,7 @@ onMounted(async () => {
       extensions: [
         go(),
         oneDark,
-        lineNumbering.of(lineNumbersFrom(startLineNumber)),
+        lineNumbers(),
         EditorView.lineWrapping,
         ...writingExtensions,
         EditorView.updateListener.of((update) => {
@@ -119,14 +108,6 @@ onMounted(async () => {
   })
 
   editorView.value = view
-  reconfigureLineNumbers.value = (firstLineNumber: number) => view.dispatch({
-    effects: lineNumbering.reconfigure(lineNumbersFrom(firstLineNumber)),
-  })
-})
-
-// 前面那段程式碼變長，這一段的起始行號就得跟著往下走，否則行號會開始說謊。
-watch(() => startLineNumber, (nextStartLineNumber) => {
-  reconfigureLineNumbers.value?.(nextStartLineNumber)
 })
 
 // 外面換掉了內容（例如帶入範例、或換了種類）時，編輯器要跟著換；

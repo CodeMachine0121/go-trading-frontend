@@ -50,21 +50,21 @@ function mountPanel(
 }
 
 /** 從畫面上把算式內容打進去——走的是使用者真正會走的那條路。 */
-async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody: string) {
+/** 把整份算式換掉——編輯區裡的每一行現在都是使用者的，所以換的也是整份。 */
+async function typeScript(wrapper: ReturnType<typeof mountPanel>, script: string) {
   await settle()
-  const editor = wrapper.get('[data-testid="script-body"]').element
-  const firstLine = editor.querySelector('.cm-line')
-  if (firstLine === null) {
+  const content = wrapper.get('[data-testid="script"]').element.querySelector('.cm-content')
+  if (content === null) {
     throw new Error('編輯區還沒準備好')
   }
 
-  firstLine.textContent = scriptBody
-  editor.querySelector('.cm-content')!.dispatchEvent(new Event('input', { bubbles: true }))
+  content.textContent = script
+  content.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
 }
 
-function scriptBodyText(wrapper: ReturnType<typeof mountPanel>): string {
-  return wrapper.get('[data-testid="script-body"]').element
+function scriptText(wrapper: ReturnType<typeof mountPanel>): string {
+  return wrapper.get('[data-testid="script"]').element
     .querySelector('.cm-content')?.textContent ?? ''
 }
 
@@ -101,7 +101,7 @@ describe('指標計算畫面上的策略腳本：挑一支來用', () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategyScript(7, '二十根均線', {
-          scriptBody: 'sum := 123.0', resultType: 'boolList',
+          script: 'sum := 123.0', resultType: 'boolList',
         }),
       ], adopted: [] }),
     })
@@ -109,7 +109,7 @@ describe('指標計算畫面上的策略腳本：挑一支來用', () => {
 
     await pickStrategyScript(wrapper, 7)
 
-    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]').element.value)
       .toBe('boolList')
   })
@@ -145,18 +145,19 @@ describe('指標計算畫面上的策略腳本：挑一支來用', () => {
       .toBe(symbolBefore)
   })
 
-  it('認不出外框的算式整段帶進來，並說出這一支不是在這裡寫出來的', async () => {
+  it('開頭寫得與預填的不一樣時照樣原文帶入，且不出現任何提示', async () => {
+    const somebodyElsesScript = 'package main\n\nimport (\n\t"indicator"\n\t"strings"\n)\n\nfunc Calculate() {}'
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '手寫的', { rawScript: '這根本不是一段程式碼' }),
+        buildStoredStrategyScript(7, '別處寫的', { script: somebodyElsesScript }),
       ], adopted: [] }),
     })
     await settle()
 
     await pickStrategyScript(wrapper, 7)
 
-    expect(scriptBodyText(wrapper)).toContain('這根本不是一段程式碼')
-    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('認不出外框')
+    expect(scriptText(wrapper)).toContain('"strings"')
+    expect(wrapper.find('[data-testid="strategy-script-notice"]').exists()).toBe(false)
   })
 })
 
@@ -170,7 +171,7 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
     await pickStrategyScript(wrapper, 7)
 
     expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
+    expect(scriptText(wrapper)).toContain('sum := 0.0')
   })
 
   it.each([
@@ -182,7 +183,7 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategyScript(7, '二十根均線'),
-        buildStoredStrategyScript(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+        buildStoredStrategyScript(8, '六十根均線', { script: 'sum := 456.0' }),
       ], adopted: [] }),
     })
     await settle()
@@ -192,7 +193,7 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
     await pickStrategyScript(wrapper, 8)
 
     expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('sum := 456.0')
+    expect(scriptText(wrapper)).toContain('sum := 456.0')
   })
 
   it('已經寫了東西時先問過再覆蓋', async () => {
@@ -200,12 +201,12 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線')], adopted: [] }),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
 
     await pickStrategyScript(wrapper, 7)
 
     expect(wrapper.text()).toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('我寫到一半的東西')
+    expect(scriptText(wrapper)).toContain('我寫到一半的東西')
   })
 
   it('說不要放棄時畫面完全不變', async () => {
@@ -213,54 +214,54 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線')], adopted: [] }),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
     await pickStrategyScript(wrapper, 7)
 
     await wrapper.findAll('button').filter(button => button.text() === '取消')[0]?.trigger('click')
     await settle()
 
-    expect(scriptBodyText(wrapper)).toContain('我寫到一半的東西')
+    expect(scriptText(wrapper)).toContain('我寫到一半的東西')
   })
 
   it('說要放棄時才換成新挑的那一支', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
       ], adopted: [] }),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
     await pickStrategyScript(wrapper, 7)
 
     await discardAndProceed(wrapper)
     await settle()
 
-    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
   })
 
   it('載入了一支又改過它，再挑另一支時要問', async () => {
     // US-02 真正的主線：手上已經有一支、也已經動過它。前面幾個案例都是「還沒載入過」。
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
-        buildStoredStrategyScript(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
+        buildStoredStrategyScript(8, '六十根均線', { script: 'sum := 456.0' }),
       ], adopted: [] }),
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '我改過的東西')
+    await typeScript(wrapper, '我改過的東西')
 
     await pickStrategyScript(wrapper, 8)
 
     expect(wrapper.text()).toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('我改過的東西')
+    expect(scriptText(wrapper)).toContain('我改過的東西')
   })
 
   it('載入之後一個字都沒改，再挑另一支不再問', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
-        buildStoredStrategyScript(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
+        buildStoredStrategyScript(8, '六十根均線', { script: 'sum := 456.0' }),
       ], adopted: [] }),
     })
     await settle()
@@ -269,7 +270,7 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
     await pickStrategyScript(wrapper, 8)
 
     expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('sum := 456.0')
+    expect(scriptText(wrapper)).toContain('sum := 456.0')
   })
 })
 
@@ -296,7 +297,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
   it('沒有使用中的那一支時，儲存先問名字', async () => {
     const wrapper = mountPanel()
     await settle()
-    await typeScriptBody(wrapper, 'sum := 0.0')
+    await typeScript(wrapper, 'sum := 0.0')
 
     await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
     await settle()
@@ -313,7 +314,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(9, '新的一支')], adopted: [] }),
     })
     await settle()
-    await typeScriptBody(wrapper, 'sum := 0.0')
+    await typeScript(wrapper, 'sum := 0.0')
     await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
     await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('新的一支')
 
@@ -341,7 +342,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '衍生出來的東西')
+    await typeScript(wrapper, '衍生出來的東西')
     await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
     await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('二十根均線 v2')
 
@@ -359,21 +360,21 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategyScript(7, '二十根均線'),
-        buildStoredStrategyScript(8, '六十根均線', { scriptBody: 'sum := 456.0' }),
+        buildStoredStrategyScript(8, '六十根均線', { script: 'sum := 456.0' }),
       ], adopted: [] }),
       updateStrategyScript: vi.fn().mockResolvedValue(
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: '我改過的東西' })),
+        buildStoredStrategyScript(7, '二十根均線', { script: '我改過的東西' })),
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '我改過的東西')
+    await typeScript(wrapper, '我改過的東西')
     await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
     await settle()
 
     await pickStrategyScript(wrapper, 8)
 
     expect(wrapper.text()).not.toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('sum := 456.0')
+    expect(scriptText(wrapper)).toContain('sum := 456.0')
   })
 
   it('名稱被佔用時對話框不關閉、就地說明，畫面內容一字不動', async () => {
@@ -382,7 +383,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
         new StrategyScriptNameConflictError('策略腳本名稱「二十根均線」已被使用')),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫的東西')
+    await typeScript(wrapper, '我寫的東西')
     await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
     await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('二十根均線')
 
@@ -391,7 +392,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
 
     expect(wrapper.find('[data-testid="strategy-script-name-input"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="field-error"]').text()).toContain('已被使用')
-    expect(scriptBodyText(wrapper)).toContain('我寫的東西')
+    expect(scriptText(wrapper)).toContain('我寫的東西')
   })
 
   it('要存回去的那一支已經不在時說找不到，畫面內容一字不動', async () => {
@@ -401,13 +402,13 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '我改過的東西')
+    await typeScript(wrapper, '我改過的東西')
 
     await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
     await settle()
 
     expect(wrapper.get('[data-testid="strategy-script-error"]').text()).toContain('找不到')
-    expect(scriptBodyText(wrapper)).toContain('我改過的東西')
+    expect(scriptText(wrapper)).toContain('我改過的東西')
   })
 
   it('連不上後端時說連不上，畫面內容一字不動', async () => {
@@ -415,7 +416,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
       createStrategyScript: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫的東西')
+    await typeScript(wrapper, '我寫的東西')
     await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
     await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('新的一支')
 
@@ -423,7 +424,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
     await settle()
 
     expect(wrapper.get('[data-testid="strategy-script-error"]').text()).toContain('連不上後端')
-    expect(scriptBodyText(wrapper)).toContain('我寫的東西')
+    expect(scriptText(wrapper)).toContain('我寫的東西')
   })
 })
 
@@ -498,7 +499,7 @@ describe('指標計算畫面上的策略腳本：改名', () => {
     const updateStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(7, '均線 20'))
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
       ], adopted: [] }),
       updateStrategyScript,
     })
@@ -512,7 +513,7 @@ describe('指標計算畫面上的策略腳本：改名', () => {
     await settle()
 
     expect(updateStrategyScript.mock.calls[0]?.[0].script).toContain('sum := 123.0')
-    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
   })
 
   it('改成別人用過的名字時退回改名的對話框，不是退回另存', async () => {
@@ -546,7 +547,7 @@ describe('指標計算畫面上的策略腳本：改名', () => {
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '改過的內容')
+    await typeScript(wrapper, '改過的內容')
 
     await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
     await settle()
@@ -559,7 +560,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
   it('打開清單看得到每一支，載入之後留在同一頁', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
-        buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
         buildStoredStrategyScript(8, '六十根均線'),
       ], adopted: [] }),
     })
@@ -573,7 +574,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
     await settle()
 
     expect(wrapper.find('[data-testid="strategy-script-library-row"]').exists()).toBe(false)
-    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
   })
 
   it('刪除前先問過；取消就不刪', async () => {
@@ -626,7 +627,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
     const listAvailableStrategyScripts = vi.fn()
       .mockResolvedValue({
         mine: [
-          buildStoredStrategyScript(7, '二十根均線', { scriptBody: 'sum := 123.0' }),
+          buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
           buildStoredStrategyScript(8, '六十根均線'),
         ],
         adopted: [],
@@ -642,7 +643,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
     await confirmDelete(wrapper)
 
     // 內容留著，而且「正在用第 7 支」這個關聯也還在——只有刪到自己時才該解除。
-    expect(scriptBodyText(wrapper)).toContain('sum := 123.0')
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-script-picker-select"]').element.value)
       .toBe('7')
   })
@@ -679,7 +680,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
     await confirmDelete(wrapper)
 
     // 編輯區的內容留著不動——使用者的工作不能被另一個動作弄丟。
-    expect(scriptBodyText(wrapper)).toContain('sum := 0.0')
+    expect(scriptText(wrapper)).toContain('sum := 0.0')
 
     await wrapper.get('.app-modal__close').trigger('click')
     await settle()
@@ -727,7 +728,7 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
         buildStoredStrategyScript(7, '二十根均線', {
-          scriptBody: 'sum := 123.0', resultType: 'boolList',
+          script: 'sum := 123.0', resultType: 'boolList',
         }),
       ], adopted: [] }),
     })
@@ -736,7 +737,7 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
 
     await startBlankStrategyScript(wrapper)
 
-    expect(scriptBodyText(wrapper)).not.toContain('sum := 123.0')
+    expect(scriptText(wrapper)).not.toContain('sum := 123.0')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]').element.value)
       .toBe('float')
   })
@@ -792,7 +793,7 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
     await settle()
     // 算得出結果的前提是算式裡真的有東西，所以這一份稿子必然是「還沒存的」，
     // 於是清空之前一定會先問一次——這裡的重點在問完之後結果有沒有跟著走。
-    await typeScriptBody(wrapper, 'sum := 1.0')
+    await typeScript(wrapper, 'sum := 1.0')
     // 送出走的是表單本身——happy-dom 不會把 submit 按鈕的點擊轉成 submit 事件。
     await wrapper.get('form').trigger('submit')
     await settle()
@@ -830,23 +831,23 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
   it('有還沒存的東西時先問過，而且一個字都還沒被清掉', async () => {
     const wrapper = mountPanel()
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
 
     await startBlankStrategyScript(wrapper)
 
     expect(wrapper.text()).toContain('放棄尚未儲存的變更')
-    expect(scriptBodyText(wrapper)).toContain('我寫到一半的東西')
+    expect(scriptText(wrapper)).toContain('我寫到一半的東西')
   })
 
   it('確認放棄之後才真的清空', async () => {
     const wrapper = mountPanel()
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
     await startBlankStrategyScript(wrapper)
 
     await discardAndProceed(wrapper)
 
-    expect(scriptBodyText(wrapper)).not.toContain('我寫到一半的東西')
+    expect(scriptText(wrapper)).not.toContain('我寫到一半的東西')
   })
 
   it('取消就什麼都不動，也仍然屬於原本那一支', async () => {
@@ -855,13 +856,13 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
     })
     await settle()
     await pickStrategyScript(wrapper, 7)
-    await typeScriptBody(wrapper, '我改到一半的東西')
+    await typeScript(wrapper, '我改到一半的東西')
     await startBlankStrategyScript(wrapper)
 
     await wrapper.findAll('button').filter(button => button.text() === '取消')[0]?.trigger('click')
     await settle()
 
-    expect(scriptBodyText(wrapper)).toContain('我改到一半的東西')
+    expect(scriptText(wrapper)).toContain('我改到一半的東西')
     expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-script-picker-select"]').element.value)
       .toBe('7')
   })
@@ -902,12 +903,12 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
       listAvailableStrategyScripts: vi.fn().mockRejectedValue(new BackendUnreachableError('/strategy-scripts')),
     })
     await settle()
-    await typeScriptBody(wrapper, '我寫到一半的東西')
+    await typeScript(wrapper, '我寫到一半的東西')
 
     await startBlankStrategyScript(wrapper)
     await discardAndProceed(wrapper)
 
-    expect(scriptBodyText(wrapper)).not.toContain('我寫到一半的東西')
+    expect(scriptText(wrapper)).not.toContain('我寫到一半的東西')
     expect(wrapper.find('[data-testid="strategy-script-error"]').exists()).toBe(false)
   })
 })
@@ -972,7 +973,7 @@ describe('指標計算畫面上的策略腳本：參數是策略腳本內容', (
   it('另存成一支新策略腳本時，畫面上的參數跟著存進去', async () => {
     const createStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(1, '布林通道'))
     const wrapper = mountPanel({ createStrategyScript })
-    await typeScriptBody(wrapper, 'sum := 1.0')
+    await typeScript(wrapper, 'sum := 1.0')
     await addParameter(wrapper, '期數', '50')
 
     await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
@@ -992,11 +993,11 @@ describe('指標計算畫面上的策略腳本：加入來的那些', () => {
     // 它沒有算式可以載。把編輯器變成空的會讓人以為那支策略腳本壞了，
     // 所以挑它時就明說它是用來套用的。
     const wrapper = await mountPanelWithAdopted()
-    const scriptBefore = scriptBodyText(wrapper)
+    const scriptBefore = scriptText(wrapper)
 
     await pickStrategyScript(wrapper, 9)
 
-    expect(scriptBodyText(wrapper)).toBe(scriptBefore)
+    expect(scriptText(wrapper)).toBe(scriptBefore)
     expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('看不到它的算式')
   })
 
@@ -1141,13 +1142,13 @@ describe('指標計算畫面上的策略腳本：分享與收回', () => {
     })
     await pickStrategyScript(wrapper, 7)
 
-    await typeScriptBody(wrapper, 'sum := 999.0')
+    await typeScript(wrapper, 'sum := 999.0')
     await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
     await settle()
 
     expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('已儲存')
     // 編輯器沒有被鎖住——分享過不代表凍結。
-    expect(scriptBodyText(wrapper)).toContain('sum := 999.0')
+    expect(scriptText(wrapper)).toContain('sum := 999.0')
   })
 
   it('取消之後什麼都沒發生', async () => {

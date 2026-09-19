@@ -3,8 +3,6 @@ import { StrategyScriptApplication } from '~/application/strategy-script-applica
 import { StrategyScriptService } from '~/domain/service/strategy-script-service'
 import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
 import { StrategyScript } from '~/domain/models/entities/strategy-script'
-import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
 import { buildAdoptedStrategyScript } from '../fixtures/strategy-script-application'
@@ -25,22 +23,22 @@ function buildApplication(strategyScriptProxy: Partial<IStrategyScriptProxy>): S
   }))
 }
 
-function wholeScriptOf(scriptBody: string): string {
-  return new IndicatorScriptDomain(new IndicatorResultTypeDomain('floatList')).assemble(scriptBody)
-}
-
-function storedStrategyScript(id: number, name: string, scriptBody = 'sum := 0.0'): StrategyScript {
-  return new StrategyScript(id, name, '', wholeScriptOf(scriptBody), 'floatList')
-}
-
-const CALCULATE_BODY = [
+const WHOLE_SCRIPT = [
+  'package main',
+  '',
+  'import "indicator"',
+  '',
   'func Calculate(data []indicator.KCandle) map[string][]float64 {',
   '\treturn nil',
   '}',
 ].join('\n')
 
-function contentOf(scriptBody = CALCULATE_BODY): StrategyScriptContentDto {
-  return new StrategyScriptContentDto(scriptBody, 'floatList')
+function storedStrategyScript(id: number, name: string, script = WHOLE_SCRIPT): StrategyScript {
+  return new StrategyScript(id, name, '', script, 'floatList')
+}
+
+function contentOf(script = WHOLE_SCRIPT): StrategyScriptContentDto {
+  return new StrategyScriptContentDto(script, 'floatList')
 }
 
 describe('StrategyScriptApplication.listStrategyScripts', () => {
@@ -55,9 +53,22 @@ describe('StrategyScriptApplication.listStrategyScripts', () => {
     const available = await strategyScriptApplication.listAvailableStrategyScripts()
 
     expect(available.mine.map(strategyScript => strategyScript.name)).toEqual(['二十根均線', '六十根均線'])
-    expect(available.mine[0]?.content.scriptBody).toBe('sum := 0.0')
+    expect(available.mine[0]?.content.script).toBe(WHOLE_SCRIPT)
     expect(available.mine[0]?.content.resultType).toBe('floatList')
-    expect(available.mine[0]?.frameRecognised).toBe(true)
+  })
+
+  it('存著的那一整份原樣帶進畫面，開頭與這裡預填的不一樣也一樣', async () => {
+    const somebodyElsesScript = 'package main\n\nimport (\n\t"indicator"\n\t"strings"\n)\n\nfunc Calculate() {}'
+    const strategyScriptApplication = buildApplication({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [storedStrategyScript(1, '別處寫的', somebodyElsesScript)],
+        adopted: [],
+      }),
+    })
+
+    const available = await strategyScriptApplication.listAvailableStrategyScripts()
+
+    expect(available.mine[0]?.content.script).toBe(somebodyElsesScript)
   })
 
   it('讀回來的策略腳本身上沒有取數計畫可讀', async () => {
@@ -77,7 +88,7 @@ describe('StrategyScriptApplication.listStrategyScripts', () => {
     const available = await strategyScriptApplication.listAvailableStrategyScripts()
 
     expect(Object.keys(available.mine[0]?.content ?? {}))
-      .toEqual(['scriptBody', 'resultType', 'parameters'])
+      .toEqual(['script', 'resultType', 'parameters'])
   })
 
   it('兩段都空是答案，不是錯誤', async () => {
@@ -149,14 +160,28 @@ describe('StrategyScriptApplication.saveStrategyScript', () => {
     expect(createStrategyScript).not.toHaveBeenCalled()
   })
 
-  it('送出去的是把內容包回外框之後的一整段算式', async () => {
+  it('送出去的就是畫面上那一整份算式，一字不改', async () => {
     const createStrategyScript = vi.fn().mockResolvedValue(storedStrategyScript(7, '二十根均線'))
     const strategyScriptApplication = buildApplication({ createStrategyScript })
 
     await strategyScriptApplication.saveStrategyScript(new StrategyScriptWriteDto('二十根均線', contentOf()))
 
-    expect(createStrategyScript.mock.calls[0]?.[0].script).toContain('package main')
-    expect(createStrategyScript.mock.calls[0]?.[0].script).toContain(`)\n\n${CALCULATE_BODY}`)
+    expect(createStrategyScript.mock.calls[0]?.[0].script).toBe(WHOLE_SCRIPT)
+  })
+
+  it('載入之後原封不動再存一次，送出去的與載入時逐字相同', async () => {
+    const stored = storedStrategyScript(7, '二十根均線')
+    const createStrategyScript = vi.fn().mockResolvedValue(stored)
+    const strategyScriptApplication = buildApplication({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [stored], adopted: [] }),
+      createStrategyScript,
+    })
+
+    const available = await strategyScriptApplication.listAvailableStrategyScripts()
+    await strategyScriptApplication.saveStrategyScript(
+      new StrategyScriptWriteDto('二十根均線', available.mine[0]!.content))
+
+    expect(createStrategyScript.mock.calls[0]?.[0].script).toBe(stored.script)
   })
 
   it.each([

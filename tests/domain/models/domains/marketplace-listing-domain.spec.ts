@@ -13,7 +13,7 @@ function publishedOf(id: number, name: string): PublishedStrategyScriptDto {
 
 function ownStrategyScriptOf(id: number, name: string): StrategyScriptDto {
   return new StrategyScriptDto(
-    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true, true)
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true)
 }
 
 describe('MarketplaceListingDomain', () => {

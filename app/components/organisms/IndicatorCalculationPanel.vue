@@ -88,11 +88,12 @@ const workspaceGeneration = ref(0)
  * 第一次進入畫面時是它，按下「新的空白策略腳本」時也是它。各寫一份的話，
  * 哪天預設的種類改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
  */
-// 空白長什麼樣：一個空的 Calculate stub，回傳型別跟著預設的指標值種類。
+// 空白長什麼樣：一整份預填好的算式——開頭那幾行加一個空的 Calculate，
+// 回傳型別跟著預設的指標值種類。**預填的每一行都改得動**，包含開頭。
 // 這個定義在這個畫面上只有這一個地方——第一次進來與按「新的空白策略腳本」都用它。
 const defaultResultTypeValue = indicatorCalculationApplication.defaultResultType()
 const blankStrategyScriptContent = new StrategyScriptContentDto(
-  indicatorCalculationApplication.describeIndicatorScript(defaultResultTypeValue).blankBody,
+  indicatorCalculationApplication.describeIndicatorScript(defaultResultTypeValue).blankScript,
   defaultResultTypeValue,
 )
 
@@ -109,20 +110,21 @@ const aggregationInterval = ref<string>(
 // 改變意義。要幾格由系統從這一段算出來，畫面不必也不能填。
 const span = ref(indicatorCalculationApplication.defaultCalculationSpan())
 
-const scriptBody = ref(blankStrategyScriptContent.scriptBody)
+const script = ref(blankStrategyScriptContent.script)
 // 旋鈕是**策略腳本內容**，與算式內容、指標值種類同一層：載入時跟著換，
 // 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
 const strategyScriptParameters = useStrategyScriptParameters(
   indicatorCalculationApplication, blankStrategyScriptContent.parameters)
 const resultType = ref<string>(blankStrategyScriptContent.resultType)
 
-// 換指標值種類時，把可編輯區裡第一個 Calculate 進入點的回傳型別換成新選的——
-// 使用者不必自己回去改簽章。函式主體、helper 一字不動；找不到 Calculate 那一行就整段不動。
+// 換指標值種類時，把算式裡第一個 Calculate 進入點的回傳型別換成新選的——
+// 使用者不必自己回去改簽章。開頭、函式主體、helper 一字不動；
+// 找不到 Calculate 那一行就整份不動。
 // 只在使用者親手改種類時做，載入策略腳本時不做（那時內容與種類一起換）。
 function retargetResultType(nextResultType: string) {
   resultType.value = nextResultType
-  scriptBody.value = indicatorCalculationApplication.retargetScriptReturnType(
-    scriptBody.value, nextResultType)
+  script.value = indicatorCalculationApplication.retargetScriptReturnType(
+    script.value, nextResultType)
 }
 
 const aggregationIntervalOptions
@@ -154,9 +156,9 @@ const strategyScriptLibrary = useStrategyScriptLibrary(
   strategyScriptApplication,
   strategyScriptMarketplaceApplication,
   () => new StrategyScriptContentDto(
-    scriptBody.value, resultType.value, strategyScriptParameters.parameters.value),
+    script.value, resultType.value, strategyScriptParameters.parameters.value),
   (content) => {
-    scriptBody.value = content.scriptBody
+    script.value = content.script
     resultType.value = content.resultType
     strategyScriptParameters.replaceAll(content.parameters)
     // 換了一份算式，上一次那次計算就與畫面上這一份無關了——結果與失敗訊息一起清掉。
@@ -182,8 +184,8 @@ function changeSpanUnit(unit: string) {
   span.value = new CalculationSpanDto(span.value.amount, unit as CalculationSpanUnit)
 }
 
-function fillExampleScriptBody() {
-  scriptBody.value = scriptTemplate.value.exampleBody
+function fillExampleScript() {
+  script.value = scriptTemplate.value.exampleScript
 }
 
 /**
@@ -228,7 +230,7 @@ async function calculateIndicator() {
     symbol.value,
     aggregationInterval.value,
     indicatorCalculationApplication.observationWindowFor(span.value),
-    scriptBody.value,
+    script.value,
     resultType.value,
     strategyScriptParameters.parameters.value))
 }
@@ -359,10 +361,9 @@ async function calculateIndicator() {
       <!-- 左欄：這支算法——算式、它自己的旋鈕，以及寫的時候翻一下的那份清單。 -->
       <div class="indicator-calculation-panel__workbench">
         <IndicatorScriptEditor
-          v-model="scriptBody"
+          v-model="script"
           class="indicator-calculation-panel__editor"
-          :script-template="scriptTemplate"
-          :error-message="calculationRun.messageFor('scriptBody')"
+          :error-message="calculationRun.messageFor('script')"
         >
           <template #toolbar>
             <!--
@@ -393,7 +394,7 @@ async function calculateIndicator() {
               variant="secondary"
               label="帶入範例內容"
               data-testid="example-button"
-              @click="fillExampleScriptBody"
+              @click="fillExampleScript"
             >
               <AppIcon name="example" />
             </AppButton>
@@ -746,7 +747,7 @@ async function calculateIndicator() {
           :trading-symbol-application="tradingSymbolApplication"
           :time-zone="timeZone"
           :aggregation-interval-options="aggregationIntervalOptions"
-          :script-body="scriptBody"
+          :script="script"
           :result-type="resultType"
           :parameters="strategyScriptParameters.parameters.value"
           :workspace-generation="workspaceGeneration"

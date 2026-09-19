@@ -23,7 +23,7 @@ vi.mock('lightweight-charts', () => ({
   LineSeries: 'LineSeries',
 }))
 
-const SCRIPT_BODY = 'return map[string]float64{"signal": 1}'
+const WHOLE_SCRIPT = 'return map[string]float64{"signal": 1}'
 
 /** 算式內容住在編輯區裡，而編輯區是掛載後才動態載入的，microtask 還輪不到它。 */
 async function settle() {
@@ -31,15 +31,15 @@ async function settle() {
   await flushPromises()
 }
 
-async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, scriptBody: string) {
+async function typeScript(wrapper: ReturnType<typeof mountPanel>, script: string) {
   await settle()
-  const editor = wrapper.get('[data-testid="script-body"]').element
+  const editor = wrapper.get('[data-testid="script"]').element
   const firstLine = editor.querySelector('.cm-line')
   if (firstLine === null) {
     throw new Error('編輯區還沒準備好')
   }
 
-  firstLine.textContent = scriptBody
+  firstLine.textContent = script
   editor.querySelector('.cm-content')!.dispatchEvent(new Event('input', { bubbles: true }))
   await settle()
 }
@@ -91,14 +91,14 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
   it('切換去處不會弄丟寫到一半的算式', async () => {
     // 這是這一整塊存在的理由：工作區擺在切換之上，編輯器因此完全不受影響。
     const wrapper = mountPanel()
-    await typeScriptBody(wrapper, SCRIPT_BODY)
+    await typeScript(wrapper, WHOLE_SCRIPT)
 
     await wrapper.get('[data-testid="tab-backtest"]').trigger('click')
     await wrapper.get('[data-testid="tab-indicatorPreview"]').trigger('click')
     await settle()
 
-    expect(wrapper.get('[data-testid="script-body"]').element
-      .querySelector('.cm-content')?.textContent).toContain(SCRIPT_BODY)
+    expect(wrapper.get('[data-testid="script"]').element
+      .querySelector('.cm-content')?.textContent).toContain(WHOLE_SCRIPT)
   })
 
   it('工作區在左欄，去處在右欄——切換換掉的只有右邊那一欄', async () => {
@@ -110,13 +110,13 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
     const workbench = wrapper.get('.indicator-calculation-panel__workbench')
     const outcome = wrapper.get('.indicator-calculation-panel__outcome')
 
-    expect(workbench.find('[data-testid="script-body"]').exists()).toBe(true)
+    expect(workbench.find('[data-testid="script"]').exists()).toBe(true)
     expect(workbench.find('[data-testid="tab-backtest"]').exists()).toBe(false)
 
     expect(outcome.find('[data-testid="tab-backtest"]').exists()).toBe(true)
     expect(outcome.find('[data-testid="calculate-button"]').exists()).toBe(true)
     expect(outcome.find('[data-testid="run-backtest-button"]').exists()).toBe(true)
-    expect(outcome.find('[data-testid="script-body"]').exists()).toBe(false)
+    expect(outcome.find('[data-testid="script"]').exists()).toBe(false)
   })
 
   it('切過去再切回來，填到一半的回測條件一格都沒掉', async () => {
@@ -141,9 +141,9 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
 
   it('算式是共用的那一份，回測看到的就是編輯區裡那一段', async () => {
     const wrapper = mountPanel()
-    await typeScriptBody(wrapper, SCRIPT_BODY)
+    await typeScript(wrapper, WHOLE_SCRIPT)
 
-    expect(backtestPane(wrapper).props('scriptBody')).toContain(SCRIPT_BODY)
+    expect(backtestPane(wrapper).props('script')).toContain(WHOLE_SCRIPT)
   })
 
   it('市場改在哪一邊，另一邊看到的就是改過的', async () => {
@@ -180,7 +180,7 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
     // 換了一份算式，上一次那次重演就與畫面上這一份無關了。
     const strategyScriptApplication = buildStrategyScriptApplication({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '另一支', {
-        scriptBody: '另一段算式',
+        script: '另一段算式',
         parameters: [new StrategyScriptParameterDto('period', 'lookbackCount', 20)],
       })], adopted: [] }),
     })

@@ -26,7 +26,7 @@ export class StrategyScriptDraftDomain {
       return !this.isUntouchedDraft() || this.currentContent.parameters.length > 0
     }
 
-    return this.currentContent.scriptBody !== this.loadedContent.scriptBody
+    return this.currentContent.script !== this.loadedContent.script
       || this.currentContent.resultType !== this.loadedContent.resultType
       || !new StrategyScriptParametersDomain(this.currentContent.parameters)
         .isSameAs(new StrategyScriptParametersDomain(this.loadedContent.parameters))
@@ -34,17 +34,19 @@ export class StrategyScriptDraftDomain {
 
   /**
    * 還沒載入過策略腳本時，「沒有東西可弄丟」的兩種樣子：完全空白，或該種類**未改動**的
-   * 空白 stub。stub 是系統填的，不是使用者寫的——一個字都還沒改就再按一次不必問。
+   * 預填內容。預填的那一份（開頭那幾行加一個空的進入點）是系統填的，不是使用者寫的——
+   * 一個字都還沒改就再按一次不必問。反過來說，**只改了開頭也算改過**：
+   * 那幾行現在也是使用者的。
    */
   private isUntouchedDraft(): boolean {
-    const trimmedBody = this.currentContent.scriptBody.trim()
-    if (trimmedBody === '') {
+    const trimmedScript = this.currentContent.script.trim()
+    if (trimmedScript === '') {
       return true
     }
 
-    const blankBody = new IndicatorScriptDomain(
-      new IndicatorResultTypeDomain(this.currentContent.resultType)).blankBody()
+    const blankScript = new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(this.currentContent.resultType)).blankScript()
 
-    return trimmedBody === blankBody.trim()
+    return trimmedScript === blankScript.trim()
   }
 }

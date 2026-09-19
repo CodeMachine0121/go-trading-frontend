@@ -3,7 +3,7 @@ import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-
 
 /**
  * DTO：使用者在指標計算表單裡打的原始輸入。
- * 算式只收**內容**：外框不是使用者輸入的東西，它由 domain 依指標值種類產生。
+ * 算式收的是**一整份**：畫面上看到的那一份就是送出去的那一份，domain 不替它補任何一行。
  *
  * 交易標的、彙總刻度與觀察區間是同一類東西：**這一次要怎麼算**。
  * 它們一起住在這裡而不是散在策略腳本身上，所以同一支算法能在不同市場、不同粗細下反覆執行。
@@ -24,12 +24,12 @@ export class IndicatorCalculationRequestDto {
      */
     public readonly observationWindow: ObservationWindowVo,
     /**
-     * 要跑的那一段算式**內容**。指標計算畫面走這一條：使用者在編輯器裡寫了什麼就跑什麼，
+     * 要跑的那**一整份**算式。指標計算畫面走這一條：使用者在編輯器裡寫了什麼就跑什麼，
      * 不必先存成策略腳本。
      *
      * 與 `strategyScriptId` **恰好挑一種**。兩個都給，就說不出實際跑的是哪一個。
      */
-    public readonly scriptBody: string,
+    public readonly script: string,
     public readonly resultType: string,
     /** 這支算式的旋鈕。空的一份代表一支沒有旋鈕的算式。 */
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
@@ -37,7 +37,7 @@ export class IndicatorCalculationRequestDto {
      * 要跑的是**哪一支已存的策略腳本**。K 線圖表走這一條：那裡套用的是一支已經定案的策略腳本，
      * 而它可能是從市集加入來的——那種**沒有算式可以送**，指名它是唯一跑得動的方式。
      *
-     * 與 `scriptBody` 恰好挑一種。
+     * 與 `script` 恰好挑一種。
      */
     public readonly strategyScriptId?: number,
   ) {}

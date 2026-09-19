@@ -5,7 +5,7 @@
  *
  * `candleCount` 不在裡面：那一格已經不存在，格數是由「要看多長」算出來的。
  */
-export type IndicatorCalculationField = 'symbol' | 'span' | 'scriptBody' | 'parameters'
+export type IndicatorCalculationField = 'symbol' | 'span' | 'script' | 'parameters'
 
 /** 哨兵錯誤：使用者自己可以修正的輸入錯誤（欄位層級）。 */
 export class IndicatorCalculationFieldError extends Error {

@@ -3,12 +3,14 @@ import { StrategyScriptDraftDomain } from '~/domain/models/domains/strategy-scri
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
+const PREAMBLE = 'package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)'
+
 function contentOf(
-  scriptBody = 'sum := 0.0',
+  script = 'sum := 0.0',
   resultType: 'float' | 'floatList' = 'floatList',
   parameters: readonly StrategyScriptParameterDto[] = [],
 ): StrategyScriptContentDto {
-  return new StrategyScriptContentDto(scriptBody, resultType, parameters)
+  return new StrategyScriptContentDto(script, resultType, parameters)
 }
 
 const 期數 = new StrategyScriptParameterDto('期數', 'lookbackCount', 20)
@@ -36,27 +38,42 @@ describe('StrategyScriptDraftDomain', () => {
   })
 
   it.each([
-    { name: '完全空白', scriptBody: '' },
-    { name: '只有空白字元', scriptBody: '  \n\t ' },
-  ])('還沒載入過任何策略腳本，且內容$name時不必問', ({ scriptBody }) => {
-    const draft = new StrategyScriptDraftDomain(null, contentOf(scriptBody))
+    { name: '完全空白', script: '' },
+    { name: '只有空白字元', script: '  \n\t ' },
+  ])('還沒載入過任何策略腳本，且內容$name時不必問', ({ script }) => {
+    const draft = new StrategyScriptDraftDomain(null, contentOf(script))
 
     expect(draft.hasUnsavedChanges()).toBe(false)
   })
 
   it.each([
-    { resultType: 'float' as const, stub: 'func Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}' },
-    { resultType: 'floatList' as const, stub: 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\t\n}' },
-  ])('還沒載入過任何策略腳本，且內容還是 $resultType 未改動的空白 stub 時不必問', ({ resultType, stub }) => {
-    const draft = new StrategyScriptDraftDomain(null, contentOf(stub, resultType))
+    {
+      resultType: 'float' as const,
+      blank: `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}`,
+    },
+    {
+      resultType: 'floatList' as const,
+      blank: `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string][]float64 {\n\t\n}`,
+    },
+  ])('還沒載入過任何策略腳本，且內容還是 $resultType 未改動的預填內容時不必問', ({ resultType, blank }) => {
+    const draft = new StrategyScriptDraftDomain(null, contentOf(blank, resultType))
 
     expect(draft.hasUnsavedChanges()).toBe(false)
   })
 
-  it('還沒載入過任何策略腳本，但已經在 stub 裡寫了東西時要問', () => {
+  it('還沒載入過任何策略腳本，但已經在預填的進入點裡寫了東西時要問', () => {
     // 那些字一樣是使用者寫的。該問卻不問會弄丟它們，不該問卻問只是煩人。
     const draft = new StrategyScriptDraftDomain(null, contentOf(
-      'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\treturn nil\n}'))
+      `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string][]float64 {\n\treturn nil\n}`))
+
+    expect(draft.hasUnsavedChanges()).toBe(true)
+  })
+
+  it('還沒載入過任何策略腳本，但改的是預填的開頭時，一樣要問', () => {
+    // 開頭那幾行現在也是使用者的——刪掉一個用不到的匯入是他寫下的決定。
+    const draft = new StrategyScriptDraftDomain(null, contentOf(
+      'package main\n\nimport "indicator"\n\n'
+      + 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\t\n}'))
 
     expect(draft.hasUnsavedChanges()).toBe(true)
   })

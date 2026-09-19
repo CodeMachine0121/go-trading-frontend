@@ -1,11 +1,10 @@
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
-import { IndicatorScriptBodyVo } from '~/domain/models/vo/indicator-script-body-vo'
 
 /**
- * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。簽章與收尾由 `exampleBody`
- * 從 `calculateSignature()` 補上，進入點的長相因此只寫在這個檔案的一個地方。
+ * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。開頭、簽章與收尾由
+ * `exampleScript` 補上，進入點的長相因此只寫在這個檔案的一個地方。
  */
 const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly string[]>> = {
   float: [
@@ -50,10 +49,16 @@ const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readon
 }
 
 /**
- * 唯讀外框：package 宣告與三個匯入。**就這七行**，不隨指標值種類變。
- * 進入點與收尾都住在可編輯的檔案主體裡。
+ * 一份新算式最上面那幾行：package 宣告與三個匯入。
+ *
+ * **它是預填的內容，不是唯讀的外框。** 補上之後它與底下的每一行一樣是使用者的，
+ * 改得動、刪得掉；改動這個常數也只影響**下一份新開的空白算式**，既有的策略腳本
+ * 存著自己的開頭，一律不受影響。
+ *
+ * 三個匯入一律備妥，使用者直接用得到常見的數學與排序運算，不必自己張羅
+ * （直譯器不介意沒用到的匯入；用不到的那一個刪掉也行）。
  */
-const FRAME_HEADER = [
+const SCRIPT_PREAMBLE = [
   'package main',
   '',
   'import (',
@@ -67,31 +72,26 @@ const FRAME_HEADER = [
 const BODY_INDENT = '\t'
 
 /**
- * 檔案主體裡「這一行是進入點」的樣子。改指標值種類時，第一個符合的這一行，
+ * 一份算式裡「這一行是進入點」的樣子。改指標值種類時，第一個符合的這一行，
  * 回傳型別會被重打。使用者把簽章拆成多行就認不出——那是刻意接受的取捨。
  */
 const CALCULATE_SIGNATURE_PATTERN = /func Calculate\(data \[\]indicator\.KCandle\)[^{\n]*\{/
 
 /**
- * Domain Model：一段指標算式長什麼樣。
+ * Domain Model：一份新的指標算式該長什麼樣。
  *
- * **這是全前端唯一組出算式文字、也是唯一拆解它的地方。** 唯讀外框、每個種類的範例、
- * 空白 stub、改種類時重打的簽章、主體如何接上外框、以及一整段算式如何拆回主體，
- * 都只寫在這裡；進入點的字面只出現在 `calculateSignature()` 與拆解錨定的 `FRAME_HEADER`。
+ * **這是全前端唯一寫得出算式文字的地方**：開頭那幾行、每個種類的範例、開新空白策略腳本
+ * 時預填的那一份，以及改種類時重打的簽章，都只寫在這裡。
+ *
+ * 它**不碰使用者已經寫下的算式**——不接合、不拆解、不修剪。畫面上那一份從第一行到
+ * 最後一行都是使用者的，送出去與存下去的就是它本身。唯一的例外是改種類時重打進入點
+ * 那一行，而那是使用者親手按下選單換來的。
  */
 export class IndicatorScriptDomain {
   constructor(private readonly resultType: IndicatorResultTypeDomain) {}
 
   /**
-   * 唯讀外框——七行固定內容。三個匯入一律備妥，使用者在主體裡直接用得到常見的
-   * 數學與排序運算，不必自己張羅（直譯器不介意沒用到的匯入）。
-   */
-  frameHeader(): string {
-    return FRAME_HEADER
-  }
-
-  /**
-   * 進入點那一行。回傳型別是外框唯一隨種類變的東西：信號回傳一個信號，
+   * 進入點那一行。回傳型別是算式裡唯一隨種類變的東西：信號回傳一個信號，
    * 其餘四種回傳一組「名稱對應值」，值的形狀跟著「是不是一串、裝的是不是數字」走。
    */
   private calculateSignature(): string {
@@ -104,64 +104,38 @@ export class IndicatorScriptDomain {
     return `func Calculate(data []indicator.KCandle) ${returnShape} {`
   }
 
-  /** 新的空白策略腳本的主體：一個空的 `Calculate`，回傳型別跟著目前的種類。 */
-  blankBody(): string {
-    return `${this.calculateSignature()}\n${BODY_INDENT}\n}`
+  /** 開新的空白策略腳本時預填的那一整份：開頭那幾行，加一個空的 `Calculate`。 */
+  blankScript(): string {
+    return `${SCRIPT_PREAMBLE}\n\n${this.calculateSignature()}\n${BODY_INDENT}\n}`
   }
 
-  /** 這個種類的範例主體：整個 `Calculate` 函式，簽章頂格、內部縮一層。 */
-  exampleBody(): string {
+  /**
+   * 這個種類一整份可以直接執行的範例：開頭那幾行，加整個 `Calculate` 函式
+   * （簽章頂格、內部縮一層）。
+   *
+   * 它與 `blankScript()` 是一對相互對照的東西——「什麼都還沒寫」與「寫好了長這樣」——
+   * 所以留成一個具名的私有方法，而不是 inline 進下面那個建構呼叫裡。
+   */
+  private exampleScript(): string {
     const innerLines = EXAMPLE_CALCULATE_INNER_LINES[this.resultType.value]
       .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
 
-    return [this.calculateSignature(), ...innerLines, '}'].join('\n')
+    return [SCRIPT_PREAMBLE, '', this.calculateSignature(), ...innerLines, '}'].join('\n')
   }
 
   /**
-   * 改指標值種類時：把主體裡**第一個**符合進入點樣子的那一行，回傳型別換成新種類的。
-   * 主體裡沒有符合的那一行時原樣回傳——使用者把進入點寫成別的樣子是他的自由。
+   * 改指標值種類時：把算式裡**第一個**符合進入點樣子的那一行，回傳型別換成新種類的。
+   * 找不到符合的那一行時整份原樣回傳——使用者把進入點寫成別的樣子是他的自由。
    */
-  retargetReturnType(scriptBody: string): string {
-    if (!CALCULATE_SIGNATURE_PATTERN.test(scriptBody)) {
-      return scriptBody
+  retargetReturnType(script: string): string {
+    if (!CALCULATE_SIGNATURE_PATTERN.test(script)) {
+      return script
     }
 
-    return scriptBody.replace(CALCULATE_SIGNATURE_PATTERN, this.calculateSignature())
+    return script.replace(CALCULATE_SIGNATURE_PATTERN, this.calculateSignature())
   }
 
   toTemplateDto(): IndicatorScriptTemplateDto {
-    return new IndicatorScriptTemplateDto(this.frameHeader(), this.exampleBody(), this.blankBody())
-  }
-
-  /**
-   * 把使用者寫的主體接在唯讀外框後面，成為一段可以送出的算式。
-   * 主體是頂層 Go，**不縮排、不加收尾**——那兩樣現在也是使用者寫的。
-   * 中間留一個空行（Go 慣例，也讓行號對得上）。
-   */
-  assemble(scriptBody: string): string {
-    return `${FRAME_HEADER}\n\n${scriptBody.replace(/\s+$/, '')}\n`
-  }
-
-  /**
-   * `assemble` 的逆運算：從一整段算式取回使用者寫的主體。
-   *
-   * 錨定的是那七行固定的外框——它不隨種類變，也沒有理由漂移。以它開頭就認得，
-   * 主體是其後去掉緊接的空行與尾端多的那一個換行。舊編輯器存的算式因為前七行相同，
-   * 一樣認得，主體剛好是「整個 Calculate 函式」——不需要遷移。
-   *
-   * **認不出來時整段原樣交還**，並說明沒認出來：硬拆的代價太高，使用者可能過很久
-   * 才發現程式碼被剪壞，而那時原稿已經沒了。
-   */
-  disassemble(script: string): IndicatorScriptBodyVo {
-    if (!script.startsWith(`${FRAME_HEADER}\n`)) {
-      return new IndicatorScriptBodyVo(script, false)
-    }
-
-    let body = script.slice(FRAME_HEADER.length).replace(/^\n+/, '')
-    if (body.endsWith('\n')) {
-      body = body.slice(0, -1)
-    }
-
-    return new IndicatorScriptBodyVo(body, true)
+    return new IndicatorScriptTemplateDto(this.exampleScript(), this.blankScript())
   }
 }
