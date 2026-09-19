@@ -28,12 +28,12 @@ describe('LayoutDensityDomain 導覽的形狀', () => {
     { name: '剛好到分界就是固定側欄', width: 1024, expected: false },
     { name: '桌機是固定側欄', width: DESKTOP, expected: false },
   ])('$name', ({ width, expected }) => {
-    expect(at(width).usesNavigationDrawer).toBe(expected)
+    expect(at(width).usesBottomNavigation).toBe(expected)
   })
 
   it('導覽的分界比疏密的分界寬——平板放得下寬鬆的表單，放不下九個並排的去處', () => {
     expect(at(800).density).toBe('compact')
-    expect(at(800).usesNavigationDrawer).toBe(true)
+    expect(at(800).usesBottomNavigation).toBe(true)
   })
 })
 
@@ -73,7 +73,7 @@ describe('LayoutDensityDomain 極端的寬度', () => {
     // 反過來則會在手機上給出一張改不動的工作檯與一條擠不下的側欄。
     expect(at(0)).toEqual({
       density: 'roomy',
-      usesNavigationDrawer: true,
+      usesBottomNavigation: true,
       allowsBlockEditing: false,
       startsChartControlsCollapsed: true,
       assistantCoversScreen: true,

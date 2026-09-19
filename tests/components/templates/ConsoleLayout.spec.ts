@@ -2,8 +2,25 @@
 // 樣板記著「側欄收起來了沒有」，而那份記憶要跨畫面活著（`useState`）——
 // 需要 Nuxt runtime 才問得到它。
 import { mount } from '@vue/test-utils'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { reactive } from 'vue'
+import { mockNuxtImport } from '@nuxt/test-utils/runtime'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
+
+/**
+ * 現在停在哪一條路由。
+ *
+ * 路由是框架的邊界，所以它是替身——真的去 push 會被「還沒登入就回登入頁」
+ * 那條全域中介攔下來，而這裡要問的與登入沒有關係。
+ */
+const { rawRoute } = vi.hoisted(() => ({ rawRoute: { path: '/login', fullPath: '/login' } }))
+mockNuxtImport('useRoute', () => () => reactive(rawRoute))
+
+function stopAt(path: string) {
+  const route = reactive(rawRoute)
+  route.path = path
+  route.fullPath = path
+}
 
 /** 一台坐著用的機器：導覽是那條固定側欄。 */
 const DESKTOP = 1280
@@ -37,6 +54,7 @@ describe('ConsoleLayout', () => {
   // 每個案例都從「側欄開著」開始，才不會讀到上一個案例按過的那一下。
   beforeEach(() => {
     clearNuxtState()
+    stopAt('/login')
     window.innerWidth = DESKTOP
   })
 
@@ -129,129 +147,127 @@ describe('ConsoleLayout', () => {
     expect(wrapper.get(`[data-testid="${testId}"]`).text()).toBe(content)
   })
 
-  describe('窄螢幕上導覽收進一片叫得出來的抽屜', () => {
-    it('平時只有一顆鍵，九個去處還沒被叫出來', async () => {
+  describe('窄螢幕上導覽貼在畫面底部', () => {
+    it('常用的四個直接露出來，加上一顆「更多」', async () => {
+      // 一排超過五格，每一格就窄到放不下一個讀得出來的名字。
       const wrapper = await mountLayoutAt(PHONE)
 
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('false')
+      expect(wrapper.get('[data-testid="tab-/k-candles/chart"]').text()).toContain('K 線圖表')
+      expect(wrapper.get('[data-testid="tab-/watchlist"]').text()).toContain('觀察清單')
+      expect(wrapper.get('[data-testid="tab-/strategy-bots"]').text()).toContain('策略機器人')
+      expect(wrapper.get('[data-testid="tab-/chat"]').text()).toContain('行情助手')
+      expect(wrapper.get('[data-testid="tab-more"]').text()).toContain('更多')
     })
 
-    it('按下那顆鍵，九個去處一次全看得到', async () => {
+    it('去處永遠看得見，不必先按一顆鍵才知道自己能去哪裡', async () => {
       const wrapper = await mountLayoutAt(PHONE)
 
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
+      expect(wrapper.findAll('[data-testid^="tab-"]')).toHaveLength(5)
+    })
 
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('true')
+    it('其餘五個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
+      // 側欄底部那兩樣在窄螢幕上沒有側欄可待，而它們與「我還能去哪裡」
+      // 回答的是同一個問題：這條線路現在怎麼了。
+      const wrapper = mount(ConsoleLayout, {
+        props: { title: 'K 線圖表' },
+        slots: {
+          status: '<span data-testid="status">可用</span>',
+          account: '<span data-testid="account">james</span>',
+        },
+        global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
+      })
+      window.innerWidth = PHONE
+      window.dispatchEvent(new Event('resize'))
+      await nextTick()
+
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+      expect(wrapper.get('[data-testid="more-/"]').text()).toContain('連線狀態')
+      expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('K 線瀏覽')
+      expect(wrapper.get('[data-testid="more-/indicator-calculations"]').text())
+        .toContain('指標計算')
+      expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('策略腳本市集')
+      expect(wrapper.get('[data-testid="more-/settings"]').text()).toContain('設定')
+      expect(wrapper.get('[data-testid="status"]').text()).toBe('可用')
+      expect(wrapper.get('[data-testid="account"]').text()).toBe('james')
+    })
+
+    it('沒按「更多」以前那張紙不在', async () => {
+      const wrapper = await mountLayoutAt(PHONE)
+
+      expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
+    })
+
+    it('九個去處加起來出現一次，不多不少', async () => {
+      // 四格加五條，剛好是側欄上的那九個——兩份導覽會讓讀螢幕的人聽到兩遍。
+      const wrapper = await mountLayoutAt(PHONE)
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+      expect(wrapper.findAll('nav')).toHaveLength(1)
       expect(wrapper.findAll('a')).toHaveLength(9)
     })
 
-    it('挑了一個去處，抽屜自己收起來', async () => {
+    it('待在「更多」裡面的那一頁時，那一格自己會亮', async () => {
+      // 底下四格沒有一格是亮的，那一排讀起來像「我不在任何地方」。
+      stopAt('/settings')
       const wrapper = await mountLayoutAt(PHONE)
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
 
-      await wrapper.findAll('a')[0]?.trigger('click')
-
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('false')
+      expect(wrapper.get('[data-testid="tab-more"]').classes())
+        .toContain('console-layout__tab--current')
     })
 
-    it('點抽屜外面只是把它收起來，不會換到別的畫面', async () => {
-      // 叫出去處清單之後改變主意，是這裡最常發生的一件事。
+    it('待在底下那四格其中一格時，「更多」不亮', async () => {
+      stopAt('/watchlist')
       const wrapper = await mountLayoutAt(PHONE)
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
 
-      const whereWeWere = useRoute().fullPath
-
-      await wrapper.get('[data-testid="navigation-scrim"]').trigger('click')
-
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('false')
-      expect(wrapper.find('[data-testid="navigation-scrim"]').exists()).toBe(false)
-      expect(useRoute().fullPath).toBe(whereWeWere)
+      expect(wrapper.get('[data-testid="tab-more"]').classes())
+        .not.toContain('console-layout__tab--current')
     })
 
-    it('按 Esc 也收得起來', async () => {
+    it('走到別的畫面，那張紙自己收起來', async () => {
+      // 它的任務在使用者挑完那一刻就結束了。
+      stopAt('/watchlist')
       const wrapper = await mountLayoutAt(PHONE)
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+      expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(true)
 
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      stopAt('/marketplace')
       await nextTick()
 
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('false')
+      expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(false)
     })
 
-    it('按別的鍵不會把抽屜收起來', async () => {
-      // 只有 Esc 是「收起疊在畫面上的東西」，其餘每一個鍵都與它無關——
-      // 在抽屜裡用方向鍵走過九個去處的人，不該走到一半整片消失。
+    it('「更多」那張紙關得掉', async () => {
       const wrapper = await mountLayoutAt(PHONE)
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
-      await nextTick()
+      await wrapper.get('[aria-label="關閉"]').trigger('click')
 
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('true')
+      expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
     })
 
-    it('關著的抽屜不在鍵盤的路線上', async () => {
-      // 光把它推出畫面是不夠的：元素還在，按 Tab 會一條一條走進一片看不見的導覽。
+    it('把視窗拉寬，外框就換成側欄那一種，反過來也是', async () => {
       const wrapper = await mountLayoutAt(PHONE)
-
-      expect(wrapper.get('nav').attributes('inert')).toBeDefined()
-
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
-
-      expect(wrapper.get('nav').attributes('inert')).toBeUndefined()
-    })
-
-    it('寬螢幕上那條側欄一直都走得到', async () => {
-      const wrapper = await mountLayoutAt(1024)
-
-      expect(wrapper.get('nav').attributes('inert')).toBeUndefined()
-    })
-
-    it('那顆鍵自己說它要做哪一件事', async () => {
-      const wrapper = await mountLayoutAt(PHONE)
-
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-label'))
-        .toBe('開啟導覽')
-
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
-
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-label'))
-        .toBe('關閉導覽')
-    })
-
-    it('寬螢幕上那顆鍵不存在——一顆什麼都不做的鍵是一條假的路', async () => {
-      const wrapper = await mountLayoutAt(1024)
-
-      expect(wrapper.find('[data-testid="toggle-navigation"]').exists()).toBe(false)
-      expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
-    })
-
-    it('視窗被拉寬之後，開著的抽屜不會留在那裡', async () => {
-      // 不收掉的話，使用者把視窗拉寬再拉窄回來，抽屜會自己跳出來，
-      // 而他沒有按過任何東西。
-      const wrapper = await mountLayoutAt(PHONE)
-      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
+      expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(true)
 
       await resizeTo(wrapper, DESKTOP)
+
+      expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
+
       await resizeTo(wrapper, PHONE)
 
-      expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
-        .toBe('false')
+      expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(false)
     })
 
-    it.each([
-      ['窄螢幕', PHONE],
-      ['寬螢幕', DESKTOP],
-    ])('%s上九個去處都只出現一次——兩份導覽會讓讀螢幕的人聽到兩遍', async (_label, width) => {
-      const wrapper = await mountLayoutAt(width)
+    it('寬螢幕上沒有底部那一排，側欄照舊', async () => {
+      const wrapper = await mountLayoutAt(1024)
 
-      expect(wrapper.findAll('nav')).toHaveLength(1)
+      expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
       expect(wrapper.findAll('a')).toHaveLength(9)
     })
   })

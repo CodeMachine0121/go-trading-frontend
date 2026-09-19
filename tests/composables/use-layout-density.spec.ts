@@ -26,7 +26,7 @@ const Screen = defineComponent({
       return h('span', {
         'data-testid': 'answers',
         'data-editing': String(layoutDensity.value.allowsBlockEditing),
-        'data-drawer': String(layoutDensity.value.usesNavigationDrawer),
+        'data-drawer': String(layoutDensity.value.usesBottomNavigation),
         'data-generation': String(handedOut.size),
       })
     }
@@ -38,7 +38,7 @@ function answersOf(wrapper: ReturnType<typeof mount>) {
 
   return {
     allowsBlockEditing: element.attributes('data-editing') === 'true',
-    usesNavigationDrawer: element.attributes('data-drawer') === 'true',
+    usesBottomNavigation: element.attributes('data-drawer') === 'true',
   }
 }
 
@@ -64,7 +64,7 @@ describe('useLayoutDensity', () => {
     const { layoutDensity } = useLayoutDensity(layoutDensityApplication)
 
     expect(layoutDensity.value.allowsBlockEditing).toBe(true)
-    expect(layoutDensity.value.usesNavigationDrawer).toBe(false)
+    expect(layoutDensity.value.usesBottomNavigation).toBe(false)
 
     warn.mockRestore()
   })
@@ -87,7 +87,7 @@ describe('useLayoutDensity', () => {
     await resizeWindowTo(390)
 
     expect(answersOf(wrapper).allowsBlockEditing).toBe(false)
-    expect(answersOf(wrapper).usesNavigationDrawer).toBe(true)
+    expect(answersOf(wrapper).usesBottomNavigation).toBe(true)
 
     wrapper.unmount()
   })
@@ -149,11 +149,11 @@ describe('useLayoutDensity', () => {
     await nextTick()
 
     await resizeWindowTo(1200)
-    expect(answersOf(wrapper).usesNavigationDrawer).toBe(false)
+    expect(answersOf(wrapper).usesBottomNavigation).toBe(false)
 
     await resizeWindowTo(900)
 
-    expect(answersOf(wrapper).usesNavigationDrawer).toBe(true)
+    expect(answersOf(wrapper).usesBottomNavigation).toBe(true)
     expect(answersOf(wrapper).allowsBlockEditing).toBe(true)
   })
 
