@@ -122,23 +122,29 @@ function startNewConversation() {
 $list-width: 16rem;
 
 .assistant-console {
-  display: grid;
-  grid-template-columns: $list-width minmax(0, 1fr);
+  // 窄螢幕：疊成一欄——那顆鍵、攤開時的清單、然後是對話。
+  //
+  // **欄數由樣式決定，不由程式決定。** 伺服器端量不到視窗，所以它畫出來的
+  // 一律是寬螢幕那一版；欄數若跟著程式那個答案走，手機在補正之前會先看到
+  // 一個擠成兩欄的畫面——對話被壓成一條直排的字。樣式沒有這個問題：
+  // 它在伺服器畫出來的那一刻就已經是對的。
+  //
+  // 程式那個答案仍然管一件事，但只有一件：**清單要不要收在一顆鍵後面**。
+  // 那是行為，不是版面。
+  display: flex;
+  flex-direction: column;
 
   // 兩塊圓角的面板之間留一道縫，而不是靠一條直線把它們切開——
   // 直線讀起來是「同一張表格的兩欄」，留縫讀起來是「兩塊各自的東西」。
   gap: spacing('sm');
 
-  // 兩欄各自捲動，不讓整頁一起捲——輸入框必須一直在原地。
+  // 各自捲動，不讓整頁一起捲——輸入框必須一直在原地。
   min-height: 0;
   height: 100%;
 
-  // 窄螢幕：疊成一欄——那顆鍵、攤開時的清單、然後是對話。
-  // 用 flex 而不是把格子改成三列：清單在不在是會變的，而一個會變的格子數
-  // 要在兩個地方（有幾列、誰佔哪一列）同時說對才不會錯位。
-  &--narrow {
-    display: flex;
-    flex-direction: column;
+  @include respond-to('md') {
+    display: grid;
+    grid-template-columns: $list-width minmax(0, 1fr);
   }
 
   // 這顆鍵只活在窄螢幕那一版，而那一版是 flex column——
@@ -152,8 +158,12 @@ $list-width: 16rem;
   }
 
   // 攤開的那一欄在窄螢幕上不該把對話擠成一條縫：它自己有高度上限，捲動在它裡面。
-  &--narrow &__list {
+  &__list {
     max-height: 40vh;
+
+    @include respond-to('md') {
+      max-height: none;
+    }
   }
 
   &__conversation {

@@ -94,8 +94,11 @@ function selectStrategyScript(value: string) {
   flex-direction: column;
   gap: spacing('3xs');
 
+  // 旁邊那幾顆鍵的字不折行，所以它們不會縮——窄螢幕上它們會把選單擠成
+  // 一欄六個像素寬（一行一個字）。讓這一列換行：選單自己一行、鍵接在下面。
   &__row {
     display: flex;
+    flex-wrap: wrap;
     gap: spacing('xs');
 
     // 底部對齊：欄位那一欄的最後一樣東西就是選單，所以動作剛好與它切齊。
@@ -104,7 +107,10 @@ function selectStrategyScript(value: string) {
 
   &__field {
     display: flex;
-    flex: 1 1 auto;
+
+    // 基準寬度不是 auto 而是一個「還讀得出來」的寬度：低於它就換行，
+    // 而不是繼續把選單壓扁。
+    flex: 1 1 12rem;
     flex-direction: column;
     gap: spacing('3xs');
 

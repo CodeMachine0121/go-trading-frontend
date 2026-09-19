@@ -99,10 +99,13 @@ function continueWriting() {
 
   // 這條列與面板的標題列是同一條列——編輯區也是這個操作台上的一塊面板，
   // 只是它裡面裝的是一份檔案。
+  // 一排不會縮的圖示鍵加一個檔名，在窄螢幕上排不成一行。讓它換行，
+  // 而不是把檔名擠成一行一個字。
   &__bar {
     display: flex;
+    flex-wrap: wrap;
     flex: none;
-    gap: spacing('md');
+    gap: spacing('xs') spacing('md');
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid color('border');
@@ -133,11 +136,14 @@ function continueWriting() {
     text-overflow: ellipsis;
   }
 
+  // 六顆圖示鍵排起來將近四百像素，比一支手機還寬，而圖示不會縮。
+  // 它們自己也要能換行——不然那一整組會把窄帶撐破。
   &__tools {
     display: flex;
-    flex: none;
+    flex-wrap: wrap;
     gap: spacing('2xs');
     align-items: center;
+    justify-content: flex-end;
   }
 
   &__file {

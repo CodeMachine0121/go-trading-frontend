@@ -180,6 +180,9 @@ function toggle() {
   }
 
   // 整條標題列變成一顆鍵時，它仍然要長得像標題列——不多一圈框、不多一塊底色。
+  //
+  // 但它終究是一顆鍵，而一條十七像素高的鍵在手機上按不準：標題本身只有那麼高，
+  // 所以命中範圍要自己撐出來。撐的是高度不是外觀——那條窄帶看起來一模一樣。
   &__identity--collapsible {
     flex: 1;
     align-items: center;
@@ -189,6 +192,7 @@ function toggle() {
     padding: 0;
     text-align: left;
 
+    @include tap-target;
     @include focus-ring;
   }
 
