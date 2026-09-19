@@ -11,6 +11,9 @@
  *
  * 它只走路與看，不按任何會改變資料的東西：這是別人的正式資料。
  *
+ * 登入用的帳密放在 `.env`（`SHOTS_EMAIL` / `SHOTS_PASSWORD`，該檔不進版控），
+ * 或直接用環境變數傳進來。
+ *
  * 用法：
  *   bun run dev                      # 另一個終端，開著不要關
  *   node scripts/shots.mjs           # 三種寬度全跑
@@ -73,23 +76,35 @@ async function letTheBrowserReadProduction(context) {
 }
 
 /**
- * 登入一次，把那一份登入狀態存起來給後面每一個視窗用。
+ * 帳密從哪裡來：環境變數優先，其次是 `.env`（那個檔本來就不進版控）。
  *
- * 帳密從 `.env.shots` 讀（該檔不進版控）——不寫進腳本、也不從命令列傳，
- * 那兩種都會把它留在某個人讀得到的紀錄裡。
+ * 不從命令列參數拿——那會把密碼留在 shell 的歷史紀錄與行程清單上。
  */
+async function readCredentials() {
+  const fromFile = existsSync('.env')
+    ? Object.fromEntries((await readFile('.env', 'utf8'))
+        .split('\n')
+        .filter(line => line.includes('=') && !line.trim().startsWith('#'))
+        .map(line => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim()]))
+    : {}
+
+  return {
+    email: process.env.SHOTS_EMAIL ?? fromFile.SHOTS_EMAIL,
+    password: process.env.SHOTS_PASSWORD ?? fromFile.SHOTS_PASSWORD,
+  }
+}
+
+/** 登入一次，把那一份登入狀態存起來給後面每一個視窗用。 */
 async function signInOnce(browser) {
   if (existsSync(SESSION_FILE)) {
     return SESSION_FILE
   }
 
-  const secrets = Object.fromEntries((await readFile('.env.shots', 'utf8'))
-    .split('\n')
-    .filter(line => line.includes('=') && !line.trim().startsWith('#'))
-    .map(line => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim()]))
+  const { email, password } = await readCredentials()
 
-  if (!secrets.SHOTS_EMAIL || !secrets.SHOTS_PASSWORD) {
-    throw new Error('請在 .env.shots 裡給 SHOTS_EMAIL 與 SHOTS_PASSWORD（該檔不進版控）')
+  if (email === undefined || password === undefined) {
+    throw new Error('請在 .env 裡給 SHOTS_EMAIL 與 SHOTS_PASSWORD（`.env` 不進版控），'
+      + '或用環境變數傳進來。只跑伺服器端那一版的話加上 --no-js，那一趟不必登入。')
   }
 
   const context = await browser.newContext()
@@ -97,8 +112,8 @@ async function signInOnce(browser) {
   const page = await context.newPage()
 
   await page.goto(`${SITE}/login`, { waitUntil: 'networkidle' })
-  await page.getByTestId('email-input').fill(secrets.SHOTS_EMAIL)
-  await page.getByTestId('password-input').fill(secrets.SHOTS_PASSWORD)
+  await page.getByTestId('email-input').fill(email)
+  await page.getByTestId('password-input').fill(password)
   await page.getByTestId('submit').click()
   await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20_000 })
 
