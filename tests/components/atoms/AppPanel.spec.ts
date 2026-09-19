@@ -84,4 +84,57 @@ describe('AppPanel', () => {
     expect(withoutFooter.find('footer').exists()).toBe(false)
     expect(withFooter.get('[data-testid="covered"]').text()).toBe('涵蓋一整天')
   })
+
+  describe('一打開就已經收著', () => {
+    it.each([
+      ['收著', true, false],
+      ['開著', false, true],
+    ])('環境說它該是%s的', (_label, initiallyCollapsed, contentIsRendered) => {
+      const wrapper = mount(AppPanel, {
+        props: { title: '看什麼', collapsible: true, initiallyCollapsed },
+        slots: { default: '<p data-testid="content">交易標的</p>' },
+      })
+
+      expect(wrapper.find('[data-testid="content"]').exists()).toBe(contentIsRendered)
+    })
+
+    it('收不起來的面板不會因為環境的一句話就消失', () => {
+      // 這句話說的是「一開始收著」，而一塊收不起來的面板從來就沒有「收著」這個狀態。
+      const wrapper = mount(AppPanel, {
+        props: { title: '查詢結果', initiallyCollapsed: true },
+        slots: { default: '<p data-testid="content">兩百根</p>' },
+      })
+
+      expect(wrapper.find('[data-testid="content"]').exists()).toBe(true)
+    })
+
+    it('環境晚一步才說話，還沒動過手的面板跟著改', async () => {
+      // 伺服器端量不到視窗，第一次畫出來的一律是寬螢幕那一版；
+      // 到了瀏覽器才知道這是一支手機，那一次補正必須發生。
+      const wrapper = mount(AppPanel, {
+        props: { title: '看什麼', collapsible: true, initiallyCollapsed: false },
+        slots: { default: '<p data-testid="content">交易標的</p>' },
+      })
+
+      await wrapper.setProps({ initiallyCollapsed: true })
+
+      expect(wrapper.find('[data-testid="content"]').exists()).toBe(false)
+    })
+
+    it('自己按過之後，環境再說什麼都不算數', async () => {
+      // 他的手比環境的猜測大。手機轉橫再轉直，環境會前後說兩次話，
+      // 而他在那之前已經親手把它打開了——那一下不該被任何一句蓋掉。
+      const wrapper = mount(AppPanel, {
+        props: { title: '看什麼', collapsible: true, initiallyCollapsed: true },
+        slots: { default: '<p data-testid="content">交易標的</p>' },
+      })
+
+      await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
+
+      await wrapper.setProps({ initiallyCollapsed: false })
+      await wrapper.setProps({ initiallyCollapsed: true })
+
+      expect(wrapper.find('[data-testid="content"]').exists()).toBe(true)
+    })
+  })
 })

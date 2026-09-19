@@ -24,6 +24,7 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
@@ -37,6 +38,7 @@ const {
   liveKCandleApplication,
   strategyScriptApplication,
   timeZone,
+  layoutDensity,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
@@ -45,6 +47,13 @@ const {
   strategyScriptApplication: StrategyScriptApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
+  /**
+   * 現在這個寬度代表什麼。這裡只用到其中一項：控制項一開始收不收。
+   *
+   * 它由頁面問來、往下傳，而不是這裡自己去問——這個有機體因此在任何地方
+   * 都掛得起來，包括一個沒有整個應用程式在跑的測試裡。
+   */
+  layoutDensity: LayoutDensityDto
 }>()
 
 const symbol = ref(DEFAULT_SYMBOL)
@@ -429,6 +438,7 @@ onMounted(async () => {
     <AppPanel
       title="看什麼"
       collapsible
+      :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
     >
       <KCandleChartToolbar
         v-model:symbol="symbol"

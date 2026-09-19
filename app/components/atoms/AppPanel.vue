@@ -10,29 +10,62 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 // 標題列是一條有底色的窄帶，標題本身小而暗，版面的亮度全部留給裡面的資料。
 //
 // 它不認識任何領域概念：標題是一個字串，其餘一切走插槽。
-const { title = null, flush = false, collapsible = false } = defineProps<{
-  title?: string | null
-  /**
-   * 內容自己貼齊四邊，面板不留內距。
-   *
-   * 表格、圖與編輯器都是「自己就是一整塊」的東西——它們的邊界就該是面板的邊界。
-   * 讓面板再包一層內距，看起來像把一張紙墊在框裡，而不是一個嵌在儀器上的螢幕。
-   */
-  flush?: boolean
-  /**
-   * 這塊面板收得起來——標題列變成一顆可以按的鍵，按一下把內容收掉只留那條窄帶。
-   *
-   * 給控制項面板用的：控制項是「調一次、看很久」的東西，
-   * 而它旁邊那張圖是這個畫面存在的理由。收起來讓出去的高度，圖會自己吃掉。
-   */
-  collapsible?: boolean
-}>()
+const { title = null, flush = false, collapsible = false, initiallyCollapsed = false }
+  = defineProps<{
+    title?: string | null
+    /**
+     * 內容自己貼齊四邊，面板不留內距。
+     *
+     * 表格、圖與編輯器都是「自己就是一整塊」的東西——它們的邊界就該是面板的邊界。
+     * 讓面板再包一層內距，看起來像把一張紙墊在框裡，而不是一個嵌在儀器上的螢幕。
+     */
+    flush?: boolean
+    /**
+     * 這塊面板收得起來——標題列變成一顆可以按的鍵，按一下把內容收掉只留那條窄帶。
+     *
+     * 給控制項面板用的：控制項是「調一次、看很久」的東西，
+     * 而它旁邊那張圖是這個畫面存在的理由。收起來讓出去的高度，圖會自己吃掉。
+     */
+    collapsible?: boolean
+    /**
+     * 一打開這個畫面的時候，它是不是就已經收著的。
+     *
+     * 給的是**環境的意見**，不是使用者的：窄螢幕上控制項一開始就該收著，
+     * 因為那塊高度在手機上是圖唯一能長大的方向。
+     *
+     * 使用者一旦自己按過那條標題列，這個意見就不再算數——他的手比環境的猜測大。
+     */
+    initiallyCollapsed?: boolean
+  }>()
 
 /**
  * 收起來了沒有。**它住在這裡**：哪一塊面板收著不影響任何其他東西，
  * 一路傳到外面去，只是要求每個用到面板的地方都替它記一個布林。
+ *
+ * 一塊收不起來的面板上這個值沒有意義，而那件事由樣板那一個 v-if 一處決定——
+ * 在這裡再判斷一次，兩處遲早會有一處說不同的話。
  */
-const collapsed = ref(false)
+const collapsed = ref(initiallyCollapsed)
+
+/**
+ * 使用者自己按過了沒有。
+ *
+ * 環境的意見會晚一步到：伺服器端量不到視窗，所以第一次畫出來的一律是寬螢幕那一版，
+ * 到了瀏覽器才知道這是一支手機。那一次補正必須發生，否則手機上永遠是展開的；
+ * 但它不能蓋掉使用者在那之前按下的那一下。
+ */
+const chosenByHand = ref(false)
+
+watch(() => initiallyCollapsed, (shouldStartCollapsed) => {
+  if (!chosenByHand.value) {
+    collapsed.value = shouldStartCollapsed
+  }
+})
+
+function toggle() {
+  chosenByHand.value = true
+  collapsed.value = !collapsed.value
+}
 </script>
 
 <template>
@@ -55,7 +88,7 @@ const collapsed = ref(false)
         :type="collapsible ? 'button' : undefined"
         :aria-expanded="collapsible ? String(!collapsed) : undefined"
         :data-testid="collapsible ? 'toggle-panel' : undefined"
-        @click="collapsible && (collapsed = !collapsed)"
+        @click="collapsible && toggle()"
       >
         <AppIcon
           v-if="collapsible"

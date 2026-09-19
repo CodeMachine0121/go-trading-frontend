@@ -17,6 +17,7 @@ import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../..
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { onADesktop } from '../../fixtures/layout-density'
 
 const CURRENT_TIME = new Date('2026-09-03T12:00:00.000Z')
 
@@ -100,6 +101,7 @@ async function mountPanel() {
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
+      layoutDensity: onADesktop(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -294,6 +296,7 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
+        layoutDensity: onADesktop(),
       },
       global: { stubs: { KCandleChart: true } },
     })

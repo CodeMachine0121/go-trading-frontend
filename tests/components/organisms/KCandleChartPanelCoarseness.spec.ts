@@ -18,6 +18,7 @@ import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-a
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { onADesktop } from '../../fixtures/layout-density'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -59,6 +60,7 @@ async function mountPanel(
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
+      layoutDensity: onADesktop(),
     },
     global: { stubs: { KCandleChart: true } },
   })
