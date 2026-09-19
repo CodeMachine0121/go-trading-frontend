@@ -17,6 +17,11 @@ coverage
 .env.*
 !.env.example
 
+# 調版面用的：截圖、登入狀態、那組帳密。三樣都不進版控——
+# 前兩者是產出物，第三樣是別人的正式帳號。
+.screenshots
+.auth.json
+
 # 編輯器 / 系統
 .DS_Store
 .idea
