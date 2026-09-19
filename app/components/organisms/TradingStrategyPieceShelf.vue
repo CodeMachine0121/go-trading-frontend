@@ -27,6 +27,11 @@ const { sources, placedLabels, intervalOptions } = defineProps<{
    * 兩種說同一句話，等於把後者推去建第五支同樣用不了的腳本。
    */
   shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
+  /**
+   * 現在編不編得動。編不動的時候零件仍然看得到，但拿不起來、也沒有那幾顆按鈕——
+   * 一顆按下去什麼都不會發生的鍵，比沒有那顆鍵更難解釋。
+   */
+  editable: boolean
 }>()
 
 const emit = defineEmits<{
@@ -52,7 +57,7 @@ function intervalLabelOf(interval: string): string {
   <section
     class="shelf"
     data-testid="shelf"
-    v-bind="SHELF_DROP_MARKUP"
+    v-bind="editable ? SHELF_DROP_MARKUP : {}"
   >
     <h3 class="shelf__heading">
       零件架
@@ -94,11 +99,16 @@ function intervalLabelOf(interval: string): string {
         -->
         <div
           class="shelf__piece"
-          :class="{ 'shelf__piece--in-use': isPlaced(source.label) }"
+          :class="{
+            'shelf__piece--in-use': isPlaced(source.label),
+            'shelf__piece--static': !editable,
+          }"
           :data-testid="`shelf-piece-${source.label}`"
-          v-bind="pieceDragMarkup(source.label, 'shelf')"
+          v-bind="editable ? pieceDragMarkup(source.label, 'shelf') : {}"
         >
+          <!-- 那三個點說的是「這塊拿得起來」。拿不起來的時候它是一句謊話。 -->
           <span
+            v-if="editable"
             class="shelf__grip"
             aria-hidden="true"
           >⠿</span>
@@ -106,6 +116,7 @@ function intervalLabelOf(interval: string): string {
           <span class="shelf__piece-note">{{ intervalLabelOf(source.aggregationInterval) }}</span>
 
           <AppButton
+            v-if="editable"
             type="button"
             variant="ghost"
             size="small"
@@ -116,6 +127,7 @@ function intervalLabelOf(interval: string): string {
             ⚙
           </AppButton>
           <AppButton
+            v-if="editable"
             type="button"
             variant="danger-ghost"
             size="small"
@@ -128,7 +140,7 @@ function intervalLabelOf(interval: string): string {
         </div>
       </li>
 
-      <li v-if="canAdd && shortage === null">
+      <li v-if="editable && canAdd && shortage === null">
         <AppButton
           type="button"
           variant="secondary"
@@ -140,7 +152,7 @@ function intervalLabelOf(interval: string): string {
           ＋ 加一塊零件
         </AppButton>
       </li>
-      <li v-else-if="shortage === null">
+      <li v-else-if="editable && shortage === null">
         <span class="shelf__note">架子上最多 {{ signalSourceLimit }} 塊</span>
       </li>
     </ul>
@@ -167,6 +179,11 @@ function intervalLabelOf(interval: string): string {
     margin: 0;
     color: color('text-faint');
     font-size: font-size('2xs');
+  }
+
+  // 拿不起來的零件不要長得像拿得起來的：游標不變手、按下去不反白。
+  &__piece--static {
+    cursor: default;
   }
 
   &__pieces {

@@ -23,6 +23,10 @@ const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth(
 // 側欄底下那一行：現在是誰在用。它與那顆連線燈一樣是「這條線路的狀態」，
 // 所以同樣由頁面填進樣板的插槽——樣板不綁任何資料。
 const { currentUser, signOut } = useUserSession()
+
+// 現在這個寬度代表什麼。這一頁用到的是「控制項一開始收不收」——
+// 手機上這一頁是為了看圖而存在的，那塊高度先讓給圖。
+const { layoutDensity } = useLayoutDensity()
 </script>
 
 <template>
@@ -62,6 +66,7 @@ const { currentUser, signOut } = useUserSession()
       :live-k-candle-application="$liveKCandleApplication"
       :strategy-script-application="$strategyScriptApplication"
       :time-zone="selectedTimeZone"
+      :layout-density="layoutDensity"
     />
   </ConsoleLayout>
 </template>

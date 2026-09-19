@@ -62,6 +62,9 @@ describe('KCandleTable', () => {
     })
 
     expect(wrapper.get('[data-testid="empty-result"]').text()).toContain('查無 K 線')
+    // 連表格本身都不畫：一張只有表頭的空表格會在窄螢幕上留下一條捲不動的捲軸，
+    // 而那條捲軸看起來像是有東西可以捲過去。
+    expect(wrapper.find('table').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="result-count"]').text()).toBe('共 0 根')
   })

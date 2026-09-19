@@ -26,6 +26,7 @@ const TOKEN_MAPS = {
   'z-index': '$z-indices',
   'duration': '$durations',
   'font-family': '$font-families',
+  'control-size': '$control-sizes',
 }
 
 /** 一張表裡宣告了哪幾個名字。 */

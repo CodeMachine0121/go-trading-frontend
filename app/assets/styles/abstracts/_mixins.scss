@@ -9,6 +9,14 @@
   }
 }
 
+// 一個要用手指按的東西至少要多大。
+//
+// 只給**可以按的東西**用，不要拿它去墊版面——它撐開的是命中範圍，不是外觀。
+// 寬螢幕上那個值是零，所以這一行在桌機上完全沒有作用：尺寸仍然由內距與字級決定。
+@mixin tap-target {
+  min-height: control-size('tap-target');
+}
+
 @mixin visually-hidden {
   position: absolute;
   overflow: hidden;

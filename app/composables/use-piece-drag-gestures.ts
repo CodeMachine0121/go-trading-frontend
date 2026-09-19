@@ -38,10 +38,18 @@ function swallowTheClickAfterADrag() {
  *
  * interact.js 只在瀏覽器裡載入——它一進來就摸 window，而這個站是會做伺服器渲染的。
  *
+ * **編不動的時候一個手勢都不掛。** 掛上去再擋是另一回事：那樣仍然攔得到觸控，
+ * 於是使用者在一張改不動的工作檯上連頁面都捲不動——他會以為畫面當掉了。
+ *
  * @param pieceDrag 手上拿著什麼、放下去算哪一種搬動
+ * @param editable 現在編不編得動。它會在使用中改變（轉個方向、拉動視窗），
+ *   所以是一個跟著變的值，不是掛載那一刻的一個快照
  * @returns benchElement 要掛到工作檯最外層那個元素上；選擇器只在它底下生效
  */
-export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>) {
+export function usePieceDragGestures(
+  pieceDrag: ReturnType<typeof usePieceDrag>,
+  editable: MaybeRefOrGetter<boolean>,
+) {
   const benchElement = ref<HTMLElement | null>(null)
 
   /** 拖到現在累積移動了多少。一次只拖得動一塊，所以一組數字就夠。 */
@@ -58,14 +66,18 @@ export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>)
    */
   let stillMounted = true
 
-  onMounted(async () => {
+  async function wireUpGestures() {
     const root = benchElement.value
     if (root === null) {
       return
     }
 
     const interact = (await import('interactjs')).default
-    if (!stillMounted) {
+
+    // 載入那一段是一個 await，而這段時間裡兩件事都可能發生：使用者離開了這一頁，
+    // 或視窗被拉窄到編不動。兩種情況下都不能再掛上去——那一次掛上去之後
+    // 沒有任何人會來收它，因為要它收手的那一句話早就說完了。
+    if (!stillMounted || !toValue(editable)) {
       return
     }
 
@@ -130,12 +142,33 @@ export function usePieceDragGestures(pieceDrag: ReturnType<typeof usePieceDrag>)
       pieces.unset()
       zones.unset()
     }
+  }
+
+  function unwireGestures() {
+    teardown?.()
+    teardown = null
+  }
+
+  onMounted(() => {
+    if (toValue(editable)) {
+      void wireUpGestures()
+    }
+  })
+
+  // 編不編得動會在使用中改變：把視窗拉窄到編不動的寬度時，已經做過的改動留著，
+  // 但從那一刻起拖不動；再拉寬回來時它要能拖回來。
+  watch(() => toValue(editable), (canEdit) => {
+    if (canEdit) {
+      void wireUpGestures()
+    }
+    else {
+      unwireGestures()
+    }
   })
 
   onBeforeUnmount(() => {
     stillMounted = false
-    teardown?.()
-    teardown = null
+    unwireGestures()
   })
 
   return { benchElement }

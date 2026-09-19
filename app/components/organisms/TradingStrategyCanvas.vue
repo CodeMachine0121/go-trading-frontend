@@ -19,18 +19,27 @@ import { usePieceDragGestures } from '~/composables/use-piece-drag-gestures'
 // 拖曳本身不在這裡：手上拿著什麼、放下去算哪一種搬動住在 usePieceDrag，
 // 而怎麼從指標事件讀出那兩件事住在 usePieceDragGestures。這一層只把兩者接上，
 // 並把結果往上報。
-const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId } = defineProps<{
-  sources: readonly TradingStrategySignalSourceDto[]
-  buyBoard: ConditionBoardDto
-  sellBoard: ConditionBoardDto
-  strategyScriptOptions: readonly { value: number, label: string }[]
-  intervalOptions: readonly { value: string, label: string }[]
-  parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
-  unusableStrategyScripts: Readonly<Record<number, string>>
-  canAdd: boolean
-  signalSourceLimit: number
-  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
-}>()
+const { sources, buyBoard, sellBoard, parameterNamesByStrategyScriptId, editable }
+  = defineProps<{
+    sources: readonly TradingStrategySignalSourceDto[]
+    buyBoard: ConditionBoardDto
+    sellBoard: ConditionBoardDto
+    strategyScriptOptions: readonly { value: number, label: string }[]
+    intervalOptions: readonly { value: string, label: string }[]
+    parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
+    unusableStrategyScripts: Readonly<Record<number, string>>
+    canAdd: boolean
+    signalSourceLimit: number
+    shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
+    /**
+     * 這張工作檯現在編不編得動。
+     *
+     * 編不動的時候**內容一個字都不少**——拼好的條件仍然看得到，因為
+     * 「在手機上查一眼我派出去的策略長什麼樣」是真實的用途；
+     * 「在手機上組一條策略」不是。窄螢幕減的是可編輯性，不是可讀性。
+     */
+    editable: boolean
+  }>()
 
 const emit = defineEmits<{
   add: []
@@ -61,7 +70,7 @@ const pieceDrag = usePieceDrag(
   (side, sourceLabel, targetLabel) => emit('bundleOnto', side, sourceLabel, targetLabel),
 )
 
-const { benchElement } = usePieceDragGestures(pieceDrag)
+const { benchElement } = usePieceDragGestures(pieceDrag, () => editable)
 
 /** 正在調設定的那一塊零件，用它在架子上的位置記。 */
 const tuningIndex = ref<number | null>(null)
@@ -81,6 +90,15 @@ const placedLabels = computed(
 <template>
   <div class="canvas">
     <AppAlert
+      v-if="!editable"
+      tone="info"
+      data-testid="read-only-notice"
+    >
+      這個螢幕的寬度排不開一張工作檯，所以這裡只能看不能改。
+      條件長什麼樣仍然看得到；要修改請換一個寬一點的螢幕。
+    </AppAlert>
+
+    <AppAlert
       v-for="mat in MATS.filter(candidate => !candidate.board().representable)"
       :key="`unrepresentable-${mat.key}`"
       tone="warning"
@@ -96,6 +114,7 @@ const placedLabels = computed(
       class="canvas__bench"
     >
       <TradingStrategyPieceShelf
+        :editable="editable"
         :sources="sources"
         :placed-labels="placedLabels"
         :interval-options="intervalOptions"
@@ -110,6 +129,7 @@ const placedLabels = computed(
       <TradingStrategyConditionMat
         v-for="mat in MATS"
         :key="mat.key"
+        :editable="editable"
         :board="mat.board()"
         :heading="mat.heading"
         :side="mat.key"

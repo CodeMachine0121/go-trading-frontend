@@ -86,6 +86,9 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   font-weight: font-weight('medium');
   white-space: nowrap;
 
+  // 窄螢幕上按的是拇指，不是游標。寬螢幕上這一行等於沒有作用。
+  @include tap-target;
+
   // 當成連結用時，底線與瀏覽器的預設顏色會讓它不再像一顆按鈕。
   text-decoration: none;
 

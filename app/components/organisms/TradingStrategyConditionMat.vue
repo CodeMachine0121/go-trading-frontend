@@ -35,6 +35,13 @@ const { board, heading, side, hoveringAt, carrying } = defineProps<{
    * 而那只是給了未來某個人一個把它們餵成不同值的機會。
    */
   side: ConditionSideVo
+  /**
+   * 這張墊子現在編不編得動。
+   *
+   * 編不動的時候，拼好的條件一個字都不少——那正是在窄螢幕上打開它的理由；
+   * 少掉的只有「動得了它」的那幾樣：拿起來、拆出來、收回架子、改那兩個且或。
+   */
+  editable: boolean
 }>()
 
 const emit = defineEmits<{
@@ -132,7 +139,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             'mat__drop-line--armed': hoveringAt === position,
           }"
           :data-testid="`drop-${side}-${position}`"
-          v-bind="slotDropMarkup(side, position)"
+          v-bind="editable ? slotDropMarkup(side, position) : {}"
         >
           <!--
             只有正被懸著的那一條說話。四條帶子同時寫著同一句，那句話就變成背景。
@@ -159,6 +166,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             <span class="mat__note">這一組裡面</span>
             <AppSelect
               :model-value="item.operator ?? 'or'"
+              :disabled="!editable"
               :data-testid="`bundle-operator-${side}-${item.key}`"
               @update:model-value="onBundleOperatorChange(item.key, $event)"
             >
@@ -181,19 +189,21 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
             :key="piece.sourceLabel"
             class="mat__piece"
             :data-testid="`placed-${side}-${piece.sourceLabel}`"
-            v-bind="{
+            v-bind="editable ? {
               ...pieceDragMarkup(piece.sourceLabel, side),
               ...pieceDropMarkup(side),
-            }"
+            } : {}"
           >
+            <!-- 那三個點說的是「這塊拿得起來」。拿不起來的時候它是一句謊話。 -->
             <span
+              v-if="editable"
               class="mat__grip"
               aria-hidden="true"
             >⠿</span>
             <span class="mat__piece-name">{{ piece.sourceLabel }}</span>
 
             <AppButton
-              v-if="item.isBundle"
+              v-if="editable && item.isBundle"
               type="button"
               variant="ghost"
               size="small"
@@ -204,6 +214,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
               ⇱
             </AppButton>
             <AppButton
+              v-if="editable"
               type="button"
               variant="ghost"
               size="small"
@@ -230,6 +241,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
                   { 'mat__chip--on': piece.acceptedSignals.includes(chip.value) },
                 ]"
                 :aria-pressed="piece.acceptedSignals.includes(chip.value)"
+                :disabled="!editable"
                 :data-testid="`chip-${side}-${piece.sourceLabel}-${chip.value}`"
                 @click="emit('toggleSignal', piece.sourceLabel, chip.value)"
               >
@@ -252,9 +264,12 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
           class="mat__landing"
           :class="{ 'mat__landing--armed': hoveringAt === board.items.length }"
           :data-testid="`drop-${side}-end`"
-          v-bind="slotDropMarkup(side, board.items.length)"
+          v-bind="editable ? slotDropMarkup(side, board.items.length) : {}"
         >
-          {{ board.items.length === 0 ? '這張墊子還是空的' : '疊在某一塊上就扣成一組' }}
+          <!-- 編不動的時候不說「疊在某一塊上就扣成一組」——那是一句做不到的指示。 -->
+          {{ board.items.length === 0
+            ? '這張墊子還是空的'
+            : (editable ? '疊在某一塊上就扣成一組' : '') }}
         </div>
       </li>
     </ul>
@@ -263,6 +278,7 @@ function onBundleOperatorChange(itemKey: string, chosen: string) {
       <span class="mat__note">墊子上這幾塊要</span>
       <AppSelect
         :model-value="board.operator"
+        :disabled="!editable"
         :data-testid="`operator-${side}`"
         @update:model-value="onOperatorChange($event)"
       >

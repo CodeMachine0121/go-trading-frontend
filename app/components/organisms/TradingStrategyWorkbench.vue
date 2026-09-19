@@ -7,6 +7,7 @@ import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.
 import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
+import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 
 // 有機體：拼一份交易策略的整個工作台。
@@ -36,6 +37,7 @@ const {
   saving,
   failureMessage,
   savedGeneration,
+  layoutDensity,
 }
   = defineProps<{
   /** 有值就是改那一份，沒有就是新的一份。 */
@@ -53,6 +55,13 @@ const {
     failureMessage: string
     /** 這一份被成功存過幾次。每多一次，「打開時的樣子」就重新記一次。 */
     savedGeneration: number
+    /**
+     * 現在這個寬度代表什麼。這裡用到的是「積木工作檯編不編得動」。
+     *
+     * 它由上面那一層問來、往下傳：這個有機體因此在任何地方都掛得起來，
+     * 包括一個沒有整個應用程式在跑的測試裡。
+     */
+    layoutDensity: LayoutDensityDto
   }>()
 
 const emit = defineEmits<{
@@ -137,6 +146,7 @@ function onSave() {
     </div>
 
     <TradingStrategyCanvas
+      :editable="layoutDensity.allowsBlockEditing"
       :sources="form.signalSources.value"
       :buy-board="form.conditionSides[0].board.value"
       :sell-board="form.conditionSides[1].board.value"

@@ -9,6 +9,7 @@ import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-stra
 import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
 import { TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
+import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
   return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
@@ -52,6 +53,7 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
       saving: false,
       failureMessage: '',
       savedGeneration: 0,
+      layoutDensity: onADesktop(),
     },
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
@@ -471,6 +473,7 @@ describe('TradingStrategyWorkbench：零件指著一支挑不得的策略腳本'
         saving: false,
         failureMessage: '',
         savedGeneration: 0,
+        layoutDensity: onADesktop(),
       },
     })
   }
@@ -525,6 +528,7 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子�
         saving: false,
         failureMessage: '',
         savedGeneration: 0,
+        layoutDensity: onADesktop(),
       },
     })
   }
@@ -690,5 +694,96 @@ describe('TradingStrategyWorkbench：這一份是寫給哪一種帳戶的', () =
       .get('[data-testid="trading-strategy-trading-mode-spot-radio"] input').setValue()
 
     expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+  })
+})
+
+describe('TradingStrategyWorkbench：螢幕窄到排不開一張工作檯', () => {
+  function onAScreenThatCannotEdit() {
+    return mount(TradingStrategyWorkbench, {
+      props: {
+        editing: aBot(),
+        strategyScriptOptions: [{ value: 9, label: 'MACD' }],
+        tradingModeOptions: TRADING_MODE_OPTIONS,
+        parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
+        unusableStrategyScripts: {},
+        shortage: null,
+        saving: false,
+        failureMessage: '',
+        savedGeneration: 0,
+        layoutDensity: onAPhone(),
+      },
+      global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
+    })
+  }
+
+  it('拼好的條件一個字都不少——那正是在手機上打開它的理由', async () => {
+    const wrapper = onAScreenThatCannotEdit()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="placed-sell-MACD"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="shelf-piece-MACD"]').exists()).toBe(true)
+  })
+
+  it('原地說出為什麼改不了，以及下一步去哪裡', async () => {
+    const wrapper = onAScreenThatCannotEdit()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="read-only-notice"]').text()).toContain('只能看不能改')
+  })
+
+  it('動得了它的那幾樣都不在：拿起來、拆回架子、加一塊、丟掉一塊', async () => {
+    // 一顆按下去什麼都不會發生的鍵，比沒有那顆鍵更難解釋。
+    const wrapper = onAScreenThatCannotEdit()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="take-off-buy-MACD"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-add"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-remove"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-settings-0"]').exists()).toBe(false)
+  })
+
+  it('那幾個且與或看得到但改不動', async () => {
+    const wrapper = onAScreenThatCannotEdit()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="operator-buy"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('零件身上不再標著「拿得起來」，所以手勢那一層也接不到它', async () => {
+    // 標記留著、只是讓拖曳失效的那一版仍然會攔住觸控，
+    // 於是使用者在一張改不動的工作檯上連頁面都捲不動——他會以為畫面當掉了。
+    const wrapper = onAScreenThatCannotEdit()
+    await flushPromises()
+
+    expect(pickedUpPieceOf(wrapper.get('[data-testid="shelf-piece-MACD"]').element as HTMLElement))
+      .toBeNull()
+  })
+
+  it('寬得下的時候那幾樣都回來了', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="read-only-notice"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="take-off-buy-MACD"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="operator-buy"]').attributes('disabled')).toBeUndefined()
+    expect(pickedUpPieceOf(wrapper.get('[data-testid="shelf-piece-MACD"]').element as HTMLElement))
+      .not.toBeNull()
+  })
+})
+
+describe('TradingStrategyWorkbench：改到一半螢幕變窄了', () => {
+  it('已經做過的改動留著，只是從那一刻起改不動', async () => {
+    // 轉個方向就把人做到一半的東西丟掉，比不讓他改更糟。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+    await wrapper.get('[data-testid="trading-strategy-name-input"]').setValue('改了一半的名字')
+
+    await wrapper.setProps({ layoutDensity: onAPhone() })
+
+    expect((wrapper.get('[data-testid="trading-strategy-name-input"]').element as HTMLInputElement).value)
+      .toBe('改了一半的名字')
+    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="read-only-notice"]').text()).toContain('只能看不能改')
   })
 })

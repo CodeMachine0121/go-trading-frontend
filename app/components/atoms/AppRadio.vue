@@ -54,6 +54,8 @@ const modelValue = defineModel<string>({ required: true })
   padding: spacing('xs');
   gap: spacing('2xs');
 
+  @include tap-target;
+
   &:hover:not(&--disabled) {
     border-color: color('text-faint');
   }

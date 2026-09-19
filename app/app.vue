@@ -61,6 +61,9 @@ const {
   endResize,
 } = useAssistantDrawerWidth()
 
+// 現在這個寬度代表什麼。這裡用到的是「助手蓋不蓋滿整個畫面」。
+const { layoutDensity } = useLayoutDensity()
+
 /**
  * 拖曳中的 pointer 事件掛在 window 上，因為手一快就會離開那顆鍵——
  * 掛在鍵上的話，拖到一半游標跑出去，那顆鍵就黏在半路上不動了。
@@ -153,6 +156,7 @@ onBeforeUnmount(() => {
     :conversations-error-message="conversationsErrorMessage"
     :width="drawerWidth"
     :resizing="resizing"
+    :covers-screen="layoutDensity.assistantCoversScreen"
     @close-drawer="closeDrawer()"
     @send="question => ask(question)"
     @retry="retry()"

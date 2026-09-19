@@ -123,7 +123,10 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   gap: spacing('md');
-  min-width: 22rem;
+
+  // 想要這麼寬，但螢幕放不下就跟著螢幕：寫死的最小寬在一支手機上
+  // 會把對話框的右半邊推到螢幕外，而「儲存」正好在那一半。
+  min-width: min(22rem, 100%);
 
   &__section {
     display: flex;

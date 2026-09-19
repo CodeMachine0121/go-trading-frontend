@@ -20,6 +20,7 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 // 圖本身以 stub 取代：它要的是真正的畫布，而它畫得對不對是它自己的測試在管。
@@ -56,6 +57,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
 async function mountPanel(
   kCandleProxy: IKCandleProxy,
   tradingSymbolApplication = buildTradingSymbolApplication(),
+  layoutDensity = onADesktop(),
 ) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
@@ -65,6 +67,7 @@ async function mountPanel(
       chartIndicatorApplication: buildChartIndicatorApplication(),
       strategyScriptApplication: buildStrategyScriptApplication(),
       timeZone: buildTimeZone(),
+      layoutDensity,
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -292,6 +295,7 @@ describe('KCandleChartPanel', () => {
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyScriptApplication: buildStrategyScriptApplication(),
         timeZone: buildTimeZone(),
+        layoutDensity: onADesktop(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -337,6 +341,20 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['手機上一進來控制項就收著，高度先讓給圖', onAPhone(), false],
+    ['桌機上一進來控制項是展開的', onADesktop(), true],
+  ])('%s', async (_label, layoutDensity, controlsAreShown) => {
+    const wrapper = await mountPanel(
+      buildProxy({ findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([])) }),
+      buildTradingSymbolApplication(),
+      layoutDensity,
+    )
+
+    expect(wrapper.get('[data-testid="toggle-panel"]').attributes('aria-expanded'))
+      .toBe(String(controlsAreShown))
   })
 
   it('把控制項收起來，一則「連不上後端」照樣看得見', async () => {

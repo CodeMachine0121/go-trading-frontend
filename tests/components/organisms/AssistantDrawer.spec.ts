@@ -17,6 +17,7 @@ function mountDrawer(props: {
   conversationsErrorMessage?: string | null
   width?: number
   resizing?: boolean
+  coversScreen?: boolean
 }) {
   return mount(AssistantDrawer, {
     props: {
@@ -31,6 +32,7 @@ function mountDrawer(props: {
       activeConversationId: props.activeConversationId ?? null,
       conversationsErrorMessage: props.conversationsErrorMessage ?? null,
       width: props.width ?? 420,
+      coversScreen: props.coversScreen ?? false,
       resizing: props.resizing ?? false,
     },
     global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
@@ -220,6 +222,7 @@ describe('AssistantDrawer 把裡面那兩塊的事件接出去', () => {
         activeConversationId: null,
         conversationsErrorMessage: null,
         width: 420,
+        coversScreen: false,
       },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
     })
@@ -284,5 +287,28 @@ describe('AssistantDrawer 的寬度', () => {
 
     expect(handle.attributes('aria-label')).toContain('調整助手寬度')
     expect(handle.attributes('role')).toBe('separator')
+  })
+})
+
+describe('AssistantDrawer：螢幕窄到助手該蓋滿它', () => {
+  it('那條拉動的邊不存在——拖寬本來就是滑鼠的動作', () => {
+    const wrapper = mountDrawer({ open: true, coversScreen: true })
+
+    expect(wrapper.find('[data-testid="assistant-drawer-resize-handle"]').exists()).toBe(false)
+  })
+
+  it('不採用記著的寬度——它蓋滿的是整個畫面', () => {
+    const wrapper = mountDrawer({ open: true, coversScreen: true, width: 420 })
+
+    expect(wrapper.get('[data-testid="assistant-drawer-panel"]').attributes('style'))
+      .toBeUndefined()
+  })
+
+  it('寬得下的時候，那條邊與記著的寬度都回來了', () => {
+    const wrapper = mountDrawer({ open: true, coversScreen: false, width: 520 })
+
+    expect(wrapper.find('[data-testid="assistant-drawer-resize-handle"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="assistant-drawer-panel"]').attributes('style'))
+      .toContain('520px')
   })
 })

@@ -31,6 +31,7 @@ const modelValue = defineModel<string>({ required: true })
 
   @include numeric;
   @include focus-ring;
+  @include tap-target;
 
   &:hover:not(:disabled) {
     border-color: color('text-faint');

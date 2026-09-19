@@ -143,6 +143,7 @@ function closeOnEscape(event: KeyboardEvent) {
     color: color('text-faint');
 
     @include focus-ring;
+    @include tap-target;
 
     &:hover {
       background-color: color('surface');
