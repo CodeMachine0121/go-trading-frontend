@@ -20,7 +20,13 @@ export class LayoutDensityDto {
     public readonly allowsBlockEditing: boolean,
     /** K 線圖表的「看什麼」一開始就是收起的——高度先讓給圖。 */
     public readonly startsChartControlsCollapsed: boolean,
-    /** 行情助手蓋滿整個畫面（而不是側邊那個可拖寬的抽屜）。 */
+    /**
+     * 行情助手佔掉整個畫面的寬度。
+     *
+     * 隨叫隨到的抽屜因此蓋滿畫面（而不是側邊那塊可拖寬的卡片），
+     * 助手整頁也因此把寬度全給對話、把歷史收到一顆鍵後面——
+     * 同一件事的兩種長相：這個寬度分不出第二欄給任何東西。
+     */
     public readonly assistantCoversScreen: boolean,
   ) {}
 }
