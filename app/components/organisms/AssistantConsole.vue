@@ -66,6 +66,9 @@ function startNewConversation() {
     <!--
       窄螢幕上叫出那一欄的唯一入口。它**只在那時候才畫出來**：
       寬螢幕上清單一直都在，一顆把已經看得到的東西「打開」的鍵只會讓人困惑。
+
+      刻意不標 aria-controls：收起來的時候那一欄**整塊不在** DOM 裡（不是藏起來），
+      而一個指向不存在的東西的 aria-controls，輔助科技跟不過去，比不說更糟。
     -->
     <AppButton
       v-if="layoutDensity.assistantCoversScreen"
@@ -73,7 +76,6 @@ function startNewConversation() {
       size="small"
       class="assistant-console__history-toggle"
       :aria-expanded="conversationListOpen"
-      aria-controls="assistant-conversation-list"
       data-testid="toggle-conversation-list"
       @click="conversationListOpen = !conversationListOpen"
     >
@@ -82,7 +84,6 @@ function startNewConversation() {
 
     <AssistantConversationList
       v-if="!layoutDensity.assistantCoversScreen || conversationListOpen"
-      id="assistant-conversation-list"
       class="assistant-console__list"
       :conversations="conversations"
       :active-conversation-id="activeConversationId"
@@ -140,8 +141,10 @@ $list-width: 16rem;
     flex-direction: column;
   }
 
+  // 這顆鍵只活在窄螢幕那一版，而那一版是 flex column——
+  // 在那裡要它不要撐滿一整條的是 align-self，不是 justify-self（後者只有 grid 認得）。
   &__history-toggle {
-    justify-self: start;
+    align-self: start;
   }
 
   &__list {
