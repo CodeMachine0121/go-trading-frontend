@@ -18,6 +18,8 @@ const WHOLE_SCRIPT = [
 
 async function mountEditor(overrides: { errorMessage?: string | null, modelValue?: string } = {}) {
   const wrapper = mount(IndicatorScriptEditor, {
+    // 掛到真正的文件上：這一份裡有一條驗的是游標落在哪裡，而沒進文件的元素收不到焦點。
+    attachTo: document.body,
     props: {
       modelValue: WHOLE_SCRIPT,
       ...overrides,
@@ -67,6 +69,17 @@ describe('IndicatorScriptEditor', () => {
     const wrapper = await mountEditor({ modelValue: 'package main\n\nfunc Calculate() {}' })
 
     expect(lineNumbersOf(wrapper)).toEqual(['1', '2', '3'])
+  })
+
+  it('點在程式碼下面那片空白上，游標接著最後一行', async () => {
+    // 那片空白看起來就是檔案的後面，點下去卻沒反應的話，使用者會以為編輯區壞了。
+    const wrapper = await mountEditor()
+
+    await wrapper.get('[data-testid="script-filler"]').trigger('mousedown')
+    await flushPromises()
+
+    expect(document.activeElement)
+      .toBe(wrapper.get('[data-testid="script"]').element.querySelector('.cm-content'))
   })
 
   it('內容出錯時把訊息標在算式旁邊', async () => {

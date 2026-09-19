@@ -116,6 +116,24 @@ describe('IndicatorCalculationRequestDomain', () => {
     expect(requestDomain.observationWindow).toBe(anotherWindow)
   })
 
+  it('同時指名一支策略腳本又自帶一段算式時拒絕——說不出實際要跑哪一個', () => {
+    const fieldError = fieldErrorOf(() => new IndicatorCalculationRequestDomain(
+      new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float', [], 7)))
+
+    expect(fieldError.field).toBe('script')
+    expect(fieldError.message).toBe('指名一支策略腳本與自帶一段算式只能挑一種')
+  })
+
+  it('指名一支策略腳本時不帶算式出去——那一段從頭到尾不離開系統', () => {
+    const requestDomain = new IndicatorCalculationRequestDomain(
+      new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, '', 'float', [], 7))
+
+    expect(requestDomain.strategyScriptId).toBe(7)
+    expect(requestDomain.script).toBe('')
+  })
+
   it.each([
     { description: '完全沒填', script: '' },
     { description: '只有空白字元', script: '  \n  ' },
