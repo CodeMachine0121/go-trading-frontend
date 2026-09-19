@@ -59,10 +59,7 @@ function startNewConversation() {
 </script>
 
 <template>
-  <div
-    class="assistant-console"
-    :class="{ 'assistant-console--narrow': layoutDensity.assistantCoversScreen }"
-  >
+  <div class="assistant-console">
     <!--
       窄螢幕上叫出那一欄的唯一入口。它**只在那時候才畫出來**：
       寬螢幕上清單一直都在，一顆把已經看得到的東西「打開」的鍵只會讓人困惑。
@@ -153,12 +150,9 @@ $list-width: 16rem;
     align-self: start;
   }
 
-  &__list {
-    min-height: 0;
-  }
-
   // 攤開的那一欄在窄螢幕上不該把對話擠成一條縫：它自己有高度上限，捲動在它裡面。
   &__list {
+    min-height: 0;
     max-height: 40vh;
 
     @include respond-to('md') {

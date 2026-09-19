@@ -15,12 +15,13 @@
  * 或直接用環境變數傳進來。
  *
  * 用法：
+ *   bunx playwright install chromium # 只有第一次：瀏覽器本體不在 npm 套件裡
  *   bun run dev                      # 另一個終端，開著不要關
  *   node scripts/shots.mjs           # 三種寬度全跑
  *   node scripts/shots.mjs --only=/k-candles/chart --width=390
  *   node scripts/shots.mjs --no-js   # 只截伺服器端畫出來、還沒補正的那一版
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import process from 'node:process'
 import { chromium } from '@playwright/test'
@@ -93,18 +94,32 @@ async function readCredentials() {
     ? Object.fromEntries((await readFile('.env', 'utf8'))
         .split('\n')
         .filter(line => line.includes('=') && !line.trim().startsWith('#'))
-        .map(line => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim()]))
+        .map(line => [
+          line.slice(0, line.indexOf('=')).trim(),
+          // dotenv 的值常常帶引號，而 Windows 存的檔每一行結尾還多一個 \r。
+          // 兩者原樣送進輸入框，後端只會說帳密不對——而那離真正的原因很遠。
+          line.slice(line.indexOf('=') + 1).trim().replace(/\r$/, '').replace(/^(['"])(.*)\1$/, '$2'),
+        ]))
     : {}
 
+  // 空字串不算「有給」：它會通過「有沒有定義」那一關，然後變成一次看不懂的登入逾時。
+  const given = value => (value === undefined || value === '' ? undefined : value)
+
   return {
-    email: process.env.SHOTS_EMAIL ?? fromFile.SHOTS_EMAIL,
-    password: process.env.SHOTS_PASSWORD ?? fromFile.SHOTS_PASSWORD,
+    email: given(process.env.SHOTS_EMAIL) ?? given(fromFile.SHOTS_EMAIL),
+    password: given(process.env.SHOTS_PASSWORD) ?? given(fromFile.SHOTS_PASSWORD),
   }
 }
 
-/** 登入一次，把那一份登入狀態存起來給後面每一個視窗用。 */
-async function signInOnce(browser) {
-  if (existsSync(SESSION_FILE)) {
+/**
+ * 登入一次，把那一份登入狀態存起來給後面每一個視窗用。
+ *
+ * `fresh` 為真時不採用存著的那一份——那一份會過期，而過期之後每一頁都會
+ * 被導回登入畫面。一張登入畫面不會溢出、也沒有太小的鍵，於是整輪三十張
+ * 都會報 ok：**一個會說謊的工具比沒有工具更糟**。
+ */
+async function signInOnce(browser, { fresh = false } = {}) {
+  if (!fresh && existsSync(SESSION_FILE)) {
     return SESSION_FILE
   }
 
@@ -139,11 +154,15 @@ async function signInOnce(browser) {
  */
 async function measure(page, { touch }) {
   return page.evaluate((checkTapTargets) => {
+    // 門檻取自 token 本身（2.5rem × 根字級），不寫死一個數字——
+    // 寫死的那個會在根字級調整的那一天開始說錯話。
+    const smallestTapTarget = 2.5 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+
     const overflowing = [...document.querySelectorAll('*')]
       .filter(element => element.scrollWidth > element.clientWidth + 1
         && getComputedStyle(element).overflowX === 'visible')
       .slice(0, 5)
-      .map(element => `${element.tagName.toLowerCase()}.${element.className}`.slice(0, 80))
+      .map(element => `${element.tagName.toLowerCase()}.${element.getAttribute('class') ?? ''}`.slice(0, 80))
 
     const tooSmallToTap = (checkTapTargets
       ? [...document.querySelectorAll('button, a, [role="button"]')]
@@ -151,10 +170,10 @@ async function measure(page, { touch }) {
       .filter((element) => {
         const box = element.getBoundingClientRect()
 
-        return box.width > 0 && box.height > 0 && box.height < 40
+        return box.width > 0 && box.height > 0 && box.height < smallestTapTarget
       })
       .slice(0, 5)
-      .map(element => `${element.textContent?.trim().slice(0, 16)} (${Math.round(element.getBoundingClientRect().height)}px)`)
+      .map(element => `${element.textContent?.trim().slice(0, 16)} (${Math.round(element.getBoundingClientRect().height)}px，至少要 ${Math.round(smallestTapTarget)}px)`)
 
     return {
       pageScrollsSideways: document.documentElement.scrollWidth > window.innerWidth + 1,
@@ -165,7 +184,22 @@ async function measure(page, { touch }) {
 }
 
 const browser = await chromium.launch()
-const sessionFile = hasFlag('no-js') ? undefined : await signInOnce(browser)
+let sessionFile = hasFlag('no-js') ? undefined : await signInOnce(browser)
+
+/** 存著的那一份還算不算數：拿一頁要登入的畫面去問，被導回登入就是不算。 */
+if (sessionFile !== undefined) {
+  const context = await browser.newContext({ storageState: sessionFile })
+  await letTheBrowserReadProduction(context)
+  const page = await context.newPage()
+  await page.goto(`${SITE}/settings`, { waitUntil: 'networkidle' }).catch(() => {})
+  const bounced = new URL(page.url()).pathname.startsWith('/login')
+  await context.close()
+
+  if (bounced) {
+    await rm(SESSION_FILE, { force: true })
+    sessionFile = await signInOnce(browser, { fresh: true })
+  }
+}
 const onlyPath = argument('only')
 const onlyWidth = argument('width')
 const screens = onlyPath === undefined ? SCREENS : SCREENS.filter(screen => screen.path === onlyPath)
@@ -191,7 +225,16 @@ for (const viewport of viewports) {
   const page = await context.newPage()
 
   for (const screen of screens) {
-    await page.goto(`${SITE}${screen.path}`, { waitUntil: 'networkidle' }).catch(() => {})
+    // 走不到就記下來、跳過。吞掉它的話，拍到的是上一頁，而檔名與報告
+    // 都會掛上這一頁的名字——那比沒有這張圖更糟。
+    const arrived = await page.goto(`${SITE}${screen.path}`, { waitUntil: 'networkidle' })
+      .then(() => true)
+      .catch(() => false)
+
+    if (!arrived) {
+      report.push({ file: `${viewport.name}-${screen.name}`, at: `${viewport.width}px`, unreachable: true, overflowing: [], tooSmallToTap: [] })
+      continue
+    }
 
     // Nuxt 在開發模式會在畫面右下角掛一顆自己的工具鍵。它不是這個 app 的一部分，
     // 卻會擋住那個角落的東西、出現在每一張截圖上。每導覽一次就要再蓋一次。
@@ -214,6 +257,7 @@ await writeFile(`${OUTPUT_DIRECTORY}/report.json`, `${JSON.stringify(report, nul
 
 for (const entry of report) {
   const problems = [
+    entry.unreachable ? '走不到這一頁（逾時或導覽失敗）' : null,
     entry.pageScrollsSideways ? '整頁可以左右拖' : null,
     entry.overflowing.length > 0 ? `撐出去的元素：${entry.overflowing.join(' / ')}` : null,
     entry.tooSmallToTap.length > 0 ? `按不準：${entry.tooSmallToTap.join(' / ')}` : null,

@@ -462,10 +462,10 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
 
     // 窄螢幕：標題與那顆控制項並排，副標自己一整行。
     //
-    // 第二欄給上限而不是讓它跟著內容長：時區選單的字很長（「世界標準時間
-    // （UTC+00:00）」），跟著內容長的話它會佔掉三分之二，把一個五個字的標題
-    // 擠到換行。這一行的主角是「我在哪一個畫面」，時區是設好就不太動的偏好。
-    grid-template-columns: minmax(0, 1fr) minmax(0, 10rem);
+    // 第二欄跟著內容長，但那個內容自己有上限（見 `__context`）。
+    // 給軌道一個固定上限是錯的：有三個畫面根本沒有填那個插槽，
+    // 而固定上限的軌道即使裡面空無一物也會把那段寬度佔著不放。
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: spacing('3xs') spacing('sm');
     align-items: center;
     background-color: color('background');
@@ -514,8 +514,25 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     justify-self: end;
     min-width: 0;
 
+    // 時區選單的字很長（「世界標準時間（UTC+00:00）」），不封頂的話它會佔掉
+    // 三分之二，把一個五個字的標題擠到換行。這一行的主角是「我在哪一個畫面」，
+    // 時區是設好就不太動的偏好。封在元素上而不是軌道上，空插槽才會真的收成零。
+    max-width: 10rem;
+
+    // 光封住這一層不夠：填進來的東西是 flex 的子項，而 flex 子項預設
+    // **不會縮得比自己的內容窄**。那個選單的內容是一串很長的字，於是它撐破
+    // 這一層、再撐破整頁——量出來的視窗會從 390 變成 418。
+    //
+    // `::v-slotted` 是用來管「別人放進我這個位置的東西」的，與伸手去改
+    // 別人家的內部（`:deep`）是兩回事：這裡管的是它在我的版面裡佔多大。
+    ::v-slotted(*) {
+      min-width: 0;
+      max-width: 100%;
+    }
+
     @include respond-to('lg') {
       grid-column: 3;
+      max-width: none;
     }
   }
 

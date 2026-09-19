@@ -24,7 +24,8 @@
     "lint:style": "stylelint \"app/**/*.{scss,vue}\"",
     "lint:style:fix": "stylelint \"app/**/*.{scss,vue}\" --fix",
     "lint:tokens": "node scripts/check-design-tokens.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "shots:setup": "playwright install chromium"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
