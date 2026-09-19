@@ -132,7 +132,7 @@ describe('TradingStrategyListPanel：螢幕窄到排不開一張工作檯', () =
 
     expect(wrapper.find('[data-testid="trading-strategy-create"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="trading-strategy-create-too-narrow"]').text())
-      .toContain('拼不了新的一份')
+      .toContain('排不開工作檯')
   })
 
   it('寬得下的時候那條路照樣在，也不多說那一句', async () => {

@@ -23,7 +23,9 @@
     "prepare": "husky",
     "lint:style": "stylelint \"app/**/*.{scss,vue}\"",
     "lint:style:fix": "stylelint \"app/**/*.{scss,vue}\" --fix",
-    "lint:tokens": "node scripts/check-design-tokens.mjs"
+    "lint:tokens": "node scripts/check-design-tokens.mjs",
+    "shots": "node scripts/shots.mjs",
+    "shots:setup": "playwright install chromium"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -44,6 +46,7 @@
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/test-utils": "^4.2.0",
+    "@playwright/test": "^1.63.0",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.5.0",

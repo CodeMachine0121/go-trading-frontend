@@ -172,18 +172,22 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     </nav>
 
     <div class="console-layout__frame">
+      <!--
+        三樣東西擺成一個格子，而不是一個「標題組」加一個「控制項組」：
+        窄螢幕上標題與那顆控制項並排、副標自己整行；寬螢幕上三樣同一行。
+        包成兩組的話，副標會被綁在標題旁邊那一欄裡，而那一欄在 390 的螢幕上
+        扣掉時區選單只剩不到三分之一——一句四十個字的說明會被擠成一行六個字。
+      -->
       <header class="console-layout__strip">
-        <div class="console-layout__heading">
-          <h1 class="console-layout__title">
-            {{ title }}
-          </h1>
-          <p
-            v-if="subtitle"
-            class="console-layout__subtitle"
-          >
-            {{ subtitle }}
-          </p>
-        </div>
+        <h1 class="console-layout__title">
+          {{ title }}
+        </h1>
+        <p
+          v-if="subtitle"
+          class="console-layout__subtitle"
+        >
+          {{ subtitle }}
+        </p>
 
         <!-- 時區選單由頁面填進來：樣板只出骨架與位置，不認識任何資料 -->
         <div class="console-layout__context">
@@ -453,34 +457,27 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
   // 窄螢幕上這不是一條帶子，是內容的第一行：沒有底色、沒有框線，字大一階。
   // 一條有底色的窄帶會把畫面切成「介面」與「內容」兩塊，而手機上整片都該是內容。
   &__strip {
-    display: flex;
+    display: grid;
     flex: none;
-    gap: spacing('sm');
+
+    // 窄螢幕：標題與那顆控制項並排，副標自己一整行。
+    //
+    // 第二欄跟著內容長，但那個內容自己有上限（見 `__context`）。
+    // 給軌道一個固定上限是錯的：有三個畫面根本沒有填那個插槽，
+    // 而固定上限的軌道即使裡面空無一物也會把那段寬度佔著不放。
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: spacing('3xs') spacing('sm');
     align-items: center;
-    justify-content: space-between;
     background-color: color('background');
     padding: spacing('sm') spacing('md') spacing('2xs');
 
     @include respond-to('lg') {
-      align-items: baseline;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       gap: spacing('md');
+      align-items: baseline;
       border-bottom: 1px solid color('border');
       background-color: color('surface');
       padding: spacing('xs') spacing('md');
-    }
-  }
-
-  &__heading {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: spacing('3xs');
-    min-width: 0;
-
-    @include respond-to('lg') {
-      flex-flow: row wrap;
-      gap: spacing('xs') spacing('sm');
-      align-items: baseline;
     }
   }
 
@@ -494,19 +491,49 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     }
   }
 
-  // 副標說的是「這個畫面怎麼用」，看過一次就不必再看。窄螢幕上它接在標題底下
-  // 自成一行（那裡本來就是讀字的地方），寬螢幕上與標題同一行，不多佔高度。
+  // 副標說的是「這個畫面怎麼用」，看過一次就不必再看。窄螢幕上它橫跨整行
+  // （那裡本來就是讀字的地方），寬螢幕上與標題同一行，不多佔高度。
   &__subtitle {
+    grid-column: 1 / -1;
     margin: 0;
     color: color('text-faint');
     font-size: font-size('2xs');
+
+    @include respond-to('lg') {
+      grid-column: 2;
+      grid-row: 1;
+    }
   }
 
   &__context {
     display: flex;
-    flex: none;
+    grid-column: 2;
+    grid-row: 1;
     gap: spacing('xs');
     align-items: center;
+    justify-self: end;
+    min-width: 0;
+
+    // 時區選單的字很長（「世界標準時間（UTC+00:00）」），不封頂的話它會佔掉
+    // 三分之二，把一個五個字的標題擠到換行。這一行的主角是「我在哪一個畫面」，
+    // 時區是設好就不太動的偏好。封在元素上而不是軌道上，空插槽才會真的收成零。
+    max-width: 10rem;
+
+    // 光封住這一層不夠：填進來的東西是 flex 的子項，而 flex 子項預設
+    // **不會縮得比自己的內容窄**。那個選單的內容是一串很長的字，於是它撐破
+    // 這一層、再撐破整頁——量出來的視窗會從 390 變成 418。
+    //
+    // `::v-slotted` 是用來管「別人放進我這個位置的東西」的，與伸手去改
+    // 別人家的內部（`:deep`）是兩回事：這裡管的是它在我的版面裡佔多大。
+    ::v-slotted(*) {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    @include respond-to('lg') {
+      grid-column: 3;
+      max-width: none;
+    }
   }
 
   // 工作區是唯一會捲的地方，而且它自己就是整片深色底——面板浮在上面。

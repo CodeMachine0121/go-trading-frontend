@@ -53,7 +53,7 @@ onMounted(() => {
         class="trading-strategy-list__too-narrow"
         data-testid="trading-strategy-create-too-narrow"
       >
-        這個螢幕的寬度排不開一張工作檯，拼不了新的一份
+        螢幕太窄，排不開工作檯
       </span>
     </template>
 

@@ -65,8 +65,17 @@
     @each $name, $value in $spacings-compact {
       --spacing-#{$name}: #{$value};
     }
+  }
+}
 
-    @each $name, $value in $control-sizes-compact {
+// 命中範圍是**唯一**不看寬度的那一個：它看的是使用者拿什麼在按。
+//
+// 用寬度判斷會漏掉一整類裝置——一台 800 寬的平板在疏密上算「寬螢幕」，
+// 但它仍然是用手指按的，而手指的精度不會因為螢幕變寬就變好。
+// 反過來，一個把瀏覽器縮到 390 寬的桌機使用者手上還是滑鼠，不需要更大的鍵。
+@media (pointer: coarse) {
+  :root {
+    @each $name, $value in $control-sizes-touch {
       --control-size-#{$name}: #{$value};
     }
   }
