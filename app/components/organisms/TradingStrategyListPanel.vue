@@ -6,13 +6,21 @@ import AppToast from '~/components/atoms/AppToast.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import { useTradingStrategies } from '~/composables/use-trading-strategies'
+import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 
 // 有機體：交易策略清單這一整塊——每一份、空清單、錯誤與重試、刪除確認。
 //
 // 它不顯示「幾台機器人在用」。要顯示那個數字，得為每一份各問一次機器人清單，
 // 而它救不了任何一次操作：真的要刪的時候後端會擋下並說出數字。
-const { tradingStrategyApplication } = defineProps<{
+const { tradingStrategyApplication, layoutDensity } = defineProps<{
   tradingStrategyApplication: TradingStrategyApplication
+  /**
+   * 現在這個寬度代表什麼。這裡用到的是「拼得動一份新的嗎」。
+   *
+   * 拼不動的時候那條路**不出現**，並在原地說明原因：讓人開了一張
+   * 什麼都放不上去的空白工作檯，比不讓他開更糟。
+   */
+  layoutDensity: LayoutDensityDto
 }>()
 
 const tradingStrategies = useTradingStrategies(tradingStrategyApplication)
@@ -34,11 +42,19 @@ onMounted(() => {
         我的機器人
       </AppButton>
       <AppButton
+        v-if="layoutDensity.allowsBlockEditing"
         to="/trading-strategies/new"
         data-testid="trading-strategy-create"
       >
         ＋ 拼一份交易策略
       </AppButton>
+      <span
+        v-else
+        class="trading-strategy-list__too-narrow"
+        data-testid="trading-strategy-create-too-narrow"
+      >
+        這個螢幕的寬度排不開一張工作檯，拼不了新的一份
+      </span>
     </template>
 
     <AppToast :message="tradingStrategies.announcement.value" />
@@ -134,6 +150,12 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .trading-strategy-list {
+  // 那條路不在的時候，原地說出原因——一個少了按鈕的工具列讀起來像是壞了。
+  &__too-narrow {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
   &__notice {
     color: color('text-faint');
   }

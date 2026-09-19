@@ -84,6 +84,9 @@ watch(() => workbench.createdId.value, (createdId) => {
 
 const { selectedTimeZone } = useSelectedTimeZone()
 
+// 現在這個寬度代表什麼。這一頁用到的是「這張工作檯編不編得動」。
+const { layoutDensity } = useLayoutDensity()
+
 /**
  * 改到一半想離開就先問過。
  *
@@ -164,6 +167,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
       -->
       <TradingStrategyWorkbench
         v-show="destination === 'workbench'"
+        :layout-density="layoutDensity"
         :trading-mode-options="$tradingStrategyApplication.listTradingModeOptions()"
         :editing="workbench.editing.value"
         :strategy-script-options="workbench.strategyScriptOptions.value"

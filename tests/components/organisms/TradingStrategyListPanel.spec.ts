@@ -6,6 +6,7 @@ import type { TradingStrategyApplication } from '~/application/trading-strategy-
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyInUseError } from '~/domain/errors/trading-strategy-in-use-error'
+import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 
 function tradingStrategyDto(id: number, name: string, sourceCount = 1) {
   return new TradingStrategyDto(
@@ -20,7 +21,8 @@ function tradingStrategyDto(id: number, name: string, sourceCount = 1) {
   )
 }
 
-function mountPanel(overrides: Partial<TradingStrategyApplication> = {}) {
+function mountPanel(overrides: Partial<TradingStrategyApplication> = {},
+  layoutDensity = onADesktop()) {
   const tradingStrategyApplication = {
     listTradingStrategies: vi.fn().mockResolvedValue([]),
     getTradingStrategy: vi.fn(),
@@ -33,6 +35,7 @@ function mountPanel(overrides: Partial<TradingStrategyApplication> = {}) {
     props: {
       tradingStrategyApplication:
         tradingStrategyApplication as unknown as TradingStrategyApplication,
+      layoutDensity,
     },
     // 連結要照樣渲染出 href：那正是這幾條測試在問的事。
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
@@ -118,5 +121,27 @@ describe('TradingStrategyListPanel 刪一份', () => {
 
     expect(wrapper.find('[data-testid="trading-strategy-list-failure"]').text()).toContain('2 台')
     expect(wrapper.findAll('[data-testid="trading-strategy-row"]')).toHaveLength(1)
+  })
+})
+
+describe('TradingStrategyListPanel：螢幕窄到排不開一張工作檯', () => {
+  it('那條「拼一份」不出現，並在原地說出原因', async () => {
+    // 讓人開了一張什麼都放不上去的空白工作檯，比不讓他開更糟。
+    const { wrapper } = mountPanel({}, onAPhone())
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="trading-strategy-create"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="trading-strategy-create-too-narrow"]').text())
+      .toContain('拼不了新的一份')
+  })
+
+  it('寬得下的時候那條路照樣在，也不多說那一句', async () => {
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="trading-strategy-create"]').attributes('href'))
+      .toBe('/trading-strategies/new')
+    expect(wrapper.find('[data-testid="trading-strategy-create-too-narrow"]').exists())
+      .toBe(false)
   })
 })

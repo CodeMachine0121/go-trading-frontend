@@ -9,6 +9,9 @@ const { $tradingStrategyApplication } = useNuxtApp()
 
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 const { currentUser, signOut } = useUserSession()
+
+// 現在這個寬度代表什麼。這一頁用到的是「拼得動一份新的嗎」。
+const { layoutDensity } = useLayoutDensity()
 </script>
 
 <template>
@@ -34,6 +37,7 @@ const { currentUser, signOut } = useUserSession()
     </template>
 
     <TradingStrategyListPanel
+      :layout-density="layoutDensity"
       :trading-strategy-application="$tradingStrategyApplication"
     />
   </ConsoleLayout>

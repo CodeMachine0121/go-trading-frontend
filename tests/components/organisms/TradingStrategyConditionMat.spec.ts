@@ -28,6 +28,7 @@ function mountMat(carrying: string | null, hoveringAt: number | null = null) {
       side: 'buy' as const,
       hoveringAt,
       carrying,
+      editable: true,
     },
   })
 }
