@@ -38,7 +38,7 @@ beforeEach(() => {
   passwordChangeApplication.changePassword.mockResolvedValue(undefined)
   userSessionApplicationStub.forgetSession.mockReturnValue(undefined)
   useState<SignedInUserDto | null>('user-session', () => null).value
-    = new SignedInUserDto(7, 'james@example.com')
+    = new SignedInUserDto(7, 'james@example.com', true, null)
   useState<string | null>('user-session-sign-in-notice', () => null).value = null
   useState<Promise<void> | null>('user-session-restoration', () => null).value = null
 })

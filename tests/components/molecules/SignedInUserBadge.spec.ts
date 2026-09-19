@@ -4,7 +4,7 @@ import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 
 function mountBadge(email = 'james@example.com') {
-  return mount(SignedInUserBadge, { props: { user: new SignedInUserDto(7, email) } })
+  return mount(SignedInUserBadge, { props: { user: new SignedInUserDto(7, email, true, null) } })
 }
 
 describe('SignedInUserBadge：側欄底下那一行', () => {

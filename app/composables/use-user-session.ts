@@ -15,6 +15,14 @@ export const HOME_PATH = '/'
 export const LOGIN_PATH = '/login'
 
 /**
+ * 等待開通那一頁的位址。
+ *
+ * 它與登入頁放在一起，因為它們是同一類畫面：**還沒進門的人在看的那一頁**。
+ * 把關、那一頁自己與登入後的導向三處都得說得出它，所以它只寫在這裡一次。
+ */
+export const PENDING_APPROVAL_PATH = '/pending-approval'
+
+/**
  * 全站共用的「現在是誰在用」。
  *
  * 這個問題會被三個互不相干的地方問到：把關的中介層（要不要放行）、
@@ -270,8 +278,55 @@ export function useUserSession(
     return recovery.value
   }
 
+  /**
+   * 這個人登入著，但還沒有人放行他。
+   *
+   * 它是**算出來的**而不是另存一份狀態：答案完全由 currentUser 決定，
+   * 另存一份就是兩個會各自過期的真相，而畫面會相信比較舊的那一個。
+   */
+  const awaitingActivation = computed(
+    () => currentUser.value !== null && !currentUser.value.isEnabled)
+
+  /** 還在等的時候要做的事——寄到哪、主旨寫什麼。放行之後是 null。 */
+  const activationInstruction = computed(
+    () => currentUser.value?.activationInstruction ?? null)
+
+  /**
+   * 再去問一次後端：我被放行了沒。放行了就把人送進操作台。
+   *
+   * 它**刻意不是** ensureSessionRestored。那一支一個分頁只確認一次，而那正是它的意義；
+   * 這裡要的恰好相反——放行發生在這個系統之外，這一側永遠不會被通知，
+   * 所以每按一次就得真的再問一次。回用上一次的答案，這顆鍵就是一顆假的鍵。
+   *
+   * 換頁包在裡面，而不是交給呼叫端「放行了的話再自己換一次」——與 submitCredentials
+   * 同一個理由，而且這裡更硬：**把關只在換頁的當下跑**。不在這裡換頁的話，
+   * 一個剛被放行的人會停在一個他已經不該看到的畫面上，而畫面上什麼都沒變——
+   * 看起來就像那顆鍵壞了。他唯一的出路是自己去按重新整理，而沒有人會告訴他這件事。
+   */
+  async function recheckActivation(): Promise<void> {
+    if (pending.value) {
+      return
+    }
+
+    pending.value = true
+    try {
+      restoration.value = restoreOnce()
+      await restoration.value
+    }
+    finally {
+      pending.value = false
+    }
+
+    if (currentUser.value !== null && currentUser.value.isEnabled) {
+      await navigateTo(HOME_PATH)
+    }
+  }
+
   return {
     currentUser,
+    awaitingActivation,
+    activationInstruction,
+    recheckActivation,
     pending,
     errorMessage,
     fieldErrors,

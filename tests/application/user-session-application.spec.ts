@@ -14,7 +14,7 @@ import { UserSessionService } from '~/domain/service/user-session-service'
 import { UserSessionApplication } from '~/application/user-session-application'
 
 const NOW = new Date('2026-09-05T08:00:00.000Z')
-const SIGNED_IN_USER = new SignedInUser(7, 'james@example.com')
+const SIGNED_IN_USER = new SignedInUser(7, 'james@example.com', true, null)
 
 /** 兩份都還有效。 */
 const USABLE_SESSION = new Session(

@@ -246,6 +246,40 @@ describe('UserProxy.fetchSignedInUser', () => {
     expect(signedInUser.email).toBe('james@example.com')
   })
 
+  it('還沒被放行的人，開通狀態與那份指示一起收進來', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7,
+      email: 'james@example.com',
+      isEnabled: false,
+      activationInstruction: {
+        requestMailbox: 'gatekeeper@example.com',
+        subject: 'console access request：james@example.com',
+      },
+    }))
+
+    const signedInUser = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .fetchSignedInUser('a-signed-token')
+
+    expect(signedInUser.isEnabled).toBe(false)
+    expect(signedInUser.activationInstruction?.requestMailbox).toBe('gatekeeper@example.com')
+    expect(signedInUser.activationInstruction?.subject)
+      .toBe('console access request：james@example.com')
+  })
+
+  it('被放行之後，後端整個不給那個欄位——這一側就表示成「沒有」', async () => {
+    // 收成一份空的指示的話，畫面就得自己判斷「這份算不算數」，
+    // 而那個判斷遲早會有人寫錯一次。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7, email: 'james@example.com', isEnabled: true,
+    }))
+
+    const signedInUser = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .fetchSignedInUser('a-signed-token')
+
+    expect(signedInUser.isEnabled).toBe(true)
+    expect(signedInUser.activationInstruction).toBeNull()
+  })
+
   it('憑證不算數時說的是「當作沒登入」，不是一般的拒絕', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '請重新登入' })))
