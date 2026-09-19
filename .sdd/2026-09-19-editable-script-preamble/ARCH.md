@@ -158,7 +158,31 @@ toTemplateDto()                編輯器要的那兩份
 
 ---
 
-## 6. Risks
+## 6. 實作後的一次收斂（improve 階段）
+
+分界消失之後，兩個介面被留在原地才看得出來是淺的：
+
+1. **「一份空白的策略腳本長什麼樣」原本要問三次。** 畫面得先問預設的指標值種類，
+   再拿那個種類去要空白算式，最後自己把兩者配成一份內容——而「哪一種配哪一份」
+   正是它答不出來、卻會在其中一邊改動時悄悄答錯的事。
+   收斂成 `IndicatorCalculationApplication.describeBlankStrategyScript()` 一次答齊；
+   `defaultResultType()` 隨之從對外介面消失（它已經沒有別的呼叫端，
+   而同一個 service 的公開用例方法之間不互相呼叫）。
+
+2. **`IndicatorScriptTemplateDto` 就此只剩一個欄位。** 它原本裝三樣（外框、範例、空白），
+   外框在這一刀刪掉、空白改由上面那個方法交出，剩下的只有範例一個字串。
+   一個欄位的 DTO 不比那個字串本身說得更多，所以整個型別刪掉，
+   `describeIndicatorScript` 改名成 `describeExampleScript(resultType): string`——
+   問題變成一句話，答案也是。
+
+**沒有做的一件事**：`IndicatorCalculationRequestDomain` 與 `BacktestRequestDomain`
+各有一份「去空白後為空就說『請填寫算式內容』」。看起來像該抽掉的重複，但抽出來的東西
+只會是一個 `trim()` 與一個句子——介面和實作一樣厚。這種模組不會讓呼叫端更簡單，
+只會多一個要找的地方，所以留著。
+
+---
+
+## 7. Risks
 
 - **改名的廣度**：`scriptBody` 出現在 DTO、domain、元件與欄位錯誤鍵四處。漏一處，
   錯誤訊息會標不到那一格（畫面不會壞，只會安靜地不顯示）。測試涵蓋欄位鍵，靠它擋。

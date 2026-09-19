@@ -13,15 +13,14 @@ import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-i
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
-import type { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
 import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
 import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
@@ -55,11 +54,11 @@ export class IndicatorCalculationService {
   }
 
   /**
-   * 這個種類之下，一份新算式長什麼樣：一段可直接執行的範例，
-   * 以及開新的空白策略腳本時預填的那一份。兩者都是一整份算式。
+   * 這個種類之下，一份可以直接執行的範例算式——**整份**，含最上面的宣告與匯入。
+   * 填進編輯區就送得出去，使用者不必自己補任何一行。
    */
-  describeIndicatorScript(resultType: string): IndicatorScriptTemplateDto {
-    return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).toTemplateDto()
+  describeExampleScript(resultType: string): string {
+    return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).exampleScript()
   }
 
   /**
@@ -71,9 +70,19 @@ export class IndicatorCalculationService {
       .retargetReturnType(script)
   }
 
-  /** 沒有特別挑時算的是哪一種。畫面不自己指定預設值。 */
-  defaultResultType(): IndicatorResultType {
-    return new IndicatorResultTypeDomain('').value
+  /**
+   * 開一份新的空白策略腳本時，畫面上那一份內容長什麼樣：一份預填好的算式、
+   * 預設的指標值種類，以及還沒有任何旋鈕。
+   *
+   * **三樣一起答，因為「空白長什麼樣」是一個問題，不是三個。** 拆開問的話，
+   * 畫面就得自己記得「預設種類」要配「那一種的空白算式」——而那正是它答不出來、
+   * 卻會在其中一邊改動時悄悄答錯的事。
+   */
+  describeBlankStrategyScript(): StrategyScriptContentDto {
+    const resultType = new IndicatorResultTypeDomain('')
+
+    return new StrategyScriptContentDto(
+      new IndicatorScriptDomain(resultType).blankScript(), resultType.value)
   }
 
   /**
@@ -224,7 +233,7 @@ export class IndicatorCalculationService {
   /**
    * 算式收到的每一根 K 線有哪些欄位。
    *
-   * 它與外框（`describeIndicatorScript`）描述的是同一份沙箱契約，因此住在同一個 service——
+   * 它與預填的算式（`describeExampleScript`）描述的是同一份沙箱契約，因此住在同一個 service——
    * 分開放的話，外框哪天換了型別，欄位說明會繼續說舊的那一套。
    */
   listKCandleFields(): KCandleFieldDto[] {

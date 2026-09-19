@@ -77,16 +77,13 @@ describe('IndicatorCalculationService', () => {
     { resultType: 'floatList', valueShape: 'map[string][]float64' },
     { resultType: 'bool', valueShape: 'map[string]bool' },
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
-  ])('$resultType 的算式樣板：兩份都是一整份，帶對應的簽章', ({ resultType, valueShape }) => {
-    const templateDto = new IndicatorCalculationService(buildProxy())
-      .describeIndicatorScript(resultType)
+  ])('$resultType 的範例算式是一整份，帶對應的簽章', ({ resultType, valueShape }) => {
+    const exampleScript = new IndicatorCalculationService(buildProxy())
+      .describeExampleScript(resultType)
 
-    expect(templateDto.exampleScript).toContain(PREAMBLE)
-    expect(templateDto.exampleScript)
-      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
-    expect(templateDto.exampleScript).toContain(`return ${valueShape}{`)
-    expect(templateDto.blankScript)
-      .toBe(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) ${valueShape} {\n\t\n}`)
+    expect(exampleScript).toContain(PREAMBLE)
+    expect(exampleScript).toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
+    expect(exampleScript).toContain(`return ${valueShape}{`)
   })
 
   it('改指標值種類：把第一個 Calculate 的回傳型別換成新選的，開頭不動', () => {
@@ -97,8 +94,13 @@ describe('IndicatorCalculationService', () => {
       .toBe(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) indicator.Signal {\n\treturn nil\n}`)
   })
 
-  it('沒有特別挑時算的是一個數字', () => {
-    expect(new IndicatorCalculationService(buildProxy()).defaultResultType()).toBe('float')
+  it('一份空白的策略腳本：預設是一個數字，算式是那一種的空白算式，沒有旋鈕', () => {
+    const content = new IndicatorCalculationService(buildProxy()).describeBlankStrategyScript()
+
+    expect(content.resultType).toBe('float')
+    expect(content.script).toBe(
+      `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) map[string]float64 {\n\t\n}`)
+    expect(content.parameters).toEqual([])
   })
 
   it('可以挑的指標值種類就是那五種，帶著給人看的名字', () => {
@@ -110,15 +112,12 @@ describe('IndicatorCalculationService', () => {
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
   })
 
-  it('信號種類的算式樣板：範例回傳一個信號，用系統提供的方式選一個', () => {
-    const templateDto = new IndicatorCalculationService(buildProxy()).describeIndicatorScript('signal')
+  it('信號種類的範例算式回傳一個信號，用系統提供的方式選一個', () => {
+    const exampleScript = new IndicatorCalculationService(buildProxy()).describeExampleScript('signal')
 
-    expect(templateDto.exampleScript)
-      .toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
-    expect(templateDto.exampleScript).toContain('\treturn indicator.Buy')
-    expect(templateDto.exampleScript).not.toContain('map[string]')
-    expect(templateDto.blankScript)
-      .toBe(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}`)
+    expect(exampleScript).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+    expect(exampleScript).toContain('\treturn indicator.Buy')
+    expect(exampleScript).not.toContain('map[string]')
   })
 
   it('說得出「一個信號」種類的算式能回傳哪三個值', () => {

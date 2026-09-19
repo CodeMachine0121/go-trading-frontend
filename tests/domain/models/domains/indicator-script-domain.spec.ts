@@ -34,14 +34,14 @@ describe('IndicatorScriptDomain.blankScript', () => {
     })
 })
 
-describe('IndicatorScriptDomain 化成樣板', () => {
+describe('IndicatorScriptDomain.exampleScript', () => {
   it.each([
     { resultType: 'float', expectedReturn: 'return map[string]float64{' },
     { resultType: 'floatList', expectedReturn: 'return map[string][]float64{' },
     { resultType: 'bool', expectedReturn: 'return map[string]bool{' },
     { resultType: 'boolList', expectedReturn: 'return map[string][]bool{' },
   ])('$resultType 的範例算式是開頭那幾行加一整個 Calculate 函式', ({ resultType, expectedReturn }) => {
-    const { exampleScript } = scriptOf(resultType).toTemplateDto()
+    const exampleScript = scriptOf(resultType).exampleScript()
 
     expect(exampleScript.startsWith(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) `)).toBe(true)
     expect(exampleScript.endsWith('\n}')).toBe(true)
@@ -49,7 +49,7 @@ describe('IndicatorScriptDomain 化成樣板', () => {
   })
 
   it('信號種類的範例算式用系統提供的方式選一個信號', () => {
-    const { exampleScript } = scriptOf('signal').toTemplateDto()
+    const exampleScript = scriptOf('signal').exampleScript()
 
     expect(exampleScript).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
     expect(exampleScript).toContain('\treturn indicator.Buy')
@@ -57,12 +57,11 @@ describe('IndicatorScriptDomain 化成樣板', () => {
     expect(exampleScript).not.toContain('map[string]')
   })
 
-  it('樣板一次拿齊範例算式與空白算式，兩份都是一整份', () => {
-    const templateDto = scriptOf('signal').toTemplateDto()
+  it('範例算式與空白算式都是一整份，開頭一模一樣', () => {
+    const scriptDomain = scriptOf('signal')
 
-    expect(templateDto.blankScript).toBe(
-      `${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) indicator.Signal {\n\t\n}`)
-    expect(templateDto.exampleScript.startsWith(PREAMBLE)).toBe(true)
+    expect(scriptDomain.blankScript().startsWith(PREAMBLE)).toBe(true)
+    expect(scriptDomain.exampleScript().startsWith(PREAMBLE)).toBe(true)
   })
 })
 

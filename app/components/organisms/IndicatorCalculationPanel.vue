@@ -88,14 +88,10 @@ const workspaceGeneration = ref(0)
  * 第一次進入畫面時是它，按下「新的空白策略腳本」時也是它。各寫一份的話，
  * 哪天預設的種類改了、只改到一邊，「新開的」就會與「剛進來的」不一樣。
  */
-// 空白長什麼樣：一整份預填好的算式——開頭那幾行加一個空的 Calculate，
-// 回傳型別跟著預設的指標值種類。**預填的每一行都改得動**，包含開頭。
-// 這個定義在這個畫面上只有這一個地方——第一次進來與按「新的空白策略腳本」都用它。
-const defaultResultTypeValue = indicatorCalculationApplication.defaultResultType()
-const blankStrategyScriptContent = new StrategyScriptContentDto(
-  indicatorCalculationApplication.describeIndicatorScript(defaultResultTypeValue).blankScript,
-  defaultResultTypeValue,
-)
+// 空白長什麼樣由領域回答，整份一次交來：一份預填好的算式（開頭那幾行加一個空的
+// Calculate，**每一行都改得動**）、預設的指標值種類，以及還沒有任何旋鈕。
+// 第一次進來與按「新的空白策略腳本」都用這一份。
+const blankStrategyScriptContent = indicatorCalculationApplication.describeBlankStrategyScript()
 
 /*
  * 這一組是「這一次要怎麼算」，不是策略腳本記著的東西：交易標的、彙總刻度、要看多長。
@@ -142,8 +138,9 @@ const signalReadings = indicatorCalculationApplication.listSignalReadings()
 const guideOpen = ref(false)
 /** 宣告旋鈕的那一份開著沒有。同理——它是偶爾做一次的事。 */
 const parametersOpen = ref(false)
-const scriptTemplate = computed(
-  () => indicatorCalculationApplication.describeIndicatorScript(resultType.value))
+/** 這個種類之下，按「帶入範例內容」會填進來的那一整份。 */
+const exampleScript = computed(
+  () => indicatorCalculationApplication.describeExampleScript(resultType.value))
 
 const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplication)
 
@@ -185,7 +182,7 @@ function changeSpanUnit(unit: string) {
 }
 
 function fillExampleScript() {
-  script.value = scriptTemplate.value.exampleScript
+  script.value = exampleScript.value
 }
 
 /**

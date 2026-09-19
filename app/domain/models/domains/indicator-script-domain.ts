@@ -1,6 +1,5 @@
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
-import { IndicatorScriptTemplateDto } from '~/domain/models/dto/indicator-script-template-dto'
 
 /**
  * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。開頭、簽章與收尾由
@@ -113,10 +112,9 @@ export class IndicatorScriptDomain {
    * 這個種類一整份可以直接執行的範例：開頭那幾行，加整個 `Calculate` 函式
    * （簽章頂格、內部縮一層）。
    *
-   * 它與 `blankScript()` 是一對相互對照的東西——「什麼都還沒寫」與「寫好了長這樣」——
-   * 所以留成一個具名的私有方法，而不是 inline 進下面那個建構呼叫裡。
+   * 它與 `blankScript()` 是一對相互對照的東西——「什麼都還沒寫」與「寫好了長這樣」。
    */
-  private exampleScript(): string {
+  exampleScript(): string {
     const innerLines = EXAMPLE_CALCULATE_INNER_LINES[this.resultType.value]
       .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
 
@@ -133,9 +131,5 @@ export class IndicatorScriptDomain {
     }
 
     return script.replace(CALCULATE_SIGNATURE_PATTERN, this.calculateSignature())
-  }
-
-  toTemplateDto(): IndicatorScriptTemplateDto {
-    return new IndicatorScriptTemplateDto(this.exampleScript(), this.blankScript())
   }
 }
