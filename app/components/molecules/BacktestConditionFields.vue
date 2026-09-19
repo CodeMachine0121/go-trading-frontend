@@ -262,8 +262,8 @@ const selectedPositionSizingMode = computed(
       :error-message="exitLevelsError"
       grouped
     >
-      <div class="backtest-condition-fields__exit-levels-inputs">
-        <label class="backtest-condition-fields__exit-level">
+      <div class="backtest-condition-fields__paired-inputs">
+        <label class="backtest-condition-fields__paired-input">
           <span>止損距離（%）</span>
           <AppInput
             v-model="stopLossPercentage"
@@ -273,7 +273,7 @@ const selectedPositionSizingMode = computed(
             data-testid="backtest-stop-loss-percentage-input"
           />
         </label>
-        <label class="backtest-condition-fields__exit-level">
+        <label class="backtest-condition-fields__paired-input">
           <span>止盈距離（%）</span>
           <AppInput
             v-model="takeProfitPercentage"
@@ -298,8 +298,8 @@ const selectedPositionSizingMode = computed(
       :error-message="transactionCostsError"
       grouped
     >
-      <div class="backtest-condition-fields__transaction-costs-inputs">
-        <label class="backtest-condition-fields__transaction-cost">
+      <div class="backtest-condition-fields__paired-inputs">
+        <label class="backtest-condition-fields__paired-input">
           <span>進場成本率（%）</span>
           <AppInput
             v-model="entryCostPercentage"
@@ -309,7 +309,7 @@ const selectedPositionSizingMode = computed(
             data-testid="backtest-entry-cost-percentage-input"
           />
         </label>
-        <label class="backtest-condition-fields__transaction-cost">
+        <label class="backtest-condition-fields__paired-input">
           <span>出場成本率（%）</span>
           <AppInput
             v-model="exitCostPercentage"
@@ -361,34 +361,27 @@ const selectedPositionSizingMode = computed(
     grid-column: 1 / -1;
   }
 
-  &__exit-levels-inputs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: spacing('2xs');
-  }
-
-  &__exit-level {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('3xs');
-    min-width: 0;
-    color: color('text-muted');
-    font-size: font-size('2xs');
-  }
-
   // 與出場價位那一組同一個理由，而這一組的提示還多說一句
   // 「出場留白時跟進場一樣」——那一句正是它與隔壁那組的差別。
   &__transaction-costs {
     grid-column: 1 / -1;
   }
 
-  &__transaction-costs-inputs {
+  // 兩組併排的輸入框長得一樣，所以排版只寫一次。
+  //
+  // 它們**看起來**一樣是刻意的：兩組都是「一個概念、兩個數字、留白有意思」，
+  // 而使用者掃過去時應該認得出那是同一種東西。抄第二份的那一天，
+  // 兩組會在某一次調整之後開始長得不一樣，而沒有人是故意的。
+  //
+  // 它們的**規則**仍然不同（出場距離各自獨立，費率的出場留白時沿用進場），
+  // 那個差別由各自的提示文字說，不由排版說。
+  &__paired-inputs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: spacing('2xs');
   }
 
-  &__transaction-cost {
+  &__paired-input {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');
