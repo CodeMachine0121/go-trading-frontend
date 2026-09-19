@@ -200,9 +200,30 @@ const ABSENT_FIGURE = '—'
       @include numeric;
     }
 
+    // 時間是每一列的身分，所以它**釘在左邊不跟著捲**。
+    //
+    // 十二欄在一支手機上放不下，於是表格自己橫向捲（`__scroller` 那一層）；
+    // 捲到第八欄時如果連時間也一起走掉，讀到的就是一個不知道屬於哪一分鐘的數字。
+    // 釘住它，橫向捲動才是「多看幾欄」而不是「弄丟座標」。
+    //
+    // 釘住的格子必須自己不透明，否則捲過去的數字會從它底下透出來。
     th:first-child,
     td:first-child {
+      position: sticky;
+      left: 0;
+      background-color: color('surface');
       text-align: left;
+    }
+
+    // 左上角那一格同時被兩個方向釘住，所以它要壓在另外兩條之上——
+    // 少了這一行，它會在捲動時被表頭或第一欄蓋掉一半。
+    th:first-child {
+      z-index: 1;
+      background-color: color('surface-muted');
+    }
+
+    tbody tr:hover td:first-child {
+      background-color: color('surface-muted');
     }
 
     th {
