@@ -9,6 +9,7 @@ import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-regis
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { AuthenticationRequiredError } from '~/domain/errors/authentication-required-error'
 import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
+import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const USERS_ENDPOINT = '/users'
@@ -27,6 +28,13 @@ const ACCESS_TOKEN_UNAVAILABLE_STATUS = 503
  * 意思——這一段登入不算數了——而共用出口一看到它就會把人帶回登入畫面。
  */
 const CURRENT_PASSWORD_REJECTED_STATUS = 403
+/**
+ * 後端用 429 說「這個帳號試太多次，被鎖住了」。
+ *
+ * 它刻意不是 401：401 在這個系統裡只有一個意思——這一段登入不算數了——
+ * 而使用者對它做的事是再登入一次，那是這一整個星期裡唯一不會有任何幫助的動作。
+ */
+const SIGN_IN_LOCKED_STATUS = 429
 
 /** 後端回傳的原始 wire 形狀，只存在於本檔內。 */
 type SignedInUserWire = {
@@ -181,6 +189,12 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
    */
   private signInFailureOf(error: unknown): unknown {
     if (error instanceof BackendRequestRejectedError
+      && error.status === SIGN_IN_LOCKED_STATUS) {
+      return new SignInLockedError(
+        error.message, this.retryableMomentIn(error.retryableFrom), { cause: error })
+    }
+
+    if (error instanceof BackendRequestRejectedError
       && error.status === CREDENTIALS_REJECTED_STATUS) {
       return new CredentialsRejectedError(error.message, { cause: error })
     }
@@ -223,6 +237,24 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
       sessionWire.refreshToken,
       this.momentIn(sessionWire.refreshTokenExpiresAt),
     )
+  }
+
+  /**
+   * 「什麼時候可以再試」，讀不出來就是沒有。
+   *
+   * 這裡刻意比下面的 momentIn 寬鬆，而兩者相反是有理由的：一份讀不出到期時刻的
+   * 憑證**沒辦法拿來用**，所以那邊當場拒絕；這裡讀不出來只是少一句話能說，
+   * 而主要的事實——這個帳號被鎖住了——還在。把它一起拋掉的話，呼叫端就會退回去
+   * 說「電子郵件或密碼不正確」，而那句話會讓使用者繼續試密碼，正是這道鎖要終結的事。
+   */
+  private retryableMomentIn(value: string | undefined): Date | null {
+    if (value === undefined) {
+      return null
+    }
+
+    const moment = new Date(value)
+
+    return Number.isNaN(moment.getTime()) ? null : moment
   }
 
   private momentIn(value: string): Date {

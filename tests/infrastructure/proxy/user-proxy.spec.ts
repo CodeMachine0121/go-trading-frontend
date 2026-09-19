@@ -9,11 +9,12 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
 import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
+import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 
 const BASE_URL = 'http://localhost:8080'
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
-function buildFetchError(failure: { status?: number, message?: string }) {
+function buildFetchError(failure: { status?: number, message?: string, lockedUntil?: string }) {
   const context = failure.status === undefined
     ? { request: BASE_URL, options: {}, error: new Error('fetch failed') }
     : {
@@ -22,7 +23,9 @@ function buildFetchError(failure: { status?: number, message?: string }) {
         response: {
           status: failure.status,
           statusText: 'rejected',
-          _data: failure.message === undefined ? undefined : { message: failure.message },
+          _data: failure.message === undefined
+            ? undefined
+            : { message: failure.message, lockedUntil: failure.lockedUntil },
         },
       }
 
@@ -146,6 +149,68 @@ describe('UserProxy.signIn', () => {
 
     await expect(new UserProxy(BASE_URL, signedInSessionStorage()).signIn('james@example.com', 'correct horse'))
       .rejects.toBeInstanceOf(BackendUnreachableError)
+  })
+
+  it('帳號被鎖住是自己一種拒絕，而且帶著什麼時候可以再試', async () => {
+    // 與帳密對不上非分開不可：使用者該做的事完全相反——一個是再打一次密碼，
+    // 另一個是不要再打了。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({
+      status: 429,
+      message: '這個帳號因為連續登入失敗已被鎖住，2026-09-12T08:00:00Z 之後才能再試',
+      lockedUntil: '2026-09-12T08:00:00Z',
+    })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(SignInLockedError)
+    expect(failure).not.toBeInstanceOf(CredentialsRejectedError)
+    expect((failure as SignInLockedError).lockedUntil)
+      .toEqual(new Date('2026-09-12T08:00:00Z'))
+  })
+
+  it('那個時刻取自它自己那一格，不是從寫給人看的那句話裡挖出來的', async () => {
+    // 句子改寫的那天，挖不到的人不會知道自己挖不到了。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({
+      status: 429,
+      message: '這句話裡一個時間都沒有',
+      lockedUntil: '2026-09-12T08:00:00Z',
+    })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
+
+    expect((failure as SignInLockedError).lockedUntil)
+      .toEqual(new Date('2026-09-12T08:00:00Z'))
+  })
+
+  it('後端說不出什麼時候可以再試，仍然是被鎖住——不是帳密不正確', async () => {
+    // 少一句話能說，好過退回去說「電子郵件或密碼不正確」：那一句會讓使用者
+    // 繼續試密碼，正是這道鎖要終結的行為。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({
+      status: 429,
+      message: '這個帳號因為連續登入失敗已被鎖住',
+    })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(SignInLockedError)
+    expect((failure as SignInLockedError).lockedUntil).toBeNull()
+  })
+
+  it('讀不出來的時刻收成沒有，而不是把整個拒絕一起丟掉', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({
+      status: 429,
+      message: '這個帳號因為連續登入失敗已被鎖住',
+      lockedUntil: '下禮拜三吧',
+    })))
+
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage())
+      .signIn('james@example.com', 'correct horse').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(SignInLockedError)
+    expect((failure as SignInLockedError).lockedUntil).toBeNull()
   })
 })
 

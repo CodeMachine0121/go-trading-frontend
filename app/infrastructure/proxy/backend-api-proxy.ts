@@ -18,6 +18,7 @@ type BackendFailure = {
     availableCandleCount?: number
     minimumCandleCount?: number
     observationWindowHoldsNoTrading?: boolean
+    lockedUntil?: string
   }
 }
 
@@ -208,6 +209,7 @@ export abstract class BackendApiProxy {
               // 一個布林就說得完：這一種拒絕沒有任何數字調得動。
               marketClosedThroughout:
                 backendFailure.data?.observationWindowHoldsNoTrading ?? false,
+              retryableFrom: backendFailure.data?.lockedUntil,
             },
           )
         }
