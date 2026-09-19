@@ -116,10 +116,17 @@ function closeNavigationDrawerOnEscape(event: KeyboardEvent) {
       @click="navigationDrawerOpen = false"
     />
 
+    <!--
+      抽屜關著的時候，那九條連結**不在鍵盤的路線上**。
+      光把它推出畫面是不夠的：元素還在，按 Tab 會一條一條走進一片看不見的導覽，
+      而使用者完全不知道焦點跑到哪裡去了。
+      這只在它真的是一片關著的抽屜時成立——寬螢幕上那條側欄一直都在，走得到才對。
+    -->
     <nav
       id="console-destinations"
       class="console-layout__rail"
       aria-label="操作台"
+      :inert="layoutDensity.usesNavigationDrawer && !navigationDrawerOpen"
     >
       <div class="console-layout__brand">
         <span class="console-layout__brand-mark" />

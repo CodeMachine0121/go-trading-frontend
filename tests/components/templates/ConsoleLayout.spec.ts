@@ -162,11 +162,14 @@ describe('ConsoleLayout', () => {
       const wrapper = await mountLayoutAt(PHONE)
       await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
 
+      const whereWeWere = useRoute().fullPath
+
       await wrapper.get('[data-testid="navigation-scrim"]').trigger('click')
 
       expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
         .toBe('false')
       expect(wrapper.find('[data-testid="navigation-scrim"]').exists()).toBe(false)
+      expect(useRoute().fullPath).toBe(whereWeWere)
     })
 
     it('按 Esc 也收得起來', async () => {
@@ -191,6 +194,23 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.get('[data-testid="toggle-navigation"]').attributes('aria-expanded'))
         .toBe('true')
+    })
+
+    it('關著的抽屜不在鍵盤的路線上', async () => {
+      // 光把它推出畫面是不夠的：元素還在，按 Tab 會一條一條走進一片看不見的導覽。
+      const wrapper = await mountLayoutAt(PHONE)
+
+      expect(wrapper.get('nav').attributes('inert')).toBeDefined()
+
+      await wrapper.get('[data-testid="toggle-navigation"]').trigger('click')
+
+      expect(wrapper.get('nav').attributes('inert')).toBeUndefined()
+    })
+
+    it('寬螢幕上那條側欄一直都走得到', async () => {
+      const wrapper = await mountLayoutAt(1024)
+
+      expect(wrapper.get('nav').attributes('inert')).toBeUndefined()
     })
 
     it('那顆鍵自己說它要做哪一件事', async () => {
