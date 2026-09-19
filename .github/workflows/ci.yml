@@ -67,3 +67,146 @@ jobs:
 
       - name: test
         run: bun run test
+
+  # 前端從這裡開始跟另外兩個服務走同一條路:編成映像檔、推 GHCR、把版本號寫回
+  # 部署 repo,由 Argo 套用。它不再部署到 Vercel。
+  publish:
+    needs: verify
+
+    # Pull request 不會走到這裡。這個 repository 是公開的,任何人都能開一個,
+    # 而 fork 的 PR 不該有機會把映像檔放到這個名字底下。
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    # 下面那個 deploy job 要寫進 manifest 的標籤。
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    permissions:
+      contents: read
+      # 唯一多出來的權限。有了它,這個 job 內建的 token 就推得了 GHCR,
+      # 不必另外建立、保存、輪替任何 registry 密碼。
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # 版本號在這裡算一次,推上去的標籤和寫回部署的標籤都用這一個值。
+      # 算兩次就會多出「它們一樣嗎」這個問題,而那個問題的錯誤形式是
+      # 部署指向一個從來沒被推上去的標籤。
+      - id: version
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.version.outputs.tag }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # provenance/sbom 關掉。它們每次推都會多一個沒有標籤的 manifest,
+          # 在免費帳號上只買到更快撞到容量上限;關掉之後一次推等於一個版本,
+          # 那正是下面 prune 依賴的前提。
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 舊版本沒有別的東西會刪,而這個帳號的私有套件只有 500 MB。放著不管,
+  # 上限會安靜地到達,而它announce自己的方式是下一次推送失敗。
+  prune:
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write
+
+    steps:
+      # 五版而不是一版:要回退得回得去,而最可能被想回去的正是剛被取代的那一版。
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: go-trading-frontend
+          package-type: container
+          min-versions-to-keep: 5
+
+  # 最後一環。推上映像檔本身不改變任何事——要有人說「跑這一個」,而那個人是
+  # 部署 repository 裡的一次 commit,因為 Argo CD 只讀 git。
+  deploy:
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      # 這個 job 不需要這個 repository 的任何權限。它要寫的是另一個 repository,
+      # 而那把鑰匙是一把只認得那一個 repository 的 deploy key。
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: CodeMachine0121/go-trading-deploy
+          ssh-key: ${{ secrets.DEPLOY_REPO_SSH_KEY }}
+          ref: main
+          # 完整歷史:下面搶輸的時候要 rebase,淺層 clone 沒有東西可以 rebase。
+          fetch-depth: 0
+
+      - name: Point the deployment at this commit
+        env:
+          IMAGE: ghcr.io/codemachine0121/go-trading-frontend
+          TAG: ${{ needs.publish.outputs.tag }}
+          # 走環境變數,絕不內插進下面的腳本。commit message 是別人寫的文字,
+          # `${{ }}` 貼進 shell 會執行它剛好寫了什麼。
+          SOURCE_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          # yq 而不是 sed:它設定的是「名字等於這個映像檔的那一項的 newTag」,
+          # 不是檔案裡剛好長得對的那一行。runner 內建,沒有版本要釘。
+          yq -i "(.images[] | select(.name == strenv(IMAGE)) | .newTag) = strenv(TAG)" \
+            go-trading-frontend/kustomization.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add go-trading-frontend/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "deployment already points at $TAG"
+            exit 0
+          fi
+
+          SUBJECT=$(printf '%s\n' "$SOURCE_MESSAGE" | head -1)
+          git commit -m "Deploy go-trading-frontend $TAG" \
+                     -m "${GITHUB_REPOSITORY}@${GITHUB_SHA}" \
+                     -m "$SUBJECT"
+
+          # 三個服務寫同一個 repository,所以同時發版時會有人的推送被拒。
+          # rebase 重試而不是 force:對方寫的是別的服務的版本號,兩邊都要留下。
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "push refused, rebasing onto what landed first (attempt $attempt)"
+            git pull --rebase
+          done
+
+          echo "::error::could not write the deployment update after three attempts"
+          exit 1
