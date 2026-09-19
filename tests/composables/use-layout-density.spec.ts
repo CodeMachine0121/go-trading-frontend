@@ -17,11 +17,19 @@ const Screen = defineComponent({
   setup() {
     const { layoutDensity } = useLayoutDensity(layoutDensityApplication)
 
-    return () => h('span', {
-      'data-testid': 'answers',
-      'data-editing': String(layoutDensity.value.allowsBlockEditing),
-      'data-drawer': String(layoutDensity.value.usesNavigationDrawer),
-    })
+    /** 這個元件到現在為止被交過幾份**不同的**答案。 */
+    const handedOut = new Set<unknown>()
+
+    return () => {
+      handedOut.add(layoutDensity.value)
+
+      return h('span', {
+        'data-testid': 'answers',
+        'data-editing': String(layoutDensity.value.allowsBlockEditing),
+        'data-drawer': String(layoutDensity.value.usesNavigationDrawer),
+        'data-generation': String(handedOut.size),
+      })
+    }
   },
 })
 
@@ -96,10 +104,12 @@ describe('useLayoutDensity', () => {
     second.unmount()
   })
 
-  it('十個元件在看，視窗也只被監聽一次，而且全部收起來時真的收得掉', () => {
+  it('每個看著的元件掛自己的那一份，收起來時也收自己的那一份', () => {
     // 這一則問的是**到底有沒有掛在視窗上**，因為它從答案上看不出來：
-    // 掛了十個、或是一個都沒取消掉，算出來的答案完全一樣。
-    // 而留著一個對著已消失元件喊話的監聽器，正是這種共用狀態最典型的漏法。
+    // 一個都沒取消掉，算出來的答案完全一樣，而留下的是一個對著已消失元件喊話的監聽器。
+    //
+    // 刻意不去數「全站只掛一個」：要做到那件事得有一個跨元件的計數器，
+    // 而那個計數器會被「建立了卻從未掛載」的元件減成負的，從此整站不再反應視窗大小。
     const listen = vi.spyOn(window, 'addEventListener')
     const stopListening = vi.spyOn(window, 'removeEventListener')
 
@@ -111,12 +121,40 @@ describe('useLayoutDensity', () => {
     const listened = listen.mock.calls.filter(([event]) => String(event) === 'resize')
     const stopped = stopListening.mock.calls.filter(([event]) => String(event) === 'resize')
 
-    expect(listened).toHaveLength(1)
-    expect(stopped).toHaveLength(1)
-    expect(stopped[0]?.[1]).toBe(listened[0]?.[1])
+    expect(listened).toHaveLength(2)
+    expect(stopped.map(([, handler]) => handler)).toEqual(listened.map(([, handler]) => handler))
 
     listen.mockRestore()
     stopListening.mockRestore()
+  })
+
+  it('寬度變了但答案沒變，交出去的還是同一份答案', async () => {
+    // 拖動視窗邊緣的那一秒裡，寬度每一幀都在變。每一幀換一份新的答案，
+    // 拿著它的三棵樹就會各重繪六十次，而那五個布林一個都沒變。
+    const wrapper = mount(Screen)
+    await nextTick()
+    const beforeDragging = answersOf(wrapper)
+
+    await resizeWindowTo(1500)
+    await resizeWindowTo(1400)
+
+    expect(answersOf(wrapper)).toEqual(beforeDragging)
+    expect(wrapper.get('[data-testid="answers"]').attributes('data-generation')).toBe('1')
+  })
+
+  it('只跨過導覽那一道分界，也算答案變了', async () => {
+    // 1200 到 900 之間，五個答案裡只有「導覽是不是抽屜」變了——
+    // 比較時漏掉任何一項，畫面就會停在上一個答案上，而且不會有人發現。
+    const wrapper = mount(Screen)
+    await nextTick()
+
+    await resizeWindowTo(1200)
+    expect(answersOf(wrapper).usesNavigationDrawer).toBe(false)
+
+    await resizeWindowTo(900)
+
+    expect(answersOf(wrapper).usesNavigationDrawer).toBe(true)
+    expect(answersOf(wrapper).allowsBlockEditing).toBe(true)
   })
 
   it('全部收起來之後再打開一個，仍然跟著視窗跑', async () => {

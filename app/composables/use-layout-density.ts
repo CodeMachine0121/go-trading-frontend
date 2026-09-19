@@ -11,23 +11,6 @@ import type { LayoutDensityApplication } from '~/application/layout-density-appl
 const ASSUMED_DESKTOP_WIDTH_PIXELS = 1280
 
 /**
- * 現在還有幾個元件在看著視窗大小。
- *
- * 監聽器只掛一次：十個元件各掛一個，視窗每動一格就跑十次同樣的事。
- * 它只在瀏覽器這一側增減（`onMounted` 在伺服器端不會跑），
- * 所以伺服器端的請求之間不會互相看到對方的計數。
- */
-let watcherCount = 0
-
-/**
- * 掛上去的是**哪一個**函式。
- *
- * 少了它，最後一個元件卸載時會拿自己的那一份去取消監聽，
- * 而掛上去的是第一個元件的那一份——取消不掉，於是留下一個對著已消失元件喊話的監聽器。
- */
-let registeredWatcher: (() => void) | null = null
-
-/**
  * 現在這個寬度代表什麼。
  *
  * **沒有任何元件自己去問寬度。** 元件問的是「我編得動嗎」「導覽是不是抽屜」——
@@ -55,31 +38,45 @@ export function useLayoutDensity(
    */
   const viewportWidth = useState('viewport-width', () => ASSUMED_DESKTOP_WIDTH_PIXELS)
 
-  const layoutDensity = computed(
-    () => layoutDensityApplication.resolveLayoutDensity(viewportWidth.value))
+  /**
+   * 交出去的那一份答案。
+   *
+   * 它**不是** computed：computed 會在寬度每動一格時生出一份新的答案，
+   * 而拿著它的那幾個畫面看的是物件本身變沒變，不是內容變沒變——
+   * 於是使用者拖動視窗邊緣的那一整秒裡，三棵樹會各重繪六十次，
+   * 而那五個布林從頭到尾一個都沒變。只有答案真的不一樣時才換掉它。
+   */
+  const layoutDensity = shallowRef(
+    layoutDensityApplication.resolveLayoutDensity(viewportWidth.value))
+
+  watch(viewportWidth, (width) => {
+    const answers = layoutDensityApplication.resolveLayoutDensity(width)
+
+    if (!layoutDensity.value.sameAs(answers)) {
+      layoutDensity.value = answers
+    }
+  })
 
   function readViewportWidth(): void {
     viewportWidth.value = window.innerWidth
   }
 
+  // 每個看著的元件掛自己的那一份，收起來時收自己的那一份。
+  //
+  // 一度改成「全域數一數，只掛一個」，想省下重複的監聽。那個計數器是個陷阱：
+  // Vue 會替一個**建立了但從未掛載**的元件呼叫卸載那一段（例如還沒解析完就被
+  // 換掉的頁面），於是只減不加，數字掉到負的——從那一刻起「等於零」再也不成立，
+  // 整個 app 就靜靜地不再反應視窗大小，而畫面上看不出任何異狀。
+  //
+  // 重複掛幾個監聽器的代價是幾次整數寫入，而且寫的是同一個值，Vue 連一次重算都不會做。
+  // 那個代價遠小於一個會讓整站失效、又只在極少數時序下才發作的計數器。
   onMounted(() => {
     readViewportWidth()
-
-    if (watcherCount === 0) {
-      registeredWatcher = readViewportWidth
-      window.addEventListener('resize', registeredWatcher)
-    }
-
-    watcherCount += 1
+    window.addEventListener('resize', readViewportWidth)
   })
 
   onBeforeUnmount(() => {
-    watcherCount -= 1
-
-    if (watcherCount === 0 && registeredWatcher !== null) {
-      window.removeEventListener('resize', registeredWatcher)
-      registeredWatcher = null
-    }
+    window.removeEventListener('resize', readViewportWidth)
   })
 
   return { layoutDensity }

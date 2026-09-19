@@ -29,4 +29,24 @@ export class LayoutDensityDto {
      */
     public readonly assistantCoversScreen: boolean,
   ) {}
+
+  /**
+   * 這一份答案與那一份說的是不是同一件事。
+   *
+   * 拖動視窗邊緣時，寬度每一幀都在變，但**答案一整段都不會變**——
+   * 從 900 拖到 850 什麼都沒發生，跨過 768 才發生一件事。
+   * 沒有這個比較，每一幀都會生出一份全新的答案，而拿著它的三個畫面
+   * 會在使用者拖動的那一整秒裡各重繪六十次，卻沒有任何一個布林改變過。
+   *
+   * **逐欄比較，即使今天有三欄是多餘的**：那三欄現在恰好與疏密共用同一道分界，
+   * 所以少比它們今天也不會錯。但下一個把某一件事挪到第三道分界上的人，
+   * 不會記得回來改這裡——而漏掉的那一欄不會報錯，只會讓畫面停在上一個答案上。
+   */
+  sameAs(other: LayoutDensityDto): boolean {
+    return this.density === other.density
+      && this.usesNavigationDrawer === other.usesNavigationDrawer
+      && this.allowsBlockEditing === other.allowsBlockEditing
+      && this.startsChartControlsCollapsed === other.startsChartControlsCollapsed
+      && this.assistantCoversScreen === other.assistantCoversScreen
+  }
 }
