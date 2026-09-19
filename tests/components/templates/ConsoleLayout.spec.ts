@@ -248,6 +248,18 @@ describe('ConsoleLayout', () => {
       expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
     })
 
+    it('視窗拉寬再拉窄，開著的那張紙不會自己跳回來', async () => {
+      // 不收掉的話那個「開著」會留在狀態裡，而使用者沒有按過任何東西。
+      const wrapper = await mountLayoutAt(PHONE)
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+      await resizeTo(wrapper, DESKTOP)
+      await resizeTo(wrapper, PHONE)
+
+      expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
+    })
+
     it('把視窗拉寬，外框就換成側欄那一種，反過來也是', async () => {
       const wrapper = await mountLayoutAt(PHONE)
       expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(true)

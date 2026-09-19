@@ -190,8 +190,15 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
       min-width: 0;
     }
 
+    // 寬螢幕上這一層整個讓開，於是它那兩個孩子變成工具列的直接成員——
+    // 那時候 `flex: 1` 會讓它們撐滿整排，而旁邊兩組維持內容寬，看起來就歪了。
+    // 讓開的同時也要把那條規則收回去。
     @include respond-to('md') {
       display: contents;
+
+      > * {
+        flex: 0 1 auto;
+      }
     }
   }
 

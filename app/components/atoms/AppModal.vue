@@ -62,8 +62,13 @@ function onHandlePointerDown(event: PointerEvent) {
 // Esc 關掉是對話框的基本禮貌，但它是全域鍵盤事件——只在開著的時候聽，
 // 否則三個對話框會同時搶同一個按鍵。
 //
-// 這兩段都不必防伺服器端：watcher 只在 props 變動時跑、onBeforeUnmount 只在拆掉時跑，
-// 而伺服器端只渲染一次，兩件事都不會發生。
+// **`immediate` 是必要的**：一個一掛上去就已經開著的對話框，`open` 從頭到尾沒有
+// 「變動」過，於是那個監聽器永遠掛不上去，而那張紙按 Esc 關不掉。
+// 每一個對話框都從關著開始的時候，這個漏洞看不出來；窄螢幕上那張「更多」
+// 是連同 `open` 一起被渲染出來的，它就掉進去了。
+//
+// 這兩段都不必防伺服器端：watcher 的 `immediate` 在伺服器端也會跑，但那裡沒有
+// `document`——所以它擺在 onMounted 之後才有意義。見下面那一行。
 watch(() => open, (isOpen) => {
   if (isOpen) {
     document.addEventListener('keydown', closeOnEscape)
@@ -76,6 +81,14 @@ watch(() => open, (isOpen) => {
 // 沒有這一段的話，開著的時候被拆掉就會留下一個對著已消失元件喊話的監聽器。
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', closeOnEscape)
+})
+
+// 一掛上去就已經開著的那一種：`open` 沒有變動過，所以上面那個 watcher 不會跑。
+// 這裡補上它——在瀏覽器這一側，因為伺服器端沒有 `document`。
+onMounted(() => {
+  if (open) {
+    document.addEventListener('keydown', closeOnEscape)
+  }
 })
 
 function closeOnEscape(event: KeyboardEvent) {
@@ -290,14 +303,19 @@ function closeOnEscape(event: KeyboardEvent) {
   }
 
   // 動作釘在紙的底部、一條一條佔滿整寬：拇指的行程就在那裡，
-  // 而一顆佔滿整寬的鍵不必瞄準。順序倒過來，讓主要動作離拇指最近。
+  // 而一顆佔滿整寬的鍵不必瞄準。
+  //
+  // **順序就是 DOM 的順序**，不倒過來。每一個對話框都把「取消」寫在前面、
+  // 主要動作寫在後面，所以直向排下來時主要動作本來就落在最底下、離拇指最近。
+  // 倒過來排會讓那顆會弄丟東西的鍵跑到最上面，而且鍵盤的行進順序會與
+  // 眼睛看到的順序相反——那是兩個都不該付的代價，換來的是零。
   //
   // 「佔滿整寬」不必伸手去改那幾顆按鈕：直向排列時它們是 flex 的子項，
   // 橫向本來就會被拉開。動別人家的 class 才是要避免的那件事。
   &__actions {
     display: flex;
     flex: none;
-    flex-direction: column-reverse;
+    flex-direction: column;
     gap: spacing('xs');
     border-top: 1px solid color('border');
     padding: spacing('sm') spacing('md');

@@ -83,6 +83,18 @@ const insideMore = computed(
 watch(() => route.fullPath, () => {
   moreOpen.value = false
 })
+
+/**
+ * 視窗變寬到不再需要底部那一排時，把那張紙也收掉。
+ *
+ * 不收的話那個「開著」會留在狀態裡：使用者把視窗拉寬、再拉窄回來，
+ * 紙就自己跳出來，而他沒有按過任何東西。
+ */
+watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => {
+  if (!usesBottomNavigation) {
+    moreOpen.value = false
+  }
+})
 </script>
 
 <template>
@@ -279,9 +291,18 @@ watch(() => route.fullPath, () => {
     }
   }
 
+  // 伺服器端量不到視窗，所以它畫出來的一律是側欄那一版（見 useLayoutDensity）。
+  // 在手機上，那一版在補正之前會**真的佔掉版面的第一列**，把整個工作區推到摺線以下。
+  // 因此這裡還要再擋一次：程式決定要不要渲染它，樣式決定它在這個寬度看不看得見。
+  // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條九個項目的側欄。
   &__rail {
-    display: flex;
+    display: none;
     flex-direction: column;
+
+    @include respond-to('lg') {
+      display: flex;
+    }
+
     gap: spacing('lg');
     border-right: 1px solid color('border');
     background-color: color('surface');
@@ -501,10 +522,16 @@ watch(() => route.fullPath, () => {
   }
 
   // 底部那一排。每一格是一個等寬的直欄：圖示在上、名字在下，整格都按得到。
+  // 同上，反過來：底部那一排在寬螢幕上不該出現，即使有誰把它渲染出來。
   &__tabs {
     display: grid;
     grid-auto-columns: 1fr;
     grid-auto-flow: column;
+
+    @include respond-to('lg') {
+      display: none;
+    }
+
     border-top: 1px solid color('border');
     background-color: color('surface');
 

@@ -335,8 +335,12 @@ onMounted(() => {
     justify-content: space-between;
   }
 
+  // 五顆鍵在一支手機上排不成一行（光是它們自己就要三百多像素），
+  // 而它們不會縮——按鈕裡的字不折行。所以這裡要讓它們換行，
+  // 否則整個工作區會多出一條橫向捲軸，就在這一刀特地為手機重排的那一列上。
   &__actions {
     display: flex;
+    flex-wrap: wrap;
     gap: spacing('2xs');
     margin-left: auto;
   }
