@@ -771,3 +771,19 @@ describe('TradingStrategyWorkbench：螢幕窄到排不開一張工作檯', () =
       .not.toBeNull()
   })
 })
+
+describe('TradingStrategyWorkbench：改到一半螢幕變窄了', () => {
+  it('已經做過的改動留著，只是從那一刻起改不動', async () => {
+    // 轉個方向就把人做到一半的東西丟掉，比不讓他改更糟。
+    const wrapper = mountWorkbench()
+    await flushPromises()
+    await wrapper.get('[data-testid="trading-strategy-name-input"]').setValue('改了一半的名字')
+
+    await wrapper.setProps({ layoutDensity: onAPhone() })
+
+    expect((wrapper.get('[data-testid="trading-strategy-name-input"]').element as HTMLInputElement).value)
+      .toBe('改了一半的名字')
+    expect(wrapper.find('[data-testid="placed-buy-MACD"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="read-only-notice"]').text()).toContain('只能看不能改')
+  })
+})
