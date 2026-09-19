@@ -91,6 +91,23 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
         {{ summary.takeProfitExitCount }}
       </dd>
     </div>
+    <!--
+      收過錢才出現，與上面那幾格同一條規則。判斷讀的是 `null` 而不是零，
+      因為到了這裡它已經是一個字串——而「有沒有收過錢」是領域知識，
+      所以那個判斷留在領域模型裡，這裡只問它給了沒有。
+
+      出現的時候它要被看見：**同一個報酬率，兩個完全不同的故事**——
+      一支讀不準行情的策略，與一支讀得夠準卻把賺的全交給券商的策略。
+    -->
+    <div
+      v-if="summary.totalTransactionCost !== null"
+      class="backtest-summary-card__item"
+    >
+      <dt>交易成本</dt>
+      <dd data-testid="summary-total-transaction-cost">
+        {{ summary.totalTransactionCost }}
+      </dd>
+    </div>
   </dl>
 </template>
 

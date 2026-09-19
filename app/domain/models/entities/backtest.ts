@@ -15,7 +15,12 @@ export class ClosedTrade {
     public readonly exitTime: Date,
     public readonly exitPrice: Decimal,
     public readonly stake: Decimal,
-    /** 賠錢時是負的；沒有另一個「虧損」欄位。 */
+    /**
+     * 賠錢時是負的；沒有另一個「虧損」欄位。
+     *
+     * 它是**淨額**——價差扣掉下面那兩筆成本之後的數字，因為那才是口袋真正的變化。
+     * 勝率讀的就是它，所以價差賺得到、卻賺不過手續費的那一趟不算贏。
+     */
     public readonly profit: Decimal,
     /**
      * 這一筆是怎麼結束的：訊號叫它出場，還是碰到了這一次重演給的出場價位。
@@ -24,6 +29,15 @@ export class ClosedTrade {
      * 答不出「是哪幾筆」——而看這張明細的人問的正是後者。
      */
     public readonly exitReason: TradeExitReason,
+    /**
+     * 這一筆為了進場與出場各付掉多少。兩個都是零，代表這一次重演沒有給費率。
+     *
+     * 它們在每一筆上而不只是成績單那一個總數，因為總數答得出「總共付了多少」、
+     * 答不出「是哪幾筆在付」——而看這張明細的人問的正是後者：
+     * 那些被吃掉的是不是都擠在幾乎沒有動的那幾趟。
+     */
+    public readonly entryCost: Decimal,
+    public readonly exitCost: Decimal,
   ) {}
 }
 
@@ -75,6 +89,15 @@ export class Backtest {
      */
     public readonly stopLossExitCount: number,
     public readonly takeProfitExitCount: number,
+    /**
+     * 這一次重演總共為了交易付掉多少：已平倉那幾筆的兩端，
+     * 加上結束時還開著那一注**已經付掉的**進場成本。沒有給費率時是零。
+     *
+     * 它存在的理由與上面那兩個數字同一個：**同一個報酬率，兩個完全不同的故事**——
+     * 一支讀不準行情的策略，與一支讀得夠準卻把賺的全交給券商的策略。
+     * 少了這個數字，那兩件事在成績單上長得一模一樣。
+     */
+    public readonly totalTransactionCost: Decimal,
     public readonly closedTrades: readonly ClosedTrade[],
     public readonly equityCurve: readonly EquityPoint[],
   ) {}

@@ -7,6 +7,7 @@ import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-i
 import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
+import { BacktestTransactionCostsDomain } from '~/domain/models/domains/backtest-transaction-costs-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
@@ -43,6 +44,8 @@ export class BacktestRequestDomain {
   readonly tradingMode: TradingMode
   readonly stopLossPercentage: Decimal
   readonly takeProfitPercentage: Decimal
+  readonly entryCostPercentage: Decimal
+  readonly exitCostPercentage: Decimal
 
   constructor(backtestRequestDto: BacktestRequestDto) {
     const normalizedSymbol = backtestRequestDto.symbol.trim()
@@ -68,6 +71,10 @@ export class BacktestRequestDomain {
       backtestRequestDto.stopLossPercentage,
       backtestRequestDto.takeProfitPercentage).validate()
 
+    new BacktestTransactionCostsDomain(
+      backtestRequestDto.entryCostPercentage,
+      backtestRequestDto.exitCostPercentage).validate()
+
     // 種類不對就當場說清楚，而不是硬套一個「一個信號」的簽章送出去。
     // 硬套的代價是：使用者什麼都沒改，卻收到一句直譯器的型別抱怨——
     // 那句話不會告訴他該去按哪一個下拉選單。
@@ -92,6 +99,8 @@ export class BacktestRequestDomain {
     this.positionSizingValue = backtestRequestDto.positionSizingValue
     this.stopLossPercentage = backtestRequestDto.stopLossPercentage
     this.takeProfitPercentage = backtestRequestDto.takeProfitPercentage
+    this.entryCostPercentage = backtestRequestDto.entryCostPercentage
+    this.exitCostPercentage = backtestRequestDto.exitCostPercentage
     // 交易模式不做合法性拒絕：使用者是從兩顆並排的按鈕挑的，挑不出非法值。
     // 與彙總刻度同一套處理。
     this.tradingMode = backtestRequestDto.tradingMode

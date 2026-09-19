@@ -6,9 +6,13 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 //
 // 「一筆都沒有」由這裡明講，而不是留一張空表格：空白讓人以為壞了，
 // 明講讓人知道是策略腳本沒開口。
-const { closedTrades, timeZone } = defineProps<{
+// 那兩欄成本收過錢才畫，而「有沒有收過錢」由外面告訴它——不是讓表格自己
+// 去看每一列的成本是不是零。一筆成本為零的交易不代表整次重演沒收過錢，
+// 而表格一旦開始判斷這種事，它就變成了第二個知道業務規則的地方。
+const { closedTrades, timeZone, showTransactionCosts = false } = defineProps<{
   closedTrades: readonly ClosedTradeDto[]
   timeZone: TimeZoneDto
+  showTransactionCosts?: boolean
 }>()
 </script>
 
@@ -47,8 +51,22 @@ const { closedTrades, timeZone } = defineProps<{
           <th scope="col">
             怎麼出場
           </th>
+          <!-- 擺在賺賠之前：先看付了多少，再看剩下多少。 -->
+          <th
+            v-if="showTransactionCosts"
+            scope="col"
+          >
+            進場成本
+          </th>
+          <th
+            v-if="showTransactionCosts"
+            scope="col"
+          >
+            出場成本
+          </th>
+          <!-- 說明它是淨額，否則有人會拿進出場價自己心算然後對不起來。 -->
           <th scope="col">
-            賺賠
+            {{ showTransactionCosts ? '賺賠（已扣成本）' : '賺賠' }}
           </th>
         </tr>
       </thead>
@@ -69,6 +87,20 @@ const { closedTrades, timeZone } = defineProps<{
           </td>
           <td data-testid="trade-exit-reason">
             {{ closedTrade.exitReasonLabel }}
+          </td>
+          <td
+            v-if="showTransactionCosts"
+            class="backtest-trade-table__number"
+            data-testid="trade-entry-cost"
+          >
+            {{ closedTrade.entryCost }}
+          </td>
+          <td
+            v-if="showTransactionCosts"
+            class="backtest-trade-table__number"
+            data-testid="trade-exit-cost"
+          >
+            {{ closedTrade.exitCost }}
           </td>
           <!-- 賺綠賠紅：同一欄裡掃下去，方向比數值先被看見。 -->
           <td

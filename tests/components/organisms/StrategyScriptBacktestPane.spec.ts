@@ -56,9 +56,10 @@ function completedBacktest(overrides: Partial<{
     0,
     0,
     0,
+    new Decimal(0),
     overrides.closedTrades ?? [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'), 'signal')],
+      new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))],
     overrides.equityCurve ?? [
       new EquityPoint(REPLAY_START, new Decimal('10000')),
       new EquityPoint(REPLAY_END, new Decimal('12500')),
@@ -374,9 +375,11 @@ describe('StrategyScriptBacktestPane', () => {
         runBacktest: vi.fn().mockResolvedValue(completedBacktest({
           closedTrades: [
             new ClosedTrade('long', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal'),
+              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal',
+              new Decimal(0), new Decimal(0)),
             new ClosedTrade('short', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal'),
+              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal',
+              new Decimal(0), new Decimal(0)),
           ],
         })),
       }))

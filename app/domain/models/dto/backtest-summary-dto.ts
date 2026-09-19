@@ -32,5 +32,14 @@ export class BacktestSummaryDto {
      */
     public readonly stopLossExitCount: number,
     public readonly takeProfitExitCount: number,
+    /**
+     * 這次總共為了交易付掉多少，**沒收過錢時是 `null`**。
+     *
+     * `null` 而不是 `'0.00'`，因為到了這裡它已經是一個字串——而字串沒有
+     * 「大於零」這回事，元件沒辦法照上面那幾格的做法自己判斷。
+     * 要不要顯示是領域知識，不是樣式，所以那個決定留在領域模型裡，
+     * 與勝率那一格「一筆都沒平倉時是不適用」是同一個先例。
+     */
+    public readonly totalTransactionCost: string | null,
   ) {}
 }

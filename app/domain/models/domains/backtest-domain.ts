@@ -93,6 +93,11 @@ export class BacktestDomain {
       this.backtest.conflictedCandleCount,
       this.backtest.stopLossExitCount,
       this.backtest.takeProfitExitCount,
+      // 零與「沒收過錢」在這裡是同一件事，而那是對的：費率留白時後端回零，
+      // 而使用者確實沒付過錢。多一格永遠是零的數字只會讓人以為它有什麼意思。
+      this.backtest.totalTransactionCost.isZero()
+        ? null
+        : this.amount(this.backtest.totalTransactionCost),
     )
   }
 
@@ -106,6 +111,8 @@ export class BacktestDomain {
       this.amount(closedTrade.profit),
       this.toneOfDecimal(closedTrade.profit),
       TRADE_EXIT_REASON_LABELS[closedTrade.exitReason],
+      this.amount(closedTrade.entryCost),
+      this.amount(closedTrade.exitCost),
     )
   }
 

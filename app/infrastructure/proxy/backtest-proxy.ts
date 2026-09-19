@@ -11,6 +11,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
+import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-cost-rate-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const BACKTESTS_ENDPOINT = '/backtests'
@@ -38,6 +39,29 @@ function exitLevelsBody(
   }
 }
 
+/**
+ * 那兩個費率裡真的填了的那幾格。
+ *
+ * 規則與上面那一組一字不差——**留白的不上線**。理由也一樣：一個空輸入框轉成的零
+ * 不是使用者的意思，而是 `new Decimal('')` 的結果，而後端把零讀成「不收費」
+ * 只是剛好對得上。不送它，「留白就不計」在線上就是字面的意思。
+ *
+ * 兩組刻意各有各的函式，而不是一個收四個參數的：出場那一格留白時
+ * **後端會沿用進場**，那一組不會。長得像的兩條規則湊成一個函式，
+ * 只會讓下一個人以為它們是同一條。
+ */
+function transactionCostsBody(
+  entryCostPercentage: Decimal, exitCostPercentage: Decimal,
+): Record<string, string> {
+  const entryCost = new TransactionCostRateDomain(entryCostPercentage, '進場成本率')
+  const exitCost = new TransactionCostRateDomain(exitCostPercentage, '出場成本率')
+
+  return {
+    ...(entryCost.isSet ? { entryCostPercentage: entryCostPercentage.toString() } : {}),
+    ...(exitCost.isSet ? { exitCostPercentage: exitCostPercentage.toString() } : {}),
+  }
+}
+
 /** 重演一份交易策略掛在那一份底下，因為那是對它做的事。 */
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -58,6 +82,8 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   // 一個名字蓋住止損與止盈兩格：它們併排填成一組，
   // 而後端那句話已經說出是哪一個距離。
   exitLevels: 'exitLevels',
+  // 同樣一個名字蓋住進場與出場兩個費率。
+  transactionCosts: 'transactionCosts',
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
   // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要重演什麼」有關的地方。
   signalSources: 'symbol',
@@ -82,6 +108,13 @@ type ClosedTradeWire = {
    * 而那時每一筆都只可能是訊號出場，所以沒有就是訊號。
    */
   exitReason?: string
+  /**
+   * 這一筆兩端各付掉多少。
+   *
+   * 選填，因為比這一刀早的後端不說這件事——而那時交易是免費的，所以沒有就是零。
+   */
+  entryCost?: string
+  exitCost?: string
 }
 
 type EquityPointWire = {
@@ -118,6 +151,12 @@ type BacktestWire = {
      */
     stopLossExitCount?: number
     takeProfitExitCount?: number
+    /**
+     * 這一次總共為了交易付掉多少。
+     *
+     * 選填，理由與上面那兩個相同：比這一刀早的後端根本不收費，也不說這件事。
+     */
+    totalTransactionCost?: string
   }
   closedTrades: ClosedTradeWire[] | null
   equityCurve: EquityPointWire[] | null
@@ -143,6 +182,9 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           ...exitLevelsBody(
             backtestRequestDomain.stopLossPercentage,
             backtestRequestDomain.takeProfitPercentage),
+          ...transactionCostsBody(
+            backtestRequestDomain.entryCostPercentage,
+            backtestRequestDomain.exitCostPercentage),
           // 宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
           // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
           parameters: backtestRequestDomain.parameters.all.map(parameter => ({
@@ -189,6 +231,8 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             // 而出場距離在：那一份對「它的主人能忍多少」沒有意見。
             ...exitLevelsBody(
               requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
+            ...transactionCostsBody(
+              requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
           },
         })
 
@@ -216,6 +260,8 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       wire.summary.conflictedCandleCount ?? 0,
       wire.summary.stopLossExitCount ?? 0,
       wire.summary.takeProfitExitCount ?? 0,
+      // 沒說就是沒收過錢——比這一刀早的後端從來不收。
+      new Decimal(wire.summary.totalTransactionCost ?? 0),
       (wire.closedTrades ?? []).map(closedTrade => new ClosedTrade(
         closedTrade.direction as PositionDirection,
         new Date(closedTrade.entryTime),
@@ -225,7 +271,9 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
         new Decimal(closedTrade.stake),
         new Decimal(closedTrade.profit),
         // 沒說就是訊號出場——比這一刀早的後端只有那一種出場。
-        (closedTrade.exitReason ?? 'signal') as TradeExitReason)),
+        (closedTrade.exitReason ?? 'signal') as TradeExitReason,
+        new Decimal(closedTrade.entryCost ?? 0),
+        new Decimal(closedTrade.exitCost ?? 0))),
       (wire.equityCurve ?? []).map(equityPoint => new EquityPoint(
         new Date(equityPoint.openTime),
         new Decimal(equityPoint.equity))),

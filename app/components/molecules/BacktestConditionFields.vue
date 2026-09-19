@@ -29,6 +29,7 @@ const {
   positionSizingValueError = null,
   tradingModeError = null,
   exitLevelsError = null,
+  transactionCostsError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
@@ -51,6 +52,13 @@ const {
    * 而那句話已經說出是止損還是止盈那一格。
    */
   exitLevelsError?: string | null
+  /**
+   * 交易成本那一組旁邊要說的話。
+   *
+   * 一則訊息蓋住兩格，與出場價位同一個判斷：它們併排填成一組，
+   * 而那句話已經說出是進場還是出場那一格。
+   */
+  transactionCostsError?: string | null
   /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
@@ -83,6 +91,11 @@ const tradingMode = defineModel<string>('tradingMode', { required: true })
 const stopLossPercentage = defineModel<string>('stopLossPercentage', { required: true })
 const takeProfitPercentage = defineModel<string>(
   'takeProfitPercentage', { required: true })
+// 兩個費率。預設留白，而留白就是不收費——與上面那一組一樣「不填也是一個意思」，
+// 但**規則不同**：出場留白時沿用進場，而不是各自獨立。
+// 兩組就擺在一起，所以那句話非說不可。
+const entryCostPercentage = defineModel<string>('entryCostPercentage', { required: true })
+const exitCostPercentage = defineModel<string>('exitCostPercentage', { required: true })
 
 /**
  * 同一組單選鈕共用的名字。
@@ -273,6 +286,42 @@ const selectedPositionSizingMode = computed(
       </div>
     </FormField>
 
+    <!--
+      與出場價位同一個做法：兩格擺成一組佔滿整列。
+      那句提示有兩件事要說（留白就不計、出場留白時跟進場一樣），
+      被摺成一疊時就沒有人會讀它。
+    -->
+    <FormField
+      label="交易成本"
+      class="backtest-condition-fields__transaction-costs"
+      hint="留白就不計。出場留白時跟進場一樣"
+      :error-message="transactionCostsError"
+      grouped
+    >
+      <div class="backtest-condition-fields__transaction-costs-inputs">
+        <label class="backtest-condition-fields__transaction-cost">
+          <span>進場成本率（%）</span>
+          <AppInput
+            v-model="entryCostPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(transactionCostsError)"
+            data-testid="backtest-entry-cost-percentage-input"
+          />
+        </label>
+        <label class="backtest-condition-fields__transaction-cost">
+          <span>出場成本率（%）</span>
+          <AppInput
+            v-model="exitCostPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(transactionCostsError)"
+            data-testid="backtest-exit-cost-percentage-input"
+          />
+        </label>
+      </div>
+    </FormField>
+
     <AppButton
       type="submit"
       class="backtest-condition-fields__action"
@@ -319,6 +368,27 @@ const selectedPositionSizingMode = computed(
   }
 
   &__exit-level {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    min-width: 0;
+    color: color('text-muted');
+    font-size: font-size('2xs');
+  }
+
+  // 與出場價位那一組同一個理由，而這一組的提示還多說一句
+  // 「出場留白時跟進場一樣」——那一句正是它與隔壁那組的差別。
+  &__transaction-costs {
+    grid-column: 1 / -1;
+  }
+
+  &__transaction-costs-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: spacing('2xs');
+  }
+
+  &__transaction-cost {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');

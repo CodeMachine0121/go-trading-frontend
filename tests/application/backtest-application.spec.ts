@@ -31,9 +31,10 @@ function completedBacktest(): Backtest {
     new Decimal('10000'), new Decimal('12500'), 0.25, 0.1, 0.75, 4, 0,
     0,
     0,
+    new Decimal(0),
     [new ClosedTrade(
       'long', START_TIME, new Decimal('100'), END_TIME, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'), 'signal')],
+      new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))],
     [new EquityPoint(START_TIME, new Decimal('10000'))])
 }
 
@@ -72,7 +73,7 @@ function backtestRequest(overrides: Partial<{
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
     overrides.positionSizingValue ?? new Decimal('50'),
-    overrides.tradingMode ?? 'longShort', new Decimal(0), new Decimal(0))
+    overrides.tradingMode ?? 'longShort', new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
 }
 
 describe('BacktestApplication', () => {
@@ -226,7 +227,7 @@ describe('BacktestApplication 重演一整份交易策略', () => {
       overrides.endTime ?? END_TIME,
       overrides.initialCapital ?? new Decimal('10000'),
       'percentage',
-      new Decimal('50'), new Decimal(0), new Decimal(0))
+      new Decimal('50'), new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
   }
 
   it('回來的形狀與重演一支腳本完全一樣，三個元件一種讀法就夠', async () => {

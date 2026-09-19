@@ -17,7 +17,7 @@ function closedTradeOf(
     new Date('2026-09-02T00:00:00Z'),
     new Decimal(exitPrice),
     new Decimal('10000'),
-    new Decimal(profit), exitReason)
+    new Decimal(profit), exitReason, new Decimal(0), new Decimal(0))
 }
 
 function backtestOf(overrides: Partial<{
@@ -28,6 +28,7 @@ function backtestOf(overrides: Partial<{
   conflictedCandleCount: number
   stopLossExitCount: number
   takeProfitExitCount: number
+  totalTransactionCost: Decimal
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
   finalEquity: string
@@ -47,6 +48,7 @@ function backtestOf(overrides: Partial<{
     overrides.conflictedCandleCount ?? 0,
     overrides.stopLossExitCount ?? 0,
     overrides.takeProfitExitCount ?? 0,
+    overrides.totalTransactionCost ?? new Decimal(0),
     overrides.closedTrades ?? [],
     overrides.equityCurve ?? [])
 }

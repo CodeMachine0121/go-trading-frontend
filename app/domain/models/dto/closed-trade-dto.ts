@@ -13,9 +13,13 @@ export class ClosedTradeDto {
     public readonly entryPrice: string,
     public readonly exitTime: Date,
     public readonly exitPrice: string,
+    /** 已經是扣掉下面那兩筆成本之後的淨額。 */
     public readonly profit: string,
     public readonly profitTone: ProfitTone,
     /** 這一筆怎麼出場的，已經是中文：訊號／止損／止盈。 */
     public readonly exitReasonLabel: string,
+    /** 這一筆兩端各付掉多少。沒收過錢的那一次重演裡它們都是 `'0.00'`。 */
+    public readonly entryCost: string,
+    public readonly exitCost: string,
   ) {}
 }

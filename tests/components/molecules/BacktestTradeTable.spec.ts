@@ -11,9 +11,12 @@ function tradeOf(
   profit: string,
   tone: 'positive' | 'negative' | 'neutral',
   exitReasonLabel = '訊號',
+  entryCost = '0.00',
+  exitCost = '0.00',
 ): ClosedTradeDto {
   return new ClosedTradeDto(
-    '做多', ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone, exitReasonLabel)
+    '做多', ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone, exitReasonLabel,
+    entryCost, exitCost)
 }
 
 function mountTable(closedTrades: ClosedTradeDto[], timeZoneIdentifier = 'UTC') {

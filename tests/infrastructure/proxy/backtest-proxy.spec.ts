@@ -24,11 +24,15 @@ function requestOf(
   // 留白就是不模擬，也就是這一刀之前的每一次重演。
   stopLossPercentage = new Decimal(0),
   takeProfitPercentage = new Decimal(0),
+  // 留白就是不收費，也就是這一刀之前的每一次重演。
+  entryCostPercentage = new Decimal(0),
+  exitCostPercentage = new Decimal(0),
 ): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode,
-    stopLossPercentage, takeProfitPercentage))
+    stopLossPercentage, takeProfitPercentage,
+    entryCostPercentage, exitCostPercentage))
 }
 
 /** 一次成功的回測，wire 上的樣子。金額一律是字串——它們是精確小數。 */
@@ -326,7 +330,8 @@ describe('BacktestProxy', () => {
 function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
-    new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0)))
+    new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0),
+    new Decimal(0), new Decimal(0)))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {

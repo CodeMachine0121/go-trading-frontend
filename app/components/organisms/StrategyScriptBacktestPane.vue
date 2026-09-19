@@ -92,6 +92,11 @@ const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
 // 情況下改掉使用者手上每一張成績單。
 const stopLossPercentage = ref('')
 const takeProfitPercentage = ref('')
+// 兩個費率。**預設留白，而留白就是不收費**——同樣的理由：
+// 替既有的每一次重演補一個「常見費率」，就是在沒有人動手的情況下
+// 改掉使用者手上每一張成績單。
+const entryCostPercentage = ref('')
+const exitCostPercentage = ref('')
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
@@ -114,6 +119,9 @@ async function runBacktest() {
     // 而沒填停損距離本來就是一個完整的回答。
     new Decimal(stopLossPercentage.value === '' ? 0 : stopLossPercentage.value),
     new Decimal(takeProfitPercentage.value === '' ? 0 : takeProfitPercentage.value),
+    // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
+    new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
+    new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
   ))
 }
 </script>
@@ -155,6 +163,8 @@ async function runBacktest() {
         v-model:trading-mode="tradingMode"
         v-model:stop-loss-percentage="stopLossPercentage"
         v-model:take-profit-percentage="takeProfitPercentage"
+        v-model:entry-cost-percentage="entryCostPercentage"
+        v-model:exit-cost-percentage="exitCostPercentage"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
@@ -168,6 +178,7 @@ async function runBacktest() {
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
         :trading-mode-error="backtestRun.messageFor('tradingMode')"
         :exit-levels-error="backtestRun.messageFor('exitLevels')"
+        :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
       />
 
       <p
@@ -270,6 +281,7 @@ async function runBacktest() {
         <BacktestTradeTable
           :closed-trades="backtestRun.result.value.closedTrades"
           :time-zone="timeZone"
+          :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
         />
       </AppPanel>
     </template>
