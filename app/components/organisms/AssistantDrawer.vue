@@ -48,6 +48,14 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
   width: number
   /** 正在被拉動嗎。拉動中要把那條邊標出來，也不要讓文字被選到。 */
   resizing?: boolean
+  /**
+   * 這個寬度下，助手蓋滿整個畫面。
+   *
+   * 那時候「多寬」這個問題不存在——記著的寬度留著不動（回到寬螢幕時
+   * 仍然是他上次拉的那一個），只是這一次不採用它。那條拉動的邊也不畫：
+   * 拖寬本來就是滑鼠的動作，而在一塊已經蓋滿畫面的東西上它更是沒有意義。
+   */
+  coversScreen: boolean
 }>()
 
 const draft = defineModel<string>('draft', { required: true })
@@ -111,14 +119,18 @@ watch(() => open, (isOpen) => {
       class="assistant-drawer__panel"
       aria-label="行情助手"
       data-testid="assistant-drawer-panel"
-      :style="{ width: `${width}px` }"
-      :class="{ 'assistant-drawer__panel--resizing': resizing }"
+      :style="coversScreen ? undefined : { width: `${width}px` }"
+      :class="{
+        'assistant-drawer__panel--resizing': resizing,
+        'assistant-drawer__panel--full': coversScreen,
+      }"
     >
       <!--
         抓著左邊那條邊就能改寬度。抽屜靠右，所以會動的是左邊那一條；
         往左拉是變寬。它是分隔線也是把手，所以用 separator 的語意。
       -->
       <div
+        v-if="!coversScreen"
         class="assistant-drawer__resize-handle"
         role="separator"
         aria-orientation="vertical"
@@ -269,6 +281,16 @@ $resize-handle-width: 5px;
       // 拉動中不要選到裡面的文字，也不要讓游標一離開那條邊就變回箭頭。
       cursor: col-resize;
       user-select: none;
+    }
+
+    // 蓋滿整個畫面：那一圈留白與圓角是用來說「我只是疊在上面」的，
+    // 而一塊佔滿螢幕的東西不必說那句話——它就是現在唯一在的東西。
+    &--full {
+      inset: 0;
+      border: none;
+      border-radius: 0;
+      width: auto;
+      max-width: none;
     }
   }
 
