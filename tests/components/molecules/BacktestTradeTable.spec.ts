@@ -19,11 +19,40 @@ function tradeOf(
     entryCost, exitCost)
 }
 
-function mountTable(closedTrades: ClosedTradeDto[], timeZoneIdentifier = 'UTC') {
+function mountTable(
+  closedTrades: ClosedTradeDto[], timeZoneIdentifier = 'UTC', showTransactionCosts = false,
+) {
   return mount(BacktestTradeTable, {
-    props: { closedTrades, timeZone: buildTimeZone(timeZoneIdentifier) },
+    props: {
+      closedTrades, timeZone: buildTimeZone(timeZoneIdentifier), showTransactionCosts,
+    },
   })
 }
+
+describe('BacktestTradeTable 的成本欄', () => {
+  it('收過錢才多那兩欄，每一列說出自己付了多少', () => {
+    const wrapper = mountTable(
+      [tradeOf('790', 'positive', '訊號', '100.00', '110.00')], 'UTC', true)
+
+    expect(wrapper.get('[data-testid="trade-entry-cost"]').text()).toBe('100.00')
+    expect(wrapper.get('[data-testid="trade-exit-cost"]').text()).toBe('110.00')
+  })
+
+  it('收過錢時賺賠那一欄說明自己是淨額', () => {
+    // 不說的話，有人會拿進出場價自己心算，然後對不起來。
+    const wrapper = mountTable([tradeOf('790', 'positive')], 'UTC', true)
+
+    expect(wrapper.text()).toContain('賺賠（已扣成本）')
+  })
+
+  it('沒收過錢就一欄都不多，那張表寬度不變', () => {
+    const wrapper = mountTable([tradeOf('1000', 'positive')])
+
+    expect(wrapper.find('[data-testid="trade-entry-cost"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="trade-exit-cost"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('已扣成本')
+  })
+})
 
 describe('BacktestTradeTable', () => {
   it('一筆一列，每一列交代方向、兩端的時間與價格、怎麼出場、以及賺賠', () => {

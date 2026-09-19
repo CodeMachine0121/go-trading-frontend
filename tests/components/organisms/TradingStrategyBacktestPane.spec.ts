@@ -320,6 +320,49 @@ describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
   })
 })
 
+describe('TradingStrategyBacktestPane 這一次交易要付多少', () => {
+  it('兩個費率在這一邊也是填得動的輸入框，而且一字不差', async () => {
+    // 與那兩個出場距離同一個理由：一份交易策略對「它的主人的券商收多少」
+    // 沒有意見。兩張表單共用同一個元件，所以「一字不差」是結構上的事實。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]')
+      .setValue('0.0855')
+    await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]')
+      .setValue('0.3855')
+    await fillSymbolAndRun(wrapper)
+
+    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.toString()).toBe('0.0855')
+    expect(request.exitCostPercentage.toString()).toBe('0.3855')
+  })
+
+  it('這一邊的費率填錯也不送出，句子一字不差', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('-1')
+    await fillSymbolAndRun(wrapper)
+
+    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs')
+      .get('[data-testid="field-error"]').text())
+      .toBe('進場成本率不得為負——負的成本等於交易就送錢')
+  })
+
+  it('預設兩格留白，這一刀之前的每一次重演都是這樣', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await fillSymbolAndRun(wrapper)
+
+    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.isZero()).toBe(true)
+    expect(request.exitCostPercentage.isZero()).toBe(true)
+  })
+})
+
 describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
   it('兩個出場距離在這一邊是填得動的輸入框，不是一句話', async () => {
     // 彙總刻度與交易模式在這一邊是一句話（那份交易策略自己說的），

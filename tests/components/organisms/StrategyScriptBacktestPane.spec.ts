@@ -653,3 +653,81 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     expect(proxy.runBacktest).toHaveBeenCalled()
   })
 })
+
+describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
+  it('兩個費率填了就送出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]')
+      .setValue('0.0855')
+    await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]')
+      .setValue('0.3855')
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.toString()).toBe('0.0855')
+    expect(request.exitCostPercentage.toString()).toBe('0.3855')
+  })
+
+  it('預設兩格都留白，而留白就是不收費', async () => {
+    // 替既有的每一次重演補一個「常見費率」，就是在沒有人動手的情況下
+    // 改掉使用者手上每一張成績單。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-entry-cost-percentage-input"]').element.value).toBe('')
+
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.isZero()).toBe(true)
+    expect(request.exitCostPercentage.isZero()).toBe(true)
+  })
+
+  it('費率填錯就**不送出**，而那句話留在那一組旁邊', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('-1')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    // 位置就是這一條的全部重點：訊息要落在他要去改的那一組旁邊。
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs')
+      .get('[data-testid="field-error"]').text())
+      .toContain('進場成本率不得為負')
+  })
+
+  it('超過一百的理由講的是成本，不是隔壁那組的價格', async () => {
+    // 兩組就擺在一起，而規則不同。拿到隔壁那句話的人會去看錯的地方。
+    const wrapper = mountPane(buildProxy())
+
+    await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]').setValue('101')
+    await runBacktest(wrapper)
+
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs')
+      .get('[data-testid="field-error"]').text())
+      .toBe('出場成本率不得超過 100%——成本不會超過成交金額本身')
+  })
+
+  it('那一組旁邊說得出「出場留白時跟進場一樣」', async () => {
+    // 隔壁那兩格各自獨立、各自留白即不模擬；這一組不是。
+    // 不說出來，使用者會把隔壁那一組的規則帶過來。
+    const wrapper = mountPane(buildProxy())
+
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs').text())
+      .toContain('出場留白時跟進場一樣')
+  })
+
+  it('正好 100 送得出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('100')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).toHaveBeenCalled()
+  })
+})

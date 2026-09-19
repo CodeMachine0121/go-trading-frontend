@@ -9,6 +9,8 @@ const REPLAY_START = new Date('2026-09-01T00:00:00Z')
 function closedTradeOf(
   direction: PositionDirection, profit: string, entryPrice = '100', exitPrice = '110',
   exitReason: TradeExitReason = 'signal',
+  entryCost = new Decimal(0),
+  exitCost = new Decimal(0),
 ): ClosedTrade {
   return new ClosedTrade(
     direction,
@@ -17,8 +19,36 @@ function closedTradeOf(
     new Date('2026-09-02T00:00:00Z'),
     new Decimal(exitPrice),
     new Decimal('10000'),
-    new Decimal(profit), exitReason, new Decimal(0), new Decimal(0))
+    new Decimal(profit), exitReason, entryCost, exitCost)
 }
+
+describe('BacktestDomain 的交易成本', () => {
+  it('沒收過錢時累計成本是 null，畫面因此不多一格', () => {
+    // 零與「沒收過錢」在這裡是同一件事：費率留白時後端回零，
+    // 而使用者確實沒付過錢。多一格永遠是零的數字只會讓人以為它有什麼意思。
+    const resultDto = backtestOf().toDomain().toDto()
+
+    expect(resultDto.summary.totalTransactionCost).toBeNull()
+  })
+
+  it('收過錢時累計成本照金額的規則寫出來', () => {
+    const resultDto = backtestOf({
+      totalTransactionCost: new Decimal('210'),
+    }).toDomain().toDto()
+
+    expect(resultDto.summary.totalTransactionCost).toBe('210.00')
+  })
+
+  it('每一筆交易的兩筆成本也照金額的規則寫出來', () => {
+    const resultDto = backtestOf({
+      closedTrades: [closedTradeOf(
+        'long', '790', '100', '110', 'signal', new Decimal('100'), new Decimal('110'))],
+    }).toDomain().toDto()
+
+    expect(resultDto.closedTrades[0]!.entryCost).toBe('100.00')
+    expect(resultDto.closedTrades[0]!.exitCost).toBe('110.00')
+  })
+})
 
 function backtestOf(overrides: Partial<{
   totalReturnRate: number

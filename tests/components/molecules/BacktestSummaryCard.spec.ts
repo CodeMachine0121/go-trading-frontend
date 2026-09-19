@@ -71,6 +71,24 @@ describe('BacktestSummaryCard', () => {
     expect(wrapper.find('[data-testid="summary-take-profit-exit-count"]').exists()).toBe(false)
   })
 
+  it('收過錢才多那一格', () => {
+    // 判斷讀的是 null 而不是零：到了這裡它已經是一個字串，而「有沒有收過錢」
+    // 是領域知識，所以那個判斷留在領域模型裡。
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10100', '10890', '+7.82%', 'positive', '0.99%', '100.0%', 1, 0, 0, 0, '210.00'))
+
+    expect(wrapper.get('[data-testid="summary-total-transaction-cost"]').text())
+      .toBe('210.00')
+    expect(wrapper.text()).toContain('交易成本')
+  })
+
+  it('沒收過錢就不多那一格', () => {
+    const wrapper = mountCard(SUMMARY)
+
+    expect(wrapper.find('[data-testid="summary-total-transaction-cost"]').exists())
+      .toBe(false)
+  })
+
   it('打架過才多一格，說出幾棒', () => {
     // 一份一直在打架的交易策略幾乎不進場，那張漂亮的成績單會被讀成「很穩」。
     const wrapper = mountCard(new BacktestSummaryDto(
