@@ -4,6 +4,7 @@ import type { SignInMode } from '~/domain/models/vo/sign-in-mode'
 import { CredentialsDto } from '~/domain/models/dto/credentials-dto'
 import { CredentialsFieldError } from '~/domain/errors/credentials-field-error'
 import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-error'
+import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -347,6 +348,13 @@ export function useUserSession(
  * 三個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
  */
 function messageFor(error: unknown): string {
+  // 這一種在帳密不正確之前，因為兩者是完全相反的指示：一個是再打一次密碼，
+  // 另一個是不要再打了。順序反過來不會出錯（型別不同），寫在前面只是讓讀的人
+  // 先看到那個例外。
+  if (error instanceof SignInLockedError) {
+    return signInLockedMessageFor(error.lockedUntil)
+  }
+
   if (error instanceof CredentialsRejectedError || error instanceof EmailAlreadyRegisteredError) {
     // 這兩種後端已經講得夠清楚了，原文轉達即可——多一層轉譯只會多一個會漂移的地方。
     return error.message
@@ -361,4 +369,29 @@ function messageFor(error: unknown): string {
   }
 
   return '登入時發生未預期的錯誤。'
+}
+
+/**
+ * 被鎖住的那句話，時刻換算成**使用者自己電腦的時區**。
+ *
+ * 後端給的是世界標準時間。照抄的話，一個在台北的人會讀到一個早他八小時的時間，
+ * 然後以為已經可以進去了而白跑一趟。
+ *
+ * 日期與時間都要寫出來：只寫時間的話，一個隔一週的鎖會被讀成「再等幾分鐘」。
+ *
+ * 說不出時刻時仍然說他被鎖住。退回去說「電子郵件或密碼不正確」是最糟的選擇——
+ * 那句話會讓他繼續試密碼，而那正是這道鎖要終結的行為。
+ */
+function signInLockedMessageFor(lockedUntil: Date | null): string {
+  if (lockedUntil === null) {
+    return '這個帳號因為連續登入失敗已被鎖住，請稍後再試。'
+  }
+
+  // 時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
+  const readableMoment = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(lockedUntil)
+
+  return `這個帳號因為連續登入失敗已被鎖住，${readableMoment} 之後才能再試。`
 }

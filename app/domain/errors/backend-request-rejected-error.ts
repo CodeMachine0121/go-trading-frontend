@@ -47,6 +47,18 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly marketClosedThroughout: boolean
 
+  /**
+   * 這次拒絕是因為**試太多次了**時，後端說的「什麼時候可以再試」。
+   *
+   * 同樣以一個欄位存在，理由與上面幾個相同——而這一個特別需要：後端把同一個時刻
+   * 寫在給人看的那句話裡**也**寫在這一格，而畫面要把它換算成讀者自己的時區。
+   * 從那句話裡挖出時間，會在下一個人改寫那句話的那天靜靜地挖不到。
+   *
+   * 留成後端給的原樣（字串），不在這裡收成日期：這一層描述的是外部契約，
+   * 讀不讀得出來是解讀的人要決定的事。
+   */
+  readonly retryableFrom: string | undefined
+
   constructor(
     message: string,
     options?: {
@@ -56,6 +68,7 @@ export class BackendRequestRejectedError extends Error {
       field?: string
       candleCoverageShortfall?: CandleCoverageShortfallVo
       marketClosedThroughout?: boolean
+      retryableFrom?: string
     },
   ) {
     super(message, { cause: options?.cause })
@@ -65,5 +78,6 @@ export class BackendRequestRejectedError extends Error {
     this.field = options?.field
     this.candleCoverageShortfall = options?.candleCoverageShortfall
     this.marketClosedThroughout = options?.marketClosedThroughout ?? false
+    this.retryableFrom = options?.retryableFrom
   }
 }
