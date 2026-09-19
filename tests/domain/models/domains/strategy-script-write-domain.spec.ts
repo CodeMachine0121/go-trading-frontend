@@ -39,6 +39,29 @@ describe('StrategyScriptWriteDomain', () => {
     expect(strategyScriptWriteDomain.script).toBe(script)
   })
 
+  it.each([
+    { name: '完全沒填', script: '' },
+    { name: '只有空白字元', script: '  \n\t ' },
+  ])('算式$name時不送出——與送出計算同一條規則、同一句話', ({ script }) => {
+    const buildStrategyScript = () => new StrategyScriptWriteDomain(
+      new StrategyScriptWriteDto('二十根均線', new StrategyScriptContentDto(script, 'floatList')))
+
+    expect(buildStrategyScript).toThrow(StrategyScriptFieldError)
+    expect(buildStrategyScript).toThrow('請填寫算式內容')
+  })
+
+  it('算式空白的拒絕指著算式，不是指著名稱', () => {
+    try {
+      void new StrategyScriptWriteDomain(
+        new StrategyScriptWriteDto('二十根均線', new StrategyScriptContentDto('', 'floatList')))
+      expect.unreachable('算式空白必須被拒絕')
+    }
+    catch (error: unknown) {
+      expect(error).toBeInstanceOf(StrategyScriptFieldError)
+      expect((error as StrategyScriptFieldError).field).toBe('script')
+    }
+  })
+
   it('名稱前後的空白不予保留', () => {
     const strategyScriptWriteDomain = new StrategyScriptWriteDomain(
       new StrategyScriptWriteDto('　二十根均線　', contentOf()))

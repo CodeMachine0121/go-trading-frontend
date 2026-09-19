@@ -4,8 +4,8 @@ import { StrategyScriptDomain } from '~/domain/models/domains/strategy-script-do
 /**
  * Entity：後端那一支策略腳本的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
  *
- * `script` 是**一整段算式**（外框加內容），與後端存的一模一樣。
- * 把它拆回使用者寫的那幾行是領域行為，住在 StrategyScriptDomain。
+ * `script` 是**一整份算式**，與後端存的一模一樣——那也正是使用者當初在編輯器裡
+ * 看到的那一份，從第一行到最後一行。沒有什麼要拆。
  *
  * 它記著的只有算法本身。要多粗的 K 線、要幾根、在哪個市場上算，都不在這裡——
  * 那些描述的是**某一次執行**，跟著計算的請求走，同一支策略腳本因此能反覆用在不同條件上。

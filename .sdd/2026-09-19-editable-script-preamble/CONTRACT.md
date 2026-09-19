@@ -73,6 +73,18 @@ falsify 也是從這裡下手：把比對改成只看進入點那一段，`:58` 
 | AC-17 | 開頭被刪掉了，照樣把那一份送去執行 | 畫面不擋，請求帶著那份殘缺的算式出去 | `indicator-calculation-request-domain.ts:47`（唯一的門是「整份空白」） | `indicator-calculation-request-domain.spec.ts:76`（`toBe('func Calculate() {}')`）＋`IndicatorCalculationPanel.spec.ts:416`（從畫面走一遍，斷言 proxy 確實收到那一份） | ✅ conforms |
 | AC-18 | 整份空白時當場在算式那一格說「請填寫算式內容」，且不送出 | 拒絕指著**算式**那一格，訊息逐字為那一句 | `indicator-calculation-request-domain.ts:49`（`IndicatorCalculationFieldError('script', …)`）；回測側同規則 `backtest-request-domain.ts:56` | `indicator-calculation-request-domain.spec.ts:140`（欄位 `toBe('script')` ＋訊息整句 `toBe`）＋`IndicatorCalculationPanel.spec.ts:185`（訊息長在算式那一格旁且 proxy 一次都沒被呼叫）＋`backtest-application.spec.ts`（回測側同一句、同一格） | ✅ conforms |
 
+### §4 Edge Cases（PRD 業務流程表）
+
+| ID | Clause | Oracle | Implementation | Test | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| EDGE-01 | 編輯區整份空白時**儲存**：由畫面擋下、不送出 | 存檔請求根本沒發出，且使用者看得到「請填寫算式內容」 | `strategy-script-write-domain.ts:32`（`StrategyScriptFieldError('script', …)`） | `strategy-script-write-domain.spec.ts`（兩種空白 ＋ 拒絕指著算式而非名稱）＋`strategy-script-application.spec.ts`（proxy **一次都沒被呼叫**）＋`IndicatorCalculationPanelStrategyScript.spec.ts`（清成空白 → 另存 → 填名字 → 送出：`createStrategyScript` 沒被呼叫，且那句話出現在畫面上） | ✅ conforms |
+
+**EDGE-01 是 code review 抓到的，第一次稽核漏了它**——因為我只從 §3 的 Gherkin 抽 clause，
+沒把 §4 的 Edge Cases 表一起抽進來。它是這一刀真正的行為缺口：
+以前畫面會替使用者把外框接上去，一份「空的」算式送出去仍然是七行 package 與 import，
+所以這道門不寫也不會出事；接合拿掉之後，空白會一路送到後端，
+而那句拒絕會落在取名對話框**後面**，使用者只看得到一個按了沒反應的對話框。
+
 ### §5 UI／§6 NFR
 
 | ID | Clause | Oracle | Implementation | Test | Status |
@@ -103,7 +115,7 @@ falsify 也是從這裡下手：把比對改成只看進入點那一段，`:58` 
 
 | 判定 | 數 |
 | :--- | :--- |
-| ✅ conforms | 19 |
+| ✅ conforms | 20 |
 | 🟠 mis-asserted | 0（AC-11 已於稽核後補上斷言） |
 | 🟡 partial | 4（UI-02、NFR-01、NFR-02） |
 | 🔴 violation | 0 |
@@ -111,10 +123,13 @@ falsify 也是從這裡下手：把比對改成只看進入點那一段，`:58` 
 | ❔ unclear | 0 |
 | ⚠️ orphan | 0（4 項已逐一歸因） |
 
-**Conformance：23 條中 19 條完全成立（83%），沒有任何一條行為錯誤。**
+**Conformance：24 條中 20 條完全成立（83%），目前沒有任何一條行為錯誤。**
 剩下 3 條 `partial` 是固定文案與視覺規格，對它們寫斷言只會把同一段字抄第二遍。
 
-### 稽核抓到、並已修好的一條
+> 第一次稽核的範圍是 §3 的 Gherkin，漏掉了 §4 的 Edge Cases 表——而那張表裡正好躺著
+> 這一刀唯一的行為缺口（EDGE-01）。**下一次稽核的 clause 抽取要含 §4。**
+
+### 稽核與 code review 各抓到、並已修好的一條
 
 **AC-11** 原本是 🟠：規格說「填入範例後**直接送得出去**」，而測試只驗了填進去的內容
 長什麼樣。兩者之間有一段沒有人守著的路——`fillExampleScript` 寫回的值到送出之間
@@ -123,3 +138,6 @@ falsify 也是從這裡下手：把比對改成只看進入點那一段，`:58` 
 已補上 `IndicatorCalculationPanel.spec.ts:327`：按範例 → 按送出 → 斷言 proxy 收到的
 就是那一整份範例。falsify 確認過它會紅（把填入的範例砍掉開頭，這一條與 `:313` 同時紅）。
 這是測試缺口，不是程式錯誤——程式路徑本來就是對的。
+
+**EDGE-01** 則相反，是真正的行為缺口，由 code review 抓到（見上表）。已補上畫面側的門、
+三層測試與 mutation 驗證（把那道門改成 `if (false)`，五條測試同時紅）。

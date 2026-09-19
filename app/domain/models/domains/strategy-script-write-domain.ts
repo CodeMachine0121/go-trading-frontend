@@ -8,6 +8,7 @@ import { StrategyScriptFieldError } from '~/domain/errors/strategy-script-field-
  * Domain Model：要存下去的一支策略腳本，建構當下即驗證。
  *
  * 存下去的 `script` 就是畫面上那一份，**一字不改**：不接合、不修剪。
+ * 唯一的門是「整份空白」——那時沒有算法可以存，與送出計算是同一條規則。
  * 載入一支策略腳本後原封不動再存一次，存回去的內容因此與載入時逐字相同——
  * 只要畫面還對內容動任何手腳，使用者就會開始懷疑自己是不是改到了什麼。
  *
@@ -27,6 +28,14 @@ export class StrategyScriptWriteDomain {
     const normalizedName = strategyScriptWriteDto.name.trim()
     if (normalizedName === '') {
       throw new StrategyScriptFieldError('name', '請填寫策略腳本名稱')
+    }
+
+    // 整份空白就擋下，與送出計算、送出回測同一條規則、同一句話。
+    // 這條以前不必寫：那時畫面會替使用者把外框接上去，一份「空的」算式送出去
+    // 仍然是七行 package 與 import。現在存下去的就是編輯區裡那一份，
+    // 少了這道門，一份空白會一路送到後端，換回一句畫面接不住的拒絕。
+    if (strategyScriptWriteDto.content.script.trim() === '') {
+      throw new StrategyScriptFieldError('script', '請填寫算式內容')
     }
 
     const resultType = new IndicatorResultTypeDomain(strategyScriptWriteDto.content.resultType)

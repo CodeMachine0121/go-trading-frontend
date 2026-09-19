@@ -395,6 +395,23 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
     expect(scriptText(wrapper)).toContain('我寫的東西')
   })
 
+  it('編輯區清成空白時存不出去，而且那句話看得見', async () => {
+    // 存下去的就是編輯區那一份，所以空白在這裡就要擋——送到後端才被擋的話，
+    // 那句拒絕會落在取名對話框後面，使用者只看得到一個按了沒反應的對話框。
+    const createStrategyScript = vi.fn()
+    const wrapper = mountPanel({ createStrategyScript })
+    await settle()
+    await typeScript(wrapper, '   ')
+    await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('空的')
+
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+    await settle()
+
+    expect(createStrategyScript).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="field-error"]').text()).toContain('請填寫算式內容')
+  })
+
   it('要存回去的那一支已經不在時說找不到，畫面內容一字不動', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線')], adopted: [] }),

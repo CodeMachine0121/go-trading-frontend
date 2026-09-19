@@ -184,6 +184,19 @@ describe('StrategyScriptApplication.saveStrategyScript', () => {
     expect(createStrategyScript.mock.calls[0]?.[0].script).toBe(stored.script)
   })
 
+  it('算式整份空白時一個字都不送出去', async () => {
+    // 這條門以前不存在也不必存在：畫面會替使用者把外框接上去，
+    // 一份「空的」算式送出去仍然是七行 package 與 import。現在存下去的就是編輯區
+    // 那一份，少了這道門，空白會一路送到後端，換回一句畫面接不住的拒絕。
+    const createStrategyScript = vi.fn()
+    const strategyScriptApplication = buildApplication({ createStrategyScript })
+
+    await expect(strategyScriptApplication.saveStrategyScript(
+      new StrategyScriptWriteDto('二十根均線', new StrategyScriptContentDto('   ', 'floatList'))))
+      .rejects.toBeInstanceOf(StrategyScriptFieldError)
+    expect(createStrategyScript).not.toHaveBeenCalled()
+  })
+
   it.each([
     { name: '完全沒填', declaredName: '' },
     { name: '只有空白字元', declaredName: '   ' },

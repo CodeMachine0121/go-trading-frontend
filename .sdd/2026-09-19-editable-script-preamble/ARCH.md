@@ -27,7 +27,8 @@
 - `assemble` / `disassemble` — 刪
 - `IndicatorScriptBodyVo`（拆出來的內容 ＋ 認不認得出外框）— 刪
 - `StrategyScriptDto.frameRecognised` 與那一句「認不出外框」的通知 — 刪
-- `IndicatorScriptTemplateDto.frameHeader` / `frameHeaderLineCount` / `bodyStartLineNumber` — 刪
+- `IndicatorScriptTemplateDto` — 先刪掉 `frameHeader` / `frameHeaderLineCount` / `bodyStartLineNumber`，
+  剩下的一個欄位在 §6 那次收斂裡連整個型別一起刪
 - `AppCodeEditor` 的 `startLineNumber`（唯一的呼叫端沒了）— 刪
 
 **這不是順手的重構，是這一刀的主體。** 這個切片的價值有一半就在於刪掉的這些東西：
@@ -57,6 +58,11 @@ UL-MAP 已經把「算式主體」那一列刪掉、併回「指標算式」，�
 唯一仍然成立的判斷是**整份空白就擋下**（去空白後為空），
 因為那時沒有東西可以送去跑；這條判斷只讀內容，不改內容。
 
+**這道門要開在三個地方，不是兩個。** 送出計算、送出回測，以及**儲存**——
+最後那個容易漏：以前不必寫，因為畫面會替使用者把外框接上去，一份「空的」算式
+送出去仍然是七行 package 與 import。現在存下去的就是編輯區那一份，少了這道門，
+空白會一路送到後端，換回一句落在取名對話框後面、使用者看不到的拒絕。
+
 ---
 
 ## 2. Change Scope
@@ -70,7 +76,7 @@ UL-MAP 已經把「算式主體」那一列刪掉、併回「指標算式」，�
 | 檔案 | 改什麼 | 為什麼 |
 | :--- | :--- | :--- |
 | `app/domain/models/domains/indicator-script-domain.ts` | 刪 `frameHeader()` / `assemble()` / `disassemble()`；`blankBody()`→`blankScript()`、`exampleBody()`→`exampleScript()`（兩者都改為含開頭那幾行，後者收成私有）；`FRAME_HEADER` 改名 `SCRIPT_PREAMBLE`，定位從「唯讀外框」變成「預填的開頭」 | 分界消失；剩下的是「一份新算式長什麼樣」 |
-| `app/domain/models/dto/indicator-script-template-dto.ts` | 只剩 `exampleScript` / `blankScript` 兩個欄位；刪 `frameHeader`、`frameHeaderLineCount`、`bodyStartLineNumber` | 編輯器不再需要知道外框與起算行號 |
+| `app/domain/models/dto/indicator-script-template-dto.ts` | **整個型別刪掉**（先縮成 `exampleScript` / `blankScript` 兩個欄位，再於 §6 那次收斂裡連型別一起刪） | 編輯器不再需要知道外框與起算行號；最後連那兩個欄位也各自有了更直接的去處 |
 | `app/domain/models/vo/indicator-script-body-vo.ts` | **刪檔** | 它存在只為了一起交出「拆出來的內容」與「認不認得出外框」 |
 | `app/domain/models/domains/strategy-script-domain.ts` | 不再拆解，`content.script` 直接是 `strategyScript.script` | US-04：原文照搬 |
 | `app/domain/models/dto/strategy-script-dto.ts` | 刪 `frameRecognised` | 沒有拆解就沒有認不認得出來 |
@@ -105,14 +111,13 @@ UL-MAP 已經把「算式主體」那一列刪掉、併回「指標算式」，�
 
 ```
 blankScript()                  一份新的空白算式長什麼樣
+exampleScript()                這個種類寫好了長什麼樣
 retargetReturnType(script)     改種類時那一行怎麼重打
-toTemplateDto()                編輯器要的那兩份
 ```
 
-`exampleScript()` 收成私有——它只有 `toTemplateDto()` 一個呼叫端。
-（專案規則說「只被一個公開方法用到的私有方法直接 inline」；這裡刻意留成
-具名私有方法，因為它與 `blankScript()` 是一對相互對照的東西，inline 進 DTO 的
-建構呼叫會讓那一對看不出來。）
+三個都是「一份新算式長什麼樣」的不同問法，彼此不重疊。
+（`toTemplateDto()` 在設計階段還留著，用來把前兩者包成一個 DTO 交給畫面；
+§6 那次收斂把 DTO 整個刪掉之後，它也跟著消失——這一節記的是最後的樣子。）
 
 呼叫端不再需要依序做「拿外框 → 拿主體 → 接起來」，也不再需要知道
 主體從第幾行開始——那些都是外框時代才有的序列。介面變窄，內部知識（開頭長什麼樣、
@@ -149,7 +154,7 @@ toTemplateDto()                編輯器要的那兩份
 | US-02 空白算式含開頭與空進入點（兩種種類） | `IndicatorScriptDomain.blankScript()` |
 | US-02 未改動的預填／完全空白不算未儲存 | `StrategyScriptDraftDomain` |
 | US-02 改過開頭就算使用者寫的東西 | `StrategyScriptDraftDomain` |
-| US-03 範例含開頭與整個進入點、填入即可送出 | `IndicatorScriptDomain.exampleScript()`、`IndicatorScriptTemplateDto` |
+| US-03 範例含開頭與整個進入點、填入即可送出 | `IndicatorScriptDomain.exampleScript()`、`IndicatorCalculationService.describeExampleScript()` |
 | US-04 載入原文照搬、不提示 | `StrategyScriptDomain`、`use-strategy-script-library.ts` |
 | US-04 載入後再存一次逐字相同 | `StrategyScriptWriteDomain`（不再接合、不再修剪） |
 | US-05 改種類只動進入點那一行 | `IndicatorScriptDomain.retargetReturnType()`（不改） |
@@ -175,10 +180,15 @@ toTemplateDto()                編輯器要的那兩份
    `describeIndicatorScript` 改名成 `describeExampleScript(resultType): string`——
    問題變成一句話，答案也是。
 
-**沒有做的一件事**：`IndicatorCalculationRequestDomain` 與 `BacktestRequestDomain`
-各有一份「去空白後為空就說『請填寫算式內容』」。看起來像該抽掉的重複，但抽出來的東西
-只會是一個 `trim()` 與一個句子——介面和實作一樣厚。這種模組不會讓呼叫端更簡單，
-只會多一個要找的地方，所以留著。
+**沒有做的一件事**：`IndicatorCalculationRequestDomain`、`BacktestRequestDomain` 與
+`StrategyScriptWriteDomain` 各有一份「去空白後為空就說『請填寫算式內容』」。
+看起來像該抽掉的重複，但抽出來的東西只會是一個 `trim()` 與一個句子——介面和實作一樣厚。
+這種模組不會讓呼叫端更簡單，只會多一個要找的地方。
+
+（第三個呼叫端是 code review 之後補上的，所以這個判斷重新秤過一次：多一個呼叫端
+確實提高了「三句話哪天不一樣」的機率，但抽出來的仍然只是那個 `trim()`。
+守住它的是三邊各自的整句 `toBe` 斷言——改了其中一句，另外兩邊的測試不會紅，
+但那一句自己的測試會。）
 
 ---
 
