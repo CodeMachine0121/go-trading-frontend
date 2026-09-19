@@ -51,6 +51,10 @@
   @return var(--duration-#{assert-token(tokens.$durations, $name, 'duration')});
 }
 
+@function control-size($name) {
+  @return var(--control-size-#{assert-token(tokens.$control-sizes, $name, 'control-size')});
+}
+
 @function font-family($name) {
   @return var(--font-family-#{assert-token(tokens.$font-families, $name, 'font-family')});
 }

@@ -1,8 +1,16 @@
 @use 'sass:map';
-@use '../abstracts/tokens' as *;
+@use '../abstracts' as *;
 
 // 把 abstracts/_tokens.scss 的 map 逐一展開成 CSS custom property。
 // 這是全站唯一產出 token 值的地方；新增 token 只要改 map，這裡不必動。
+//
+// **也是全站唯一切換疏密的地方。** 間距與可按尺寸有兩套值，在疏密分界上換一套；
+// 因為元件一律透過 spacing() / control-size() 取值，換的那一刻整站一起換，
+// 而任何一個元件都沒有機會自己決定自己的鬆緊——那正是「疏密是整站一個選擇」
+// 這條規則唯一誠實的落地方式。
+//
+// 它完全不需要 JavaScript：伺服器端畫出來的那一版就已經是對的，
+// 沒有補正、沒有閃動。
 
 :root {
   @each $name, $value in $colors {
@@ -43,5 +51,23 @@
 
   @each $name, $value in $font-families {
     --font-family-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $control-sizes {
+    --control-size-#{$name}: #{$value};
+  }
+}
+
+// 到了這個寬度就換成收緊的那一套。只重新宣告有兩套值的那幾個，
+// 其餘的 token（顏色、圓角、層級……）與寬度無關，一個字都不必重複。
+@include respond-to('md') {
+  :root {
+    @each $name, $value in $spacings-compact {
+      --spacing-#{$name}: #{$value};
+    }
+
+    @each $name, $value in $control-sizes-compact {
+      --control-size-#{$name}: #{$value};
+    }
   }
 }
