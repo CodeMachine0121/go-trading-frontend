@@ -39,7 +39,8 @@ function completedBacktest(conflictedCandleCount = 0): Backtest {
   return new Backtest(
     'BTCUSDT', '1h', REPLAY_START, REPLAY_END, 3,
     new Decimal('10000'), new Decimal('12500'),
-    0.25, 0.1, 0.75, 4,
+    // 開一次、平一次——兩者對得上才是一個到得了的狀態。
+    0.25, 0.1, 0.75, 1,
     conflictedCandleCount,
     0,
     0,

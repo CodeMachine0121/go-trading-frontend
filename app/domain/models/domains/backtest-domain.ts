@@ -89,6 +89,7 @@ export class BacktestDomain {
       this.backtest.winRate === null
         ? WIN_RATE_NOT_APPLICABLE
         : this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS),
+      this.backtest.positionOpenCount,
       this.backtest.closedTrades.length,
       this.backtest.conflictedCandleCount,
       this.backtest.stopLossExitCount,
@@ -98,6 +99,9 @@ export class BacktestDomain {
       this.backtest.totalTransactionCost.isZero()
         ? null
         : this.amount(this.backtest.totalTransactionCost),
+      // 同一時間最多一個部位，所以開了比平掉的多，就是還抱著那一個。
+      // 這條推論靠的是一條領域規則，所以它在這裡做完，不丟給畫面。
+      this.backtest.positionOpenCount > this.backtest.closedTrades.length,
     )
   }
 

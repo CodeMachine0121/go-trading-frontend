@@ -293,6 +293,7 @@ async function runBacktest() {
           :closed-trades="backtestRun.result.value.closedTrades"
           :time-zone="timeZone"
           :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
+          :has-open-position="backtestRun.result.value.summary.hasOpenPosition"
         />
       </AppPanel>
     </template>

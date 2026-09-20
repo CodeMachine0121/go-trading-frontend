@@ -44,22 +44,27 @@ const REPLAY_END = new Date('2026-09-04T23:00:00Z')
 function completedBacktest(overrides: Partial<{
   totalReturnRate: number
   winRate: number | null
+  positionOpenCount: number
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
 }> = {}): Backtest {
+  // 開幾次與平幾次要對得上：同一時間最多一個部位，所以兩者最多差一，
+  // 而差在哪就決定了結束時還抱不抱著一注。四開一平是一個到不了的狀態。
+  const closedTrades = overrides.closedTrades ?? [new ClosedTrade(
+    'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
+    new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))]
+
   return new Backtest(
     'BTCUSDT', '1h', REPLAY_START, REPLAY_END, 3,
     new Decimal('10000'), new Decimal('12500'),
     overrides.totalReturnRate ?? 0.25, 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
-    4,
+    overrides.positionOpenCount ?? closedTrades.length,
     0,
     0,
     0,
     new Decimal(0),
-    overrides.closedTrades ?? [new ClosedTrade(
-      'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))],
+    closedTrades,
     overrides.equityCurve ?? [
       new EquityPoint(REPLAY_START, new Decimal('10000')),
       new EquityPoint(REPLAY_END, new Decimal('12500')),

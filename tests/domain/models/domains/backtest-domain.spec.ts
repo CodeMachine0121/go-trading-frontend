@@ -74,7 +74,7 @@ function backtestOf(overrides: Partial<{
     overrides.totalReturnRate ?? 0.25,
     overrides.maximumDrawdown ?? 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
-    overrides.positionOpenCount ?? 4,
+    overrides.positionOpenCount ?? (overrides.closedTrades ?? []).length,
     overrides.conflictedCandleCount ?? 0,
     overrides.stopLossExitCount ?? 0,
     overrides.takeProfitExitCount ?? 0,

@@ -9,16 +9,44 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 那兩欄成本收過錢才畫，而「有沒有收過錢」由外面告訴它——不是讓表格自己
 // 去看每一列的成本是不是零。一筆成本為零的交易不代表整次重演沒收過錢，
 // 而表格一旦開始判斷這種事，它就變成了第二個知道業務規則的地方。
-const { closedTrades, timeZone, showTransactionCosts = false } = defineProps<{
+const {
+  closedTrades,
+  timeZone,
+  showTransactionCosts = false,
+  hasOpenPosition = false,
+} = defineProps<{
   closedTrades: readonly ClosedTradeDto[]
   timeZone: TimeZoneDto
   showTransactionCosts?: boolean
+  /**
+   * 結束時還抱著一注沒平。
+   *
+   * 它決定空表格要說哪一句話，而**它由外面告訴這張表**——
+   * 「開倉次數大於已平倉筆數就是還抱著」靠的是一條領域規則
+   * （同一時間最多一個部位），不該由表格自己推。
+   */
+  hasOpenPosition?: boolean
 }>()
 </script>
 
 <template>
+  <!--
+    空表格有兩個完全不同的原因，而它們需要兩句不同的話。
+    一支每一棒都說買入的算式會開一注抱到最後：那一注沒有出場，所以不在明細裡——
+    但說它「沒有觸發任何交易」是錯的，而那句附帶的理由（「算式可以從頭到尾都說持平」）
+    還會把人推去懷疑一個沒有問題的地方。
+  -->
   <p
-    v-if="closedTrades.length === 0"
+    v-if="closedTrades.length === 0 && hasOpenPosition"
+    class="backtest-trade-table__empty"
+    data-testid="no-closed-trades-yet"
+  >
+    開了倉但還沒平掉，所以這張明細是空的。那一注的市值已經算進「最後剩多少」，
+    它付掉的進場成本也算進「交易成本」——只有還沒發生的出場成本沒算。
+  </p>
+
+  <p
+    v-else-if="closedTrades.length === 0"
     class="backtest-trade-table__empty"
     data-testid="no-trades"
   >
@@ -26,7 +54,7 @@ const { closedTrades, timeZone, showTransactionCosts = false } = defineProps<{
   </p>
 
   <div
-    v-else
+    v-if="closedTrades.length > 0"
     class="backtest-trade-table__scroller"
   >
     <table class="backtest-trade-table">

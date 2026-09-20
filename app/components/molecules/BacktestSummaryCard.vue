@@ -46,6 +46,17 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
         {{ summary.winRate }}
       </dd>
     </div>
+    <!--
+      開倉次數與交易次數並排，而且兩個都一律顯示。
+      它們不相等時那個差就是「現在還抱著一注」——而那是一張空交易明細
+      唯一說得通的另一種原因。少了左邊這一格，那件事在畫面上完全看不出來。
+    -->
+    <div class="backtest-summary-card__item">
+      <dt>開倉次數</dt>
+      <dd data-testid="summary-position-open-count">
+        {{ summary.positionOpenCount }}
+      </dd>
+    </div>
     <div class="backtest-summary-card__item">
       <dt>交易次數</dt>
       <dd data-testid="summary-trade-count">
