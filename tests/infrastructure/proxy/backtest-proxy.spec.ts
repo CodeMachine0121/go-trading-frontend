@@ -27,12 +27,16 @@ function requestOf(
   // 留白就是不收費，也就是這一刀之前的每一次重演。
   entryCostPercentage = new Decimal(0),
   exitCostPercentage = new Decimal(0),
+  // 留白就是不借錢，也就是這一刀之前的每一次重演。
+  leverage = new Decimal(0),
+  maintenanceMarginRate = new Decimal(0),
 ): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode,
     stopLossPercentage, takeProfitPercentage,
-    entryCostPercentage, exitCostPercentage))
+    entryCostPercentage, exitCostPercentage,
+    leverage, maintenanceMarginRate))
 }
 
 /** 一次成功的回測，wire 上的樣子。金額一律是字串——它們是精確小數。 */
@@ -59,6 +63,7 @@ function completedWire() {
       positionOpenCount: number
       stopLossExitCount?: number
       takeProfitExitCount?: number
+      liquidationExitCount?: number
       totalTransactionCost?: string
     },
     closedTrades: [{
@@ -257,6 +262,91 @@ describe('BacktestProxy', () => {
     expect((failure as BacktestFieldError).field).toBe('transactionCosts')
   })
 
+  it('填了的槓桿以字串送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal(0), new Decimal(0),
+        new Decimal(0), new Decimal(0), new Decimal('5'), new Decimal('0.5')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.leverage).toBe('5')
+    expect(body.maintenanceMarginRate).toBe('0.5')
+  })
+
+  it.each([
+    ['整組留白', '0'],
+    ['一倍——用自己的錢付清，沒有債主', '1'],
+  ])('%s 時那兩格根本不上線', async (_name, multiplier) => {
+    // 送一個零雖然等價，但那個等價是巧合：空輸入框轉成的零是解析的結果，
+    // 不是使用者的意思。不送它，「留白就不借錢」在線上就是字面的意思。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal(0), new Decimal(0),
+        new Decimal(0), new Decimal(0), new Decimal(multiplier), new Decimal('0.5')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body).not.toHaveProperty('leverage')
+    // 維持保證金率是「借了多少錢的多少」——沒借錢時它沒有可以是的東西。
+    expect(body).not.toHaveProperty('maintenanceMarginRate')
+  })
+
+  it('借了錢但沒說維持保證金率時，只送倍數——那個預設值是後端的', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal(0), new Decimal(0),
+        new Decimal(0), new Decimal(0), new Decimal('5'), new Decimal(0)))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.leverage).toBe('5')
+    expect(body).not.toHaveProperty('maintenanceMarginRate')
+  })
+
+  it('重演一份交易策略時槓桿照樣送得出去', async () => {
+    // 與交易模式不同：一份規則對「它的主人願意借多少」沒有意見。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runTradingStrategyBacktest(
+        tradingStrategyRequestOf(new Decimal('5'), new Decimal('0.5')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.leverage).toBe('5')
+    expect(body.maintenanceMarginRate).toBe('0.5')
+    expect(body).not.toHaveProperty('tradingMode')
+  })
+
+  it('後端指名槓桿時，說明落在那一組旁邊', async () => {
+    // 重演一份交易策略那條路上，這是畫面唯一能得知「現貨開不了槓桿」的方式。
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, '現貨交易模式開不了槓桿——現貨是拿現金換東西，沒有人借錢給你',
+      { field: 'leverage' })))
+
+    const failure = await backtestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestFieldError)
+    expect((failure as BacktestFieldError).field).toBe('leverage')
+  })
+
+  it('讀回來的那一份說得出這個帳戶歸零過幾次', async () => {
+    const wire = completedWire()
+    wire.summary.liquidationExitCount = 2
+    wire.closedTrades[0]!.exitReason = 'liquidation'
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
+
+    const backtest = await new BacktestProxy(
+      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(backtest.liquidationExitCount).toBe(2)
+    expect(backtest.closedTrades[0]!.exitReason).toBe('liquidation')
+  })
+
   it('讀回來的那一份說得出幾筆是被掃出場的、以及每一筆怎麼出場', async () => {
     const wire = completedWire()
     wire.summary.stopLossExitCount = 2
@@ -281,6 +371,8 @@ describe('BacktestProxy', () => {
 
     expect(backtest.stopLossExitCount).toBe(0)
     expect(backtest.takeProfitExitCount).toBe(0)
+    // 比這一刀早的後端連借錢都不會，所以它也不說這一格。
+    expect(backtest.liquidationExitCount).toBe(0)
     expect(backtest.closedTrades[0]!.exitReason).toBe('signal')
   })
 
@@ -405,11 +497,13 @@ describe('BacktestProxy', () => {
   })
 })
 
-function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
+function tradingStrategyRequestOf(
+  leverage = new Decimal(0), maintenanceMarginRate = new Decimal(0),
+): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
     new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0),
-    new Decimal(0), new Decimal(0)))
+    new Decimal(0), new Decimal(0), leverage, maintenanceMarginRate))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {

@@ -1,11 +1,7 @@
 import type Decimal from 'decimal.js'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
-import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
-import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
-import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
-import { BacktestTransactionCostsDomain } from '~/domain/models/domains/backtest-transaction-costs-domain'
-import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
+import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /**
@@ -36,6 +32,8 @@ export class TradingStrategyBacktestRequestDomain {
   // 沒有意見，而那是坐下來調的時候會換來換去的旋鈕。
   readonly entryCostPercentage: Decimal
   readonly exitCostPercentage: Decimal
+  readonly leverage: Decimal
+  readonly maintenanceMarginRate: Decimal
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -47,18 +45,10 @@ export class TradingStrategyBacktestRequestDomain {
       throw new BacktestFieldError('symbol', '請指定交易標的')
     }
 
-    new BacktestTimeRangeDomain(requestDto.startTime, requestDto.endTime).validate()
-
-    new BacktestInitialCapitalDomain(requestDto.initialCapital).validate()
-
-    new PositionSizingDomain(
-      requestDto.positionSizingMode, requestDto.positionSizingValue).validate()
-
-    new BacktestExitLevelsDomain(
-      requestDto.stopLossPercentage, requestDto.takeProfitPercentage).validate()
-
-    new BacktestTransactionCostsDomain(
-      requestDto.entryCostPercentage, requestDto.exitCostPercentage).validate()
+    // 兩種重演共有的那六組條件，一句問完。交易模式傳 null——**這條路問不到它**：
+    // 它是那一份交易策略自己記著的，這張表單看不到。所以「現貨開不了槓桿」
+    // 那一條由後端回答，回來的拒絕會標在同一組旁邊。
+    new BacktestConditionsDomain(requestDto, null).validate()
 
     this.tradingStrategyId = requestDto.tradingStrategyId
     this.symbol = normalizedSymbol
@@ -71,5 +61,7 @@ export class TradingStrategyBacktestRequestDomain {
     this.takeProfitPercentage = requestDto.takeProfitPercentage
     this.entryCostPercentage = requestDto.entryCostPercentage
     this.exitCostPercentage = requestDto.exitCostPercentage
+    this.leverage = requestDto.leverage
+    this.maintenanceMarginRate = requestDto.maintenanceMarginRate
   }
 }

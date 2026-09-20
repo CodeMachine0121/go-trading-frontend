@@ -59,5 +59,20 @@ export class BacktestRequestDto {
      * 台股買賣不對稱才要填兩格。
      */
     public readonly exitCostPercentage: Decimal,
+    /**
+     * 這一次要借幾倍（曝險是押下去的錢的幾倍）。
+     *
+     * **留白或填 1 都是不借錢**：不模擬強制平倉，這一格根本不上線。
+     * 它與隔壁那兩組同一個家族（都是「這一次怎麼模擬」、都選填、都跟著這一次走），
+     * 但這一組兩格的留白規則彼此不一樣——見下面那一格。
+     */
+    public readonly leverage: Decimal,
+    /**
+     * 一注帳上剩到多少就被強制出場，佔曝險金額的百分點。
+     *
+     * **留白不是關掉它，只是沒有意見**——借了錢就一定有人在看著抵押品。
+     * 真正的預設值（0.5%）是**後端的**，畫面只在提示裡說出它，不在請求裡送它。
+     */
+    public readonly maintenanceMarginRate: Decimal,
   ) {}
 }

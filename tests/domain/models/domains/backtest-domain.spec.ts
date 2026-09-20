@@ -94,6 +94,7 @@ function backtestOf(overrides: Partial<{
   conflictedCandleCount: number
   stopLossExitCount: number
   takeProfitExitCount: number
+  liquidationExitCount: number
   totalTransactionCost: Decimal
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
@@ -114,6 +115,7 @@ function backtestOf(overrides: Partial<{
     overrides.conflictedCandleCount ?? 0,
     overrides.stopLossExitCount ?? 0,
     overrides.takeProfitExitCount ?? 0,
+    overrides.liquidationExitCount ?? 0,
     overrides.totalTransactionCost ?? new Decimal(0),
     overrides.closedTrades ?? [],
     overrides.equityCurve ?? [])
@@ -302,5 +304,24 @@ describe('BacktestDomain', () => {
       expect(result.endTime).toEqual(new Date('2026-09-05T00:00:00Z'))
       expect(result.usedCandleCount).toBe(5)
     })
+  })
+
+  it('強平出場的筆數原樣交出去', () => {
+    const resultDto = backtestOf({ liquidationExitCount: 2 }).toDomain().toDto()
+
+    expect(resultDto.summary.liquidationExitCount).toBe(2)
+  })
+
+  it('被強制平倉的那一筆，出場原因寫成「強平」', () => {
+    // 畫面一旦開始判斷「這個值該寫成什麼字」，同一個判斷就會出現在每一個顯示它的地方。
+    const resultDto = backtestOf({
+      closedTrades: [new ClosedTrade(
+        'long', REPLAY_START, new Decimal('100'),
+        new Date('2026-09-05T00:00:00Z'), new Decimal('80.5'),
+        new Decimal('10000'), new Decimal('-10000'), 'liquidation',
+        new Decimal(0), new Decimal(0))],
+    }).toDomain().toDto()
+
+    expect(resultDto.closedTrades[0]!.exitReasonLabel).toBe('強平')
   })
 })

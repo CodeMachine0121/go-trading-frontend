@@ -110,6 +110,14 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
+// 槓桿那一組。預設留白，而留白就是不借錢。
+//
+// 它與交易模式**不同**：交易模式在這一邊是一句唯讀的話（那一份自己記著的），
+// 而槓桿在這一邊仍然填得動——借多少錢是關於這個帳戶的事，一份規則對它沒有意見。
+// 代價是「現貨開不了槓桿」那一條這張表單檢查不了（它看不到那一份的模式），
+// 送出去由後端回答，而它回來的拒絕標在同一組旁邊。
+const leverage = ref('')
+const maintenanceMarginRate = ref('')
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -131,6 +139,9 @@ async function runBacktest() {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
+    // 槓桿那兩格與上面四格同一條規則：留白讀成零。
+    new Decimal(leverage.value === '' ? 0 : leverage.value),
+    new Decimal(maintenanceMarginRate.value === '' ? 0 : maintenanceMarginRate.value),
   ))
 }
 </script>
@@ -182,6 +193,8 @@ async function runBacktest() {
         v-model:take-profit-percentage="takeProfitPercentage"
         v-model:entry-cost-percentage="entryCostPercentage"
         v-model:exit-cost-percentage="exitCostPercentage"
+        v-model:leverage="leverage"
+        v-model:maintenance-margin-rate="maintenanceMarginRate"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
@@ -198,6 +211,7 @@ async function runBacktest() {
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
         :exit-levels-error="backtestRun.messageFor('exitLevels')"
         :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
+        :leverage-error="backtestRun.messageFor('leverage')"
       />
     </AppPanel>
 

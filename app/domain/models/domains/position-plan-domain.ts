@@ -1,11 +1,8 @@
-import Decimal from 'decimal.js'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
+import { LeverageMultiplierDomain } from '~/domain/models/domains/leverage-multiplier-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
-
-/** 不上槓桿：名目部位就等於押下去的那筆錢。小於它的不是槓桿。 */
-const NO_LEVERAGE = new Decimal(1)
 
 /**
  * Domain Model：一組部位規劃送不送得出去。
@@ -41,10 +38,13 @@ export class PositionPlanDomain {
       throw error
     }
 
-    if (this.positionPlan.leverage.lessThan(NO_LEVERAGE)) {
-      // 不讀成「不上槓桿」：打了 0.5 的人是有意思的（大概是半個部位），
-      // 而悄悄讀成一倍會在沒有告知的情況下把他要的部位加倍。
-      return '槓桿倍數不得小於 1 倍'
+    // 這一句也是**委派**出去的，與下面兩個距離同一個理由：重演那張表單現在也在
+    // 問同一個倍數，而同一個 0.5 在兩張表單上必須得到同一句話。
+    const leverageRejection
+      = new LeverageMultiplierDomain(this.positionPlan.leverage, '槓桿倍數')
+        .validationMessage()
+    if (leverageRejection !== null) {
+      return leverageRejection
     }
 
     // 兩個距離的規則也是**委派**出去的，與上面押多少那一段同一個理由：
