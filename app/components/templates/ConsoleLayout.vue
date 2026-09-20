@@ -32,7 +32,7 @@ const DESTINATIONS = [
   { to: '/k-candles', label: 'K 線瀏覽', icon: 'table', primary: false },
   { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles', primary: true },
   { to: '/strategy-scripts', label: '策略腳本', icon: 'formula', primary: true },
-  { to: '/marketplace', label: '策略腳本市集', icon: 'library', primary: false },
+  { to: '/marketplace', label: 'Marketplace', icon: 'store', primary: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
   { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot', primary: true },
   { to: '/chat', label: 'AI-Assistant', icon: 'sparkle', primary: true },

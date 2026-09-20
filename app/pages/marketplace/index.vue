@@ -15,7 +15,7 @@ const { currentUser, signOut } = useUserSession()
 
 <template>
   <ConsoleLayout
-    title="策略腳本市集"
+    title="Marketplace"
     subtitle="大家分享出來的策略腳本。看得到它算什麼、有哪些旋鈕，看不到它怎麼算；加入之後就出現在你挑策略腳本的地方。"
   >
     <template #timezone>

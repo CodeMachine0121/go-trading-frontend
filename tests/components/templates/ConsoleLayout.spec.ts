@@ -86,7 +86,8 @@ describe('ConsoleLayout', () => {
 
   it('提供各畫面之間的導覽，而且是照那個順序', () => {
     // 逐字、逐順序地釘住整張去處表，而不是問「有沒有提到某幾個字」——
-    // 「策略腳本」是「策略腳本市集」的前綴，所以那種問法連兩者都分不開。
+    // 「策略腳本」是好幾個名字的前綴（它一度也是「策略腳本市集」的），
+    // 所以那種問法分不開相鄰的兩格。
     //
     // 順序本身是規則的一部分：中間那幾個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」排。
     const wrapper = mount(ConsoleLayout, {
@@ -100,12 +101,24 @@ describe('ConsoleLayout', () => {
         'K 線瀏覽',
         'K 線圖表',
         '策略腳本',
-        '策略腳本市集',
+        'Marketplace',
         '交易策略',
         '策略機器人',
         'AI-Assistant',
         '設定',
       ])
+  })
+
+  it('側欄上每一格的圖示都不一樣', () => {
+    // 兩個去處共用一顆圖示，等於側欄上有兩格長得一模一樣——
+    // 而使用者在側欄上找東西，多半是先認圖示再讀字。
+    const wrapper = mountLayout()
+
+    const icons = wrapper.findAll('.console-layout__link svg')
+      .map(icon => icon.attributes('data-icon'))
+
+    expect(icons).toHaveLength(9)
+    expect(new Set(icons).size).toBe(9)
   })
 
   it('觀察清單已經不是一個去處了', () => {
@@ -204,7 +217,7 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.get('[data-testid="more-/"]').text()).toContain('連線狀態')
       expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('K 線瀏覽')
-      expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('策略腳本市集')
+      expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('Marketplace')
       expect(wrapper.get('[data-testid="more-/trading-strategies"]').text())
         .toContain('交易策略')
       expect(wrapper.get('[data-testid="more-/settings"]').text()).toContain('設定')

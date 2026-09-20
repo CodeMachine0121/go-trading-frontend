@@ -31,7 +31,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | AC-02.1 | 側欄上有它 | 那張表多一列 | `DESTINATIONS` 多一列 `/trading-strategies` | 「提供各畫面之間的導覽，而且是照那個順序」 | ✅ conforms |
 | AC-02.2 | 排在市集與機器人之間 | 順序本身是規則 | 那張表的第六列 | 同上——斷言的是 `toEqual([...])` 一整個**有序**陣列，不是 `toContain` | ✅ conforms |
-| AC-02.3 | 圖示與別人都不一樣 | 一眼分得開 | `AppIcon` 新增 `merge` | `AppIcon.spec.ts`「每個圖示畫的都不一樣」把 `merge`、`sparkle`、`standing-bot` 一併納入那份名單 | ✅ conforms |
+| AC-02.3 | 圖示與別人都不一樣 | 一眼分得開 | `AppIcon` 新增 `merge` | `AppIcon.spec.ts`「每個圖示畫的都不一樣」把 `merge`、`sparkle`、`store`、`standing-bot` 一併納入那份名單 ＋ `ConsoleLayout.spec.ts`「側欄上每一格的圖示都不一樣」 | ✅ conforms |
 | AC-02.4 | 機器人清單標頭那顆鍵拿掉 | 一個去處一個入口 | `StrategyBotListPanel.vue` 那段 `AppButton` 已刪 | `StrategyBotListPanel.spec.ts`「標頭上沒有通往交易策略的鍵」（testid 與字串各斷一次） | ✅ conforms |
 | AC-02.5 | 每一列那條連結留著 | 那不是導覽 | 同檔 `bot-trading-strategy` 那條 `NuxtLink` 未動 | `StrategyBotListPanel.spec.ts` 既有的那條斷言未動且全綠 | ✅ conforms |
 | AC-02.6 | 「先去拼一份」那條路留著 | — | `StrategyBotForm.vue` 未動 | `StrategyBotForm.spec.ts` 既有斷言未動且全綠 | ✅ conforms |
@@ -40,7 +40,7 @@
 
 | ID | Clause | Oracle | Implementation | Test | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| AC-03.1 | 側欄那一格寫「策略腳本」 | 逐字 | `DESTINATIONS` 第四列 | 「提供各畫面之間的導覽」逐字（`toEqual` 分得開「策略腳本」與「策略腳本市集」，`toContain` 分不開——這正是那條測試被改寫的原因） | ✅ conforms |
+| AC-03.1 | 側欄那一格寫「策略腳本」 | 逐字 | `DESTINATIONS` 第四列 | 「提供各畫面之間的導覽」逐字（`toEqual` 逐字逐序，`toContain` 分不開相鄰的前綴——這正是那條測試被改寫的原因） | ✅ conforms |
 | AC-03.2 | 那一頁標題寫「策略腳本」 | 逐字 | `pages/strategy-scripts/index.vue` 的 `title` | **沒有頁面層測試**（這個專案的頁面只做接線，一律不測） | 🟡 partial |
 | AC-03.3 | 網址是 `/strategy-scripts` | 檔案位置 | `app/pages/indicator-calculations/` → `app/pages/strategy-scripts/` | Nuxt 檔案路由：結構上成立。側欄那一列的 `to` 由 `ConsoleLayout.spec.ts` 的 testid（`tab-/strategy-scripts`）間接釘住 | ✅ conforms |
 | AC-03.4 | 圖表上那句指路改口 | 逐字 | `ChartIndicatorPanel.vue`「到策略腳本畫面寫一支存起來」 | **沒有逐字斷言**——既有測試只驗那一塊在不在 | 🟡 partial |
@@ -86,6 +86,17 @@
 | AC-07.4 | 抽屜的標頭與無障礙名稱 | 逐字 | `AssistantDrawer.vue` | `AssistantDrawer.spec.ts`「標頭說的是它叫什麼：AI-Assistant」（`aria-label` `toBe` ＋ 內文 `toContain`） | ✅ conforms |
 | AC-07.5 | 那一枚的無障礙名稱 | 說得出名字與可拖 | `AssistantTriggerButton.vue` 的 `label` | `AssistantTriggerButton.spec.ts`「說得出自己是誰，也說得出它可以被拖」 | ✅ conforms |
 | AC-07.6 | 句子裡的「助手」不改 | 反向條款 | `AssistantPendingNotice.vue` 等未動 | `AssistantPendingNotice.spec.ts` 既有的「助手正在查…」斷言未動且全綠——**它就是那條反向保護** | ✅ conforms |
+
+### US-07b — 市集叫 Marketplace，圖示是一間店
+
+| ID | Clause | Oracle | Implementation | Test | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| AC-07b.1 | 側欄那一格寫 `Marketplace` | 逐字 | `DESTINATIONS` 第五列 | 「提供各畫面之間的導覽，而且是照那個順序」 | ✅ conforms |
+| AC-07b.2 | 「更多」那一條 | 逐字 | 同一張表 | 「其餘五個收在『更多』那張紙裡」`more-/marketplace` 斷言 | ✅ conforms |
+| AC-07b.3 | 那一頁的標題 | 逐字 | `pages/marketplace/index.vue` | **沒有頁面層測試**（與 AC-03.2 同一個理由） | 🟡 partial |
+| AC-07b.4 | 策略腳本庫那句指路 | 逐字 | `StrategyScriptLibraryDialog.vue` | `StrategyScriptLibraryDialog.spec.ts`「空的那一份說得出下一步」斷言 `toContain('Marketplace')` | ✅ conforms |
+| AC-07b.5 | 圖示與 `library` 不是同一顆 | 兩顆畫的不一樣 | `AppIcon` 新增 `store`；`library` 未動 | `AppIcon.spec.ts`「每個圖示畫的都不一樣」把 `store` 與 `library` 一起納入名單——**同一份路徑貼成兩個名字會當場紅**；`ConsoleLayout.spec.ts`「側欄上每一格的圖示都不一樣」逐格讀 `data-icon` | ✅ conforms |
+| AC-07b.6 | 句子裡的「市集」不改 | 反向條款 | `use-strategy-script-library.ts` 等未動 | `use-strategy-script-library` 相關測試中「已經分享到市集。」等既有斷言未動且全綠 | ✅ conforms |
 
 ### US-08 — 那顆鍵換一個長相
 

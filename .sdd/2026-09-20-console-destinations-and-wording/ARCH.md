@@ -95,11 +95,11 @@
 
 | 檔案 | 改什麼 |
 |:---|:---|
-| `app/components/templates/ConsoleLayout.vue` | 那張去處表：拿掉觀察清單、加上交易策略、改兩個名字與兩個圖示、換 primary 那四個 |
+| `app/components/templates/ConsoleLayout.vue` | 那張去處表：拿掉觀察清單、加上交易策略、改三個名字與三個圖示、換 primary 那四個 |
 | `app/plugins/dependencies.ts` | 拿掉 `watchlistApplication` 的組裝與注入 |
 | `app/assets/styles/abstracts/_tokens.scss` | `$shadows` 多一筆 `glow` |
 | `app/components/atoms/AppButton.vue` | 多一種 shape（`squircle`）與一種 variant（`accent`） |
-| `app/components/atoms/AppIcon.vue` | 多兩個圖示（`sparkle`、`merge`）、刪掉 `robot` |
+| `app/components/atoms/AppIcon.vue` | 多三個圖示（`sparkle`、`merge`、`store`）、刪掉 `robot`；`library` 留著，它在策略腳本那一頁還有工作 |
 | `app/components/molecules/AssistantTriggerButton.vue` | 換長相：squircle ＋ accent ＋ 四角星 ＋ `AI` 字標；名稱改 `AI-Assistant` |
 | `app/components/organisms/AssistantDrawer.vue` | 標頭與無障礙名稱改 `AI-Assistant`；記號改四角星 |
 | `app/components/molecules/AssistantMessage.vue` | 頭像改四角星 |
@@ -115,6 +115,8 @@
 | `app/components/organisms/TradingStrategyBacktestPane.vue` | 同上，加「訊號來源」三處、「拿去回測」 |
 | `app/components/organisms/TradingStrategyPieceShelf.vue` | 「不吐訊號」 |
 | `app/components/molecules/ChartIndicatorPanel.vue` | 指路改成「策略腳本畫面」 |
+| `app/components/molecules/StrategyScriptLibraryDialog.vue` | 指路改成「到 Marketplace 看看」 |
+| `app/pages/marketplace/index.vue` | 標題改 `Marketplace` |
 | `app/composables/use-trading-strategy-workbench.ts` | 「當不了訊號來源」 |
 | `app/domain/models/domains/trading-strategy-write-domain.ts` | 四句拒絕：訊號來源 |
 | `app/domain/models/domains/backtest-exit-levels-domain.ts` | 止損距離／止盈距離 |
@@ -138,6 +140,8 @@
 | `tests/domain/models/vo/backtest-rule-vo.spec.ts` | 訊號／止損 |
 | `tests/components/atoms/AppIcon.spec.ts`、`tests/components/atoms/AppButton.spec.ts` | 新的圖示與新的外形 |
 | `tests/composables/use-assistant-drawer.spec.ts` | 那條假路由改名 |
+| `tests/components/molecules/StrategyScriptLibraryDialog.spec.ts` | 空狀態那句指路改成 `Marketplace` |
+| `tests/components/molecules/SymbolField.spec.ts` | 那句不再指向觀察清單 |
 
 ---
 
@@ -149,7 +153,7 @@ const DESTINATIONS = [
   { to: '/k-candles',          label: 'K 線瀏覽',     icon: 'table',        primary: false },
   { to: '/k-candles/chart',    label: 'K 線圖表',     icon: 'candles',      primary: true  },
   { to: '/strategy-scripts',   label: '策略腳本',     icon: 'formula',      primary: true  },
-  { to: '/marketplace',        label: '策略腳本市集', icon: 'library',      primary: false },
+  { to: '/marketplace',        label: 'Marketplace',  icon: 'store',        primary: false },
   { to: '/trading-strategies', label: '交易策略',     icon: 'merge',        primary: false },
   { to: '/strategy-bots',      label: '策略機器人',   icon: 'standing-bot', primary: true  },
   { to: '/chat',               label: 'AI-Assistant', icon: 'sparkle',      primary: true  },
@@ -163,6 +167,14 @@ const DESTINATIONS = [
 **`merge` 這個圖示畫的是幾條線併成一條**——那正是一份交易策略在做的事：
 幾個訊號來源匯成一個結論。它刻意不是積木：積木是**工作檯**的說法，
 而側欄指的是「交易策略」這個東西本身。
+
+**`Marketplace` 換掉了 `library` 那顆圖示**：清單那一顆在策略腳本那一頁上已經有工作了
+（自己的策略腳本庫），而「我存了哪幾支」與「外面有人在分享什麼」是兩件事。
+一個圖示只能說一件事，所以市集拿到自己的一顆店面（`store`），`library` 留在原位。
+
+**三個英文名字的規則是同一條**：`AI-Assistant`、`Marketplace` 是**去處**的名字，
+而「助手」、「市集」是**那個東西**的名字。導覽、標題與指向它的路標用前者，
+句子裡用後者——所以「已經分享到市集」「讀取市集中…」一個字都不改。
 
 ---
 
@@ -180,6 +192,7 @@ const DESTINATIONS = [
 | 去處 / 工作區 / 回測 / 工作檯去處 | 「指標計算那一頁」→「策略腳本那一頁」 |
 | 信號來源 / 來源代號 / 零件 | 定義文字裡的「信號來源」→「訊號來源」（Technical Name 不動） |
 | 列出策略腳本（Business Actions） | 「進入指標計算畫面」→「進入策略腳本畫面」 |
+| 策略腳本市集 | User-Facing Label 改 `Marketplace`，並記下它換了圖示、以及名字與「市集」的分工 |
 | **新增**：策略腳本畫面 | 這一頁自己的一列 |
 | **新增**：交易策略畫面 | 這一頁自己的一列（它現在是側欄上的一個去處） |
 | **新增**：助手記號 | 四角星，說明它為什麼不是機器人頭 |
