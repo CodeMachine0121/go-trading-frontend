@@ -82,7 +82,7 @@ export class BacktestRequestDomain {
     if (resultType.value !== BACKTEST_RESULT_TYPE) {
       throw new BacktestFieldError(
         'script',
-        `回測只跑「一個信號」的算式：它一根 K 線問一次，每一次讀一個信號——`
+        `回測只跑「一個信號」的算式：它一根 K 線問一次，每一次讀一個訊號——`
         + `買入、賣出、還是持有。這支目前宣告的是「${resultType.label()}」，`
         + `請把指標值種類改成「一個信號」。`)
     }

@@ -31,7 +31,11 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 import { useStrategyScriptParameters } from '~/composables/use-strategy-script-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
 
-// 有機體：指標計算這一整塊。Application 由頁面注入。
+// 有機體：策略腳本那一頁的整塊工作區。Application 由頁面注入。
+//
+// 型別名字留著「IndicatorCalculation」：「執行指標計算」在後端仍然是一個有效的
+// 業務動作，而這一塊做的正是那件事。改的是**畫面叫什麼**——那一頁上還有腳本庫、
+// 市集入口、參數宣告與回測，指標計算只是它能做的其中一件事。
 //
 // 版面由上而下照著使用者的順序擺，也就是每一台這類工作台的擺法
 // （Databricks、Neon、Supabase 的查詢頁都是同一個形狀）：

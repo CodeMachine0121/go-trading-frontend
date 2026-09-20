@@ -29,7 +29,7 @@ describe('useAssistantDrawer', () => {
     const { open, openDrawer } = useAssistantDrawer()
     openDrawer()
 
-    route.fullPath = '/indicator-calculations'
+    route.fullPath = '/strategy-scripts'
     await nextTick()
 
     expect(open.value).toBe(false)

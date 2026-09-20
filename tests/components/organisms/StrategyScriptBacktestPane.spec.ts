@@ -263,6 +263,28 @@ describe('StrategyScriptBacktestPane', () => {
         .toBeUndefined()
     })
 
+    it('那顆鍵從頭到尾用同一個詞：執行回測 → 回測中…', async () => {
+      // 它曾經閒著時說「執行回測」、跑起來說「重演中」，讀起來像兩件事。
+      let finishRun: (backtest: Backtest) => void = () => {}
+      const wrapper = mountPane(buildProxy({
+        runBacktest: vi.fn(() => new Promise<Backtest>((resolve) => {
+          finishRun = resolve
+        })),
+      }))
+
+      expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('執行回測')
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('回測中…')
+
+      finishRun(completedBacktest())
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('執行回測')
+    })
+
     it('後端連不上時執行鍵停用——按了也沒用', async () => {
       const wrapper = mountPane(buildProxy({
         runBacktest: vi.fn().mockRejectedValue(new BackendUnreachableError('連不上')),
@@ -652,7 +674,7 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     // 位置就是這一條的全部重點：一則標在頁面頂端的訊息，指不出下一步。
     const exitLevelsField = wrapper.get('.backtest-condition-fields__exit-levels')
     expect(exitLevelsField.get('[data-testid="field-error"]').text())
-      .toContain('停損距離不得為負')
+      .toContain('止損距離不得為負')
   })
 
   it('那句拒絕與機器人表單上那兩格逐字相同', async () => {
@@ -665,7 +687,7 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
 
     expect(wrapper.get('.backtest-condition-fields__exit-levels')
       .get('[data-testid="field-error"]').text())
-      .toBe('停損距離不得超過 100%——那會讓價格變成負數')
+      .toBe('止損距離不得超過 100%——那會讓價格變成負數')
   })
 
   it('正好 100 送得出去——止損價正好是零，荒謬但算得出來', async () => {

@@ -68,6 +68,14 @@ describe('AssistantDrawer 打開的時候', () => {
     expect(wrapper.find('[data-testid="assistant-drawer-history-toggle"]').exists()).toBe(true)
   })
 
+  it('標頭說的是它叫什麼：AI-Assistant', () => {
+    const wrapper = mountDrawer({ open: true })
+
+    expect(wrapper.get('[data-testid="assistant-drawer-panel"]').attributes('aria-label'))
+      .toBe('AI-Assistant')
+    expect(wrapper.text()).toContain('AI-Assistant')
+  })
+
   it('標頭的展開通往整頁，那是換對話的去處', () => {
     const wrapper = mountDrawer({ open: true })
 

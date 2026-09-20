@@ -157,6 +157,17 @@ describe('StrategyBotForm 的建議部位', () => {
     expect(wrapper.find('[data-testid="bot-interval-input"]').exists()).toBe(true)
   })
 
+  it('那個問句說的是「停損與停利」，不是「止損與止盈」', () => {
+    // 這裡的距離從**最新價**量起，回測那邊的從**進場價**量起——
+    // 後端把它們分成兩件事，畫面上就不能混用。
+    const wrapper = mountForm({ editing: null })
+
+    const question = wrapper.get('[data-testid="bot-position-plan-toggle"]')
+      .element.closest('label')?.textContent ?? ''
+    expect(question).toContain('停損與停利')
+    expect(question).not.toContain('止損')
+  })
+
   it('沒填過部位規劃的那一台打開也是收著', () => {
     const wrapper = mountForm({ editing: aStoredBot(null) })
 

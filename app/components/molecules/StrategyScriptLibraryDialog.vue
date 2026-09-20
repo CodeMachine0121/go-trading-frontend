@@ -58,7 +58,7 @@ const emit = defineEmits<{
       class="strategy-script-library__empty"
       data-testid="strategy-script-library-empty"
     >
-      還沒有任何策略腳本。到策略腳本市集看看別人分享了什麼，或自己存一支。
+      還沒有任何策略腳本。到 Marketplace 看看別人分享了什麼，或自己存一支。
     </p>
 
     <h3

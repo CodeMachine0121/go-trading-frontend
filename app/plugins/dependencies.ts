@@ -16,9 +16,6 @@ import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
-import { WatchlistApplication } from '~/application/watchlist-application'
-import { WatchlistService } from '~/domain/service/watchlist-service'
-import { WatchlistProxy } from '~/infrastructure/proxy/watchlist-proxy'
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { StrategyScriptService } from '~/domain/service/strategy-script-service'
 import { StrategyBotService } from '~/domain/service/strategy-bot-service'
@@ -117,15 +114,6 @@ export default defineNuxtPlugin(() => {
 
   const tradingSymbolApplication = new TradingSymbolApplication(
     new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
-  )
-
-  // 讀走的是可查交易標的那一份——觀察清單是它的子集，多開一條讀取的路
-  // 只會養出兩份會漂移的答案；寫入才是它自己的。
-  const watchlistApplication = new WatchlistApplication(
-    new WatchlistService(
-      new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
-      new WatchlistProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
-    ),
   )
 
   const indicatorCalculationApplication = new IndicatorCalculationApplication(
@@ -261,7 +249,6 @@ export default defineNuxtPlugin(() => {
       kCandleApplication,
       kCandleChartApplication,
       tradingSymbolApplication,
-      watchlistApplication,
       indicatorCalculationApplication,
       strategyScriptApplication,
       tradingStrategyApplication,

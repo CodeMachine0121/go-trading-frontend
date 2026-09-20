@@ -95,7 +95,7 @@ export class TradingStrategyWriteDomain {
 
   private signalSourceRejection(): string | null {
     if (this.writeDto.signalSources.length === 0) {
-      return '一份交易策略至少要有一個信號來源'
+      return '一份交易策略至少要有一個訊號來源'
     }
 
     const takenLabels: string[] = []
@@ -104,17 +104,17 @@ export class TradingStrategyWriteDomain {
       const label = signalSource.label.trim()
 
       if (label === '') {
-        return '每一個信號來源都要有一個代號'
+        return '每一個訊號來源都要有一個代號'
       }
 
       // 代號在畫面上是打字的（它是使用者自己取的名字），所以它是少數幾個
       // 真的擋不住、必須驗的欄位之一。
       if (takenLabels.includes(label)) {
-        return `信號來源代號「${label}」重複了，同一份交易策略內的代號必須各不相同`
+        return `訊號來源代號「${label}」重複了，同一份交易策略內的代號必須各不相同`
       }
 
       if (signalSource.strategyScriptId === 0) {
-        return `信號來源「${label}」必須指名一支策略腳本`
+        return `訊號來源「${label}」必須指名一支策略腳本`
       }
 
       takenLabels.push(label)

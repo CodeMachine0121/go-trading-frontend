@@ -28,4 +28,21 @@ describe('AppButton', () => {
     expect(wrapper.classes()).toContain('app-button--danger')
     expect(wrapper.classes()).toContain('app-button--small')
   })
+
+  it.each([
+    ['圓角方塊', 'squircle'],
+    ['圓', 'circle'],
+    ['籌碼', 'pill'],
+  ] as const)('%s也是一種外形，不是一個新元件', (_name, shape) => {
+    // 需要新長相時是在這裡多一個 shape，不是新增一個 XxxButton。
+    expect(mount(AppButton, { props: { shape } }).classes())
+      .toContain(`app-button--${shape}`)
+  })
+
+  it('發光那一種是一個 variant，用它的地方不自己覆寫底色', () => {
+    // 覆寫底色會讓原子的 variant 形同虛設——長相住在這裡，
+    // 使用端只挑哪一種。
+    expect(mount(AppButton, { props: { variant: 'accent' } }).classes())
+      .toContain('app-button--accent')
+  })
 })

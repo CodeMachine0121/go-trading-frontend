@@ -40,7 +40,7 @@ describe('TradingStrategyWriteDomain', () => {
   it.each([
     ['名稱只有空白', { name: '   ' }, '取一個名稱'],
     ['名稱超過上限', { name: '名'.repeat(129) }, '長度上限為 128 個字'],
-    ['一個信號來源都沒有', { signalSources: [] }, '至少要有一個信號來源'],
+    ['一個訊號來源都沒有', { signalSources: [] }, '至少要有一個訊號來源'],
     ['買入一格都沒勾', { buyCondition: null }, '兩邊都要至少勾一格'],
     ['賣出一格都沒勾', { sellCondition: null }, '兩邊都要至少勾一格'],
   ])('%s就送不出去，並說出是哪一件事', (_situation, overrides, expectedMessage) => {

@@ -67,7 +67,7 @@ async function addParameter(wrapper: ReturnType<typeof mountPanel>, name: string
   await row?.get('[data-testid="parameter-value-input"]').setValue(value)
 }
 
-describe('指標計算畫面上的參數', () => {
+describe('策略腳本畫面上的參數', () => {
   it('沒打開的時候不佔編輯區的版面，按鈕上寫著有幾個', async () => {
     // 宣告旋鈕是偶爾做一次的事——常駐在編輯區旁邊，等於讓它一直佔著寫程式的地方。
     const wrapper = mountPanel(buildProxy())

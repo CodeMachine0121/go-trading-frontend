@@ -96,7 +96,7 @@ async function discardAndProceed(wrapper: ReturnType<typeof mountPanel>) {
   await settle()
 }
 
-describe('指標計算畫面上的策略腳本：挑一支來用', () => {
+describe('策略腳本畫面上的策略腳本：挑一支來用', () => {
   it('挑一支就把它記住的算法帶進畫面', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
@@ -161,7 +161,7 @@ describe('指標計算畫面上的策略腳本：挑一支來用', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西', () => {
+describe('策略腳本畫面上的策略腳本：不弄丟寫到一半的東西', () => {
   it('編輯區還沒動過時直接帶入，不多問', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線')], adopted: [] }),
@@ -274,7 +274,7 @@ describe('指標計算畫面上的策略腳本：不弄丟寫到一半的東西'
   })
 })
 
-describe('指標計算畫面上的策略腳本：存回去', () => {
+describe('策略腳本畫面上的策略腳本：存回去', () => {
   it('有使用中的那一支時，儲存存回它而不是建立新的', async () => {
     const updateStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(7, '二十根均線'))
     const createStrategyScript = vi.fn()
@@ -445,7 +445,7 @@ describe('指標計算畫面上的策略腳本：存回去', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：改名', () => {
+describe('策略腳本畫面上的策略腳本：改名', () => {
   it('只有手上真的有一支時才改得了名字', async () => {
     const wrapper = mountPanel()
     await settle()
@@ -573,7 +573,7 @@ describe('指標計算畫面上的策略腳本：改名', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：清單與刪除', () => {
+describe('策略腳本畫面上的策略腳本：清單與刪除', () => {
   it('打開清單看得到每一支，載入之後留在同一頁', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
@@ -720,7 +720,7 @@ describe('指標計算畫面上的策略腳本：清單與刪除', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：彙總刻度', () => {
+describe('策略腳本畫面上的策略腳本：彙總刻度', () => {
   it('選單在，且不再說它還沒生效', async () => {
     // 這個欄位曾經只被記下來、計算完全不理它，畫面因此得在旁邊寫一句道歉。
     // 它現在真的生效了，那句話必須消失——留著就是說謊。
@@ -740,7 +740,7 @@ describe('指標計算畫面上的策略腳本：彙總刻度', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
+describe('策略腳本畫面上的策略腳本：開一份新的空白', () => {
   it('清空算式並把指標值種類帶回預設', async () => {
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
@@ -930,7 +930,7 @@ describe('指標計算畫面上的策略腳本：開一份新的空白', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：參數是策略腳本內容', () => {
+describe('策略腳本畫面上的策略腳本：參數是策略腳本內容', () => {
   // 判準與算式內容、指標值種類完全相同：「快線看二十根」不論拿去算哪一檔、
   // 用哪種粗細都一樣，它是這支算法的一部分。交易標的、彙總刻度、要看多長則不是——
   // 那些描述的是「這一次」，所以載入策略腳本時它們不被覆蓋。
@@ -1005,7 +1005,7 @@ describe('指標計算畫面上的策略腳本：參數是策略腳本內容', (
   })
 })
 
-describe('指標計算畫面上的策略腳本：加入來的那些', () => {
+describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
   it('挑加入來的那一支不會載入編輯器，而是說明它能做什麼', async () => {
     // 它沒有算式可以載。把編輯器變成空的會讓人以為那支策略腳本壞了，
     // 所以挑它時就明說它是用來套用的。
@@ -1042,7 +1042,7 @@ describe('指標計算畫面上的策略腳本：加入來的那些', () => {
   })
 })
 
-describe('指標計算畫面上的策略腳本：分享與收回', () => {
+describe('策略腳本畫面上的策略腳本：分享與收回', () => {
   it('分享的是眼前那一支，不必先打開清單', async () => {
     // 想分享的幾乎總是剛調對、剛存好的那一支。要為它多開一個對話框、
     // 在一排列裡再找一次自己，是一段不必要的路。

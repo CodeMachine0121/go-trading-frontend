@@ -63,7 +63,7 @@ onMounted(scrollToBottom)
         class="assistant-conversation-thread__mark"
         aria-hidden="true"
       >
-        <AppIcon name="robot" />
+        <AppIcon name="sparkle" />
       </span>
 
       <p class="assistant-conversation-thread__lead">

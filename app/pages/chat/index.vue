@@ -46,7 +46,7 @@ const { layoutDensity } = useLayoutDensity()
 
 <template>
   <ConsoleLayout
-    title="行情助手"
+    title="AI-Assistant"
     subtitle="用日常講話的方式問行情。助手會自己去查交易標的、K 線、指標與策略腳本。"
   >
     <template #timezone>

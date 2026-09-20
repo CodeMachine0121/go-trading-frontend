@@ -30,8 +30,8 @@ const BACKTESTS_ENDPOINT = '/backtests'
 function exitLevelsBody(
   stopLossPercentage: Decimal, takeProfitPercentage: Decimal,
 ): Record<string, string> {
-  const stopLoss = new ExitDistanceDomain(stopLossPercentage, '停損距離')
-  const takeProfit = new ExitDistanceDomain(takeProfitPercentage, '停利距離')
+  const stopLoss = new ExitDistanceDomain(stopLossPercentage, '止損距離')
+  const takeProfit = new ExitDistanceDomain(takeProfitPercentage, '止盈距離')
 
   return {
     ...(stopLoss.isSet ? { stopLossPercentage: stopLossPercentage.toString() } : {}),
@@ -85,7 +85,7 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   // 同樣一個名字蓋住進場與出場兩個費率。
   transactionCosts: 'transactionCosts',
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
-  // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要重演什麼」有關的地方。
+  // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要回測什麼」有關的地方。
   signalSources: 'symbol',
 }
 

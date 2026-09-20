@@ -263,6 +263,15 @@ describe('StrategyBotListPanel 走去工作台的那兩條路', () => {
       .toBe('/strategy-bots/new')
   })
 
+  it('標頭上沒有通往交易策略的鍵——它在側欄上有自己的一格了', async () => {
+    // 一個去處進了導覽之後，別的面板標頭再放一顆按鈕就是同一件事的第二個入口。
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-trading-strategies-link"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('我的交易策略')
+  })
+
   it('已停止的那一台，編輯帶得到它自己的那一頁', async () => {
     const { wrapper } = mountPanel({
       listStrategyBots: vi.fn().mockResolvedValue([botDto(7, '早盤突破', stoppedState())]),

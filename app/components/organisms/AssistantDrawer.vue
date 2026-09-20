@@ -117,7 +117,7 @@ watch(() => open, (isOpen) => {
     <aside
       v-if="open"
       class="assistant-drawer__panel"
-      aria-label="行情助手"
+      aria-label="AI-Assistant"
       data-testid="assistant-drawer-panel"
       :style="coversScreen ? undefined : { width: `${width}px` }"
       :class="{
@@ -146,11 +146,11 @@ watch(() => open, (isOpen) => {
             aria-hidden="true"
           >
             <AppIcon
-              name="robot"
+              name="sparkle"
               size="small"
             />
           </span>
-          行情助手
+          AI-Assistant
         </span>
 
         <span class="assistant-drawer__actions">

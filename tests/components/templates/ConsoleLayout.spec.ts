@@ -84,17 +84,50 @@ describe('ConsoleLayout', () => {
     expect(mountLayout().find('p').exists()).toBe(false)
   })
 
-  it('提供各畫面之間的導覽', () => {
+  it('提供各畫面之間的導覽，而且是照那個順序', () => {
+    // 逐字、逐順序地釘住整張去處表，而不是問「有沒有提到某幾個字」——
+    // 「策略腳本」是好幾個名字的前綴（它一度也是「策略腳本市集」的），
+    // 所以那種問法分不開相鄰的兩格。
+    //
+    // 順序本身是規則的一部分：中間那幾個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」排。
     const wrapper = mount(ConsoleLayout, {
       props: { title: '連線狀態' },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
     })
 
-    expect(wrapper.text()).toContain('連線狀態')
-    expect(wrapper.text()).toContain('K 線瀏覽')
-    expect(wrapper.text()).toContain('K 線圖表')
-    expect(wrapper.text()).toContain('指標計算')
-    expect(wrapper.text()).toContain('策略機器人')
+    expect(wrapper.findAll('.console-layout__link-label').map(label => label.text()))
+      .toEqual([
+        '連線狀態',
+        'K 線瀏覽',
+        'K 線圖表',
+        '策略腳本',
+        'Marketplace',
+        '交易策略',
+        '策略機器人',
+        'AI-Assistant',
+        '設定',
+      ])
+  })
+
+  it('側欄上每一格的圖示都不一樣', () => {
+    // 兩個去處共用一顆圖示，等於側欄上有兩格長得一模一樣——
+    // 而使用者在側欄上找東西，多半是先認圖示再讀字。
+    const wrapper = mountLayout()
+
+    const icons = wrapper.findAll('.console-layout__link svg')
+      .map(icon => icon.attributes('data-icon'))
+
+    expect(icons).toHaveLength(9)
+    expect(new Set(icons).size).toBe(9)
+  })
+
+  it('觀察清單已經不是一個去處了', () => {
+    // 它做的是一次性的設定，卻佔著窄螢幕底部四格中的一格。
+    const wrapper = mountLayout()
+
+    expect(wrapper.text()).not.toContain('觀察清單')
+    expect(wrapper.findAll('a').map(link => link.attributes('href') ?? ''))
+      .not.toContain('/watchlist')
   })
 
   it('側欄收得起來，而且收起來之後每個畫面都還在', () => {
@@ -106,8 +139,8 @@ describe('ConsoleLayout', () => {
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
     expect(wrapper.findAll('a')).toHaveLength(9)
-    expect(wrapper.text()).toContain('指標計算')
-    expect(wrapper.text()).toContain('觀察清單')
+    expect(wrapper.text()).toContain('策略腳本')
+    expect(wrapper.text()).toContain('交易策略')
     expect(wrapper.text()).toContain('設定')
   })
 
@@ -118,7 +151,7 @@ describe('ConsoleLayout', () => {
     await onOneScreen.get('[data-testid="toggle-rail"]').trigger('click')
     onOneScreen.unmount()
 
-    const onTheNextScreen = mountLayout('指標計算')
+    const onTheNextScreen = mountLayout('策略腳本')
 
     expect(onTheNextScreen.get('[data-testid="toggle-rail"]').attributes('aria-label'))
       .toBe('展開側欄')
@@ -153,9 +186,9 @@ describe('ConsoleLayout', () => {
       const wrapper = await mountLayoutAt(PHONE)
 
       expect(wrapper.get('[data-testid="tab-/k-candles/chart"]').text()).toContain('K 線圖表')
-      expect(wrapper.get('[data-testid="tab-/watchlist"]').text()).toContain('觀察清單')
+      expect(wrapper.get('[data-testid="tab-/strategy-scripts"]').text()).toContain('策略腳本')
       expect(wrapper.get('[data-testid="tab-/strategy-bots"]').text()).toContain('策略機器人')
-      expect(wrapper.get('[data-testid="tab-/chat"]').text()).toContain('行情助手')
+      expect(wrapper.get('[data-testid="tab-/chat"]').text()).toContain('AI-Assistant')
       expect(wrapper.get('[data-testid="tab-more"]').text()).toContain('更多')
     })
 
@@ -184,9 +217,9 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.get('[data-testid="more-/"]').text()).toContain('連線狀態')
       expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('K 線瀏覽')
-      expect(wrapper.get('[data-testid="more-/indicator-calculations"]').text())
-        .toContain('指標計算')
-      expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('策略腳本市集')
+      expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('Marketplace')
+      expect(wrapper.get('[data-testid="more-/trading-strategies"]').text())
+        .toContain('交易策略')
       expect(wrapper.get('[data-testid="more-/settings"]').text()).toContain('設定')
       expect(wrapper.get('[data-testid="status"]').text()).toBe('可用')
       expect(wrapper.get('[data-testid="account"]').text()).toBe('james')
@@ -218,7 +251,7 @@ describe('ConsoleLayout', () => {
     })
 
     it('待在底下那四格其中一格時，「更多」不亮', async () => {
-      stopAt('/watchlist')
+      stopAt('/strategy-scripts')
       const wrapper = await mountLayoutAt(PHONE)
 
       expect(wrapper.get('[data-testid="tab-more"]').classes())
@@ -227,7 +260,7 @@ describe('ConsoleLayout', () => {
 
     it('走到別的畫面，那張紙自己收起來', async () => {
       // 它的任務在使用者挑完那一刻就結束了。
-      stopAt('/watchlist')
+      stopAt('/strategy-scripts')
       const wrapper = await mountLayoutAt(PHONE)
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
       expect(wrapper.find('[data-testid="more-/settings"]').exists()).toBe(true)
