@@ -44,6 +44,7 @@ function completedBacktest(conflictedCandleCount = 0): Backtest {
     conflictedCandleCount,
     0,
     0,
+    0,
     new Decimal(0),
     [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
@@ -390,5 +391,46 @@ describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
     expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
     expect(wrapper.get('.backtest-condition-fields__exit-levels')
       .get('[data-testid="field-error"]').text()).toContain('止盈距離不得為負')
+  })
+})
+
+describe('TradingStrategyBacktestPane 這一次要借多少', () => {
+  it('槓桿在這一邊也是填得動的輸入框，而且一字不差', async () => {
+    // 與交易模式不同：那一格在這一邊是一句唯讀的話，因為它是那一份記著的；
+    // 而借多少錢是關於這個帳戶的事，一份規則對它沒有意見。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
+    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
+      .setValue('0.5')
+    await fillSymbolAndRun(wrapper)
+
+    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
+    expect(request.leverage.toString()).toBe('5')
+    expect(request.maintenanceMarginRate.toString()).toBe('0.5')
+  })
+
+  it('預設留白，而留白就是不借錢', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await fillSymbolAndRun(wrapper)
+
+    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
+    expect(request.leverage.isZero()).toBe(true)
+  })
+
+  it('這一邊填錯也不送出，句子一字不差', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('0.5')
+    await fillSymbolAndRun(wrapper)
+
+    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+    expect(wrapper.get('.backtest-condition-fields__leverage')
+      .get('[data-testid="field-error"]').text())
+      .toBe('槓桿倍數不得小於 1 倍')
   })
 })

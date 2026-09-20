@@ -60,6 +60,13 @@ const {
    */
   transactionCostsError?: string | null
   /**
+   * 槓桿那一組旁邊要說的話。
+   *
+   * 一則訊息蓋住兩格，與上面兩組同一個判斷。「現貨開不了槓桿」也走這裡——
+   * 使用者要改的是這一組，不是交易模式那一組：他挑現貨是有意思的，會讓步的是槓桿。
+   */
+  leverageError?: string | null
+  /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
    * 給了它就不畫選單。重演一份交易策略時刻度是那幾個信號來源自己說的——
@@ -96,6 +103,12 @@ const takeProfitPercentage = defineModel<string>(
 // 兩組就擺在一起，所以那句話非說不可。
 const entryCostPercentage = defineModel<string>('entryCostPercentage', { required: true })
 const exitCostPercentage = defineModel<string>('exitCostPercentage', { required: true })
+// 槓桿那一組。預設留白，而留白就是不借錢——與上面兩組一樣「不填也是一個意思」，
+// 但**這一組的兩格彼此不一樣**：倍數留白＝整組關掉，維持保證金率留白只是沒有意見
+// （由後端給 0.5%）。三組擺在一起，所以那句話非說不可。
+const leverage = defineModel<string>('leverage', { required: true })
+const maintenanceMarginRate = defineModel<string>(
+  'maintenanceMarginRate', { required: true })
 
 /**
  * 同一組單選鈕共用的名字。
@@ -322,6 +335,42 @@ const selectedPositionSizingMode = computed(
       </div>
     </FormField>
 
+    <!--
+      擺在交易成本之後：一個人先決定押多少、能忍多少、付多少，最後才決定借多少。
+      與上面兩組同一個做法，兩格擺成一組佔滿整列——這一組的提示有兩件事要說，
+      而且那兩件事彼此不一樣，被摺成一疊時就沒有人會讀它。
+    -->
+    <FormField
+      label="槓桿"
+      class="backtest-condition-fields__leverage"
+      hint="留白就不借錢，也不會被強制平倉。維持保證金率留白時用 0.5%"
+      :error-message="leverageError"
+      grouped
+    >
+      <div class="backtest-condition-fields__paired-inputs">
+        <label class="backtest-condition-fields__paired-input">
+          <span>槓桿倍數（倍）</span>
+          <AppInput
+            v-model="leverage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(leverageError)"
+            data-testid="backtest-leverage-input"
+          />
+        </label>
+        <label class="backtest-condition-fields__paired-input">
+          <span>維持保證金率（%）</span>
+          <AppInput
+            v-model="maintenanceMarginRate"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(leverageError)"
+            data-testid="backtest-maintenance-margin-rate-input"
+          />
+        </label>
+      </div>
+    </FormField>
+
     <AppButton
       type="submit"
       class="backtest-condition-fields__action"
@@ -367,13 +416,20 @@ const selectedPositionSizingMode = computed(
     grid-column: 1 / -1;
   }
 
-  // 兩組併排的輸入框長得一樣，所以排版只寫一次。
+  // 與上面兩組同一個理由，而這一組的提示要說的兩件事**彼此不一樣**
+  // （倍數留白是關掉整組，維持保證金率留白只是沒有意見）——那正是它最容易被誤讀的地方。
+  &__leverage {
+    grid-column: 1 / -1;
+  }
+
+  // 三組併排的輸入框長得一樣，所以排版只寫一次。
   //
-  // 它們**看起來**一樣是刻意的：兩組都是「一個概念、兩個數字、留白有意思」，
+  // 它們**看起來**一樣是刻意的：三組都是「一個概念、兩個數字、留白有意思」，
   // 而使用者掃過去時應該認得出那是同一種東西。抄第二份的那一天，
   // 兩組會在某一次調整之後開始長得不一樣，而沒有人是故意的。
   //
-  // 它們的**規則**仍然不同（出場距離各自獨立，費率的出場留白時沿用進場），
+  // 它們的**規則**仍然不同（出場距離各自獨立；費率的出場留白時沿用進場；
+  // 槓桿倍數留白會關掉整組，而維持保證金率留白只是沒有意見），
   // 那個差別由各自的提示文字說，不由排版說。
   &__paired-inputs {
     display: grid;

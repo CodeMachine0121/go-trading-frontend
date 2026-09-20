@@ -63,6 +63,7 @@ function completedBacktest(overrides: Partial<{
     0,
     0,
     0,
+    0,
     new Decimal(0),
     closedTrades,
     overrides.equityCurve ?? [
@@ -776,5 +777,102 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     await runBacktest(wrapper)
 
     expect(proxy.runBacktest).toHaveBeenCalled()
+  })
+})
+
+describe('StrategyScriptBacktestPane 這一次要借多少', () => {
+  it('兩格填了就送出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
+    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
+      .setValue('0.5')
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.leverage.toString()).toBe('5')
+    expect(request.maintenanceMarginRate.toString()).toBe('0.5')
+  })
+
+  it('預設兩格都留白，而留白就是不借錢', async () => {
+    // 替既有的每一次重演補一個倍數，就是在沒有人動手的情況下
+    // 改掉使用者手上每一張成績單。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-leverage-input"]').element.value).toBe('')
+
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.leverage.isZero()).toBe(true)
+    expect(request.maintenanceMarginRate.isZero()).toBe(true)
+  })
+
+  it('小於一倍就**不送出**，而那句話留在那一組旁邊', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('0.5')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    expect(wrapper.get('.backtest-condition-fields__leverage')
+      .get('[data-testid="field-error"]').text())
+      .toBe('槓桿倍數不得小於 1 倍')
+  })
+
+  it('維持保證金率大到開倉那一棒就撐不住時，說出最多能填多少', async () => {
+    // 被擋下來的人要知道該改成什麼，而不是自己一個一個試。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
+    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
+      .setValue('25')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    expect(wrapper.get('.backtest-condition-fields__leverage')
+      .get('[data-testid="field-error"]').text())
+      .toContain('必須小於 20%')
+  })
+
+  it('現貨配槓桿說不通，當場擋下來而不是送出去等後端拒絕', async () => {
+    // 交易模式就在同一張表單上，所以這一條這裡就答得出來。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('3')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    // 他挑現貨是有意思的，會讓步的是槓桿——所以要改的是這一組。
+    expect(wrapper.get('.backtest-condition-fields__leverage')
+      .get('[data-testid="field-error"]').text())
+      .toContain('現貨')
+  })
+
+  it('現貨不填槓桿照常送出', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).toHaveBeenCalled()
+  })
+
+  it('那一組旁邊說得出這兩格的留白各是什麼意思', async () => {
+    // 隔壁兩組的兩格留白都是「不模擬」；這一組不是——倍數留白是關掉整組，
+    // 維持保證金率留白只是沒有意見。不說出來，使用者會把隔壁的規則帶過來。
+    const wrapper = mountPane(buildProxy())
+
+    const hint = wrapper.get('.backtest-condition-fields__leverage').text()
+    expect(hint).toContain('留白就不借錢')
+    expect(hint).toContain('0.5%')
   })
 })
