@@ -4,14 +4,9 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
-import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-initial-capital-domain'
-import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
-import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
-import { BacktestTransactionCostsDomain } from '~/domain/models/domains/backtest-transaction-costs-domain'
-import { BacktestLeverageDomain } from '~/domain/models/domains/backtest-leverage-domain'
-import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /**
@@ -62,28 +57,10 @@ export class BacktestRequestDomain {
       throw new BacktestFieldError('script', '請填寫算式內容')
     }
 
-    new BacktestTimeRangeDomain(
-      backtestRequestDto.startTime, backtestRequestDto.endTime).validate()
-
-    new BacktestInitialCapitalDomain(backtestRequestDto.initialCapital).validate()
-
-    new PositionSizingDomain(
-      backtestRequestDto.positionSizingMode, backtestRequestDto.positionSizingValue).validate()
-
-    new BacktestExitLevelsDomain(
-      backtestRequestDto.stopLossPercentage,
-      backtestRequestDto.takeProfitPercentage).validate()
-
-    new BacktestTransactionCostsDomain(
-      backtestRequestDto.entryCostPercentage,
-      backtestRequestDto.exitCostPercentage).validate()
-
-    // 交易模式傳得進去，因為這條路上它就在同一張表單上——所以「現貨開不了槓桿」
-    // 當場就擋得下來，不必送出去一次注定被拒絕的請求。
-    new BacktestLeverageDomain(
-      backtestRequestDto.leverage,
-      backtestRequestDto.maintenanceMarginRate,
-      backtestRequestDto.tradingMode).validate()
+    // 兩種重演共有的那六組條件，一句問完。交易模式傳得進去，因為這條路上它就在
+    // 同一張表單上——所以「現貨開不了槓桿」當場就擋得下來，不必送出去一次
+    // 注定被拒絕的請求。
+    new BacktestConditionsDomain(backtestRequestDto, backtestRequestDto.tradingMode).validate()
 
     // 種類不對就當場說清楚，而不是硬套一個「一個信號」的簽章送出去。
     // 硬套的代價是：使用者什麼都沒改，卻收到一句直譯器的型別抱怨——
