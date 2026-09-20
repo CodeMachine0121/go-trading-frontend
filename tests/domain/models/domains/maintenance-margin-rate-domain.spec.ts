@@ -32,6 +32,20 @@ describe('MaintenanceMarginRateDomain', () => {
     expect(rejection).toContain('在開倉那一棒就已經撐不住')
   })
 
+  it.each([
+    ['除不盡的上限印成四位有效數字', '33.33333333333333333333', '33.33%'],
+    // 這一列說的是**四位有效數字，不是兩位小數**：兩位小數在這裡會印成 0.33，
+    // 而再小一點就會印成 0——一個沒有人進得去的上限。
+    ['小於一的上限也留得住有效位數', '0.33333333333333333333', '0.3333%'],
+    ['整數的上限不多印小數點', '20', '20%'],
+  ])('%s', (_name, ceiling, expected) => {
+    expect(rate('40', ceiling).validationMessage()).toContain('必須小於 ' + expected)
+  })
+
+  it('負零就是零', () => {
+    expect(rate('-0', '20').validationMessage()).toBeNull()
+  })
+
   it('根本不是一個數字時說得出來', () => {
     expect(rate(Number.NaN, '20').validationMessage()).toBe('維持保證金率請填一個數字')
   })

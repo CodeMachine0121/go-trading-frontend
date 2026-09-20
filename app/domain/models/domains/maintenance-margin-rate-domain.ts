@@ -38,12 +38,23 @@ export class MaintenanceMarginRateDomain {
       return `${this.name}請填一個數字`
     }
 
-    if (this.rate.isNegative()) {
+    // `!isZero()` because `decimal.js` calls **negative zero** negative and the
+    // backend does not — and `-0` is a legal thing to leave in a number input on
+    // the way to typing something else. Refusing it would be this layer inventing
+    // a rule the authority does not have, on a value that is simply zero. Same
+    // sign trap the two sibling validators warn about, other end of it.
+    if (this.rate.isNegative() && !this.rate.isZero()) {
       return `${this.name}不得為負——負的維持保證金等於倉位賠光了還撐得住`
     }
 
     if (this.rate.greaterThanOrEqualTo(this.ceiling)) {
-      return `${this.name}必須小於 ${this.ceiling.toString()}%`
+      // Cut down to four significant digits, **rounded down**, so the number in
+      // the sentence is one they can actually type: a third of a hundred prints
+      // as 33.33, and 33.33 really is under the ceiling. Printed in full it comes
+      // out as 33.333333333333333333 — twenty digits of "here is what to type",
+      // which is not an instruction anybody can follow.
+      return `${this.name}必須小於 ${
+        this.ceiling.toSignificantDigits(4, Decimal.ROUND_DOWN).toString()}%`
         + `——押下去的錢只夠讓價格逆著走這麼多，再多這一注在開倉那一棒就已經撐不住`
     }
 

@@ -44,10 +44,44 @@ describe('BacktestLeverageDomain', () => {
       .toThrow(expect.objectContaining({ field: 'leverage' }))
   })
 
-  it('沒有借錢的那一次，維持保證金率怎麼填都不擋', () => {
-    // 下面每一條規則問的都是「借了這麼多錢之後怎樣」，而這裡一毛都沒借。
-    expect(() => leverage('0', '-999').validate()).not.toThrow()
+  it('沒有借錢的那一次，上限不擋——它算不出來，也不影響任何結果', () => {
+    // 上限那一條問的是「借了這麼多錢之後撐得住多遠」，而這裡一毛都沒借。
+    expect(() => leverage('0', '999').validate()).not.toThrow()
     expect(() => leverage('1', '999').validate()).not.toThrow()
+  })
+
+  it('負的維持保證金率一律擋，沒有借錢也一樣', () => {
+    // 那一格自己的規則與有沒有用到它無關：負的是一個打錯的字。
+    // 後端讀的順序也是這樣——兩邊對同一份輸入必須給出同一個答案，
+    // 否則使用者會在畫面上通過、在伺服器上被拒絕，而他分不出那兩件事的差別。
+    for (const multiplier of ['0', '1', '5']) {
+      expect(() => leverage(multiplier, '-1').validate())
+        .toThrow(expect.objectContaining({
+          field: 'leverage',
+          message: expect.stringContaining('維持保證金率不得為負'),
+        }))
+    }
+  })
+
+  it('負零就是零，不是負的', () => {
+    // `decimal.js` 把負零當成負的，後端不會——而 `-0` 是數字輸入框上
+    // 打到一半完全合法的一個值。擋它等於這一層自己發明了一條上位沒有的規則。
+    expect(() => leverage('5', '-0').validate()).not.toThrow()
+  })
+
+  it('說出的上限是一個照著填就會過的數字', () => {
+    // 三分之一個一百印成二十位小數，那不是一句照得了的指示。
+    let rejection = ''
+    try {
+      leverage('3', '40').validate()
+    }
+    catch (error: unknown) {
+      rejection = (error as Error).message
+    }
+
+    expect(rejection).toContain('必須小於 33.33%')
+    // 而且照著填真的會過。
+    expect(() => leverage('3', '33.33').validate()).not.toThrow()
   })
 
   it('現貨開不了槓桿，而那句話落在槓桿那一組', () => {

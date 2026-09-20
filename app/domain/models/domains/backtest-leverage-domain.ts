@@ -8,6 +8,12 @@ import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 const WHOLE_POSITION_PERCENTAGE = new Decimal(100)
 
 /**
+ * 還沒有上限可言。沒有借錢就算不出 `100 ÷ 倍數`，而那一格自己的規則
+ * （是不是數字、是不是負的）與有沒有借錢無關，仍然要問。
+ */
+const NO_CEILING = new Decimal(Infinity)
+
+/**
  * 什麼都沒填。**這是這張表單的編碼**，不是那個倍數的性質：
  * 回測表單把每一個空的輸入框讀成零（與初始資金以外的每一格同一條規則），
  * 而後端讀零的方式一模一樣。機器人那張表單把空白讀成一倍，所以這一條
@@ -59,6 +65,17 @@ export class BacktestLeverageDomain {
    * 一次只說一個理由，與這張表單其餘每一條同一個理由：使用者一次只改得動一格。
    */
   validate(): void {
+    // **那一格自己的規則先問，在任何人決定它會不會被用到之前**，而且不帶上限——
+    // 上限要有倍數才算得出來。負的維持保證金率是一個打錯的字，不管這一次有沒有
+    // 用到它，這與後端讀的順序一字不差：兩邊對同一份輸入必須給出同一個答案，
+    // 否則使用者會在畫面上通過、在伺服器上被拒絕，而那兩件事他分不出差別。
+    const declaredRateRejection = new MaintenanceMarginRateDomain(
+      this.maintenanceMarginRate, '維持保證金率', NO_CEILING).validationMessage()
+
+    if (declaredRateRejection !== null) {
+      throw new BacktestFieldError('leverage', declaredRateRejection)
+    }
+
     // 整組沒填。下面每一條都在問「借了這麼多錢之後怎樣」，而這裡一毛都沒借。
     if (this.multiplier.equals(NOTHING_TYPED)) {
       return
@@ -71,7 +88,7 @@ export class BacktestLeverageDomain {
       throw new BacktestFieldError('leverage', multiplierRejection)
     }
 
-    // 沒有借錢就沒有下面那兩條可說：維持保證金率算不出上限也不影響任何結果，
+    // 沒有借錢就沒有下面那一條可說：維持保證金率算不出上限，也不影響任何結果，
     // 而一個不借錢的現貨重演本來就是這張表單最常見的那一種。
     if (!multiplier.isSet) {
       return
@@ -82,12 +99,15 @@ export class BacktestLeverageDomain {
         'leverage', '現貨交易模式開不了槓桿——現貨是拿現金換東西，沒有人借錢給你')
     }
 
-    const rateRejection = new MaintenanceMarginRateDomain(
+    // 現在才算得出上限，所以現在才問第二次。那一格是問兩次而不是一次，
+    // 因為它有兩種規則：一種是它自己的（是不是數字、是不是負的），
+    // 另一種要有倍數才成立。
+    const ceilingRejection = new MaintenanceMarginRateDomain(
       this.maintenanceMarginRate, '維持保證金率',
       WHOLE_POSITION_PERCENTAGE.dividedBy(this.multiplier)).validationMessage()
 
-    if (rateRejection !== null) {
-      throw new BacktestFieldError('leverage', rateRejection)
+    if (ceilingRejection !== null) {
+      throw new BacktestFieldError('leverage', ceilingRejection)
     }
   }
 }
