@@ -8,6 +8,9 @@ import type { AssistantTriggerPositionDto } from '~/domain/models/dto/assistant-
 // **一枚圓角方塊**，浮在畫面右下（或使用者把它拖去的任何地方）：漸層底、
 // 一顆四角星、底下一行 `AI`，外面一圈柔光。
 //
+// **漸層、柔光與滑過去變亮全都住在 `AppButton` 的 `accent` 那一種裡**，不在這裡——
+// 這一枚只挑一種長相，不自己畫一種。這裡剩下的只有「它在哪裡」與「它拿得起來」。
+//
 // 它以前是一顆圓的機器人頭，而那顆頭有兩個問題：側欄上緊鄰的另一個去處
 // （策略機器人）真的就是一台機器，兩者只差外面那一圈環；而一個正圓浮在
 // 一整片方角的面板上，讀起來像有人把一顆球忘在畫面上。四角星說的是另一件事，
@@ -90,18 +93,8 @@ const placement = computed(() => ({
   touch-action: none;
   user-select: none;
 
-  // 停在上面時稍微抬起來一點。那一下與光暈變強是同一句話的兩半：
-  // 它離畫面更遠了，所以更亮、影子更散。
-  transition: transform duration('fast') ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-  }
-
-  // 拿在手上時不抬起來——它已經在手上了，再抬一次讀起來像它掙脫了游標。
   &--dragging {
     cursor: grabbing;
-    transform: none;
   }
 
   // 星與字疊成一落，而不是並排：這一枚是正方形的，橫著擺會讓兩樣東西

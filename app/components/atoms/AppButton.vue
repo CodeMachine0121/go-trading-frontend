@@ -154,6 +154,12 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   //
   // 因此它一個版面上只該有一顆：兩圈光互相搶，等於沒有光。
   &--accent {
+    // 光暈要淡入淡出。基底那一條沒有管 `box-shadow`（其餘每一種都不靠陰影說話），
+    // 而一圈瞬間亮起來的光讀起來像閃了一下。
+    //
+    // 這一行**取代**基底那一條是安全的，而且是刻意的：這一種在 hover 時不動底色、
+    // 不動邊框、不動文字色，所以那三項本來就沒有東西可以過渡。
+    transition: box-shadow duration('normal') ease;
     box-shadow: shadow('glow');
     background-image: linear-gradient(145deg, color('primary-strong'), color('primary'));
     color: color('text-inverse');
