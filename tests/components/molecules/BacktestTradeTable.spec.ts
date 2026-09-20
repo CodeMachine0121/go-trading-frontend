@@ -30,9 +30,12 @@ function mountTable(
 }
 
 describe('BacktestTradeTable 空表格的兩種原因', () => {
-  function mountEmptyTable(hasOpenPosition: boolean) {
+  function mountEmptyTable(hasOpenPosition: boolean, showTransactionCosts = false) {
     return mount(BacktestTradeTable, {
-      props: { closedTrades: [], timeZone: buildTimeZone('UTC'), hasOpenPosition },
+      props: {
+        closedTrades: [], timeZone: buildTimeZone('UTC'), hasOpenPosition,
+        showTransactionCosts,
+      },
     })
   }
 
@@ -46,23 +49,33 @@ describe('BacktestTradeTable 空表格的兩種原因', () => {
     expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
   })
 
-  it('那句話裡沒有夾雜空白', () => {
+  it.each([true, false])('那句話裡沒有夾雜空白（收過錢＝%s）', (showTransactionCosts) => {
     // 樣板裡換一行，渲染出來就是句子中間多一個空格——中文看得出來，而且
     // 只有把整段字唸過去才會發現。這一條讓它不可能悄悄回來。
-    const wrapper = mountEmptyTable(true)
+    const wrapper = mountEmptyTable(true, showTransactionCosts)
 
     expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
       .not.toMatch(/\s/)
   })
 
-  it('還抱著一注時也說出那一注的錢去了哪裡', () => {
+  it('收過錢時說出那一注的錢去了哪兩格', () => {
     // 「交易次數 0 卻有交易成本」正是這一句要解開的矛盾。
-    const wrapper = mountEmptyTable(true)
+    const wrapper = mountEmptyTable(true, true)
 
     expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
       .toContain('最後剩多少')
     expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
       .toContain('交易成本')
+  })
+
+  it('沒收過錢時不叫人去看一格不存在的數字', () => {
+    // 沒給費率的那一次重演，成績單上根本沒有「交易成本」那一格。
+    const wrapper = mountEmptyTable(true, false)
+
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .toContain('最後剩多少')
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .not.toContain('交易成本')
   })
 
   it('真的一次都沒開倉時那句話一字不變', () => {

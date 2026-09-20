@@ -58,6 +58,7 @@
 | AC-05.1 | 開倉次數一律顯示 | 等於零時也要在 | `BacktestSummaryDto.positionOpenCount` ＋ `BacktestSummaryCard.vue`（**無** `v-if`） | `BacktestSummaryCard.spec.ts`「一次都沒開倉時那一格寫零，而不是消失」 | ✅ conforms |
 | AC-05.2 | 擺在交易次數旁邊 | — | 兩格相鄰 | `BacktestSummaryCard.spec.ts`「開倉次數一律寫出來，就擺在交易次數旁邊」（同時斷言兩格） | ✅ conforms |
 | AC-05.3 | 還抱著一注時不得說「沒有觸發任何交易」 | 說出那一注還開著 | `BacktestTradeTable.vue` 第一個 `v-if` | `BacktestTradeTable.spec.ts`「還抱著一注時說出那件事」（同時斷言舊那句**不存在**）＋ pane 層端到端 | ✅ conforms |
+| — | 那句話只指向畫面上真的有的格子 | 沒收過錢時不得提「交易成本」 | 同一句話依 `showTransactionCosts` 分兩種說法 | `BacktestTradeTable.spec.ts`「收過錢時說出那一注的錢去了哪兩格」與「沒收過錢時不叫人去看一格不存在的數字」 | ✅ conforms |
 | AC-05.4 | 一次都沒開倉時舊句子一字不差 | — | `v-else-if` | `BacktestTradeTable.spec.ts`「真的一次都沒開倉時那句話一字不變」（`toBe` 整句） | ✅ conforms |
 | AC-05.5 | 「還抱著一注」由領域決定 | 不由元件相減 | `BacktestDomain`：`positionOpenCount > closedTrades.length` → `hasOpenPosition` | `backtest-domain.spec.ts` 三條（開四平四 false／開一平零 true／開零 false） | ✅ conforms |
 | — | 實際踩到的那一張成績單不再誤導 | 開 1 平 0 | 上述各項合起來 | `StrategyScriptBacktestPane.spec.ts`「每一棒都說買入時，畫面說得出那一注還開著」 | ✅ conforms |
@@ -94,6 +95,18 @@
 | `ClosedTradeDto` 的兩筆成本 | AC-04.2 |
 | `BacktestTradeTable` 的 `showTransactionCosts` | AC-03.4、AC-04.2 |
 | `__paired-inputs`／`__paired-input` | 排版重複的整併，不對應 AC |
+
+---
+
+## 刻意留給後端的一條
+
+**「押的百分比一定付不起」不在畫面上先擋。** 那條規則（百分比大於可押上限佔現金的比例）
+由後端在門口拒絕，訊息指向 `positionSizingValue`，而這個畫面既有的欄位錯誤機制
+會把它標在「每次開倉押多少」那一格旁邊——使用者按下執行之後才看到，但看到的位置是對的。
+
+畫面**不**自己再判斷一次：這一條要同時讀押注模式、押注數字與進場費率，
+在兩邊各寫一份，就是兩份會慢慢漂開的規則，而漂開的那一天，
+畫面會擋下一個後端其實接受的組合，或反過來放行一個它會拒絕的。
 
 ---
 
