@@ -42,7 +42,7 @@
 | `domain/models/domains/backtest-request-domain.ts`、`trading-strategy-backtest-request-domain.ts` | **Modify** | 各多兩格＋建構當下驗證；前者傳得出交易模式，後者傳 `null`。 |
 | `domain/models/vo/trade-exit-reason-vo.ts` | **Modify** | 多 `'liquidation'`。 |
 | `domain/models/entities/backtest.ts` | **Modify** | 成績單多一格強平出場筆數。 |
-| `domain/models/dto/backtest-summary-dto.ts` | **Modify** | 多一格（`number | null`，沒有就不顯示——比照交易成本那一格的 `null` 慣例）。 |
+| `domain/models/dto/backtest-summary-dto.ts` | **Modify** | 多一格。**實作時改為單純的 `number`、零時不顯示**，比照旁邊那兩個出場筆數，而不是交易成本那一格的 `null`：三個都是數字，元件比得動大小，而三格同一種做法比「其中一格特別」好懂。 |
 | `domain/models/domains/backtest-domain.ts` | **Modify** | 多一個出場原因的中文、多把那一格算出來。 |
 | `infrastructure/proxy/backtest-proxy.ts` | **Modify** | `leverageBody()`、wire 多兩項、欄位翻譯多一筆。 |
 | `components/molecules/BacktestConditionFields.vue` | **Modify** | 多一組併排欄位（沿用既有的 `__paired-inputs`）。 |
@@ -59,7 +59,16 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `LeverageMultiplierDomain` | Domain Model | 一個倍數講不講得通（非數字／小於一），以及**有沒有在借錢**（`isSet`＝大於一）。 | — | US-01 三則、US-02 前兩則 |
 | `MaintenanceMarginRateDomain` | Domain Model | 一個維持保證金率講不講得通（非數字／負／不小於上限），上限由呼叫端給。 | — | US-02 後四則 |
+| `BacktestConditionsDomain` | Domain Model | **兩種重演共有的那六組條件**（期間、初始資金、押注、出場價位、交易成本、槓桿）送不送得出去，一句問完。實作階段加的——見下方。 | 上面六組的模型 | US-01、US-02、US-03（並讓兩個請求模型各少排一次順序） |
 | `BacktestLeverageDomain` | Domain Model | 這一組的全部規則：兩格各自的話、**上限＝100÷倍數**、**現貨衝突**，講不通就丟指著 `'leverage'` 的哨兵錯誤。 | 上面兩個 | US-01、US-02、US-03 全部 |
+
+**為什麼會有 `BacktestConditionsDomain`（實作階段加的）。** 這一刀把兩個請求模型裡
+那段「依序建六個模型、各叫一次 validate」從五組變成六組——而那段在兩處**一字不差**，
+連 import 都各六個。第七組（資金費率）會讓兩邊再各加四行。
+收成一個之後兩處各剩一行、import 各剩一個，而順序與欄位對照只剩一份。
+它收兩種請求 DTO 的**聯集型別**（兩者在這六組上的欄位名一模一樣），交易模式分開傳——
+兩個參數，一個 `validate()`。兩種重演各自獨有的驗證（市場、算式、指標值種類、
+交易策略識別碼）**留在原地**，因為那些正是兩者的差別。
 
 **為什麼上限不做在 `MaintenanceMarginRateDomain` 裡。**
 它是**跨兩格**的規則：沒有倍數就算不出上限。單格模型只回答「這一格自己講不講得通」，
@@ -114,11 +123,13 @@ flowchart TD
 
 - **Most likely next requirement：資金費率。** 後端那一刀做完之後，畫面會要第四組。
 - **Where it lands：** 第四個群組模型 ＋ 第四個 `xxxBody()` ＋ 第四個 `BacktestField`
-  ＋ 表單上第四組併排欄位。**三組已經把路踩平了**，第四組不需要任何新結構。
+  ＋ 表單上第四組併排欄位 ＋ `BacktestConditionsDomain` 裡的一行。
+  **三組已經把路踩平了**，第四組不需要任何新結構——而且**兩個請求模型一個字都不必動**，
+  那正是實作階段把那六組收成一個的理由。
 - **Do not hardcode：**
   - **不要把 0.5 這個預設值寫進畫面。** 它是後端的預設值；畫面只在提示裡**說出**它，
     不在請求裡送它。送了就變成兩邊各有一份預設值，而後端改了畫面不會知道。
-  - **不要在元件裡判斷「這一格要不要出現」。** 那是 domain 的事（給 `null`）。
+  - **強平出場那一格與旁邊兩個出場筆數同一種做法**（數字 ＋ 零時不顯示），不要改成交易成本那一格的 `null`——三格並排，同一種做法比「其中一格特別」好懂。
   - **不要為這一組新開一套排版。** 三組長得一樣是刻意的。
 - **Known debt / deferred：** 重演一份交易策略那條路問不到交易模式，所以現貨衝突
   要送出去才知道。要讓它也當場擋，得先讓那張表單讀得到那一份的交易模式——
