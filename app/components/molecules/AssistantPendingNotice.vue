@@ -36,7 +36,7 @@ onMounted(() => {
       aria-hidden="true"
     >
       <AppIcon
-        name="robot"
+        name="sparkle"
         size="small"
       />
     </span>

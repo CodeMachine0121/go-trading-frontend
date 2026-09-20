@@ -87,17 +87,17 @@ async function fillSymbolAndRun(wrapper: ReturnType<typeof mountPane>) {
 describe('TradingStrategyBacktestPane', () => {
   describe('要填的比重演一支腳本少兩格', () => {
     it('彙總刻度是一句話，不是挑得動的選單', () => {
-      // 刻度由那份交易策略的信號來源自己說。畫一個挑得動的選單，
+      // 刻度由那份交易策略的訊號來源自己說。畫一個挑得動的選單，
       // 等於在畫面上放第二個答案而沒有規則說哪一個贏。
       const wrapper = mountPane(buildProxy())
 
       expect(wrapper.find('[data-testid="backtest-aggregation-interval-select"]').exists())
         .toBe(false)
       expect(wrapper.get('[data-testid="backtest-aggregation-interval-note"]').text())
-        .toContain('信號來源')
+        .toContain('訊號來源')
     })
 
-    it('沒有算式那一格——那是每個信號來源各自指名的', () => {
+    it('沒有算式那一格——那是每個訊號來源各自指名的', () => {
       const wrapper = mountPane(buildProxy())
 
       expect(wrapper.find('[data-testid="script-editor"]').exists()).toBe(false)
@@ -389,6 +389,6 @@ describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
 
     expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
     expect(wrapper.get('.backtest-condition-fields__exit-levels')
-      .get('[data-testid="field-error"]').text()).toContain('停利距離不得為負')
+      .get('[data-testid="field-error"]').text()).toContain('止盈距離不得為負')
   })
 })

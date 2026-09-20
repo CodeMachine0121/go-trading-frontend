@@ -23,17 +23,19 @@ import { useLayoutDensity } from '~/composables/use-layout-density'
 //
 // 頂上那條窄帶在窄螢幕上也換了角色：它不再是一條有底色的帶子，而是**內容裡的一行
 // 大字**。一條永遠佔著高度的窄帶，在手機上換來的只是少掉一行內容。
+// 中間那五個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」的順序排：那是同一件事的
+// 四個前後步驟，而交易策略正好是中間那一步——它以前只有機器人清單標頭那一顆按鈕
+// 到得了，於是讀起來像機器人的一部分，但一份規則可以被好幾台機器人引用，它比
+// 任何一台活得久。
 const DESTINATIONS = [
   { to: '/', label: '連線狀態', icon: 'connection', primary: false },
   { to: '/k-candles', label: 'K 線瀏覽', icon: 'table', primary: false },
   { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles', primary: true },
-  { to: '/watchlist', label: '觀察清單', icon: 'table', primary: true },
-  { to: '/indicator-calculations', label: '指標計算', icon: 'formula', primary: false },
+  { to: '/strategy-scripts', label: '策略腳本', icon: 'formula', primary: true },
   { to: '/marketplace', label: '策略腳本市集', icon: 'library', primary: false },
-  // 機器人排在市集之後、助手之前：市集是「有什麼可以用」，這裡是「我派了誰出去」，
-  // 兩者是同一件事的前後兩步。
+  { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
   { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot', primary: true },
-  { to: '/chat', label: '行情助手', icon: 'robot', primary: true },
+  { to: '/chat', label: 'AI-Assistant', icon: 'sparkle', primary: true },
   { to: '/settings', label: '設定', icon: 'settings', primary: false },
 ] as const
 
@@ -41,8 +43,10 @@ const DESTINATIONS = [
  * 底部那一排放哪幾個。
  *
  * 四個，不是九個：一排超過五格之後，每一格就窄到放不下一個讀得出來的名字，
- * 而沒有名字的圖示等於要使用者猜。挑的是**看的次數**最多的那四個——
- * 圖、清單、我派出去的機器人、隨口問一句——其餘的走「更多」。
+ * 而沒有名字的圖示等於要使用者猜。挑的是**日常動線**上的那四個——
+ * 看圖、寫腳本、我派出去的機器人、隨口問一句——其餘的走「更多」。
+ *
+ * 交易策略不在裡面：一份規則拼好之後就不太動，而底下這四格是每天按很多次的地方。
  */
 const PRIMARY_DESTINATIONS = DESTINATIONS.filter(destination => destination.primary)
 const SECONDARY_DESTINATIONS = DESTINATIONS.filter(destination => !destination.primary)

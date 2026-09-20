@@ -123,7 +123,7 @@ export function useTradingStrategyWorkbench(
       ]
 
       unusableStrategyScripts.value = Object.fromEntries(
-        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了信號來源）`]))
+        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了訊號來源）`]))
 
       shortage.value = options.length > 0
         ? null

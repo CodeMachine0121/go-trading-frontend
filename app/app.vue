@@ -135,9 +135,9 @@ onBeforeUnmount(() => {
   <NuxtPage />
 
   <!--
-    那顆浮在畫面上的助手鍵**只在寬螢幕上出現**。
-    窄螢幕的底部已經有一格「行情助手」了，一顆浮在右下角的鍵不只是重複——
-    它就蓋在那一排分頁上，把「行情助手」與「更多」兩格壓在底下按不到。
+    那一枚浮在畫面上、叫出 AI-Assistant 的晶片**只在寬螢幕上出現**。
+    窄螢幕的底部已經有一格「AI-Assistant」了，一枚浮在右下角的晶片不只是重複——
+    它就蓋在那一排分頁上，把「AI-Assistant」與「更多」兩格壓在底下按不到。
   -->
   <AssistantTriggerButton
     v-if="mayUseConsole && !open && !layoutDensity.usesBottomNavigation"

@@ -149,7 +149,7 @@ async function runBacktest() {
       tone="info"
       data-testid="trading-strategy-backtest-unsaved"
     >
-      這一份還沒存過，所以還沒有東西可以拿去重演。先存起來，再回來這裡。
+      這一份還沒存過，所以還沒有東西可以拿去回測。先存起來，再回來這裡。
     </AppAlert>
 
     <AppPanel title="回測條件">
@@ -185,7 +185,7 @@ async function runBacktest() {
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
-        :aggregation-interval-note="'由這份交易策略的信號來源決定——這一版要求它們一致'"
+        :aggregation-interval-note="'由這份交易策略的訊號來源決定——這一版要求它們一致'"
         :position-sizing-mode-options="positionSizingModeOptions"
         :trading-mode-options="[]"
         :trading-mode-note="tradingModeNote"
@@ -210,7 +210,7 @@ async function runBacktest() {
       tone="danger"
       data-testid="backtest-parameter-not-declared-alert"
     >
-      參數的問題（要改的是那個信號來源填的值，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
+      參數的問題（要改的是那個訊號來源填的值，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
     </AppAlert>
 
     <AppAlert
@@ -218,7 +218,7 @@ async function runBacktest() {
       tone="danger"
       data-testid="backtest-script-failed-alert"
     >
-      算式的問題（要改的是那個信號來源指名的策略腳本）：{{ backtestRun.scriptFailedMessage.value }}
+      算式的問題（要改的是那個訊號來源指名的策略腳本）：{{ backtestRun.scriptFailedMessage.value }}
     </AppAlert>
 
     <AppAlert
@@ -260,7 +260,7 @@ async function runBacktest() {
       tone="info"
       data-testid="backtest-running-alert"
     >
-      重演中…每一根 K 線上每個信號來源都要各跑一次算式，一段長期間可能要等上數十秒。
+      回測中…每一根 K 線上每個訊號來源都要各跑一次算式，一段長期間可能要等上數十秒。
     </AppAlert>
 
     <!-- 三塊東西一起出現：成績單說結論，曲線說形狀，明細說每一筆。 -->
@@ -268,7 +268,7 @@ async function runBacktest() {
       <AppPanel title="成績單">
         <template #meta>
           <span data-testid="backtest-used-candle-count">
-            重演了 {{ backtestRun.result.value.usedCandleCount }} 根
+            回測了 {{ backtestRun.result.value.usedCandleCount }} 根
             <AppBadge variant="info">
               每根涵蓋 {{ backtestRun.result.value.intervalLabel }}
             </AppBadge>

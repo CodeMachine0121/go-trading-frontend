@@ -27,8 +27,8 @@ const { currentUser, signOut } = useUserSession()
 
 <template>
   <ConsoleLayout
-    title="指標計算"
-    subtitle="整份算式都是你的，開新的空白策略腳本時先幫你把開頭與進入點備好；算式一律送到後端沙箱執行。"
+    title="策略腳本"
+    subtitle="寫一支算式、試跑、存起來、拿一段歷史回測它。整份算式都是你的，開新的空白策略腳本時先幫你把開頭與進入點備好；算式一律送到後端沙箱執行。"
   >
     <template #timezone>
       <TimeZoneField

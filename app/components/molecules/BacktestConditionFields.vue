@@ -328,7 +328,7 @@ const selectedPositionSizingMode = computed(
       :disabled="running || disabled"
       data-testid="run-backtest-button"
     >
-      {{ running ? '重演中…' : '執行回測' }}
+      {{ running ? '回測中…' : '執行回測' }}
     </AppButton>
   </div>
 </template>

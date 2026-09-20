@@ -8,7 +8,7 @@ import { useLatestRun } from '~/composables/use-latest-run'
 /**
  * 最近那一次計算。
  *
- * 「跑完了沒有」在這裡叫 `calculating`：這一頁上還有一個「重演中」，
+ * 「跑完了沒有」在這裡叫 `calculating`：這一頁上還有一個「回測中」，
  * 兩者同時出現在同一段程式碼裡時，一個叫 running 的東西是哪一個並不明顯。
  */
 export function useIndicatorCalculationRun(

@@ -34,7 +34,7 @@ const { message, timeZone } = defineProps<{
       aria-hidden="true"
     >
       <AppIcon
-        name="robot"
+        name="sparkle"
         size="small"
       />
     </span>

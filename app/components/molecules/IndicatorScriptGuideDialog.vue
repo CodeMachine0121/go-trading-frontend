@@ -124,7 +124,7 @@ const emit = defineEmits<{ close: [] }>()
         </h3>
 
         <p class="indicator-script-guide-dialog__kind-usage">
-          指標值種類挑「一個信號」時，進入點回傳一個信號。用系統提供的三個值選一個
+          指標值種類挑「一個信號」時，進入點回傳一個訊號。用系統提供的三個值選一個
           <code>return</code> 出去，沒有第四種、也不能自己組一個。回測讀的就是它。
         </p>
 

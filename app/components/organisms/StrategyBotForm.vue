@@ -147,7 +147,7 @@ function onSave() {
           type="checkbox"
           data-testid="bot-position-plan-toggle"
         >
-        <span>要不要順便算部位？訊息會多講押多少、止損與止盈</span>
+        <span>要不要順便算部位？訊息會多講押多少、停損與停利</span>
       </label>
 
       <div

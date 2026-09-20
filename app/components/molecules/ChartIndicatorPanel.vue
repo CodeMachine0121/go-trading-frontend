@@ -86,7 +86,7 @@ function applyPicked(value: string) {
         class="chart-indicator-panel__empty"
         data-testid="chart-indicator-empty"
       >
-        還沒有任何策略腳本。到指標計算畫面寫一支存起來，就能套到圖上。
+        還沒有任何策略腳本。到策略腳本畫面寫一支存起來，就能套到圖上。
       </p>
 
       <AppSelect

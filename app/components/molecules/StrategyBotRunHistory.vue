@@ -82,10 +82,10 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
         >
           押 {{ runRecord.suggestedStakeText }}
           <template v-if="runRecord.suggestedStopLossText !== null">
-            · 止損 {{ runRecord.suggestedStopLossText }}
+            · 停損 {{ runRecord.suggestedStopLossText }}
           </template>
           <template v-if="runRecord.suggestedTakeProfitText !== null">
-            · 止盈 {{ runRecord.suggestedTakeProfitText }}
+            · 停利 {{ runRecord.suggestedTakeProfitText }}
           </template>
         </span>
 

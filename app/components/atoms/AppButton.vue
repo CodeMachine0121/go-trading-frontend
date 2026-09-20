@@ -10,19 +10,22 @@ import { NuxtLink } from '#components'
 // 需要新的長相時，是在這裡新增一個 variant（並在 token 內補色），不是新增一個元件。
 // 詳見 .claude/rules/component-design.md。
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost' | 'accent'
 type ButtonSize = 'small' | 'medium' | 'large'
 
 /**
  * 這顆按鈕的外形。
  *
  * `default` 是這個操作台的角——圓得剛好看得出是圓的，不多。
- * `pill` 與 `circle` 是給**對話介面**用的：一句可以點的建議提問是一枚籌碼、
- * 一顆浮在畫面上叫出助手的鍵是一個圓，那兩個東西方方正正會很硬。
+ * `pill` 與 `circle` 是給**對話介面**用的：一句可以點的建議提問是一枚籌碼，
+ * 而一顆只放一個圖示、不帶任何文字的小鍵是一個圓。
+ * `squircle` 是給**浮在所有內容之上、自己站著的那一枚**用的：
+ * 角收得很圓但仍然是方的，於是它與這個終端機介面的面板是同一種語言——
+ * 一個正圓會像有人把一顆球忘在畫面上。
  *
  * 它是互斥的外觀，所以是一組列舉而不是幾個布林——`pill` 與 `circle` 同時為真是無意義狀態。
  */
-type ButtonShape = 'default' | 'pill' | 'circle'
+type ButtonShape = 'default' | 'pill' | 'circle' | 'squircle'
 
 const { variant = 'primary', size = 'medium', shape = 'default', block = false, label, to } = defineProps<{
   variant?: ButtonVariant
@@ -135,6 +138,29 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   &--circle {
     aspect-ratio: 1;
     border-radius: radius('pill');
+  }
+
+  // 大圓角的方塊。它不與 `--labelled` 相乘拿等寬高，因為用它的地方
+  // 自己說得出要多大（那個數字同時被別的規則讀著）。
+  &--squircle {
+    border-radius: radius('2xl');
+  }
+
+  // 整個畫面上最想被按的那一顆。
+  //
+  // 它與 `primary` 的差別不是「更藍一點」，是**它不待在版面裡**：
+  // 用它的東西浮在所有內容之上，所以它要自己與背後那一整片分開——
+  // 那一圈光就是在做這件事，而一塊平的實心色塊在深色底上做不到。
+  //
+  // 因此它一個版面上只該有一顆：兩圈光互相搶，等於沒有光。
+  &--accent {
+    box-shadow: shadow('glow');
+    background-image: linear-gradient(145deg, color('primary-strong'), color('primary'));
+    color: color('text-inverse');
+
+    &:hover:not(:disabled) {
+      box-shadow: shadow('glow-strong');
+    }
   }
 
   // 實心的強調色只留給「這個畫面上要按的那一顆」。

@@ -124,7 +124,7 @@ describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
     expect(wrapper.find('[data-testid="run-history-plan"]').exists()).toBe(false)
   })
 
-  it('只建議過止損的那一輪就只多出金額與止損', () => {
+  it('只建議過停損的那一輪就只多出金額與停損', () => {
     const wrapper = mountHistory({
       runRecords: [runRecord(1, '買入', 'success', false, {
         stake: '5000', stopLoss: '62255.085',
@@ -134,6 +134,22 @@ describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
     const plan = wrapper.get('[data-testid="run-history-plan"]').text()
     expect(plan).toContain('5000')
     expect(plan).toContain('62255.085')
+    expect(plan).not.toContain('停利')
+  })
+
+  it('那兩個數字叫「停損」與「停利」，不叫「止損」與「止盈」', () => {
+    // 這兩組詞在後端是兩件不同的事：這裡的距離從**最新價**量起，
+    // 而回測那邊的從**進場價**量起。混用等於把兩件事說成一件。
+    const wrapper = mountHistory({
+      runRecords: [runRecord(1, '賣出', 'danger', false, {
+        stake: '5000', stopLoss: '66105.915', takeProfit: '60971.475',
+      })],
+    })
+
+    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
+    expect(plan).toContain('停損')
+    expect(plan).toContain('停利')
+    expect(plan).not.toContain('止損')
     expect(plan).not.toContain('止盈')
   })
 })

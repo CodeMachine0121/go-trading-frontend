@@ -249,7 +249,7 @@ async function runBacktest() {
       tone="info"
       data-testid="backtest-running-alert"
     >
-      重演中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒。
+      回測中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒。
     </AppAlert>
 
     <!-- 三塊東西一起出現：成績單說結論，曲線說形狀，明細說每一筆。 -->
@@ -257,7 +257,7 @@ async function runBacktest() {
       <AppPanel title="成績單">
         <template #meta>
           <span data-testid="backtest-used-candle-count">
-            重演了 {{ backtestRun.result.value.usedCandleCount }} 根
+            回測了 {{ backtestRun.result.value.usedCandleCount }} 根
             <AppBadge variant="info">
               每根涵蓋 {{ backtestRun.result.value.intervalLabel }}
             </AppBadge>

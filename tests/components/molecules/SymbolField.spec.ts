@@ -196,6 +196,10 @@ describe('SymbolField 的市場篩選', () => {
     await wrapper.find('[data-testid="tab-taiwanStock"]').trigger('click')
 
     expect(wrapper.text()).toContain('這個市場目前沒有任何交易標的')
+    // 那一句以前指向觀察清單那一頁，而那一頁已經不在了——指一條走不到的路
+    // 比不指路更糟，所以它說的是他在這台操作台上做得到的那一件事。
+    expect(wrapper.text()).toContain('換一個市場看看')
+    expect(wrapper.text()).not.toContain('觀察清單')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
     expect(wrapper.find('[data-testid="symbol-select"]').text()).toContain('沒有可選的標的')
   })

@@ -34,19 +34,28 @@ describe('AssistantTriggerButton', () => {
     expect(style).toContain('height: 64px')
   })
 
-  it('是一顆圓的、只放圖示的鍵', () => {
-    // 一個隨時都在、疊在所有內容之上的東西，方形會像有人把一塊東西忘在畫面上。
+  it('是一枚會發光的圓角方塊，不是一顆圓球', () => {
+    // 一個正圓浮在一整片方角的面板上，讀起來像有人把一顆球忘在畫面上。
+    // 那一圈光讓它與背後那一整片分開——它不待在版面裡，所以得自己站出來。
     const button = mountTrigger().get('[data-testid="assistant-drawer-trigger"]')
 
-    expect(button.classes()).toContain('app-button--circle')
-    expect(button.classes()).toContain('app-button--labelled')
+    expect(button.classes()).toContain('app-button--squircle')
+    expect(button.classes()).toContain('app-button--accent')
+    expect(button.classes()).not.toContain('app-button--circle')
+  })
+
+  it('掛的是四角星，不是機器人頭', () => {
+    // 側欄上緊鄰的另一個去處（策略機器人）真的就是一台機器。
+    const wrapper = mountTrigger()
+
+    expect(wrapper.get('svg').attributes('data-icon')).toBe('sparkle')
   })
 
   it('說得出自己是誰，也說得出它可以被拖', () => {
-    // 一顆只有圖示的鍵，對讀螢幕的人來說什麼都沒說。
+    // 一枚只有一顆星與兩個字母的鍵，對讀螢幕的人來說幾乎什麼都沒說。
     const button = mountTrigger().get('[data-testid="assistant-drawer-trigger"]')
 
-    expect(button.attributes('aria-label')).toContain('問助手')
+    expect(button.attributes('aria-label')).toContain('AI-Assistant')
     expect(button.attributes('aria-label')).toContain('可拖曳')
   })
 
