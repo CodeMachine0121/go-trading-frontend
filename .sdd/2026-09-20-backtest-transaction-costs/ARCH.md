@@ -35,6 +35,18 @@
 
 它一條規則都不判斷（既有立場）：哪一格出問題由外面告訴它。
 
+#### 決定零：開倉次數不是新資料，是**一路被丟掉的**資料
+
+後端算了 `positionOpenCount`、proxy 讀進來了、`Backtest` entity 也存著它——
+然後 `BacktestSummaryDto` 沒有這一格，於是它在轉成畫面形狀的那一步安靜地消失。
+
+所以這一段不是「多接一個欄位」，是**把一條斷掉的線接回去**：
+DTO 補一格、`BacktestDomain` 多傳一個、畫面多畫一格。沒有新的取數、沒有新的算術。
+
+它一律顯示而不是「大於零才出現」——與打架棒數那幾格刻意不同。
+那幾格是**只在特定玩法下才有意義**的數字（沒模擬出場時止損筆數恆為零）；
+開倉次數與交易次數是同一個層級的基本事實，而**它等於零本身就是資訊**。
+
 #### 決定三：「沒收過錢就不顯示」用 **`null`** 表達，不用 `> 0`
 
 打架棒數與止損出場筆數是**數字**，所以它們用 `> 0` 判斷。
@@ -72,7 +84,7 @@
 | `infrastructure/proxy/backtest-proxy.ts` | 只送真的填了的那幾格；讀回三個新數字；欄位名對照多一列 |
 | `components/molecules/BacktestConditionFields.vue` | 多一組欄位與一個錯誤訊息 prop |
 | `components/molecules/BacktestSummaryCard.vue` | 累計成本那一格（`null` 就不畫） |
-| `components/molecules/BacktestTradeTable.vue` | 兩欄成本（沒收過錢就不畫），賺賠表頭說明是淨額 |
+| `components/molecules/BacktestTradeTable.vue` | 兩欄成本（沒收過錢就不畫），賺賠表頭說明是淨額，空狀態分兩種說法 |
 | `components/organisms/StrategyScriptBacktestPane.vue` | 兩個 ref、兩個 v-model、一個錯誤 prop |
 | `components/organisms/TradingStrategyBacktestPane.vue` | 同上 |
 
@@ -141,6 +153,16 @@ totalTransactionCost = 累計成本為零 ? null : amount(累計成本)
 
 ---
 
+### `BacktestTradeTable.vue` 的空狀態 — 兩句話，由領域挑
+
+「還抱著一注」＝ `開倉次數 > 已平倉筆數`。那條推論靠的是「同一時間最多一個部位」
+這條**領域規則**，所以它由 `BacktestDomain` 算完放進 DTO（`hasOpenPosition`），
+不由元件自己拿兩個數字相減——元件一旦開始推論，那條規則就有了第二個住處。
+
+與 `showTransactionCosts` 同一個手法：表格被**告知**事實，不去推導事實。
+
+---
+
 ## 5. Traceability
 
 | AC | 落在哪裡 |
@@ -154,6 +176,9 @@ totalTransactionCost = 累計成本為零 ? null : amount(累計成本)
 | AC-04.1 | `BacktestSummaryCard.vue` |
 | AC-04.2 / 04.3 | `BacktestTradeTable.vue` |
 | AC-04.4 | `BacktestDomain.amount()`（與其他金額同一個方法） |
+| AC-05.1 / 05.2 | `BacktestSummaryDto.positionOpenCount` ＋ `BacktestSummaryCard.vue` |
+| AC-05.3 / 05.4 | `BacktestTradeTable.vue` 的兩句空狀態 |
+| AC-05.5 | `BacktestSummaryDto.hasOpenPosition`（由 `BacktestDomain` 決定） |
 
 ---
 
