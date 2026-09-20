@@ -22,6 +22,42 @@ function closedTradeOf(
     new Decimal(profit), exitReason, entryCost, exitCost)
 }
 
+describe('BacktestDomain 結束時還抱不抱著一注', () => {
+  it('開幾次倉照實傳到成績單上', () => {
+    // 它一路從後端送到 entity 都在，卻曾經在轉成畫面形狀的那一步被丟掉——
+    // 於是一張空明細唯一說得通的另一種原因在畫面上完全看不出來。
+    const resultDto = backtestOf({
+      positionOpenCount: 4,
+      closedTrades: [closedTradeOf('long', '100'), closedTradeOf('long', '200'),
+        closedTradeOf('long', '300'), closedTradeOf('long', '400')],
+    }).toDomain().toDto()
+
+    expect(resultDto.summary.positionOpenCount).toBe(4)
+    expect(resultDto.summary.tradeCount).toBe(4)
+    expect(resultDto.summary.hasOpenPosition).toBe(false)
+  })
+
+  it('開了一次卻一次都沒平，就是還抱著那一注', () => {
+    // 一支每一棒都說買入的算式就長這樣：開一次，然後每一棒的買入都是空操作。
+    const resultDto = backtestOf({
+      positionOpenCount: 1, closedTrades: [],
+    }).toDomain().toDto()
+
+    expect(resultDto.summary.positionOpenCount).toBe(1)
+    expect(resultDto.summary.tradeCount).toBe(0)
+    expect(resultDto.summary.hasOpenPosition).toBe(true)
+  })
+
+  it('一次都沒開倉就不是還抱著', () => {
+    const resultDto = backtestOf({
+      positionOpenCount: 0, closedTrades: [],
+    }).toDomain().toDto()
+
+    expect(resultDto.summary.positionOpenCount).toBe(0)
+    expect(resultDto.summary.hasOpenPosition).toBe(false)
+  })
+})
+
 describe('BacktestDomain 的交易成本', () => {
   it('沒收過錢時累計成本是 null，畫面因此不多一格', () => {
     // 零與「沒收過錢」在這裡是同一件事：費率留白時後端回零，

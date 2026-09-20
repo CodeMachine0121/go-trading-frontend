@@ -29,6 +29,50 @@ function mountTable(
   })
 }
 
+describe('BacktestTradeTable 空表格的兩種原因', () => {
+  function mountEmptyTable(hasOpenPosition: boolean) {
+    return mount(BacktestTradeTable, {
+      props: { closedTrades: [], timeZone: buildTimeZone('UTC'), hasOpenPosition },
+    })
+  }
+
+  it('還抱著一注時說出那件事，而不是說沒有觸發任何交易', () => {
+    // 一支每一棒都說買入的算式會開一注抱到最後。說它「沒有觸發任何交易」是錯的，
+    // 而那句附帶的理由還會把人推去懷疑一個沒有問題的地方。
+    const wrapper = mountEmptyTable(true)
+
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .toContain('開了倉但還沒平掉')
+    expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
+  })
+
+  it('還抱著一注時也說出那一注的錢去了哪裡', () => {
+    // 「交易次數 0 卻有交易成本」正是這一句要解開的矛盾。
+    const wrapper = mountEmptyTable(true)
+
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .toContain('最後剩多少')
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .toContain('交易成本')
+  })
+
+  it('真的一次都沒開倉時那句話一字不變', () => {
+    const wrapper = mountEmptyTable(false)
+
+    expect(wrapper.get('[data-testid="no-trades"]').text())
+      .toBe('這段期間沒有觸發任何交易。算式可以從頭到尾都說持平，這不算失敗。')
+    expect(wrapper.find('[data-testid="no-closed-trades-yet"]').exists()).toBe(false)
+  })
+
+  it('有交易明細時兩句話都不出現', () => {
+    const wrapper = mountTable([tradeOf('1000', 'positive')], 'UTC', false)
+
+    expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="no-closed-trades-yet"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="trade-row"]')).toHaveLength(1)
+  })
+})
+
 describe('BacktestTradeTable 的成本欄', () => {
   it('收過錢才多那兩欄，每一列說出自己付了多少', () => {
     const wrapper = mountTable(

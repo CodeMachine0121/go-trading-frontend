@@ -71,6 +71,24 @@ describe('BacktestSummaryCard', () => {
     expect(wrapper.find('[data-testid="summary-take-profit-exit-count"]').exists()).toBe(false)
   })
 
+  it('開倉次數一律寫出來，就擺在交易次數旁邊', () => {
+    // 它與下面那幾格「有才出現」的數字不同：等於零本身就是資訊，
+    // 而它與交易次數不相等時，那個差就是「現在還抱著一注」。
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '11010.28', '+10.10%', 'positive', '8.55%', '不適用',
+      1, 0, 0, 0, 0, '99.01', true))
+
+    expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="summary-trade-count"]').text()).toBe('0')
+  })
+
+  it('一次都沒開倉時那一格寫零，而不是消失', () => {
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0, 0, null, false))
+
+    expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('0')
+  })
+
   it('收過錢才多那一格', () => {
     // 判斷讀的是 null 而不是零：到了這裡它已經是一個字串，而「有沒有收過錢」
     // 是領域知識，所以那個判斷留在領域模型裡。

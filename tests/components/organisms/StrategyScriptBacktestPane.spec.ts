@@ -423,6 +423,26 @@ describe('StrategyScriptBacktestPane', () => {
       expect(wrapper.findAll('[data-testid="trade-row"]')).toHaveLength(0)
     })
 
+    it('每一棒都說買入時，畫面說得出那一注還開著', async () => {
+      // 這是實際踩到的那一張成績單：算式每一棒都說買入，於是開一次倉之後
+      // 每一棒的買入都是空操作，那一注抱到最後。交易次數 0、明細空的，
+      // 但錢付出去了、市值也算進最後剩多少——三個數字都對，
+      // 錯的是畫面把它說成「沒有觸發任何交易」。
+      const wrapper = mountPane(buildProxy({
+        runBacktest: vi.fn().mockResolvedValue(completedBacktest({
+          winRate: null, positionOpenCount: 1, closedTrades: [],
+        })),
+      }))
+
+      await runBacktest(wrapper)
+
+      expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
+      expect(wrapper.get('[data-testid="summary-trade-count"]').text()).toBe('0')
+      expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+        .toContain('開了倉但還沒平掉')
+      expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
+    })
+
     it('資金曲線的每一點都交給繪圖函式庫，順序不變', async () => {
       const wrapper = mountPane(buildProxy())
 
