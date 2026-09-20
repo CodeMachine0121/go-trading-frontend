@@ -46,6 +46,15 @@ describe('BacktestTradeTable 空表格的兩種原因', () => {
     expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
   })
 
+  it('那句話裡沒有夾雜空白', () => {
+    // 樣板裡換一行，渲染出來就是句子中間多一個空格——中文看得出來，而且
+    // 只有把整段字唸過去才會發現。這一條讓它不可能悄悄回來。
+    const wrapper = mountEmptyTable(true)
+
+    expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+      .not.toMatch(/\s/)
+  })
+
   it('還抱著一注時也說出那一注的錢去了哪裡', () => {
     // 「交易次數 0 卻有交易成本」正是這一句要解開的矛盾。
     const wrapper = mountEmptyTable(true)
