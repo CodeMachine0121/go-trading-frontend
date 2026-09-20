@@ -5,4 +5,4 @@
  * 答不出「是哪幾筆」——而看交易明細的人問的正是後者：
  * 那幾筆被掃掉的是不是都擠在同一段行情裡。
  */
-export type TradeExitReason = 'signal' | 'stopLoss' | 'takeProfit'
+export type TradeExitReason = 'signal' | 'stopLoss' | 'takeProfit' | 'liquidation'

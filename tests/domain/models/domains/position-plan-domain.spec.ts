@@ -60,6 +60,13 @@ describe('PositionPlanDomain', () => {
     expect(aPositionPlan({ leverage: '0.5' }).rejection).toContain('槓桿倍數不得小於 1 倍')
   })
 
+  it('零倍也送不出去——這一邊的空白讀成一倍，所以零是真的有人打了零', () => {
+    // 回測那張表單把空白讀成零，而**那是那張表單的編碼**，不是這個倍數的性質。
+    // 那條規則若被搬進共用的倍數模型，機器人從此會放過一個真的打了 0 的人，
+    // 而他的建議部位會變成零。這一條就是那件事的守衛。
+    expect(aPositionPlan({ leverage: '0' }).rejection).toContain('槓桿倍數不得小於 1 倍')
+  })
+
   it.each([
     ['停損距離是負的', { stopLossPercentage: '-3' }, '停損距離不得為負'],
     ['停損距離超過一百', { stopLossPercentage: '120' }, '停損距離不得超過 100%'],

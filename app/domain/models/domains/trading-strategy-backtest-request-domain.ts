@@ -5,6 +5,7 @@ import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-i
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
 import { BacktestTransactionCostsDomain } from '~/domain/models/domains/backtest-transaction-costs-domain'
+import { BacktestLeverageDomain } from '~/domain/models/domains/backtest-leverage-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
@@ -36,6 +37,8 @@ export class TradingStrategyBacktestRequestDomain {
   // 沒有意見，而那是坐下來調的時候會換來換去的旋鈕。
   readonly entryCostPercentage: Decimal
   readonly exitCostPercentage: Decimal
+  readonly leverage: Decimal
+  readonly maintenanceMarginRate: Decimal
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -60,6 +63,12 @@ export class TradingStrategyBacktestRequestDomain {
     new BacktestTransactionCostsDomain(
       requestDto.entryCostPercentage, requestDto.exitCostPercentage).validate()
 
+    // 交易模式傳 null——**這條路問不到它**。它是那一份交易策略自己記著的，
+    // 這張表單看不到。所以「現貨開不了槓桿」那一條由後端回答，
+    // 回來的拒絕會標在同一組旁邊。
+    new BacktestLeverageDomain(
+      requestDto.leverage, requestDto.maintenanceMarginRate, null).validate()
+
     this.tradingStrategyId = requestDto.tradingStrategyId
     this.symbol = normalizedSymbol
     this.startTime = requestDto.startTime
@@ -71,5 +80,7 @@ export class TradingStrategyBacktestRequestDomain {
     this.takeProfitPercentage = requestDto.takeProfitPercentage
     this.entryCostPercentage = requestDto.entryCostPercentage
     this.exitCostPercentage = requestDto.exitCostPercentage
+    this.leverage = requestDto.leverage
+    this.maintenanceMarginRate = requestDto.maintenanceMarginRate
   }
 }

@@ -89,6 +89,8 @@ export class Backtest {
      */
     public readonly stopLossExitCount: number,
     public readonly takeProfitExitCount: number,
+    /** 被強制平倉打掉的筆數。這一次沒有借錢時是零。 */
+    public readonly liquidationExitCount: number,
     /**
      * 這一次重演總共為了交易付掉多少：已平倉那幾筆的兩端，
      * 加上結束時還開著那一注**已經付掉的**進場成本。沒有給費率時是零。

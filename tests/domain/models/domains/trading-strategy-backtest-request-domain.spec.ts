@@ -22,6 +22,8 @@ function aRequest(overrides: Partial<{
   takeProfitPercentage: Decimal
   entryCostPercentage: Decimal
   exitCostPercentage: Decimal
+  leverage: Decimal
+  maintenanceMarginRate: Decimal
 }> = {}) {
   return new TradingStrategyBacktestRequestDto(
     overrides.tradingStrategyId ?? 7,
@@ -37,6 +39,9 @@ function aRequest(overrides: Partial<{
     // 留白的那一次不收任何費用，也就是這一刀之前的每一次。
     overrides.entryCostPercentage ?? new Decimal(0),
     overrides.exitCostPercentage ?? new Decimal(0),
+    // 留白的那一次不借錢，也就是這一刀之前的每一次。
+    overrides.leverage ?? new Decimal(0),
+    overrides.maintenanceMarginRate ?? new Decimal(0),
   )
 }
 
