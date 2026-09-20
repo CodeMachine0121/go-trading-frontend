@@ -44,21 +44,27 @@ const REPLAY_END = new Date('2026-09-04T23:00:00Z')
 function completedBacktest(overrides: Partial<{
   totalReturnRate: number
   winRate: number | null
+  positionOpenCount: number
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]
 }> = {}): Backtest {
+  // 開幾次與平幾次要對得上：同一時間最多一個部位，所以兩者最多差一，
+  // 而差在哪就決定了結束時還抱不抱著一注。四開一平是一個到不了的狀態。
+  const closedTrades = overrides.closedTrades ?? [new ClosedTrade(
+    'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
+    new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))]
+
   return new Backtest(
     'BTCUSDT', '1h', REPLAY_START, REPLAY_END, 3,
     new Decimal('10000'), new Decimal('12500'),
     overrides.totalReturnRate ?? 0.25, 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
-    4,
+    overrides.positionOpenCount ?? closedTrades.length,
     0,
     0,
     0,
-    overrides.closedTrades ?? [new ClosedTrade(
-      'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-      new Decimal('10000'), new Decimal('1000'), 'signal')],
+    new Decimal(0),
+    closedTrades,
     overrides.equityCurve ?? [
       new EquityPoint(REPLAY_START, new Decimal('10000')),
       new EquityPoint(REPLAY_END, new Decimal('12500')),
@@ -374,9 +380,11 @@ describe('StrategyScriptBacktestPane', () => {
         runBacktest: vi.fn().mockResolvedValue(completedBacktest({
           closedTrades: [
             new ClosedTrade('long', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal'),
+              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal',
+              new Decimal(0), new Decimal(0)),
             new ClosedTrade('short', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal'),
+              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal',
+              new Decimal(0), new Decimal(0)),
           ],
         })),
       }))
@@ -413,6 +421,26 @@ describe('StrategyScriptBacktestPane', () => {
       expect(wrapper.get('[data-testid="no-trades"]').text())
         .toContain('這段期間沒有觸發任何交易')
       expect(wrapper.findAll('[data-testid="trade-row"]')).toHaveLength(0)
+    })
+
+    it('每一棒都說買入時，畫面說得出那一注還開著', async () => {
+      // 這是實際踩到的那一張成績單：算式每一棒都說買入，於是開一次倉之後
+      // 每一棒的買入都是空操作，那一注抱到最後。交易次數 0、明細空的，
+      // 但錢付出去了、市值也算進最後剩多少——三個數字都對，
+      // 錯的是畫面把它說成「沒有觸發任何交易」。
+      const wrapper = mountPane(buildProxy({
+        runBacktest: vi.fn().mockResolvedValue(completedBacktest({
+          winRate: null, positionOpenCount: 1, closedTrades: [],
+        })),
+      }))
+
+      await runBacktest(wrapper)
+
+      expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
+      expect(wrapper.get('[data-testid="summary-trade-count"]').text()).toBe('0')
+      expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
+        .toContain('開了倉但還沒平掉')
+      expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
     })
 
     it('資金曲線的每一點都交給繪圖函式庫，順序不變', async () => {
@@ -645,6 +673,84 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     const wrapper = mountPane(proxy)
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('100')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).toHaveBeenCalled()
+  })
+})
+
+describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
+  it('兩個費率填了就送出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]')
+      .setValue('0.0855')
+    await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]')
+      .setValue('0.3855')
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.toString()).toBe('0.0855')
+    expect(request.exitCostPercentage.toString()).toBe('0.3855')
+  })
+
+  it('預設兩格都留白，而留白就是不收費', async () => {
+    // 替既有的每一次重演補一個「常見費率」，就是在沒有人動手的情況下
+    // 改掉使用者手上每一張成績單。
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    expect(wrapper.get<HTMLInputElement>(
+      '[data-testid="backtest-entry-cost-percentage-input"]').element.value).toBe('')
+
+    await runBacktest(wrapper)
+
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request.entryCostPercentage.isZero()).toBe(true)
+    expect(request.exitCostPercentage.isZero()).toBe(true)
+  })
+
+  it('費率填錯就**不送出**，而那句話留在那一組旁邊', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('-1')
+    await runBacktest(wrapper)
+
+    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    // 位置就是這一條的全部重點：訊息要落在他要去改的那一組旁邊。
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs')
+      .get('[data-testid="field-error"]').text())
+      .toContain('進場成本率不得為負')
+  })
+
+  it('超過一百的理由講的是成本，不是隔壁那組的價格', async () => {
+    // 兩組就擺在一起，而規則不同。拿到隔壁那句話的人會去看錯的地方。
+    const wrapper = mountPane(buildProxy())
+
+    await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]').setValue('101')
+    await runBacktest(wrapper)
+
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs')
+      .get('[data-testid="field-error"]').text())
+      .toBe('出場成本率不得超過 100%——成本不會超過成交金額本身')
+  })
+
+  it('那一組旁邊說得出「出場留白時跟進場一樣」', async () => {
+    // 隔壁那兩格各自獨立、各自留白即不模擬；這一組不是。
+    // 不說出來，使用者會把隔壁那一組的規則帶過來。
+    const wrapper = mountPane(buildProxy())
+
+    expect(wrapper.get('.backtest-condition-fields__transaction-costs').text())
+      .toContain('出場留白時跟進場一樣')
+  })
+
+  it('正好 100 送得出去', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy)
+
+    await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('100')
     await runBacktest(wrapper)
 
     expect(proxy.runBacktest).toHaveBeenCalled()

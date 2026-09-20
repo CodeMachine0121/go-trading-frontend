@@ -29,6 +29,7 @@ const {
   positionSizingValueError = null,
   tradingModeError = null,
   exitLevelsError = null,
+  transactionCostsError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
@@ -51,6 +52,13 @@ const {
    * 而那句話已經說出是止損還是止盈那一格。
    */
   exitLevelsError?: string | null
+  /**
+   * 交易成本那一組旁邊要說的話。
+   *
+   * 一則訊息蓋住兩格，與出場價位同一個判斷：它們併排填成一組，
+   * 而那句話已經說出是進場還是出場那一格。
+   */
+  transactionCostsError?: string | null
   /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
@@ -83,6 +91,11 @@ const tradingMode = defineModel<string>('tradingMode', { required: true })
 const stopLossPercentage = defineModel<string>('stopLossPercentage', { required: true })
 const takeProfitPercentage = defineModel<string>(
   'takeProfitPercentage', { required: true })
+// 兩個費率。預設留白，而留白就是不收費——與上面那一組一樣「不填也是一個意思」，
+// 但**規則不同**：出場留白時沿用進場，而不是各自獨立。
+// 兩組就擺在一起，所以那句話非說不可。
+const entryCostPercentage = defineModel<string>('entryCostPercentage', { required: true })
+const exitCostPercentage = defineModel<string>('exitCostPercentage', { required: true })
 
 /**
  * 同一組單選鈕共用的名字。
@@ -249,8 +262,8 @@ const selectedPositionSizingMode = computed(
       :error-message="exitLevelsError"
       grouped
     >
-      <div class="backtest-condition-fields__exit-levels-inputs">
-        <label class="backtest-condition-fields__exit-level">
+      <div class="backtest-condition-fields__paired-inputs">
+        <label class="backtest-condition-fields__paired-input">
           <span>止損距離（%）</span>
           <AppInput
             v-model="stopLossPercentage"
@@ -260,7 +273,7 @@ const selectedPositionSizingMode = computed(
             data-testid="backtest-stop-loss-percentage-input"
           />
         </label>
-        <label class="backtest-condition-fields__exit-level">
+        <label class="backtest-condition-fields__paired-input">
           <span>止盈距離（%）</span>
           <AppInput
             v-model="takeProfitPercentage"
@@ -268,6 +281,42 @@ const selectedPositionSizingMode = computed(
             inputmode="decimal"
             :invalid="Boolean(exitLevelsError)"
             data-testid="backtest-take-profit-percentage-input"
+          />
+        </label>
+      </div>
+    </FormField>
+
+    <!--
+      與出場價位同一個做法：兩格擺成一組佔滿整列。
+      那句提示有兩件事要說（留白就不計、出場留白時跟進場一樣），
+      被摺成一疊時就沒有人會讀它。
+    -->
+    <FormField
+      label="交易成本"
+      class="backtest-condition-fields__transaction-costs"
+      hint="留白就不計。出場留白時跟進場一樣"
+      :error-message="transactionCostsError"
+      grouped
+    >
+      <div class="backtest-condition-fields__paired-inputs">
+        <label class="backtest-condition-fields__paired-input">
+          <span>進場成本率（%）</span>
+          <AppInput
+            v-model="entryCostPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(transactionCostsError)"
+            data-testid="backtest-entry-cost-percentage-input"
+          />
+        </label>
+        <label class="backtest-condition-fields__paired-input">
+          <span>出場成本率（%）</span>
+          <AppInput
+            v-model="exitCostPercentage"
+            type="number"
+            inputmode="decimal"
+            :invalid="Boolean(transactionCostsError)"
+            data-testid="backtest-exit-cost-percentage-input"
           />
         </label>
       </div>
@@ -312,13 +361,27 @@ const selectedPositionSizingMode = computed(
     grid-column: 1 / -1;
   }
 
-  &__exit-levels-inputs {
+  // 與出場價位那一組同一個理由，而這一組的提示還多說一句
+  // 「出場留白時跟進場一樣」——那一句正是它與隔壁那組的差別。
+  &__transaction-costs {
+    grid-column: 1 / -1;
+  }
+
+  // 兩組併排的輸入框長得一樣，所以排版只寫一次。
+  //
+  // 它們**看起來**一樣是刻意的：兩組都是「一個概念、兩個數字、留白有意思」，
+  // 而使用者掃過去時應該認得出那是同一種東西。抄第二份的那一天，
+  // 兩組會在某一次調整之後開始長得不一樣，而沒有人是故意的。
+  //
+  // 它們的**規則**仍然不同（出場距離各自獨立，費率的出場留白時沿用進場），
+  // 那個差別由各自的提示文字說，不由排版說。
+  &__paired-inputs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: spacing('2xs');
   }
 
-  &__exit-level {
+  &__paired-input {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');

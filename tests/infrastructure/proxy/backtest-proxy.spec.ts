@@ -24,11 +24,15 @@ function requestOf(
   // 留白就是不模擬，也就是這一刀之前的每一次重演。
   stopLossPercentage = new Decimal(0),
   takeProfitPercentage = new Decimal(0),
+  // 留白就是不收費，也就是這一刀之前的每一次重演。
+  entryCostPercentage = new Decimal(0),
+  exitCostPercentage = new Decimal(0),
 ): BacktestRequestDomain {
   return new BacktestRequestDomain(new BacktestRequestDto(
     'BTCUSDT', '1h', START_TIME, END_TIME, SCRIPT_BODY, 'signal', parameters,
     new Decimal('10000'), 'percentage', new Decimal('50'), tradingMode,
-    stopLossPercentage, takeProfitPercentage))
+    stopLossPercentage, takeProfitPercentage,
+    entryCostPercentage, exitCostPercentage))
 }
 
 /** 一次成功的回測，wire 上的樣子。金額一律是字串——它們是精確小數。 */
@@ -55,6 +59,7 @@ function completedWire() {
       positionOpenCount: number
       stopLossExitCount?: number
       takeProfitExitCount?: number
+      totalTransactionCost?: string
     },
     closedTrades: [{
       direction: 'long',
@@ -73,6 +78,8 @@ function completedWire() {
       stake: string
       profit: string
       exitReason?: string
+      entryCost?: string
+      exitCost?: string
     }[],
     equityCurve: [{ openTime: '2026-08-06T00:00:00Z', equity: '10000.123456789012345678' }],
   }
@@ -173,6 +180,81 @@ describe('BacktestProxy', () => {
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.stopLossPercentage).toBe('2')
     expect(body).not.toHaveProperty('takeProfitPercentage')
+  })
+
+  it('填了的費率以字串送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal(0), new Decimal(0),
+        new Decimal('0.0855'), new Decimal('0.3855')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.entryCostPercentage).toBe('0.0855')
+    expect(body.exitCostPercentage).toBe('0.3855')
+  })
+
+  it('留白的費率**根本不出現在請求裡**', async () => {
+    // 與出場距離一字不差的理由：一個空輸入框轉成的零不是使用者的意思。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body).not.toHaveProperty('entryCostPercentage')
+    expect(body).not.toHaveProperty('exitCostPercentage')
+  })
+
+  it('只填進場那一格就只送那一格——出場由後端沿用它', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+      requestOf([], 'longShort', new Decimal(0), new Decimal(0), new Decimal('0.1')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.entryCostPercentage).toBe('0.1')
+    expect(body).not.toHaveProperty('exitCostPercentage')
+  })
+
+  it('讀回來的那一份說得出總共付了多少、每一筆付了多少', async () => {
+    const wire = completedWire()
+    wire.summary.totalTransactionCost = '210'
+    wire.closedTrades[0]!.entryCost = '100'
+    wire.closedTrades[0]!.exitCost = '110'
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
+
+    const backtest = await new BacktestProxy(
+      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(backtest.totalTransactionCost.toString()).toBe('210')
+    expect(backtest.closedTrades[0]!.entryCost.toString()).toBe('100')
+    expect(backtest.closedTrades[0]!.exitCost.toString()).toBe('110')
+  })
+
+  it('沒說成本時一律當成零', async () => {
+    // 比這一刀早的後端從來不收費，也不說這三件事。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
+
+    const backtest = await new BacktestProxy(
+      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    expect(backtest.totalTransactionCost.isZero()).toBe(true)
+    expect(backtest.closedTrades[0]!.entryCost.isZero()).toBe(true)
+    expect(backtest.closedTrades[0]!.exitCost.isZero()).toBe(true)
+  })
+
+  it('後端指名交易成本時，說明落在那一組旁邊', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, 'backtest validation failed: 進場成本率不得為負',
+      { field: 'transactionCosts' })))
+
+    const failure = await backtestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestFieldError)
+    expect((failure as BacktestFieldError).field).toBe('transactionCosts')
   })
 
   it('讀回來的那一份說得出幾筆是被掃出場的、以及每一筆怎麼出場', async () => {
@@ -326,7 +408,8 @@ describe('BacktestProxy', () => {
 function tradingStrategyRequestOf(): TradingStrategyBacktestRequestDomain {
   return new TradingStrategyBacktestRequestDomain(new TradingStrategyBacktestRequestDto(
     7, 'BTCUSDT', START_TIME, END_TIME,
-    new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0)))
+    new Decimal('10000'), 'percentage', new Decimal('50'), new Decimal(0), new Decimal(0),
+    new Decimal(0), new Decimal(0)))
 }
 
 async function tradingStrategyBacktestFailure(): Promise<unknown> {

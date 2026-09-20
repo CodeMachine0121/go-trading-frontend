@@ -44,5 +44,20 @@ export class BacktestRequestDto {
     public readonly stopLossPercentage: Decimal,
     /** 這一次要模擬的止盈距離，規則與止損一字不差，方向相反。 */
     public readonly takeProfitPercentage: Decimal,
+    /**
+     * 這一次開倉要付的手續費，佔**押注金額**的百分點。
+     *
+     * **留白就是完全不收費**——不是套用一個常見的費率。不收費的那一張成績單
+     * 講的是一個交易免費的世界，而它偏樂觀的程度與這支策略多常交易成正比。
+     */
+    public readonly entryCostPercentage: Decimal,
+    /**
+     * 這一次平倉要付的手續費與稅，佔**成交金額**的百分點。
+     *
+     * **留白時沿用進場成本率**——這一點與隔壁那兩個出場距離**不一樣**
+     * （那兩格各自獨立）。這兩格是同一件事的兩半：幣安兩邊一樣只要填一格，
+     * 台股買賣不對稱才要填兩格。
+     */
+    public readonly exitCostPercentage: Decimal,
   ) {}
 }

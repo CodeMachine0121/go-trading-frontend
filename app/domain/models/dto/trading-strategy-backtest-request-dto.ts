@@ -30,5 +30,11 @@ export class TradingStrategyBacktestRequestDto {
     public readonly stopLossPercentage: Decimal,
     /** 這一次要模擬的止盈距離，規則與止損一字不差，方向相反。 */
     public readonly takeProfitPercentage: Decimal,
+    /**
+     * 這一次要付的兩個費率。**留白就是完全不收費**；
+     * 出場那格留白時沿用進場——與上面那兩個出場距離不一樣。
+     */
+    public readonly entryCostPercentage: Decimal,
+    public readonly exitCostPercentage: Decimal,
   ) {}
 }

@@ -105,6 +105,11 @@ const positionSizingValue = ref('50')
 // 那两樣是那份交易策略自己說的，而一份交易策略對「它的主人能忍多少」沒有意見。
 const stopLossPercentage = ref('')
 const takeProfitPercentage = ref('')
+// 兩個費率。**預設留白，而留白就是不收費**——同樣的理由：
+// 替既有的每一次重演補一個「常見費率」，就是在沒有人動手的情況下
+// 改掉使用者手上每一張成績單。
+const entryCostPercentage = ref('')
+const exitCostPercentage = ref('')
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -123,6 +128,9 @@ async function runBacktest() {
     // 而沒填停損距離本來就是一個完整的回答。
     new Decimal(stopLossPercentage.value === '' ? 0 : stopLossPercentage.value),
     new Decimal(takeProfitPercentage.value === '' ? 0 : takeProfitPercentage.value),
+    // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
+    new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
+    new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
   ))
 }
 </script>
@@ -172,6 +180,8 @@ async function runBacktest() {
         v-model:trading-mode="unpickedTradingMode"
         v-model:stop-loss-percentage="stopLossPercentage"
         v-model:take-profit-percentage="takeProfitPercentage"
+        v-model:entry-cost-percentage="entryCostPercentage"
+        v-model:exit-cost-percentage="exitCostPercentage"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
@@ -187,6 +197,7 @@ async function runBacktest() {
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
         :exit-levels-error="backtestRun.messageFor('exitLevels')"
+        :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
       />
     </AppPanel>
 
@@ -281,6 +292,8 @@ async function runBacktest() {
         <BacktestTradeTable
           :closed-trades="backtestRun.result.value.closedTrades"
           :time-zone="timeZone"
+          :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
+          :has-open-position="backtestRun.result.value.summary.hasOpenPosition"
         />
       </AppPanel>
     </template>

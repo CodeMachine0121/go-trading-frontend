@@ -8,7 +8,7 @@ function mountCard(summary: BacktestSummaryDto) {
 }
 
 const SUMMARY = new BacktestSummaryDto(
-  '10000', '12500', '+25.00%', 'positive', '10.00%', '75.0%', 4, 0, 0, 0)
+  '10000', '12500', '+25.00%', 'positive', '10.00%', '75.0%', 4, 4, 0, 0, 0, null, false)
 
 describe('BacktestSummaryCard', () => {
   it('交代六件事，每一件都照 DTO 已經決定好的樣子寫', () => {
@@ -40,7 +40,7 @@ describe('BacktestSummaryCard', () => {
     ['neutral', '--neutral'],
   ] as const)('總報酬率的色調 %s 照 DTO 說的來', (tone, expectedSuffix) => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '12500', '+25.00%', tone, '10.00%', '75.0%', 4, 0, 0, 0))
+      '10000', '12500', '+25.00%', tone, '10.00%', '75.0%', 4, 4, 0, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-total-return-rate"]').classes()
       .some(name => name.endsWith(expectedSuffix))).toBe(true)
@@ -48,7 +48,7 @@ describe('BacktestSummaryCard', () => {
 
   it('勝率不適用時原樣寫出來，不擅自換成 0%', () => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-win-rate"]').text()).toBe('不適用')
   })
@@ -56,7 +56,7 @@ describe('BacktestSummaryCard', () => {
     // 同一個報酬率，兩個完全不同的故事：十次出場八次靡停損的策略，
     // 與十次都靡訊號的，報酬率可以一模一樣。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '9800', '-2.00%', 'negative', '2.00%', '0.0%', 3, 0, 2, 1))
+      '10000', '9800', '-2.00%', 'negative', '2.00%', '0.0%', 3, 3, 0, 2, 1, null, false))
 
     expect(wrapper.get('[data-testid="summary-stop-loss-exit-count"]').text()).toBe('2')
     expect(wrapper.get('[data-testid="summary-take-profit-exit-count"]').text()).toBe('1')
@@ -71,10 +71,46 @@ describe('BacktestSummaryCard', () => {
     expect(wrapper.find('[data-testid="summary-take-profit-exit-count"]').exists()).toBe(false)
   })
 
+  it('開倉次數一律寫出來，就擺在交易次數旁邊', () => {
+    // 它與下面那幾格「有才出現」的數字不同：等於零本身就是資訊，
+    // 而它與交易次數不相等時，那個差就是「現在還抱著一注」。
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '11010.28', '+10.10%', 'positive', '8.55%', '不適用',
+      1, 0, 0, 0, 0, '99.01', true))
+
+    expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="summary-trade-count"]').text()).toBe('0')
+  })
+
+  it('一次都沒開倉時那一格寫零，而不是消失', () => {
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0, 0, null, false))
+
+    expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('0')
+  })
+
+  it('收過錢才多那一格', () => {
+    // 判斷讀的是 null 而不是零：到了這裡它已經是一個字串，而「有沒有收過錢」
+    // 是領域知識，所以那個判斷留在領域模型裡。
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10100', '10890', '+7.82%', 'positive', '0.99%', '100.0%', 1, 1, 0, 0, 0, '210.00', false))
+
+    expect(wrapper.get('[data-testid="summary-total-transaction-cost"]').text())
+      .toBe('210.00')
+    expect(wrapper.text()).toContain('交易成本')
+  })
+
+  it('沒收過錢就不多那一格', () => {
+    const wrapper = mountCard(SUMMARY)
+
+    expect(wrapper.find('[data-testid="summary-total-transaction-cost"]').exists())
+      .toBe(false)
+  })
+
   it('打架過才多一格，說出幾棒', () => {
     // 一份一直在打架的交易策略幾乎不進場，那張漂亮的成績單會被讀成「很穩」。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 180, 0, 0))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 180, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-conflicted-candle-count"]').text()).toBe('180')
     expect(wrapper.text()).toContain('規則打架的棒數')

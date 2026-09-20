@@ -20,6 +20,8 @@ function aRequest(overrides: Partial<{
   tradingMode: TradingMode
   stopLossPercentage: Decimal
   takeProfitPercentage: Decimal
+  entryCostPercentage: Decimal
+  exitCostPercentage: Decimal
 }> = {}) {
   return new TradingStrategyBacktestRequestDto(
     overrides.tradingStrategyId ?? 7,
@@ -32,6 +34,9 @@ function aRequest(overrides: Partial<{
     // 留白的那一次不模擬任何出場，也就是這一刀之前的每一次。
     overrides.stopLossPercentage ?? new Decimal(0),
     overrides.takeProfitPercentage ?? new Decimal(0),
+    // 留白的那一次不收任何費用，也就是這一刀之前的每一次。
+    overrides.entryCostPercentage ?? new Decimal(0),
+    overrides.exitCostPercentage ?? new Decimal(0),
   )
 }
 

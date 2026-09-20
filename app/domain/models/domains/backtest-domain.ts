@@ -89,10 +89,19 @@ export class BacktestDomain {
       this.backtest.winRate === null
         ? WIN_RATE_NOT_APPLICABLE
         : this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS),
+      this.backtest.positionOpenCount,
       this.backtest.closedTrades.length,
       this.backtest.conflictedCandleCount,
       this.backtest.stopLossExitCount,
       this.backtest.takeProfitExitCount,
+      // 零與「沒收過錢」在這裡是同一件事，而那是對的：費率留白時後端回零，
+      // 而使用者確實沒付過錢。多一格永遠是零的數字只會讓人以為它有什麼意思。
+      this.backtest.totalTransactionCost.isZero()
+        ? null
+        : this.amount(this.backtest.totalTransactionCost),
+      // 同一時間最多一個部位，所以開了比平掉的多，就是還抱著那一個。
+      // 這條推論靠的是一條領域規則，所以它在這裡做完，不丟給畫面。
+      this.backtest.positionOpenCount > this.backtest.closedTrades.length,
     )
   }
 
@@ -106,6 +115,8 @@ export class BacktestDomain {
       this.amount(closedTrade.profit),
       this.toneOfDecimal(closedTrade.profit),
       TRADE_EXIT_REASON_LABELS[closedTrade.exitReason],
+      this.amount(closedTrade.entryCost),
+      this.amount(closedTrade.exitCost),
     )
   }
 
