@@ -51,6 +51,17 @@
 | AC-04.3 | 賺賠是淨額，而且要說出來 | 表頭說明 | 表頭在收過錢時寫「賺賠（已扣成本）」 | `BacktestTradeTable.spec.ts`「收過錢時賺賠那一欄說明自己是淨額」 | ✅ conforms |
 | AC-04.4 | 金額寫法與其他金額一字不差 | 同一個進位規則 | `BacktestDomain.amount()`（既有方法，未新增第二套） | `backtest-domain.spec.ts`「累計成本照金額的規則寫出來」與「每一筆交易的兩筆成本也照金額的規則寫出來」（皆斷言兩位小數） | ✅ conforms |
 
+### US-05 — 成績單說得出開了幾次倉，明細的空狀態說實話
+
+| ID | Clause | Oracle | Implementation | Test | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| AC-05.1 | 開倉次數一律顯示 | 等於零時也要在 | `BacktestSummaryDto.positionOpenCount` ＋ `BacktestSummaryCard.vue`（**無** `v-if`） | `BacktestSummaryCard.spec.ts`「一次都沒開倉時那一格寫零，而不是消失」 | ✅ conforms |
+| AC-05.2 | 擺在交易次數旁邊 | — | 兩格相鄰 | `BacktestSummaryCard.spec.ts`「開倉次數一律寫出來，就擺在交易次數旁邊」（同時斷言兩格） | ✅ conforms |
+| AC-05.3 | 還抱著一注時不得說「沒有觸發任何交易」 | 說出那一注還開著 | `BacktestTradeTable.vue` 第一個 `v-if` | `BacktestTradeTable.spec.ts`「還抱著一注時說出那件事」（同時斷言舊那句**不存在**）＋ pane 層端到端 | ✅ conforms |
+| AC-05.4 | 一次都沒開倉時舊句子一字不差 | — | `v-else-if` | `BacktestTradeTable.spec.ts`「真的一次都沒開倉時那句話一字不變」（`toBe` 整句） | ✅ conforms |
+| AC-05.5 | 「還抱著一注」由領域決定 | 不由元件相減 | `BacktestDomain`：`positionOpenCount > closedTrades.length` → `hasOpenPosition` | `backtest-domain.spec.ts` 三條（開四平四 false／開一平零 true／開零 false） | ✅ conforms |
+| — | 實際踩到的那一張成績單不再誤導 | 開 1 平 0 | 上述各項合起來 | `StrategyScriptBacktestPane.spec.ts`「每一棒都說買入時，畫面說得出那一注還開著」 | ✅ conforms |
+
 ---
 
 ## 稽核過程中補上的缺口
@@ -60,6 +71,12 @@
 抓到它的是既有的出場原因測試（`'0.00'` 不是 `'訊號'`），而不是任何新寫的斷言。
 **那正是既有測試不改一條斷言的價值**：它守的不是新功能，是新功能沒有弄壞的舊功能。
 成本已移到參數列末端。
+
+**兩個 pane 的 fixture 描述了一個到不了的狀態。** 它們寫著開倉四次、平倉一次——
+而同一時間最多一個部位，開與平最多只能差一。這個矛盾在沒有人讀 `positionOpenCount`
+的時候是無害的，**一旦它開始決定空明細要說哪一句話，那張 fixture 就會讓測試說謊**
+（四開零平被判成「還抱著」，於是一條本來在驗舊句子的測試失敗了）。
+兩個 fixture 已改成讓開與平自己對齊，而不是把新規則調鬆去遷就它們。
 
 ---
 
