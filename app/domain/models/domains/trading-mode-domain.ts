@@ -13,7 +13,14 @@ const TRADING_MODE_DESCRIPTIONS: Readonly<
     label: '現貨',
     description: '只做多：賣出就平倉、把錢收回來，之後空手等下一個買點，不放空。',
   },
+  leveragedLong: {
+    label: '槓桿做多',
+    description: '只做多，但開得了槓桿：進出場與現貨一模一樣，差別是它借得到錢（合約帳戶只做多）。',
+  },
 }
+
+/** 借得到錢的那幾種。做不了空不代表借不到錢——合約帳戶只做多就是這一種。 */
+const BORROWING_TRADING_MODES: readonly TradingMode[] = ['longShort', 'leveragedLong']
 
 /**
  * Domain Model：一次回測照哪一套規矩操作。
@@ -26,6 +33,17 @@ const TRADING_MODE_DESCRIPTIONS: Readonly<
  */
 export class TradingModeDomain {
   constructor(private readonly mode: TradingMode) {}
+
+  /**
+   * 這套規矩開不開得了槓桿。
+   *
+   * 問能力而不是問模式，與後端同名同義。這是這個模型除了那一句話之外的第二份
+   * 職責，理由一樣：規則若寫在用到它的地方，多一種模式就得記得回去改那裡，
+   * 而漏掉不會報錯——只會把新模式安靜地歸到錯的那一邊。
+   */
+  canUseLeverage(): boolean {
+    return BORROWING_TRADING_MODES.includes(this.mode)
+  }
 
   /** 這個模式在那一列上長什麼樣：名字，加上一句話說它做什麼。 */
   toOptionDto(): TradingModeOptionDto {
