@@ -17,10 +17,21 @@ const TRADING_MODE_DESCRIPTIONS: Readonly<
     label: '槓桿做多',
     description: '只做多，但開得了槓桿：進出場與現貨一模一樣，差別是它借得到錢（合約帳戶只做多）。',
   },
+  shortOnly: {
+    label: '只做空',
+    description: '只做空：賣出就開空倉，買入是平倉把錢收回來，之後空手等下一個賣點，不做多。它借得到錢。',
+  },
 }
 
-/** 借得到錢的那幾種。做不了空不代表借不到錢——合約帳戶只做多就是這一種。 */
-const BORROWING_TRADING_MODES: readonly TradingMode[] = ['longShort', 'leveragedLong']
+/**
+ * 借得到錢的那幾種。做不了空不代表借不到錢——合約帳戶只做多就是這一種；
+ * 反過來，做得了空就一定借得到錢，因為放空本來就要先借到東西才賣得出去。
+ */
+const BORROWING_TRADING_MODES: readonly TradingMode[] = [
+  'longShort',
+  'leveragedLong',
+  'shortOnly',
+]
 
 /**
  * Domain Model：一次回測照哪一套規矩操作。
