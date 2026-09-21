@@ -201,6 +201,16 @@ describe('TradingStrategyProxy 帶著交易模式進出', () => {
     expect((await proxy().getTradingStrategy(3)).tradingMode).toBe('spot')
   })
 
+  it('讀得回槓桿做多，不會被當成認不得的拼法吞掉', async () => {
+    // 認不得的拼法會被讀成預設值，而預設值是**會做空**的那一個。
+    // 所以一個沒被列進來的模式不會報錯，只會讓畫面安靜地顯示成多空反手——
+    // 一種與他實際帳戶相反的東西。這一條就是在擋那個安靜。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      tradingStrategyWire({ tradingMode: 'leveragedLong' })))
+
+    expect((await proxy().getTradingStrategy(3)).tradingMode).toBe('leveragedLong')
+  })
+
   it('後端沒回交易模式時讀作預設值', async () => {
     // 一個還沒認得這個欄位的後端不會回它。讀作預設值，
     // 與後端自己對一份沒填的交易策略的讀法一字不差——

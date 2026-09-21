@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { LeverageMultiplierDomain } from '~/domain/models/domains/leverage-multiplier-domain'
 import { MaintenanceMarginRateDomain } from '~/domain/models/domains/maintenance-margin-rate-domain'
+import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
 /** 整個部位。維持保證金率的上限是 `100 ÷ 倍數`，而分子就是這個。 */
@@ -21,9 +22,6 @@ const NO_CEILING = new Decimal(Infinity)
  */
 const NOTHING_TYPED = new Decimal(0)
 
-/** 現貨：拿現金換東西，沒有人借錢給你。 */
-const SPOT_TRADING_MODE: TradingMode = 'spot'
-
 /**
  * Domain Model：一次重演要借多少錢，以及撐不住的界線在哪。
  *
@@ -39,8 +37,13 @@ const SPOT_TRADING_MODE: TradingMode = 'spot'
  * 二、**有一條跨格規則**：維持保證金率必須小於 `100 ÷ 倍數`，否則強平距離變成零或負的，
  * 那一注在開倉那一棒就已經撐不住。那兩組沒有任何跨格規則。
  *
- * 還有一條**跨組**規則：現貨開不了槓桿。它是一條關於槓桿的規則而不是關於交易模式的規則，
- * 所以住在這裡；交易模式以 `TradingMode | null` 進來，`null` 明寫「這條路問不到模式」。
+ * 還有一條**跨組**規則：借不到錢的交易模式開不了槓桿。它是一條關於槓桿的規則而不是
+ * 關於交易模式的規則，所以住在這裡；交易模式以 `TradingMode | null` 進來，
+ * `null` 明寫「這條路問不到模式」。
+ *
+ * **問的是「借不借得到錢」，不是「是不是現貨」。** 做不了空與借不到錢是兩個各自
+ * 獨立的問題，而槓桿做多做不了空卻借得到錢——比對模式名稱會把它歸到現貨那一邊，
+ * 而且不會報錯。
  */
 export class BacktestLeverageDomain {
   constructor(
@@ -94,7 +97,8 @@ export class BacktestLeverageDomain {
       return
     }
 
-    if (this.tradingMode === SPOT_TRADING_MODE) {
+    if (this.tradingMode !== null
+      && !new TradingModeDomain(this.tradingMode).canUseLeverage()) {
       throw new BacktestFieldError(
         'leverage', '現貨交易模式開不了槓桿——現貨是拿現金換東西，沒有人借錢給你')
     }

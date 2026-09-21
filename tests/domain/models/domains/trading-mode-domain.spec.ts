@@ -3,9 +3,10 @@ import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
 import { DEFAULT_TRADING_MODE, TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
 
 describe('TradingModeDomain', () => {
-  it('兩種模式，既有的那一種排第一', () => {
+  it('三種模式，既有的那一種排第一、新的接在最後', () => {
     // 排第一的是預設的那一個：使用者的眼睛先落在他本來就會拿到的答案上。
-    expect(TRADING_MODES).toEqual(['longShort', 'spot'])
+    // 新的接在最後，所以既有兩個在畫面上一格都沒有移位。
+    expect(TRADING_MODES).toEqual(['longShort', 'spot', 'leveragedLong'])
   })
 
   it('預設是既有的那一種', () => {
@@ -29,6 +30,23 @@ describe('TradingModeDomain', () => {
     expect(option.label).toBe('現貨')
     expect(option.description).toContain('平倉')
     expect(option.description).toContain('不放空')
+  })
+
+  it('槓桿做多說得出它與現貨差在哪', () => {
+    const option = new TradingModeDomain('leveragedLong').toOptionDto()
+
+    expect(option.value).toBe('leveragedLong')
+    expect(option.label).toBe('槓桿做多')
+    // 它與現貨只差一件事，而那件事就是使用者挑它的唯一理由。
+    expect(option.description).toContain('只做多')
+    expect(option.description).toContain('槓桿')
+  })
+
+  it('做不了空不代表借不到錢', () => {
+    // 兩個各自獨立的問題。比對模式名稱會把槓桿做多歸到現貨那一邊，而且不報錯。
+    expect(new TradingModeDomain('longShort').canUseLeverage()).toBe(true)
+    expect(new TradingModeDomain('spot').canUseLeverage()).toBe(false)
+    expect(new TradingModeDomain('leveragedLong').canUseLeverage()).toBe(true)
   })
 
   it('每一種都說得出一句話，沒有一種留白', () => {

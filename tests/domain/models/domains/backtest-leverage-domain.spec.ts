@@ -99,6 +99,20 @@ describe('BacktestLeverageDomain', () => {
     expect(() => leverage('1', '0', 'spot').validate()).not.toThrow()
   })
 
+  it('槓桿做多借得到錢，雖然它一樣做不了空', () => {
+    // 這一條是這個模型最容易寫錯的地方：比對「是不是現貨」會讓槓桿做多通過，
+    // 但比對「是不是多空反手」會讓它被擋——而兩種寫法都不會報錯。
+    expect(() => leverage('3', '0', 'leveragedLong').validate()).not.toThrow()
+    expect(() => leverage('1.8', '0', 'leveragedLong').validate()).not.toThrow()
+  })
+
+  it('槓桿做多照樣受其餘每一條規則約束', () => {
+    // 它借得到錢，不代表它可以借得不合理。
+    expect(() => leverage('0.5', '0', 'leveragedLong').validate()).toThrow(BacktestFieldError)
+    expect(() => leverage('5', '20', 'leveragedLong').validate()).toThrow(BacktestFieldError)
+    expect(() => leverage('5', '-1', 'leveragedLong').validate()).toThrow(BacktestFieldError)
+  })
+
   it('問不到交易模式的那條路不檢查現貨，交給後端回答', () => {
     // 重演一份交易策略時模式是那一份自己記著的，這張表單看不到它。
     // 寫成 null 而不是選填參數，是為了讓「問不到」是一個說出口的決定。
