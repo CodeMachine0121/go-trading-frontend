@@ -230,7 +230,7 @@ function onSave() {
   }
 
   &__trading-mode {
-    // 兩顆並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
+    // 並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
     // 與回測那一列同一個寫法——同一件事在兩塊畫面上不該長得不一樣。
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));

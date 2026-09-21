@@ -449,7 +449,7 @@ const selectedPositionSizingMode = computed(
   // 排的是自己這一層的盒子，不是裡面那幾顆按鈕：靠子元件的 class 名來排版，
   // 哪天那個名字改了，版面會在沒有人收到任何錯誤的情況下垮掉。
   &__trading-mode-options {
-    // 兩顆並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
+    // 並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
     gap: spacing('2xs');
