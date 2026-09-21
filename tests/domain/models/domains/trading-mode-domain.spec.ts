@@ -43,14 +43,19 @@ describe('TradingModeDomain', () => {
     expect(option.description).toContain('槓桿')
   })
 
-  it('只做空說得出它與槓桿做多剛好相反', () => {
+  it('只做空說得出哪個信號開倉、哪個信號平倉', () => {
     const option = new TradingModeDomain('shortOnly').toOptionDto()
 
     expect(option.value).toBe('shortOnly')
     expect(option.label).toBe('只做空')
-    // 使用者挑它的理由就是「不要叫我做多」，所以那件事要寫出來。
-    expect(option.description).toContain('只做空')
+    // 方向要釘死。挑了這個模式之後最容易害到人的，是「哪個信號開倉」寫反——
+    // 而只斷言「只做空」（與 label 同字）與「不做多」的話，把說明改成
+    // 「買入開空倉、賣出平倉」照樣會綠，那正好是反的。
+    expect(option.description).toContain('賣出就開空倉')
+    expect(option.description).toContain('買入是平倉')
     expect(option.description).toContain('不做多')
+    // 它與「不能放空的帳戶」的關鍵差別。
+    expect(option.description).toContain('借得到錢')
   })
 
   it('做不了空不代表借不到錢，做得了空則一定借得到', () => {
