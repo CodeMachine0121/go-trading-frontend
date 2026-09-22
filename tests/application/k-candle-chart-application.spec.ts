@@ -160,8 +160,8 @@ describe('KCandleChartApplication', () => {
       expect(nextView.reloadedChart).toBeNull()
       expect(findKCandleSeries).toHaveBeenCalledTimes(1)
       // 不必換資料，但仍然說得出該看哪一段——按快捷區間才不會像壞掉
-      expect(nextView.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
-      expect(nextView.visibleStartTime.toISOString()).toBe('2026-09-01T09:36:00.000Z')
+      expect(nextView.visibleRange.endTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(nextView.visibleRange.startTime.toISOString()).toBe('2026-09-01T09:36:00.000Z')
     })
 
     it('拉遠就重新取——長度變了，系統挑的刻度可能跟著變', async () => {
@@ -207,8 +207,8 @@ describe('KCandleChartApplication', () => {
 
       // 問的是五百零一天，該看的被收回五百天，結束的那一端不變。
       // 上限是五百而不是一千，因為問出去的那一段是它的兩倍
-      expect(chartView.visibleEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
-      expect(chartView.visibleStartTime.toISOString()).toBe('2025-04-20T12:00:00.000Z')
+      expect(chartView.visibleRange.endTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(chartView.visibleRange.startTime.toISOString()).toBe('2025-04-20T12:00:00.000Z')
     })
 
     it('後端拒絕時如實往上拋，讓畫面轉達原因', async () => {
@@ -334,8 +334,8 @@ describe('KCandleChartApplication', () => {
       const nextView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(
         4 * 60, loaded.reloadedChart, 'BTCUSDT', aggregationIntervalChoiceOf('1h')))
 
-      expect(nextView.visibleStartTime).toEqual(loaded.visibleStartTime)
-      expect(nextView.visibleEndTime).toEqual(loaded.visibleEndTime)
+      expect(nextView.visibleRange.startTime).toEqual(loaded.visibleRange.startTime)
+      expect(nextView.visibleRange.endTime).toEqual(loaded.visibleRange.endTime)
     })
 
     it('按快捷區間只換看多長，挑好的粗細原樣帶過去', () => {

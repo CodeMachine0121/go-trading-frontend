@@ -19,7 +19,6 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
-import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -76,8 +75,6 @@ const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
   kCandleChartApplication.defaultAggregationIntervalChoice())
 
 const chart = ref<KCandleChartDto | null>(null)
-const visibleStartTime = ref(new Date())
-const visibleEndTime = ref(new Date())
 
 /**
  * 圖上**實際**要畫的那一段：從第幾根到第幾根。
@@ -258,10 +255,6 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
 
     if (requestNumber === latestRequestNumber) {
       // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
-      visibleStartTime.value = chartView.visibleStartTime
-      visibleEndTime.value = chartView.visibleEndTime
-      // 畫出來的那一段與上面那一對一起收下：它們是同一個答案的兩面，
-      // 分開更新就會有一瞬間圖畫在一個沒有人要求過的位置上。
       drawnRange.value = chartView.drawnRange
 
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
@@ -275,12 +268,10 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // 「不重算」的條件因此收窄成「那一段真的沒變」，由顯示區間自己回答。
       if (chart.value !== null) {
         chartIndicators.recalculateForRange(
-          chart.value,
-          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime),
-          chartView.reloadedChart !== null)
+          chart.value, chartView.visibleRange, chartView.reloadedChart !== null)
       }
 
-      // 跟盤放在記下顯示區間**之後**：跟盤一開始，更新隨時可能進來，
+      // 跟盤放在記下要畫的那一段**之後**：跟盤一開始，更新隨時可能進來，
       // 而處理一則更新的第一件事就是問「這一段看得到最新那一根嗎」。
       if (chartView.reloadedChart !== null) {
         followTheMarket(chartView.reloadedChart)

@@ -121,6 +121,10 @@ export class KCandleChartService {
   ): Promise<KCandleChartViewDto> {
     const kCandleChartLoadPlanVo
       = new KCandleChartViewportDomain(kCandleChartViewportDto).toLoadPlan()
+    // 顯示區間在這裡組一次就好。它要去三個地方（回給畫面、算畫出來的那一段、
+    // 畫面拿去算指標），而那三處各自從兩個時刻重組一次，就是同一個概念有三份複本。
+    const chartVisibleRangeVo = new ChartVisibleRangeVo(
+      kCandleChartLoadPlanVo.visibleStartTime, kCandleChartLoadPlanVo.visibleEndTime)
 
     const reloadedChart = kCandleChartLoadPlanVo.needsReload
       ? new KCandleSeriesDomain(
@@ -134,15 +138,9 @@ export class KCandleChartService {
     const drawnChart = reloadedChart ?? kCandleChartViewportDto.loadedChart
 
     return new KCandleChartViewDto(
-      kCandleChartLoadPlanVo.visibleStartTime,
-      kCandleChartLoadPlanVo.visibleEndTime,
+      chartVisibleRangeVo,
       reloadedChart,
-      new DrawnKCandleRangeDomain(
-        drawnChart,
-        new ChartVisibleRangeVo(
-          kCandleChartLoadPlanVo.visibleStartTime,
-          kCandleChartLoadPlanVo.visibleEndTime),
-      ).toVo(),
+      new DrawnKCandleRangeDomain(drawnChart, chartVisibleRangeVo).toVo(),
     )
   }
 
