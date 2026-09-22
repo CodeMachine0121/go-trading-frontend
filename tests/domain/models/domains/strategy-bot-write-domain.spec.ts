@@ -63,7 +63,7 @@ describe('StrategyBotWriteDomain', () => {
 })
 
 // 「區塊收著的時候一格都不看」在這裡落地：沒有部位規劃就一句都不問。
-// 那一台不建議部位，那五格填什麼都不影響它。
+// 那一台不建議部位，那四格填什麼都不影響它。
 describe('StrategyBotWriteDomain 的部位規劃', () => {
   it('沒有部位規劃時一句都不問', () => {
     expect(aBotWrite({ positionPlan: null }).rejection).toBeNull()
@@ -73,7 +73,7 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
     const botWrite = aBotWrite({
       positionPlan: new PositionPlanDto(
         new Decimal(50000), 'percentage', new Decimal(150),
-        new Decimal(3), new Decimal(3), new Decimal(5)),
+        new Decimal(3), new Decimal(5)),
     })
 
     // 押多少那一條由回測那一列已經在用的模型答，所以兩張表單對同一個 150
@@ -82,22 +82,22 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
   })
 
   it('四格的理由先講完，才輪到部位規劃', () => {
-    // 一台連名字都沒有的機器人，先講它的槓桿沒有意義。
+    // 一台連名字都沒有的機器人，先講它押多少沒有意義。
     const botWrite = aBotWrite({
       name: '   ',
       positionPlan: new PositionPlanDto(
         new Decimal(50000), 'allIn', new Decimal(0),
-        new Decimal('0.5'), new Decimal(3), new Decimal(5)),
+        new Decimal('-1'), new Decimal(5)),
     })
 
     expect(botWrite.rejection).toContain('名稱')
-    expect(botWrite.rejection).not.toContain('槓桿')
+    expect(botWrite.rejection).not.toContain('停損距離')
   })
 
   it('交出去的那一份原樣帶著那一組', () => {
     const positionPlan = new PositionPlanDto(
       new Decimal(50000), 'allIn', new Decimal(0),
-      new Decimal(1), new Decimal(3), new Decimal(0))
+      new Decimal(3), new Decimal(0))
 
     expect(aBotWrite({ positionPlan }).sendable.positionPlan).toBe(positionPlan)
   })

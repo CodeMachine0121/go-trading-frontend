@@ -6,9 +6,6 @@ import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWork
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
-import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
-import { TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
@@ -23,15 +20,10 @@ function aBot(
   buyCondition: TradingStrategyConditionDto | null = comparison('b', 'MACD', 'buy'),
   sellCondition: TradingStrategyConditionDto | null = comparison('s', 'MACD', 'sell'),
   sources = [new TradingStrategySignalSourceDto('MACD', 9, '5m', [])],
-  tradingMode: TradingMode = 'longShort',
 ) {
   return new TradingStrategyDto(
-    7, '黃金交叉', tradingMode, sources, buyCondition, sellCondition)
+    7, '黃金交叉', sources, buyCondition, sellCondition)
 }
-
-// 工作檯拿到的就是交易策略那一側交出來的那一份，所以名字與說明都是真的。
-const TRADING_MODE_OPTIONS = TRADING_MODES.map(
-  mode => new TradingModeDomain(mode).toOptionDto())
 
 const place = vi.fn()
 const takeOff = vi.fn()
@@ -46,7 +38,6 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
     props: {
       editing,
       strategyScriptOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
-      tradingModeOptions: TRADING_MODE_OPTIONS,
       parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
       unusableStrategyScripts: {},
       shortage: null,
@@ -58,6 +49,32 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
 }
+
+// 這張表單上一次來的時候，名稱底下是一組挑「寫給哪一種帳戶」的單選鈕。
+// 整組拿掉之後，讀它的斷言也一起被刪掉了——而被刪掉的斷言是沉默，不是失敗。
+//
+// 型別擋不住它回來：那組按鈕是 v-for 出來的 template DOM，任何人用一個行內陣列
+// 重寫一次都編譯得過，而送出去的 write DTO 會帶著一個後端已經不收的欄位。
+describe('TradingStrategyWorkbench：這裡沒有帳戶種類可以挑', () => {
+  it('一顆單選鈕都沒有', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.findAll('input[type="radio"]')).toHaveLength(0)
+  })
+
+  it('一個字都沒提那四種規矩', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    for (const goneSpelling of ['交易模式', '多空反手', '槓桿做多', '只做空']) {
+      expect(wrapper.text()).not.toContain(goneSpelling)
+    }
+
+    // 與上面並排，這一條才有意義：它證明上面不是因為整張表單空了才過。
+    expect(wrapper.find('[data-testid="trading-strategy-name-input"]').exists()).toBe(true)
+  })
+})
 
 describe('TradingStrategyWorkbench：工作檯上的零件', () => {
   it('每一塊零件都在架子上，不管它有沒有被用到', async () => {
@@ -444,7 +461,7 @@ describe('TradingStrategyWorkbench：存好之後', () => {
     expect((wrapper.emitted('save')?.at(-1)?.[0] as { id?: number }).id).toBe(7)
 
     const anotherOne = new TradingStrategyDto(
-      99, '黃金交叉', 'longShort',
+      99, '黃金交叉',
       [new TradingStrategySignalSourceDto('MACD', 9, '5m', [])],
       comparison('b', 'MACD', 'buy'),
       comparison('s', 'MACD', 'sell'))
@@ -466,7 +483,6 @@ describe('TradingStrategyWorkbench：零件指著一支挑不得的策略腳本'
           comparison('s', '壞掉的', 'sell'),
           [new TradingStrategySignalSourceDto('壞掉的', 11, '5m', [])]),
         strategyScriptOptions: [{ value: 9, label: 'MACD' }],
-        tradingModeOptions: TRADING_MODE_OPTIONS,
         parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
         unusableStrategyScripts,
         shortage: null,
@@ -521,7 +537,6 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子�
       props: {
         editing: null,
         strategyScriptOptions: [],
-        tradingModeOptions: TRADING_MODE_OPTIONS,
         parameterNamesByStrategyScriptId: {},
         unusableStrategyScripts: {},
         shortage,
@@ -625,85 +640,12 @@ describe('TradingStrategyWorkbench：零件身上沒有一塊拖不動的地方'
   })
 })
 
-// 交易模式變的是規則的語意：同一棵條件樹在「賣出＝出清回現金」與
-// 「賣出＝反手做空」兩種讀法下，講的是兩件不同的事。所以它在拼規則的地方挑，
-// 而不是在重演的時候挑。
-describe('TradingStrategyWorkbench：這一份是寫給哪一種帳戶的', () => {
-  it('兩個選項並排在名稱旁邊', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    // 並排而不是下拉選單：多數使用者根本不知道現在這一種在幫他放空。
-    expect(wrapper.find('[data-testid="trading-strategy-trading-mode-longShort-radio"]').exists())
-      .toBe(true)
-    expect(wrapper.find('[data-testid="trading-strategy-trading-mode-spot-radio"]').exists())
-      .toBe(true)
-  })
-
-  it('那兩句說明與重演那一塊讀的是同一份', async () => {
-    // 三塊畫面都跟同一個地方拿這兩句話，所以它們不可能各自漂移。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    for (const modeOption of TRADING_MODE_OPTIONS) {
-      expect(wrapper
-        .get(`[data-testid="trading-strategy-trading-mode-${modeOption.value}-radio"]`).text())
-        .toContain(modeOption.description)
-    }
-  })
-
-  it('新的一份停在多空反手', async () => {
-    // 與後端對一份沒填的交易策略的讀法一字不差。
-    const wrapper = mountWorkbench(null)
-    await flushPromises()
-
-    expect(wrapper.get<HTMLInputElement>(
-      '[data-testid="trading-strategy-trading-mode-longShort-radio"] input')
-      .element.checked).toBe(true)
-  })
-
-  it('打開一份存著現貨的就停在現貨', async () => {
-    const wrapper = mountWorkbench(
-      aBot(undefined, undefined, undefined, 'spot'))
-    await flushPromises()
-
-    const spotRadio = wrapper.get<HTMLInputElement>(
-      '[data-testid="trading-strategy-trading-mode-spot-radio"] input')
-    expect(spotRadio.element.checked).toBe(true)
-  })
-
-  it('挑了現貨，交出去的那一份就是現貨', async () => {
-    const wrapper = mountWorkbench()
-    await flushPromises()
-
-    await wrapper
-      .get('[data-testid="trading-strategy-trading-mode-spot-radio"] input').setValue()
-    await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
-
-    expect((wrapper.emitted('save')?.at(-1)?.[0] as { tradingMode: string }).tradingMode)
-      .toBe('spot')
-  })
-
-  it('只改交易模式也算改過', async () => {
-    // 它與名稱同一層，所以離開前要問——不然使用者會以為自己改好了。
-    const wrapper = mountWorkbench()
-    await flushPromises()
-    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(false)
-
-    await wrapper
-      .get('[data-testid="trading-strategy-trading-mode-spot-radio"] input').setValue()
-
-    expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
-  })
-})
-
 describe('TradingStrategyWorkbench：螢幕窄到排不開一張工作檯', () => {
   function onAScreenThatCannotEdit() {
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: aBot(),
         strategyScriptOptions: [{ value: 9, label: 'MACD' }],
-        tradingModeOptions: TRADING_MODE_OPTIONS,
         parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
         unusableStrategyScripts: {},
         shortage: null,

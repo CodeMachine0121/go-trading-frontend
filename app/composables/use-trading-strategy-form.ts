@@ -13,8 +13,6 @@ import {
 } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-import { DEFAULT_TRADING_MODE } from '~/domain/models/vo/trading-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
@@ -43,13 +41,6 @@ export function useTradingStrategyForm(
   strategyScriptOptions: () => readonly { value: number, label: string }[],
 ) {
   const name = ref('')
-  /**
-   * 這一份是寫給哪一種帳戶的。
-   *
-   * 與名稱擺在一起，因為兩者都是「這份規則**是**什麼」；底下那張墊子才是
-   * 「它由什麼組成」。它也因此自動算進「改過了沒有」——那件事比的是整份 write DTO。
-   */
-  const tradingMode = ref<TradingMode>(DEFAULT_TRADING_MODE)
   const signalSources = ref<TradingStrategySignalSourceDto[]>([])
   /**
    * 條件目前真正指著的那幾個代號——也就是每個來源**最後一個沒有撞名的**代號。
@@ -105,7 +96,6 @@ export function useTradingStrategyForm(
     return new TradingStrategyWriteDto(
       editing()?.id,
       name.value,
-      tradingMode.value,
       signalSources.value,
       conditionSides[0].condition.value,
       conditionSides[1].condition.value,
@@ -126,7 +116,6 @@ export function useTradingStrategyForm(
     name.value = loaded?.name ?? ''
     // 打開既有的那一份就是它存著的那一個；新的一份用預設值——
     // 與後端對一份沒填的交易策略的讀法一字不差。
-    tradingMode.value = loaded?.tradingMode ?? DEFAULT_TRADING_MODE
     signalSources.value = [...(loaded?.signalSources ?? [])]
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
     // 存進來的那棵樹在這裡、而且只在這裡，被讀成「墊子上擺了哪幾塊」。
@@ -357,7 +346,6 @@ export function useTradingStrategyForm(
 
   return {
     name,
-    tradingMode,
     signalSources,
     sourceLabels,
     intervalOptions,

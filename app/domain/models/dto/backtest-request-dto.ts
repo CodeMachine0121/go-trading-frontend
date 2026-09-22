@@ -1,7 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 /**
  * DTO：使用者在回測那一格填的原始輸入。
@@ -32,8 +31,6 @@ export class BacktestRequestDto {
     public readonly positionSizingMode: PositionSizingMode,
     /** 押注模式不需要數字時（全押）它被忽略，因此填什麼都不影響結果。 */
     public readonly positionSizingValue: Decimal,
-    /** 這一次照哪一套規矩操作：賣出時要反手做空，還是平倉把錢收回來。 */
-    public readonly tradingMode: TradingMode,
     /**
      * 這一次要模擬的止損距離（百分點，從**進場價**量起）。
      *
@@ -59,20 +56,5 @@ export class BacktestRequestDto {
      * 台股買賣不對稱才要填兩格。
      */
     public readonly exitCostPercentage: Decimal,
-    /**
-     * 這一次要借幾倍（曝險是押下去的錢的幾倍）。
-     *
-     * **留白或填 1 都是不借錢**：不模擬強制平倉，這一格根本不上線。
-     * 它與隔壁那兩組同一個家族（都是「這一次怎麼模擬」、都選填、都跟著這一次走），
-     * 但這一組兩格的留白規則彼此不一樣——見下面那一格。
-     */
-    public readonly leverage: Decimal,
-    /**
-     * 一注帳上剩到多少就被強制出場，佔曝險金額的百分點。
-     *
-     * **留白不是關掉它，只是沒有意見**——借了錢就一定有人在看著抵押品。
-     * 真正的預設值（0.5%）是**後端的**，畫面只在提示裡說出它，不在請求裡送它。
-     */
-    public readonly maintenanceMarginRate: Decimal,
   ) {}
 }

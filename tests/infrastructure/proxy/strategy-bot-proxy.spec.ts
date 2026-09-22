@@ -206,14 +206,13 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
 
     await proxy().createStrategyBot(writeDomainOf(undefined, new PositionPlanDto(
       new Decimal(50000), 'percentage', new Decimal(10),
-      new Decimal(3), new Decimal(3), new Decimal(5))))
+      new Decimal(3), new Decimal(5))))
 
     // 金額以字串送，理由與回來時相同：它是精確小數。
     expect(fetchMock.mock.calls[0]![1].body.positionPlan).toEqual({
       capital: '50000',
       sizingMode: 'percentage',
       sizingValue: '10',
-      leverage: '3',
       stopLossPercentage: '3',
       takeProfitPercentage: '5',
     })
@@ -230,7 +229,9 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
     expect(fetchMock.mock.calls[0]![1].body).not.toHaveProperty('positionPlan')
   })
 
-  it('讀回來時把那一組讀出來', async () => {
+  it('讀回來時把那一組讀出來，一個舊後端多回的槓桿則丟掉', async () => {
+    // 舊的後端還會回它。讀進來就等於讓一個這一側已經不認得的概念
+    // 從 wire 溜進 domain——而那正是 proxy 這一層存在的理由。
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
       positionPlan: {
         capital: '50000',
@@ -247,6 +248,7 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
     expect(positionPlan?.capital.toString()).toBe('50000')
     expect(positionPlan?.sizingMode).toBe('percentage')
     expect(positionPlan?.stopLossPercentage.toString()).toBe('3')
+    expect(Object.keys(positionPlan ?? {})).not.toContain('leverage')
   })
 
   it.each([
@@ -260,15 +262,16 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
     expect((await proxy().getStrategyBot(3)).positionPlan).toBeNull()
   })
 
-  it('後端沒回槓桿時讀作不上槓桿', async () => {
+  it('後端只回資金時，其餘幾格各自讀作它們的預設值', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
       positionPlan: { capital: '50000' },
     })))
 
     const positionPlan = (await proxy().getStrategyBot(3)).positionPlan
 
-    expect(positionPlan?.leverage.toString()).toBe('1')
     expect(positionPlan?.sizingMode).toBe('allIn')
+    expect(positionPlan?.stopLossPercentage.isZero()).toBe(true)
+    expect(positionPlan?.takeProfitPercentage.isZero()).toBe(true)
   })
 })
 

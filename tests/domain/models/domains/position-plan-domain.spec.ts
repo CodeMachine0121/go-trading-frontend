@@ -9,7 +9,6 @@ function aPositionPlan(overrides: Partial<{
   capital: string
   sizingMode: PositionSizingMode
   sizingValue: string
-  leverage: string
   stopLossPercentage: string
   takeProfitPercentage: string
 }> = {}) {
@@ -17,21 +16,19 @@ function aPositionPlan(overrides: Partial<{
     new Decimal(overrides.capital ?? '50000'),
     overrides.sizingMode ?? 'percentage',
     new Decimal(overrides.sizingValue ?? '10'),
-    new Decimal(overrides.leverage ?? '3'),
     new Decimal(overrides.stopLossPercentage ?? '3'),
     new Decimal(overrides.takeProfitPercentage ?? '5'),
   ))
 }
 
 describe('PositionPlanDomain', () => {
-  it('五格都填對就送得出去', () => {
+  it('四格都填對就送得出去', () => {
     expect(aPositionPlan().rejection).toBeNull()
     expect(aPositionPlan().isSendable).toBe(true)
   })
 
   it.each([
     ['全押不必填數字', { sizingMode: 'allIn' as PositionSizingMode, sizingValue: '0' }],
-    ['不上槓桿', { leverage: '1' }],
     ['不設止損', { stopLossPercentage: '0' }],
     ['不設止盈', { takeProfitPercentage: '0' }],
     ['兩個出口都不設', { stopLossPercentage: '0', takeProfitPercentage: '0' }],
@@ -54,19 +51,6 @@ describe('PositionPlanDomain', () => {
     expect(aPositionPlan(overrides).rejection).toContain(expectedWords)
   })
 
-  it('槓桿小於一倍就送不出去', () => {
-    // 打了 0.5 的人是有意思的（大概是半個部位），而悄悄讀成一倍
-    // 會在沒有告知的情況下把他要的部位加倍。
-    expect(aPositionPlan({ leverage: '0.5' }).rejection).toContain('槓桿倍數不得小於 1 倍')
-  })
-
-  it('零倍也送不出去——這一邊的空白讀成一倍，所以零是真的有人打了零', () => {
-    // 回測那張表單把空白讀成零，而**那是那張表單的編碼**，不是這個倍數的性質。
-    // 那條規則若被搬進共用的倍數模型，機器人從此會放過一個真的打了 0 的人，
-    // 而他的建議部位會變成零。這一條就是那件事的守衛。
-    expect(aPositionPlan({ leverage: '0' }).rejection).toContain('槓桿倍數不得小於 1 倍')
-  })
-
   it.each([
     ['停損距離是負的', { stopLossPercentage: '-3' }, '停損距離不得為負'],
     ['停損距離超過一百', { stopLossPercentage: '120' }, '停損距離不得超過 100%'],
@@ -77,14 +61,24 @@ describe('PositionPlanDomain', () => {
   })
 
   it('一次只說一個理由', () => {
-    // 使用者一次只改得動一格，而一張同時亮起五個紅字的表單，
+    // 使用者一次只改得動一格，而一張同時亮起四個紅字的表單，
     // 第一個反應是不知道要從哪裡開始。
     const rejection = aPositionPlan({
-      sizingValue: '150', leverage: '0.5', stopLossPercentage: '-3',
+      sizingValue: '150', stopLossPercentage: '-3',
     }).rejection
 
     expect(rejection).toContain('百分比要大於零且不超過一百')
-    expect(rejection).not.toContain('槓桿')
     expect(rejection).not.toContain('停損')
+  })
+
+  it('這一組裡沒有一格在問借多少', () => {
+    // 那一格拿掉時，讀它的案例是被刪掉的，不是被反轉的——而上面每一條
+    // 斷言都只會說「某個理由沒有出現」，所以把整個概念放回來，它們全都還是綠的。
+    const positionPlan = new PositionPlanDto(
+      new Decimal('50000'), 'percentage', new Decimal('10'),
+      new Decimal('3'), new Decimal('5'))
+
+    expect(Object.keys(positionPlan)).not.toContain('leverage')
+    expect(new PositionPlanDomain(positionPlan).rejection).toBeNull()
   })
 })

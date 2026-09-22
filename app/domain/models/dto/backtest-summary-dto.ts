@@ -44,15 +44,6 @@ export class BacktestSummaryDto {
     public readonly stopLossExitCount: number,
     public readonly takeProfitExitCount: number,
     /**
-     * 被強制平倉打掉的筆數，**零時不顯示**——與上面那兩格同一條規則，
-     * 而不是交易成本那一格的 `null`：這三個都是數字，元件比得動大小，
-     * 而三格同一種做法比「其中一格特別」好懂。
-     *
-     * 它與那兩格並排，因為同一個報酬率有兩個故事——被停損救下來，
-     * 與押到歸零過三次，少了這個數字兩者長得一樣。
-     */
-    public readonly liquidationExitCount: number,
-    /**
      * 這次總共為了交易付掉多少，**沒收過錢時是 `null`**。
      *
      * `null` 而不是 `'0.00'`，因為到了這裡它已經是一個字串——而字串沒有

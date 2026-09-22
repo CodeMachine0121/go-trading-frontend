@@ -29,7 +29,6 @@ export class TradingStrategyDomain {
     return new TradingStrategyDto(
       this.tradingStrategy.id,
       this.tradingStrategy.name,
-      this.tradingStrategy.tradingMode,
       this.tradingStrategy.signalSources.map(source => this.toSignalSourceDto(source)),
       this.toConditionDto(this.tradingStrategy.buyCondition),
       this.toConditionDto(this.tradingStrategy.sellCondition),

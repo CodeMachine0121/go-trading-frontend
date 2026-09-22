@@ -16,7 +16,6 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
 
@@ -63,7 +62,6 @@ const aggregationInterval = defineModel<string>('aggregationInterval', { require
 const backtestRun = useBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
-const tradingModeOptions = backtestApplication.listTradingModeOptions()
 
 // 回測照什麼規則走。三份都不會變，取一次就好——它們描述的是系統的行為，不是這一次的資料。
 const signalReadings = backtestApplication.listSignalReadings()
@@ -86,7 +84,6 @@ const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizing
 const positionSizingValue = ref('50')
 // 這一次照哪一套規矩操作。它與上面那幾格一樣活在自己的 ref 裡，
 // 所以換它不會動到任何別的東西，也不會清掉上一張成績單。
-const tradingMode = ref<string>(backtestApplication.defaultTradingMode())
 // 兩個出場距離。**預設留白，而留白就是不模擬**——
 // 這一刀之前的每一次重演都沒有停損，替它們補一個就是在沒有人動手的
 // 情況下改掉使用者手上每一張成績單。
@@ -97,12 +94,6 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
-// 槓桿那一組。**預設留白，而留白就是不借錢**——同樣的理由：替既有的每一次重演
-// 補一個倍數，就是在沒有人動手的情況下改掉使用者手上每一張成績單。
-// 但**這兩格的留白不是同一個意思**：倍數留白＝整組關掉；維持保證金率留白只是
-// 沒有意見，由後端給它的預設值。這一點與隔壁兩組不同，所以表單上那句提示要說出來。
-const leverage = ref('')
-const maintenanceMarginRate = ref('')
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
@@ -119,7 +110,6 @@ async function runBacktest() {
     new Decimal(initialCapital.value === '' ? Number.NaN : initialCapital.value),
     positionSizingMode.value as PositionSizingMode,
     new Decimal(positionSizingValue.value === '' ? Number.NaN : positionSizingValue.value),
-    tradingMode.value as TradingMode,
     // 留白是零，而零就是「沒有這個出場」。上面兩格留白讀成 `NaN`（一個錯誤），
     // 這兩格讀成零（一個意思）——因為沒填初始資金是一件事情沒講完，
     // 而沒填停損距離本來就是一個完整的回答。
@@ -128,10 +118,6 @@ async function runBacktest() {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
-    // 槓桿那兩格與上面四格同一條規則：留白讀成零。零在這裡的意思是
-    // 「不借錢」與「沒有意見」——各自的模型知道怎麼讀，這裡不判斷。
-    new Decimal(leverage.value === '' ? 0 : leverage.value),
-    new Decimal(maintenanceMarginRate.value === '' ? 0 : maintenanceMarginRate.value),
   ))
 }
 </script>
@@ -170,28 +156,22 @@ async function runBacktest() {
         v-model:initial-capital="initialCapital"
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
-        v-model:trading-mode="tradingMode"
         v-model:stop-loss-percentage="stopLossPercentage"
         v-model:take-profit-percentage="takeProfitPercentage"
         v-model:entry-cost-percentage="entryCostPercentage"
         v-model:exit-cost-percentage="exitCostPercentage"
-        v-model:leverage="leverage"
-        v-model:maintenance-margin-rate="maintenanceMarginRate"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
         :position-sizing-mode-options="positionSizingModeOptions"
-        :trading-mode-options="tradingModeOptions"
         :running="backtestRun.running.value"
         :disabled="backendUnreachable || backtestRun.backendUnreachable.value"
         :symbol-error="backtestRun.messageFor('symbol')"
         :time-range-error="backtestRun.messageFor('timeRange')"
         :initial-capital-error="backtestRun.messageFor('initialCapital')"
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
-        :trading-mode-error="backtestRun.messageFor('tradingMode')"
         :exit-levels-error="backtestRun.messageFor('exitLevels')"
         :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
-        :leverage-error="backtestRun.messageFor('leverage')"
       />
 
       <p

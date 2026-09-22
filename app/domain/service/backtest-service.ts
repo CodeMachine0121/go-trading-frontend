@@ -7,10 +7,6 @@ import type { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-ran
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
-import { DEFAULT_TRADING_MODE, TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
-import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
-import { TradingModeDomain } from '~/domain/models/domains/trading-mode-domain'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
@@ -104,35 +100,5 @@ export class BacktestService {
   listPositionSizingModeOptions(): PositionSizingModeOptionDto[] {
     return POSITION_SIZING_MODES.map(
       mode => new PositionSizingDomain(mode, new Decimal(0)).toOptionDto())
-  }
-
-  /** 沒特別挑時照哪一套規矩操作。畫面不自己指定預設值。 */
-  defaultTradingMode(): TradingMode {
-    return DEFAULT_TRADING_MODE
-  }
-
-  /**
-   * 交易模式：那一列上可以挑的每一個，連那一句說明一起帶著。
-   *
-   * 畫面問這個而不是自己寫兩句話，因為兩個去處都要問同一件事——
-   * 說明寫在畫面上就是兩份字串，改了一邊不會改到另一邊，
-   * 而使用者會在兩頁上讀到對同一件事的兩種說法。
-   */
-  listTradingModeOptions(): TradingModeOptionDto[] {
-    return TRADING_MODES.map(mode => new TradingModeDomain(mode).toOptionDto())
-  }
-
-  /**
-   * 一種交易模式的名字與那一句說明。
-   *
-   * 給它 `null` 就是「還沒有人說過」——那時答的是預設值，與後端對一份沒填的
-   * 交易策略的讀法一字不差。那條規則寫在這裡而不在畫面上，
-   * 因為它與預設值本來就是同一件事的兩半。
-   *
-   * 重演一份交易策略那一塊要它：交易模式是那一份自己記著的，所以那一格不是選單、
-   * 而是一句話，而那句話的字必須與挑得動的那兩顆按鈕一模一樣。
-   */
-  tradingModeOption(mode: TradingMode | null): TradingModeOptionDto {
-    return new TradingModeDomain(mode ?? DEFAULT_TRADING_MODE).toOptionDto()
   }
 }

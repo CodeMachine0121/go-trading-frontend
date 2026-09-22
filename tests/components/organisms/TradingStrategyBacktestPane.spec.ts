@@ -44,7 +44,6 @@ function completedBacktest(conflictedCandleCount = 0): Backtest {
     conflictedCandleCount,
     0,
     0,
-    0,
     new Decimal(0),
     [new ClosedTrade(
       'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
@@ -70,7 +69,6 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(),
       tradingStrategyId: 7,
-      savedTradingMode: 'longShort',
       savedGeneration: 0,
       ...props,
     },
@@ -248,77 +246,35 @@ describe('TradingStrategyBacktestPane', () => {
   })
 })
 
-// 交易模式是那一份交易策略記著的性質，不是這一次重演的旋鈕。
-// 這一塊因此挑不動它——它讀出來給人看。
-describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
-  it('那裡沒有可以按的東西，只有一句話', () => {
+// 這一塊上一次來的時候，開頭是四顆挑交易模式的按鈕。整組拿掉之後，讀它的斷言
+// 也一起被刪掉了——而被刪掉的斷言是沉默，不是失敗：任何人把那一格放回來，
+// 這個檔案仍然全綠，而送出去的請求會被後端拒絕。所以這裡改問缺席。
+describe('TradingStrategyBacktestPane 沒有那三格可以填', () => {
+  it.each([
+    ['交易模式', '-radio'],
+    ['槓桿倍數', 'backtest-leverage-input'],
+    ['維持保證金率', 'backtest-maintenance-margin-rate-input'],
+  ])('%s 在這一邊一格都沒有', async (_name, testIdFragment) => {
     const wrapper = mountPane(buildProxy())
+    await flushPromises()
 
-    // 不是停用的按鈕：一顆灰掉的按鈕還在說「這裡有兩個選項，只是你現在不能動」，
-    // 而真相是這裡已經沒有選項了、答案在別的地方。
-    expect(wrapper.find('[data-testid="backtest-trading-mode-longShort-radio"]').exists())
-      .toBe(false)
-    expect(wrapper.find('[data-testid="backtest-trading-mode-spot-radio"]').exists())
-      .toBe(false)
-    expect(wrapper.find('[data-testid="backtest-trading-mode-note"]').exists()).toBe(true)
+    // 挑模式的那四顆是這一塊唯一用過的單選鈕，所以「一顆單選鈕都沒有」
+    // 就是「挑不到模式」——比對一個已經刪掉的 testid 全稱要難繞過得多。
+    expect(wrapper.html()).not.toContain(testIdFragment)
   })
 
-  it('那一句話講出這一份存著的是哪一種', () => {
-    const spotPane = mountPane(buildProxy(), { savedTradingMode: 'spot' })
-    const longShortPane = mountPane(buildProxy(), { savedTradingMode: 'longShort' })
+  it('這一邊一個字都沒提那四種規矩', async () => {
+    const wrapper = mountPane(buildProxy())
+    await flushPromises()
 
-    expect(spotPane.get('[data-testid="backtest-trading-mode-note"]').text())
-      .toContain('現貨')
-    expect(longShortPane.get('[data-testid="backtest-trading-mode-note"]').text())
-      .toContain('多空反手')
-  })
+    for (const goneSpelling of ['多空反手', '槓桿做多', '只做空', '維持保證金']) {
+      expect(wrapper.text()).not.toContain(goneSpelling)
+    }
 
-  it('那一句話裡的名字與說明與工作檯、與重演一支腳本讀的是同一份', () => {
-    // 三塊畫面都跟同一個地方拿這兩句話，所以它們不可能各自漂移。
-    // 這一條釘的就是「不可能」——三份字串的那一版會先在一頁上被改掉，而沒有人發現。
-    const application = new BacktestApplication(new BacktestService(buildProxy()))
-    const spotOption = application.listTradingModeOptions()
-      .find(option => option.value === 'spot')!
-
-    const wrapper = mountPane(buildProxy(), { savedTradingMode: 'spot' })
-
-    const note = wrapper.get('[data-testid="backtest-trading-mode-note"]').text()
-    expect(note).toContain(spotOption.label)
-    expect(note).toContain(spotOption.description)
-  })
-
-  it('還沒存過的那一份講預設值', () => {
-    // 與後端對一份沒填的交易策略的讀法一字不差。
-    const wrapper = mountPane(
-      buildProxy(), { tradingStrategyId: null, savedTradingMode: null })
-
-    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
-      .toContain('多空反手')
-  })
-
-  it('存好之後那一句話跟著換', async () => {
-    // 存成功會換掉頁面手上那一份，而那一句話讀的就是它。
-    // 不跟著換的話，使用者會在一張寫著舊模式的標籤底下按執行。
-    const wrapper = mountPane(buildProxy(), { savedTradingMode: 'longShort' })
-    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
-      .toContain('多空反手')
-
-    await wrapper.setProps({ savedTradingMode: 'spot' })
-
-    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
-      .toContain('現貨')
-  })
-
-  it('送出去的請求裡沒有交易模式', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy, { savedTradingMode: 'spot' })
-
-    await fillSymbolAndRun(wrapper)
-
-    // 後端從那一份交易策略讀它。這一側送過去只會是第二個答案，
-    // 而沒有規則說哪一個贏。
-    expect(vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0])
-      .not.toHaveProperty('tradingMode')
+    // 與上面幾條並排，這一條才有意義：它證明上面不是因為整塊畫面空了才過。
+    expect(wrapper.find('[data-testid="backtest-entry-cost-percentage-input"]').exists())
+      .toBe(true)
+    expect(wrapper.find('[data-testid="symbol-select"]').exists()).toBe(true)
   })
 })
 
@@ -367,8 +323,8 @@ describe('TradingStrategyBacktestPane 這一次交易要付多少', () => {
 
 describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
   it('兩個出場距離在這一邊是填得動的輸入框，不是一句話', async () => {
-    // 彙總刻度與交易模式在這一邊是一句話（那份交易策略自己說的），
-    // 而這兩格不是：一份交易策略對「它的主人能忍多少」沒有意見。
+    // 彙總刻度在這一邊是一句話（那份交易策略自己說的），而這兩格不是：
+    // 一份交易策略對「它的主人能忍多少」沒有意見。
     const proxy = buildProxy()
     const wrapper = mountPane(proxy)
 
@@ -391,46 +347,5 @@ describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
     expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
     expect(wrapper.get('.backtest-condition-fields__exit-levels')
       .get('[data-testid="field-error"]').text()).toContain('止盈距離不得為負')
-  })
-})
-
-describe('TradingStrategyBacktestPane 這一次要借多少', () => {
-  it('槓桿在這一邊也是填得動的輸入框，而且一字不差', async () => {
-    // 與交易模式不同：那一格在這一邊是一句唯讀的話，因為它是那一份記著的；
-    // 而借多少錢是關於這個帳戶的事，一份規則對它沒有意見。
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
-    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
-      .setValue('0.5')
-    await fillSymbolAndRun(wrapper)
-
-    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
-    expect(request.leverage.toString()).toBe('5')
-    expect(request.maintenanceMarginRate.toString()).toBe('0.5')
-  })
-
-  it('預設留白，而留白就是不借錢', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await fillSymbolAndRun(wrapper)
-
-    const request = vi.mocked(proxy.runTradingStrategyBacktest).mock.calls[0]![0]
-    expect(request.leverage.isZero()).toBe(true)
-  })
-
-  it('這一邊填錯也不送出，句子一字不差', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('0.5')
-    await fillSymbolAndRun(wrapper)
-
-    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
-    expect(wrapper.get('.backtest-condition-fields__leverage')
-      .get('[data-testid="field-error"]').text())
-      .toBe('槓桿倍數不得小於 1 倍')
   })
 })

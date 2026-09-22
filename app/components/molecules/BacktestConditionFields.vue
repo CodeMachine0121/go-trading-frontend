@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppRadio from '~/components/atoms/AppRadio.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
-import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：回測要問使用者的那幾件事。
@@ -20,14 +18,12 @@ const {
   timeZone,
   aggregationIntervalOptions,
   positionSizingModeOptions,
-  tradingModeOptions,
   running = false,
   disabled = false,
   symbolError = null,
   timeRangeError = null,
   initialCapitalError = null,
   positionSizingValueError = null,
-  tradingModeError = null,
   exitLevelsError = null,
   transactionCostsError = null,
 } = defineProps<{
@@ -35,8 +31,6 @@ const {
   timeZone: TimeZoneDto
   aggregationIntervalOptions: readonly AggregationIntervalOptionDto[]
   positionSizingModeOptions: readonly PositionSizingModeOptionDto[]
-  /** 交易模式可以挑的每一個，各自帶著一句話說它做什麼。 */
-  tradingModeOptions: readonly TradingModeOptionDto[]
   running?: boolean
   /** 按了也沒用的時候（例如後端連不上）就不要讓他按。 */
   disabled?: boolean
@@ -44,7 +38,6 @@ const {
   timeRangeError?: string | null
   initialCapitalError?: string | null
   positionSizingValueError?: string | null
-  tradingModeError?: string | null
   /**
    * 出場價位那一組旁邊要說的話。
    *
@@ -60,29 +53,12 @@ const {
    */
   transactionCostsError?: string | null
   /**
-   * 槓桿那一組旁邊要說的話。
-   *
-   * 一則訊息蓋住兩格，與上面兩組同一個判斷。「現貨開不了槓桿」也走這裡——
-   * 使用者要改的是這一組，不是交易模式那一組：他挑現貨是有意思的，會讓步的是槓桿。
-   */
-  leverageError?: string | null
-  /**
    * 彙總刻度不由填表的人挑時，要在那一格說的話。
    *
    * 給了它就不畫選單。重演一份交易策略時刻度是那幾個信號來源自己說的——
    * 畫一個挑得動的選單，等於在畫面上放第二個答案而沒有規則說哪一個贏。
    */
   aggregationIntervalNote?: string | null
-  /**
-   * 交易模式不由填表的人挑時，要在那一格說的話。
-   *
-   * 與上面那一個是**同一件事**：重演一份交易策略時，交易模式是那一份自己記著的。
-   * 給了它就不畫那兩顆按鈕。
-   *
-   * 不畫成停用的按鈕，因為一顆灰掉的按鈕還在說「這裡有兩個選項，只是你現在不能動」，
-   * 而真相是這裡已經沒有選項了、答案在別的地方。一句話說得出答案是什麼。
-   */
-  tradingModeNote?: string | null
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -92,7 +68,6 @@ const endTime = defineModel<string>('endTime', { required: true })
 const initialCapital = defineModel<string>('initialCapital', { required: true })
 const positionSizingMode = defineModel<string>('positionSizingMode', { required: true })
 const positionSizingValue = defineModel<string>('positionSizingValue', { required: true })
-const tradingMode = defineModel<string>('tradingMode', { required: true })
 // 兩個出場距離。預設留白，而留白就是不模擬——這張表單上唯一
 // 「不填也是一個意思」的兩格，所以那一組旁邊要把這件事說出來。
 const stopLossPercentage = defineModel<string>('stopLossPercentage', { required: true })
@@ -103,21 +78,6 @@ const takeProfitPercentage = defineModel<string>(
 // 兩組就擺在一起，所以那句話非說不可。
 const entryCostPercentage = defineModel<string>('entryCostPercentage', { required: true })
 const exitCostPercentage = defineModel<string>('exitCostPercentage', { required: true })
-// 槓桿那一組。預設留白，而留白就是不借錢——與上面兩組一樣「不填也是一個意思」，
-// 但**這一組的兩格彼此不一樣**：倍數留白＝整組關掉，維持保證金率留白只是沒有意見
-// （由後端給 0.5%）。三組擺在一起，所以那句話非說不可。
-const leverage = defineModel<string>('leverage', { required: true })
-const maintenanceMarginRate = defineModel<string>(
-  'maintenanceMarginRate', { required: true })
-
-/**
- * 同一組單選鈕共用的名字。
- *
- * 它必須每個實例各不相同：兩張表單若同時在頁面上（工作檯的兩個分頁就是），
- * 共用一個名字會讓兩邊的選項彼此互斥——挑了這一張的現貨，另一張的選擇會被清掉。
- */
-const tradingModeGroupName = `trading-mode-${useId()}`
-
 /**
  * 目前這個模式旁邊要不要出現一格，以及那一格叫什麼。
  *
@@ -229,43 +189,24 @@ const selectedPositionSizingMode = computed(
       />
     </FormField>
 
-    <FormField
-      label="交易模式"
-      class="backtest-condition-fields__trading-mode"
-      :error-message="tradingModeError"
-      grouped
+    <!--
+      這一格上一次來的時候是四顆並排的按鈕。整組拿掉而不交代，
+      使用者會以為是畫面壞了、或是自己記錯了——所以位置留著，改說一句話。
+
+      它**不是** FormField：一格什麼都填不了的欄位，對讀螢幕的人來說是
+      一個「交易模式」的控制項群組，裡面一顆控制項都沒有。句子的開頭
+      「只做現貨」本來就是這一格的標題，所以標籤也一起省了。
+    -->
+    <p
+      class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
+      data-testid="backtest-trading-mode-note"
     >
-      <!--
-        並排而不是下拉選單：多數使用者根本不知道現在這一種在幫他放空，
-        而一個要點開才看得到的選單，救不了一個不知道要去點的人。
-      -->
-      <div
-        v-if="!tradingModeNote"
-        class="backtest-condition-fields__trading-mode-options"
-      >
-        <AppRadio
-          v-for="modeOption in tradingModeOptions"
-          :key="modeOption.value"
-          v-model="tradingMode"
-          :value="modeOption.value"
-          :label="modeOption.label"
-          :description="modeOption.description"
-          :name="tradingModeGroupName"
-          :disabled="running"
-          :data-testid="`backtest-trading-mode-${modeOption.value}-radio`"
-        />
-      </div>
-      <p
-        v-else
-        class="backtest-condition-fields__note"
-        data-testid="backtest-trading-mode-note"
-      >
-        {{ tradingModeNote }}
-      </p>
-    </FormField>
+      只做現貨：買入時空手就開倉，賣出就平倉把錢收回來、之後空手等下一個買點；
+      空手時聽到賣出什麼都不做。借錢與做空是合約帳戶的事，這裡不做。
+    </p>
 
     <!--
-      兩格擺成一組佔滿整列，與交易模式同一個理由：
+      兩格擺成一組佔滿整列，與上面那句話同一個理由：
       「留白就不模擬」那句話被摺成一疊時，就沒有人會讀它。
     -->
     <FormField
@@ -335,42 +276,6 @@ const selectedPositionSizingMode = computed(
       </div>
     </FormField>
 
-    <!--
-      擺在交易成本之後：一個人先決定押多少、能忍多少、付多少，最後才決定借多少。
-      與上面兩組同一個做法，兩格擺成一組佔滿整列——這一組的提示有兩件事要說，
-      而且那兩件事彼此不一樣，被摺成一疊時就沒有人會讀它。
-    -->
-    <FormField
-      label="槓桿"
-      class="backtest-condition-fields__leverage"
-      hint="留白就不借錢，也不會被強制平倉。維持保證金率留白時用 0.5%"
-      :error-message="leverageError"
-      grouped
-    >
-      <div class="backtest-condition-fields__paired-inputs">
-        <label class="backtest-condition-fields__paired-input">
-          <span>槓桿倍數（倍）</span>
-          <AppInput
-            v-model="leverage"
-            type="number"
-            inputmode="decimal"
-            :invalid="Boolean(leverageError)"
-            data-testid="backtest-leverage-input"
-          />
-        </label>
-        <label class="backtest-condition-fields__paired-input">
-          <span>維持保證金率（%）</span>
-          <AppInput
-            v-model="maintenanceMarginRate"
-            type="number"
-            inputmode="decimal"
-            :invalid="Boolean(leverageError)"
-            data-testid="backtest-maintenance-margin-rate-input"
-          />
-        </label>
-      </div>
-    </FormField>
-
     <AppButton
       type="submit"
       class="backtest-condition-fields__action"
@@ -398,8 +303,8 @@ const selectedPositionSizingMode = computed(
   align-items: start;
   gap: spacing('xs') spacing('sm');
 
-  // 兩個選項要同時看得見，所以這一格佔滿整列——擠在一個 11rem 的格子裡，
-  // 那兩句說明會被折成一疊，而它們正是這一格存在的理由。
+  // 這句話佔滿整列：擠在一個 11rem 的格子裡，它會被折成一疊，
+  // 而讀不到它的人就會繼續找那四顆不見了的按鈕。
   &__trading-mode {
     grid-column: 1 / -1;
   }
@@ -416,20 +321,13 @@ const selectedPositionSizingMode = computed(
     grid-column: 1 / -1;
   }
 
-  // 與上面兩組同一個理由，而這一組的提示要說的兩件事**彼此不一樣**
-  // （倍數留白是關掉整組，維持保證金率留白只是沒有意見）——那正是它最容易被誤讀的地方。
-  &__leverage {
-    grid-column: 1 / -1;
-  }
-
-  // 三組併排的輸入框長得一樣，所以排版只寫一次。
+  // 兩組併排的輸入框長得一樣，所以排版只寫一次。
   //
-  // 它們**看起來**一樣是刻意的：三組都是「一個概念、兩個數字、留白有意思」，
+  // 它們**看起來**一樣是刻意的：兩組都是「一個概念、兩個數字、留白有意思」，
   // 而使用者掃過去時應該認得出那是同一種東西。抄第二份的那一天，
   // 兩組會在某一次調整之後開始長得不一樣，而沒有人是故意的。
   //
-  // 它們的**規則**仍然不同（出場距離各自獨立；費率的出場留白時沿用進場；
-  // 槓桿倍數留白會關掉整組，而維持保證金率留白只是沒有意見），
+  // 它們的**規則**仍然不同（出場距離各自獨立；費率的出場留白時沿用進場），
   // 那個差別由各自的提示文字說，不由排版說。
   &__paired-inputs {
     display: grid;
@@ -448,13 +346,6 @@ const selectedPositionSizingMode = computed(
 
   // 排的是自己這一層的盒子，不是裡面那幾顆按鈕：靠子元件的 class 名來排版，
   // 哪天那個名字改了，版面會在沒有人收到任何錯誤的情況下垮掉。
-  &__trading-mode-options {
-    // 並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: spacing('2xs');
-  }
-
   // 按鈕與欄位同一列時要對齊到輸入框，而不是對齊到欄位標籤。
   &__action {
     align-self: end;

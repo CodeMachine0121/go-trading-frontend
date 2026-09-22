@@ -34,11 +34,10 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
    */
   const suggestsPosition = ref(false)
 
-  /** 那五格。金額與百分比都以文字持有，與觸發間隔同一套——輸入框給的就是字。 */
+  /** 那四格。金額與百分比都以文字持有，與觸發間隔同一套——輸入框給的就是字。 */
   const capitalText = ref('')
   const sizingMode = ref<PositionSizingMode>('allIn')
   const sizingValueText = ref('')
-  const leverageText = ref('')
   const stopLossText = ref('')
   const takeProfitText = ref('')
 
@@ -81,8 +80,7 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
       capital,
       sizingMode.value,
       decimalOfText(sizingValueText.value),
-      // 留空即不上槓桿，與後端讀法一致；留空不是「填了個零」。
-      leverageText.value.trim() === '' ? new Decimal(1) : decimalOfText(leverageText.value),
+      // 兩個距離留空即不設那一個出場，與後端讀法一致；留空不是「填了個零」。
       decimalOfText(stopLossText.value),
       decimalOfText(takeProfitText.value),
     )
@@ -130,7 +128,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     capitalText.value = positionPlan?.capital.toString() ?? ''
     sizingMode.value = positionPlan?.sizingMode ?? 'allIn'
     sizingValueText.value = positionPlan?.sizingValue.toString() ?? ''
-    leverageText.value = positionPlan?.leverage.toString() ?? ''
     stopLossText.value = positionPlan?.stopLossPercentage.toString() ?? ''
     takeProfitText.value = positionPlan?.takeProfitPercentage.toString() ?? ''
   }
@@ -146,7 +143,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     sizingValueText,
     sizingRequiresValue,
     sizingModeOptions,
-    leverageText,
     stopLossText,
     takeProfitText,
     rejection,
@@ -162,7 +158,7 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
  * 觸發間隔那一格早就在用 `Number(...)` 應付同一件事。宣告成只收字串的那一版
  * 在使用者第一次動那一格時就會炸。
  *
- * 空白讀作零而不是「不是數字」：那五格裡的空白都有意思（不設止損、不上槓桿），
+ * 空白讀作零而不是「不是數字」：那四格裡的空白都有意思（不設止損、不設止盈），
  * 而 `new Decimal('')` 會丟例外。真正打錯的字仍然是 NaN，由那幾條驗證擋下來。
  */
 function decimalOfText(text: string | number): Decimal {

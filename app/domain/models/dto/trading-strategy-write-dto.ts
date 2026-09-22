@@ -1,5 +1,4 @@
 import type { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 /**
@@ -15,8 +14,6 @@ export class TradingStrategyWriteDto {
   constructor(
     public readonly id: number | undefined,
     public readonly name: string,
-    /** 這一份是寫給哪一種帳戶的。與名稱同一層：兩者都是「這份規則**是**什麼」。 */
-    public readonly tradingMode: TradingMode,
     public readonly signalSources: readonly TradingStrategySignalSourceDto[],
     public readonly buyCondition: TradingStrategyConditionDto | null,
     public readonly sellCondition: TradingStrategyConditionDto | null,

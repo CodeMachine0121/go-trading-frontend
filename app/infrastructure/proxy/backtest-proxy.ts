@@ -12,8 +12,6 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-cost-rate-domain'
-import { LeverageMultiplierDomain } from '~/domain/models/domains/leverage-multiplier-domain'
-import { MaintenanceMarginRateDomain } from '~/domain/models/domains/maintenance-margin-rate-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const BACKTESTS_ENDPOINT = '/backtests'
@@ -64,38 +62,6 @@ function transactionCostsBody(
   }
 }
 
-/**
- * 槓桿那一組裡真的填了的那幾格。
- *
- * 留白的不上線，與上面兩組一字不差。但**「留白」在這一組的門檻不一樣**：
- * 槓桿倍數的「沒有」是**一倍**（一倍的部位是用自己的錢付清的，沒有債主），
- * 而那兩組的「沒有」是零。判斷向 `LeverageMultiplierDomain` 要，
- * 就是為了不讓這裡出現第二個寫成 `greaterThan(0)` 的版本。
- *
- * **沒有借錢時連維持保證金率也不上線**：它是「借了多少錢的多少」，
- * 沒有借錢時它沒有可以是的東西。送過去雖然無害（後端一樣不會用它），
- * 但那是在請求裡放一個沒有意義的數字，而下一個讀請求的人會以為它有意義。
- *
- * 三組刻意各有各的函式，理由與另外兩組彼此獨立相同：三條留白規則不一樣，
- * 湊成一個只會讓下一個人以為它們是同一條。
- */
-function leverageBody(
-  leverage: Decimal, maintenanceMarginRate: Decimal,
-): Record<string, string> {
-  const multiplier = new LeverageMultiplierDomain(leverage, '槓桿倍數')
-  if (!multiplier.isSet) {
-    return {}
-  }
-
-  const rate = new MaintenanceMarginRateDomain(
-    maintenanceMarginRate, '維持保證金率', new Decimal(100))
-
-  return {
-    leverage: leverage.toString(),
-    ...(rate.isSet ? { maintenanceMarginRate: maintenanceMarginRate.toString() } : {}),
-  }
-}
-
 /** 重演一份交易策略掛在那一份底下，因為那是對它做的事。 */
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -112,15 +78,11 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   timeRange: 'timeRange',
   initialCapital: 'initialCapital',
   positionSizingValue: 'positionSizingValue',
-  tradingMode: 'tradingMode',
   // 一個名字蓋住止損與止盈兩格：它們併排填成一組，
   // 而後端那句話已經說出是哪一個距離。
   exitLevels: 'exitLevels',
   // 同樣一個名字蓋住進場與出場兩個費率。
   transactionCosts: 'transactionCosts',
-  // 同樣一個名字蓋住槓桿倍數與維持保證金率。後端說「現貨開不了槓桿」時也指這一格——
-  // 重演一份交易策略那條路上，這是畫面唯一能得知那件事的方式。
-  leverage: 'leverage',
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
   // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要回測什麼」有關的地方。
   signalSources: 'symbol',
@@ -189,13 +151,6 @@ type BacktestWire = {
     stopLossExitCount?: number
     takeProfitExitCount?: number
     /**
-     * 被強制平倉打掉的筆數。
-     *
-     * 選填，理由與上面那兩個相同：這一次沒有借錢時它是零，
-     * 而比這一刀早的後端根本不說這件事。
-     */
-    liquidationExitCount?: number
-    /**
      * 這一次總共為了交易付掉多少。
      *
      * 選填，理由與上面那兩個相同：比這一刀早的後端根本不收費，也不說這件事。
@@ -222,16 +177,12 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           initialCapital: backtestRequestDomain.initialCapital.toString(),
           positionSizingMode: backtestRequestDomain.positionSizingMode,
           positionSizingValue: backtestRequestDomain.positionSizingValue.toString(),
-          tradingMode: backtestRequestDomain.tradingMode,
           ...exitLevelsBody(
             backtestRequestDomain.stopLossPercentage,
             backtestRequestDomain.takeProfitPercentage),
           ...transactionCostsBody(
             backtestRequestDomain.entryCostPercentage,
             backtestRequestDomain.exitCostPercentage),
-          ...leverageBody(
-            backtestRequestDomain.leverage,
-            backtestRequestDomain.maintenanceMarginRate),
           // 宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
           // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
           parameters: backtestRequestDomain.parameters.all.map(parameter => ({
@@ -274,16 +225,14 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             initialCapital: requestDomain.initialCapital.toString(),
             positionSizingMode: requestDomain.positionSizingMode,
             positionSizingValue: requestDomain.positionSizingValue.toString(),
-            // 交易模式不在這裡：它是那一份交易策略自己記著的，後端從那一份讀。
-            // 而出場距離在：那一份對「它的主人能忍多少」沒有意見。
+            // 出場距離在這裡：一份規則對「它的主人能忍多少」沒有意見，
+            // 那是每一次重演自己的事。
             ...exitLevelsBody(
               requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
             ...transactionCostsBody(
               requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
-            // 槓桿在這裡，而交易模式不在：一份規則對「它的主人願意借多少」
-            // 沒有意見，與出場距離、成本費率同一類。
-            ...leverageBody(
-              requestDomain.leverage, requestDomain.maintenanceMarginRate),
+            // 借錢與交易模式**都不在這裡**，而且不是漏了：重演只做現貨，
+            // 後端也不收這兩格——補回去只會換來一次被拒絕的請求。
           },
         })
 
@@ -311,8 +260,6 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       wire.summary.conflictedCandleCount ?? 0,
       wire.summary.stopLossExitCount ?? 0,
       wire.summary.takeProfitExitCount ?? 0,
-      // 沒說就是一次都沒有——比這一刀早的後端連借錢都不會。
-      wire.summary.liquidationExitCount ?? 0,
       // 沒說就是沒收過錢——比這一刀早的後端從來不收。
       new Decimal(wire.summary.totalTransactionCost ?? 0),
       (wire.closedTrades ?? []).map(closedTrade => new ClosedTrade(
