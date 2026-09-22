@@ -40,7 +40,7 @@ const {
    *
    * 是存起來的那一個，不是表單上正在改的那一個：重演打的是
    * `/trading-strategies/{id}/backtests`，跑的是伺服器上那一份。
-   * 顯示未存的值，會讓使用者拿著一張「現貨」標籤底下的多空反手成績單。
+   * 顯示未存的值，會讓使用者拿著一張與後端實際跑的那一份對不起來的成績單。
    */
   /**
    * 這一份被存過幾次。
@@ -168,7 +168,6 @@ async function runBacktest() {
         :aggregation-interval-options="[]"
         :aggregation-interval-note="'由這份交易策略的訊號來源決定——這一版要求它們一致'"
         :position-sizing-mode-options="positionSizingModeOptions"
-        :trading-mode-options="[]"
         :running="backtestRun.running.value"
         :disabled="tradingStrategyId === null
           || backendUnreachable || backtestRun.backendUnreachable.value"

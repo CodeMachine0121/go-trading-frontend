@@ -8,7 +8,7 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
  * 這裡留一格給它們，就等於畫面上會有兩個答案而沒有規則說哪一個贏。
  *
  * 交易模式那一格更嚴重一點：後端已經不收它了，留著會讓使用者挑了現貨、
- * 拿到多空反手的成績單，而畫面上那顆按鈕還亮著現貨。
+ * 拿到一張與畫面上寫的對不起來的成績單。
  */
 export class TradingStrategyBacktestRequestDto {
   constructor(

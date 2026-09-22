@@ -20,11 +20,18 @@ describe('回測照什麼規則走', () => {
     expect(guideText()).not.toContain('賣出完全對稱')
   })
 
-  it('現貨那一段說得出它不開空、賣出回現金', () => {
+  it('說得出這裡只做現貨，以及它做不到什麼', () => {
+    // 這份說明是掛在表單旁邊一顆鍵後面的散文，沒有型別擋得住它說錯話——
+    // 而它曾經整整一段在教人怎麼挑一個現在已經不存在的交易模式。
     const text = guideText()
 
-    expect(text).toContain('不開空')
-    expect(text).toContain('平倉')
+    expect(text).toContain('只做現貨')
+    expect(text).toContain('空手時聽到賣出什麼都不做')
+    expect(text).toContain('開不了空倉')
+    // 那四種模式的名字一個都不該再出現：讀到它們的人會去找一個找不到的選項。
+    for (const goneSpelling of ['多空反手', '槓桿做多', '只做空']) {
+      expect(text).not.toContain(goneSpelling)
+    }
   })
 
   // 這三條存在的理由與交易模式那一條一字不差：這份說明曾經說過一句
