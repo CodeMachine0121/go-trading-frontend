@@ -1,6 +1,5 @@
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
-import { LeverageMultiplierDomain } from '~/domain/models/domains/leverage-multiplier-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
@@ -36,15 +35,6 @@ export class PositionPlanDomain {
       }
 
       throw error
-    }
-
-    // 這一句也是**委派**出去的，與下面兩個距離同一個理由：重演那張表單現在也在
-    // 問同一個倍數，而同一個 0.5 在兩張表單上必須得到同一句話。
-    const leverageRejection
-      = new LeverageMultiplierDomain(this.positionPlan.leverage, '槓桿倍數')
-        .validationMessage()
-    if (leverageRejection !== null) {
-      return leverageRejection
     }
 
     // 兩個距離的規則也是**委派**出去的，與上面押多少那一段同一個理由：

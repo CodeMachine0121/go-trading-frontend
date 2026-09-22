@@ -14,7 +14,7 @@ const strategyScriptApplication = { listAvailableStrategyScripts: vi.fn() }
 
 function tradingStrategyDto(id: number) {
   return new TradingStrategyDto(
-    id, '黃金交叉', 'longShort',
+    id, '黃金交叉',
     [new TradingStrategySignalSourceDto('A', 9, '1h', [])],
     new TradingStrategyConditionDto('n1', null, [], 'A', 'buy'),
     new TradingStrategyConditionDto('n2', null, [], 'A', 'sell'),
@@ -30,7 +30,7 @@ function workbenchUnderTest(tradingStrategyId: number | null) {
 }
 
 function aWriteDto(id: number | undefined) {
-  return new TradingStrategyWriteDto(id, '黃金交叉', 'longShort', [], null, null)
+  return new TradingStrategyWriteDto(id, '黃金交叉', [], null, null)
 }
 
 beforeEach(() => {

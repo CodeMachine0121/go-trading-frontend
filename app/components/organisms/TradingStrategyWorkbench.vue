@@ -2,9 +2,7 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppRadio from '~/components/atoms/AppRadio.vue'
 import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
-import type { TradingModeOptionDto } from '~/domain/models/dto/trading-mode-option-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
@@ -33,7 +31,6 @@ import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 const {
   editing,
   strategyScriptOptions,
-  tradingModeOptions,
   saving,
   failureMessage,
   savedGeneration,
@@ -44,7 +41,6 @@ const {
     editing: TradingStrategyDto | null
     strategyScriptOptions: readonly { value: number, label: string }[]
     /** 交易模式挑得到的那兩個，各自帶著一句話說它拿賣出信號做什麼。 */
-    tradingModeOptions: readonly TradingModeOptionDto[]
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
     /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
     unusableStrategyScripts: Readonly<Record<number, string>>
@@ -83,7 +79,6 @@ form.reset()
  * 每個實例各不相同，理由與回測那一列相同：兩張表單若同時在頁面上，
  * 共用一個名字會讓兩邊的選項彼此互斥。
  */
-const tradingModeGroupName = `trading-strategy-trading-mode-${useId()}`
 
 /**
  * 這一頁被改過了沒有。
@@ -125,24 +120,6 @@ function onSave() {
         placeholder="交易策略名稱"
         data-testid="trading-strategy-name-input"
       />
-
-      <!--
-        並排而不是下拉選單，理由與回測那一列一字不差：多數使用者根本不知道
-        現在這一種在幫他放空，而一個要點開才看得到的選單，救不了一個不知道要去點的人。
-      -->
-      <div class="workbench__trading-mode">
-        <AppRadio
-          v-for="modeOption in tradingModeOptions"
-          :key="modeOption.value"
-          v-model="form.tradingMode.value"
-          :value="modeOption.value"
-          :label="modeOption.label"
-          :description="modeOption.description"
-          :name="tradingModeGroupName"
-          :disabled="saving"
-          :data-testid="`trading-strategy-trading-mode-${modeOption.value}-radio`"
-        />
-      </div>
     </div>
 
     <TradingStrategyCanvas

@@ -13,7 +13,6 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -60,7 +59,6 @@ function completedBacktest(overrides: Partial<{
     overrides.totalReturnRate ?? 0.25, 0.1,
     overrides.winRate === undefined ? 0.75 : overrides.winRate,
     overrides.positionOpenCount ?? closedTrades.length,
-    0,
     0,
     0,
     0,
@@ -546,91 +544,67 @@ describe('StrategyScriptBacktestPane', () => {
   })
 })
 
-describe('StrategyScriptBacktestPane 照哪一套規矩操作', () => {
-  it('兩個選項同時看得見，不必點開任何東西', async () => {
-    // 這件事的價值就在於多數人不知道現在這一種在幫他放空。
-    // 藏進一個要點開才看得到的選單裡，救不了一個不知道要去點的人。
+// 這一格上一次來的時候是四顆並排的按鈕。整組拿掉而不交代，使用者會以為畫面壞了、
+// 或是自己記錯了——所以位置與標題留著，改說一句話。
+//
+// 那句話是這一刀對使用者唯一可見的新東西，而它是散文：沒有型別擋得住它被改成
+// 一句沒有內容的話，所以每一件它必須說的事都在這裡被釘住。
+describe('StrategyScriptBacktestPane 這一次照什麼規矩操作', () => {
+  it('挑不動了，但那個位置說得出現在是哪一種', async () => {
     const wrapper = mountPane(buildProxy())
 
+    // 挑得動的那四顆按鈕不在了——留著任何一顆，使用者都會挑一個必定被拒絕的值。
     expect(wrapper.find('[data-testid="backtest-trading-mode-longShort-radio"]').exists())
-      .toBe(true)
+      .toBe(false)
     expect(wrapper.find('[data-testid="backtest-trading-mode-spot-radio"]').exists())
-      .toBe(true)
+      .toBe(false)
+    // 而那一格本身還在，說著現在是哪一種。
+    expect(wrapper.get('[data-testid="backtest-trading-mode-note"]').text())
+      .toContain('只做現貨')
   })
 
-  it('每個選項都說得出它拿賣出信號做什麼', () => {
+  it('那句話說得出倉位怎麼走', async () => {
+    // 三件事都要說：買入開倉、賣出回現金、空手時賣出什麼都不做。
+    // 第三件是唯一一件使用者猜不到的——他的算式一路喊賣出，而他手上什麼都沒有。
+    const note = mountPane(buildProxy())
+      .get('[data-testid="backtest-trading-mode-note"]').text()
+
+    expect(note).toContain('空手就開倉')
+    expect(note).toContain('平倉把錢收回來')
+    expect(note).toContain('空手時聽到賣出什麼都不做')
+  })
+
+  it('那句話說得出這裡做不到什麼', async () => {
+    // 少了這一句，一個想放空或上槓桿的人會以為是自己沒找到那一格。
+    const note = mountPane(buildProxy())
+      .get('[data-testid="backtest-trading-mode-note"]').text()
+
+    expect(note).toContain('借錢與做空是合約帳戶的事')
+  })
+
+  it('那一組借多少的格子整組不在了', async () => {
     const wrapper = mountPane(buildProxy())
 
-    expect(wrapper.get('[data-testid="backtest-trading-mode-longShort-radio"]').text())
-      .toContain('反手做空')
-    expect(wrapper.get('[data-testid="backtest-trading-mode-spot-radio"]').text())
-      .toContain('不放空')
+    expect(wrapper.find('[data-testid="backtest-leverage-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="backtest-maintenance-margin-rate-input"]').exists())
+      .toBe(false)
   })
 
-  it('一打開停在既有的那一種', async () => {
+  it('送出去的請求裡沒有那三個欄位', async () => {
+    // 畫面上看不到不等於送出去沒有：表單模型、DTO 與 proxy 少改一層，
+    // 欄位就會以預設值上線，而後端會整份拒絕——使用者看到的是一句
+    // 與他剛做的事對不起來的話。
     const proxy = buildProxy()
     const wrapper = mountPane(proxy)
 
     await runBacktest(wrapper)
 
-    expect(vi.mocked(proxy.runBacktest).mock.calls[0]![0].tradingMode).toBe('longShort')
-  })
-
-  it('挑了現貨，送出去的就是現貨', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
-    await runBacktest(wrapper)
-
-    expect(vi.mocked(proxy.runBacktest).mock.calls[0]![0].tradingMode).toBe('spot')
-  })
-
-  it('換模式不動表單上任何一格', async () => {
-    // 他會拿同一組條件跑兩次來對照，所以換這一格不該讓他重填其他四格。
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-    await wrapper.get('[data-testid="backtest-initial-capital-input"]').setValue('88888')
-    await wrapper.get('[data-testid="backtest-position-sizing-mode-select"]')
-      .setValue('percentage')
-    await wrapper.get('[data-testid="backtest-position-sizing-value-input"]').setValue('30')
-
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
-    // 換過去再換回來：他會拿同一組條件跑兩次來對照，兩趟都不該弄丟任何東西。
-    await wrapper.get('[data-testid="backtest-trading-mode-longShort-radio"] input').setValue()
-
-    expect(wrapper.get<HTMLInputElement>(
-      '[data-testid="backtest-initial-capital-input"]').element.value).toBe('88888')
-    expect(wrapper.get<HTMLInputElement>(
-      '[data-testid="backtest-position-sizing-value-input"]').element.value).toBe('30')
-    expect(wrapper.get<HTMLSelectElement>(
-      '[data-testid="backtest-position-sizing-mode-select"]').element.value).toBe('percentage')
-  })
-
-  it('換模式不清掉上一張成績單', async () => {
-    // 他還沒按執行，什麼都還沒發生。
-    const wrapper = mountPane(buildProxy())
-    await runBacktest(wrapper)
-    expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
-
-    expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
-  })
-
-  it('後端說交易模式不對時，那句話留在那一格旁邊', async () => {
-    const proxy = buildProxy({
-      runBacktest: vi.fn().mockRejectedValue(new BacktestFieldError(
-        'tradingMode', '交易模式只能是 longShort、spot 其中之一')),
-    })
-    const wrapper = mountPane(proxy)
-
-    await runBacktest(wrapper)
-
-    // 位置就是這一條的全部重點：標在頁面頂端，使用者得自己猜是哪一格不對。
-    const tradingModeField = wrapper.get('.backtest-condition-fields__trading-mode')
-    expect(tradingModeField.get('[data-testid="field-error"]').text())
-      .toBe('交易模式只能是 longShort、spot 其中之一')
+    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(request).not.toHaveProperty('tradingMode')
+    expect(request).not.toHaveProperty('leverage')
+    expect(request).not.toHaveProperty('maintenanceMarginRate')
+    // 還在的那幾格照樣送得出去，所以這不是因為請求空了才過的。
+    expect(request.initialCapital.toString()).toBe('10000')
   })
 })
 
@@ -777,102 +751,5 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     await runBacktest(wrapper)
 
     expect(proxy.runBacktest).toHaveBeenCalled()
-  })
-})
-
-describe('StrategyScriptBacktestPane 這一次要借多少', () => {
-  it('兩格填了就送出去', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
-    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
-      .setValue('0.5')
-    await runBacktest(wrapper)
-
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
-    expect(request.leverage.toString()).toBe('5')
-    expect(request.maintenanceMarginRate.toString()).toBe('0.5')
-  })
-
-  it('預設兩格都留白，而留白就是不借錢', async () => {
-    // 替既有的每一次重演補一個倍數，就是在沒有人動手的情況下
-    // 改掉使用者手上每一張成績單。
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    expect(wrapper.get<HTMLInputElement>(
-      '[data-testid="backtest-leverage-input"]').element.value).toBe('')
-
-    await runBacktest(wrapper)
-
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
-    expect(request.leverage.isZero()).toBe(true)
-    expect(request.maintenanceMarginRate.isZero()).toBe(true)
-  })
-
-  it('小於一倍就**不送出**，而那句話留在那一組旁邊', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('0.5')
-    await runBacktest(wrapper)
-
-    expect(proxy.runBacktest).not.toHaveBeenCalled()
-    expect(wrapper.get('.backtest-condition-fields__leverage')
-      .get('[data-testid="field-error"]').text())
-      .toBe('槓桿倍數不得小於 1 倍')
-  })
-
-  it('維持保證金率大到開倉那一棒就撐不住時，說出最多能填多少', async () => {
-    // 被擋下來的人要知道該改成什麼，而不是自己一個一個試。
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('5')
-    await wrapper.get('[data-testid="backtest-maintenance-margin-rate-input"]')
-      .setValue('25')
-    await runBacktest(wrapper)
-
-    expect(proxy.runBacktest).not.toHaveBeenCalled()
-    expect(wrapper.get('.backtest-condition-fields__leverage')
-      .get('[data-testid="field-error"]').text())
-      .toContain('必須小於 20%')
-  })
-
-  it('現貨配槓桿說不通，當場擋下來而不是送出去等後端拒絕', async () => {
-    // 交易模式就在同一張表單上，所以這一條這裡就答得出來。
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
-    await wrapper.get('[data-testid="backtest-leverage-input"]').setValue('3')
-    await runBacktest(wrapper)
-
-    expect(proxy.runBacktest).not.toHaveBeenCalled()
-    // 他挑現貨是有意思的，會讓步的是槓桿——所以要改的是這一組。
-    expect(wrapper.get('.backtest-condition-fields__leverage')
-      .get('[data-testid="field-error"]').text())
-      .toContain('現貨')
-  })
-
-  it('現貨不填槓桿照常送出', async () => {
-    const proxy = buildProxy()
-    const wrapper = mountPane(proxy)
-
-    await wrapper.get('[data-testid="backtest-trading-mode-spot-radio"] input').setValue()
-    await runBacktest(wrapper)
-
-    expect(proxy.runBacktest).toHaveBeenCalled()
-  })
-
-  it('那一組旁邊說得出這兩格的留白各是什麼意思', async () => {
-    // 隔壁兩組的兩格留白都是「不模擬」；這一組不是——倍數留白是關掉整組，
-    // 維持保證金率留白只是沒有意見。不說出來，使用者會把隔壁的規則帶過來。
-    const wrapper = mountPane(buildProxy())
-
-    const hint = wrapper.get('.backtest-condition-fields__leverage').text()
-    expect(hint).toContain('留白就不借錢')
-    expect(hint).toContain('0.5%')
   })
 })

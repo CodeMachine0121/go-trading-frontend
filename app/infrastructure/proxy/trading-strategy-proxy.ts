@@ -11,7 +11,6 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { TradingStrategyBotRunningError } from '~/domain/errors/trading-strategy-bot-running-error'
 import { TradingStrategyInUseError } from '~/domain/errors/trading-strategy-in-use-error'
 import { TradingStrategyNameConflictError } from '~/domain/errors/trading-strategy-name-conflict-error'
-import { DEFAULT_TRADING_MODE, TRADING_MODES } from '~/domain/models/vo/trading-mode-vo'
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
@@ -64,7 +63,6 @@ type TradingStrategyWire = {
    * 可以沒有：一個還沒認得這個欄位的後端不會回它。那時讀作預設值，
    * 與後端自己對一份沒填的交易策略的讀法一字不差。
    */
-  tradingMode?: string | null
   signalSources?: TradingStrategySignalSourceWire[] | null
   buyCondition?: TradingStrategyConditionWire | null
   sellCondition?: TradingStrategyConditionWire | null
@@ -164,7 +162,6 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
     // 在這裡補一格，就是讓「哪幾格正規化過」有兩個答案。
     return {
       name: writeDto.name,
-      tradingMode: writeDto.tradingMode,
       signalSources: writeDto.signalSources.map(signalSource => ({
         label: signalSource.label,
         strategyScriptId: signalSource.strategyScriptId,
@@ -207,7 +204,6 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
       wire.name,
       // 認不得的拼法與沒有一樣讀作預設值。這一側不是那個規則的家——
       // 後端存的時候就已經擋掉認不得的值了，而這裡要的是「畫面永遠畫得出來」。
-      TRADING_MODES.find(mode => mode === wire.tradingMode) ?? DEFAULT_TRADING_MODE,
       (wire.signalSources ?? []).map(sourceWire => new TradingStrategySignalSource(
         sourceWire.label,
         sourceWire.strategyScriptId,

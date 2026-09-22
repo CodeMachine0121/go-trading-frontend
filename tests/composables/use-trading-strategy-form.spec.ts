@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 const STRATEGY_OPTIONS = [
   { value: 9, label: '均線' },
@@ -19,9 +18,9 @@ function comparison(nodeId: string, sourceLabel: string, signal: string) {
 }
 
 /** 一份存好的交易策略：買入是「均線＝買 且 動能＝買」，賣出是「均線＝賣」。 */
-function aStoredBot(tradingMode: TradingMode = 'longShort') {
+function aStoredBot() {
   return new TradingStrategyDto(
-    3, '黃金交叉', tradingMode,
+    3, '黃金交叉',
     [
       new TradingStrategySignalSourceDto('均線', 9, '1h', []),
       new TradingStrategySignalSourceDto('動能', 10, '1h', []),
@@ -245,43 +244,5 @@ describe('useTradingStrategyForm 存得下去嗎', () => {
 
     expect(form.rejection.value).toContain('名稱')
     expect(form.toWriteDto()).toBeNull()
-  })
-})
-
-// 交易模式與名稱同一層：兩者都是「這份規則**是**什麼」。
-describe('useTradingStrategyForm 的交易模式', () => {
-  it('打開一份存著現貨的就是現貨', () => {
-    const form = formUnderTest(aStoredBot('spot'))
-    form.reset()
-
-    expect(form.tradingMode.value).toBe('spot')
-    expect(form.toWriteDto()?.tradingMode).toBe('spot')
-  })
-
-  it('新的一份是預設值', () => {
-    // 與後端對一份沒填的交易策略的讀法一字不差。
-    const form = formUnderTest(null)
-    form.reset()
-
-    expect(form.tradingMode.value).toBe('longShort')
-  })
-
-  it('改過之後交出去的就是改過的那一個', () => {
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    form.tradingMode.value = 'spot'
-
-    expect(form.toWriteDto()?.tradingMode).toBe('spot')
-  })
-
-  it('它不會讓一張填好的表送不出去', () => {
-    // 從兩顆並排的按鈕挑的，挑不出非法值——所以這裡沒有第二條驗證。
-    const form = formUnderTest(aStoredBot())
-    form.reset()
-
-    form.tradingMode.value = 'spot'
-
-    expect(form.rejection.value).toBeNull()
   })
 })

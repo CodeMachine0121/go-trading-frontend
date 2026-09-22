@@ -12,7 +12,6 @@ function tradingStrategyDto(id: number, name: string, sourceCount = 1) {
   return new TradingStrategyDto(
     id,
     name,
-    'longShort',
     Array.from({ length: sourceCount },
       (_unused, index) => new TradingStrategySignalSourceDto(
         String.fromCharCode(65 + index), 9, '1h', [])),

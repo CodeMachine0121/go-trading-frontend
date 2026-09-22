@@ -55,7 +55,6 @@ type PositionPlanWire = {
   capital?: string | null
   sizingMode?: string | null
   sizingValue?: string | null
-  leverage?: string | null
   stopLossPercentage?: string | null
   takeProfitPercentage?: string | null
 }
@@ -231,7 +230,6 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         capital: writeDto.positionPlan.capital.toString(),
         sizingMode: writeDto.positionPlan.sizingMode,
         sizingValue: writeDto.positionPlan.sizingValue.toString(),
-        leverage: writeDto.positionPlan.leverage.toString(),
         stopLossPercentage: writeDto.positionPlan.stopLossPercentage.toString(),
         takeProfitPercentage: writeDto.positionPlan.takeProfitPercentage.toString(),
       }
@@ -259,7 +257,6 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       capital,
       (positionPlanWire?.sizingMode ?? 'allIn') as PositionSizingMode,
       new Decimal(positionPlanWire?.sizingValue ?? 0),
-      new Decimal(positionPlanWire?.leverage ?? 1),
       new Decimal(positionPlanWire?.stopLossPercentage ?? 0),
       new Decimal(positionPlanWire?.takeProfitPercentage ?? 0),
     )

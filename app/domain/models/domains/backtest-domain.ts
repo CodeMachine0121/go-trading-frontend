@@ -53,7 +53,6 @@ const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, string>> = {
   signal: '訊號',
   stopLoss: '止損',
   takeProfit: '止盈',
-  liquidation: '強平',
 }
 
 /**
@@ -95,7 +94,6 @@ export class BacktestDomain {
       this.backtest.conflictedCandleCount,
       this.backtest.stopLossExitCount,
       this.backtest.takeProfitExitCount,
-      this.backtest.liquidationExitCount,
       // 零與「沒收過錢」在這裡是同一件事，而那是對的：費率留白時後端回零，
       // 而使用者確實沒付過錢。多一格永遠是零的數字只會讓人以為它有什麼意思。
       this.backtest.totalTransactionCost.isZero()

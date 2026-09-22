@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { TradingStrategyBacktestRequestDto }
   from '~/domain/models/dto/trading-strategy-backtest-request-dto'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 
 const START_TIME = new Date('2026-09-01T00:00:00Z')
 const END_TIME = new Date('2026-09-05T00:00:00Z')
@@ -21,9 +20,7 @@ function conditions(overrides: Partial<{
   positionSizingValue: Decimal
   stopLossPercentage: Decimal
   entryCostPercentage: Decimal
-  leverage: Decimal
-  maintenanceMarginRate: Decimal
-}> = {}, tradingMode: TradingMode | null = null) {
+}> = {}) {
   return new BacktestConditionsDomain(new TradingStrategyBacktestRequestDto(
     7,
     'BTCUSDT',
@@ -36,9 +33,7 @@ function conditions(overrides: Partial<{
     new Decimal(0),
     overrides.entryCostPercentage ?? new Decimal(0),
     new Decimal(0),
-    overrides.leverage ?? new Decimal(0),
-    overrides.maintenanceMarginRate ?? new Decimal(0),
-  ), tradingMode)
+  ))
 }
 
 describe('BacktestConditionsDomain', () => {
@@ -52,10 +47,9 @@ describe('BacktestConditionsDomain', () => {
     ['每次押多少', { positionSizingValue: new Decimal('150') }, 'positionSizingValue'],
     ['出場價位', { stopLossPercentage: new Decimal('-1') }, 'exitLevels'],
     ['交易成本', { entryCostPercentage: new Decimal('-1') }, 'transactionCosts'],
-    ['槓桿', { leverage: new Decimal('0.5') }, 'leverage'],
   ])('%s 講不通時，指向的是那一組', (_name, broken, expectedField) => {
-    // 六組全部由這裡問過一遍——兩個請求模型不再各自排一次順序，
-    // 所以第七組加進來時，兩邊自動都問得到。
+    // 五組全部由這裡問過一遍——兩個請求模型不再各自排一次順序，
+    // 所以第六組加進來時，兩邊自動都問得到。
     expect(() => conditions(broken).validate())
       .toThrow(expect.objectContaining({ field: expectedField }))
   })
@@ -65,17 +59,7 @@ describe('BacktestConditionsDomain', () => {
     expect(() => conditions({
       endTime: BEFORE_START,
       initialCapital: new Decimal(0),
-      leverage: new Decimal('0.5'),
+      positionSizingValue: new Decimal('150'),
     }).validate()).toThrow(expect.objectContaining({ field: 'timeRange' }))
-  })
-
-  it('說得出交易模式時，現貨配槓桿當場擋下來', () => {
-    expect(() => conditions({ leverage: new Decimal('3') }, 'spot').validate())
-      .toThrow(expect.objectContaining({ field: 'leverage' }))
-  })
-
-  it('問不到交易模式時，那一條讓給後端', () => {
-    // 重演一份交易策略時模式是那一份自己記著的，這張表單看不到它。
-    expect(() => conditions({ leverage: new Decimal('3') }, null).validate()).not.toThrow()
   })
 })

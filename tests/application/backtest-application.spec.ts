@@ -1,5 +1,4 @@
 import Decimal from 'decimal.js'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { describe, expect, it, vi } from 'vitest'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import type { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
@@ -31,7 +30,6 @@ function completedBacktest(): Backtest {
     new Decimal('10000'), new Decimal('12500'), 0.25, 0.1, 0.75, 4, 0,
     0,
     0,
-    0,
     new Decimal(0),
     [new ClosedTrade(
       'long', START_TIME, new Decimal('100'), END_TIME, new Decimal('110'),
@@ -61,7 +59,6 @@ function backtestRequest(overrides: Partial<{
   initialCapital: Decimal
   positionSizingMode: 'allIn' | 'percentage' | 'fixedAmount'
   positionSizingValue: Decimal
-  tradingMode: TradingMode
 }> = {}): BacktestRequestDto {
   return new BacktestRequestDto(
     overrides.symbol ?? 'BTCUSDT',
@@ -74,9 +71,7 @@ function backtestRequest(overrides: Partial<{
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
     overrides.positionSizingValue ?? new Decimal('50'),
-    overrides.tradingMode ?? 'longShort', new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0),
-    // 槓桿留白，也就是不借錢——這一刀之前的每一次重演。
-    new Decimal(0), new Decimal(0))
+    new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
 }
 
 describe('BacktestApplication', () => {
@@ -221,7 +216,6 @@ describe('BacktestApplication 重演一整份交易策略', () => {
     startTime: Date
     endTime: Date
     initialCapital: Decimal
-    tradingMode: TradingMode
   }> = {}): TradingStrategyBacktestRequestDto {
     return new TradingStrategyBacktestRequestDto(
       overrides.tradingStrategyId ?? 7,
@@ -230,8 +224,7 @@ describe('BacktestApplication 重演一整份交易策略', () => {
       overrides.endTime ?? END_TIME,
       overrides.initialCapital ?? new Decimal('10000'),
       'percentage',
-      new Decimal('50'), new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0),
-      new Decimal(0), new Decimal(0))
+      new Decimal('50'), new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
   }
 
   it('回來的形狀與重演一支腳本完全一樣，三個元件一種讀法就夠', async () => {

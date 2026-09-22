@@ -206,14 +206,13 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
 
     await proxy().createStrategyBot(writeDomainOf(undefined, new PositionPlanDto(
       new Decimal(50000), 'percentage', new Decimal(10),
-      new Decimal(3), new Decimal(3), new Decimal(5))))
+      new Decimal(3), new Decimal(5))))
 
     // 金額以字串送，理由與回來時相同：它是精確小數。
     expect(fetchMock.mock.calls[0]![1].body.positionPlan).toEqual({
       capital: '50000',
       sizingMode: 'percentage',
       sizingValue: '10',
-      leverage: '3',
       stopLossPercentage: '3',
       takeProfitPercentage: '5',
     })
@@ -267,7 +266,6 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
 
     const positionPlan = (await proxy().getStrategyBot(3)).positionPlan
 
-    expect(positionPlan?.leverage.toString()).toBe('1')
     expect(positionPlan?.sizingMode).toBe('allIn')
   })
 })

@@ -17,7 +17,6 @@ function aPositionPlan(overrides: Partial<{
     new Decimal(overrides.capital ?? '50000'),
     overrides.sizingMode ?? 'percentage',
     new Decimal(overrides.sizingValue ?? '10'),
-    new Decimal(overrides.leverage ?? '3'),
     new Decimal(overrides.stopLossPercentage ?? '3'),
     new Decimal(overrides.takeProfitPercentage ?? '5'),
   ))
@@ -52,19 +51,6 @@ describe('PositionPlanDomain', () => {
     ],
   ])('%s 就送不出去', (_name, overrides, expectedWords) => {
     expect(aPositionPlan(overrides).rejection).toContain(expectedWords)
-  })
-
-  it('槓桿小於一倍就送不出去', () => {
-    // 打了 0.5 的人是有意思的（大概是半個部位），而悄悄讀成一倍
-    // 會在沒有告知的情況下把他要的部位加倍。
-    expect(aPositionPlan({ leverage: '0.5' }).rejection).toContain('槓桿倍數不得小於 1 倍')
-  })
-
-  it('零倍也送不出去——這一邊的空白讀成一倍，所以零是真的有人打了零', () => {
-    // 回測那張表單把空白讀成零，而**那是那張表單的編碼**，不是這個倍數的性質。
-    // 那條規則若被搬進共用的倍數模型，機器人從此會放過一個真的打了 0 的人，
-    // 而他的建議部位會變成零。這一條就是那件事的守衛。
-    expect(aPositionPlan({ leverage: '0' }).rejection).toContain('槓桿倍數不得小於 1 倍')
   })
 
   it.each([

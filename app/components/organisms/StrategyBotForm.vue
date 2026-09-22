@@ -197,17 +197,6 @@ function onSave() {
         </label>
 
         <label class="bot-form__field">
-          <span class="bot-form__field-name">槓桿倍數（留空就是不上槓桿）</span>
-          <AppInput
-            v-model="form.leverageText.value"
-            type="number"
-            inputmode="decimal"
-            placeholder="1"
-            data-testid="bot-position-leverage-input"
-          />
-        </label>
-
-        <label class="bot-form__field">
           <span class="bot-form__field-name">停損距離（百分點，留空就不設）</span>
           <AppInput
             v-model="form.stopLossText.value"

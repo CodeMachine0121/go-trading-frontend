@@ -23,8 +23,6 @@ export class PositionPlanDto {
     public readonly sizingMode: PositionSizingMode,
     /** 配合押多少的數字。全押時填什麼都不影響。 */
     public readonly sizingValue: Decimal,
-    /** 名目部位是保證金的幾倍。1 就是不上槓桿。 */
-    public readonly leverage: Decimal,
     /** 止損價離參考價幾個百分點。零就是不設止損。 */
     public readonly stopLossPercentage: Decimal,
     /** 止盈價離參考價幾個百分點。零就是不設止盈。 */

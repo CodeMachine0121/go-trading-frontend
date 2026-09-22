@@ -38,7 +38,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
   const capitalText = ref('')
   const sizingMode = ref<PositionSizingMode>('allIn')
   const sizingValueText = ref('')
-  const leverageText = ref('')
   const stopLossText = ref('')
   const takeProfitText = ref('')
 
@@ -82,7 +81,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
       sizingMode.value,
       decimalOfText(sizingValueText.value),
       // 留空即不上槓桿，與後端讀法一致；留空不是「填了個零」。
-      leverageText.value.trim() === '' ? new Decimal(1) : decimalOfText(leverageText.value),
       decimalOfText(stopLossText.value),
       decimalOfText(takeProfitText.value),
     )
@@ -130,7 +128,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     capitalText.value = positionPlan?.capital.toString() ?? ''
     sizingMode.value = positionPlan?.sizingMode ?? 'allIn'
     sizingValueText.value = positionPlan?.sizingValue.toString() ?? ''
-    leverageText.value = positionPlan?.leverage.toString() ?? ''
     stopLossText.value = positionPlan?.stopLossPercentage.toString() ?? ''
     takeProfitText.value = positionPlan?.takeProfitPercentage.toString() ?? ''
   }
@@ -146,7 +143,6 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     sizingValueText,
     sizingRequiresValue,
     sizingModeOptions,
-    leverageText,
     stopLossText,
     takeProfitText,
     rejection,

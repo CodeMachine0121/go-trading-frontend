@@ -14,7 +14,6 @@ import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
 
@@ -28,7 +27,6 @@ const {
   tradingSymbolApplication,
   timeZone,
   tradingStrategyId,
-  savedTradingMode,
   savedGeneration,
   backendUnreachable = false,
 } = defineProps<{
@@ -44,7 +42,6 @@ const {
    * `/trading-strategies/{id}/backtests`，跑的是伺服器上那一份。
    * 顯示未存的值，會讓使用者拿著一張「現貨」標籤底下的多空反手成績單。
    */
-  savedTradingMode: TradingMode | null
   /**
    * 這一份被存過幾次。
    *
@@ -64,28 +61,6 @@ const aggregationInterval = ref('')
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
-
-/**
- * 交易模式那一格要說的那一句話。
- *
- * 名字與說明來自 `TradingModeDomain`，與工作檯那一列、與重演一支腳本那兩顆按鈕
- * 讀的是同一份字串——使用者在三塊畫面上讀到的必須是對同一件事的同一種說法。
- *
- * 還沒存過的那一份用預設值，與後端對一份沒填的交易策略的讀法一字不差。
- */
-const tradingModeNote = computed(() => {
-  const optionDto = backtestApplication.tradingModeOption(savedTradingMode)
-
-  return `由這份交易策略決定：${optionDto.label}——${optionDto.description}`
-})
-
-/**
- * 條件那一塊要一個繫結的值，因為它是兩種受測對象共用的。
- *
- * 這一塊挑不動交易模式，所以它從頭到尾不會變、也不會被送出去——
- * 與上面那個彙總刻度**同一個狀況、同一個寫法**：空字串說的正是「這裡沒有人挑過」。
- */
-const unpickedTradingMode = ref('')
 
 // 回測照什麼規則走。兩種受測對象讀的是同一份——規則本來就是同一套。
 const signalReadings = backtestApplication.listSignalReadings()
@@ -116,8 +91,6 @@ const exitCostPercentage = ref('')
 // 而槓桿在這一邊仍然填得動——借多少錢是關於這個帳戶的事，一份規則對它沒有意見。
 // 代價是「現貨開不了槓桿」那一條這張表單檢查不了（它看不到那一份的模式），
 // 送出去由後端回答，而它回來的拒絕標在同一組旁邊。
-const leverage = ref('')
-const maintenanceMarginRate = ref('')
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -140,8 +113,6 @@ async function runBacktest() {
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
     // 槓桿那兩格與上面四格同一條規則：留白讀成零。
-    new Decimal(leverage.value === '' ? 0 : leverage.value),
-    new Decimal(maintenanceMarginRate.value === '' ? 0 : maintenanceMarginRate.value),
   ))
 }
 </script>
@@ -188,20 +159,16 @@ async function runBacktest() {
         v-model:initial-capital="initialCapital"
         v-model:position-sizing-mode="positionSizingMode"
         v-model:position-sizing-value="positionSizingValue"
-        v-model:trading-mode="unpickedTradingMode"
         v-model:stop-loss-percentage="stopLossPercentage"
         v-model:take-profit-percentage="takeProfitPercentage"
         v-model:entry-cost-percentage="entryCostPercentage"
         v-model:exit-cost-percentage="exitCostPercentage"
-        v-model:leverage="leverage"
-        v-model:maintenance-margin-rate="maintenanceMarginRate"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
         :aggregation-interval-note="'由這份交易策略的訊號來源決定——這一版要求它們一致'"
         :position-sizing-mode-options="positionSizingModeOptions"
         :trading-mode-options="[]"
-        :trading-mode-note="tradingModeNote"
         :running="backtestRun.running.value"
         :disabled="tradingStrategyId === null
           || backendUnreachable || backtestRun.backendUnreachable.value"
@@ -211,7 +178,6 @@ async function runBacktest() {
         :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
         :exit-levels-error="backtestRun.messageFor('exitLevels')"
         :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
-        :leverage-error="backtestRun.messageFor('leverage')"
       />
     </AppPanel>
 

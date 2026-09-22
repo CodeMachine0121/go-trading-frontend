@@ -103,19 +103,6 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
       </dd>
     </div>
     <!--
-      擺在那兩格之後，因為它回答的是同一個問題的第三種答案：這一注是怎麼沒的。
-      沒有借錢的那一次它恆為零，也就不出現——絕大多數的重演是那一種。
-    -->
-    <div
-      v-if="summary.liquidationExitCount > 0"
-      class="backtest-summary-card__item"
-    >
-      <dt>強平出場</dt>
-      <dd data-testid="summary-liquidation-exit-count">
-        {{ summary.liquidationExitCount }}
-      </dd>
-    </div>
-    <!--
       收過錢才出現，與上面那幾格同一條規則。判斷讀的是 `null` 而不是零，
       因為到了這裡它已經是一個字串——而「有沒有收過錢」是領域知識，
       所以那個判斷留在領域模型裡，這裡只問它給了沒有。

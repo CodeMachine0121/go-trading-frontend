@@ -1,5 +1,4 @@
 import Decimal from 'decimal.js'
-import type { TradingMode } from '~/domain/models/vo/trading-mode-vo'
 import { describe, expect, it } from 'vitest'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
@@ -17,7 +16,6 @@ function aRequest(overrides: Partial<{
   initialCapital: Decimal
   positionSizingMode: PositionSizingMode
   positionSizingValue: Decimal
-  tradingMode: TradingMode
   stopLossPercentage: Decimal
   takeProfitPercentage: Decimal
   entryCostPercentage: Decimal
@@ -39,9 +37,6 @@ function aRequest(overrides: Partial<{
     // 留白的那一次不收任何費用，也就是這一刀之前的每一次。
     overrides.entryCostPercentage ?? new Decimal(0),
     overrides.exitCostPercentage ?? new Decimal(0),
-    // 留白的那一次不借錢，也就是這一刀之前的每一次。
-    overrides.leverage ?? new Decimal(0),
-    overrides.maintenanceMarginRate ?? new Decimal(0),
   )
 }
 

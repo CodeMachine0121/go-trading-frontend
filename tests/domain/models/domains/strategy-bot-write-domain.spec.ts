@@ -73,7 +73,7 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
     const botWrite = aBotWrite({
       positionPlan: new PositionPlanDto(
         new Decimal(50000), 'percentage', new Decimal(150),
-        new Decimal(3), new Decimal(3), new Decimal(5)),
+        new Decimal(3), new Decimal(5)),
     })
 
     // 押多少那一條由回測那一列已經在用的模型答，所以兩張表單對同一個 150
@@ -87,17 +87,17 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
       name: '   ',
       positionPlan: new PositionPlanDto(
         new Decimal(50000), 'allIn', new Decimal(0),
-        new Decimal('0.5'), new Decimal(3), new Decimal(5)),
+        new Decimal('-1'), new Decimal(5)),
     })
 
     expect(botWrite.rejection).toContain('名稱')
-    expect(botWrite.rejection).not.toContain('槓桿')
+    expect(botWrite.rejection).not.toContain('停損距離')
   })
 
   it('交出去的那一份原樣帶著那一組', () => {
     const positionPlan = new PositionPlanDto(
       new Decimal(50000), 'allIn', new Decimal(0),
-      new Decimal(1), new Decimal(3), new Decimal(0))
+      new Decimal(3), new Decimal(0))
 
     expect(aBotWrite({ positionPlan }).sendable.positionPlan).toBe(positionPlan)
   })

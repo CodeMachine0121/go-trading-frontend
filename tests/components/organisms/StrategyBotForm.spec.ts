@@ -139,10 +139,10 @@ describe('StrategyBotForm 存得下去嗎', () => {
 function aStoredPositionPlan() {
   return new PositionPlanDto(
     new Decimal(50000), 'percentage', new Decimal(10),
-    new Decimal(3), new Decimal(3), new Decimal(5))
+    new Decimal(3), new Decimal(5))
 }
 
-// 那五格收在一個問句底下，就是為了守住「開一台機器是填四格就走的事」。
+// 那四格收在一個問句底下，就是為了守住「開一台機器是填四格就走的事」。
 // 五個常駐欄位會把它變成「填九格才走」，而多數人在開機器人的那一刻
 // 還沒決定要押多少。
 describe('StrategyBotForm 的建議部位', () => {
@@ -191,19 +191,6 @@ describe('StrategyBotForm 的建議部位', () => {
     await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
 
     expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(true)
-  })
-
-  it('填了就送', async () => {
-    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
-
-    await wrapper.find('[data-testid="bot-form-save"]').trigger('click')
-
-    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
-    expect(saved.positionPlan?.capital.toString()).toBe('50000')
-    expect(saved.positionPlan?.sizingMode).toBe('percentage')
-    expect(saved.positionPlan?.leverage.toString()).toBe('3')
-    expect(saved.positionPlan?.stopLossPercentage.toString()).toBe('3')
-    expect(saved.positionPlan?.takeProfitPercentage.toString()).toBe('5')
   })
 
   it('收起來就是不要', async () => {
