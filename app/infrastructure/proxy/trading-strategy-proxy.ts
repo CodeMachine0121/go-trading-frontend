@@ -57,12 +57,6 @@ type TradingStrategyConditionWire = {
 type TradingStrategyWire = {
   id: number
   name: string
-  /**
-   * 這一份是寫給哪一種帳戶的。
-   *
-   * 可以沒有：一個還沒認得這個欄位的後端不會回它。那時讀作預設值，
-   * 與後端自己對一份沒填的交易策略的讀法一字不差。
-   */
   signalSources?: TradingStrategySignalSourceWire[] | null
   buyCondition?: TradingStrategyConditionWire | null
   sellCondition?: TradingStrategyConditionWire | null

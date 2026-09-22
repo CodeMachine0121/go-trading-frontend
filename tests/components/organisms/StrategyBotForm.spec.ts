@@ -135,7 +135,7 @@ describe('StrategyBotForm 存得下去嗎', () => {
   })
 })
 
-/** 一組存好的部位規劃：五萬、押一成、三倍、停損三個點、停利五個點。 */
+/** 一組存好的部位規劃：五萬、押一成、停損三個點、停利五個點。 */
 function aStoredPositionPlan() {
   return new PositionPlanDto(
     new Decimal(50000), 'percentage', new Decimal(10),
@@ -143,7 +143,7 @@ function aStoredPositionPlan() {
 }
 
 // 那四格收在一個問句底下，就是為了守住「開一台機器是填四格就走的事」。
-// 五個常駐欄位會把它變成「填九格才走」，而多數人在開機器人的那一刻
+// 四個常駐欄位會把它變成「填八格才走」，而多數人在開機器人的那一刻
 // 還沒決定要押多少。
 describe('StrategyBotForm 的建議部位', () => {
   it('新的一台預設收著，四格照舊', () => {
@@ -183,6 +183,28 @@ describe('StrategyBotForm 的建議部位', () => {
       '[data-testid="bot-position-capital-input"]').element.value).toBe('50000')
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="bot-position-stop-loss-input"]').element.value).toBe('3')
+  })
+
+  it('展開之後也沒有槓桿那一格，四格送出去的就是那四格', async () => {
+    // 這一格拿掉時，讀它的那個案例是被**刪掉**的，不是被反轉的——而刪掉的
+    // 斷言是沉默：任何人把輸入框放回來，這個檔案仍然全綠，而送出去的機器人
+    // 會帶著一個後端只會拿來拒絕的數字。
+    const wrapper = mountForm({ editing: aStoredBot(aStoredPositionPlan()) })
+
+    expect(wrapper.find('[data-testid="bot-position-leverage-input"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('槓桿')
+
+    await wrapper.find('[data-testid="bot-form-save"]').trigger('click')
+
+    // 並排著問「那四格還在不在」，這一條才有意義——否則整組欄位消失也會過。
+    const positionPlan
+      = (wrapper.emitted('save')?.at(-1)?.[0] as StrategyBotWriteDto).positionPlan
+    expect(positionPlan?.capital.toString()).toBe('50000')
+    expect(positionPlan?.sizingMode).toBe('percentage')
+    expect(positionPlan?.sizingValue.toString()).toBe('10')
+    expect(positionPlan?.stopLossPercentage.toString()).toBe('3')
+    expect(positionPlan?.takeProfitPercentage.toString()).toBe('5')
+    expect(Object.keys(positionPlan ?? {})).not.toContain('leverage')
   })
 
   it('按一下就展開', async () => {

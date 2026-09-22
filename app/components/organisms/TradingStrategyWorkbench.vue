@@ -40,7 +40,7 @@ const {
   /** 有值就是改那一份，沒有就是新的一份。 */
     editing: TradingStrategyDto | null
     strategyScriptOptions: readonly { value: number, label: string }[]
-    /** 交易模式挑得到的那兩個，各自帶著一句話說它拿賣出信號做什麼。 */
+    /** 每一支策略腳本開得出來的那幾個參數名。 */
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
     /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
     unusableStrategyScripts: Readonly<Record<number, string>>
@@ -204,14 +204,6 @@ function onSave() {
     border-radius: radius('md');
     background-color: color('surface');
     padding: spacing('sm');
-  }
-
-  &__trading-mode {
-    // 並排；窄到擺不下時自己折成上下兩顆，仍然同時看得見。
-    // 與回測那一列同一個寫法——同一件事在兩塊畫面上不該長得不一樣。
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: spacing('2xs');
   }
 
   &__actions {

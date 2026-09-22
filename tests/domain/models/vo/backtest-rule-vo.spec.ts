@@ -32,6 +32,12 @@ describe('回測照什麼規則走', () => {
     for (const goneSpelling of ['多空反手', '槓桿做多', '只做空']) {
       expect(text).not.toContain(goneSpelling)
     }
+
+    // 「做空」單獨列出來，因為它不是一個選項的名字而是一個動作——這份說明
+    // 曾經在教人這個引擎開不出來的倉位怎麼擺止損。它只准出現在說「這裡不做」
+    // 的那一句裡，所以數它出現幾次，而不是問它在不在。
+    expect(text.split('做空').length - 1).toBe(1)
+    expect(text).toContain('借錢與做空是合約帳戶的事')
   })
 
   // 這三條存在的理由與交易模式那一條一字不差：這份說明曾經說過一句

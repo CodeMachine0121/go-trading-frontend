@@ -151,12 +151,6 @@ type BacktestWire = {
     stopLossExitCount?: number
     takeProfitExitCount?: number
     /**
-     * 被強制平倉打掉的筆數。
-     *
-     * 選填，理由與上面那兩個相同：這一次沒有借錢時它是零，
-     * 而比這一刀早的後端根本不說這件事。
-     */
-    /**
      * 這一次總共為了交易付掉多少。
      *
      * 選填，理由與上面那兩個相同：比這一刀早的後端根本不收費，也不說這件事。
@@ -231,14 +225,14 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
             initialCapital: requestDomain.initialCapital.toString(),
             positionSizingMode: requestDomain.positionSizingMode,
             positionSizingValue: requestDomain.positionSizingValue.toString(),
-            // 交易模式不在這裡：它是那一份交易策略自己記著的，後端從那一份讀。
-            // 而出場距離在：那一份對「它的主人能忍多少」沒有意見。
+            // 出場距離在這裡：一份規則對「它的主人能忍多少」沒有意見，
+            // 那是每一次重演自己的事。
             ...exitLevelsBody(
               requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
             ...transactionCostsBody(
               requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
-            // 槓桿在這裡，而交易模式不在：一份規則對「它的主人願意借多少」
-            // 沒有意見，與出場距離、成本費率同一類。
+            // 借錢與交易模式**都不在這裡**，而且不是漏了：重演只做現貨，
+            // 後端也不收這兩格——補回去只會換來一次被拒絕的請求。
           },
         })
 
@@ -266,7 +260,6 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       wire.summary.conflictedCandleCount ?? 0,
       wire.summary.stopLossExitCount ?? 0,
       wire.summary.takeProfitExitCount ?? 0,
-      // 沒說就是一次都沒有——比這一刀早的後端連借錢都不會。
       // 沒說就是沒收過錢——比這一刀早的後端從來不收。
       new Decimal(wire.summary.totalTransactionCost ?? 0),
       (wire.closedTrades ?? []).map(closedTrade => new ClosedTrade(

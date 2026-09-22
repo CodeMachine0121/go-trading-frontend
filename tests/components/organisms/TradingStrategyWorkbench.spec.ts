@@ -50,6 +50,32 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
   })
 }
 
+// 這張表單上一次來的時候，名稱底下是一組挑「寫給哪一種帳戶」的單選鈕。
+// 整組拿掉之後，讀它的斷言也一起被刪掉了——而被刪掉的斷言是沉默，不是失敗。
+//
+// 型別擋不住它回來：那組按鈕是 v-for 出來的 template DOM，任何人用一個行內陣列
+// 重寫一次都編譯得過，而送出去的 write DTO 會帶著一個後端已經不收的欄位。
+describe('TradingStrategyWorkbench：這裡沒有帳戶種類可以挑', () => {
+  it('一顆單選鈕都沒有', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    expect(wrapper.findAll('input[type="radio"]')).toHaveLength(0)
+  })
+
+  it('一個字都沒提那四種規矩', async () => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+
+    for (const goneSpelling of ['交易模式', '多空反手', '槓桿做多', '只做空']) {
+      expect(wrapper.text()).not.toContain(goneSpelling)
+    }
+
+    // 與上面並排，這一條才有意義：它證明上面不是因為整張表單空了才過。
+    expect(wrapper.find('[data-testid="trading-strategy-name-input"]').exists()).toBe(true)
+  })
+})
+
 describe('TradingStrategyWorkbench：工作檯上的零件', () => {
   it('每一塊零件都在架子上，不管它有沒有被用到', async () => {
     const wrapper = mountWorkbench()

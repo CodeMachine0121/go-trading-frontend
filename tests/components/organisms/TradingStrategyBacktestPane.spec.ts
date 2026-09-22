@@ -69,7 +69,6 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(),
       tradingStrategyId: 7,
-      savedTradingMode: 'longShort',
       savedGeneration: 0,
       ...props,
     },
@@ -247,9 +246,39 @@ describe('TradingStrategyBacktestPane', () => {
   })
 })
 
-// 交易模式是那一份交易策略記著的性質，不是這一次重演的旋鈕。
-// 這一塊因此挑不動它——它讀出來給人看。
-describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
+// 這一塊上一次來的時候，開頭是四顆挑交易模式的按鈕。整組拿掉之後，讀它的斷言
+// 也一起被刪掉了——而被刪掉的斷言是沉默，不是失敗：任何人把那一格放回來，
+// 這個檔案仍然全綠，而送出去的請求會被後端拒絕。所以這裡改問缺席。
+describe('TradingStrategyBacktestPane 沒有那三格可以填', () => {
+  it.each([
+    ['交易模式', '-radio'],
+    ['槓桿倍數', 'backtest-leverage-input'],
+    ['維持保證金率', 'backtest-maintenance-margin-rate-input'],
+  ])('%s 在這一邊一格都沒有', async (_name, testIdFragment) => {
+    const wrapper = mountPane(buildProxy())
+    await flushPromises()
+
+    // 挑模式的那四顆是這一塊唯一用過的單選鈕，所以「一顆單選鈕都沒有」
+    // 就是「挑不到模式」——比對一個已經刪掉的 testid 全稱要難繞過得多。
+    expect(wrapper.html()).not.toContain(testIdFragment)
+  })
+
+  it('這一邊一個字都沒提那四種規矩', async () => {
+    const wrapper = mountPane(buildProxy())
+    await flushPromises()
+
+    for (const goneSpelling of ['多空反手', '槓桿做多', '只做空', '維持保證金']) {
+      expect(wrapper.text()).not.toContain(goneSpelling)
+    }
+
+    // 與上面幾條並排，這一條才有意義：它證明上面不是因為整塊畫面空了才過。
+    expect(wrapper.find('[data-testid="backtest-entry-cost-percentage-input"]').exists())
+      .toBe(true)
+    expect(wrapper.find('[data-testid="symbol-select"]').exists()).toBe(true)
+  })
+})
+
+describe('TradingStrategyBacktestPane 這一次交易要付多少', () => {
   it('兩個費率在這一邊也是填得動的輸入框，而且一字不差', async () => {
     // 與那兩個出場距離同一個理由：一份交易策略對「它的主人的券商收多少」
     // 沒有意見。兩張表單共用同一個元件，所以「一字不差」是結構上的事實。
@@ -294,8 +323,8 @@ describe('TradingStrategyBacktestPane 照哪一套規矩操作', () => {
 
 describe('TradingStrategyBacktestPane 這一次要不要模擬出場', () => {
   it('兩個出場距離在這一邊是填得動的輸入框，不是一句話', async () => {
-    // 彙總刻度與交易模式在這一邊是一句話（那份交易策略自己說的），
-    // 而這兩格不是：一份交易策略對「它的主人能忍多少」沒有意見。
+    // 彙總刻度在這一邊是一句話（那份交易策略自己說的），而這兩格不是：
+    // 一份交易策略對「它的主人能忍多少」沒有意見。
     const proxy = buildProxy()
     const wrapper = mountPane(proxy)
 

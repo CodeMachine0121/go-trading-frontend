@@ -63,7 +63,7 @@ describe('StrategyBotWriteDomain', () => {
 })
 
 // 「區塊收著的時候一格都不看」在這裡落地：沒有部位規劃就一句都不問。
-// 那一台不建議部位，那五格填什麼都不影響它。
+// 那一台不建議部位，那四格填什麼都不影響它。
 describe('StrategyBotWriteDomain 的部位規劃', () => {
   it('沒有部位規劃時一句都不問', () => {
     expect(aBotWrite({ positionPlan: null }).rejection).toBeNull()
@@ -82,7 +82,7 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
   })
 
   it('四格的理由先講完，才輪到部位規劃', () => {
-    // 一台連名字都沒有的機器人，先講它的槓桿沒有意義。
+    // 一台連名字都沒有的機器人，先講它押多少沒有意義。
     const botWrite = aBotWrite({
       name: '   ',
       positionPlan: new PositionPlanDto(

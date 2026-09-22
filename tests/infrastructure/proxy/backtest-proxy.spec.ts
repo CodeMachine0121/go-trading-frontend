@@ -57,7 +57,6 @@ function completedWire() {
       positionOpenCount: number
       stopLossExitCount?: number
       takeProfitExitCount?: number
-      liquidationExitCount?: number
       totalTransactionCost?: string
     },
     closedTrades: [{
@@ -497,7 +496,26 @@ describe('BacktestProxy 重演一整份交易策略', () => {
 })
 
 describe('BacktestProxy 照哪一套規矩操作', () => {
-  it('重演一整份交易策略時不送刻度、算式與交易模式', async () => {
+  it('重演一支策略腳本時，那三格一格都不上路', async () => {
+    // 這是 R4 的機械面，而且它的家在這裡：這一側不宣告的欄位送不出去。
+    // 上一層（面板）測的是 DTO，那是一層之上——一個在 proxy 裡被重新加回
+    // body 的欄位，DTO 那一層看不見。
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage())
+      .runBacktest(requestOf())
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body).not.toHaveProperty('tradingMode')
+    expect(body).not.toHaveProperty('leverage')
+    expect(body).not.toHaveProperty('maintenanceMarginRate')
+    // 並排著問「該送的還在不在」，上面三條才有意義。
+    expect(body.initialCapital).toBeDefined()
+    expect(body.positionSizingMode).toBeDefined()
+  })
+
+  it('重演一整份交易策略時，刻度、算式與那三格都不上路', async () => {
     const fetchMock = vi.fn().mockResolvedValue(completedWire())
     vi.stubGlobal('$fetch', fetchMock)
 
@@ -508,7 +526,10 @@ describe('BacktestProxy 照哪一套規矩操作', () => {
     // 那三樣都是這份交易策略自己說的，多送一份等於同一件事有兩個答案。
     expect(body.aggregationInterval).toBeUndefined()
     expect(body.script).toBeUndefined()
-    expect(body.tradingMode).toBeUndefined()
+    expect(body).not.toHaveProperty('tradingMode')
+    expect(body).not.toHaveProperty('leverage')
+    expect(body).not.toHaveProperty('maintenanceMarginRate')
+    expect(body.initialCapital).toBeDefined()
   })
 
   it('後端拒絕的是別的東西時，交易模式那一格不會被牽連', async () => {

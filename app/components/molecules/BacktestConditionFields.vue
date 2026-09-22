@@ -191,25 +191,22 @@ const selectedPositionSizingMode = computed(
 
     <!--
       這一格上一次來的時候是四顆並排的按鈕。整組拿掉而不交代，
-      使用者會以為是畫面壞了、或是自己記錯了——所以位置與標題留著，
-      改說一句話：現在只有這一種，而它是哪一種。
+      使用者會以為是畫面壞了、或是自己記錯了——所以位置留著，改說一句話。
+
+      它**不是** FormField：一格什麼都填不了的欄位，對讀螢幕的人來說是
+      一個「交易模式」的控制項群組，裡面一顆控制項都沒有。句子的開頭
+      「只做現貨」本來就是這一格的標題，所以標籤也一起省了。
     -->
-    <FormField
-      label="交易模式"
-      class="backtest-condition-fields__trading-mode"
-      grouped
+    <p
+      class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
+      data-testid="backtest-trading-mode-note"
     >
-      <p
-        class="backtest-condition-fields__note"
-        data-testid="backtest-trading-mode-note"
-      >
-        只做現貨：買入時空手就開倉，賣出就平倉把錢收回來、之後空手等下一個買點；
-        空手時聽到賣出什麼都不做。借錢與做空是合約帳戶的事，這裡不做。
-      </p>
-    </FormField>
+      只做現貨：買入時空手就開倉，賣出就平倉把錢收回來、之後空手等下一個買點；
+      空手時聽到賣出什麼都不做。借錢與做空是合約帳戶的事，這裡不做。
+    </p>
 
     <!--
-      兩格擺成一組佔滿整列，與交易模式同一個理由：
+      兩格擺成一組佔滿整列，與上面那句話同一個理由：
       「留白就不模擬」那句話被摺成一疊時，就沒有人會讀它。
     -->
     <FormField
@@ -306,8 +303,8 @@ const selectedPositionSizingMode = computed(
   align-items: start;
   gap: spacing('xs') spacing('sm');
 
-  // 兩個選項要同時看得見，所以這一格佔滿整列——擠在一個 11rem 的格子裡，
-  // 那兩句說明會被折成一疊，而它們正是這一格存在的理由。
+  // 這句話佔滿整列：擠在一個 11rem 的格子裡，它會被折成一疊，
+  // 而讀不到它的人就會繼續找那四顆不見了的按鈕。
   &__trading-mode {
     grid-column: 1 / -1;
   }

@@ -94,7 +94,6 @@ function backtestOf(overrides: Partial<{
   conflictedCandleCount: number
   stopLossExitCount: number
   takeProfitExitCount: number
-  liquidationExitCount: number
   totalTransactionCost: Decimal
   closedTrades: ClosedTrade[]
   equityCurve: EquityPoint[]

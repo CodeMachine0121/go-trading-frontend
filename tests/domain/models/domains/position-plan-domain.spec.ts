@@ -9,7 +9,6 @@ function aPositionPlan(overrides: Partial<{
   capital: string
   sizingMode: PositionSizingMode
   sizingValue: string
-  leverage: string
   stopLossPercentage: string
   takeProfitPercentage: string
 }> = {}) {
@@ -23,14 +22,13 @@ function aPositionPlan(overrides: Partial<{
 }
 
 describe('PositionPlanDomain', () => {
-  it('五格都填對就送得出去', () => {
+  it('四格都填對就送得出去', () => {
     expect(aPositionPlan().rejection).toBeNull()
     expect(aPositionPlan().isSendable).toBe(true)
   })
 
   it.each([
     ['全押不必填數字', { sizingMode: 'allIn' as PositionSizingMode, sizingValue: '0' }],
-    ['不上槓桿', { leverage: '1' }],
     ['不設止損', { stopLossPercentage: '0' }],
     ['不設止盈', { takeProfitPercentage: '0' }],
     ['兩個出口都不設', { stopLossPercentage: '0', takeProfitPercentage: '0' }],
@@ -63,14 +61,24 @@ describe('PositionPlanDomain', () => {
   })
 
   it('一次只說一個理由', () => {
-    // 使用者一次只改得動一格，而一張同時亮起五個紅字的表單，
+    // 使用者一次只改得動一格，而一張同時亮起四個紅字的表單，
     // 第一個反應是不知道要從哪裡開始。
     const rejection = aPositionPlan({
-      sizingValue: '150', leverage: '0.5', stopLossPercentage: '-3',
+      sizingValue: '150', stopLossPercentage: '-3',
     }).rejection
 
     expect(rejection).toContain('百分比要大於零且不超過一百')
-    expect(rejection).not.toContain('槓桿')
     expect(rejection).not.toContain('停損')
+  })
+
+  it('這一組裡沒有一格在問借多少', () => {
+    // 那一格拿掉時，讀它的案例是被刪掉的，不是被反轉的——而上面每一條
+    // 斷言都只會說「某個理由沒有出現」，所以把整個概念放回來，它們全都還是綠的。
+    const positionPlan = new PositionPlanDto(
+      new Decimal('50000'), 'percentage', new Decimal('10'),
+      new Decimal('3'), new Decimal('5'))
+
+    expect(Object.keys(positionPlan)).not.toContain('leverage')
+    expect(new PositionPlanDomain(positionPlan).rejection).toBeNull()
   })
 })

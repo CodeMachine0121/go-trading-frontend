@@ -20,8 +20,6 @@ function aRequest(overrides: Partial<{
   takeProfitPercentage: Decimal
   entryCostPercentage: Decimal
   exitCostPercentage: Decimal
-  leverage: Decimal
-  maintenanceMarginRate: Decimal
 }> = {}) {
   return new TradingStrategyBacktestRequestDto(
     overrides.tradingStrategyId ?? 7,

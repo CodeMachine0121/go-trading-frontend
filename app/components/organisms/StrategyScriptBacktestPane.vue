@@ -94,10 +94,6 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
-// 槓桿那一組。**預設留白，而留白就是不借錢**——同樣的理由：替既有的每一次重演
-// 補一個倍數，就是在沒有人動手的情況下改掉使用者手上每一張成績單。
-// 但**這兩格的留白不是同一個意思**：倍數留白＝整組關掉；維持保證金率留白只是
-// 沒有意見，由後端給它的預設值。這一點與隔壁兩組不同，所以表單上那句提示要說出來。
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
@@ -122,8 +118,6 @@ async function runBacktest() {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
-    // 槓桿那兩格與上面四格同一條規則：留白讀成零。零在這裡的意思是
-    // 「不借錢」與「沒有意見」——各自的模型知道怎麼讀，這裡不判斷。
   ))
 }
 </script>

@@ -19,9 +19,9 @@ import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strateg
 
 // 有機體：重演這一份交易策略。
 //
-// 它與重演一支策略腳本那一塊做的是同一件事，少了三格：**算式、彙總刻度與交易模式**。
-// 那三樣都是那份交易策略自己說的——每個信號來源各帶一支腳本與一個刻度，
-// 而交易模式是那一份記著的性質。畫一個挑得動的選單，等於在畫面上放第二個答案。
+// 它與重演一支策略腳本那一塊做的是同一件事，少了兩格：**算式與彙總刻度**。
+// 那兩樣都是那份交易策略自己說的——每個信號來源各帶一支腳本與一個刻度。
+// 在這裡畫一個挑得動的選單，等於在畫面上放第二個答案。
 const {
   backtestApplication,
   tradingSymbolApplication,
@@ -35,13 +35,6 @@ const {
   timeZone: TimeZoneDto
   /** 要重演哪一份。還沒存過的那一份是 `null`——沒有東西可以指名。 */
   tradingStrategyId: number | null
-  /**
-   * **存起來的那一份**是哪一種交易模式。還沒存過的那一份是 `null`。
-   *
-   * 是存起來的那一個，不是表單上正在改的那一個：重演打的是
-   * `/trading-strategies/{id}/backtests`，跑的是伺服器上那一份。
-   * 顯示未存的值，會讓使用者拿著一張與後端實際跑的那一份對不起來的成績單。
-   */
   /**
    * 這一份被存過幾次。
    *
@@ -76,8 +69,8 @@ const positionSizingMode = ref<string>(backtestApplication.defaultPositionSizing
 const positionSizingValue = ref('50')
 // 兩個出場距離。預設留白，而留白就是不模擬。
 //
-// 它們在這一邊是**填得動的輸入框**，而不是彙總刻度與交易模式那種一句話：
-// 那两樣是那份交易策略自己說的，而一份交易策略對「它的主人能忍多少」沒有意見。
+// 它們在這一邊是**填得動的輸入框**，而不是彙總刻度那種一句話：
+// 刻度是那份交易策略自己說的，而一份交易策略對「它的主人能忍多少」沒有意見。
 const stopLossPercentage = ref('')
 const takeProfitPercentage = ref('')
 // 兩個費率。**預設留白，而留白就是不收費**——同樣的理由：
@@ -85,12 +78,6 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
-// 槓桿那一組。預設留白，而留白就是不借錢。
-//
-// 它與交易模式**不同**：交易模式在這一邊是一句唯讀的話（那一份自己記著的），
-// 而槓桿在這一邊仍然填得動——借多少錢是關於這個帳戶的事，一份規則對它沒有意見。
-// 代價是「現貨開不了槓桿」那一條這張表單檢查不了（它看不到那一份的模式），
-// 送出去由後端回答，而它回來的拒絕標在同一組旁邊。
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())

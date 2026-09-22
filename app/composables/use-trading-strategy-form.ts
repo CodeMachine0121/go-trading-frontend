@@ -41,12 +41,6 @@ export function useTradingStrategyForm(
   strategyScriptOptions: () => readonly { value: number, label: string }[],
 ) {
   const name = ref('')
-  /**
-   * 這一份是寫給哪一種帳戶的。
-   *
-   * 與名稱擺在一起，因為兩者都是「這份規則**是**什麼」；底下那張墊子才是
-   * 「它由什麼組成」。它也因此自動算進「改過了沒有」——那件事比的是整份 write DTO。
-   */
   const signalSources = ref<TradingStrategySignalSourceDto[]>([])
   /**
    * 條件目前真正指著的那幾個代號——也就是每個來源**最後一個沒有撞名的**代號。
