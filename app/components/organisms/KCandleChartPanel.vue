@@ -20,6 +20,7 @@ import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-ch
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
+import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -77,6 +78,18 @@ const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
 const chart = ref<KCandleChartDto | null>(null)
 const visibleStartTime = ref(new Date())
 const visibleEndTime = ref(new Date())
+
+/**
+ * 圖上**實際**要畫的那一段：從第幾根到第幾根。
+ *
+ * 它與上面那一對的差別就是**右側留白**——看得到最新那一根時，畫出來的那一段
+ * 會比他要求的那一段多出一成，而那一成落在最後一根之後，沒有時刻指得到它。
+ *
+ * **即時更新那條路刻意不動它。** 新的一根進來時畫面不重新擺位：留白就是給它長的地方。
+ * 每分鐘把讀圖的人的畫面推一下，比留白被慢慢吃掉難受得多，
+ * 而他下一次動圖表時留白就回來了。
+ */
+const drawnRange = ref<DrawnKCandleRangeVo | null>(null)
 
 /**
  * 使用者最後**要求**看的那一段。與上面那一對不同：那一對是**畫出來**的那一段。
@@ -247,6 +260,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
       visibleStartTime.value = chartView.visibleStartTime
       visibleEndTime.value = chartView.visibleEndTime
+      // 畫出來的那一段與上面那一對一起收下：它們是同一個答案的兩面，
+      // 分開更新就會有一瞬間圖畫在一個沒有人要求過的位置上。
+      drawnRange.value = chartView.drawnRange
 
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
@@ -622,8 +638,7 @@ onMounted(async () => {
         v-else-if="chart"
         :chart="chart"
         :drawing="drawing"
-        :visible-start-time="visibleStartTime"
-        :visible-end-time="visibleEndTime"
+        :drawn-range="drawnRange"
         :time-zone="timeZone"
         :indicators="chartIndicators.visibleChartIndicators.value"
         @range-change="showRange"

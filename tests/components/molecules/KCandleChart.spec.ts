@@ -7,6 +7,7 @@ import { IndicatorLevelDto } from '~/domain/models/dto/indicator-level-dto'
 import { IndicatorPointDto } from '~/domain/models/dto/indicator-point-dto'
 import { IndicatorSeriesDto } from '~/domain/models/dto/indicator-series-dto'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
@@ -16,23 +17,41 @@ import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregatio
 // 繪圖函式庫是最外層的邊界，比照 proxy 用 mocking 套件替身，不手刻假實作。
 // 它需要真正的畫布，測試環境沒有；而我們要驗的也不是它畫得對不對，
 // 是我們餵給它的東西對不對。
+/** 交給繪圖函式庫的一根長什麼樣。K 棒與曲線共用一種形狀，各自只填得到自己那幾欄。 */
+type DrawnRow = {
+  time: number
+  open?: number
+  high?: number
+  low?: number
+  close?: number
+  value?: number
+  color?: string
+}
+
 const chartLibrary = vi.hoisted(() => {
+  // 圖上目前那幾根的時間。替身用它把「畫到第幾根」翻回「那是幾點」，
+  // 與真的那個函式庫一樣——它回報的永遠是真實 bar 的時間。
+  let barTimes: number[] = []
+  const recordBars = (rows: DrawnRow[]) => {
+    barTimes = rows.map(row => row.time)
+  }
+
   const candlestickSeries = {
-    setData: vi.fn(),
+    setData: vi.fn(recordBars),
     kind: 'Candlestick',
     // 水平線掛在主序列身上，而且要交回把手才收得掉——替身照做。
     createPriceLine: vi.fn((options: unknown) => ({ options })),
     removePriceLine: vi.fn(),
   }
   const lineSeries = {
-    setData: vi.fn(),
+    setData: vi.fn(recordBars),
     kind: 'Line',
     createPriceLine: vi.fn((options: unknown) => ({ options })),
     removePriceLine: vi.fn(),
   }
 
-  // 真的那個函式庫對**任何**區間變動都會回頭通知，包含 setData 與我們自己發出的
-  // setVisibleRange，而且回報的區間會被對齊到真實的 bar 上。替身照做——
+  // 真的那個函式庫對**任何**區間變動都會回頭通知，包含 setData 與我們自己擺的位置，
+  // 而且回報的區間會被對齊到真實的 bar 上。替身照做——
   // 一個什麼都不回呼的替身，正好看不見這個元件最容易出錯的那條路。
   let notifyRangeChange: ((range: { from: number, to: number } | null) => void) | null = null
   let lastReported: { from: number, to: number } | null = null
@@ -40,19 +59,39 @@ const chartLibrary = vi.hoisted(() => {
   // 資料稀疏時，換一段要看的區間可能被對齊回完全相同的位置——那時它一聲都不會吭。
   let snapEveryRangeTo: { from: number, to: number } | null = null
 
+  /**
+   * 真的那個函式庫回報時間區間時，兩端都夾在第一根與最後一根之間
+   * （它自己說它無法外推）。**右側留白因此永遠不會被回報出去**——
+   * 替身照做，否則測試會看不見這個元件最容易出錯的那條路。
+   */
+  const timeRangeFor = (range: { from: number, to: number }) => {
+    if (barTimes.length === 0) {
+      return null
+    }
+
+    const clamp = (position: number) => Math.min(
+      Math.max(Math.round(position), 0), barTimes.length - 1)
+
+    return { from: barTimes[clamp(range.from)] as number, to: barTimes[clamp(range.to)] as number }
+  }
+
   const timeScale = {
     subscribeVisibleTimeRangeChange: vi.fn((handler) => {
       notifyRangeChange = handler
     }),
-    setVisibleRange: vi.fn((range: { from: number, to: number }) => {
-      const snapped = snapEveryRangeTo ?? range
-      if (lastReported !== null
-        && lastReported.from === snapped.from && lastReported.to === snapped.to) {
+    setVisibleLogicalRange: vi.fn((range: { from: number, to: number }) => {
+      const reported = snapEveryRangeTo ?? timeRangeFor(range)
+      if (reported === null) {
         return
       }
 
-      lastReported = { ...snapped }
-      notifyRangeChange?.({ ...snapped })
+      if (lastReported !== null
+        && lastReported.from === reported.from && lastReported.to === reported.to) {
+        return
+      }
+
+      lastReported = { ...reported }
+      notifyRangeChange?.({ ...reported })
     }),
   }
   const chartApi = {
@@ -81,6 +120,7 @@ const chartLibrary = vi.hoisted(() => {
     reset() {
       lastReported = null
       snapEveryRangeTo = null
+      barTimes = []
     },
   }
 })
@@ -96,6 +136,11 @@ vi.mock('lightweight-charts', () => ({
 const UP_TREND = new KCandleTrendVo('up', '上漲', 'success')
 const VISIBLE_START_TIME = new Date('2026-09-02T10:00:00.000Z')
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
+/**
+ * 領域算好的那一段：從第一根畫到最後一根，右邊再留半根的空白。
+ * 這裡不算它——算它是領域的事，這個元件只負責把它交給繪圖函式庫。
+ */
+const DRAWN_RANGE = new DrawnKCandleRangeVo(0, 1.5)
 
 function kCandleDto(openTime: string, closePrice: string, trend: KCandleTrendVo): KCandleDto {
   return new KCandleDto(
@@ -120,10 +165,8 @@ function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
 }
 
 /** 最後一次真的交給函式庫的那幾根。 */
-function drawnRows(): { time: number }[] {
-  const [rows] = chartLibrary.candlestickSeries.setData.mock.calls.at(-1) as [{ time: number }[]]
-
-  return rows
+function drawnRows(): DrawnRow[] {
+  return chartLibrary.candlestickSeries.setData.mock.calls.at(-1)?.[0] ?? []
 }
 
 /** 最後一次交給函式庫的「時間怎麼寫」。 */
@@ -144,13 +187,13 @@ async function mountChart(
   drawing: 'candlestick' | 'line' = 'candlestick',
   timeZoneIdentifier = 'UTC',
   indicators: ChartIndicatorDto[] = [],
+  drawnRange: DrawnKCandleRangeVo | null = DRAWN_RANGE,
 ) {
   const wrapper = mount(KCandleChart, {
     props: {
       chart,
       drawing,
-      visibleStartTime: VISIBLE_START_TIME,
-      visibleEndTime: VISIBLE_END_TIME,
+      drawnRange,
       timeZone: buildTimeZone(timeZoneIdentifier),
       indicators,
     },
@@ -184,7 +227,7 @@ describe('KCandleChart', () => {
       kCandleDto('2026-09-02T10:05:00.000Z', '90', new KCandleTrendVo('down', '下跌', 'danger')),
     ]))
 
-    const rows = chartLibrary.candlestickSeries.setData.mock.calls.at(-1)?.[0]
+    const rows = drawnRows()
     expect(rows).toHaveLength(2)
     expect(rows[0]).toMatchObject({ time: 1788343200, open: 100, high: 130, low: 90, close: 110 })
     expect(rows[1]).toMatchObject({ time: 1788343500, close: 90 })
@@ -197,8 +240,7 @@ describe('KCandleChart', () => {
       kCandleDto('2026-09-02T10:10:00.000Z', '100', new KCandleTrendVo('flat', '持平', 'neutral')),
     ]))
 
-    const rows = chartLibrary.candlestickSeries.setData.mock.calls.at(-1)?.[0]
-    expect(rows.map((row: { color: string }) => row.color))
+    expect(drawnRows().map(row => row.color))
       .toEqual(['--color-success', '--color-danger', '--color-text-muted'])
   })
 
@@ -219,13 +261,21 @@ describe('KCandleChart', () => {
     expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledWith([])
   })
 
-  it('換上新的一批之後，看的位置回到使用者原本在看的那一段', async () => {
+  it('換上新的一批之後，看的位置回到領域算好的那幾根上', async () => {
     await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success'))]))
 
-    expect(chartLibrary.timeScale.setVisibleRange).toHaveBeenLastCalledWith({
-      from: 1788343200,
-      to: 1788350400,
+    // 以序位擺位，不以時刻：右端「第 1.5 根」落在最後一根之後，多出來的就是右側留白。
+    // 拿時刻擺位時這件事表達不出來——函式庫會把它收回最後一根，於是最新那一根貼著右緣。
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).toHaveBeenLastCalledWith({
+      from: 0,
+      to: 1.5,
     })
+  })
+
+  it('沒有東西可畫時不擺位置——一根都沒有的圖說不出要從第幾根畫到第幾根', async () => {
+    await mountChart(chartDto([]), 'candlestick', 'UTC', [], null)
+
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
   })
 
   it('換成曲線畫法時，改以收盤價連成一條線', async () => {
@@ -264,7 +314,7 @@ describe('KCandleChart', () => {
 
   it('圖自己換位置不算使用者拖曳，不送回去', async () => {
     vi.useFakeTimers()
-    const wrapper = await mountChart(chartDto([]))
+    const wrapper = await mountChart(chartDto([A_CANDLE, ANOTHER_CANDLE]))
 
     // 掛載時畫了一次、也擺了一次位置，替身照真的那樣回頭通知了
     vi.advanceTimersByTime(300)
@@ -272,20 +322,40 @@ describe('KCandleChart', () => {
     expect(wrapper.emitted('rangeChange')).toBeUndefined()
   })
 
-  it('外面換了要看的那一段時，就算資料沒換也把位置移過去', async () => {
-    const wrapper = await mountChart(chartDto([]))
-    chartLibrary.timeScale.setVisibleRange.mockClear()
+  it('外面換了要畫的那一段時，就算資料沒換也把位置移過去', async () => {
+    const wrapper = await mountChart(chartDto([A_CANDLE, ANOTHER_CANDLE]))
+    chartLibrary.timeScale.setVisibleLogicalRange.mockClear()
 
-    await wrapper.setProps({
-      visibleStartTime: new Date('2026-09-02T11:00:00.000Z'),
-      visibleEndTime: new Date('2026-09-02T12:00:00.000Z'),
-    })
+    await wrapper.setProps({ drawnRange: new DrawnKCandleRangeVo(1, 2.1) })
 
-    expect(chartLibrary.timeScale.setVisibleRange).toHaveBeenCalledWith({
-      from: 1788346800,
-      to: 1788350400,
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).toHaveBeenCalledWith({
+      from: 1,
+      to: 2.1,
     })
     expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+  })
+
+  it('圖上正擺著留白時，使用者拉出來的那一段原樣送出去——留白不會被加進去', async () => {
+    // 這是整張圖不會每動一次就多長一成的唯一保證。函式庫回報的一律是**真實 bar 的時間**
+    // （兩端都夾在第一根與最後一根之間），這裡要做的就是原樣轉述：
+    // 一旦有人在這裡「把留白補回去」，下一次擺位會在它上面再加一成，
+    // 十次之後是兩倍半，而且會順便觸發一次重新取資料。
+    vi.useFakeTimers()
+    const wrapper = await mountChart(
+      chartDto([A_CANDLE, ANOTHER_CANDLE, A_THIRD_CANDLE]), 'candlestick', 'UTC', [],
+      // 只有三根，所以「畫到第 2.2 根」的右邊那 0.2 根是留白
+      new DrawnKCandleRangeVo(0, 2.2))
+    vi.advanceTimersByTime(300)
+
+    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    // 使用者拉了一下，函式庫回報的是他看得到 K 線的那一段（第一根到最後一根）
+    chartLibrary.reportRange({ from: 1788343200, to: 1788343800 })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toEqual([[{
+      startTime: new Date('2026-09-02T10:00:00.000Z'),
+      endTime: new Date('2026-09-02T10:10:00.000Z'),
+    }]])
   })
 
   it('自己移動位置之後，使用者真的拖曳仍然送得回去', async () => {
@@ -305,8 +375,7 @@ describe('KCandleChart', () => {
       props: {
         chart: chartDto([]),
         drawing: 'candlestick',
-        visibleStartTime: VISIBLE_START_TIME,
-        visibleEndTime: VISIBLE_END_TIME,
+        drawnRange: DRAWN_RANGE,
         timeZone: buildTimeZone(),
       },
     })
@@ -321,8 +390,7 @@ describe('KCandleChart', () => {
       props: {
         chart: null,
         drawing: 'candlestick',
-        visibleStartTime: VISIBLE_START_TIME,
-        visibleEndTime: VISIBLE_END_TIME,
+        drawnRange: DRAWN_RANGE,
         timeZone: buildTimeZone(),
       },
     })
@@ -355,15 +423,12 @@ describe('KCandleChart', () => {
 
   it('自己移動位置卻沒有造成任何變化時，使用者的下一次拖曳仍然送得回去', async () => {
     vi.useFakeTimers()
-    const wrapper = await mountChart(chartDto([]))
+    const wrapper = await mountChart(chartDto([A_CANDLE, ANOTHER_CANDLE]))
     vi.advanceTimersByTime(300)
 
-    // 換了要看的一段，但被對齊回原本的位置——函式庫因此完全沒有通知
-    chartLibrary.snapEveryRangeTo({ from: 1788343200, to: 1788350400 })
-    await wrapper.setProps({
-      visibleStartTime: new Date('2026-09-02T11:00:00.000Z'),
-      visibleEndTime: new Date('2026-09-02T12:00:00.000Z'),
-    })
+    // 換了要畫的一段，但被對齊回原本的位置——函式庫因此完全沒有通知
+    chartLibrary.snapEveryRangeTo({ from: 1788343200, to: 1788343500 })
+    await wrapper.setProps({ drawnRange: new DrawnKCandleRangeVo(1, 2.1) })
     vi.advanceTimersByTime(300)
     expect(wrapper.emitted('rangeChange')).toBeUndefined()
 
@@ -475,6 +540,8 @@ describe('KCandleChart', () => {
 })
 
 const A_CANDLE = kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)
+const ANOTHER_CANDLE = kCandleDto('2026-09-02T10:05:00.000Z', '120', UP_TREND)
+const A_THIRD_CANDLE = kCandleDto('2026-09-02T10:10:00.000Z', '130', UP_TREND)
 
 function levelIndicator(
   colorToken = '--color-chart-line-1', indicatorName = '均價', value = 115,
@@ -543,8 +610,7 @@ describe('KCandleChart 上的指標', () => {
       props: {
         chart: chartDto([A_CANDLE]),
         drawing: 'candlestick' as const,
-        visibleStartTime: VISIBLE_START_TIME,
-        visibleEndTime: VISIBLE_END_TIME,
+        drawnRange: DRAWN_RANGE,
         timeZone: buildTimeZone(),
         indicators: [],
       },
