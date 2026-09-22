@@ -14,9 +14,9 @@ Oracle: Acceptance Criteria — 21 clauses (15 `AC-`, 4 `BR-`, 2 `NFR-`)
 | ID | Clause | Spec-expected (oracle) | Impl | Test | Test audit | Code audit | Status |
 |----|--------|------------------------|------|------|------------|------------|--------|
 | AC-1 | 策略腳本回測面板沒有那三格 | 起訖／資金／押多少／止損止盈／兩個成本率都在；三格不在 | `BacktestConditionFields.vue` | `T/components/organisms/StrategyScriptBacktestPane.spec.ts`「挑不動了…」「那一組借多少的格子整組不在了」 | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-2 | 交易策略回測面板沒有那三格 | 同上 | 同上（兩個面板共用同一個元件） | 同上 + `T/components/organisms/TradingStrategyBacktestPane.spec.ts` | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-3 | 交易策略工作台不再問交易模式 | 名稱／來源／兩個條件都在；模式那一組不在 | `TradingStrategyWorkbench.vue` | `T/components/organisms/TradingStrategyWorkbench.spec.ts`（該 describe 整段移除，元件已無該 prop——由 typecheck 把關） | shallow | produces-oracle | 🟠 mis-asserted |
-| AC-4 | 機器人的建議部位剩四格 | 四格在；槓桿不在 | `StrategyBotForm.vue` + `use-strategy-bot-form.ts` | `T/components/organisms/StrategyBotForm.spec.ts`（槓桿那條移除；四格由既有斷言涵蓋） | shallow | produces-oracle | 🟠 mis-asserted |
+| AC-2 | 交易策略回測面板沒有那三格 | 同上 | 同上（兩個面板共用同一個元件） | `T/components/organisms/TradingStrategyBacktestPane.spec.ts`「沒有那三格可以填」 | asserts-oracle *(初稿誤記，見第二輪)* | produces-oracle | ✅ conforms |
+| AC-3 | 交易策略工作台不再問交易模式 | 名稱／來源／兩個條件都在；模式那一組不在 | `TradingStrategyWorkbench.vue` | `T/components/organisms/TradingStrategyWorkbench.spec.ts`「這裡沒有帳戶種類可以挑」 | asserts-oracle *(第二輪補上)* | produces-oracle | ✅ conforms |
+| AC-4 | 機器人的建議部位剩四格 | 四格在；槓桿不在 | `StrategyBotForm.vue` + `use-strategy-bot-form.ts` | `T/components/organisms/StrategyBotForm.spec.ts`「展開之後也沒有槓桿那一格」 | asserts-oracle *(第二輪補上)* | produces-oracle | ✅ conforms |
 
 ### US-02 — 成績單只報它真的算得出來的
 
@@ -46,7 +46,7 @@ Oracle: Acceptance Criteria — 21 clauses (15 `AC-`, 4 `BR-`, 2 `NFR-`)
 |----|--------|------------------------|------|------|------------|------------|--------|
 | AC-12 | 保留的那幾格逐字不變 | 位置、標籤、驗證與說明逐字相同 | 未改動 | `T/...BacktestPane.spec.ts` 的出場價位與交易成本兩個 describe（未改動且綠） | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-13 | 無關的畫面逐字不變 | 逐字相同 | K 線圖、策略腳本、帳號、通知未改動 | 其餘 190+ 個 spec 檔（未改動且綠） | asserts-oracle | produces-oracle | ✅ conforms |
-| AC-14 | *(隱含)* 樣式不留孤兒 | 移除元素後無未使用的 scoped 規則 | `BacktestConditionFields.vue`（`&__leverage`、`&__trading-mode-options` 一併移除） | `bun run lint:style` + `lint:tokens`（綠） | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-14 | *(隱含)* 樣式不留孤兒 | 移除元素後無未使用的 scoped 規則 | `BacktestConditionFields.vue` 與 `TradingStrategyWorkbench.vue` | **人工複查**（`lint:style` 抓不到孤兒規則——它檢查的是寫法，不是有沒有人用） | asserts-oracle *(初稿只查了一個檔，見第二輪)* | produces-oracle | ✅ conforms |
 | AC-15 | *(隱含)* 型別不留孤兒 | 無未使用的 import 與型別 | 四個 domain model／一個 VO／一個 DTO 檔案刪除 | `bun run lint` + `typecheck`（綠） | asserts-oracle | produces-oracle | ✅ conforms |
 
 ### Section 4 — Core Business Rules
@@ -79,10 +79,9 @@ Oracle: Acceptance Criteria — 21 clauses (15 `AC-`, 4 `BR-`, 2 `NFR-`)
 **第一輪**：Conforms 13/21 · Mis-asserted 2 🟠 · Orphans 3（其中一個是真的 bug）
 **修正後（本檔現況）**：
 
-- Conforms: **19/21** clauses ✅ (90%)
+- Conforms: **21/21** clauses ✅ (100%)
 - Violations: 無
-- Mis-asserted: **AC-3, AC-4** 🟠 — 程式碼對，但那兩處只由 `typecheck` 把關（prop 不存在就編不過），
-  沒有一條斷言說「畫面上找不到它」。**判斷：接受**，理由見下。
+- Mis-asserted: 無（**AC-3／AC-4 第二輪已補上斷言**——原本的判斷是錯的，理由見下）
 - Partial: 無
 - Gaps: 無
 - Orphans: 0（三個已修）
@@ -96,10 +95,24 @@ Oracle: Acceptance Criteria — 21 clauses (15 `AC-`, 4 `BR-`, 2 `NFR-`)
 2. **成績單沒有「不該有強平」的斷言。** 把「止盈出場」的標題改成「強平出場」，全綠——
    因為斷言驗的是 `data-testid` 而不是使用者讀得到的那三個字。已補。
 
-**AC-3／AC-4 保留為 🟠 的理由**：它們是「元件不再接受某個 prop」，
-而 Vue 元件的 prop 由 `typecheck` 硬性把關——傳了就編不過。
-再寫一條 `expect(find(...).exists()).toBe(false)` 只是把編譯期的保證改寫成執行期的，
-而前者更強。**不為了一格綠燈補一條較弱的斷言。**
+### 第二輪 code review（本檔第二次修正）
+
+**「typecheck 會擋」那個理由是錯的，已撤回。** 原文說 AC-3／AC-4 不必補斷言，
+因為元件不再接受那個 prop、傳了就編不過。但那兩處被拿掉的**不是 prop**：
+
+- AC-3 是一組 `v-for` 出來的 template DOM。任何人用一個行內陣列把它寫回來都編譯得過，
+  而送出去的 write DTO 會帶著一個後端已經不收的欄位。
+- AC-4 是一個輸入框，而讀它的那個案例是被**刪掉**的，不是被反轉的。
+
+兩處都補了「畫面上找不到它」的斷言，並各配一條正向斷言——否則整張表單消失也會過。
+
+同一輪還查出三件這份稽核記錄**不實**的事：
+
+| 項目 | 原判 | 實況 |
+| :--- | :--- | :--- |
+| AC-2 | ✅，並註明由交易策略面板的測試涵蓋 | 那個檔案裡關於那三格的斷言**全部被刪掉**，而刪除還把一個 `describe` 的結尾一併帶走，使交易成本那幾條被併進上一個區塊。已重建整段，並拿掉一個元件早已不收的 prop |
+| AC-14 | ✅，由 `lint:style` 把關 | `lint:style` 檢查的是寫法，**抓不到沒有人用的規則**。而工作檯上確實留著一條孤兒樣式。已刪，並把把關方式據實改成人工複查 |
+| 出場距離說明 | 未列 | 那份規則說明仍在教人「做空反過來」怎麼擺止損——一個這個引擎開不出來的倉位。而它的新測試把「做空」從必須消失的拼法清單裡**特意漏掉**，所以殘留通過了。已改寫，並改為數「做空」出現幾次 |
 
 > **Ceiling.** 靜態一致性稽核：對照 PRD 推出的預期結果分別審測試與程式碼，
 > 不靠跑整套測試下結論。這一刀無法用測試驗證的那一半，是**後端真的收得下畫面送的東西**——
