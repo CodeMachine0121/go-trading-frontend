@@ -19,7 +19,7 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
-import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
+import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -75,8 +75,18 @@ const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
   kCandleChartApplication.defaultAggregationIntervalChoice())
 
 const chart = ref<KCandleChartDto | null>(null)
-const visibleStartTime = ref(new Date())
-const visibleEndTime = ref(new Date())
+
+/**
+ * 圖上**實際**要畫的那一段：從第幾根到第幾根。
+ *
+ * 它與上面那一對的差別就是**右側留白**——看得到最新那一根時，畫出來的那一段
+ * 會比他要求的那一段多出一成，而那一成落在最後一根之後，沒有時刻指得到它。
+ *
+ * **即時更新那條路刻意不動它。** 新的一根進來時畫面不重新擺位：留白就是給它長的地方。
+ * 每分鐘把讀圖的人的畫面推一下，比留白被慢慢吃掉難受得多，
+ * 而他下一次動圖表時留白就回來了。
+ */
+const drawnRange = ref<DrawnKCandleRangeVo | null>(null)
 
 /**
  * 使用者最後**要求**看的那一段。與上面那一對不同：那一對是**畫出來**的那一段。
@@ -245,8 +255,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
 
     if (requestNumber === latestRequestNumber) {
       // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
-      visibleStartTime.value = chartView.visibleStartTime
-      visibleEndTime.value = chartView.visibleEndTime
+      drawnRange.value = chartView.drawnRange
 
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
@@ -259,13 +268,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // 「不重算」的條件因此收窄成「那一段真的沒變」，由顯示區間自己回答。
       if (chart.value !== null) {
         chartIndicators.recalculateForRange(
-          chart.value,
-          new ChartVisibleRangeVo(chartView.visibleStartTime, chartView.visibleEndTime),
-          chartView.reloadedChart !== null)
+          chart.value, chartView.visibleRange, chartView.reloadedChart !== null)
       }
 
-      // 跟盤放在記下顯示區間**之後**：跟盤一開始，更新隨時可能進來，
-      // 而處理一則更新的第一件事就是問「這一段看得到最新那一根嗎」。
+      // 跟盤放在**告訴指標他在看哪一段之後**：跟盤一開始，更新隨時可能進來，
+      // 而處理一則更新的第一件事就是拿那一段去問「看得到最新那一根嗎」——
+      // 那一段還沒交出去的話，走完的第一根會被當成不在畫面上而漏算。
       if (chartView.reloadedChart !== null) {
         followTheMarket(chartView.reloadedChart)
       }
@@ -622,8 +630,7 @@ onMounted(async () => {
         v-else-if="chart"
         :chart="chart"
         :drawing="drawing"
-        :visible-start-time="visibleStartTime"
-        :visible-end-time="visibleEndTime"
+        :drawn-range="drawnRange"
         :time-zone="timeZone"
         :indicators="chartIndicators.visibleChartIndicators.value"
         @range-change="showRange"

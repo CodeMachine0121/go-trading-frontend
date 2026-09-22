@@ -116,6 +116,22 @@ describe('圖跟著市場走', () => {
     expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
   })
 
+  it('新的一根進來時畫面不重新擺位——它長進右邊那段留白裡', async () => {
+    // 留白存在的理由之一就是給新的一根長。每分鐘把讀圖的人的畫面推一下，
+    // 比留白被慢慢吃掉難受得多；而這件事改壞了不會有任何畫面報錯，
+    // 所以這一條站在這裡：交給圖的那一段，在市場動過之後必須逐字相同。
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+    const before = wrapper.findComponent(KCandleChart).props('drawnRange')
+
+    feed.report('closed', '118')
+    await flushPromises()
+
+    const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
+    expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).toEqual(before)
+  })
+
   it('換交易標的就換跟的對象', async () => {
     const feed = controllableFeed()
     const { wrapper } = await mountPanel(feed)

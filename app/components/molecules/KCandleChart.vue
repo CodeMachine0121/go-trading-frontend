@@ -2,6 +2,7 @@
 import type { IChartApi, IPriceLine, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
@@ -74,15 +75,22 @@ function sliceTickMark(
 const {
   chart = null,
   drawing = 'candlestick',
-  visibleStartTime,
-  visibleEndTime,
+  drawnRange = null,
   timeZone,
   indicators = [],
 } = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
-  visibleStartTime: Date
-  visibleEndTime: Date
+  /**
+   * 圖上要從第幾根畫到第幾根，領域算好的。
+   *
+   * **它刻意不是兩個時刻。** 右端可以超過最後一根，超出的那一段就是右側留白；
+   * 而時刻表達不出那一段——那裡沒有 K 線，也就沒有時間指得到它。
+   * 留多少、什麼時候不留，全部在領域決定完了，這裡只負責把它交給繪圖函式庫。
+   *
+   * 一根都沒有時是 `null`：那樣的圖談不上要從第幾根畫到第幾根。
+   */
+  drawnRange?: DrawnKCandleRangeVo | null
   /** 時間軸與十字準星用哪一個時區說。 */
   timeZone: TimeZoneDto
   /**
@@ -181,7 +189,7 @@ function drawKCandles() {
 
   series.setData(rows)
   drawIndicators()
-  applyVisibleRange()
+  applyDrawnRange()
 }
 
 /**
@@ -233,21 +241,37 @@ function drawIndicators() {
 }
 
 /**
- * 把看的位置擺到外面指定的那一段。
+ * 把看的位置擺到領域算好的那幾根上。
  *
  * 這件事必須與「換一批資料」分開，因為它會單獨發生：使用者按下快捷區間、
  * 或拉遠到被收回上限時，資料可能完全不必換（手上那批就夠了），
  * 但位置一定要動。少了這一條，按鈕看起來就像壞掉。
+ *
+ * **以序位擺位，不以時刻。** 繪圖函式庫拿時刻定位時會把落在資料之外的那一端
+ * 往內收回最後一根身上（它明說自己無法外推），於是最新那一根永遠貼著右緣——
+ * 那正是這一刀要解決的事。序位沒有這個限制：只有二百八十八根的圖上，
+ * 「畫到第三百根」是合法的，多出來的就是留白。
  */
-function applyVisibleRange() {
+function applyDrawnRange() {
   // 圖自己換位置也會回頭說一次「正在看的區間變了」，那不是使用者的動作。
-  // setData 與 setVisibleRange 發出的事件會被下面的等待時間併成同一次，
+  // setData 與這一次擺位發出的事件會被下面的等待時間併成同一次，
   // 所以標記一次就夠——真正的手勢會在事件之前先把這個標記清掉。
+  //
+  // **它必須立在下面那道門之前。** 剛才那次 `setData` 自己就會讓函式庫回頭說一次，
+  // 而且沒有位置可擺不代表沒有東西動過——一根都沒有的圖等到市場先動起來時，
+  // 第一批資料就是這樣進來的。漏掉這一次，畫面會把自己畫的第一批當成使用者拖曳，
+  // 送回一段兩端相同的區間（只有一根時函式庫就是這樣回報的），
+  // 於是快捷區間失去反白，還去取了一段寬度為零的行情。
   selfIssuedRangeChange = true
 
-  chartApi.value?.timeScale().setVisibleRange({
-    from: wallClockSecondsOf(visibleStartTime, timeZone),
-    to: wallClockSecondsOf(visibleEndTime, timeZone),
+  // 一根都沒有：沒有位置可擺。等有資料的那一刻自己會擺。
+  if (drawnRange === null) {
+    return
+  }
+
+  chartApi.value?.timeScale().setVisibleLogicalRange({
+    from: drawnRange.from,
+    to: drawnRange.to,
   })
 }
 
@@ -342,6 +366,11 @@ onMounted(async () => {
       }
 
       // 圖上那一段是當地時鐘讀數，外面要的是瞬間。
+      //
+      // **回報的永遠是他看得到 K 線的那一段，右側留白不算在內**——繪圖函式庫
+      // 回報的區間一律夾在第一根與最後一根之間。這一點必須維持：把留白也回報出去，
+      // 下一次擺位會在它上面再加一成，於是畫面每動一次就多長一成，
+      // 十次之後是兩倍半，而且它會順便觸發一次重新取資料。
       emit('rangeChange', {
         startTime: timeZone.fromWallClock(timeValueOf(range.from)),
         endTime: timeZone.fromWallClock(timeValueOf(range.to)),
@@ -358,8 +387,8 @@ watch(() => chart, drawKCandles)
 // 套用了一支、移除了一支、或換了某條線的顏色：K 線一根都沒變，只要重畫指標。
 watch(() => indicators, drawIndicators)
 
-// 外面換了要看的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
-watch([() => visibleStartTime, () => visibleEndTime], applyVisibleRange)
+// 外面換了要畫的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
+watch(() => drawnRange, applyDrawnRange)
 
 // 換時區只是換一種說法：看的還是同一段、同一批資料，但交給繪圖函式庫的讀數整批換了一種寫法，
 // 所以連資料帶位置一起重講一次——不會因此回頭去取任何東西。

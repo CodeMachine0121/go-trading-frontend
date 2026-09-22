@@ -42,6 +42,21 @@ function closePriceDrawnBy(wrapper: VueWrapper): string | undefined {
   return wrapper.findComponent(KCandleChart).props('chart')?.kCandles[0]?.close.toString()
 }
 
+/**
+ * 一天之內的三根，最後一根就是最新那一根。
+ * 三根才看得出「畫到第幾根」會隨顯示區間改變——一根的圖上，任何一段都是第 0 根到第 0 根。
+ */
+const THREE_HOURLY_K_CANDLES = [
+  buildKCandle('2026-09-02T10:00:00.000Z', '110'),
+  buildKCandle('2026-09-02T11:00:00.000Z', '120'),
+  buildKCandle('2026-09-02T12:00:00.000Z', '130'),
+]
+
+/** 第幾次去要資料時帶的那份取回計畫。 */
+function loadPlanOf(findKCandleSeries: ReturnType<typeof vi.fn>, callNumber: number) {
+  return findKCandleSeries.mock.calls[callNumber]?.[0]
+}
+
 function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
@@ -123,9 +138,14 @@ describe('KCandleChartPanel', () => {
       .toContain('app-button--primary')
   })
 
-  it('不必重新取時，仍然把該看的那一段交給圖——按快捷區間不會像壞掉', async () => {
-    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+  it('不必重新取時，仍然把該畫的那一段交給圖——按快捷區間不會像壞掉', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf(THREE_HOURLY_K_CANDLES))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    // 一進畫面看的是一整天，三根全在畫面上（序位 0 到 2），
+    // 而且看得到最新那一根，所以右邊留著三根的一成。
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
+      .toEqual({ from: 0, to: 2.3 })
 
     // 先做一次同長度的小幅平移（仍在已取回範圍內、長度沒變），再按回「一天」
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -133,6 +153,11 @@ describe('KCandleChartPanel', () => {
       endTime: new Date('2026-09-02T11:00:00.000Z'),
     })
     await flushPromises()
+
+    // 平移之後最新那一根（十二點）落在畫面右邊之外——那就不留白了
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
+      .toEqual({ from: 0, to: 1 })
+
     // 快捷區間算的是「到現在為止的一天」，而這一組測試讓假時鐘跟著真實時間走
     // （防抖的等待時間需要它）。按下去之前把時鐘釘回釘住的那一刻，
     // 斷言才是在驗那一天的邊界，不是在驗這幾行跑得夠不夠快。
@@ -142,17 +167,16 @@ describe('KCandleChartPanel', () => {
 
     // 資料確實不必換
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    // 但圖一定要被告知回到那一整天
-    expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2026-09-01T12:00:00.000Z'))
-    expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
-      .toEqual(new Date('2026-09-02T12:00:00.000Z'))
+    // 但圖一定要被告知回到那一整天，連同回來的留白
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
+      .toEqual({ from: 0, to: 2.3 })
     expect(wrapper.findAll('[data-testid="range-preset-button"]')[3]?.classes())
       .toContain('app-button--primary')
   })
 
   it('拉出恰好五百天不被收回——以前這一段會被收成四百分鐘', async () => {
-    const wrapper = await mountPanel(buildProxy())
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2025-04-20T12:00:00.000Z'),
@@ -160,15 +184,17 @@ describe('KCandleChartPanel', () => {
     })
     await flushPromises()
 
-    // 以前這一段會被收成四百分鐘，於是六顆快捷區間按起來全都一樣
-    expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2025-04-20T12:00:00.000Z'))
-    expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
-      .toEqual(new Date('2026-09-02T12:00:00.000Z'))
+    // 以前這一段會被收成四百分鐘，於是六顆快捷區間按起來全都一樣。
+    // 拿去要資料的那一段說得出這件事：五百天原樣送出，兩側再各多取半段。
+    expect(loadPlanOf(findKCandleSeries, 1)).toMatchObject({
+      fetchStartTime: new Date('2024-08-13T12:00:00.000Z'),
+      fetchEndTime: new Date('2027-05-10T12:00:00.000Z'),
+    })
   })
 
-  it('拉得比五百天還遠時，交給圖的是被收回五百天之後的那一段', async () => {
-    const wrapper = await mountPanel(buildProxy())
+  it('拉得比五百天還遠時，要的是被收回五百天之後的那一段', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2016-01-01T12:00:00.000Z'),
@@ -176,10 +202,11 @@ describe('KCandleChartPanel', () => {
     })
     await flushPromises()
 
-    expect(wrapper.findComponent(KCandleChart).props('visibleStartTime'))
-      .toEqual(new Date('2025-04-20T12:00:00.000Z'))
-    expect(wrapper.findComponent(KCandleChart).props('visibleEndTime'))
-      .toEqual(new Date('2026-09-02T12:00:00.000Z'))
+    // 結束的那一端不動，開始的那一端往後挪到剛好五百天——與上一條要到的是同一段
+    expect(loadPlanOf(findKCandleSeries, 1)).toMatchObject({
+      fetchStartTime: new Date('2024-08-13T12:00:00.000Z'),
+      fetchEndTime: new Date('2027-05-10T12:00:00.000Z'),
+    })
   })
 
   it('使用者在圖上拉出仍落在手上這批之內的一段時，不再去取', async () => {
