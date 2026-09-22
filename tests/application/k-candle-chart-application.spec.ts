@@ -106,6 +106,48 @@ describe('KCandleChartApplication', () => {
       expect(chartView.reloadedChart?.isEmpty).toBe(true)
     })
 
+    it('回來的答案說得出圖上要從第幾根畫到第幾根，右邊還留著一段空白', async () => {
+      // 三根都在畫面上（序位 0 到 2），而且看得到最新那一根——
+      // 右邊因此多留兩根的一成。最新那一根整根看得見，不會被右緣切掉半根。
+      const kCandleChartApplication = buildApplication(buildProxy({
+        findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([
+          buildKCandle('2026-09-02T10:00:00.000Z', '100', '110'),
+          buildKCandle('2026-09-02T11:00:00.000Z', '100', '120'),
+          buildKCandle('2026-09-02T12:00:00.000Z', '100', '130'),
+        ])),
+      }))
+
+      const chartView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+
+      expect(chartView.drawnRange).toEqual({ from: 0, to: 2.2 })
+    })
+
+    it('取回一根都沒有時，說不出要從第幾根畫到第幾根', async () => {
+      const kCandleChartApplication = buildApplication(buildProxy())
+
+      const chartView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+
+      expect(chartView.drawnRange).toBeNull()
+    })
+
+    it('不必重新取時，照手上那批算出要畫的那一段——按快捷區間才不會像壞掉', async () => {
+      const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([
+        buildKCandle('2026-09-02T10:00:00.000Z', '100', '110'),
+        buildKCandle('2026-09-02T11:00:00.000Z', '100', '120'),
+        buildKCandle('2026-09-02T12:00:00.000Z', '100', '130'),
+      ]))
+      const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
+      const loaded = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
+
+      // 小幅拉寬一成：仍落在手上這批之內，長度變化也在門檻之內
+      const nextView = await kCandleChartApplication.loadKCandleChart(
+        viewportSpanning(26.4 * 60, loaded.reloadedChart))
+
+      expect(nextView.reloadedChart).toBeNull()
+      expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+      expect(nextView.drawnRange).toEqual({ from: 0, to: 2.2 })
+    })
+
     it('顯示區間仍落在手上那批之內時不再去取，並回覆「沒事」', async () => {
       const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([]))
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))

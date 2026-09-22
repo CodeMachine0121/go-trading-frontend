@@ -5,6 +5,8 @@ import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-in
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-domain'
+import { DrawnKCandleRangeDomain } from '~/domain/models/domains/drawn-k-candle-range-domain'
+import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
 
@@ -107,6 +109,8 @@ export class KCandleChartService {
    *
    * 回來的一律帶著**應該看到的那一段**（可能已被收回上限），
    * 而 `reloadedChart` 為 `null` 代表手上那批就夠了、不必換資料。
+   * 另外還帶著**圖上實際要畫的那一段**（從第幾根到第幾根）——它比使用者要求的那一段
+   * 多出右側留白，而留白落在最後一根之後，沒有任何時刻指得到它。
    *
    * 「不必重新取就不取」是整個圖表不會自己轉個不停的原因：把資料餵進圖之後
    * 圖會再說一次「正在看的區間變了」，若這裡改成不必取時也回傳一批資料，
@@ -118,20 +122,27 @@ export class KCandleChartService {
     const kCandleChartLoadPlanVo
       = new KCandleChartViewportDomain(kCandleChartViewportDto).toLoadPlan()
 
-    if (!kCandleChartLoadPlanVo.needsReload) {
-      return new KCandleChartViewDto(
-        kCandleChartLoadPlanVo.visibleStartTime,
-        kCandleChartLoadPlanVo.visibleEndTime,
-        null,
-      )
-    }
+    const reloadedChart = kCandleChartLoadPlanVo.needsReload
+      ? new KCandleSeriesDomain(
+          await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo),
+          kCandleChartLoadPlanVo).toDto()
+      : null
 
-    const kCandleSeriesVo = await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo)
+    // 位置要照**這一次畫出去的那一批**算，而那批可能是剛取回的，也可能是手上原本那批——
+    // 兩條分支在這裡合流，正是因為「畫面擺哪裡」這件事對兩者一視同仁：
+    // 不必重新取的那一次照樣要擺位置（按下快捷區間常常就是這一種）。
+    const drawnChart = reloadedChart ?? kCandleChartViewportDto.loadedChart
 
     return new KCandleChartViewDto(
       kCandleChartLoadPlanVo.visibleStartTime,
       kCandleChartLoadPlanVo.visibleEndTime,
-      new KCandleSeriesDomain(kCandleSeriesVo, kCandleChartLoadPlanVo).toDto(),
+      reloadedChart,
+      new DrawnKCandleRangeDomain(
+        drawnChart,
+        new ChartVisibleRangeVo(
+          kCandleChartLoadPlanVo.visibleStartTime,
+          kCandleChartLoadPlanVo.visibleEndTime),
+      ).toVo(),
     )
   }
 
