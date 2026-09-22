@@ -143,9 +143,9 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
     // 一進畫面看的是一整天，三根全在畫面上（序位 0 到 2），
-    // 而且看得到最新那一根，所以右邊留著兩根的一成。
+    // 而且看得到最新那一根，所以右邊留著三根的一成。
     expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
-      .toEqual({ from: 0, to: 2.2 })
+      .toEqual({ from: 0, to: 2.3 })
 
     // 先做一次同長度的小幅平移（仍在已取回範圍內、長度沒變），再按回「一天」
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -169,7 +169,7 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
     // 但圖一定要被告知回到那一整天，連同回來的留白
     expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
-      .toEqual({ from: 0, to: 2.2 })
+      .toEqual({ from: 0, to: 2.3 })
     expect(wrapper.findAll('[data-testid="range-preset-button"]')[3]?.classes())
       .toContain('app-button--primary')
   })

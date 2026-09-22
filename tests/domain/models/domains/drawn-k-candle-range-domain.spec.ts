@@ -44,12 +44,12 @@ function drawnRangeOf(openTimes: string[], startTime: string, endTime: string) {
 
 describe('看得到最新那一根時，右邊留一段空白', () => {
   it('畫到最後一根之後，再多留正在看的那幾根的一成', () => {
-    // 十一根全在畫面上（序位 0 到 10），留白 ＝ 十根 × 一成 ＝ 一根的寬度。
+    // 十一根全在畫面上（序位 0 到 10），留白 ＝ 十一根 × 一成。
     // 最新那一根因此整根看得見，而不是被右緣切掉半根。
     const drawnRange = drawnRangeOf(
       ELEVEN_OPEN_TIMES, '2026-09-03T09:00:00.000Z', '2026-09-03T10:00:00.000Z')
 
-    expect(drawnRange).toEqual({ from: 0, to: 11 })
+    expect(drawnRange).toEqual({ from: 0, to: 11.1 })
   })
 
   it('右端正好落在最新那一根的起始時間上，也算看得到它', () => {
@@ -57,16 +57,16 @@ describe('看得到最新那一根時，右邊留一段空白', () => {
     const drawnRange = drawnRangeOf(
       ELEVEN_OPEN_TIMES, '2026-09-03T09:00:00.000Z', '2026-09-03T09:50:00.000Z')
 
-    expect(drawnRange).toEqual({ from: 0, to: 11 })
+    expect(drawnRange).toEqual({ from: 0, to: 11.1 })
   })
 
   it('看得越長，留白跟著等比例變寬——它是一成，不是固定幾根', () => {
-    // 只看後面六根（序位 5 到 10）時，留白是五根的一成，也就是半根。
+    // 只看後面六根（序位 5 到 10）時，留白是六根的一成。
     // 固定幾根的話，看一整年時那幾根會窄到看不出來，留白等於沒有。
     const drawnRange = drawnRangeOf(
       ELEVEN_OPEN_TIMES, '2026-09-03T09:25:00.000Z', '2026-09-03T10:00:00.000Z')
 
-    expect(drawnRange).toEqual({ from: 5, to: 10.5 })
+    expect(drawnRange).toEqual({ from: 5, to: 10.6 })
   })
 })
 
@@ -114,13 +114,15 @@ describe('兩端對齊到真正存在的那幾根', () => {
     expect(drawnRange).toEqual({ from: 0, to: 0 })
   })
 
-  it('那一段整個落在資料結束之後時，退到最後一根', () => {
-    // 手上這批停在很久以前（例如市場早就收盤了），而他看的是現在。
-    // 兩端都退到最後一根，畫面上因此仍有東西，不是一片空白。
+  it('那一段整個落在資料結束之後時，退到最後一根，而那一根照樣不貼右緣', () => {
+    // 休市日就是這一種：他按下「一小時」，而那一小時裡一根都沒有。
+    // 兩端都退到最後一根，畫面上因此仍有東西，不是一片空白；
+    // 而留白算的是**根數**（一根也是一根），所以那唯一的一根仍然不會貼著右緣——
+    // 相減不加一的話這裡會歸零，正好把這一刀要修的樣子原封不動地放回來。
     const drawnRange = drawnRangeOf(
       ELEVEN_OPEN_TIMES, '2026-09-03T18:00:00.000Z', '2026-09-03T19:00:00.000Z')
 
-    expect(drawnRange).toEqual({ from: 10, to: 10 })
+    expect(drawnRange).toEqual({ from: 10, to: 10.1 })
   })
 })
 

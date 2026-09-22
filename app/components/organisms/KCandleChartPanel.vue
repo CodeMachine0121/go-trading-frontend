@@ -271,8 +271,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
           chart.value, chartView.visibleRange, chartView.reloadedChart !== null)
       }
 
-      // 跟盤放在記下要畫的那一段**之後**：跟盤一開始，更新隨時可能進來，
-      // 而處理一則更新的第一件事就是問「這一段看得到最新那一根嗎」。
+      // 跟盤放在**告訴指標他在看哪一段之後**：跟盤一開始，更新隨時可能進來，
+      // 而處理一則更新的第一件事就是拿那一段去問「看得到最新那一根嗎」——
+      // 那一段還沒交出去的話，走完的第一根會被當成不在畫面上而漏算。
       if (chartView.reloadedChart !== null) {
         followTheMarket(chartView.reloadedChart)
       }

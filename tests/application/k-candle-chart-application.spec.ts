@@ -108,7 +108,7 @@ describe('KCandleChartApplication', () => {
 
     it('回來的答案說得出圖上要從第幾根畫到第幾根，右邊還留著一段空白', async () => {
       // 三根都在畫面上（序位 0 到 2），而且看得到最新那一根——
-      // 右邊因此多留兩根的一成。最新那一根整根看得見，不會被右緣切掉半根。
+      // 右邊因此多留三根的一成。最新那一根整根看得見，不會被右緣切掉半根。
       const kCandleChartApplication = buildApplication(buildProxy({
         findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([
           buildKCandle('2026-09-02T10:00:00.000Z', '100', '110'),
@@ -119,7 +119,7 @@ describe('KCandleChartApplication', () => {
 
       const chartView = await kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60))
 
-      expect(chartView.drawnRange).toEqual({ from: 0, to: 2.2 })
+      expect(chartView.drawnRange).toEqual({ from: 0, to: 2.3 })
     })
 
     it('取回一根都沒有時，說不出要從第幾根畫到第幾根', async () => {
@@ -145,7 +145,7 @@ describe('KCandleChartApplication', () => {
 
       expect(nextView.reloadedChart).toBeNull()
       expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-      expect(nextView.drawnRange).toEqual({ from: 0, to: 2.2 })
+      expect(nextView.drawnRange).toEqual({ from: 0, to: 2.3 })
     })
 
     it('顯示區間仍落在手上那批之內時不再去取，並回覆「沒事」', async () => {

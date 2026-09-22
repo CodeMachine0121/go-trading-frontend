@@ -32,8 +32,16 @@ const chartLibrary = vi.hoisted(() => {
   // 圖上目前那幾根的時間。替身用它把「畫到第幾根」翻回「那是幾點」，
   // 與真的那個函式庫一樣——它回報的永遠是真實 bar 的時間。
   let barTimes: number[] = []
+  /**
+   * 真的那個函式庫**光是 setData 就會回頭通知一次**（在真瀏覽器裡確認過），
+   * 回報的是這批資料的頭尾；只有一根時兩端相同。替身照做——
+   * 少了這一下，「圖自己畫的那一次不算使用者拖曳」這條路在測試裡根本不會被走到。
+   */
   const recordBars = (rows: DrawnRow[]) => {
     barTimes = rows.map(row => row.time)
+    if (barTimes.length > 0) {
+      notifyOnce({ from: barTimes[0] as number, to: barTimes[barTimes.length - 1] as number })
+    }
   }
 
   const candlestickSeries = {
@@ -75,6 +83,17 @@ const chartLibrary = vi.hoisted(() => {
     return { from: barTimes[clamp(range.from)] as number, to: barTimes[clamp(range.to)] as number }
   }
 
+  /** 區間真的變了才通知一次——與真的那個函式庫一樣，回到原位是不出聲的。 */
+  const notifyOnce = (reported: { from: number, to: number }) => {
+    if (lastReported !== null
+      && lastReported.from === reported.from && lastReported.to === reported.to) {
+      return
+    }
+
+    lastReported = { ...reported }
+    notifyRangeChange?.({ ...reported })
+  }
+
   const timeScale = {
     subscribeVisibleTimeRangeChange: vi.fn((handler) => {
       notifyRangeChange = handler
@@ -85,13 +104,7 @@ const chartLibrary = vi.hoisted(() => {
         return
       }
 
-      if (lastReported !== null
-        && lastReported.from === reported.from && lastReported.to === reported.to) {
-        return
-      }
-
-      lastReported = { ...reported }
-      notifyRangeChange?.({ ...reported })
+      notifyOnce(reported)
     }),
   }
   const chartApi = {
@@ -317,6 +330,20 @@ describe('KCandleChart', () => {
     const wrapper = await mountChart(chartDto([A_CANDLE, ANOTHER_CANDLE]))
 
     // 掛載時畫了一次、也擺了一次位置，替身照真的那樣回頭通知了
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
+  it('還沒有位置可擺就先畫出第一批時，那一次也不算使用者拖曳', async () => {
+    // 走得到：一根都沒有的那一檔，圖表先擺在「查無 K 線」，等市場自己動起來。
+    // 第一批資料進來時還沒有人算過要畫哪一段，而**光是 setData 函式庫就會回頭說一次**。
+    // 把它當成使用者拖曳的後果是：送回一段兩端相同的區間（只有一根時就是這樣回報的），
+    // 快捷區間失去反白，畫面還去取了一段寬度為零的行情——然後每一根新的都再來一次。
+    vi.useFakeTimers()
+    const wrapper = await mountChart(
+      chartDto([A_CANDLE]), 'candlestick', 'UTC', [], null)
+
     vi.advanceTimersByTime(300)
 
     expect(wrapper.emitted('rangeChange')).toBeUndefined()

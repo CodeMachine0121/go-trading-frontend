@@ -5,6 +5,11 @@ import { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 /**
  * 最新那一根右邊留多寬的空白，以**正在看的那幾根**的一成計。
  *
+ * 「那幾根」是**根數**，所以兩端相減之後要加一。差一根聽起來無關痛癢，
+ * 但它在只剩一根的時候就是全部：休市日按下「一小時」時，那一段裡一根都沒有、
+ * 兩端會一起退到最後一根，相減得零——於是留白歸零，那唯一的一根又貼回右緣，
+ * 正好是這一刀要修掉的那個樣子。
+ *
  * 一成而不是固定幾根：固定幾根在看一天時剛剛好，在看一年時會窄到看不出來——
  * 那時留白等於沒有，而它要解決的問題（最新那一根被邊框切掉半根）原封不動地回來。
  * 比例則讓留白在任何縮放倍率下都是同樣的視覺比重。
@@ -56,7 +61,7 @@ export class DrawnKCandleRangeDomain {
 
     const rightMarginPositions
       = this.chartVisibleRangeVo.showsTheLatestKCandle(kCandleChartDto.latestKCandleOpenTime)
-        ? (toPosition - fromPosition) * RIGHT_MARGIN_RATIO
+        ? (toPosition - fromPosition + 1) * RIGHT_MARGIN_RATIO
         : 0
 
     return new DrawnKCandleRangeVo(fromPosition, toPosition + rightMarginPositions)
