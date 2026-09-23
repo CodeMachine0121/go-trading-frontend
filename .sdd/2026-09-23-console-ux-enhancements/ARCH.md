@@ -33,7 +33,7 @@
 | `ConsoleLayout.vue` | **Modify** | 去處表拿掉 `/`；`connection` 圖示若無人使用一併移除 |
 | `BackendHealthCard.vue` + 其測試 | **Remove** | 只有連線狀態頁用它 |
 | `BackendApiProxy` | **Modify** | 每一發在 `requestBackend` 外層向「等待計數」報到與報退；`BackendRequestOptions` 多一個 `background` |
-| `BackendHealthProxy` | **Modify** | 整支標 `background: true`——連線燈自己有「檢查中」的樣子 |
+| `BackendHealthProxy` | **Not touched（行為）** | 連線燈**不定期檢查**（打開時一次、按下重新檢查時一次），所以它是使用者在等的，照預設計入 |
 | `IAssistantConversationProxy` / `AssistantConversationProxy` / `AssistantConversationService` / `AssistantConversationApplication` | **Modify** | 多一個 `refreshConversation(id)`：回頭詢問走它（背景），挑一段對話仍走 `getConversation`（使用者在等） |
 | `use-assistant-conversation.ts` | **Modify** | 回頭詢問那一條改呼叫 `refreshConversation` |
 | `IIndicatorCalculationProxy` / `IndicatorCalculationProxy` / `ChartIndicatorService` / `ChartIndicatorApplication` | **Modify** | 多一條「跟著最新那一根重算」的背景路徑 `recalculateIndicator` / `recalculateChartIndicator` |
@@ -90,7 +90,7 @@
 | `StrategyScriptBacktestPane` | 回測 | `strategyScriptId?: number`，執行時放進 `BacktestRequestDto` |
 | `BacktestRequestDto` → `BacktestRequestDomain` → `BacktestProxy` | 回測請求 | 尾端加 `strategyScriptId?: number`；proxy 有識別碼時送 `strategyScriptId`、不送 `script`／`parameters`（`parameterValues` 照送），與 `IndicatorCalculationProxy` 同一條規則 |
 | `signed-in.global.ts` | 把關 | 第一次導覽（`useState('door-opened')` 為假）時 `await Promise.all([ensureSessionRestored(), 門口最短停留])`，之後設為真 |
-| `app.vue` | 根 | `<AppProgressBar :active="visible" />`；`nuxtApp.hook('page:start')` 取一件、`page:finish`／`vue:error` 結束那一件 |
+| `app.vue` | 根 | `<AppProgressBar :active="visible" />`；叫一次 `useRequestActivity().followNavigation()`（換頁開始取一件、換完或出錯結束那一件） |
 
 ---
 
@@ -107,10 +107,9 @@ flowchart TD
 
     subgraph Waiting[等待]
       Root[plugins/dependencies] -->|beginWaiting| Base[BackendApiProxy.requestBackend]
-      Base -->|background 例外| Health[BackendHealthProxy]
       Base -->|background 例外| Refresh[refreshConversation / recalculateIndicator]
       Root --> Activity[useRequestActivity]
-      App[app.vue] -->|page:start/finish| Activity
+      App[app.vue] -->|followNavigation| Activity
       Activity --> Bar[AppProgressBar]
     end
 
@@ -156,7 +155,7 @@ flowchart TD
 | 按了之後要等一會兒／同時兩件／一眨眼／失敗照樣收 | `BackendApiProxy.requestBackend` + `useRequestActivity` |
 | 即時更新不算 | `LiveKCandleProxy` 不經過 `BackendApiProxy` + `recalculateIndicator` 背景 |
 | 助手作答中的回頭詢問不算 | `refreshConversation` 背景 |
-| 連線燈的定期檢查不算 | `BackendHealthProxy` 背景 |
+| 按下連線燈的重新檢查也算 | `BackendHealthProxy` 照預設計入 |
 | 換畫面時也走一次 | `app.vue` 的 `page:start/finish` |
 | 寬螢幕側欄／窄螢幕「更多」 | `ConsoleLayout` 的 `DESTINATIONS` |
 | 登入成功沒有原本想去的地方／打開根目錄 | `HOME_PATH` + `pages/index.vue` redirect |
@@ -172,5 +171,6 @@ flowchart TD
 - **Risks / trade-offs:**
   - `ssr: false` 讓第一次打開多等 JS 下載；那段時間由門口的載入承擔，正是需求要的樣子。
   - `nuxt generate` 在 SPA 模式只產出 `index.html` / `200.html`；nginx 已經 fallback 到 `/200.html`，不必改。
-  - 背景方法漏標會讓進度條在背景閃；已逐一盤點：連線燈、助手回頭詢問、圖上指標跟著最新那一根重算、即時 K 線（EventSource）。
+  - 背景方法漏標會讓進度條在背景閃；已逐一盤點：助手回頭詢問、圖上指標跟著最新那一根重算、即時 K 線（EventSource）。連線燈不定期檢查，不在此列。
+  - 換頁接的是 `page:loading:start` / `page:loading:end` / `vue:error`（Nuxt 3.21 實際的換頁載入 hook），由 `useRequestActivity.followNavigation()` 註冊，`app.vue` 只叫它一次。
 - **Open decisions (for implementation):** 無。
