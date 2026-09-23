@@ -9,7 +9,7 @@
 
 | # | 輸入 | 預期結果 |
 |---|---|---|
-| R1 | 市集上的「均線交叉」：種類 `numberSeries`、參數 `週期 = 20` | 內容的算式是 `''`、種類是 `numberSeries`、參數恰好一個 `週期 = 20` |
+| R1 | 市集上的「均線交叉」：種類「一串數字」（`floatList`）、參數 `週期 = 20` | 內容的算式是 `''`、種類是 `floatList`、參數恰好一個 `週期 = 20` |
 
 ### `useStrategyScriptLibrary`（mock `IStrategyScriptProxy` 與市集 proxy；真實 application / service）
 
@@ -18,6 +18,7 @@
 | # | 前提 | 動作 | 預期結果 |
 |---|---|---|---|
 | R2 | 編輯區沒有改過 | 挑 9 | `activeAdoptedStrategyScript` 是「均線交叉」；`applyContent` 收到 `('', 均線交叉的種類, 均線交叉的參數)`；`activeStrategyScript` 是 `null`；沒有開任何對話框 |
+| R2a | 已經載入自己的「RSI 背離」 | 挑 9 | `activeStrategyScript` 是 `null`（接著按儲存不會蓋回「RSI 背離」） |
 | R3 | 唯讀中（R2 之後，編輯區內容等於它載入的那一份） | 挑 1 | 不開確認框；`activeAdoptedStrategyScript` 是 `null`；`activeStrategyScript` 是「RSI 背離」 |
 | R4 | 唯讀中 | 開一份新的空白 | 不開確認框；`activeAdoptedStrategyScript` 是 `null` |
 | R5 | 自己的「RSI 背離」改了一半沒存 | 挑 9 | 開的是 `discard` 確認框；`activeAdoptedStrategyScript` 仍是 `null` |
@@ -42,7 +43,9 @@
 | # | 前提 | 觀察 | 預期結果 |
 |---|---|---|---|
 | R16 | `readonly`、一個參數「週期」 | 讀清單 | 參數名稱與預設值的輸入都 `disabled`；沒有新增、也沒有刪除的按鈕 |
+| R16b | `readonly`、一個參數都沒有 | 讀清單 | 寫著「這支策略腳本沒有可調的東西。」，不叫人去加一個 |
 | R17 | 不是 `readonly` | 讀清單 | 新增與刪除照舊都在 |
+| R17a | 策略腳本畫面上挑了我加入的「均線交叉」（一個參數） | 打開參數 | 沒有新增的按鈕；參數名稱的輸入 `disabled` |
 
 ### `IndicatorScriptEditor`
 

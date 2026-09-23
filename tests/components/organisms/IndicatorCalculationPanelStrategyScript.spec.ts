@@ -5,6 +5,7 @@ import { IndicatorCalculationApplication } from '~/application/indicator-calcula
 import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
+import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import type { IStrategyScriptMarketplaceProxy } from '~/domain/interface/i-strategy-script-marketplace-proxy'
 import { StrategyScriptNameConflictError } from '~/domain/errors/strategy-script-name-conflict-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
@@ -32,13 +33,14 @@ async function settle() {
 function mountPanel(
   strategyScriptProxy: Partial<IStrategyScriptProxy> = {},
   marketplaceProxy: Partial<IStrategyScriptMarketplaceProxy> = {},
+  calculateIndicator: IIndicatorCalculationProxy['calculateIndicator'] = vi.fn().mockResolvedValue(
+    new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
 ) {
   return mount(IndicatorCalculationPanel, {
     props: {
       indicatorCalculationApplication: new IndicatorCalculationApplication(
         new IndicatorCalculationService({
-          calculateIndicator: vi.fn().mockResolvedValue(
-            new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+          calculateIndicator,
           recalculateIndicator: vi.fn(),
         })),
       strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(marketplaceProxy),
@@ -1007,16 +1009,133 @@ describe('策略腳本畫面上的策略腳本：參數是策略腳本內容', (
 })
 
 describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
-  it('挑加入來的那一支不會載入編輯器，而是說明它能做什麼', async () => {
-    // 它沒有算式可以載。把編輯器變成空的會讓人以為那支策略腳本壞了，
-    // 所以挑它時就明說它是用來套用的。
+  it('挑加入來的那一支，工作區就是唯讀的，而且明說為什麼', async () => {
     const wrapper = await mountPanelWithAdopted()
-    const scriptBefore = scriptText(wrapper)
 
     await pickStrategyScript(wrapper, 9)
 
-    expect(scriptText(wrapper)).toBe(scriptBefore)
-    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('看不到它的算式')
+    expect(wrapper.get('[data-testid="adopted-read-only-notice"]').text())
+      .toBe('這支策略腳本是從市集加入的，不是你的——可以拿來試跑、回測，但不能修改。')
+  })
+
+  it('唯讀時儲存、另存、改名、分享、帶入範例都按不下去', async () => {
+    const wrapper = await mountPanelWithAdopted()
+
+    await pickStrategyScript(wrapper, 9)
+
+    for (const testId of [
+      'save-strategy-script-button',
+      'save-as-strategy-script-button',
+      'rename-strategy-script-button',
+      'share-strategy-script-button',
+      'example-button',
+    ]) {
+      expect(wrapper.get(`[data-testid="${testId}"]`).attributes('disabled'), testId).toBeDefined()
+    }
+  })
+
+  it('唯讀時看得到它的指標值種類，但挑不動', async () => {
+    const wrapper = await mountPanelWithAdopted({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(7, '我的')],
+        adopted: [buildAdoptedStrategyScript(9, '均線交叉', {
+          resultType: 'floatList',
+          parameters: [new StrategyScriptParameterDto('週期', 'lookbackCount', 20)],
+        })],
+      }),
+    })
+
+    await pickStrategyScript(wrapper, 9)
+
+    const resultType = wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]')
+    expect(resultType.element.value).toBe('floatList')
+    expect(resultType.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="parameters-button"]').text()).toContain('參數 1')
+  })
+
+  it('唯讀時打開參數，看得到但沒有新增、也改不動', async () => {
+    const wrapper = await mountPanelWithAdopted({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(7, '我的')],
+        adopted: [buildAdoptedStrategyScript(9, '均線交叉', {
+          parameters: [new StrategyScriptParameterDto('週期', 'lookbackCount', 20)],
+        })],
+      }),
+    })
+    await pickStrategyScript(wrapper, 9)
+
+    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.find('[data-testid="add-parameter-button"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="parameter-name-input"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('唯讀時算式那一欄只說算式不公開，沒有編輯器', async () => {
+    const wrapper = await mountPanelWithAdopted()
+
+    await pickStrategyScript(wrapper, 9)
+
+    expect(wrapper.get('[data-testid="script-concealed"]').text()).toBe('這支策略腳本的算式不公開')
+    expect(wrapper.find('[data-testid="script"]').exists()).toBe(false)
+  })
+
+  it('唯讀時照樣試跑得了——指名那一支本身來算', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []))
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(7, '我的')],
+        adopted: [buildAdoptedStrategyScript(9, '別人的')],
+      }),
+    }, {}, calculateIndicator)
+    await settle()
+    await pickStrategyScript(wrapper, 9)
+
+    await wrapper.get('form').trigger('submit')
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: 9 }))
+  })
+
+  it('挑自己的那一支一切照舊：沒有唯讀的說明、每一顆都按得下去、試跑帶的是算式', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []))
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(7, '我的')],
+        adopted: [buildAdoptedStrategyScript(9, '別人的')],
+      }),
+    }, {}, calculateIndicator)
+    await settle()
+    await pickStrategyScript(wrapper, 7)
+
+    expect(wrapper.find('[data-testid="adopted-read-only-notice"]').exists()).toBe(false)
+    for (const testId of [
+      'save-strategy-script-button',
+      'save-as-strategy-script-button',
+      'rename-strategy-script-button',
+      'share-strategy-script-button',
+      'example-button',
+    ]) {
+      expect(wrapper.get(`[data-testid="${testId}"]`).attributes('disabled'), testId).toBeUndefined()
+    }
+
+    await wrapper.get('form').trigger('submit')
+    await settle()
+
+    expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: undefined }))
+  })
+
+  it('從唯讀挑回自己的一支不必確認，編輯區恢復可編輯', async () => {
+    const wrapper = await mountPanelWithAdopted()
+    await pickStrategyScript(wrapper, 9)
+
+    await pickStrategyScript(wrapper, 7)
+
+    expect(wrapper.text()).not.toContain('放棄尚未儲存的變更？')
+    expect(wrapper.find('[data-testid="adopted-read-only-notice"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="script"]').exists()).toBe(true)
   })
 
   it('挑策略腳本那一排看得到兩段', async () => {

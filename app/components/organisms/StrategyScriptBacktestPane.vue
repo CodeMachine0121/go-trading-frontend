@@ -32,6 +32,7 @@ const {
   script,
   resultType,
   parameters,
+  strategyScriptId,
   workspaceGeneration,
   backendUnreachable = false,
 } = defineProps<{
@@ -43,6 +44,11 @@ const {
   /** 工作區宣告的指標值種類。回測只跑「一個數字」，不對就當場說清楚。 */
   resultType: string
   parameters: readonly StrategyScriptParameterDto[]
+  /**
+   * 工作區裡那一支我加入的策略腳本。有它時回測指名它本身，不帶任何算式——
+   * 從市集加入的那些沒有算式可以送。
+   */
+  strategyScriptId?: number
   /**
    * 工作區被換掉了幾次。
    *
@@ -118,6 +124,7 @@ async function runBacktest() {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
+    strategyScriptId,
   ))
 }
 </script>
