@@ -53,6 +53,13 @@ export function useStrategyScriptLibrary(
    * 只看這一個——畫面上每一個停用都從它衍生，不各自判斷。
    */
   const activeAdoptedStrategyScript = ref<PublishedStrategyScriptDto | null>(null)
+  /** 工作區是唯讀的：裡面是一支我加入的策略腳本——看得到、用得了、改不動。 */
+  const readOnly = computed(() => activeAdoptedStrategyScript.value !== null)
+  /**
+   * 執行時要指名的那一支。唯讀時工作區裡沒有算式可以送，所以試跑與回測都指名它本身；
+   * 自己的那一支則照舊帶著畫面上的算式送出去（它可能改了還沒存）。
+   */
+  const namedStrategyScriptId = computed(() => activeAdoptedStrategyScript.value?.id)
   /** 載入當下那一份。跟現在畫面上的比，就知道有沒有東西還沒存。 */
   const loadedContent = ref<StrategyScriptContentDto | null>(null)
 
@@ -435,6 +442,8 @@ export function useStrategyScriptLibrary(
     adoptedStrategyScripts,
     activeStrategyScript,
     activeAdoptedStrategyScript,
+    readOnly,
+    namedStrategyScriptId,
     openDialog,
     saving,
     listErrorMessage,

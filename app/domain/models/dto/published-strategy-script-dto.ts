@@ -33,10 +33,6 @@ export class PublishedStrategyScriptDto {
   ) {}
 
   /**
-   * 這一支要套到圖上時的樣子。它交得出圖表需要的全部——**因為圖表不需要算式**，
-   * 而這正是一支加入來的策略腳本用得動卻讀不到的地方。
-   */
-  /**
    * 它在工作區裡的樣子：分享者公開的指標值種類與旋鈕照實帶進來，**算式是空的**——
    * 不是留了一格空白，是市集上的策略腳本本來就沒有算式這一欄。
    */
@@ -44,6 +40,10 @@ export class PublishedStrategyScriptDto {
     return new StrategyScriptContentDto('', this.resultType, this.parameters)
   }
 
+  /**
+   * 這一支要套到圖上時的樣子。它交得出圖表需要的全部——**因為圖表不需要算式**，
+   * 而這正是一支加入來的策略腳本用得動卻讀不到的地方。
+   */
   toChartApplicable(): ChartApplicableStrategyScriptDto {
     return new ChartApplicableStrategyScriptDto(
       this.id,

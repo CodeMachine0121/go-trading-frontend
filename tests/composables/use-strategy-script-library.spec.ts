@@ -55,6 +55,8 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
     library.selectStrategyScript(9)
 
     expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
+    expect(library.readOnly.value).toBe(true)
+    expect(library.namedStrategyScriptId.value).toBe(9)
     expect(library.activeStrategyScript.value).toBeNull()
     expect(library.openDialog.value).toBe('none')
     const applied = applyContent.mock.calls.at(-1)![0]
@@ -80,6 +82,8 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
 
     expect(library.openDialog.value).toBe('none')
     expect(library.activeAdoptedStrategyScript.value).toBeNull()
+    expect(library.readOnly.value).toBe(false)
+    expect(library.namedStrategyScriptId.value).toBeUndefined()
     expect(library.activeStrategyScript.value?.name).toBe('RSI 背離')
   })
 

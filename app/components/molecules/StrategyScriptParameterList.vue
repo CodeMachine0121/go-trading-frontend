@@ -14,7 +14,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 //
 // 每一列該長什麼樣子由那一列自己帶著，這裡不判斷種類——
 // 「回看根數要整數鍵盤」是業務規則，不是版面問題。
-const { fields, kindOptions, readonly = false } = defineProps<{
+const { fields, kindOptions, readOnly = false } = defineProps<{
   /** 每一列：旋鈕本身，加上它該長什麼樣子。 */
   fields: readonly StrategyScriptParameterFieldDto[]
   kindOptions: readonly { value: StrategyScriptParameterKind, label: string }[]
@@ -22,7 +22,7 @@ const { fields, kindOptions, readonly = false } = defineProps<{
    * 只看、不改：一支從市集加入來的策略腳本，旋鈕是分享者宣告的。
    * 每一格照樣顯示（那是分享者公開的東西），但改不動，也沒有新增與移除。
    */
-  readonly?: boolean
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -49,7 +49,7 @@ function onValueInput(index: number, raw: string | number) {
       class="strategy-script-parameter-list__empty"
       data-testid="parameters-empty"
     >
-      <template v-if="readonly">
+      <template v-if="readOnly">
         這支策略腳本沒有可調的東西。
       </template>
       <template v-else>
@@ -80,14 +80,14 @@ function onValueInput(index: number, raw: string | number) {
             type="text"
             placeholder="名稱"
             :invalid="field.isInvalid"
-            :disabled="readonly"
+            :disabled="readOnly"
             data-testid="parameter-name-input"
             @update:model-value="emit('rename', index, $event)"
           />
 
           <AppSelect
             :model-value="field.parameter.kind"
-            :disabled="readonly"
+            :disabled="readOnly"
             data-testid="parameter-kind-select"
             @update:model-value="emit('changeKind', index, $event as StrategyScriptParameterKind)"
           >
@@ -104,7 +104,7 @@ function onValueInput(index: number, raw: string | number) {
           <AppSelect
             v-if="field.control === 'options'"
             :model-value="String(field.parameter.value)"
-            :disabled="readonly"
+            :disabled="readOnly"
             data-testid="parameter-value-input"
             @update:model-value="emit('changeValue', index, Number($event))"
           >
@@ -123,13 +123,13 @@ function onValueInput(index: number, raw: string | number) {
             :inputmode="field.inputMode"
             :step="field.step"
             :invalid="field.isInvalid"
-            :disabled="readonly"
+            :disabled="readOnly"
             data-testid="parameter-value-input"
             @update:model-value="onValueInput(index, $event)"
           />
 
           <AppButton
-            v-if="!readonly"
+            v-if="!readOnly"
             type="button"
             variant="ghost"
             size="small"
@@ -144,7 +144,7 @@ function onValueInput(index: number, raw: string | number) {
     </template>
 
     <AppButton
-      v-if="!readonly"
+      v-if="!readOnly"
       type="button"
       variant="secondary"
       size="small"

@@ -173,12 +173,9 @@ onMounted(() => {
   void strategyScriptLibrary.refreshStrategyScripts()
 })
 
-/**
- * 工作區裡是一支**我加入的**策略腳本：看得到、用得了、改不動。
- *
- * 畫面上每一個停用都讀這一個，不各自判斷——哪一顆忘了看它，就是一個改得動別人東西的洞。
- */
-const readOnly = computed(() => strategyScriptLibrary.activeAdoptedStrategyScript.value !== null)
+// 工作區是不是唯讀由策略腳本庫說，畫面上每一個停用都讀它，不各自判斷——
+// 哪一顆忘了看它，就是一個改得動別人東西的洞。
+const readOnly = strategyScriptLibrary.readOnly
 
 /** 同上：打到一半的東西不往下送。 */
 function changeSpanAmount(raw: string | number) {
@@ -242,7 +239,7 @@ async function calculateIndicator() {
     resultType.value,
     strategyScriptParameters.parameters.value,
     // 唯讀時沒有算式可以送——指名那一支本身來跑，那是它唯一跑得動的方式。
-    strategyScriptLibrary.activeAdoptedStrategyScript.value?.id))
+    strategyScriptLibrary.namedStrategyScriptId.value))
 }
 </script>
 
@@ -776,7 +773,7 @@ async function calculateIndicator() {
           :script="script"
           :result-type="resultType"
           :parameters="strategyScriptParameters.parameters.value"
-          :strategy-script-id="strategyScriptLibrary.activeAdoptedStrategyScript.value?.id"
+          :strategy-script-id="strategyScriptLibrary.namedStrategyScriptId.value"
           :workspace-generation="workspaceGeneration"
         />
       </div>
@@ -787,7 +784,7 @@ async function calculateIndicator() {
       :fields="strategyScriptParameters.fields.value"
       :kind-options="strategyScriptParameters.kindOptions"
       :error-message="calculationRun.messageFor('parameters')"
-      :readonly="readOnly"
+      :read-only="readOnly"
       @close="parametersOpen = false"
       @add="strategyScriptParameters.add"
       @remove="strategyScriptParameters.remove"

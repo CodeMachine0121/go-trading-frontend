@@ -6,13 +6,13 @@ import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-sc
 
 const KIND_OPTIONS = [{ value: 'lookbackCount' as const, label: '回看根數' }]
 
-function mountList(readonly: boolean) {
+function mountList(readOnly: boolean) {
   return mount(StrategyScriptParameterList, {
     props: {
       fields: [new StrategyScriptParameterFieldDto(
         new StrategyScriptParameterDto('週期', 'lookbackCount', 20), 'number', [], 'numeric', 1, false)],
       kindOptions: KIND_OPTIONS,
-      readonly,
+      readOnly,
     },
   })
 }
@@ -46,11 +46,11 @@ describe('StrategyScriptParameterList', () => {
   })
 
   it.each([
-    { readonly: true, says: '這支策略腳本沒有可調的東西。' },
-    { readonly: false, says: '這支算式沒有可調的東西。加一個之後，算式就能用它的名字取用它。' },
-  ])('一個都沒有、readonly = $readonly 時說「$says」', ({ readonly, says }) => {
+    { readOnly: true, says: '這支策略腳本沒有可調的東西。' },
+    { readOnly: false, says: '這支算式沒有可調的東西。加一個之後，算式就能用它的名字取用它。' },
+  ])('一個都沒有、readOnly = $readOnly 時說「$says」', ({ readOnly, says }) => {
     const wrapper = mount(StrategyScriptParameterList, {
-      props: { fields: [], kindOptions: KIND_OPTIONS, readonly },
+      props: { fields: [], kindOptions: KIND_OPTIONS, readOnly },
     })
 
     expect(wrapper.get('[data-testid="parameters-empty"]').text()).toBe(says)
