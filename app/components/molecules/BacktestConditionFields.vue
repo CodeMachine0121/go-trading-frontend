@@ -10,6 +10,7 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
+import type { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option-dto'
 
 // 分子：回測要問使用者的那幾件事。
 //
@@ -34,6 +35,9 @@ const {
   leverageError = null,
   tradingModeError = null,
   slippageError = null,
+  fillTimingOptions = [],
+  fillTimingError = null,
+  validationStartTimeError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
@@ -82,6 +86,10 @@ const {
   leverageError?: string | null
   tradingModeError?: string | null
   slippageError?: string | null
+  /** 成交時點的選項；四個回測去處都有這一格。 */
+  fillTimingOptions?: readonly FillTimingOptionDto[]
+  fillTimingError?: string | null
+  validationStartTimeError?: string | null
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -105,6 +113,13 @@ const exitCostPercentage = defineModel<string>('exitCostPercentage', { required:
 const leverage = defineModel<string>('leverage', { default: '' })
 const tradingMode = defineModel<string>('tradingMode', { default: '' })
 const slippagePercentage = defineModel<string>('slippagePercentage', { default: '' })
+// 短線回測多問的兩格。成交時點從收盤成交開始；驗證起點留白就是不切分。
+const fillTiming = defineModel<string>('fillTiming', { default: 'close' })
+const validationStartTime = defineModel<string>('validationStartTime', { default: '' })
+
+/** 現在選著的那一種成交時點，它的說明寫在選單下面。 */
+const selectedFillTiming = computed(
+  () => fillTimingOptions.find(option => option.value === fillTiming.value))
 
 /** 現在選著的那一種交易模式，它的說明寫在選單下面。 */
 const selectedContractTradingMode = computed(
@@ -184,6 +199,42 @@ const selectedPositionSizingMode = computed(
         :invalid="Boolean(timeRangeError)"
         data-testid="backtest-end-time-input"
       />
+    </FormField>
+
+    <!--
+      驗證起點緊跟在起訖之後：它切的正是那一段，而它的規則（落在期間之內）也是關於那兩格。
+    -->
+    <FormField
+      label="驗證起點"
+      :hint="`${timeZone.cityLabel}。選填，留白就不切分；給了它，期間會切成調參段與驗證段，兩段各自從初始資金、空手重演，只有驗證段的成績單回答得了這支策略有沒有效`"
+      :error-message="validationStartTimeError"
+    >
+      <AppInput
+        v-model="validationStartTime"
+        type="datetime-local"
+        :invalid="Boolean(validationStartTimeError)"
+        data-testid="backtest-validation-start-time-input"
+      />
+    </FormField>
+
+    <FormField
+      v-if="fillTimingOptions.length > 0"
+      label="成交時點"
+      :hint="selectedFillTiming?.description"
+      :error-message="fillTimingError"
+    >
+      <AppSelect
+        v-model="fillTiming"
+        data-testid="backtest-fill-timing-select"
+      >
+        <option
+          v-for="fillTimingOption in fillTimingOptions"
+          :key="fillTimingOption.value"
+          :value="fillTimingOption.value"
+        >
+          {{ fillTimingOption.label }}
+        </option>
+      </AppSelect>
     </FormField>
 
     <FormField

@@ -7,13 +7,12 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
 import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
-import BacktestEquityCurveChart from '~/components/molecules/BacktestEquityCurveChart.vue'
-import BacktestSummaryCard from '~/components/molecules/BacktestSummaryCard.vue'
-import BacktestTradeTable from '~/components/molecules/BacktestTradeTable.vue'
+import BacktestResultSections from '~/components/organisms/BacktestResultSections.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { FillTiming } from '~/domain/models/vo/fill-timing-vo'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
@@ -93,6 +92,11 @@ const exitCostPercentage = ref('')
 // 合約重演多問的那兩格；交易模式是那份交易策略自己的，這裡只寫出來。
 const leverage = ref('')
 const slippagePercentage = ref('')
+// 短線回測多問的兩格。成交時點從收盤成交開始（與這兩格出現以前一樣）；
+// 驗證起點留白就是不切分。
+const fillTimingOptions = backtestApplication.listFillTimingOptions()
+const fillTiming = ref<string>(fillTimingOptions[0]?.value ?? 'close')
+const validationStartTime = ref('')
 const contractTradingModeNote = computed(
   () => (tradingModeLabel === null ? null : `${tradingModeLabel}（由這份交易策略決定，要換請改交易策略）`))
 
@@ -131,6 +135,9 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
+    fillTiming.value as FillTiming,
+    // 留白就是不切分；填了就照使用者的時區讀成那一刻。
+    validationStartTime.value === '' ? null : timeZone.parseMinuteInput(validationStartTime.value),
   )
 }
 </script>
@@ -183,6 +190,11 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
         v-model:exit-cost-percentage="exitCostPercentage"
         v-model:leverage="leverage"
         v-model:slippage-percentage="slippagePercentage"
+        v-model:fill-timing="fillTiming"
+        v-model:validation-start-time="validationStartTime"
+        :fill-timing-options="fillTimingOptions"
+        :fill-timing-error="backtestRun.messageFor('fillTiming')"
+        :validation-start-time-error="backtestRun.messageFor('validationStartTime')"
         :replays-on-contract-account="replaysOnContractAccount"
         :contract-trading-mode-note="contractTradingModeNote"
         :leverage-error="backtestRun.messageFor('leverage')"
@@ -233,6 +245,18 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       請求的問題：{{ backtestRun.requestRejectedMessage.value }}
     </AppAlert>
 
+    <!--
+      沒在允許時間內跑完不是算式的錯，也不是後端壞了：是這一段太長或刻度太細。
+      說成前兩者，都會讓人去改一個沒有問題的東西。
+    -->
+    <AppAlert
+      v-else-if="backtestRun.timeAllowanceSpentMessage.value"
+      tone="warning"
+      data-testid="backtest-time-allowance-spent-alert"
+    >
+      這一次重演沒在允許時間內跑完，所以沒有成績單。請縮短期間，或改用粗一點的彙總刻度再試：{{ backtestRun.timeAllowanceSpentMessage.value }}
+    </AppAlert>
+
     <AppAlert
       v-else-if="backtestRun.serverErrorMessage.value"
       tone="danger"
@@ -264,47 +288,15 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="info"
       data-testid="backtest-running-alert"
     >
-      回測中…每一根 K 線上每個訊號來源都要各跑一次算式，一段長期間可能要等上數十秒。
+      回測中…每一根 K 線上每個訊號來源都要各跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。
     </AppAlert>
 
-    <!-- 三塊東西一起出現：成績單說結論，曲線說形狀，明細說每一筆。 -->
-    <template v-if="backtestRun.result.value">
-      <AppPanel title="成績單">
-        <template #meta>
-          <span data-testid="backtest-used-candle-count">
-            回測了 {{ backtestRun.result.value.usedCandleCount }} 根
-            <AppBadge variant="info">
-              每根涵蓋 {{ backtestRun.result.value.intervalLabel }}
-            </AppBadge>
-          </span>
-        </template>
-
-        <BacktestSummaryCard
-          :summary="backtestRun.result.value.summary"
-          :time-zone="timeZone"
-        />
-      </AppPanel>
-
-      <AppPanel
-        title="資金曲線"
-        flush
-      >
-        <BacktestEquityCurveChart
-          :equity-curve="backtestRun.result.value.equityCurve"
-          :time-zone="timeZone"
-        />
-      </AppPanel>
-
-      <AppPanel title="交易明細">
-        <BacktestTradeTable
-          :closed-trades="backtestRun.result.value.closedTrades"
-          :time-zone="timeZone"
-          :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
-          :has-open-position="backtestRun.result.value.summary.hasOpenPosition"
-          :show-contract-figures="backtestRun.result.value.summary.contract !== null"
-        />
-      </AppPanel>
-    </template>
+    <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->
+    <BacktestResultSections
+      v-if="backtestRun.result.value"
+      :result="backtestRun.result.value"
+      :time-zone="timeZone"
+    />
 
     <BacktestRuleGuideDialog
       :open="ruleGuideOpen"

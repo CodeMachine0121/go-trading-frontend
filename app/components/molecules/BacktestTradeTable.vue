@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppButton from '~/components/atoms/AppButton.vue'
 import type { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
@@ -30,6 +31,20 @@ const {
   /** 這一次是合約重演：每一筆多出槓桿、數量、保證金與資金費用。 */
   showContractFigures?: boolean
 }>()
+
+/**
+ * 一次顯示幾筆。一次重演可能有上千筆交易，一口氣畫出來會讓整頁卡住；
+ * 分批顯示，要看更多的人按一下就有。
+ */
+const TRADE_BATCH_SIZE = 200
+
+const shownTradeCount = ref(TRADE_BATCH_SIZE)
+const shownTrades = computed(() => closedTrades.slice(0, shownTradeCount.value))
+
+// 換了一次結果就從第一批重新開始：上一次按出來的筆數與這一份無關。
+watch(() => closedTrades, () => {
+  shownTradeCount.value = TRADE_BATCH_SIZE
+})
 </script>
 
 <template>
@@ -134,7 +149,7 @@ const {
       </thead>
       <tbody>
         <tr
-          v-for="(closedTrade, index) in closedTrades"
+          v-for="(closedTrade, index) in shownTrades"
           :key="index"
           data-testid="trade-row"
         >
@@ -199,6 +214,25 @@ const {
       </tbody>
     </table>
   </div>
+
+  <div
+    v-if="closedTrades.length > TRADE_BATCH_SIZE"
+    class="backtest-trade-table__more"
+  >
+    <span data-testid="shown-trade-count">
+      顯示 {{ shownTrades.length }} 筆，共 {{ closedTrades.length }} 筆
+    </span>
+    <AppButton
+      v-if="shownTrades.length < closedTrades.length"
+      type="button"
+      variant="secondary"
+      size="small"
+      data-testid="show-more-trades-button"
+      @click="shownTradeCount += TRADE_BATCH_SIZE"
+    >
+      再顯示更多
+    </AppButton>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -214,6 +248,16 @@ const {
   }
 
   // 明細可能有幾十列，橫向也可能塞不下：讓它自己捲，不要把整頁撐寬。
+  &__more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: spacing('sm');
+    margin-top: spacing('sm');
+    color: color('text-muted');
+    font-size: font-size('sm');
+  }
+
   &__scroller {
     overflow-x: auto;
   }
