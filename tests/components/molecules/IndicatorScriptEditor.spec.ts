@@ -108,4 +108,14 @@ describe('IndicatorScriptEditor 算式不公開的時候', () => {
       expect(wrapper.find('[data-testid="script"]').exists()).toBe(hasEditor)
       expect(wrapper.text().includes('這支策略腳本的算式不公開')).toBe(saysConcealed)
     })
+
+  it.each([
+    { concealed: true, says: '從市集加入的，只能用、不能改', doesNotSay: '整份都改得動' },
+    { concealed: false, says: '整份都改得動', doesNotSay: '從市集加入的，只能用、不能改' },
+  ])('concealed = $concealed 時標頭提示說「$says」', async ({ concealed, says, doesNotSay }) => {
+    const wrapper = await mountEditor({ concealed })
+
+    expect(wrapper.text()).toContain(says)
+    expect(wrapper.text()).not.toContain(doesNotSay)
+  })
 })
