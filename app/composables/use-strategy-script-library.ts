@@ -371,6 +371,16 @@ export function useStrategyScriptLibrary(
 
     try {
       await strategyScriptMarketplaceApplication.abandonStrategyScript(id)
+
+      // 拿掉的正是工作區裡那一支：它已經不在我的清單上，工作區不能還裝著它——
+      // 留著的話，畫面仍是它的唯讀樣子，而下一次試跑會指名一支已經不屬於我的策略腳本。
+      // 換成一份空白，與「開一份新的空白」同一個樣子；唯讀裡沒有任何還沒存的東西會因此弄丟。
+      if (activeAdoptedStrategyScript.value?.id === id) {
+        applyContent(blankContent)
+        activeAdoptedStrategyScript.value = null
+        loadedContent.value = null
+      }
+
       openDialog.value = 'library'
       noticeMessage.value = '已經從你的清單移除。它還在市集上，隨時可以再加回來。'
       await refreshStrategyScripts()

@@ -26,6 +26,9 @@
 | R7 | 載入自己的「RSI 背離」 | — | `activeAdoptedStrategyScript` 是 `null` |
 | R8 | 唯讀中 | 重新讀清單，而「均線交叉」已不在清單上 | `activeAdoptedStrategyScript` 仍是「均線交叉」（重讀不順手改使用中的那一支） |
 
+| R8a | 唯讀中（「均線交叉」） | 從清單移除「均線交叉」 | 工作區換成一份空白；不再唯讀；不再指名任何一支（由 code review 補上） |
+| R8b | 唯讀中（「均線交叉」） | 從清單移除另一支 | 工作區仍是「均線交叉」 |
+
 ### `IndicatorCalculationPanel`（掛載；mock application 的 proxy）
 
 | # | 前提 | 動作 / 觀察 | 預期結果 |

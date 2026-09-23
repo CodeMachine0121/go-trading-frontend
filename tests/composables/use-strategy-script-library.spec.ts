@@ -127,4 +127,24 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
 
     expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
   })
+
+  it('把工作區裡那一支從清單移除時，工作區換成一份空白、不再唯讀', async () => {
+    const { library, applyContent } = await libraryUnderTest()
+    library.selectStrategyScript(9)
+
+    await library.abandonStrategyScript(9)
+
+    expect(library.readOnly.value).toBe(false)
+    expect(library.namedStrategyScriptId.value).toBeUndefined()
+    expect(applyContent).toHaveBeenLastCalledWith(BLANK)
+  })
+
+  it('移除的是另一支時，工作區裡那一支照舊', async () => {
+    const { library } = await libraryUnderTest()
+    library.selectStrategyScript(9)
+
+    await library.abandonStrategyScript(10)
+
+    expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
+  })
 })
