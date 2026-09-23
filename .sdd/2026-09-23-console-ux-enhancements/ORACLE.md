@@ -72,6 +72,7 @@
 | W5 | W4 之後結束第二件 | `visible` 為 false |
 | W6 | 同一件的結束函式叫兩次，另一件還在 | `visible` 仍為 true（叫兩次只算一次） |
 | W7 | 全部結束後再開始一件 | 又要等 200 毫秒才 `visible` |
+| W7a | 開始一件，150 毫秒時再開始一件，兩件都在 180 毫秒結束，再過 1000 毫秒 | `visible` 從頭到尾為 false（兩件都是一眨眼就回來的） |
 
 ### `BackendApiProxy`（經由 `BackendHealthProxy`、`AssistantConversationProxy`、`IndicatorCalculationProxy` 觀察；mock `$fetch`）
 
