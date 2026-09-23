@@ -30,6 +30,8 @@ type IconName
     | 'example'
     | 'table'
     | 'candles'
+    | 'document'
+    | 'infinity'
     | 'formula'
     | 'refresh'
     | 'info'
@@ -132,6 +134,15 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M5 6h4v9H5z',
     'M17 5v3M17 18v2',
     'M15 8h4v10h-4z',
+  ],
+  // 一張直式的紙，上面兩行字——一份合約
+  'document': [
+    'M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z',
+    'M9 13h6M9 17h6',
+  ],
+  // 一個橫躺的八——永續，不會到期
+  'infinity': [
+    'M12 12c-2-2.7-3.6-4-5.5-4a4 4 0 0 0 0 8c1.9 0 3.5-1.3 5.5-4Zm0 0c2 2.7 3.6 4 5.5 4a4 4 0 0 0 0-8c-1.9 0-3.5 1.3-5.5 4Z',
   ],
   // 一對大括號夾著一個算式
   'formula': [

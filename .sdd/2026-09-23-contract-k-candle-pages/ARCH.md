@@ -54,6 +54,7 @@
 | `pages/contract-k-candles/index.vue` · `chart.vue` | **Add** | 接線：合約 K 線瀏覽、合約 K 線圖表 |
 | `pages/k-candles/index.vue` · `chart.vue` | **Modify** | 標題改「現貨 K 線瀏覽」「現貨 K 線圖表」 |
 | `components/templates/ConsoleLayout.vue` | **Modify** | 導覽四個看行情的去處；合約兩個 `primary: false`（底部仍四格） |
+| `components/atoms/AppIcon.vue` | **Modify** | 多 `document`、`infinity` 兩個圖示——側欄每一格圖示不同是既有規則 |
 | `plugins/dependencies.ts` | **Modify** | 把兩個合約 proxy 注入三個 service |
 | `tests/**` | **Add / Modify** | 見 Traceability |
 
@@ -135,4 +136,4 @@ TradingSymbolApplication.listContractTradingSymbols / contractOptionsFor ─▶ 
 ## 8. Risks & Open Decisions
 
 - 後端合約序列未部署時合約圖表會被拒絕；照既有被拒絕的方式呈現。
-- 側欄收起時合約與現貨的圖示相同，靠標題提示區分；若要不同圖示是另一刀。
+- 側欄上每一格的圖示必須不同（既有規則）：合約 K 線瀏覽用一張紙（`document`，一份合約）、合約 K 線圖表用橫躺的八（`infinity`，永續），兩個新圖示加進 `AppIcon`。

@@ -89,7 +89,8 @@ describe('ConsoleLayout', () => {
     // 「策略腳本」是好幾個名字的前綴（它一度也是「策略腳本市集」的），
     // 所以那種問法分不開相鄰的兩格。
     //
-    // 順序本身是規則的一部分：中間那幾個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」排。
+    // 順序本身是規則的一部分：看行情的四個在前，現貨一對、合約一對，每一個都說出
+    // 它看的是哪一條線；中間那幾個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」排。
     const wrapper = mount(ConsoleLayout, {
       props: { title: 'K 線瀏覽' },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
@@ -97,8 +98,10 @@ describe('ConsoleLayout', () => {
 
     expect(wrapper.findAll('.console-layout__link-label').map(label => label.text()))
       .toEqual([
-        'K 線瀏覽',
-        'K 線圖表',
+        '現貨 K 線瀏覽',
+        '現貨 K 線圖表',
+        '合約 K 線瀏覽',
+        '合約 K 線圖表',
         '策略腳本',
         'Marketplace',
         '交易策略',
@@ -116,8 +119,8 @@ describe('ConsoleLayout', () => {
     const icons = wrapper.findAll('.console-layout__link svg')
       .map(icon => icon.attributes('data-icon'))
 
-    expect(icons).toHaveLength(8)
-    expect(new Set(icons).size).toBe(8)
+    expect(icons).toHaveLength(10)
+    expect(new Set(icons).size).toBe(10)
   })
 
   it('連線狀態已經不是一個去處了——側欄上沒有它', () => {
@@ -153,7 +156,7 @@ describe('ConsoleLayout', () => {
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(8)
+    expect(wrapper.findAll('a')).toHaveLength(10)
     expect(wrapper.text()).toContain('策略腳本')
     expect(wrapper.text()).toContain('交易策略')
     expect(wrapper.text()).toContain('設定')
@@ -200,7 +203,7 @@ describe('ConsoleLayout', () => {
       // 一排超過五格，每一格就窄到放不下一個讀得出來的名字。
       const wrapper = await mountLayoutAt(PHONE)
 
-      expect(wrapper.get('[data-testid="tab-/k-candles/chart"]').text()).toContain('K 線圖表')
+      expect(wrapper.get('[data-testid="tab-/k-candles/chart"]').text()).toContain('現貨 K 線圖表')
       expect(wrapper.get('[data-testid="tab-/strategy-scripts"]').text()).toContain('策略腳本')
       expect(wrapper.get('[data-testid="tab-/strategy-bots"]').text()).toContain('策略機器人')
       expect(wrapper.get('[data-testid="tab-/chat"]').text()).toContain('AI-Assistant')
@@ -213,7 +216,7 @@ describe('ConsoleLayout', () => {
       expect(wrapper.findAll('[data-testid^="tab-"]')).toHaveLength(5)
     })
 
-    it('其餘四個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
+    it('其餘六個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
       // 側欄底部那兩樣在窄螢幕上沒有側欄可待，而它們與「我還能去哪裡」
       // 回答的是同一個問題：這條線路現在怎麼了。
       const wrapper = mount(ConsoleLayout, {
@@ -230,7 +233,12 @@ describe('ConsoleLayout', () => {
 
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
-      expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('K 線瀏覽')
+      expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('現貨 K 線瀏覽')
+      // 合約的兩個不是日常第一動線，收在這裡——底部那一排因此仍是四格。
+      expect(wrapper.get('[data-testid="more-/contract-k-candles"]').text())
+        .toContain('合約 K 線瀏覽')
+      expect(wrapper.get('[data-testid="more-/contract-k-candles/chart"]').text())
+        .toContain('合約 K 線圖表')
       expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('Marketplace')
       expect(wrapper.get('[data-testid="more-/trading-strategies"]').text())
         .toContain('交易策略')
@@ -246,13 +254,13 @@ describe('ConsoleLayout', () => {
       expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
     })
 
-    it('八個去處加起來出現一次，不多不少', async () => {
-      // 四格加四條，剛好是側欄上的那八個——兩份導覽會讓讀螢幕的人聽到兩遍。
+    it('十個去處加起來出現一次，不多不少', async () => {
+      // 四格加六條，剛好是側欄上的那十個——兩份導覽會讓讀螢幕的人聽到兩遍。
       const wrapper = await mountLayoutAt(PHONE)
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
       expect(wrapper.findAll('nav')).toHaveLength(1)
-      expect(wrapper.findAll('a')).toHaveLength(8)
+      expect(wrapper.findAll('a')).toHaveLength(10)
     })
 
     it('待在「更多」裡面的那一頁時，那一格自己會亮', async () => {
@@ -327,7 +335,7 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
-      expect(wrapper.findAll('a')).toHaveLength(8)
+      expect(wrapper.findAll('a')).toHaveLength(10)
     })
   })
 })
