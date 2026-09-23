@@ -102,4 +102,69 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
-console.log('design token 全部都有宣告過。')
+// ─── 門口的載入：唯一一份不得不寫字面值的地方 ────────────────────────────────
+//
+// 它在任何樣式表載入之前就要畫出來，所以 token 函式在那裡用不了，只能抄值。
+// 抄的值旁邊標著抄的是哪一個（`token: $表.名字`，或單一變數 `token: $名字`），
+// 這裡逐一比對：token 改了而那裡沒跟著改，門口與登入卡片就會差一點點，而沒有人會注意到。
+// 顏色、間距、字級、圓角、陰影這幾類屬性**一定要**標——沒標的字面值就是沒人在比對的值。
+
+const DOOR_FILE = 'app/spa-loading-template.html'
+const BREAKPOINTS_FILE = 'app/assets/styles/abstracts/_breakpoints.scss'
+const TOKENIZED_PROPERTIES = /^\s*(color|background(-color)?|border(-top-color)?|border-radius|box-shadow|padding|gap|font-size|font-weight|font-family)\s*:/
+const abstractsSource = `${tokensSource}\n${readFileSync(BREAKPOINTS_FILE, 'utf8')}`
+
+/** 一個 token 的值，照它在 SCSS 裡寫的樣子（清單外面那一對括號拿掉）。找不到回 null。 */
+function tokenValue(reference) {
+  const [variable, name] = reference.split('.')
+  if (name === undefined) {
+    const single = abstractsSource.match(new RegExp(`^\\${variable}:\\s*([^;]+);`, 'm'))
+    return single?.[1].trim() ?? null
+  }
+
+  const start = abstractsSource.indexOf(`${variable}: (`)
+  if (start === -1) {
+    return null
+  }
+  const entry = abstractsSource.slice(start).match(new RegExp(`^\\s*'${name}':\\s*(.+?),?\\s*(//.*)?$`, 'm'))
+  if (entry === null) {
+    return null
+  }
+  const value = entry[1].trim()
+
+  return value.startsWith('(') && value.endsWith(')') ? value.slice(1, -1) : value
+}
+
+const doorProblems = []
+readFileSync(DOOR_FILE, 'utf8').split('\n').forEach((line, index) => {
+  const annotation = line.match(/\/\*\s*token:\s*([^*]+)\*\//)
+  const declaration = line.replace(/\/\*.*\*\//, '')
+
+  if (annotation === null) {
+    if (TOKENIZED_PROPERTIES.test(line) && /[#\d]/.test(declaration)) {
+      doorProblems.push(`  ${DOOR_FILE}:${index + 1}  這個值抄自 token 卻沒有標是哪一個`)
+    }
+    return
+  }
+
+  for (const reference of annotation[1].trim().split(/\s+/)) {
+    const value = tokenValue(reference)
+    if (value === null) {
+      doorProblems.push(`  ${DOOR_FILE}:${index + 1}  沒有這個 token：${reference}`)
+    }
+    else if (!declaration.includes(value)) {
+      doorProblems.push(`  ${DOOR_FILE}:${index + 1}  ${reference} 現在是 ${value}，這裡寫的不是它`)
+    }
+  }
+})
+
+if (doorProblems.length > 0) {
+  console.error('門口的載入與 design token 對不上：\n')
+  for (const problem of doorProblems) {
+    console.error(problem)
+  }
+  console.error(`\n照 ${TOKENS_FILE} 現在的值改 ${DOOR_FILE}。`)
+  process.exit(1)
+}
+
+console.log('design token 全部都有宣告過，門口的載入也與它們一致。')

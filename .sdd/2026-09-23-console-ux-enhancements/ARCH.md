@@ -135,7 +135,7 @@ flowchart TD
 - **Do not hardcode:** 0.2 秒與 0.6 秒各只寫在一個具名常數裡（`WAITING_VISIBLE_AFTER_MILLISECONDS`、`DOOR_MINIMUM_DWELL_MILLISECONDS`）。
 - **Known debt / deferred:**
   - 「挑一段舊的助手對話」會亮進度條，而「回頭詢問」不會——它們是同一個端點，差別靠兩個方法名分開。若未來出現第三種用法，考慮把 `background` 做成那一層的參數而不是方法。
-  - `spa-loading-template.html` 在任何樣式表載入之前就要畫出來，所以它的顏色與尺寸是**字面值**——它們抄自 token，改 token 時要一起改（檔內註明）。
+  - `spa-loading-template.html` 在任何樣式表載入之前就要畫出來，所以它的值是**字面值**；每一個都標著抄自哪一個 token（`token: $表.名字`），`bun run lint:tokens`（在 `verify` 裡）逐一比對 `abstracts/`，顏色、間距、字級、圓角、陰影沒標就擋。它也宣告了根字級與寬螢幕的收緊間距，與登入卡片同尺寸。
 
 ---
 

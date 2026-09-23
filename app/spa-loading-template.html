@@ -5,21 +5,26 @@
   也還沒問過後端你是誰。Nuxt 把它放進 #__nuxt，等身分確認完、第一個畫面真的畫好了
   才換掉它；於是沒登入的人從頭到尾只看得到登入卡片的位置，不會先看到一片空白的操作台。
 
-  **這裡的顏色與尺寸是字面值，抄自 app/assets/styles/abstracts/_tokens.scss**
-  （background、surface、border、text-faint、text-strong、primary、primary-soft、
-  spacing xl / lg / md、radius md、shadow md）。這是全站唯一的例外：它畫出來的那一刻，
-  那些 token 還不存在。改 token 時要一起改這裡，否則門口與登入卡片會差一點點。
+  **這裡的值是字面值**：它畫出來的那一刻，design token 還不存在。每一個抄自 token 的值
+  旁邊都標著它抄的是哪一個（`token: $表.名字`），`bun run lint:tokens` 逐一比對
+  app/assets/styles/abstracts/ 裡的那一份——改了 token 沒改這裡，檢查就不會過。
+  沒有標註的那幾個（轉圈的大小與速度、邊線粗細）是這一張卡片自己的，不是 token。
 -->
 <style>
+  /* 全站的 rem 都以放大過的根字級為準；少了這一行，門口這張卡片會比登入卡片小一號。 */
+  html {
+    font-size: 112.5%; /* token: $root-font-scale */
+  }
+
   .door {
     display: flex;
     position: fixed;
     align-items: center;
     justify-content: center;
     inset: 0;
-    background-color: #0b0d10;
-    padding: 1.25rem;
-    font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif;
+    background-color: #0b0d10; /* token: $colors.background */
+    padding: 1.25rem; /* token: $spacings.lg */
+    font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif; /* token: $font-families.base */
     isolation: isolate;
   }
 
@@ -28,14 +33,25 @@
     position: relative;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
-    border: 1px solid #23282f;
-    border-radius: 0.625rem;
-    background-color: #12151a;
-    padding: 1.5rem 1.25rem;
+    gap: 1rem; /* token: $spacings.md */
+    box-shadow: 0 8px 24px rgb(0 0 0 / 45%); /* token: $shadows.md */
+    border: 1px solid #23282f; /* token: $colors.border */
+    border-radius: 0.625rem; /* token: $radii.md */
+    background-color: #12151a; /* token: $colors.surface */
+    padding: 1.5rem 1.25rem; /* token: $spacings.xl $spacings.lg */
     width: 100%;
     max-width: 22rem;
+  }
+
+  /* 寬螢幕上間距換成收緊的那一套，與登入卡片同一個時刻換。 */
+  @media (width >= 768px) { /* token: $breakpoints.md */
+    .door {
+      padding: 1.5rem; /* token: $spacings-compact.lg */
+    }
+
+    .door__card {
+      padding: 2rem 1.5rem; /* token: $spacings-compact.xl $spacings-compact.lg */
+    }
   }
 
   .door__card::before {
@@ -43,7 +59,7 @@
     z-index: -1;
     /* 這張卡片比登入卡片矮，同一個 circle 漸層在它的四個角還沒淡完就被切掉，
        會看得到一圈方方的邊。收到最近的邊為止，光暈就一路淡到透明。 */
-    background: radial-gradient(closest-side, #14202e, transparent);
+    background: radial-gradient(closest-side, #14202e, transparent); /* token: $colors.primary-soft */
     content: '';
     inset: -40%;
     pointer-events: none;
@@ -51,34 +67,34 @@
 
   .door__brand {
     display: flex;
-    gap: 0.625rem;
+    gap: 0.625rem; /* token: $spacings.xs */
     align-items: center;
-    color: #f2f5f9;
-    font-weight: 600;
-    font-size: 0.875rem;
-    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+    color: #f2f5f9; /* token: $colors.text-strong */
+    font-weight: 600; /* token: $font-weights.semibold */
+    font-size: 0.8125rem; /* token: $font-sizes.sm */
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace; /* token: $font-families.mono */
   }
 
   .door__brand-mark {
-    border-radius: 999px;
-    background-color: #6cb6ff;
+    border-radius: 9999px; /* token: $radii.pill */
+    background-color: #6cb6ff; /* token: $colors.primary */
     width: 0.5rem;
     height: 0.5rem;
   }
 
   .door__spinner {
     animation: door-spin 0.9s linear infinite;
-    border: 2px solid #23282f;
-    border-top-color: #6cb6ff;
-    border-radius: 999px;
+    border: 2px solid #23282f; /* token: $colors.border */
+    border-top-color: #6cb6ff; /* token: $colors.primary */
+    border-radius: 9999px; /* token: $radii.pill */
     width: 1.75rem;
     height: 1.75rem;
   }
 
   .door__caption {
     margin: 0;
-    color: #7c8492;
-    font-size: 0.875rem;
+    color: #7c8492; /* token: $colors.text-faint */
+    font-size: 0.8125rem; /* token: $font-sizes.sm */
   }
 
   @keyframes door-spin {
