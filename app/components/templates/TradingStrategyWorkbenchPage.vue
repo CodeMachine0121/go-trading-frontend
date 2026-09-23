@@ -43,6 +43,10 @@ const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
 const workbench = useTradingStrategyWorkbench(
   $tradingStrategyApplication, $strategyScriptApplication, tradingStrategyId)
 
+// 兩份選單描述的是系統的規則，不是這一份的資料，取一次就好。
+const marketDataKindOptions = $tradingStrategyApplication.listMarketDataKindOptions()
+const contractTradingModeOptions = $tradingStrategyApplication.listContractTradingModeOptions()
+
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 const { currentUser, signOut } = useUserSession()
 
@@ -169,10 +173,12 @@ onBeforeRouteLeave(() => workbench.dirty.value
         v-show="destination === 'workbench'"
         :layout-density="layoutDensity"
         :editing="workbench.editing.value"
-        :strategy-script-options="workbench.strategyScriptOptions.value"
+        :strategy-script-options-by-kind="workbench.strategyScriptOptionsByKind.value"
         :parameter-names-by-strategy-script-id="workbench.parameterNamesByStrategyScriptId.value"
-        :unusable-strategy-scripts="workbench.unusableStrategyScripts.value"
-        :shortage="workbench.shortage.value"
+        :unusable-strategy-scripts-by-kind="workbench.unusableStrategyScriptsByKind.value"
+        :shortage-by-kind="workbench.shortageByKind.value"
+        :market-data-kind-options="marketDataKindOptions"
+        :contract-trading-mode-options="contractTradingModeOptions"
         :saving="workbench.saving.value"
         :failure-message="workbench.failureMessage.value"
         :saved-generation="workbench.savedGeneration.value"
@@ -187,6 +193,8 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :time-zone="selectedTimeZone"
         :trading-strategy-id="tradingStrategyId"
         :saved-generation="workbench.savedGeneration.value"
+        :replays-on-contract-account="workbench.editing.value?.replaysOnContractAccount ?? false"
+        :trading-mode-label="workbench.editing.value?.tradingModeLabel ?? null"
       />
     </template>
   </ConsoleLayout>

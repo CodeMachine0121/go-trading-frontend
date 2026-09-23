@@ -2,10 +2,16 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppSelect from '~/components/atoms/AppSelect.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
+import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
+import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 
 // 有機體：拼一份交易策略的整個工作台。
@@ -30,7 +36,11 @@ import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 // 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
 const {
   editing,
-  strategyScriptOptions,
+  strategyScriptOptionsByKind,
+  unusableStrategyScriptsByKind,
+  shortageByKind,
+  marketDataKindOptions,
+  contractTradingModeOptions,
   saving,
   failureMessage,
   savedGeneration,
@@ -39,13 +49,18 @@ const {
   = defineProps<{
   /** 有值就是改那一份，沒有就是新的一份。 */
     editing: TradingStrategyDto | null
-    strategyScriptOptions: readonly { value: number, label: string }[]
+    /** 每一種行情各自挑得到哪幾支策略腳本；零件架只列這一份吃的那一種。 */
+    strategyScriptOptionsByKind: Readonly<Record<MarketDataKind, readonly { value: number, label: string }[]>>
     /** 每一支策略腳本開得出來的那幾個參數名。 */
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
     /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
-    unusableStrategyScripts: Readonly<Record<number, string>>
+    unusableStrategyScriptsByKind: Readonly<Record<MarketDataKind, Readonly<Record<number, string>>>>
     /** 一支都挑不到時，是哪一種挑不到。挑得到就是 `null`。 */
-    shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
+    shortageByKind: Readonly<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>
+    /** 行情種類選單的選項。 */
+    marketDataKindOptions: readonly MarketDataKindOptionDto[]
+    /** 合約交易策略的交易模式選單。 */
+    contractTradingModeOptions: readonly ContractTradingModeOptionDto[]
     saving: boolean
     /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
     failureMessage: string
@@ -68,8 +83,19 @@ const emit = defineEmits<{
 
 const form = useTradingStrategyForm(
   () => editing,
-  () => strategyScriptOptions,
+  () => strategyScriptOptionsByKind[form.marketDataKind.value],
 )
+
+// 零件架、它挑不得的那幾支與「一支都挑不到」那一句，都跟著這一份吃的行情走。
+const strategyScriptOptions = computed(() => strategyScriptOptionsByKind[form.marketDataKind.value])
+const unusableStrategyScripts = computed(() => unusableStrategyScriptsByKind[form.marketDataKind.value])
+const shortage = computed(() => shortageByKind[form.marketDataKind.value])
+
+/** 已存的那一份寫出它是哪一種行情；它換不了，所以是一句話，不是選單。 */
+const lockedMarketDataKindLabel = computed(
+  () => marketDataKindOptions.find(option => option.value === form.marketDataKind.value)?.label ?? '')
+const selectedContractTradingMode = computed(
+  () => contractTradingModeOptions.find(option => option.value === form.tradingMode.value))
 
 form.reset()
 
@@ -120,7 +146,68 @@ function onSave() {
         placeholder="交易策略名稱"
         data-testid="trading-strategy-name-input"
       />
+
+      <!--
+        行情種類與名稱同一塊：它說的是「這份規則寫給哪一種行情」，決定零件架上挑得到哪幾支。
+        存過之後它換不了（每一個來源都是照它挑的），所以改成一句話。
+      -->
+      <div class="workbench__market">
+        <AppSelect
+          v-if="!form.marketDataKindLocked.value"
+          :model-value="form.marketDataKind.value"
+          aria-label="行情種類"
+          data-testid="trading-strategy-market-data-kind-select"
+          @update:model-value="kind => form.changeMarketDataKind(kind as MarketDataKind)"
+        >
+          <option
+            v-for="kindOption in marketDataKindOptions"
+            :key="kindOption.value"
+            :value="kindOption.value"
+          >
+            {{ kindOption.label }}
+          </option>
+        </AppSelect>
+        <AppBadge
+          v-else
+          variant="info"
+          data-testid="trading-strategy-market-data-kind-locked"
+        >
+          {{ lockedMarketDataKindLabel }}（存過之後不能換）
+        </AppBadge>
+
+        <AppSelect
+          v-if="form.replaysOnContractAccount.value"
+          :model-value="form.tradingMode.value"
+          aria-label="交易模式"
+          data-testid="trading-strategy-trading-mode-select"
+          @update:model-value="mode => form.changeTradingMode(mode as ContractTradingMode)"
+        >
+          <option
+            v-for="modeOption in contractTradingModeOptions"
+            :key="modeOption.value"
+            :value="modeOption.value"
+          >
+            {{ modeOption.label }}
+          </option>
+        </AppSelect>
+      </div>
+
+      <p
+        v-if="form.replaysOnContractAccount.value && selectedContractTradingMode"
+        class="workbench__hint"
+        data-testid="trading-strategy-trading-mode-description"
+      >
+        {{ selectedContractTradingMode.description }}
+      </p>
     </div>
+
+    <AppAlert
+      v-if="form.marketDataKindNotice.value !== ''"
+      tone="info"
+      data-testid="trading-strategy-market-data-kind-notice"
+    >
+      {{ form.marketDataKindNotice.value }}
+    </AppAlert>
 
     <TradingStrategyCanvas
       :editable="layoutDensity.allowsBlockEditing"
@@ -204,6 +291,19 @@ function onSave() {
     border-radius: radius('md');
     background-color: color('surface');
     padding: spacing('sm');
+  }
+
+  &__market {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: spacing('2xs');
+  }
+
+  &__hint {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   &__actions {

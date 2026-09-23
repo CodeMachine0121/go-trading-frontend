@@ -52,8 +52,8 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.shortage.value).toBeNull()
-    expect(workbench.unusableStrategyScripts.value).toEqual({})
+    expect(workbench.shortageByKind.value.kCandle).toBeNull()
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle).toEqual({})
   })
 
   it('一支策略腳本都沒建過——下一步是去建一支', async () => {
@@ -64,7 +64,7 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.shortage.value).toBe('noStrategyScripts')
+    expect(workbench.shortageByKind.value.kCandle).toBe('noStrategyScripts')
   })
 
   it('建了幾支、但沒有一支吐訊號——下一步是去改它們，不是再建一支', async () => {
@@ -77,7 +77,7 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.shortage.value).toBe('noSignalStrategyScripts')
+    expect(workbench.shortageByKind.value.kCandle).toBe('noSignalStrategyScripts')
   })
 
   it('挑不得的那幾支連同原因一起記著——一塊指著它們的零件要說得出自己指著誰', async () => {
@@ -92,9 +92,9 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.unusableStrategyScripts.value[11]).toContain('吐一個數字的')
-    expect(workbench.unusableStrategyScripts.value[13]).toContain('採用來、吐是非的')
-    expect(workbench.unusableStrategyScripts.value[9]).toBeUndefined()
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[11]).toContain('吐一個數字的')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[13]).toContain('採用來、吐是非的')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[9]).toBeUndefined()
   })
 })
 
@@ -105,7 +105,7 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
 
     expect(tradingStrategyApplication.getTradingStrategy).not.toHaveBeenCalled()
     expect(workbench.editing.value).toBeNull()
-    expect(workbench.strategyScriptOptions.value).toHaveLength(2)
+    expect(workbench.strategyScriptOptionsByKind.value.kCandle).toHaveLength(2)
   })
 
   it('改一份時去問它現在長什麼樣', async () => {
@@ -139,7 +139,7 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.strategyScriptOptions.value).toEqual([{ value: 9, label: '會吐訊號的' }])
+    expect(workbench.strategyScriptOptionsByKind.value.kCandle).toEqual([{ value: 9, label: '會吐訊號的' }])
   })
 
   it('那一份已經被刪掉時說找不到——它的下一步是回清單，不是重試', async () => {
@@ -237,11 +237,29 @@ describe('useTradingStrategyWorkbench 存起來', () => {
   })
 })
 
-describe('useTradingStrategyWorkbench 只拿吃 K 線的策略腳本當信號來源', () => {
-  it('問清單時不指定行情種類——也就是只要 K 線那一種，交易策略在現貨上跑', async () => {
+describe('useTradingStrategyWorkbench 兩種行情的策略腳本各讀一份', () => {
+  it('K 線與合約行情各問一次——新拼的那一份隨時會換行情種類', async () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(strategyScriptApplication.listAvailableStrategyScripts).toHaveBeenCalledWith()
+    expect(strategyScriptApplication.listAvailableStrategyScripts).toHaveBeenCalledWith('kCandle')
+    expect(strategyScriptApplication.listAvailableStrategyScripts).toHaveBeenCalledWith('contractKCandle')
+  })
+
+  it('每一種的選項只來自那一種的清單', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockImplementation(async (kind: string) => ({
+      mine: [{
+        id: kind === 'kCandle' ? 9 : 21,
+        name: kind === 'kCandle' ? '均線' : '費率反轉',
+        content: { resultType: 'signal', parameters: [] },
+      }],
+      adopted: [],
+    }))
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.strategyScriptOptionsByKind.value.kCandle).toEqual([{ value: 9, label: '均線' }])
+    expect(workbench.strategyScriptOptionsByKind.value.contractKCandle).toEqual([{ value: 21, label: '費率反轉' }])
   })
 })

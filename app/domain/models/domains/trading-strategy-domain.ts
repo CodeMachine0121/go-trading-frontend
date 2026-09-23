@@ -12,6 +12,8 @@ import {
 } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { CONDITION_OPERATORS } from '~/domain/models/vo/condition-operator-vo'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 
 /**
  * Domain Model：一份已存交易策略對畫面的樣子。
@@ -26,12 +28,26 @@ export class TradingStrategyDomain {
   constructor(private readonly tradingStrategy: TradingStrategy) {}
 
   toDto(): TradingStrategyDto {
+    const marketDataKind = new MarketDataKindDomain(this.tradingStrategy.marketDataKind)
+    const replaysOnContractAccount = marketDataKind.toWorkbenchDto().replaysOnContractAccount
+    // 只有合約交易策略有交易模式；K 線那一種即使後端多給了一個字，也不把它讀成有。
+    const tradingMode = replaysOnContractAccount
+      ? new ContractTradingModeDomain(this.tradingStrategy.tradingMode)
+      : null
+
     return new TradingStrategyDto(
       this.tradingStrategy.id,
       this.tradingStrategy.name,
       this.tradingStrategy.signalSources.map(source => this.toSignalSourceDto(source)),
       this.toConditionDto(this.tradingStrategy.buyCondition),
       this.toConditionDto(this.tradingStrategy.sellCondition),
+      marketDataKind.value,
+      marketDataKind.label(),
+      tradingMode?.value ?? null,
+      tradingMode?.label() ?? null,
+      replaysOnContractAccount,
+      // 機器人每一輪讀的是現貨 K 線，所以跟得了的只有不在合約帳戶上重演的那一種。
+      !replaysOnContractAccount,
     )
   }
 

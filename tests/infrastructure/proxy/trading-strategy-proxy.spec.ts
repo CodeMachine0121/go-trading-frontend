@@ -196,15 +196,78 @@ describe('TradingStrategyProxy 不再帶著交易模式進出', () => {
     expect(fetchMock.mock.calls[0]![1].body.name).toBe('黃金交叉')
   })
 
-  it('後端還回著那一格時也不讀它', async () => {
-    // 比這一刀早的後端仍然回得出這個欄位。讀了它就等於把一個已經不存在的
-    // 概念放回畫面上，而畫面上已經沒有地方可以顯示它。
+  it('一份 K 線交易策略就算後端回了交易模式，畫面上也沒有這一格', async () => {
+    // K 線交易策略沒有交易模式。讀了它就等於把一個不屬於現貨的概念放回畫面上。
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
       tradingStrategyWire({ tradingMode: 'longShort' })))
 
-    const tradingStrategy = await proxy().getTradingStrategy(3)
+    const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
 
-    expect(tradingStrategy).not.toHaveProperty('tradingMode')
-    expect(tradingStrategy.name).toBe('黃金交叉')
+    expect(tradingStrategyDto.tradingMode).toBeNull()
+    expect(tradingStrategyDto.marketDataKind).toBe('kCandle')
+    expect(tradingStrategyDto.name).toBe('黃金交叉')
+  })
+})
+
+describe('TradingStrategyProxy 的行情種類與交易模式', () => {
+  function contractWriteDomainOf(id?: number) {
+    return new TradingStrategyWriteDomain(new TradingStrategyWriteDto(
+      id, '費率反轉',
+      [new TradingStrategySignalSourceDto('A', 21, '1h', [])],
+      new TradingStrategyConditionDto('n1', null, [], 'A', 'buy'),
+      new TradingStrategyConditionDto('n2', null, [], 'A', 'sell'),
+      'contractKCandle', 'longOnly'))
+  }
+
+  it('新增一份合約交易策略時送出行情種類與交易模式', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(tradingStrategyWire({}))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createTradingStrategy(contractWriteDomainOf())
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.marketDataKind).toBe('contractKCandle')
+    expect(body.tradingMode).toBe('longOnly')
+  })
+
+  it('一份 K 線交易策略送出 K 線、不送交易模式——即使表單裡還留著一個', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(tradingStrategyWire({}))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createTradingStrategy(new TradingStrategyWriteDomain(new TradingStrategyWriteDto(
+      undefined, '均線',
+      [new TradingStrategySignalSourceDto('A', 9, '1h', [])],
+      new TradingStrategyConditionDto('n1', null, [], 'A', 'buy'),
+      new TradingStrategyConditionDto('n2', null, [], 'A', 'sell'),
+      'kCandle', 'shortOnly')))
+
+    const body = fetchMock.mock.calls[0]![1].body
+    expect(body.marketDataKind).toBe('kCandle')
+    expect(body).not.toHaveProperty('tradingMode')
+  })
+
+  it('讀回一份合約交易策略：行情種類、交易模式與它們的中文', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      tradingStrategyWire({ marketDataKind: 'contractKCandle', tradingMode: 'shortOnly' })))
+
+    const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
+
+    expect(tradingStrategyDto.marketDataKind).toBe('contractKCandle')
+    expect(tradingStrategyDto.marketDataKindLabel).toBe('合約行情')
+    expect(tradingStrategyDto.tradingMode).toBe('shortOnly')
+    expect(tradingStrategyDto.tradingModeLabel).toBe('只做空')
+    expect(tradingStrategyDto.replaysOnContractAccount).toBe(true)
+    expect(tradingStrategyDto.followableByStrategyBot).toBe(false)
+  })
+
+  it('舊版後端沒說行情種類時就是 K 線，機器人跟得了', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(tradingStrategyWire({})))
+
+    const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
+
+    expect(tradingStrategyDto.marketDataKind).toBe('kCandle')
+    expect(tradingStrategyDto.marketDataKindLabel).toBe('K 線')
+    expect(tradingStrategyDto.replaysOnContractAccount).toBe(false)
+    expect(tradingStrategyDto.followableByStrategyBot).toBe(true)
   })
 })

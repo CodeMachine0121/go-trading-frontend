@@ -15,6 +15,10 @@ export class TradingStrategy {
     /** 兩棵條件樹。後端保證兩邊都不為空，但讀回來的是資料，所以這裡仍然允許沒有。 */
     public readonly buyCondition: TradingStrategyCondition | null,
     public readonly sellCondition: TradingStrategyCondition | null,
+    /** 它的訊號來源吃哪一種行情。舊版後端不說時是 K 線。 */
+    public readonly marketDataKind: string = 'kCandle',
+    /** 合約交易策略的交易模式；K 線交易策略沒有，是空字串。 */
+    public readonly tradingMode: string = '',
   ) {}
 
   toDomain(): TradingStrategyDomain {

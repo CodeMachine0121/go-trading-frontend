@@ -1,3 +1,4 @@
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { TradingStrategyConditionDomain } from '~/domain/models/domains/trading-strategy-condition-domain'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
@@ -67,6 +68,11 @@ export class TradingStrategyWriteDomain {
       )),
       this.trimmedCondition(this.writeDto.buyCondition),
       this.trimmedCondition(this.writeDto.sellCondition),
+      this.writeDto.marketDataKind,
+      // 只有合約交易策略有交易模式：K 線那一種即使表單裡還留著一個，也不上線。
+      new MarketDataKindDomain(this.writeDto.marketDataKind).toWorkbenchDto().replaysOnContractAccount
+        ? this.writeDto.tradingMode
+        : null,
     )
   }
 

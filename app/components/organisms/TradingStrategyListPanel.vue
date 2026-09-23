@@ -110,7 +110,11 @@ onMounted(() => {
         <div class="trading-strategy-list__identity">
           <span class="trading-strategy-list__name">{{ tradingStrategy.name }}</span>
           <span class="trading-strategy-list__meta">
-            {{ tradingStrategy.signalSources.length }} 支策略腳本
+            <span data-testid="trading-strategy-market-data-kind">{{ tradingStrategy.marketDataKindLabel }}</span>
+            <template v-if="tradingStrategy.tradingModeLabel">
+              · {{ tradingStrategy.tradingModeLabel }}
+            </template>
+            · {{ tradingStrategy.signalSources.length }} 支策略腳本
           </span>
         </div>
 

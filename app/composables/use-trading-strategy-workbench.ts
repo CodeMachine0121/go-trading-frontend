@@ -3,6 +3,8 @@ import type { TradingStrategyApplication } from '~/application/trading-strategy-
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
 
 /**
  * 一份交易策略聽得懂的唯一一種指標值種類。
@@ -32,7 +34,15 @@ export function useTradingStrategyWorkbench(
   const { announcement, announce } = useConsoleAnnouncement()
 
   const editing = ref<TradingStrategyDto | null>(null)
-  const strategyScriptOptions = ref<{ value: number, label: string }[]>([])
+  /**
+   * 每一種行情各自挑得到哪幾支策略腳本。
+   *
+   * 兩種都先讀好，因為一份新拼的交易策略隨時會換行情種類——換了才去讀，
+   * 那一刻零件架會空一下，看起來像是那一種一支都沒有。
+   */
+  const strategyScriptOptionsByKind = ref<Record<MarketDataKind, { value: number, label: string }[]>>({
+    kCandle: [], contractKCandle: [],
+  })
   const parameterNamesByStrategyScriptId = ref<Record<number, readonly string[]>>({})
   /**
    * 挑不得、但**確實存在**的那幾支策略腳本，以及它們挑不得的原因。
@@ -41,7 +51,9 @@ export function useTradingStrategyWorkbench(
    * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示。而空白看起來像「還沒選」，
    * 於是使用者不知道自己正看著一塊已經壞掉的零件，也不知道它壞在哪裡。
    */
-  const unusableStrategyScripts = ref<Record<number, string>>({})
+  const unusableStrategyScriptsByKind = ref<Record<MarketDataKind, Record<number, string>>>({
+    kCandle: {}, contractKCandle: {},
+  })
   /**
    * 零件架挑不到任何策略腳本時，是哪一種挑不到。
    *
@@ -49,7 +61,9 @@ export function useTradingStrategyWorkbench(
    * 後者是去把既有那幾支的指標值種類改掉。兩種說同一句話，等於把人推去建第五支
    * 同樣用不了的腳本。`null` 是挑得到，架子不必說任何話。
    */
-  const shortage = ref<'noStrategyScripts' | 'noSignalStrategyScripts' | null>(null)
+  const shortageByKind = ref<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>({
+    kCandle: null, contractKCandle: null,
+  })
 
   const loading = ref(true)
   const saving = ref(false)
@@ -78,56 +92,35 @@ export function useTradingStrategyWorkbench(
     failureMessage.value = ''
 
     try {
-      const [tradingStrategy, available] = await Promise.all([
+      const [tradingStrategy, availableKCandle, availableContract] = await Promise.all([
         tradingStrategyId === null
           ? Promise.resolve(null)
           : tradingStrategyApplication.getTradingStrategy(tradingStrategyId),
-        strategyScriptApplication.listAvailableStrategyScripts(),
+        strategyScriptApplication.listAvailableStrategyScripts('kCandle'),
+        strategyScriptApplication.listAvailableStrategyScripts('contractKCandle'),
       ])
 
       editing.value = tradingStrategy
 
-      // 自己的與採用來的分開讀，因為它們的形狀本來就不同：採用來的**沒有算式**，
-      // 所以它的旋鈕與指標值種類直接掛在上面，而自己的那幾支掛在算式內容裡。
-      const options = [
-        ...available.mine
-          .filter(strategyScript => strategyScript.content.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategyScript => ({
-            value: strategyScript.id,
-            label: strategyScript.name,
-            parameterNames: strategyScript.content.parameters.map(parameter => parameter.name),
-          })),
-        ...available.adopted
-          .filter(strategyScript => strategyScript.resultType === SIGNAL_RESULT_TYPE)
-          .map(strategyScript => ({
-            value: strategyScript.id,
-            label: strategyScript.name,
-            parameterNames: strategyScript.parameters.map(parameter => parameter.name),
-          })),
-      ]
+      const kCandleChoices = choicesOf(availableKCandle)
+      const contractChoices = choicesOf(availableContract)
 
-      strategyScriptOptions.value = options.map(
-        option => ({ value: option.value, label: option.label }))
-      parameterNamesByStrategyScriptId.value = Object.fromEntries(
-        options.map(option => [option.value, option.parameterNames]))
-
-      // 挑不得的那幾支也記下來，連同原因。它們不進選單——挑得到就等於讓人拼出一份
-      // 後端會拒絕的交易策略——但一塊**已經**指著它們的零件要說得出自己指著誰。
-      const unusable = [
-        ...available.mine
-          .filter(strategyScript => strategyScript.content.resultType !== SIGNAL_RESULT_TYPE)
-          .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
-        ...available.adopted
-          .filter(strategyScript => strategyScript.resultType !== SIGNAL_RESULT_TYPE)
-          .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
-      ]
-
-      unusableStrategyScripts.value = Object.fromEntries(
-        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了訊號來源）`]))
-
-      shortage.value = options.length > 0
-        ? null
-        : (unusable.length === 0 ? 'noStrategyScripts' : 'noSignalStrategyScripts')
+      strategyScriptOptionsByKind.value = {
+        kCandle: kCandleChoices.options,
+        contractKCandle: contractChoices.options,
+      }
+      unusableStrategyScriptsByKind.value = {
+        kCandle: kCandleChoices.unusable,
+        contractKCandle: contractChoices.unusable,
+      }
+      shortageByKind.value = {
+        kCandle: kCandleChoices.shortage,
+        contractKCandle: contractChoices.shortage,
+      }
+      parameterNamesByStrategyScriptId.value = {
+        ...kCandleChoices.parameterNames,
+        ...contractChoices.parameterNames,
+      }
     }
     catch (error: unknown) {
       // 要改的那一份不見了與「後端壞了」是兩件事：前者的下一步是回清單，
@@ -178,6 +171,53 @@ export function useTradingStrategyWorkbench(
     }
   }
 
+  /**
+   * 一種行情的可用策略腳本裡，挑得到的、挑不得的（連同原因）、以及一支都挑不到時是哪一種挑不到。
+   *
+   * 自己的與採用來的分開讀，因為它們的形狀本來就不同：採用來的**沒有算式**，
+   * 所以它的旋鈕與指標值種類直接掛在上面，而自己的那幾支掛在算式內容裡。
+   */
+  function choicesOf(available: AvailableStrategyScriptsDto) {
+    const options = [
+      ...available.mine
+        .filter(strategyScript => strategyScript.content.resultType === SIGNAL_RESULT_TYPE)
+        .map(strategyScript => ({
+          value: strategyScript.id,
+          label: strategyScript.name,
+          parameterNames: strategyScript.content.parameters.map(parameter => parameter.name),
+        })),
+      ...available.adopted
+        .filter(strategyScript => strategyScript.resultType === SIGNAL_RESULT_TYPE)
+        .map(strategyScript => ({
+          value: strategyScript.id,
+          label: strategyScript.name,
+          parameterNames: strategyScript.parameters.map(parameter => parameter.name),
+        })),
+    ]
+
+    // 挑不得的那幾支也記下來，連同原因。它們不進選單——挑得到就等於讓人拼出一份
+    // 後端會拒絕的交易策略——但一塊**已經**指著它們的零件要說得出自己指著誰。
+    const unusable = [
+      ...available.mine
+        .filter(strategyScript => strategyScript.content.resultType !== SIGNAL_RESULT_TYPE)
+        .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
+      ...available.adopted
+        .filter(strategyScript => strategyScript.resultType !== SIGNAL_RESULT_TYPE)
+        .map(strategyScript => [strategyScript.id, strategyScript.name] as const),
+    ]
+
+    return {
+      options: options.map(option => ({ value: option.value, label: option.label })),
+      parameterNames: Object.fromEntries(
+        options.map(option => [option.value, option.parameterNames])) as Record<number, readonly string[]>,
+      unusable: Object.fromEntries(
+        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了訊號來源）`])) as Record<number, string>,
+      shortage: options.length > 0
+        ? null
+        : (unusable.length === 0 ? 'noStrategyScripts' as const : 'noSignalStrategyScripts' as const),
+    }
+  }
+
   function markDirty(changed: boolean) {
     dirty.value = changed
   }
@@ -188,10 +228,10 @@ export function useTradingStrategyWorkbench(
 
   return {
     editing,
-    strategyScriptOptions,
+    strategyScriptOptionsByKind,
     parameterNamesByStrategyScriptId,
-    unusableStrategyScripts,
-    shortage,
+    unusableStrategyScriptsByKind,
+    shortageByKind,
     announcement,
     loading,
     saving,
