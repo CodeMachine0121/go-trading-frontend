@@ -19,6 +19,7 @@ import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-applic
 import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { onADesktop } from '../../fixtures/layout-density'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -52,7 +53,7 @@ async function mountPanel(
 ) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
-      kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
+      kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy, buildKCandleContractProxy())),
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),

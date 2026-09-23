@@ -8,9 +8,13 @@ import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
 import { KCandleFieldError } from '~/domain/errors/k-candle-field-error'
 import { KCandleService } from '~/domain/service/k-candle-service'
-import type { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
+import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { buildKCandleContractProxy } from '../fixtures/contract-proxies'
+import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
+import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
+import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
 
 // 只 mock 最外層的 proxy 介面，domain service 與 domain model 都是真的——
 // 這是刻意的「測試力度放大」（見 .claude/rules/testing.md）。
@@ -45,7 +49,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
 }
 
 function buildApplication(kCandleProxy: IKCandleProxy): KCandleApplication {
-  return new KCandleApplication(new KCandleService(kCandleProxy))
+  return new KCandleApplication(new KCandleService(kCandleProxy, buildKCandleContractProxy()))
 }
 
 describe('KCandleApplication', () => {
@@ -183,6 +187,135 @@ describe('KCandleApplication', () => {
 
       await expect(kCandleApplication.deleteKCandle(new KCandleIdentityDto('BTCUSDT', OPEN_TIME)))
         .rejects.toBeInstanceOf(BackendUnreachableError)
+    })
+  })
+
+  describe('查合約 K 線', () => {
+    function priceLine(close: string): ContractPriceLineVo {
+      return new ContractPriceLineVo(new Decimal(close), new Decimal(close), new Decimal(close), new Decimal(close))
+    }
+
+    function buildKCandleContract(
+      openTime: string, open: string, close: string,
+      laterLines: { indexClose: string, premiumIndexClose: string } | null,
+    ): KCandleContract {
+      return new KCandleContract(
+        'BTCUSDT', new Date(openTime),
+        new Decimal(open), new Decimal('120'), new Decimal('90'), new Decimal(close),
+        new Decimal('11'), new Decimal('1200'), new Decimal('5'), new Decimal('600'),
+        42, priceLine('110.6'),
+        laterLines === null ? null : priceLine(laterLines.indexClose),
+        laterLines === null ? null : priceLine(laterLines.premiumIndexClose),
+      )
+    }
+
+    function buildContractApplication(
+      kCandleContractProxy: IKCandleContractProxy,
+      kCandleProxy: IKCandleProxy = buildProxy(),
+    ): KCandleApplication {
+      return new KCandleApplication(new KCandleService(kCandleProxy, kCandleContractProxy))
+    }
+
+    it('由新到舊列出，每一根帶著三條線的收盤與成交筆數', async () => {
+      const kCandleApplication = buildContractApplication(buildKCandleContractProxy({
+        findKCandleContractsInRange: vi.fn().mockResolvedValue([
+          buildKCandleContract('2026-08-30T08:00:00.000Z', '100', '110', { indexClose: '110.7', premiumIndexClose: '0.0001' }),
+          buildKCandleContract('2026-08-30T08:01:00.000Z', '100', '90', { indexClose: '110.8', premiumIndexClose: '-0.0005' }),
+        ]),
+      }))
+
+      const result = await kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto('BTCUSDT', START_TIME))
+
+      expect(result.count).toBe(2)
+      expect(result.kCandleContracts.map(kCandleContract => kCandleContract.openTime.toISOString()))
+        .toEqual(['2026-08-30T08:01:00.000Z', '2026-08-30T08:00:00.000Z'])
+      const [newest] = result.kCandleContracts
+      expect(newest?.tradeCount).toBe(42)
+      expect(newest?.markPriceLine.close.toString()).toBe('110.6')
+      expect(newest?.indexPriceLine?.close.toString()).toBe('110.8')
+      expect(newest?.premiumIndexLine?.close.toString()).toBe('-0.0005')
+    })
+
+    it('漲跌照成交價判斷，與現貨同一套', async () => {
+      const kCandleApplication = buildContractApplication(buildKCandleContractProxy({
+        findKCandleContractsInRange: vi.fn().mockResolvedValue([
+          buildKCandleContract('2026-08-30T08:01:00.000Z', '100', '90', null),
+          buildKCandleContract('2026-08-30T08:00:00.000Z', '100', '110', null),
+          buildKCandleContract('2026-08-29T08:00:00.000Z', '0', '0', null),
+        ]),
+      }))
+
+      const result = await kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto('BTCUSDT', START_TIME))
+
+      expect(result.kCandleContracts.map(kCandleContract => kCandleContract.trend.label))
+        .toEqual(['下跌', '上漲', '持平'])
+      expect(result.kCandleContracts[0]?.priceChange.toString()).toBe('-10')
+      expect(result.kCandleContracts[0]?.priceChangePercent?.toString()).toBe('-10')
+      expect(result.kCandleContracts[2]?.priceChangePercent).toBeNull()
+    })
+
+    it('舊合約 K 線沒有指數價格與溢價指數——是沒有，不是零', async () => {
+      const kCandleApplication = buildContractApplication(buildKCandleContractProxy({
+        findKCandleContractsInRange: vi.fn().mockResolvedValue([
+          buildKCandleContract('2026-08-30T08:00:00.000Z', '100', '110', null),
+        ]),
+      }))
+
+      const result = await kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto('BTCUSDT', START_TIME))
+
+      expect(result.kCandleContracts[0]?.indexPriceLine).toBeNull()
+      expect(result.kCandleContracts[0]?.premiumIndexLine).toBeNull()
+    })
+
+    it('只讀合約那一條線：現貨那一條一次都沒被問', async () => {
+      const spotProxy = buildProxy()
+      const findKCandleContractsInRange = vi.fn().mockResolvedValue([])
+      const kCandleApplication = buildContractApplication(
+        buildKCandleContractProxy({ findKCandleContractsInRange }), spotProxy)
+
+      await kCandleApplication.searchKCandleContracts(new KCandleQueryDto(' BTCUSDT ', START_TIME))
+
+      expect(spotProxy.findKCandlesInRange).not.toHaveBeenCalled()
+      expect(findKCandleContractsInRange.mock.calls[0]?.[0].symbol).toBe('BTCUSDT')
+    })
+
+    it('一根都沒有是空的結果，不是錯誤', async () => {
+      const kCandleApplication = buildContractApplication(buildKCandleContractProxy())
+
+      const result = await kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto('BTCUSDT', START_TIME))
+
+      expect(result.isEmpty).toBe(true)
+    })
+
+    it.each([
+      { description: '沒有挑合約', symbol: '', startTime: START_TIME, field: 'symbol', message: '請指定交易標的' },
+      { description: '開始時間在未來', symbol: 'BTCUSDT', startTime: FUTURE_TIME, field: 'startTime', message: '開始時間不得晚於目前時間' },
+      { description: '開始時間沒填', symbol: 'BTCUSDT', startTime: new Date(Number.NaN), field: 'startTime', message: '請填寫開始時間' },
+    ])('$description 時不送出，錯誤標在那一格', async ({ symbol, startTime, field, message }) => {
+      const findKCandleContractsInRange = vi.fn()
+      const kCandleApplication = buildContractApplication(
+        buildKCandleContractProxy({ findKCandleContractsInRange }))
+
+      const failure = await kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto(symbol, startTime)).catch((error: unknown) => error)
+
+      expect(failure).toBeInstanceOf(KCandleQueryValidationError)
+      expect((failure as KCandleQueryValidationError).field).toBe(field)
+      expect((failure as KCandleQueryValidationError).message).toBe(message)
+      expect(findKCandleContractsInRange).not.toHaveBeenCalled()
+    })
+
+    it('連不上後端時以連線錯誤往上傳', async () => {
+      const kCandleApplication = buildContractApplication(buildKCandleContractProxy({
+        findKCandleContractsInRange: vi.fn().mockRejectedValue(new BackendUnreachableError('/contract-k-candles')),
+      }))
+
+      await expect(kCandleApplication.searchKCandleContracts(
+        new KCandleQueryDto('BTCUSDT', START_TIME))).rejects.toBeInstanceOf(BackendUnreachableError)
     })
   })
 })

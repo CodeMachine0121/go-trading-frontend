@@ -13,6 +13,12 @@ import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregati
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../fixtures/aggregation-interval-choice'
+import { buildKCandleContractProxy } from '../fixtures/contract-proxies'
+import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
+import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
+import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
+import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
+import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -39,7 +45,7 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
 }
 
 function buildApplication(kCandleProxy: IKCandleProxy): KCandleChartApplication {
-  return new KCandleChartApplication(new KCandleChartService(kCandleProxy))
+  return new KCandleChartApplication(new KCandleChartService(kCandleProxy, buildKCandleContractProxy()))
 }
 
 function viewportSpanning(
@@ -354,6 +360,104 @@ describe('KCandleChartApplication', () => {
 
       expect(kCandleChartApplication.defaultRangePreset().label).toBe('一天')
       expect(kCandleChartApplication.listRangePresets()[0]?.label).toBe('一小時')
+    })
+  })
+
+  describe('loadKCandleContractChart', () => {
+    function buildKCandleContract(openTime: string, open: string, closePrice: string): KCandleContract {
+      const markLine = new ContractPriceLineVo(
+        new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('7777'))
+
+      return new KCandleContract(
+        'BTCUSDT', new Date(openTime),
+        new Decimal(open), new Decimal('999'), new Decimal('1'), new Decimal(closePrice),
+        new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
+        3, markLine, null, null,
+      )
+    }
+
+    function contractSeriesOf(kCandleContracts: KCandleContract[], interval = '1m'): KCandleContractSeriesVo {
+      return new KCandleContractSeriesVo(kCandleContracts, aggregationIntervalOf(interval))
+    }
+
+    function buildContractChartApplication(
+      kCandleContractProxy: IKCandleContractProxy, kCandleProxy: IKCandleProxy = buildProxy(),
+    ): KCandleChartApplication {
+      return new KCandleChartApplication(new KCandleChartService(kCandleProxy, kCandleContractProxy))
+    }
+
+    it('一進來取合約那一條的序列，畫的是成交價，標系統說的每根涵蓋', async () => {
+      const spotProxy = buildProxy()
+      const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([
+        buildKCandleContract('2026-09-02T11:00:00.000Z', '100', '110'),
+        buildKCandleContract('2026-09-02T11:15:00.000Z', '110', '105'),
+      ], '15m'))
+      const kCandleChartApplication = buildContractChartApplication(
+        buildKCandleContractProxy({ findKCandleContractSeries }), spotProxy)
+
+      const chartView = await kCandleChartApplication.loadKCandleContractChart(viewportSpanning(24 * 60))
+
+      // 一整天，前後再各多取半天——與現貨圖表同一套取法
+      const loadPlan = findKCandleContractSeries.mock.calls[0]?.[0]
+      expect(loadPlan.symbol).toBe('BTCUSDT')
+      expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+      expect(spotProxy.findKCandleSeries).not.toHaveBeenCalled()
+      expect(chartView.reloadedChart?.interval.label).toBe('十五分鐘')
+      expect(chartView.reloadedChart?.latestKCandle?.close.toString()).toBe('105')
+      expect(chartView.reloadedChart?.kCandles.map(kCandle => kCandle.trend.label))
+        .toEqual(['上漲', '下跌'])
+    })
+
+    it('換成五分鐘時把那一種說出去，看的那一段不動', async () => {
+      const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([], '5m'))
+      const kCandleChartApplication = buildContractChartApplication(
+        buildKCandleContractProxy({ findKCandleContractSeries }))
+
+      const chartView = await kCandleChartApplication.loadKCandleContractChart(
+        viewportSpanning(24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('5m')))
+
+      const loadPlan = findKCandleContractSeries.mock.calls[0]?.[0]
+      expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('5m')
+      expect(chartView.visibleRange.startTime.toISOString()).toBe('2026-09-01T12:00:00.000Z')
+      expect(chartView.visibleRange.endTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
+      expect(chartView.reloadedChart?.interval.label).toBe('五分鐘')
+    })
+
+    it('手上那批還夠用時不重新取——與現貨圖表同一條規則', async () => {
+      const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([
+        buildKCandleContract('2026-09-02T11:00:00.000Z', '100', '110'),
+      ]))
+      const kCandleChartApplication = buildContractChartApplication(
+        buildKCandleContractProxy({ findKCandleContractSeries }))
+      const first = await kCandleChartApplication.loadKCandleContractChart(viewportSpanning(24 * 60))
+
+      const second = await kCandleChartApplication.loadKCandleContractChart(
+        viewportSpanning(24 * 60, first.reloadedChart))
+
+      expect(findKCandleContractSeries).toHaveBeenCalledTimes(1)
+      expect(second.reloadedChart).toBeNull()
+      expect(second.drawnRange).not.toBeNull()
+    })
+
+    it('那段時間一根都沒有時是一張空的圖，不是錯誤', async () => {
+      const kCandleChartApplication = buildContractChartApplication(buildKCandleContractProxy({
+        findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
+      }))
+
+      const chartView = await kCandleChartApplication.loadKCandleContractChart(viewportSpanning(60))
+
+      expect(chartView.reloadedChart?.isEmpty).toBe(true)
+    })
+
+    it('固定粗細而那一段太長時，系統說的原因原封往上傳', async () => {
+      const kCandleChartApplication = buildContractChartApplication(buildKCandleContractProxy({
+        findKCandleContractSeries: vi.fn().mockRejectedValue(new BackendRequestRejectedError(
+          '時間區間過大，請縮小區間；若指定了彙總刻度，也可以改用更長的一種')),
+      }))
+
+      await expect(kCandleChartApplication.loadKCandleContractChart(
+        viewportSpanning(30 * 24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('1m'))))
+        .rejects.toThrow('也可以改用更長的一種')
     })
   })
 })

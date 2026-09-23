@@ -7,10 +7,11 @@ import type { ITradingSymbolProxy } from '~/domain/interface/i-trading-symbol-pr
 import type { TradingSymbol } from '~/domain/models/entities/trading-symbol'
 import { buildTradingSymbol } from '~~/tests/fixtures/trading-symbol-application'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 entity 都是真的。
 function buildApplication(tradingSymbolProxy: ITradingSymbolProxy): TradingSymbolApplication {
-  return new TradingSymbolApplication(new TradingSymbolService(tradingSymbolProxy))
+  return new TradingSymbolApplication(new TradingSymbolService(tradingSymbolProxy, buildContractTradingSymbolProxy()))
 }
 
 function proxyListing(...symbols: string[]): ITradingSymbolProxy {

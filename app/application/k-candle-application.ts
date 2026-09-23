@@ -4,6 +4,7 @@ import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import type { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import type { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
+import type { KCandleContractSearchResultDto } from '~/domain/models/dto/k-candle-contract-search-result-dto'
 
 /**
  * Application：K 線的用例編排，全程只碰 DTO。
@@ -14,6 +15,12 @@ export class KCandleApplication {
 
   async searchKCandles(kCandleQueryDto: KCandleQueryDto): Promise<KCandleSearchResultDto> {
     return this.kCandleService.searchKCandles(kCandleQueryDto)
+  }
+
+  async searchKCandleContracts(
+    kCandleQueryDto: KCandleQueryDto,
+  ): Promise<KCandleContractSearchResultDto> {
+    return this.kCandleService.searchKCandleContracts(kCandleQueryDto)
   }
 
   buildDefaultQuery(symbol: string): KCandleQueryDto {

@@ -21,6 +21,13 @@ export class KCandleChartApplication {
     return this.kCandleChartService.loadKCandleChart(kCandleChartViewportDto)
   }
 
+  /** 合約那一條線的圖；回來的形狀與 `loadKCandleChart` 相同。 */
+  async loadKCandleContractChart(
+    kCandleChartViewportDto: KCandleChartViewportDto,
+  ): Promise<KCandleChartViewDto> {
+    return this.kCandleChartService.loadKCandleContractChart(kCandleChartViewportDto)
+  }
+
   /** 要後端立刻去補齊這一檔，回報補到幾根。 */
   async catchUpSymbol(symbol: string): Promise<number> {
     return this.kCandleChartService.catchUpSymbol(symbol)

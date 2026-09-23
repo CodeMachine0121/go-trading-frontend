@@ -1,4 +1,8 @@
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
+import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
+import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
+import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import { KCandleContractSeriesDomain } from '~/domain/models/domains/k-candle-contract-series-domain'
 import { KCandleChartViewportDomain } from '~/domain/models/domains/k-candle-chart-viewport-domain'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
@@ -90,9 +94,15 @@ const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = [
 /**
  * Domain Service：K 線圖表的用例。
  * 公開用例方法之間互不呼叫；需要串接時由 Application 負責。
+ *
+ * 現貨與合約的圖都在這裡：看多長、可挑的粗細、何時重新取、擺到哪裡，
+ * 對兩條線是同一套判斷。兩條線只差「取的是哪一條」。
  */
 export class KCandleChartService {
-  constructor(private readonly kCandleProxy: IKCandleProxy) {}
+  constructor(
+    private readonly kCandleProxy: IKCandleProxy,
+    private readonly kCandleContractProxy: IKCandleContractProxy,
+  ) {}
 
   /**
    * 要後端立刻去補齊這一檔，回報補到幾根。
@@ -119,6 +129,33 @@ export class KCandleChartService {
   async loadKCandleChart(
     kCandleChartViewportDto: KCandleChartViewportDto,
   ): Promise<KCandleChartViewDto> {
+    return this.loadChartFrom(kCandleChartViewportDto, async kCandleChartLoadPlanVo =>
+      new KCandleSeriesDomain(
+        await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo),
+        kCandleChartLoadPlanVo).toDto())
+  }
+
+  /**
+   * 合約那一條線的圖：與 `loadKCandleChart` 同一套判斷，取的是合約的彙總序列，
+   * 畫的是它的成交價。
+   */
+  async loadKCandleContractChart(
+    kCandleChartViewportDto: KCandleChartViewportDto,
+  ): Promise<KCandleChartViewDto> {
+    return this.loadChartFrom(kCandleChartViewportDto, async kCandleChartLoadPlanVo =>
+      new KCandleContractSeriesDomain(
+        await this.kCandleContractProxy.findKCandleContractSeries(kCandleChartLoadPlanVo),
+        kCandleChartLoadPlanVo).toDto())
+  }
+
+  /**
+   * 兩條線共用的那一段：照正在看的那一段排出取回計畫，需要時才取，再擺位置。
+   * 呼叫端只說「要取的話，怎麼取、取回來怎麼變成一張圖」。
+   */
+  private async loadChartFrom(
+    kCandleChartViewportDto: KCandleChartViewportDto,
+    fetchChart: (kCandleChartLoadPlanVo: KCandleChartLoadPlanVo) => Promise<KCandleChartDto>,
+  ): Promise<KCandleChartViewDto> {
     const kCandleChartLoadPlanVo
       = new KCandleChartViewportDomain(kCandleChartViewportDto).toLoadPlan()
     // 顯示區間在這裡組一次就好。它要去三個地方（回給畫面、算畫出來的那一段、
@@ -127,9 +164,7 @@ export class KCandleChartService {
       kCandleChartLoadPlanVo.visibleStartTime, kCandleChartLoadPlanVo.visibleEndTime)
 
     const reloadedChart = kCandleChartLoadPlanVo.needsReload
-      ? new KCandleSeriesDomain(
-          await this.kCandleProxy.findKCandleSeries(kCandleChartLoadPlanVo),
-          kCandleChartLoadPlanVo).toDto()
+      ? await fetchChart(kCandleChartLoadPlanVo)
       : null
 
     // 位置要照**這一次畫出去的那一批**算，而那批可能是剛取回的，也可能是手上原本那批——

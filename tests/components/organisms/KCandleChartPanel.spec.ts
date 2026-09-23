@@ -21,6 +21,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 // 圖本身以 stub 取代：它要的是真正的畫布，而它畫得對不對是它自己的測試在管。
@@ -76,7 +77,7 @@ async function mountPanel(
 ) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
-      kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy)),
+      kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(kCandleProxy, buildKCandleContractProxy())),
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication(),
@@ -316,7 +317,7 @@ describe('KCandleChartPanel', () => {
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
-          buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }))),
+          buildProxy({ findKCandleSeries: vi.fn().mockImplementation(() => pendingRequest) }), buildKCandleContractProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),

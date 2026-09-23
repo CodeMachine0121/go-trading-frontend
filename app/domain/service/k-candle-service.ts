@@ -1,4 +1,5 @@
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
+import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import { K_CANDLE_INTERVAL_MINUTES, KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
 import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
@@ -7,6 +8,7 @@ import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-resu
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import type { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
+import { KCandleContractSearchResultDto } from '~/domain/models/dto/k-candle-contract-search-result-dto'
 
 /** 進入畫面時預設查詢的區間長度：最近二十四小時。這是唯一寫下這個長度的地方。 */
 const DEFAULT_QUERY_RANGE_MILLISECONDS = 24 * 60 * 60 * 1000
@@ -14,9 +16,16 @@ const DEFAULT_QUERY_RANGE_MILLISECONDS = 24 * 60 * 60 * 1000
 /**
  * Domain Service：跨多根 K 線的編排。
  * 公開用例方法之間互不呼叫；需要串接時由 Application 負責。
+ *
+ * 合約 K 線的查詢也住在這裡，而不是另開一個 service：查詢條件的規則、
+ * 預設看多長、由新到舊，對兩條線是同一套判斷——各開一個就是同一套判斷有兩份。
+ * 兩條線各有自己的 proxy，因為它們是交易服務上兩個不同的外部資源。
  */
 export class KCandleService {
-  constructor(private readonly kCandleProxy: IKCandleProxy) {}
+  constructor(
+    private readonly kCandleProxy: IKCandleProxy,
+    private readonly kCandleContractProxy: IKCandleContractProxy,
+  ) {}
 
   /**
    * 查詢一段區間的 K 線：驗證條件（不合法就沒有查詢）→ 取回 → 由新到舊排序 → 轉 DTO。
@@ -34,6 +43,26 @@ export class KCandleService {
 
     return new KCandleSearchResultDto(
       newestFirstKCandles.map(kCandle => kCandle.toDomain().toDto()),
+    )
+  }
+
+  /**
+   * 查詢一段區間的合約 K 線。條件規則與查現貨 K 線一字不差（同一個 KCandleQueryDomain），
+   * 讀的是合約那一條線；由新到舊。
+   */
+  async searchKCandleContracts(
+    kCandleQueryDto: KCandleQueryDto,
+  ): Promise<KCandleContractSearchResultDto> {
+    const kCandleQueryDomain = new KCandleQueryDomain(kCandleQueryDto)
+    const kCandleContracts
+      = await this.kCandleContractProxy.findKCandleContractsInRange(kCandleQueryDomain)
+
+    const newestFirstKCandleContracts = [...kCandleContracts].sort(
+      (former, latter) => latter.openTime.getTime() - former.openTime.getTime(),
+    )
+
+    return new KCandleContractSearchResultDto(
+      newestFirstKCandleContracts.map(kCandleContract => kCandleContract.toDomain().toDto()),
     )
   }
 

@@ -8,6 +8,7 @@ import { KCandleIdentityDto } from '~/domain/models/dto/k-candle-identity-dto'
 import { KCandleFieldError } from '~/domain/errors/k-candle-field-error'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 const START_TIME = new Date('2026-08-30T00:00:00.000Z')
 const CURRENT_TIME = new Date('2026-08-30T12:00:00.000Z')
@@ -55,7 +56,7 @@ describe('KCandleService', () => {
         buildKCandle('2026-08-30T10:10:00.000Z'),
         buildKCandle('2026-08-30T10:00:00.000Z'),
         buildKCandle('2026-08-30T10:05:00.000Z'),
-      ]))
+      ]), buildKCandleContractProxy())
 
       const result = await kCandleService.searchKCandles(
         new KCandleQueryDto('BTCUSDT', START_TIME),
@@ -71,7 +72,7 @@ describe('KCandleService', () => {
     })
 
     it('只有一根時筆數為 1', async () => {
-      const kCandleService = new KCandleService(buildProxy([buildKCandle('2026-08-30T10:00:00.000Z')]))
+      const kCandleService = new KCandleService(buildProxy([buildKCandle('2026-08-30T10:00:00.000Z')]), buildKCandleContractProxy())
 
       const result = await kCandleService.searchKCandles(
         new KCandleQueryDto('BTCUSDT', START_TIME),
@@ -82,7 +83,7 @@ describe('KCandleService', () => {
     })
 
     it('一根都沒有時回傳空結果而不是錯誤', async () => {
-      const kCandleService = new KCandleService(buildProxy([]))
+      const kCandleService = new KCandleService(buildProxy([]), buildKCandleContractProxy())
 
       const result = await kCandleService.searchKCandles(
         new KCandleQueryDto('BTCUSDT', START_TIME),
@@ -94,7 +95,7 @@ describe('KCandleService', () => {
 
     it('條件不合法時完全不去取資料', async () => {
       const kCandleProxy = buildProxy([])
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       await expect(kCandleService.searchKCandles(
         new KCandleQueryDto('', START_TIME),
@@ -104,7 +105,7 @@ describe('KCandleService', () => {
 
     it('交給取資料的條件是正規化後的交易標的，且查到目前時間為止', async () => {
       const kCandleProxy = buildProxy([])
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       await kCandleService.searchKCandles(new KCandleQueryDto('  BTCUSDT  ', START_TIME))
 
@@ -125,7 +126,7 @@ describe('KCandleService', () => {
     })
 
     it('預設開始時間為目前時間往前二十四小時', () => {
-      const kCandleService = new KCandleService(buildProxy([]))
+      const kCandleService = new KCandleService(buildProxy([]), buildKCandleContractProxy())
 
       const defaultQuery = kCandleService.buildDefaultQuery('BTCUSDT')
 
@@ -153,7 +154,7 @@ describe('KCandleService', () => {
     it('新增時把驗證過的 K 線交出去，並回傳存下來的那一根', async () => {
       const kCandleProxy = buildProxy([])
       kCandleProxy.saveKCandle = vi.fn().mockResolvedValue(buildKCandle('2026-08-30T09:00:00.000Z'))
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       const savedKCandle = await kCandleService.saveKCandle(buildWriteDto())
 
@@ -167,7 +168,7 @@ describe('KCandleService', () => {
     it('修改時把驗證過的 K 線交出去，並回傳更新後的那一根', async () => {
       const kCandleProxy = buildProxy([])
       kCandleProxy.updateKCandle = vi.fn().mockResolvedValue(buildKCandle('2026-08-30T09:00:00.000Z'))
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       const updatedKCandle = await kCandleService.updateKCandle(buildWriteDto())
 
@@ -180,7 +181,7 @@ describe('KCandleService', () => {
       { useCase: '修改', run: (service: KCandleService) => service.updateKCandle(buildWriteDto('')) },
     ])('$useCase 的輸入不合法時完全不去寫入', async ({ run }) => {
       const kCandleProxy = buildProxy([])
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       await expect(run(kCandleService)).rejects.toBeInstanceOf(KCandleFieldError)
       expect(kCandleProxy.saveKCandle).not.toHaveBeenCalled()
@@ -189,7 +190,7 @@ describe('KCandleService', () => {
 
     it('刪除時以驗證過的身分指名那一根', async () => {
       const kCandleProxy = buildProxy([])
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       await kCandleService.deleteKCandle(new KCandleIdentityDto('  BTCUSDT  ', VALID_OPEN_TIME))
 
@@ -200,7 +201,7 @@ describe('KCandleService', () => {
 
     it('刪除時身分不完整就完全不去刪', async () => {
       const kCandleProxy = buildProxy([])
-      const kCandleService = new KCandleService(kCandleProxy)
+      const kCandleService = new KCandleService(kCandleProxy, buildKCandleContractProxy())
 
       await expect(kCandleService.deleteKCandle(new KCandleIdentityDto('', VALID_OPEN_TIME)))
         .rejects.toBeInstanceOf(KCandleFieldError)
