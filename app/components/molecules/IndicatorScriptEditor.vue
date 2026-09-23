@@ -170,7 +170,8 @@ function continueWriting() {
     overflow: auto;
   }
 
-  // 與檔案那一塊同一個高度底線：切換之後整塊不會忽然縮成一行，把右欄的結果頂上來。
+  // 它吃掉這一塊剩下的高度，那一句落在正中間。不沿用檔案那一塊的 24rem 底線：
+  // 窄螢幕上外框比那矮，置中的那一句會被推到框外、被切掉——而它是這裡唯一的內容。
   &__concealed {
     display: flex;
     flex: 1;
@@ -178,7 +179,7 @@ function continueWriting() {
     justify-content: center;
     margin: 0;
     padding: spacing('lg');
-    min-height: 24rem;
+    min-height: 8rem;
     color: color('text-faint');
     font-size: font-size('sm');
     text-align: center;
