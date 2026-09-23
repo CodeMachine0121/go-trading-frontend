@@ -100,7 +100,7 @@ const ABSENT_FIGURE = '—'
             :key="kCandleContract.openTime.toISOString()"
             data-testid="k-candle-contract-row"
           >
-            <td class="k-candle-contract-table__time">
+            <td>
               {{ timeZone.formatDateTime(kCandleContract.openTime) }}
             </td>
             <td>
@@ -144,10 +144,6 @@ const ABSENT_FIGURE = '—'
   flex: 1;
   min-height: 18rem;
 
-  &__absent {
-    color: color('text-faint');
-  }
-
   &__placeholder {
     margin: auto;
     padding: spacing('2xl') spacing('md');
@@ -162,58 +158,15 @@ const ABSENT_FIGURE = '—'
     overflow: auto;
   }
 
+  // 時間釘在左邊、數字往右排的那一種表，與另一張 K 線表同一把尺。
   &__table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-    font-size: font-size('xs');
+    @include time-series-table;
 
-    th,
-    td {
-      border-bottom: 1px solid color('border');
-      padding: spacing('2xs') spacing('sm');
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    td {
-      color: color('text-strong');
-
-      @include numeric;
-    }
-
-    // 時間是每一列的身分，釘在左邊不跟著捲——理由與現貨那張表相同。
-    th:first-child,
-    td:first-child {
-      position: sticky;
-      left: 0;
-      background-color: color('surface');
-      text-align: left;
-    }
-
-    th:first-child {
-      z-index: 1;
-      background-color: color('surface-muted');
-    }
-
-    tbody tr:hover td:first-child {
-      background-color: color('surface-muted');
-    }
-
-    th {
-      position: sticky;
-      top: 0;
-      background-color: color('surface-muted');
-
-      @include dense-label;
-    }
-
-    tbody tr:hover td {
-      background-color: color('surface-muted');
-    }
-
-    td.k-candle-contract-table__time {
-      color: color('text-muted');
+    // 沒有值的那一格：淡化，讓它與旁邊真的是 0 的數字一眼分得開。
+    // 這條必須住在 &__table 裡面：表格那條 `td` 的顏色比單一個 class 更明確，
+    // 擺在外面的話它會被蓋掉，而且不會有任何錯誤提醒你。
+    td.k-candle-contract-table__absent {
+      color: color('text-faint');
     }
   }
 }
