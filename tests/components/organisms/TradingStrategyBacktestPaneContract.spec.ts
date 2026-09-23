@@ -52,6 +52,7 @@ function mountPane(proxy: IBacktestProxy, replaysOnContractAccount: boolean) {
       timeZone: buildTimeZone(),
       tradingStrategyId: 7,
       savedGeneration: 0,
+      marketDataKind: replaysOnContractAccount ? 'contractKCandle' : 'kCandle',
       replaysOnContractAccount,
       tradingModeLabel: replaysOnContractAccount ? '只做多' : null,
     },

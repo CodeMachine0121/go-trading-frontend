@@ -193,6 +193,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :time-zone="selectedTimeZone"
         :trading-strategy-id="tradingStrategyId"
         :saved-generation="workbench.savedGeneration.value"
+        :market-data-kind="workbench.editing.value?.marketDataKind ?? 'kCandle'"
         :replays-on-contract-account="workbench.editing.value?.replaysOnContractAccount ?? false"
         :trading-mode-label="workbench.editing.value?.tradingModeLabel ?? null"
       />
