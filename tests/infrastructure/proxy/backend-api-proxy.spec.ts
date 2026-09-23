@@ -92,18 +92,21 @@ describe('BackendApiProxy：使用者在等的那一發要報到', () => {
   })
 })
 
-describe('BackendApiProxy：背景的那幾發不報到', () => {
-  it('連線燈的檢查不報到', async () => {
-    const { beginWaiting } = waitingProbe()
+describe('BackendApiProxy：連線燈的檢查是使用者在等的', () => {
+  it('連線燈的檢查報到——它不定期去問，只在打開時與按下重新檢查時才問', async () => {
+    const { beginWaiting, endWaiting } = waitingProbe()
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ status: 'Healthy' }))
 
     await new BackendHealthProxy(
       BASE_URL, signedInSessionStorage(), vi.fn(), async () => false, beginWaiting)
       .fetchBackendHealth()
 
-    expect(beginWaiting).not.toHaveBeenCalled()
+    expect(beginWaiting).toHaveBeenCalledTimes(1)
+    expect(endWaiting).toHaveBeenCalledTimes(1)
   })
+})
 
+describe('BackendApiProxy：背景的那幾發不報到', () => {
   it('助手作答中的回頭詢問不報到', async () => {
     const { beginWaiting } = waitingProbe()
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(CONVERSATION_WIRE))

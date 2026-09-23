@@ -40,7 +40,7 @@ export function useBackendHealth() {
   }
 
   onMounted(() => {
-    // 一個畫面上有兩個地方取用它（側欄的燈與那一頁的大字），第一次檢查只做一次。
+    // 每一頁都取用它（側欄的燈），第一次檢查只做一次；之後只在使用者按下重新檢查時再問。
     if (checked.value) {
       return
     }
