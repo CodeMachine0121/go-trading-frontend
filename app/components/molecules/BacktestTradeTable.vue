@@ -247,7 +247,6 @@ watch(() => closedTrades, () => {
     font-size: font-size('sm');
   }
 
-  // 明細可能有幾十列，橫向也可能塞不下：讓它自己捲，不要把整頁撐寬。
   &__more {
     display: flex;
     align-items: center;
@@ -258,6 +257,7 @@ watch(() => closedTrades, () => {
     font-size: font-size('sm');
   }
 
+  // 明細可能有幾十列，橫向也可能塞不下：讓它自己捲，不要把整頁撐寬。
   &__scroller {
     overflow-x: auto;
   }
