@@ -18,11 +18,13 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
-import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
+import type { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
+import type { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-workbench-dto'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
-import { K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
 import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
@@ -57,16 +59,20 @@ export class IndicatorCalculationService {
    * 這個種類之下，一份可以直接執行的範例算式——**整份**，含最上面的宣告與匯入。
    * 填進編輯區就送得出去，使用者不必自己補任何一行。
    */
-  describeExampleScript(resultType: string): string {
-    return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType)).exampleScript()
+  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): string {
+    return new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(resultType), new MarketDataKindDomain(marketDataKind)).exampleScript()
   }
 
   /**
    * 改指標值種類時，把算式裡第一個 `Calculate` 進入點的回傳型別換成新種類的。
    * 沒有符合的那一行時整份原樣回傳。
    */
-  retargetScriptReturnType(script: string, resultType: string): string {
-    return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
+  retargetScriptReturnType(
+    script: string, resultType: string, marketDataKind: MarketDataKind = 'kCandle',
+  ): string {
+    return new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(resultType), new MarketDataKindDomain(marketDataKind))
       .retargetReturnType(script)
   }
 
@@ -78,11 +84,20 @@ export class IndicatorCalculationService {
    * 畫面就得自己記得「預設種類」要配「那一種的空白算式」——而那正是它答不出來、
    * 卻會在其中一邊改動時悄悄答錯的事。
    */
-  describeBlankStrategyScript(): StrategyScriptContentDto {
+  describeBlankStrategyScript(marketDataKind: MarketDataKind = 'kCandle'): StrategyScriptContentDto {
     const resultType = new IndicatorResultTypeDomain('')
+    const kind = new MarketDataKindDomain(marketDataKind)
 
     return new StrategyScriptContentDto(
-      new IndicatorScriptDomain(resultType).blankScript(), resultType.value)
+      new IndicatorScriptDomain(resultType, kind).blankScript(), resultType.value, [], kind.value)
+  }
+
+  /**
+   * 這一種行情之下，工作區長得不一樣的那幾件事：有沒有回測可以跑、標的從哪一份清單挑。
+   * 畫面問這個而不是自己比對行情種類的字串——那是規則，不住在畫面上。
+   */
+  describeStrategyScriptWorkbench(marketDataKind: MarketDataKind): StrategyScriptWorkbenchDto {
+    return new MarketDataKindDomain(marketDataKind).toWorkbenchDto()
   }
 
   /**
@@ -231,13 +246,13 @@ export class IndicatorCalculationService {
   }
 
   /**
-   * 算式收到的每一根 K 線有哪些欄位。
+   * 算式收到的每一格有哪些欄位、進入點長什麼樣、有什麼要特別留意的——依這一頁的行情種類。
    *
    * 它與預填的算式（`describeExampleScript`）描述的是同一份沙箱契約，因此住在同一個 service——
    * 分開放的話，外框哪天換了型別，欄位說明會繼續說舊的那一套。
    */
-  listKCandleFields(): KCandleFieldDto[] {
-    return K_CANDLE_FIELDS.map(field => field.toDto())
+  describeScriptInputGuide(marketDataKind: MarketDataKind = 'kCandle'): ScriptInputGuideDto {
+    return new MarketDataKindDomain(marketDataKind).toScriptInputGuideDto()
   }
 
   /**

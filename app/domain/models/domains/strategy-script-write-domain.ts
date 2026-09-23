@@ -3,6 +3,8 @@ import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
 import { StrategyScriptFieldError } from '~/domain/errors/strategy-script-field-error'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * Domain Model：要存下去的一支策略腳本，建構當下即驗證。
@@ -23,6 +25,7 @@ export class StrategyScriptWriteDomain {
   readonly script: string
   readonly resultType: string
   readonly parameters: readonly StrategyScriptParameterDto[]
+  readonly marketDataKind: MarketDataKind
 
   constructor(strategyScriptWriteDto: StrategyScriptWriteDto) {
     const normalizedName = strategyScriptWriteDto.name.trim()
@@ -55,5 +58,8 @@ export class StrategyScriptWriteDomain {
       throw new StrategyScriptFieldError('parameters', parametersMessage)
     }
     this.parameters = parameters.all
+    // 這支算式吃哪一種行情跟著內容走，由它自己的模型正規化。改寫時照舊送出同一種：
+    // 系統只拒絕「換成另一種」，照抄原本那一種不算更換。
+    this.marketDataKind = new MarketDataKindDomain(strategyScriptWriteDto.content.marketDataKind).value
   }
 }

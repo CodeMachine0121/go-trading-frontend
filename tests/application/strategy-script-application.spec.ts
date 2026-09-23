@@ -88,7 +88,7 @@ describe('StrategyScriptApplication.listStrategyScripts', () => {
     const available = await strategyScriptApplication.listAvailableStrategyScripts()
 
     expect(Object.keys(available.mine[0]?.content ?? {}))
-      .toEqual(['script', 'resultType', 'parameters'])
+      .toEqual(['script', 'resultType', 'parameters', 'marketDataKind'])
   })
 
   it('兩段都空是答案，不是錯誤', async () => {
@@ -273,5 +273,55 @@ describe('StrategyScriptApplication.hasUnsavedChanges', () => {
     const strategyScriptApplication = buildApplication({})
 
     expect(strategyScriptApplication.hasUnsavedChanges(null, contentOf(''))).toBe(false)
+  })
+})
+
+describe('StrategyScriptApplication 只列一種行情的策略腳本', () => {
+  const available = {
+    mine: [
+      new StrategyScript(1, '均線', '', WHOLE_SCRIPT, 'floatList', [], false, 'kCandle'),
+      new StrategyScript(2, '費率反轉', '', WHOLE_SCRIPT, 'signal', [], false, 'contractKCandle'),
+      // 舊版後端沒說是哪一種——那時只有 K 線。
+      new StrategyScript(3, '舊的均線', '', WHOLE_SCRIPT, 'float'),
+    ],
+    adopted: [
+      buildAdoptedStrategyScript(4, '別人的均線'),
+      buildAdoptedStrategyScript(5, '別人的 OI 背離', { marketDataKind: 'contractKCandle' }),
+    ],
+  }
+
+  it('合約那一頁只看得到合約行情種類的，自己的與加入的都是', async () => {
+    const strategyScriptApplication = buildApplication({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue(available),
+    })
+
+    const contract = await strategyScriptApplication.listAvailableStrategyScripts('contractKCandle')
+
+    expect(contract.mine.map(strategyScript => strategyScript.name)).toEqual(['費率反轉'])
+    expect(contract.adopted.map(published => published.name)).toEqual(['別人的 OI 背離'])
+    expect(contract.mine[0]?.content.marketDataKind).toBe('contractKCandle')
+  })
+
+  it('沒說是哪一種就是 K 線——K 線圖表與交易策略都是這樣問的', async () => {
+    const strategyScriptApplication = buildApplication({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue(available),
+    })
+
+    const spot = await strategyScriptApplication.listAvailableStrategyScripts()
+
+    expect(spot.mine.map(strategyScript => strategyScript.name)).toEqual(['均線', '舊的均線'])
+    expect(spot.adopted.map(published => published.name)).toEqual(['別人的均線'])
+  })
+
+  it('存下去的那一支吃的是內容說的那一種', async () => {
+    const createStrategyScript = vi.fn().mockResolvedValue(
+      new StrategyScript(9, 'OI 背離', '', WHOLE_SCRIPT, 'float', [], false, 'contractKCandle'))
+    const strategyScriptApplication = buildApplication({ createStrategyScript })
+
+    const saved = await strategyScriptApplication.saveStrategyScript(new StrategyScriptWriteDto(
+      'OI 背離', new StrategyScriptContentDto(WHOLE_SCRIPT, 'float', [], 'contractKCandle')))
+
+    expect(createStrategyScript.mock.calls[0]?.[0].marketDataKind).toBe('contractKCandle')
+    expect(saved.content.marketDataKind).toBe('contractKCandle')
   })
 })

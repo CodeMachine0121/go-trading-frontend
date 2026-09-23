@@ -236,3 +236,12 @@ describe('useTradingStrategyWorkbench 存起來', () => {
     expect(announcement.value).toBe('')
   })
 })
+
+describe('useTradingStrategyWorkbench 只拿吃 K 線的策略腳本當信號來源', () => {
+  it('問清單時不指定行情種類——也就是只要 K 線那一種，交易策略在現貨上跑', async () => {
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(strategyScriptApplication.listAvailableStrategyScripts).toHaveBeenCalledWith()
+  })
+})

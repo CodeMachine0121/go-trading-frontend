@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 function scriptOf(resultType: string): IndicatorScriptDomain {
   return new IndicatorScriptDomain(new IndicatorResultTypeDomain(resultType))
@@ -108,5 +109,54 @@ describe('IndicatorScriptDomain.retargetReturnType', () => {
     const script = `${PREAMBLE}\n\nfunc Compute(rows []indicator.KCandle) map[string]float64 {\n\treturn nil\n}`
 
     expect(scriptOf('signal').retargetReturnType(script)).toBe(script)
+  })
+})
+
+describe('IndicatorScriptDomain 吃合約行情的算式', () => {
+  function contractScriptOf(resultType: string): IndicatorScriptDomain {
+    return new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(resultType), new MarketDataKindDomain('contractKCandle'))
+  }
+
+  it.each([
+    { resultType: 'float', signature: 'func Calculate(data []indicator.ContractKCandle) map[string]float64 {' },
+    { resultType: 'signal', signature: 'func Calculate(data []indicator.ContractKCandle) indicator.Signal {' },
+  ])('$resultType 的空白算式收一串合約行情格', ({ resultType, signature }) => {
+    expect(contractScriptOf(resultType).blankScript()).toBe(`${PREAMBLE}\n\n${signature}\n\t\n}`)
+  })
+
+  it('改成信號時，進入點仍收合約行情格、回傳改成一個信號', () => {
+    const script = contractScriptOf('float').blankScript()
+
+    const retargeted = contractScriptOf('signal').retargetReturnType(script)
+
+    expect(retargeted).toContain('func Calculate(data []indicator.ContractKCandle) indicator.Signal {')
+    expect(retargeted).not.toContain('map[string]float64')
+  })
+
+  it('一份照現貨寫法的算式，在合約那一頁改種類時連收的東西一起對上', () => {
+    const spotScript = scriptOf('float').blankScript()
+
+    const retargeted = contractScriptOf('bool').retargetReturnType(spotScript)
+
+    expect(retargeted).toContain('func Calculate(data []indicator.ContractKCandle) map[string]bool {')
+  })
+
+  it.each([
+    { resultType: 'float', reads: 'candle.FundingRate' },
+    { resultType: 'floatList', reads: 'candle.OpenInterest' },
+    { resultType: 'bool', reads: 'last.Mark.Close' },
+    { resultType: 'boolList', reads: 'candle.FundingSettledInBar' },
+    { resultType: 'signal', reads: 'last.FundingRate' },
+  ])('$resultType 的範例收合約行情格，而且讀了合約才有的 $reads', ({ resultType, reads }) => {
+    const example = contractScriptOf(resultType).exampleScript()
+
+    expect(example).toContain('func Calculate(data []indicator.ContractKCandle)')
+    expect(example).toContain(reads)
+  })
+
+  it('K 線那一種的範例照舊讀收盤價', () => {
+    expect(scriptOf('float').exampleScript()).toContain('candle.Close')
+    expect(scriptOf('float').exampleScript()).toContain('[]indicator.KCandle')
   })
 })

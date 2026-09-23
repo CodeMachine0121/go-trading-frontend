@@ -2,6 +2,7 @@ import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-scri
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 /**
  * Domain Model：畫面上這一份東西，跟載入當下那一份比，改過了沒有。
@@ -44,8 +45,11 @@ export class StrategyScriptDraftDomain {
       return true
     }
 
+    // 空白長什麼樣跟著這一份吃的行情走：合約那一頁預填的進入點收合約行情格，
+    // 拿現貨的空白去比，一份沒碰過的合約草稿會被當成「有東西還沒存」。
     const blankScript = new IndicatorScriptDomain(
-      new IndicatorResultTypeDomain(this.currentContent.resultType)).blankScript()
+      new IndicatorResultTypeDomain(this.currentContent.resultType),
+      new MarketDataKindDomain(this.currentContent.marketDataKind)).blankScript()
 
     return trimmedScript === blankScript.trim()
   }

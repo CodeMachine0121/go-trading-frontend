@@ -1,5 +1,6 @@
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：使用者在指標計算表單裡打的原始輸入。
@@ -40,5 +41,10 @@ export class IndicatorCalculationRequestDto {
      * 與 `script` 恰好挑一種。
      */
     public readonly strategyScriptId?: number,
+    /**
+     * 這一次要算哪一種行情：現貨 K 線，或合約行情格。它決定計算送到哪裡、
+     * 標的是哪一份清單上的。沒說時是 K 線——K 線圖表與既有的呼叫端都是這一種。
+     */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
   ) {}
 }

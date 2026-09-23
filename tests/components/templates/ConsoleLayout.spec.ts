@@ -102,7 +102,8 @@ describe('ConsoleLayout', () => {
         '現貨 K 線圖表',
         '合約 K 線瀏覽',
         '合約 K 線圖表',
-        '策略腳本',
+        '現貨策略腳本',
+        '合約策略腳本',
         'Marketplace',
         '交易策略',
         '策略機器人',
@@ -119,8 +120,8 @@ describe('ConsoleLayout', () => {
     const icons = wrapper.findAll('.console-layout__link svg')
       .map(icon => icon.attributes('data-icon'))
 
-    expect(icons).toHaveLength(10)
-    expect(new Set(icons).size).toBe(10)
+    expect(icons).toHaveLength(11)
+    expect(new Set(icons).size).toBe(11)
   })
 
   it('連線狀態已經不是一個去處了——側欄上沒有它', () => {
@@ -156,7 +157,7 @@ describe('ConsoleLayout', () => {
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(10)
+    expect(wrapper.findAll('a')).toHaveLength(11)
     expect(wrapper.text()).toContain('策略腳本')
     expect(wrapper.text()).toContain('交易策略')
     expect(wrapper.text()).toContain('設定')
@@ -204,7 +205,7 @@ describe('ConsoleLayout', () => {
       const wrapper = await mountLayoutAt(PHONE)
 
       expect(wrapper.get('[data-testid="tab-/k-candles/chart"]').text()).toContain('現貨 K 線圖表')
-      expect(wrapper.get('[data-testid="tab-/strategy-scripts"]').text()).toContain('策略腳本')
+      expect(wrapper.get('[data-testid="tab-/strategy-scripts"]').text()).toBe('現貨策略腳本')
       expect(wrapper.get('[data-testid="tab-/strategy-bots"]').text()).toContain('策略機器人')
       expect(wrapper.get('[data-testid="tab-/chat"]').text()).toContain('AI-Assistant')
       expect(wrapper.get('[data-testid="tab-more"]').text()).toContain('更多')
@@ -216,7 +217,7 @@ describe('ConsoleLayout', () => {
       expect(wrapper.findAll('[data-testid^="tab-"]')).toHaveLength(5)
     })
 
-    it('其餘六個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
+    it('其餘七個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
       // 側欄底部那兩樣在窄螢幕上沒有側欄可待，而它們與「我還能去哪裡」
       // 回答的是同一個問題：這條線路現在怎麼了。
       const wrapper = mount(ConsoleLayout, {
@@ -239,6 +240,9 @@ describe('ConsoleLayout', () => {
         .toContain('合約 K 線瀏覽')
       expect(wrapper.get('[data-testid="more-/contract-k-candles/chart"]').text())
         .toContain('合約 K 線圖表')
+      // 合約策略腳本同理：它與現貨那一頁是同一件事的另一條行情，不是日常第一動線。
+      expect(wrapper.get('[data-testid="more-/contract-strategy-scripts"]').text())
+        .toContain('合約策略腳本')
       expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('Marketplace')
       expect(wrapper.get('[data-testid="more-/trading-strategies"]').text())
         .toContain('交易策略')
@@ -254,13 +258,13 @@ describe('ConsoleLayout', () => {
       expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
     })
 
-    it('十個去處加起來出現一次，不多不少', async () => {
+    it('十一個去處加起來出現一次，不多不少', async () => {
       // 四格加六條，剛好是側欄上的那十個——兩份導覽會讓讀螢幕的人聽到兩遍。
       const wrapper = await mountLayoutAt(PHONE)
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
       expect(wrapper.findAll('nav')).toHaveLength(1)
-      expect(wrapper.findAll('a')).toHaveLength(10)
+      expect(wrapper.findAll('a')).toHaveLength(11)
     })
 
     it('待在「更多」裡面的那一頁時，那一格自己會亮', async () => {
@@ -335,7 +339,7 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
-      expect(wrapper.findAll('a')).toHaveLength(10)
+      expect(wrapper.findAll('a')).toHaveLength(11)
     })
   })
 })

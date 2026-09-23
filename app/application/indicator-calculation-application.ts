@@ -10,7 +10,9 @@ import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicato
 import type { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
-import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
+import type { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
+import type { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-workbench-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import type { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
@@ -25,16 +27,22 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.calculateIndicator(indicatorCalculationRequestDto)
   }
 
-  describeExampleScript(resultType: string): string {
-    return this.indicatorCalculationService.describeExampleScript(resultType)
+  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): string {
+    return this.indicatorCalculationService.describeExampleScript(resultType, marketDataKind)
   }
 
-  retargetScriptReturnType(script: string, resultType: string): string {
-    return this.indicatorCalculationService.retargetScriptReturnType(script, resultType)
+  retargetScriptReturnType(
+    script: string, resultType: string, marketDataKind: MarketDataKind = 'kCandle',
+  ): string {
+    return this.indicatorCalculationService.retargetScriptReturnType(script, resultType, marketDataKind)
   }
 
-  describeBlankStrategyScript(): StrategyScriptContentDto {
-    return this.indicatorCalculationService.describeBlankStrategyScript()
+  describeBlankStrategyScript(marketDataKind: MarketDataKind = 'kCandle'): StrategyScriptContentDto {
+    return this.indicatorCalculationService.describeBlankStrategyScript(marketDataKind)
+  }
+
+  describeStrategyScriptWorkbench(marketDataKind: MarketDataKind): StrategyScriptWorkbenchDto {
+    return this.indicatorCalculationService.describeStrategyScriptWorkbench(marketDataKind)
   }
 
   listAggregationIntervalOptions(): AggregationIntervalOptionDto[] {
@@ -105,8 +113,8 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.listScriptParameterAccesses()
   }
 
-  listKCandleFields(): KCandleFieldDto[] {
-    return this.indicatorCalculationService.listKCandleFields()
+  describeScriptInputGuide(marketDataKind: MarketDataKind = 'kCandle'): ScriptInputGuideDto {
+    return this.indicatorCalculationService.describeScriptInputGuide(marketDataKind)
   }
 
   listSignalReadings(): SignalReadingDto[] {

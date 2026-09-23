@@ -35,6 +35,8 @@ type StrategyScriptWire = {
   resultType: string
   parameters?: StrategyScriptParameterWire[] | null
   published?: boolean
+  /** 舊版後端不給這一項；讀不到就是 K 線——那時候只有這一種。 */
+  marketDataKind?: string
 }
 
 /** 市集那一段送來的一張卡。**它沒有 script**——那不是漏了，是那一欄不存在。 */
@@ -46,6 +48,7 @@ type PublishedStrategyScriptWire = {
   publisherEmail: string
   publishedAt: string
   parameters?: StrategyScriptParameterWire[] | null
+  marketDataKind?: string
 }
 
 /** 日常那一份送來的兩段。 */
@@ -124,6 +127,7 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
           description: strategyScriptWriteDomain.description,
           script: strategyScriptWriteDomain.script,
           resultType: strategyScriptWriteDomain.resultType,
+          marketDataKind: strategyScriptWriteDomain.marketDataKind,
           parameters: strategyScriptWriteDomain.parameters.map(parameter => ({
             name: parameter.name,
             kind: parameter.kind,
@@ -173,6 +177,7 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
       publishedWire.publisherEmail,
       new Date(publishedWire.publishedAt),
       this.toParameterDtos(publishedWire.parameters),
+      publishedWire.marketDataKind ?? 'kCandle',
     )
   }
 
@@ -190,6 +195,7 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
       // 於是多一種種類的時候它被漏掉，而存好的東西讀回來就換了一種種類。
       this.toParameterDtos(strategyScriptWire.parameters),
       strategyScriptWire.published ?? false,
+      strategyScriptWire.marketDataKind ?? 'kCandle',
     )
   }
 

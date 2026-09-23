@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { StrategyScriptDraftDomain } from '~/domain/models/domains/strategy-script-draft-domain'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { IndicatorScriptDomain } from '~/domain/models/domains/indicator-script-domain'
+import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 const PREAMBLE = 'package main\n\nimport (\n\t"indicator"\n\t"math"\n\t"sort"\n)'
 
@@ -133,6 +136,25 @@ describe('StrategyScriptDraftDomain：旋鈕也是策略腳本記著的東西', 
 
   it('還沒載入過任何策略腳本，但已經宣告了一個旋鈕，就要問', () => {
     const draft = new StrategyScriptDraftDomain(null, contentOf('', 'floatList', [期數]))
+
+    expect(draft.hasUnsavedChanges()).toBe(true)
+  })
+})
+
+describe('StrategyScriptDraftDomain 認得每一種行情的空白草稿', () => {
+  it.each(['float', 'signal'])('一份沒碰過的合約行情空白草稿（%s）不算有東西還沒存', (resultType) => {
+    const blank = new IndicatorScriptDomain(
+      new IndicatorResultTypeDomain(resultType), new MarketDataKindDomain('contractKCandle')).blankScript()
+
+    const draft = new StrategyScriptDraftDomain(
+      null, new StrategyScriptContentDto(blank, resultType, [], 'contractKCandle'))
+
+    expect(draft.hasUnsavedChanges()).toBe(false)
+  })
+
+  it('合約那一頁寫了東西就算有東西還沒存', () => {
+    const draft = new StrategyScriptDraftDomain(
+      null, new StrategyScriptContentDto('sum := 0.0', 'float', [], 'contractKCandle'))
 
     expect(draft.hasUnsavedChanges()).toBe(true)
   })

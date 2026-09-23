@@ -22,6 +22,8 @@ export class StrategyScript {
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
     /** 這一支在不在市集上。**只有自己的策略腳本答得出這個問題**——別人的那些一律在上面。 */
     public readonly published: boolean = false,
+    /** 這支算式吃哪一種行情，原樣照後端說的；舊版後端不說時是 `kCandle`。 */
+    public readonly marketDataKind: string = 'kCandle',
   ) {}
 
   toDomain(): StrategyScriptDomain {

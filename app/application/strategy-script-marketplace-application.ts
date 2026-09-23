@@ -26,7 +26,8 @@ export class StrategyScriptMarketplaceApplication {
   async listMarketplace(): Promise<MarketplaceListingRowDto[]> {
     const [publishedStrategyScripts, available] = await Promise.all([
       this.strategyScriptMarketplaceService.browseMarketplace(),
-      this.strategyScriptService.listAvailableStrategyScripts(),
+      // 每一種行情都要：一支合約策略腳本是不是我的，與它吃哪一種行情無關。
+      this.strategyScriptService.listAllAvailableStrategyScripts(),
     ])
 
     return new MarketplaceListingDomain(publishedStrategyScripts, available).toRowDtos()

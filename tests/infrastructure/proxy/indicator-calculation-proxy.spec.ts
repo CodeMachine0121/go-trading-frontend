@@ -523,3 +523,34 @@ describe('IndicatorCalculationProxy.recalculateIndicator', () => {
     expect(recalculated).toEqual(calculated)
   })
 })
+
+describe('IndicatorCalculationProxy 依行情種類挑計算', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const, endpoint: 'http://localhost:8080/indicator-calculations' },
+    { marketDataKind: 'contractKCandle' as const, endpoint: 'http://localhost:8080/contract-indicator-calculations' },
+  ])('$marketDataKind 送到 $endpoint，其餘一字不差', async ({ marketDataKind, endpoint }) => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      symbol: 'BTCUSDT', usedCandleCount: 3, resultType: 'float', values: {},
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
+      new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [], undefined, marketDataKind)))
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(endpoint)
+    expect(fetchMock.mock.calls[0]?.[1].body.script).toBe(SCRIPT_BODY)
+  })
+
+  it('合約那一條被拒絕時，與現貨同一套翻譯：算式的問題仍是算式的問題', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 422, message: '入口應該收一串 indicator.ContractKCandle' })))
+
+    const failure = await new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
+      new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
+        'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [], undefined, 'contractKCandle')))
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(IndicatorScriptFailedError)
+  })
+})

@@ -22,6 +22,8 @@ export class PublishedStrategyScript {
     public readonly publishedAt: Date,
     /** 這支算式自己的旋鈕。宣告它們不會洩漏作法——一個旋鈕是一個名字與一個預設值，不是一個步驟。 */
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
+    /** 它吃哪一種行情，原樣照後端說的；舊版後端不說時是 `kCandle`。 */
+    public readonly marketDataKind: string = 'kCandle',
   ) {}
 
   toDomain(): PublishedStrategyScriptDomain {

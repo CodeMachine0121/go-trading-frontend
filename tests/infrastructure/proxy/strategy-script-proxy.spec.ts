@@ -109,6 +109,8 @@ describe('StrategyScriptProxy.createStrategyScript', () => {
         description: '',
         script: writeDomainOf().script,
         resultType: 'floatList',
+        // 沒說是哪一種行情的內容就是 K 線；每一次存檔都說出來，改寫時照抄原本那一種不算更換。
+        marketDataKind: 'kCandle',
         // 一支沒有旋鈕的算式送出的是一份空的，不是什麼都不送——
         // 「沒有旋鈕」與「這次不提旋鈕」在改寫時是兩件事。
         parameters: [],
@@ -278,5 +280,40 @@ describe('StrategyScriptProxy：策略腳本記著的旋鈕', () => {
       .listAvailableStrategyScripts()
 
     expect(strategyScripts[0]?.parameters).toEqual([])
+  })
+})
+
+describe('StrategyScriptProxy 說出每一支吃哪一種行情', () => {
+  it('讀得到後端說的行情種類；舊版後端不說時是 K 線', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      mine: [
+        { ...strategyScriptWireOf(1, '費率反轉'), marketDataKind: 'contractKCandle' },
+        strategyScriptWireOf(2, '舊的均線'),
+      ],
+      adopted: [{
+        id: 3, name: '別人的', resultType: 'float', publisherEmail: 'a@example.com',
+        publishedAt: '2026-09-10T08:00:00.000Z', marketDataKind: 'contractKCandle',
+      }, {
+        id: 4, name: '別人的舊均線', resultType: 'float', publisherEmail: 'a@example.com',
+        publishedAt: '2026-09-10T08:00:00.000Z',
+      }],
+    }))
+
+    const { mine, adopted } = await new StrategyScriptProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategyScripts()
+
+    expect(mine.map(strategyScript => strategyScript.marketDataKind)).toEqual(['contractKCandle', 'kCandle'])
+    expect(adopted.map(published => published.marketDataKind)).toEqual(['contractKCandle', 'kCandle'])
+  })
+
+  it('存一支吃合約行情的，就把那一種送出去', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ...strategyScriptWireOf(7, 'OI 背離'), marketDataKind: 'contractKCandle' })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new StrategyScriptProxy(BASE_URL, signedInSessionStorage()).createStrategyScript(
+      new StrategyScriptWriteDomain(new StrategyScriptWriteDto(
+        'OI 背離', new StrategyScriptContentDto('sum := 0.0', 'float', [], 'contractKCandle'))))
+
+    expect(fetchMock.mock.calls[0]?.[1].body.marketDataKind).toBe('contractKCandle')
   })
 })

@@ -8,6 +8,7 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
 import IndicatorScriptGuideDialog from '~/components/molecules/IndicatorScriptGuideDialog.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
@@ -30,6 +31,7 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 import { useStrategyScriptParameters } from '~/composables/use-strategy-script-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 // 有機體：策略腳本那一頁的整塊工作區。Application 由頁面注入。
 //
@@ -54,6 +56,7 @@ const {
   tradingSymbolApplication,
   backtestApplication,
   timeZone,
+  marketDataKind = 'kCandle',
 } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
   strategyScriptApplication: StrategyScriptApplication
@@ -63,6 +66,15 @@ const {
   backtestApplication: BacktestApplication
   /** 這一頁說時間的地方一律照它——回測的資金曲線與交易明細也不例外。 */
   timeZone: TimeZoneDto
+  /**
+   * 這一塊工作區寫、存、算的是哪一種行情的策略腳本。
+   *
+   * 它是**這一頁的身分**，不是使用者在畫面上切換的東西：現貨策略腳本與合約策略腳本
+   * 是兩個去處、共用這一塊。兩者的每一個差異——清單列哪一種、進入點收什麼、範例讀什麼、
+   * 說明列什麼、標的從哪一份清單挑、計算送到哪、有沒有回測——都問領域，
+   * 這裡不自己比對它的值。
+   */
+  marketDataKind?: MarketDataKind
 }>()
 
 /**
@@ -75,6 +87,12 @@ const WORKBENCH_DESTINATIONS = [
   { value: 'indicatorPreview', label: '指標預覽' },
   { value: 'backtest', label: '回測' },
 ] as const
+
+/**
+ * 這一頁有沒有回測可以跑，由這一種行情說。沒有的時候那個分頁整個不出現，
+ * 而不是出現一個按了才說「還不行」的去處——合約的回測是交易服務的下一刀。
+ */
+const workbench = indicatorCalculationApplication.describeStrategyScriptWorkbench(marketDataKind)
 
 const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
 
@@ -95,7 +113,7 @@ const workspaceGeneration = ref(0)
 // 空白長什麼樣由領域回答，整份一次交來：一份預填好的算式（開頭那幾行加一個空的
 // Calculate，**每一行都改得動**）、預設的指標值種類，以及還沒有任何旋鈕。
 // 第一次進來與按「新的空白策略腳本」都用這一份。
-const blankStrategyScriptContent = indicatorCalculationApplication.describeBlankStrategyScript()
+const blankStrategyScriptContent = indicatorCalculationApplication.describeBlankStrategyScript(marketDataKind)
 
 /*
  * 這一組是「這一次要怎麼算」，不是策略腳本記著的東西：交易標的、彙總刻度、要看多長。
@@ -124,7 +142,7 @@ const resultType = ref<string>(blankStrategyScriptContent.resultType)
 function retargetResultType(nextResultType: string) {
   resultType.value = nextResultType
   script.value = indicatorCalculationApplication.retargetScriptReturnType(
-    script.value, nextResultType)
+    script.value, nextResultType, marketDataKind)
 }
 
 const aggregationIntervalOptions
@@ -135,7 +153,7 @@ const spanUnitOptions = indicatorCalculationApplication.listCalculationSpanUnitO
 const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions()
 // 算式收到的每一根 K 線有哪些欄位，以及宣告好的參數怎麼讀。
 // 兩份都是沙箱契約的一部分，都不會變，取一次就好。
-const kCandleFields = indicatorCalculationApplication.listKCandleFields()
+const scriptInputGuide = indicatorCalculationApplication.describeScriptInputGuide(marketDataKind)
 const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
 const signalReadings = indicatorCalculationApplication.listSignalReadings()
 /** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
@@ -144,7 +162,7 @@ const guideOpen = ref(false)
 const parametersOpen = ref(false)
 /** 這個種類之下，按「帶入範例內容」會填進來的那一整份。 */
 const exampleScript = computed(
-  () => indicatorCalculationApplication.describeExampleScript(resultType.value))
+  () => indicatorCalculationApplication.describeExampleScript(resultType.value, marketDataKind))
 
 const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplication)
 
@@ -157,7 +175,7 @@ const strategyScriptLibrary = useStrategyScriptLibrary(
   strategyScriptApplication,
   strategyScriptMarketplaceApplication,
   () => new StrategyScriptContentDto(
-    script.value, resultType.value, strategyScriptParameters.parameters.value),
+    script.value, resultType.value, strategyScriptParameters.parameters.value, marketDataKind),
   (content) => {
     script.value = content.script
     resultType.value = content.resultType
@@ -167,7 +185,8 @@ const strategyScriptLibrary = useStrategyScriptLibrary(
     // 回測那一側同理，但它有自己的一次，所以由它自己清——這裡只說「換過了」。
     workspaceGeneration.value += 1
   },
-  blankStrategyScriptContent)
+  blankStrategyScriptContent,
+  marketDataKind)
 
 onMounted(() => {
   void strategyScriptLibrary.refreshStrategyScripts()
@@ -239,7 +258,8 @@ async function calculateIndicator() {
     resultType.value,
     strategyScriptParameters.parameters.value,
     // 唯讀時沒有算式可以送——指名那一支本身來跑，那是它唯一跑得動的方式。
-    strategyScriptLibrary.namedStrategyScriptId.value))
+    strategyScriptLibrary.namedStrategyScriptId.value,
+    marketDataKind))
 }
 </script>
 
@@ -451,6 +471,7 @@ async function calculateIndicator() {
       <div class="indicator-calculation-panel__outcome">
         <!-- 切換擺在右欄的頂上：它換掉的只有這一欄，左欄那份工作區與它無關。 -->
         <AppTabs
+          v-if="workbench.offersBacktest"
           v-model="destination"
           :options="WORKBENCH_DESTINATIONS"
         />
@@ -489,7 +510,15 @@ async function calculateIndicator() {
             </template>
 
             <div class="indicator-calculation-panel__run-fields">
+              <!-- 兩份清單、兩個欄位：同一個名字在現貨與合約是兩個商品，從現貨清單挑合約會挑錯。 -->
               <SymbolField
+                v-if="!workbench.picksContractTradingSymbol"
+                v-model="symbol"
+                :trading-symbol-application="tradingSymbolApplication"
+                :error-message="calculationRun.messageFor('symbol')"
+              />
+              <ContractSymbolField
+                v-else
                 v-model="symbol"
                 :trading-symbol-application="tradingSymbolApplication"
                 :error-message="calculationRun.messageFor('symbol')"
@@ -762,6 +791,7 @@ async function calculateIndicator() {
         </form>
 
         <StrategyScriptBacktestPane
+          v-if="workbench.offersBacktest"
           v-show="destination === 'backtest'"
           v-model:symbol="symbol"
           v-model:aggregation-interval="aggregationInterval"
@@ -796,7 +826,7 @@ async function calculateIndicator() {
     <!-- 兩份要查的清單收在同一個對話框裡：去查它們的時機是同一個。 -->
     <IndicatorScriptGuideDialog
       :open="guideOpen"
-      :fields="kCandleFields"
+      :guide="scriptInputGuide"
       :parameter-accesses="scriptParameterAccesses"
       :signal-readings="signalReadings"
       @close="guideOpen = false"

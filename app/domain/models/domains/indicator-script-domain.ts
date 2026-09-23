@@ -1,5 +1,7 @@
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。開頭、簽章與收尾由
@@ -48,6 +50,60 @@ const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readon
 }
 
 /**
+ * 合約行情種類的範例：同樣五種，但每一段都讀了**合約才有的東西**——資金費率、
+ * 這一格內有沒有結算、持倉量、標記價格——否則使用者看不出這一頁與現貨那一頁差在哪。
+ */
+const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly string[]>> = {
+  float: [
+    'sum := 0.0',
+    'for _, candle := range data {',
+    '\tsum += candle.FundingRate',
+    '}',
+    '',
+    'return map[string]float64{"平均資金費率": sum / float64(len(data))}',
+  ],
+  floatList: [
+    'openInterests := []float64{}',
+    'for _, candle := range data {',
+    '\topenInterests = append(openInterests, candle.OpenInterest)',
+    '}',
+    '',
+    'return map[string][]float64{"持倉量": openInterests}',
+  ],
+  bool: [
+    'last := data[len(data)-1]',
+    '',
+    'return map[string]bool{"標記價高於成交價": last.Mark.Close > last.Close}',
+  ],
+  boolList: [
+    'answers := []bool{}',
+    'for _, candle := range data {',
+    '\tanswers = append(answers, candle.FundingSettledInBar)',
+    '}',
+    '',
+    'return map[string][]bool{"這一格有結算": answers}',
+  ],
+  signal: [
+    'first := data[0]',
+    'last := data[len(data)-1]',
+    '',
+    '// 費率轉負而持倉量增加：空方擁擠，找反彈。沒有資料的項目是零，先確認有值。',
+    'if last.OpenInterest > 0 && last.FundingRate < 0 && last.OpenInterest > first.OpenInterest {',
+    '\treturn indicator.Buy',
+    '}',
+    'return indicator.Hold',
+  ],
+}
+
+/** 每一種行情用哪一組範例。 */
+const EXAMPLE_CALCULATE_INNER_LINES_BY_MARKET_DATA_KIND: Readonly<
+  Record<MarketDataKind, Readonly<Record<IndicatorResultType, readonly string[]>>>
+> = {
+  kCandle: EXAMPLE_CALCULATE_INNER_LINES,
+  contractKCandle: CONTRACT_EXAMPLE_CALCULATE_INNER_LINES,
+}
+
+/**
  * 一份新算式最上面那幾行：package 宣告與三個匯入。
  *
  * **它是預填的內容，不是唯讀的外框。** 補上之後它與底下的每一行一樣是使用者的，
@@ -73,8 +129,11 @@ const BODY_INDENT = '\t'
 /**
  * 一份算式裡「這一行是進入點」的樣子。改指標值種類時，第一個符合的這一行，
  * 回傳型別會被重打。使用者把簽章拆成多行就認不出——那是刻意接受的取捨。
+ *
+ * 兩種行情的進入點都認得：重打時用的是**這一頁那一種**的型別，所以一份從另一頁
+ * 貼過來的算式，改一次種類就連收的東西一起對上了。
  */
-const CALCULATE_SIGNATURE_PATTERN = /func Calculate\(data \[\]indicator\.KCandle\)[^{\n]*\{/
+const CALCULATE_SIGNATURE_PATTERN = /func Calculate\(data \[\]indicator\.(?:KCandle|ContractKCandle)\)[^{\n]*\{/
 
 /**
  * Domain Model：一份新的指標算式該長什麼樣。
@@ -87,7 +146,11 @@ const CALCULATE_SIGNATURE_PATTERN = /func Calculate\(data \[\]indicator\.KCandle
  * 那一行，而那是使用者親手按下選單換來的。
  */
 export class IndicatorScriptDomain {
-  constructor(private readonly resultType: IndicatorResultTypeDomain) {}
+  constructor(
+    private readonly resultType: IndicatorResultTypeDomain,
+    /** 算式吃哪一種行情；它決定進入點收什麼、範例讀什麼。沒說時是 K 線。 */
+    private readonly marketDataKind: MarketDataKindDomain = new MarketDataKindDomain(''),
+  ) {}
 
   /**
    * 進入點那一行。回傳型別是算式裡唯一隨種類變的東西：信號回傳一個信號，
@@ -100,7 +163,7 @@ export class IndicatorScriptDomain {
       ? 'indicator.Signal'
       : `map[string]${mapValueShape}`
 
-    return `func Calculate(data []indicator.KCandle) ${returnShape} {`
+    return `func Calculate(data []indicator.${this.marketDataKind.scriptInputTypeName()}) ${returnShape} {`
   }
 
   /** 開新的空白策略腳本時預填的那一整份：開頭那幾行，加一個空的 `Calculate`。 */
@@ -115,7 +178,7 @@ export class IndicatorScriptDomain {
    * 它與 `blankScript()` 是一對相互對照的東西——「什麼都還沒寫」與「寫好了長這樣」。
    */
   exampleScript(): string {
-    const innerLines = EXAMPLE_CALCULATE_INNER_LINES[this.resultType.value]
+    const innerLines = EXAMPLE_CALCULATE_INNER_LINES_BY_MARKET_DATA_KIND[this.marketDataKind.value][this.resultType.value]
       .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
 
     return [SCRIPT_PREAMBLE, '', this.calculateSignature(), ...innerLines, '}'].join('\n')

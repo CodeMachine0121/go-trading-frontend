@@ -69,6 +69,13 @@ const strategyScript = computed(() => row.strategyScript)
         <dt>算出來的是</dt>
         <dd>{{ strategyScript.resultTypeLabel }}</dd>
       </div>
+      <!-- 吃哪一種行情決定它能在哪一頁跑：加入之後，它只出現在那一種的策略腳本畫面上。 -->
+      <div>
+        <dt>吃的行情</dt>
+        <dd data-testid="marketplace-market-data-kind">
+          {{ strategyScript.marketDataKindLabel }}
+        </dd>
+      </div>
       <div>
         <dt>可調的旋鈕</dt>
         <dd>

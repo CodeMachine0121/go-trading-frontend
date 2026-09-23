@@ -10,8 +10,16 @@ import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strateg
 import { CandleCoverageShortfallDomain } from '~/domain/models/domains/candle-coverage-shortfall-domain'
 import { MarketClosedThroughoutDomain } from '~/domain/models/domains/market-closed-throughout-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
-const INDICATOR_CALCULATIONS_ENDPOINT = '/indicator-calculations'
+/**
+ * 兩種行情各自一條路：同一份請求、同一份回應、同一套拒絕，只差在交易服務要讀哪一種行情。
+ * 哪一條由請求說——那是這一次要算什麼的一部分，不是這個 proxy 的設定。
+ */
+const INDICATOR_CALCULATIONS_ENDPOINTS: Readonly<Record<MarketDataKind, string>> = {
+  kCandle: '/indicator-calculations',
+  contractKCandle: '/contract-indicator-calculations',
+}
 
 /** 後端用這個狀態碼表示「請求沒問題，是算式跑不起來」。只有這裡需要知道這件事。 */
 const SCRIPT_FAILED_STATUS = 422
@@ -85,7 +93,7 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
   ): Promise<IndicatorCalculation> {
     try {
       const wire = await this.requestBackend<IndicatorCalculationWire>(
-        INDICATOR_CALCULATIONS_ENDPOINT,
+        INDICATOR_CALCULATIONS_ENDPOINTS[indicatorCalculationRequestDomain.marketDataKind.value],
         {
           method: 'POST',
           background,
