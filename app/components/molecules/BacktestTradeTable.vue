@@ -14,6 +14,7 @@ const {
   timeZone,
   showTransactionCosts = false,
   hasOpenPosition = false,
+  showContractFigures = false,
 } = defineProps<{
   closedTrades: readonly ClosedTradeDto[]
   timeZone: TimeZoneDto
@@ -26,6 +27,8 @@ const {
    * （同一時間最多一個部位），不該由表格自己推。
    */
   hasOpenPosition?: boolean
+  /** 這一次是合約重演：每一筆多出槓桿、數量、保證金與資金費用。 */
+  showContractFigures?: boolean
 }>()
 </script>
 
@@ -81,6 +84,31 @@ const {
           <th scope="col">
             出場價
           </th>
+          <!-- 合約那四欄擺在價格之後：先看它借了幾倍、押了多少，再看它怎麼結束。 -->
+          <th
+            v-if="showContractFigures"
+            scope="col"
+          >
+            槓桿
+          </th>
+          <th
+            v-if="showContractFigures"
+            scope="col"
+          >
+            數量
+          </th>
+          <th
+            v-if="showContractFigures"
+            scope="col"
+          >
+            保證金
+          </th>
+          <th
+            v-if="showContractFigures"
+            scope="col"
+          >
+            資金費用
+          </th>
           <!-- 擺在出場價之後、賺賠之前：它說的是**那一次出場**的事。 -->
           <th scope="col">
             怎麼出場
@@ -119,6 +147,29 @@ const {
           <td class="backtest-trade-table__number">
             {{ closedTrade.exitPrice }}
           </td>
+          <template v-if="showContractFigures && closedTrade.contract">
+            <td data-testid="trade-leverage">
+              {{ closedTrade.contract.leverageLabel }}
+            </td>
+            <td
+              class="backtest-trade-table__number"
+              data-testid="trade-quantity"
+            >
+              {{ closedTrade.contract.quantity }}
+            </td>
+            <td
+              class="backtest-trade-table__number"
+              data-testid="trade-margin"
+            >
+              {{ closedTrade.contract.margin }}
+            </td>
+            <td
+              class="backtest-trade-table__number"
+              data-testid="trade-funding-fee"
+            >
+              {{ closedTrade.contract.fundingFee }}
+            </td>
+          </template>
           <td data-testid="trade-exit-reason">
             {{ closedTrade.exitReasonLabel }}
           </td>

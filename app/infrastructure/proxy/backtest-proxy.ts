@@ -4,7 +4,14 @@ import type { BacktestRequestDomain } from '~/domain/models/domains/backtest-req
 import type { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
 import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
-import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
+import {
+  Backtest,
+  ClosedTrade,
+  ContractBacktestFigures,
+  ContractTradeFigures,
+  EquityPoint,
+} from '~/domain/models/entities/backtest'
+import type { ContractBacktestTermsDomain } from '~/domain/models/domains/contract-backtest-terms-domain'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
@@ -15,6 +22,9 @@ import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-c
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const BACKTESTS_ENDPOINT = '/backtests'
+
+/** 合約重演另有自己的入口，與合約指標計算、合約 K 線同一個做法：合約自成一條路。 */
+const CONTRACT_BACKTESTS_ENDPOINT = '/contract-backtests'
 
 /**
  * 兩個出場距離在請求裡的那一段，而留白的那一個**根本不出現**。
@@ -62,6 +72,23 @@ function transactionCostsBody(
   }
 }
 
+/**
+ * 合約重演多問的那幾格裡真的填了的那幾格。
+ *
+ * 規則與出場價位、交易成本同一條——**留白的不上線**：槓桿留白後端讀成一倍、滑點留白讀成不計，
+ * 不送它，那個讀法在線上就是字面的意思。交易模式只有重演一支腳本時才有；
+ * 重演一份交易策略時它是那份交易策略自己的，送了會被拒絕。
+ */
+function contractTermsBody(termsDomain: ContractBacktestTermsDomain): Record<string, string> {
+  return {
+    ...(termsDomain.leverageIsSet ? { leverage: termsDomain.leverage.toString() } : {}),
+    ...(termsDomain.slippageIsSet
+      ? { slippagePercentage: termsDomain.slippagePercentage.toString() }
+      : {}),
+    ...(termsDomain.tradingMode === null ? {} : { tradingMode: termsDomain.tradingMode }),
+  }
+}
+
 /** 重演一份交易策略掛在那一份底下，因為那是對它做的事。 */
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -86,6 +113,10 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   // 後端說這一份交易策略的來源彼此對不起來時指的是這一格。畫面上沒有那一格可以標，
   // 所以它落在市場那一格旁邊——那是這張表單上唯一與「要回測什麼」有關的地方。
   signalSources: 'symbol',
+  // 合約重演多問的那三格。
+  leverage: 'leverage',
+  tradingMode: 'tradingMode',
+  slippage: 'slippage',
 }
 
 /**
@@ -114,6 +145,16 @@ type ClosedTradeWire = {
    */
   entryCost?: string
   exitCost?: string
+}
+
+/**
+ * 合約重演的一筆交易：押下去的叫保證金而不是押注金額，另帶槓桿、數量與資金費用。
+ */
+type ContractClosedTradeWire = Omit<ClosedTradeWire, 'stake'> & {
+  margin: string
+  leverage: string
+  quantity: string
+  fundingFee: string
 }
 
 type EquityPointWire = {
@@ -161,53 +202,92 @@ type BacktestWire = {
   equityCurve: EquityPointWire[] | null
 }
 
+/** 合約重演回來的那一份：現貨那一份的每一格，加上合約帳戶才有的那幾格。 */
+type ContractBacktestWire = Omit<BacktestWire, 'closedTrades' | 'summary'> & {
+  tradingMode: string
+  leverage: string
+  summary: BacktestWire['summary'] & {
+    liquidationExitCount: number
+    totalFundingFee: string
+    longTradeCount: number
+    longWinRate: number | null
+    shortTradeCount: number
+    shortWinRate: number | null
+    blockedOpeningCount: number
+    maintenanceMarginBasis: { kind: string, confirmedAt: string | null }
+  }
+  closedTrades: ContractClosedTradeWire[] | null
+}
+
 /** Proxy：打回測端點，並把「算式的問題」與「名字對不上」從一般的拒絕裡分出來。 */
 export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
   async runBacktest(backtestRequestDomain: BacktestRequestDomain): Promise<Backtest> {
     try {
       const wire = await this.requestBackend<BacktestWire>(BACKTESTS_ENDPOINT, {
         method: 'POST',
-        body: {
-          symbol: backtestRequestDomain.symbol,
-          aggregationInterval: backtestRequestDomain.aggregationInterval.value,
-          startTime: backtestRequestDomain.startTime.toISOString(),
-          endTime: backtestRequestDomain.endTime.toISOString(),
-          // 金額以字串送出，理由與回來時相同：它是精確小數。
-          initialCapital: backtestRequestDomain.initialCapital.toString(),
-          positionSizingMode: backtestRequestDomain.positionSizingMode,
-          positionSizingValue: backtestRequestDomain.positionSizingValue.toString(),
-          ...exitLevelsBody(
-            backtestRequestDomain.stopLossPercentage,
-            backtestRequestDomain.takeProfitPercentage),
-          ...transactionCostsBody(
-            backtestRequestDomain.entryCostPercentage,
-            backtestRequestDomain.exitCostPercentage),
-          // 指名一支策略腳本時**只送識別碼**，與指標計算同一條規則：算式與旋鈕宣告都在那一支身上，
-          // 再送一份只會多出一個可能與它不一致的答案——而從市集加入的那些根本沒有算式可以送。
-          //
-          // 自帶算式時，宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
-          // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
-          ...(backtestRequestDomain.strategyScriptId === undefined
-            ? {
-                script: backtestRequestDomain.script,
-                parameters: backtestRequestDomain.parameters.all.map(parameter => ({
-                  name: parameter.name,
-                  kind: parameter.kind,
-                  defaultValue: parameter.value,
-                })),
-              }
-            : { strategyScriptId: backtestRequestDomain.strategyScriptId }),
-          parameterValues: backtestRequestDomain.parameters.all.map(parameter => ({
-            name: parameter.name,
-            value: parameter.value,
-          })),
-        },
+        body: this.scriptReplayBody(backtestRequestDomain),
       })
 
       return this.toBacktest(wire)
     }
     catch (error: unknown) {
       throw this.backtestFailureOf(error)
+    }
+  }
+
+  /** 在合約帳戶上重演一支合約策略腳本：現貨那一份 body，加上合約多問的那幾格。 */
+  async runContractBacktest(
+    backtestRequestDomain: BacktestRequestDomain, termsDomain: ContractBacktestTermsDomain,
+  ): Promise<Backtest> {
+    try {
+      const wire = await this.requestBackend<ContractBacktestWire>(CONTRACT_BACKTESTS_ENDPOINT, {
+        method: 'POST',
+        body: { ...this.scriptReplayBody(backtestRequestDomain), ...contractTermsBody(termsDomain) },
+      })
+
+      return this.toContractBacktest(wire)
+    }
+    catch (error: unknown) {
+      throw this.backtestFailureOf(error)
+    }
+  }
+
+  /** 重演一支腳本的 body——現貨與合約兩個入口收的是同一份。 */
+  private scriptReplayBody(backtestRequestDomain: BacktestRequestDomain) {
+    return {
+      symbol: backtestRequestDomain.symbol,
+      aggregationInterval: backtestRequestDomain.aggregationInterval.value,
+      startTime: backtestRequestDomain.startTime.toISOString(),
+      endTime: backtestRequestDomain.endTime.toISOString(),
+      // 金額以字串送出，理由與回來時相同：它是精確小數。
+      initialCapital: backtestRequestDomain.initialCapital.toString(),
+      positionSizingMode: backtestRequestDomain.positionSizingMode,
+      positionSizingValue: backtestRequestDomain.positionSizingValue.toString(),
+      ...exitLevelsBody(
+        backtestRequestDomain.stopLossPercentage,
+        backtestRequestDomain.takeProfitPercentage),
+      ...transactionCostsBody(
+        backtestRequestDomain.entryCostPercentage,
+        backtestRequestDomain.exitCostPercentage),
+      // 指名一支策略腳本時**只送識別碼**，與指標計算同一條規則：算式與旋鈕宣告都在那一支身上，
+      // 再送一份只會多出一個可能與它不一致的答案——而從市集加入的那些根本沒有算式可以送。
+      //
+      // 自帶算式時，宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
+      // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
+      ...(backtestRequestDomain.strategyScriptId === undefined
+        ? {
+            script: backtestRequestDomain.script,
+            parameters: backtestRequestDomain.parameters.all.map(parameter => ({
+              name: parameter.name,
+              kind: parameter.kind,
+              defaultValue: parameter.value,
+            })),
+          }
+        : { strategyScriptId: backtestRequestDomain.strategyScriptId }),
+      parameterValues: backtestRequestDomain.parameters.all.map(parameter => ({
+        name: parameter.name,
+        value: parameter.value,
+      })),
     }
   }
 
@@ -224,23 +304,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       const wire = await this.requestBackend<BacktestWire>(
         `${TRADING_STRATEGIES_ENDPOINT}/${requestDomain.tradingStrategyId}/backtests`, {
           method: 'POST',
-          body: {
-            symbol: requestDomain.symbol,
-            startTime: requestDomain.startTime.toISOString(),
-            endTime: requestDomain.endTime.toISOString(),
-            // 金額以字串送出，理由與回來時相同：它是精確小數。
-            initialCapital: requestDomain.initialCapital.toString(),
-            positionSizingMode: requestDomain.positionSizingMode,
-            positionSizingValue: requestDomain.positionSizingValue.toString(),
-            // 出場距離在這裡：一份規則對「它的主人能忍多少」沒有意見，
-            // 那是每一次重演自己的事。
-            ...exitLevelsBody(
-              requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
-            ...transactionCostsBody(
-              requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
-            // 借錢與交易模式**都不在這裡**，而且不是漏了：重演只做現貨，
-            // 後端也不收這兩格——補回去只會換來一次被拒絕的請求。
-          },
+          body: this.tradingStrategyReplayBody(requestDomain),
         })
 
       return this.toBacktest(wire)
@@ -248,6 +312,104 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
     catch (error: unknown) {
       throw this.backtestFailureOf(error)
     }
+  }
+
+  /**
+   * 在合約帳戶上重演一份合約交易策略：現貨那一份 body，加上槓桿與滑點。
+   * 交易模式不送——它是那份交易策略自己的。
+   */
+  async runContractTradingStrategyBacktest(
+    requestDomain: TradingStrategyBacktestRequestDomain, termsDomain: ContractBacktestTermsDomain,
+  ): Promise<Backtest> {
+    try {
+      const wire = await this.requestBackend<ContractBacktestWire>(
+        `${TRADING_STRATEGIES_ENDPOINT}/${requestDomain.tradingStrategyId}/contract-backtests`, {
+          method: 'POST',
+          body: { ...this.tradingStrategyReplayBody(requestDomain), ...contractTermsBody(termsDomain) },
+        })
+
+      return this.toContractBacktest(wire)
+    }
+    catch (error: unknown) {
+      throw this.backtestFailureOf(error)
+    }
+  }
+
+  /** 重演一份交易策略的 body——現貨與合約兩個入口收的是同一份。 */
+  private tradingStrategyReplayBody(requestDomain: TradingStrategyBacktestRequestDomain) {
+    return {
+      symbol: requestDomain.symbol,
+      startTime: requestDomain.startTime.toISOString(),
+      endTime: requestDomain.endTime.toISOString(),
+      // 金額以字串送出，理由與回來時相同：它是精確小數。
+      initialCapital: requestDomain.initialCapital.toString(),
+      positionSizingMode: requestDomain.positionSizingMode,
+      positionSizingValue: requestDomain.positionSizingValue.toString(),
+      // 出場距離在這裡：一份規則對「它的主人能忍多少」沒有意見，
+      // 那是每一次重演自己的事。
+      ...exitLevelsBody(
+        requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
+      ...transactionCostsBody(
+        requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
+      // 借錢、滑點與交易模式不在這一份裡：現貨重演不收它們，
+      // 合約重演的那兩格由 contractTermsBody 另外補上。
+    }
+  }
+
+  /**
+   * 合約重演回來的那一份：現貨那幾格照現貨的讀法，合約多出的那幾格收進它們自己的 entity。
+   * 押下去的在這裡叫保證金，讀進交易明細的押注金額那一格——兩者是同一件事的兩個名字。
+   */
+  private toContractBacktest(wire: ContractBacktestWire): Backtest {
+    const confirmedAt = wire.summary.maintenanceMarginBasis.confirmedAt
+
+    return new Backtest(
+      wire.symbol,
+      wire.interval,
+      new Date(wire.startTime),
+      new Date(wire.endTime),
+      wire.usedCandleCount,
+      new Decimal(wire.summary.initialCapital),
+      new Decimal(wire.summary.finalEquity),
+      wire.summary.totalReturnRate,
+      wire.summary.maximumDrawdown,
+      wire.summary.winRate,
+      wire.summary.positionOpenCount,
+      wire.summary.conflictedCandleCount ?? 0,
+      wire.summary.stopLossExitCount ?? 0,
+      wire.summary.takeProfitExitCount ?? 0,
+      new Decimal(wire.summary.totalTransactionCost ?? 0),
+      (wire.closedTrades ?? []).map(closedTrade => new ClosedTrade(
+        closedTrade.direction as PositionDirection,
+        new Date(closedTrade.entryTime),
+        new Decimal(closedTrade.entryPrice),
+        new Date(closedTrade.exitTime),
+        new Decimal(closedTrade.exitPrice),
+        new Decimal(closedTrade.margin),
+        new Decimal(closedTrade.profit),
+        (closedTrade.exitReason ?? 'signal') as TradeExitReason,
+        new Decimal(closedTrade.entryCost ?? 0),
+        new Decimal(closedTrade.exitCost ?? 0),
+        new ContractTradeFigures(
+          new Decimal(closedTrade.leverage),
+          new Decimal(closedTrade.quantity),
+          new Decimal(closedTrade.fundingFee)))),
+      (wire.equityCurve ?? []).map(equityPoint => new EquityPoint(
+        new Date(equityPoint.openTime),
+        new Decimal(equityPoint.equity))),
+      new ContractBacktestFigures(
+        wire.tradingMode,
+        new Decimal(wire.leverage),
+        wire.summary.liquidationExitCount,
+        new Decimal(wire.summary.totalFundingFee),
+        wire.summary.longTradeCount,
+        wire.summary.longWinRate,
+        wire.summary.shortTradeCount,
+        wire.summary.shortWinRate,
+        wire.summary.blockedOpeningCount,
+        wire.summary.maintenanceMarginBasis.kind,
+        confirmedAt === null ? null : new Date(confirmedAt)),
+    )
   }
 
   /** 後端回來的那一份，收成領域看得懂的形狀。兩種受測對象回來的是同一個形狀。 */

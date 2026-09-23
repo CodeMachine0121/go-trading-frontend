@@ -8,6 +8,8 @@ import { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
 import { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
+import { ContractClosedTradeDto } from '~/domain/models/dto/contract-closed-trade-dto'
+import { ContractBacktestFiguresDomain } from '~/domain/models/domains/contract-backtest-figures-domain'
 
 /** 比率寫到小數點後兩位：再細一位對「這支策略腳本好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
@@ -53,6 +55,7 @@ const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, string>> = {
   signal: '訊號',
   stopLoss: '止損',
   takeProfit: '止盈',
+  liquidation: '強平',
 }
 
 /**
@@ -102,6 +105,9 @@ export class BacktestDomain {
       // 同一時間最多一個部位，所以開了比平掉的多，就是還抱著那一個。
       // 這條推論靠的是一條領域規則，所以它在這裡做完，不丟給畫面。
       this.backtest.positionOpenCount > this.backtest.closedTrades.length,
+      this.backtest.contractFigures === null
+        ? null
+        : new ContractBacktestFiguresDomain(this.backtest.contractFigures).toSummaryDto(),
     )
   }
 
@@ -117,6 +123,13 @@ export class BacktestDomain {
       TRADE_EXIT_REASON_LABELS[closedTrade.exitReason],
       this.amount(closedTrade.entryCost),
       this.amount(closedTrade.exitCost),
+      closedTrade.contractFigures === null
+        ? null
+        : new ContractClosedTradeDto(
+            `${closedTrade.contractFigures.leverage.toString()} 倍`,
+            this.price(closedTrade.contractFigures.quantity),
+            this.amount(closedTrade.stake),
+            this.amount(closedTrade.contractFigures.fundingFee)),
     )
   }
 

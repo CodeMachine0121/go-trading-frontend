@@ -62,15 +62,16 @@ describe('MarketDataKindDomain', () => {
   })
 
   it.each([
-    { declared: 'kCandle', offersBacktest: true, picksContractTradingSymbol: false },
-    // 合約的回測是交易服務的下一刀；標的從合約標的清單挑。
-    { declared: 'contractKCandle', offersBacktest: false, picksContractTradingSymbol: true },
-  ])('$declared 的工作區：回測 $offersBacktest、合約標的清單 $picksContractTradingSymbol',
-    ({ declared, offersBacktest, picksContractTradingSymbol }) => {
+    { declared: 'kCandle', offersBacktest: true, picksContractTradingSymbol: false, replaysOnContractAccount: false },
+    // 合約的回測在逐倉合約帳戶上重演；標的從合約標的清單挑。
+    { declared: 'contractKCandle', offersBacktest: true, picksContractTradingSymbol: true, replaysOnContractAccount: true },
+  ])('$declared 的工作區：回測 $offersBacktest、合約標的清單 $picksContractTradingSymbol、合約帳戶 $replaysOnContractAccount',
+    ({ declared, offersBacktest, picksContractTradingSymbol, replaysOnContractAccount }) => {
       const workbench = new MarketDataKindDomain(declared).toWorkbenchDto()
 
       expect(workbench.offersBacktest).toBe(offersBacktest)
       expect(workbench.picksContractTradingSymbol).toBe(picksContractTradingSymbol)
+      expect(workbench.replaysOnContractAccount).toBe(replaysOnContractAccount)
     })
 
   it('同一種才算同一種', () => {

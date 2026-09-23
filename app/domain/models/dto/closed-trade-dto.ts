@@ -1,4 +1,5 @@
 import type { ProfitTone } from '~/domain/models/vo/profit-tone-vo'
+import type { ContractClosedTradeDto } from '~/domain/models/dto/contract-closed-trade-dto'
 
 /**
  * DTO：交易明細裡的一列，已經可以直接畫。
@@ -21,5 +22,7 @@ export class ClosedTradeDto {
     /** 這一筆兩端各付掉多少。沒收過錢的那一次重演裡它們都是 `'0.00'`。 */
     public readonly entryCost: string,
     public readonly exitCost: string,
+    /** 合約重演那一筆多出的幾格；現貨重演是 `null`。 */
+    public readonly contract: ContractClosedTradeDto | null = null,
   ) {}
 }

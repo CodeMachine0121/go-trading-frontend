@@ -11,6 +11,9 @@ export type BacktestField
   // 交易成本也是**一格**，蓋住進場與出場兩個費率，與出場價位同一個判斷：
   // 它們併排填成一組，而拒絕的句子已經說出是哪一個費率。
     | 'transactionCosts'
+    | 'leverage'
+    | 'tradingMode'
+    | 'slippage'
 
 /** 哨兵錯誤：使用者自己可以修正的輸入錯誤（欄位層級）。 */
 export class BacktestFieldError extends Error {

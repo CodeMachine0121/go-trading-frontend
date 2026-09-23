@@ -1,4 +1,5 @@
 import type { ProfitTone } from '~/domain/models/vo/profit-tone-vo'
+import type { ContractBacktestSummaryDto } from '~/domain/models/dto/contract-backtest-summary-dto'
 
 /**
  * DTO：一次回測的成績單，**已經可以直接畫**。
@@ -62,5 +63,7 @@ export class BacktestSummaryDto {
      * 它決定交易明細的空狀態要說哪一句話。
      */
     public readonly hasOpenPosition: boolean,
+    /** 合約重演多出的那幾格；現貨重演是 `null`，成績單上就沒有那一段。 */
+    public readonly contract: ContractBacktestSummaryDto | null = null,
   ) {}
 }

@@ -4,6 +4,7 @@ import type { KCandleFieldVo } from '~/domain/models/vo/k-candle-field-vo'
 import { CONTRACT_K_CANDLE_FIELDS, K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
 import { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
 import { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-workbench-dto'
+import { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
 
 /**
  * 每一種行情的全部差異，就這幾欄。多一種行情是在這張表加一列，
@@ -21,6 +22,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       notes: readonly string[]
       offersBacktest: boolean
       picksContractTradingSymbol: boolean
+      replaysOnContractAccount: boolean
     }
   >
 > = {
@@ -33,6 +35,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     notes: [],
     offersBacktest: true,
     picksContractTradingSymbol: false,
+    replaysOnContractAccount: false,
   },
   contractKCandle: {
     label: '合約行情',
@@ -49,9 +52,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       '持倉統計是收盤前最近、而且夠新的那一筆：不比五分鐘細的格子要落在格內，一分鐘的格子要落在收盤前五分鐘內。',
       '每一項都只來自這一格收盤以前，收盤那一刻的結算與統計屬於下一格。',
     ],
-    // 合約的回測是交易服務的下一刀；在那之前，這一種行情沒有回測可以跑。
-    offersBacktest: false,
+    // 合約的回測在逐倉合約帳戶上重演。
+    offersBacktest: true,
     picksContractTradingSymbol: true,
+    replaysOnContractAccount: true,
   },
 }
 
@@ -88,11 +92,17 @@ export class MarketDataKindDomain {
     return MARKET_DATA_KIND_DESCRIPTIONS[this.value].scriptInputTypeName
   }
 
-  /** 這一種行情之下，工作區長得不一樣的那幾件事：有沒有回測、標的從哪一份清單挑。 */
+  /** 這一種行情之下，工作區長得不一樣的那幾件事：有沒有回測、標的從哪一份清單挑、在哪一種帳戶上重演。 */
   toWorkbenchDto(): StrategyScriptWorkbenchDto {
     const description = MARKET_DATA_KIND_DESCRIPTIONS[this.value]
 
-    return new StrategyScriptWorkbenchDto(description.offersBacktest, description.picksContractTradingSymbol)
+    return new StrategyScriptWorkbenchDto(
+      description.offersBacktest, description.picksContractTradingSymbol, description.replaysOnContractAccount)
+  }
+
+  /** 選單上的一個選項。 */
+  toOptionDto(): MarketDataKindOptionDto {
+    return new MarketDataKindOptionDto(this.value, this.label())
   }
 
   /** 是不是與另一個（已正規化的）種類是同一種。清單依它篩。 */

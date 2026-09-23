@@ -1,5 +1,6 @@
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
+import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
@@ -21,5 +22,8 @@ export function useBacktestRun(backtestApplication: BacktestApplication) {
     /** 收的是「怎麼組出那份請求」——組裝本身就會失敗，所以它要落在 try 裡面。 */
     run: (buildRequest: () => BacktestRequestDto) =>
       latestRun.run(() => backtestApplication.runBacktest(buildRequest())),
+    /** 在合約帳戶上重演：同一份請求，加上合約多問的那幾格。兩份都在 try 裡面組。 */
+    runContract: (buildRequest: () => BacktestRequestDto, buildTerms: () => ContractBacktestTermsDto) =>
+      latestRun.run(() => backtestApplication.runContractBacktest(buildRequest(), buildTerms())),
   }
 }

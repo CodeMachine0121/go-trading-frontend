@@ -9,5 +9,7 @@ export class StrategyScriptWorkbenchDto {
     public readonly offersBacktest: boolean,
     /** 標的從合約標的清單挑，而不是現貨那一份。 */
     public readonly picksContractTradingSymbol: boolean,
+    /** 回測是在合約帳戶上重演：多問槓桿、交易模式與滑點，成績單多出合約那幾格。 */
+    public readonly replaysOnContractAccount: boolean,
   ) {}
 }

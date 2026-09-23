@@ -29,7 +29,7 @@ const { currentUser, signOut } = useUserSession()
 <template>
   <ConsoleLayout
     title="合約策略腳本"
-    subtitle="寫一支吃永續合約行情的算式：每一格除了成交價，還帶著標記價格、資金費率與持倉統計。試跑、存起來；合約的回測還沒開放。算式一律送到後端沙箱執行。"
+    subtitle="寫一支吃永續合約行情的算式：每一格除了成交價，還帶著標記價格、資金費率與持倉統計。試跑、存起來，並在逐倉合約帳戶上回測。算式一律送到後端沙箱執行。"
   >
     <template #timezone>
       <TimeZoneField

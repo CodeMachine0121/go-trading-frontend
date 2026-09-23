@@ -74,6 +74,8 @@ function buildProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
   return {
     runBacktest: vi.fn().mockResolvedValue(completedBacktest()),
     runTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    runContractBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
     ...overrides,
   }
 }
