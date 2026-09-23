@@ -26,7 +26,10 @@ const WHOLE_SCRIPT = [
 function buildProxy(
   indicatorCalculation = new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', []),
 ): IIndicatorCalculationProxy {
-  return { calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation) }
+  return {
+    calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation),
+    recalculateIndicator: vi.fn(),
+  }
 }
 
 describe('IndicatorCalculationService', () => {

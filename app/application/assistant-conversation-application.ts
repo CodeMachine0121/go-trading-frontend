@@ -22,4 +22,9 @@ export class AssistantConversationApplication {
   async getConversation(id: number): Promise<ConversationDto> {
     return this.assistantConversationService.getConversation(id)
   }
+
+  /** 回頭詢問：作答中每隔一段時間重讀同一段對話。 */
+  async refreshConversation(id: number): Promise<ConversationDto> {
+    return this.assistantConversationService.refreshConversation(id)
+  }
 }

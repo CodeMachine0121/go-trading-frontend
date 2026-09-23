@@ -1,6 +1,7 @@
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import type { IChartLineColorPreferenceProxy } from '~/domain/interface/i-chart-line-color-preference-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IStrategyScriptParameterValuePreferenceProxy } from '~/domain/interface/i-strategy-script-parameter-value-preference-proxy'
 import { AppliedIndicatorParametersDomain } from '~/domain/models/domains/applied-indicator-parameters-domain'
 import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
@@ -135,6 +136,27 @@ export class ChartIndicatorService {
   async calculateChartIndicator(
     chartIndicatorRequestDto: ChartIndicatorRequestDto,
   ): Promise<ChartIndicatorDto> {
+    return this.drawChartIndicator(chartIndicatorRequestDto,
+      requestDomain => this.indicatorCalculationProxy.calculateIndicator(requestDomain))
+  }
+
+  /**
+   * 跟著最新那一根重算：一根走完了，圖上的指標自己重算一次。
+   *
+   * 與 `calculateChartIndicator` 交出的東西完全相同；差別只在它是畫面自己做的——
+   * 使用者什麼都沒按，所以它不該讓頂端那條「正在等」的進度條亮起來。
+   */
+  async recalculateChartIndicator(
+    chartIndicatorRequestDto: ChartIndicatorRequestDto,
+  ): Promise<ChartIndicatorDto> {
+    return this.drawChartIndicator(chartIndicatorRequestDto,
+      requestDomain => this.indicatorCalculationProxy.recalculateIndicator(requestDomain))
+  }
+
+  private async drawChartIndicator(
+    chartIndicatorRequestDto: ChartIndicatorRequestDto,
+    calculate: (requestDomain: IndicatorCalculationRequestDomain) => Promise<IndicatorCalculation>,
+  ): Promise<ChartIndicatorDto> {
     const { appliedIndicator } = chartIndicatorRequestDto
     const requestDomain = new IndicatorCalculationRequestDomain(
       new IndicatorCalculationRequestDto(
@@ -151,8 +173,7 @@ export class ChartIndicatorService {
         appliedIndicator.strategyScript.id,
       ))
 
-    const indicatorCalculation
-      = await this.indicatorCalculationProxy.calculateIndicator(requestDomain)
+    const indicatorCalculation = await calculate(requestDomain)
 
     const chartIndicatorDomain = new ChartIndicatorDomain(
       // 線的記憶身分掛在**策略腳本**上，不在這一次套用上：顏色記的是跨越每一次打開畫面的習慣。

@@ -89,6 +89,9 @@ async function mountPanel() {
   const feed = controllableFeed()
   const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
+  // 跟著最新那一根的重算走的是背景那一條：使用者什麼都沒按，頂端那條進度條不該亮。
+  const recalculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
+    'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
 
   const wrapper = mount(KCandleChartPanel, {
     props: {
@@ -96,7 +99,7 @@ async function mountPanel() {
         new KCandleChartService(buildKCandleProxy())),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
-      chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
+      chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator, recalculateIndicator }),
       strategyScriptApplication: buildStrategyScriptApplication({
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
@@ -109,7 +112,7 @@ async function mountPanel() {
   await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
   await flushPromises()
 
-  return { wrapper, calculateIndicator, feed }
+  return { wrapper, calculateIndicator, recalculateIndicator, feed }
 }
 
 /** 等使用者停手。 */
@@ -138,15 +141,17 @@ afterEach(() => {
 
 describe('在看現在，就算到現在', () => {
   it('一根走完時以現在重算——截止時間交給系統判斷', async () => {
-    const { wrapper, calculateIndicator, feed } = await mountPanel()
+    const { wrapper, calculateIndicator, recalculateIndicator, feed } = await mountPanel()
     await look(wrapper, SHOWING_NOW)
     const calculationsSoFar = calculateIndicator.mock.calls.length
+    const recalculationsSoFar = recalculateIndicator.mock.calls.length
 
     feed.report('closed')
     await flushPromises()
 
-    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar + 1)
-    expect(calculateIndicator).toHaveBeenLastCalledWith(
+    expect(recalculateIndicator.mock.calls.length).toBe(recalculationsSoFar + 1)
+    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar)
+    expect(recalculateIndicator).toHaveBeenLastCalledWith(
       expect.objectContaining({
         observationWindow: expect.objectContaining({ endTime: null }),
       }))
@@ -154,32 +159,36 @@ describe('在看現在，就算到現在', () => {
 
   it('連續走完好幾根都一直跟著走', async () => {
     // 使用者一整天沒碰畫面，答案不該停在他打開畫面的那一刻。
-    const { wrapper, calculateIndicator, feed } = await mountPanel()
+    const { wrapper, calculateIndicator, recalculateIndicator, feed } = await mountPanel()
     await look(wrapper, SHOWING_NOW)
     const calculationsSoFar = calculateIndicator.mock.calls.length
+    const recalculationsSoFar = recalculateIndicator.mock.calls.length
 
     for (const _ of [1, 2, 3]) {
       feed.report('closed')
       await flushPromises()
     }
 
-    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar + 3)
+    expect(recalculateIndicator.mock.calls.length).toBe(recalculationsSoFar + 3)
+    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar)
   })
 
   it('往回拖一點但最新那一根還看得見，仍然算到現在', async () => {
-    const { wrapper, calculateIndicator, feed } = await mountPanel()
+    const { wrapper, calculateIndicator, recalculateIndicator, feed } = await mountPanel()
     // 右端剛好落在最新那一根上——這就是邊界。
     await look(wrapper, {
       startTime: new Date('2026-09-03T09:00:00.000Z'),
       endTime: new Date(LATEST_OPEN_TIME),
     })
     const calculationsSoFar = calculateIndicator.mock.calls.length
+    const recalculationsSoFar = recalculateIndicator.mock.calls.length
 
     feed.report('closed')
     await flushPromises()
 
-    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar + 1)
-    expect(calculateIndicator).toHaveBeenLastCalledWith(
+    expect(recalculateIndicator.mock.calls.length).toBe(recalculationsSoFar + 1)
+    expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar)
+    expect(recalculateIndicator).toHaveBeenLastCalledWith(
       expect.objectContaining({
         observationWindow: expect.objectContaining({ endTime: null }),
       }))
@@ -188,20 +197,23 @@ describe('在看現在，就算到現在', () => {
 
 describe('在看過去，就停在那一段', () => {
   it('看不見最新那一根時，一根走完不重算', async () => {
-    const { wrapper, calculateIndicator, feed } = await mountPanel()
+    const { wrapper, calculateIndicator, recalculateIndicator, feed } = await mountPanel()
     await look(wrapper, SHOWING_THE_PAST)
     const calculationsSoFar = calculateIndicator.mock.calls.length
+    const recalculationsSoFar = recalculateIndicator.mock.calls.length
 
     feed.report('closed')
     await flushPromises()
 
     expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar)
+    expect(recalculateIndicator.mock.calls.length).toBe(recalculationsSoFar)
   })
 
   it('待再久、走完再多根，答案也一次都沒變', async () => {
-    const { wrapper, calculateIndicator, feed } = await mountPanel()
+    const { wrapper, calculateIndicator, recalculateIndicator, feed } = await mountPanel()
     await look(wrapper, SHOWING_THE_PAST)
     const calculationsSoFar = calculateIndicator.mock.calls.length
+    const recalculationsSoFar = recalculateIndicator.mock.calls.length
 
     for (const _ of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
       feed.report('closed')
@@ -209,6 +221,7 @@ describe('在看過去，就停在那一段', () => {
     }
 
     expect(calculateIndicator.mock.calls.length).toBe(calculationsSoFar)
+    expect(recalculateIndicator.mock.calls.length).toBe(recalculationsSoFar)
   })
 
   it('算到的是那一段的右端，不是現在', async () => {
@@ -285,13 +298,14 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
   it('一支都沒套用時，一根走完不發生任何計算', async () => {
     const feed = controllableFeed()
     const calculateIndicator = vi.fn()
+    const recalculateIndicator = vi.fn()
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(
           new KCandleChartService(buildKCandleProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
-        chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
+        chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator, recalculateIndicator }),
         strategyScriptApplication: buildStrategyScriptApplication({
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
         }),
@@ -307,5 +321,6 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
     await flushPromises()
 
     expect(calculateIndicator).not.toHaveBeenCalled()
+    expect(recalculateIndicator).not.toHaveBeenCalled()
   })
 })

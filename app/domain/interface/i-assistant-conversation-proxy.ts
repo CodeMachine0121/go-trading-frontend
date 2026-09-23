@@ -29,4 +29,7 @@ export interface IAssistantConversationProxy {
 
   /** 指名那一段的每一則訊息，由早到晚。不存在時以 ConversationNotFoundError 拒絕。 */
   getConversation(id: number): Promise<Conversation>
+
+  /** 回頭詢問：與 `getConversation` 同一段對話，但那是畫面自己定期做的，不是使用者在等的。 */
+  refreshConversation(id: number): Promise<Conversation>
 }

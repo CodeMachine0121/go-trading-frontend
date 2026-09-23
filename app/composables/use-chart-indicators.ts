@@ -451,12 +451,16 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     }
     current.value = { chart, range }
 
-    await recalculateEveryApplied()
+    await recalculateEveryApplied(true)
   }
 
-  async function recalculateEveryApplied() {
+  /**
+   * `followingLiveEdge` 為真時是**畫面自己**跟著最新那一根重算的——使用者什麼都沒按，
+   * 所以它不讓頂端那條「正在等」的進度條亮起來。拖動圖表之後的重算不算：那是使用者的手。
+   */
+  async function recalculateEveryApplied(followingLiveEdge = false) {
     for (const appliedIndicator of appliedIndicators.value) {
-      await calculateOne(appliedIndicator)
+      await calculateOne(appliedIndicator, followingLiveEdge)
     }
   }
 
@@ -485,7 +489,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       chartIndicators.value, lineKey, colorToken)
   }
 
-  async function calculateOne(appliedIndicator: AppliedIndicatorDto) {
+  async function calculateOne(appliedIndicator: AppliedIndicatorDto, followingLiveEdge = false) {
     const inView = current.value
     // 圖上還沒有任何 K 線（系統沒起來、查無資料）：沒有東西可以算。
     if (inView === null || inView.chart.isEmpty) {
@@ -498,7 +502,10 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     forgetFailure(appliedIndicator.id)
 
     try {
-      const calculated = await chartIndicatorApplication.calculateChartIndicator(
+      const calculate = followingLiveEdge
+        ? chartIndicatorApplication.recalculateChartIndicator.bind(chartIndicatorApplication)
+        : chartIndicatorApplication.calculateChartIndicator.bind(chartIndicatorApplication)
+      const calculated = await calculate(
         new ChartIndicatorRequestDto(
           appliedIndicator,
           chart.symbol,

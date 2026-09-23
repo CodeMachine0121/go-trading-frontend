@@ -17,6 +17,7 @@ const applicationMock = {
   ask: vi.fn(),
   listConversations: vi.fn(),
   getConversation: vi.fn(),
+  refreshConversation: vi.fn(),
 }
 
 /**
@@ -74,6 +75,11 @@ beforeEach(() => {
   applicationMock.listConversations.mockResolvedValue([])
   applicationMock.ask.mockResolvedValue(startedOf())
   applicationMock.getConversation.mockResolvedValue(answeredConversation())
+  // 回頭詢問讀的是同一段對話，只是走背景那一條（不讓頂端那條進度條亮）。
+  // 讓它交出與 getConversation 同一份答案，其餘案例談的就只是「讀到了什麼」；
+  // 走的是哪一條，由下面專門那一組來問。
+  applicationMock.refreshConversation.mockImplementation(
+    (id: number) => applicationMock.getConversation(id))
   preferenceMock.readCurrentConversationId.mockReturnValue(null)
   conversationUnderTest().startNewConversation()
 })
@@ -184,6 +190,21 @@ describe('useAssistantConversation 等待狀態', () => {
     await ask('問一句')
 
     expect(pending.value).toBe(false)
+  })
+})
+
+describe('useAssistantConversation 回頭詢問走背景那一條', () => {
+  it('剛送出一句之後讀回來的那一次是使用者在等的，回頭詢問則是背景的', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask } = conversationUnderTest()
+
+    await ask('問一句')
+    expect(applicationMock.refreshConversation).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(applicationMock.refreshConversation).toHaveBeenCalledTimes(1)
+    expect(applicationMock.refreshConversation).toHaveBeenCalledWith(7)
   })
 })
 

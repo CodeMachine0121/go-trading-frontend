@@ -246,3 +246,23 @@ describe('AssistantConversationProxy.getConversation', () => {
       .rejects.toBeInstanceOf(ConversationNotFoundError)
   })
 })
+
+describe('AssistantConversationProxy.refreshConversation', () => {
+  it('回頭詢問讀的是同一段對話、同一個地方，交回來的也是同一份', async () => {
+    const wire = {
+      id: 5,
+      lastActiveAt: '2026-09-23T10:00:00.000Z',
+      messages: [{ role: 'ask', content: '問一句', createdAt: '2026-09-23T09:59:00.000Z', status: 'answered' }],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(wire)
+    vi.stubGlobal('$fetch', fetchMock)
+    const proxy = new AssistantConversationProxy(BASE_URL, signedInSessionStorage())
+
+    const refreshed = await proxy.refreshConversation(5)
+    const read = await proxy.getConversation(5)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(fetchMock.mock.calls[1]?.[0])
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/chat/conversations/5')
+    expect(refreshed).toEqual(read)
+  })
+})

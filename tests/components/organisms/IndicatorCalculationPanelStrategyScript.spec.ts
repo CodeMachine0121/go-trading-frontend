@@ -39,6 +39,7 @@ function mountPanel(
         new IndicatorCalculationService({
           calculateIndicator: vi.fn().mockResolvedValue(
             new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+          recalculateIndicator: vi.fn(),
         })),
       strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(marketplaceProxy),
       strategyScriptApplication: buildStrategyScriptApplication(strategyScriptProxy),

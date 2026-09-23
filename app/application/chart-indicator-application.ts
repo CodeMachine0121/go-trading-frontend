@@ -47,6 +47,13 @@ export class ChartIndicatorApplication {
     return this.chartIndicatorService.calculateChartIndicator(chartIndicatorRequestDto)
   }
 
+  /** 跟著最新那一根重算——畫面自己做的那一次，不是使用者在等的。 */
+  async recalculateChartIndicator(
+    chartIndicatorRequestDto: ChartIndicatorRequestDto,
+  ): Promise<ChartIndicatorDto> {
+    return this.chartIndicatorService.recalculateChartIndicator(chartIndicatorRequestDto)
+  }
+
   changeChartLineColor(
     chartIndicatorDtos: readonly ChartIndicatorDto[], lineKey: string, colorToken: string,
   ): ChartIndicatorDto[] {

@@ -44,6 +44,7 @@ function buildService(
 ) {
   const indicatorCalculationProxy: IIndicatorCalculationProxy = {
     calculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation),
+    recalculateIndicator: vi.fn().mockResolvedValue(indicatorCalculation),
   }
   const chartLineColorPreferenceProxy: IChartLineColorPreferenceProxy = {
     readColorToken: vi.fn().mockReturnValue(null),
@@ -75,6 +76,22 @@ function buildService(
     appliedChartIndicatorPreferenceProxy,
   }
 }
+
+describe('ChartIndicatorService.recalculateChartIndicator', () => {
+  it('跟著最新那一根重算走背景那一條，交出來的與一般那一次一模一樣', async () => {
+    // 差別只在「誰在等」：使用者什麼都沒按，頂端那條進度條不該亮。
+    const fixture = buildService()
+
+    const recalculated = await fixture.chartIndicatorService.recalculateChartIndicator(requestOf())
+    expect(fixture.indicatorCalculationProxy.recalculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({ strategyScriptId: 7, script: '' }))
+    expect(fixture.indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
+
+    const calculated = await fixture.chartIndicatorService.calculateChartIndicator(requestOf())
+
+    expect(recalculated).toEqual(calculated)
+  })
+})
 
 describe('ChartIndicatorService.calculateChartIndicator', () => {
   it('拿圖上那批 K 線的每一個條件去算', async () => {
@@ -161,7 +178,7 @@ describe('ChartIndicatorService.calculateChartIndicator', () => {
   it('算失敗時原樣往上拋，由呼叫端決定怎麼說', async () => {
     const scriptFailure = new Error('算式執行失敗')
     const failing = new ChartIndicatorService(
-      { calculateIndicator: vi.fn().mockRejectedValue(scriptFailure) },
+      { calculateIndicator: vi.fn().mockRejectedValue(scriptFailure), recalculateIndicator: vi.fn() },
       { readColorToken: vi.fn().mockReturnValue(null), writeColorToken: vi.fn() },
       { readValue: vi.fn().mockReturnValue(null), writeValue: vi.fn() },
       {

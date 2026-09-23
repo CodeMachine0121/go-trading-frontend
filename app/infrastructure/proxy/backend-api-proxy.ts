@@ -78,6 +78,16 @@ type BackendRequestOptions = {
    * 把它們也當成過期，會在登入畫面上把「密碼打錯」演成一次被登出。
    */
   refusalMeansSignedOut?: boolean
+  /**
+   * 這一發是畫面自己定期做的、不是使用者在等的嗎？
+   *
+   * 預設不是：**每一發都算使用者在等**，所以新開的 proxy 什麼都不用做就會被計入。
+   * 例外只有畫面自己定期去問的那幾發（連線燈的檢查、助手作答中的回頭詢問、
+   * 圖上指標跟著最新那一根重算）——算進去的話，頂端那條進度條會永遠在跑。
+   *
+   * 它不是給後端的，所以不會跟著送出去。
+   */
+  background?: boolean
 }
 
 /**
@@ -116,13 +126,35 @@ export abstract class BackendApiProxy {
      * 同時換兩次會被後端判定為盜用，把「這台需要重登」升級成「這個人每一台都被登出」。
      */
     private readonly recoverSession: () => Promise<boolean> = async () => false,
+    /**
+     * 開始等一件事，回傳「這一件結束了」——頂端那條進度條就是從這裡知道畫面在等的。
+     *
+     * 與上面兩個一樣是回呼：發請求的這一層不該認識畫面狀態，由組裝根把兩者接起來。
+     * 報到寫在這裡而不是每一個呼叫端，理由與身分相同——只要有一條路忘了報到，
+     * 就是一個按下去之後畫面看起來什麼都沒發生的洞。
+     */
+    private readonly beginWaiting: () => () => void = () => () => {},
   ) {}
 
+  /**
+   * 發一發請求。
+   *
+   * 報到包在**最外層**：「過期 → 救回 → 重送」對使用者是同一件事，
+   * 在裡面報到的話，那一次重送會被算成第二件。
+   */
   protected async requestBackend<TWire>(
     path: string,
     options: BackendRequestOptions = {},
   ): Promise<TWire> {
-    return this.sendRequest<TWire>(path, options, true)
+    const { background = false, ...requestOptions } = options
+    const endWaiting = background ? () => {} : this.beginWaiting()
+
+    try {
+      return await this.sendRequest<TWire>(path, requestOptions, true)
+    }
+    finally {
+      endWaiting()
+    }
   }
 
   /**

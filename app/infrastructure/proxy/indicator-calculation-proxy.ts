@@ -60,14 +60,35 @@ type IndicatorCalculationWire = {
 
 /** Proxy：打指標計算端點，並把「算式的問題」從一般的拒絕裡分出來。 */
 export class IndicatorCalculationProxy extends BackendApiProxy implements IIndicatorCalculationProxy {
+  /** 算一次——使用者按了試跑、或在圖上加了一支，正在等它的結果。 */
   async calculateIndicator(
     indicatorCalculationRequestDomain: IndicatorCalculationRequestDomain,
+  ): Promise<IndicatorCalculation> {
+    return this.sendCalculation(indicatorCalculationRequestDomain, false)
+  }
+
+  /**
+   * 跟著最新那一根重算：K 線圖表上一根走完了，畫面自己把圖上的指標重算一次。
+   *
+   * 與 `calculateIndicator` 是同一份請求、同一份翻譯，只差在它是**背景的**——
+   * 使用者什麼都沒按，而它每一根走完就發生一次；算進頂端那條進度條，它就會規律地閃。
+   */
+  async recalculateIndicator(
+    indicatorCalculationRequestDomain: IndicatorCalculationRequestDomain,
+  ): Promise<IndicatorCalculation> {
+    return this.sendCalculation(indicatorCalculationRequestDomain, true)
+  }
+
+  private async sendCalculation(
+    indicatorCalculationRequestDomain: IndicatorCalculationRequestDomain,
+    background: boolean,
   ): Promise<IndicatorCalculation> {
     try {
       const wire = await this.requestBackend<IndicatorCalculationWire>(
         INDICATOR_CALCULATIONS_ENDPOINT,
         {
           method: 'POST',
+          background,
           body: {
             symbol: indicatorCalculationRequestDomain.symbol,
             aggregationInterval: indicatorCalculationRequestDomain.aggregationInterval.value,

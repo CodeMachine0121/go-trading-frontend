@@ -502,3 +502,23 @@ describe('這一段時間市場沒有交易：第三種算不出來', () => {
     expect(message).not.toContain('至少要')
   })
 })
+
+describe('IndicatorCalculationProxy.recalculateIndicator', () => {
+  it('跟著最新那一根重算送出的內容與一般那一次相同，而且不報到', async () => {
+    const wire = { symbol: 'BTCUSDT', interval: '5m', usedCandleCount: 3, resultType: 'float', values: { 均價: 110 } }
+    const fetchMock = vi.fn().mockResolvedValue(wire)
+    vi.stubGlobal('$fetch', fetchMock)
+    const beginWaiting = vi.fn(() => () => {})
+    const proxy = new IndicatorCalculationProxy(
+      BASE_URL, signedInSessionStorage(), vi.fn(), async () => false, beginWaiting)
+
+    const recalculated = await proxy.recalculateIndicator(REQUEST)
+    expect(beginWaiting).not.toHaveBeenCalled()
+
+    const calculated = await proxy.calculateIndicator(REQUEST)
+
+    expect(beginWaiting).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]).toEqual(fetchMock.mock.calls[1])
+    expect(recalculated).toEqual(calculated)
+  })
+})

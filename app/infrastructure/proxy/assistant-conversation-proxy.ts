@@ -103,10 +103,25 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
     ))
   }
 
+  /** 讀一段對話——使用者挑了它，正在等它出現。 */
   async getConversation(id: number): Promise<Conversation> {
+    return this.readConversation(id, false)
+  }
+
+  /**
+   * 回頭詢問：助手作答中，畫面每隔一段時間重讀一次同一段對話。
+   *
+   * 與 `getConversation` 是同一條路、同一份翻譯，只差在它是**背景的**——
+   * 使用者沒有按任何東西，而那一則的「正在查…」本來就說得出它在等。
+   */
+  async refreshConversation(id: number): Promise<Conversation> {
+    return this.readConversation(id, true)
+  }
+
+  private async readConversation(id: number, background: boolean): Promise<Conversation> {
     try {
       const conversationWire = await this.requestBackend<ConversationWire>(
-        `${CONVERSATIONS_ENDPOINT}/${id}`)
+        `${CONVERSATIONS_ENDPOINT}/${id}`, { background })
 
       return new Conversation(
         conversationWire.id,

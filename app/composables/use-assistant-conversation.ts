@@ -321,8 +321,11 @@ export function useAssistantConversation(
    *
    * 整段讀而不是只讀最後一則，因為後端沒有「只給我最後一則」這條路，
    * 而這個專案是單人使用、對話不長。要優化時該加的是後端那條路，不是這裡的快取。
+   *
+   * `polling` 分開的是**誰在等**：剛送出一句之後讀回來的那一次是使用者在等的，
+   * 回頭詢問則是畫面自己每隔一段時間做的——後者不該讓頂端那條進度條亮起來。
    */
-  async function refreshCurrentConversation(): Promise<void> {
+  async function refreshCurrentConversation(polling = false): Promise<void> {
     const currentConversationId = conversationId.value
     if (currentConversationId === null) {
       return
@@ -331,8 +334,9 @@ export function useAssistantConversation(
     const readTicket = takeReadTicket()
 
     try {
-      const conversation = await assistantConversationApplication.getConversation(
-        currentConversationId)
+      const conversation = polling
+        ? await assistantConversationApplication.refreshConversation(currentConversationId)
+        : await assistantConversationApplication.getConversation(currentConversationId)
 
       // 這一次讀出去之後使用者可能已經換到別段了。
       if (readTicket !== latestReadTicket.value) {
@@ -423,7 +427,7 @@ export function useAssistantConversation(
         return
       }
 
-      void refreshCurrentConversation().then(schedulePoll)
+      void refreshCurrentConversation(true).then(schedulePoll)
     }, POLL_INTERVAL_MILLISECONDS)
   }
 

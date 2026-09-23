@@ -11,8 +11,12 @@ type BackendHealthWire = {
 
 /** Proxy：唯一允許出現 $fetch 的地方（實際請求與錯誤翻譯由 BackendApiProxy 負責）。 */
 export class BackendHealthProxy extends BackendApiProxy implements IBackendHealthProxy {
+  /**
+   * 問後端還活不活著。它是**背景的**：側欄那顆燈自己就說得出「檢查中」，
+   * 而它不是使用者按了什麼之後在等的那件事——算進頂端那條進度條，只會讓它無故一閃。
+   */
   async fetchBackendHealth(): Promise<BackendHealth> {
-    const wire = await this.requestBackend<BackendHealthWire>(HEALTH_ENDPOINT)
+    const wire = await this.requestBackend<BackendHealthWire>(HEALTH_ENDPOINT, { background: true })
     return new BackendHealth(wire.status, new Date())
   }
 }
