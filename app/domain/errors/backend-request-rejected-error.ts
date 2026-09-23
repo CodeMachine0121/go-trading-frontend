@@ -59,6 +59,9 @@ export class BackendRequestRejectedError extends Error {
    */
   readonly retryableFrom: string | undefined
 
+  /** 交易服務說一次重演沒在整次允許時間內跑完。 */
+  readonly timeAllowanceSpent: boolean
+
   constructor(
     message: string,
     options?: {
@@ -69,6 +72,7 @@ export class BackendRequestRejectedError extends Error {
       candleCoverageShortfall?: CandleCoverageShortfallVo
       marketClosedThroughout?: boolean
       retryableFrom?: string
+      timeAllowanceSpent?: boolean
     },
   ) {
     super(message, { cause: options?.cause })
@@ -79,5 +83,6 @@ export class BackendRequestRejectedError extends Error {
     this.candleCoverageShortfall = options?.candleCoverageShortfall
     this.marketClosedThroughout = options?.marketClosedThroughout ?? false
     this.retryableFrom = options?.retryableFrom
+    this.timeAllowanceSpent = options?.timeAllowanceSpent ?? false
   }
 }

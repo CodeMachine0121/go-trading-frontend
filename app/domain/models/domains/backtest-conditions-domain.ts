@@ -5,6 +5,7 @@ import { BacktestInitialCapitalDomain } from '~/domain/models/domains/backtest-i
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestExitLevelsDomain } from '~/domain/models/domains/backtest-exit-levels-domain'
 import { BacktestTransactionCostsDomain } from '~/domain/models/domains/backtest-transaction-costs-domain'
+import { BacktestValidationStartDomain } from '~/domain/models/domains/backtest-validation-start-domain'
 
 /**
  * Domain Model：**兩種重演共有的那幾件事**——哪一段期間、一開始多少錢、每次押多少、
@@ -36,6 +37,10 @@ export class BacktestConditionsDomain {
    */
   validate(): void {
     new BacktestTimeRangeDomain(this.requestDto.startTime, this.requestDto.endTime).validate()
+
+    // 驗證起點緊跟在起訖之後：畫面上它就擺在那兩格下面，而它的規則也是關於那兩格。
+    new BacktestValidationStartDomain(
+      this.requestDto.validationStartTime, this.requestDto.startTime, this.requestDto.endTime).validate()
 
     new BacktestInitialCapitalDomain(this.requestDto.initialCapital).validate()
 

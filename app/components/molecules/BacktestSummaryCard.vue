@@ -126,6 +126,57 @@ const { summary, timeZone = null } = defineProps<{
         {{ summary.totalTransactionCost }}
       </dd>
     </div>
+    <div
+      v-if="summary.fillTimingLabel"
+      class="backtest-summary-card__item"
+    >
+      <dt>成交時點</dt>
+      <dd data-testid="summary-fill-timing">
+        {{ summary.fillTimingLabel }}
+      </dd>
+    </div>
+    <!--
+      五格一律顯示，不適用就寫不適用：短線策略要回答的正是這五個問題，
+      少一格就少一個答案——而「不適用」本身也是答案（例如一筆都沒虧）。
+    -->
+    <template v-if="summary.tradeStatistics">
+      <div class="backtest-summary-card__item">
+        <dt>獲利因子</dt>
+        <dd data-testid="summary-profit-factor">
+          {{ summary.tradeStatistics.profitFactor }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>每筆期望值</dt>
+        <dd data-testid="summary-expectancy">
+          {{ summary.tradeStatistics.expectancy }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>平均持倉時間</dt>
+        <dd data-testid="summary-average-holding-time">
+          {{ summary.tradeStatistics.averageHoldingTime }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>最大連續虧損</dt>
+        <dd data-testid="summary-maximum-consecutive-loss-count">
+          {{ summary.tradeStatistics.maximumConsecutiveLossCount }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>成本佔毛利</dt>
+        <dd data-testid="summary-cost-to-gross-profit-ratio">
+          {{ summary.tradeStatistics.costToGrossProfitRatio }}
+        </dd>
+      </div>
+      <p
+        class="backtest-summary-card__note backtest-summary-card__item--wide"
+        data-testid="summary-trade-statistics-note"
+      >
+        獲利因子、每筆期望值、平均持倉時間、最大連續虧損、成本佔毛利只算已平倉的交易；結束時還開著的那一注不算。
+      </p>
+    </template>
     <template v-if="summary.contract">
       <div class="backtest-summary-card__item">
         <dt>交易模式</dt>

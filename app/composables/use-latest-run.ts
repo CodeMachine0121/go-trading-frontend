@@ -3,6 +3,7 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
+import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
 
 /**
  * 一種「這次拒絕是關於哪一格」的錯誤。
@@ -42,6 +43,11 @@ export function useLatestRun<TResult, TField extends string>(
   /** 算式取用了一個沒有宣告的旋鈕名字。它與「算式跑不動」是兩件事。 */
   const parameterNotDeclaredMessage = ref<string | null>(null)
   const backendUnreachable = ref(false)
+  /**
+   * 一次重演沒在整次允許時間內跑完。它與算式跑不動分開，因為要改的不是算式，
+   * 而是期間的長短或刻度的粗細。
+   */
+  const timeAllowanceSpentMessage = ref<string | null>(null)
   const serverErrorMessage = ref<string | null>(null)
 
   /**
@@ -58,6 +64,7 @@ export function useLatestRun<TResult, TField extends string>(
     parameterNotDeclaredMessage.value = null
     serverErrorMessage.value = null
     backendUnreachable.value = false
+    timeAllowanceSpentMessage.value = null
   }
 
   /** 這個欄位有沒有被指出問題——沒有就是 `null`。 */
@@ -85,6 +92,9 @@ export function useLatestRun<TResult, TField extends string>(
       }
       else if (error instanceof fieldErrorType) {
         fieldError.value = { field: error.field, message: error.message }
+      }
+      else if (error instanceof BacktestTimeAllowanceSpentError) {
+        timeAllowanceSpentMessage.value = error.message
       }
       else if (error instanceof IndicatorScriptFailedError) {
         scriptFailedMessage.value = error.message
@@ -115,6 +125,7 @@ export function useLatestRun<TResult, TField extends string>(
     parameterNotDeclaredMessage,
     backendUnreachable,
     serverErrorMessage,
+    timeAllowanceSpentMessage,
     messageFor,
     clear,
     run,

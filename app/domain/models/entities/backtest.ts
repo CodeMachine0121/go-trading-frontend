@@ -78,6 +78,23 @@ export class ContractBacktestFigures {
   ) {}
 }
 
+/**
+ * Entity：只看已平倉交易的五格統計，原樣。
+ *
+ * `null` 是交易服務說的「不適用」——沒有交易、或一筆都沒虧（獲利因子）、或價差本身就沒賺（成本佔毛利）。
+ * 它與零是兩件不同的事，所以在進 domain 的第一步就不能變成零。
+ */
+export class BacktestTradeStatistics {
+  constructor(
+    public readonly profitFactor: number | null,
+    public readonly expectancy: Decimal | null,
+    public readonly averageHoldingSeconds: number | null,
+    public readonly maximumConsecutiveLossCount: number,
+    /** 交易成本佔扣成本前損益的比例；0.25 是 25%。 */
+    public readonly costToGrossProfitRatio: number | null,
+  ) {}
+}
+
 /** Entity：資金曲線上的一點——那一根 K 線收盤之後，手上總共值多少。 */
 export class EquityPoint {
   constructor(
@@ -139,6 +156,16 @@ export class Backtest {
     public readonly equityCurve: readonly EquityPoint[],
     /** 合約重演多出的那幾格。現貨重演是 `null`。 */
     public readonly contractFigures: ContractBacktestFigures | null = null,
+    /** 五格統計。比這一刀早的交易服務不說，那時就是一格都不適用。 */
+    public readonly tradeStatistics: BacktestTradeStatistics
+      = new BacktestTradeStatistics(null, null, null, 0, null),
+    /** 這一次用的成交時點：`close` 或 `nextOpen`。 */
+    public readonly fillTiming: string = 'close',
+    /** 這一次的驗證起點；沒切分是 `null`。 */
+    public readonly validationStartTime: Date | null = null,
+    /** 調參段與驗證段各自重演的結果；沒切分時兩個都是 `null`。 */
+    public readonly inSample: Backtest | null = null,
+    public readonly validation: Backtest | null = null,
   ) {}
 
   toDomain(): BacktestDomain {

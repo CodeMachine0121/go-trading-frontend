@@ -10,6 +10,11 @@ import { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
 import { ContractClosedTradeDto } from '~/domain/models/dto/contract-closed-trade-dto'
 import { ContractBacktestFiguresDomain } from '~/domain/models/domains/contract-backtest-figures-domain'
+import { BacktestTradeStatisticsDomain } from '~/domain/models/domains/backtest-trade-statistics-domain'
+import { EquityCurveSamplingDomain } from '~/domain/models/domains/equity-curve-sampling-domain'
+import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
+import type { BacktestResultSectionKind } from '~/domain/models/dto/backtest-result-section-dto'
+import { BacktestResultSectionDto } from '~/domain/models/dto/backtest-result-section-dto'
 
 /** 比率寫到小數點後兩位：再細一位對「這支策略腳本好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
@@ -76,10 +81,60 @@ export class BacktestDomain {
       this.backtest.endTime,
       this.backtest.usedCandleCount,
       this.summaryDto(),
-      this.backtest.closedTrades.map(closedTrade => this.closedTradeDto(closedTrade)),
-      this.backtest.equityCurve.map(
-        equityPoint => new EquityPointDto(equityPoint.openTime, equityPoint.equity)),
+      this.closedTradeDtos(),
+      this.equityPointDtos(),
+      this.sectionDtos(),
     )
+  }
+
+  /**
+   * 這一次結果要畫成的那幾塊。
+   *
+   * 有驗證段時它排第一、而且醒目：只有它回答得了「這支策略有沒有效」。調參段排第二，
+   * 並說明它的成績好看是應該的；整段排最後，只供對照。沒有切分時只有一塊，
+   * 不帶任何分段字樣——與這個功能出現以前一模一樣。
+   */
+  private sectionDtos(): BacktestResultSectionDto[] {
+    const { inSample, validation } = this.backtest
+    if (inSample === null || validation === null) {
+      return [this.toSectionDto('whole', null, null, false)]
+    }
+
+    return [
+      validation.toDomain().toSectionDto(
+        'validation', '驗證段', '這一段是調參數時沒看過的行情，以它為準', true),
+      inSample.toDomain().toSectionDto(
+        'inSample', '調參段', '這一段是拿來調參數的，成績好看是應該的', false),
+      this.toSectionDto('whole', '整段', '從起點一路走到終點的那一次，只供對照', false),
+    ]
+  }
+
+  /** 這一次結果當成結果畫面上的一塊。分段的那兩次各自是一個 Backtest，所以由它們自己回答。 */
+  toSectionDto(
+    kind: BacktestResultSectionKind, title: string | null, note: string | null, emphasized: boolean,
+  ): BacktestResultSectionDto {
+    return new BacktestResultSectionDto(
+      kind,
+      title,
+      note,
+      emphasized,
+      this.backtest.startTime,
+      this.backtest.endTime,
+      this.backtest.usedCandleCount,
+      new AggregationIntervalDomain(this.backtest.interval).label(),
+      this.summaryDto(),
+      this.closedTradeDtos(),
+      new EquityCurveSamplingDomain(this.equityPointDtos()).sample(),
+    )
+  }
+
+  private closedTradeDtos(): ClosedTradeDto[] {
+    return this.backtest.closedTrades.map(closedTrade => this.closedTradeDto(closedTrade))
+  }
+
+  private equityPointDtos(): EquityPointDto[] {
+    return this.backtest.equityCurve.map(
+      equityPoint => new EquityPointDto(equityPoint.openTime, equityPoint.equity))
   }
 
   private summaryDto(): BacktestSummaryDto {
@@ -108,6 +163,8 @@ export class BacktestDomain {
       this.backtest.contractFigures === null
         ? null
         : new ContractBacktestFiguresDomain(this.backtest.contractFigures).toSummaryDto(),
+      new BacktestTradeStatisticsDomain(this.backtest.tradeStatistics).toDto(),
+      new FillTimingDomain(this.backtest.fillTiming).label(),
     )
   }
 
