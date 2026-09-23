@@ -90,7 +90,7 @@ flowchart TD
 
 - **多段驗證：** `BacktestDomain` 產生 `sections` 的那一處加塊即可，元件不必改。
 - **更多統計：** `BacktestTradeStatisticsDomain` 與它的 DTO 各加一格，成績單加一格。
-- **Known debt：** 逾時的辨認依賴交易服務在 422 回覆帶 `timeAllowanceSpent`；沒有時退回算式失敗的說法。
+- **逾時的辨認：** 交易服務在四個重演去處的逾時 422 回覆都帶 `timeAllowanceSpent: true`，算式失敗的 422 不帶；前端只看這個欄位分流。
 
 ---
 
@@ -112,4 +112,4 @@ flowchart TD
 
 ## 8. Risks & Open Decisions
 
-- 逾時辨認見 Known debt；合併前核對交易服務最終的回覆形狀。
+- 逾時辨認已與交易服務最終回覆形狀核對（四個重演去處皆帶 `timeAllowanceSpent: true`）。

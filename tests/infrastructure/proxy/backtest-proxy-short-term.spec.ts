@@ -180,16 +180,34 @@ describe('BacktestProxy short-term replays', () => {
     expect(backtest.inSample?.tradeStatistics.profitFactor).toBe(2.5)
   })
 
-  it('沒在允許時間內跑完的重演自成一類，不說成算式的問題', async () => {
+  const contractTerms = () => new ContractBacktestTermsDomain(
+    new ContractBacktestTermsDto(new Decimal(0), new Decimal(0), null))
+  const everyReplay: readonly [string, (proxy: BacktestProxy) => Promise<unknown>][] = [
+    ['現貨策略腳本', proxy => proxy.runBacktest(scriptRequestOf('close', null))],
+    ['現貨交易策略', proxy => proxy.runTradingStrategyBacktest(strategyRequestOf('close', null))],
+    ['合約策略腳本', proxy => proxy.runContractBacktest(scriptRequestOf('close', null), contractTerms())],
+    ['合約交易策略', proxy => proxy.runContractTradingStrategyBacktest(
+      strategyRequestOf('close', null), contractTerms())],
+  ]
+
+  it.each(everyReplay)('%s沒在允許時間內跑完時自成一類，不說成算式的問題', async (_, run) => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
       422, '重演在 90 秒內沒跑完', { timeAllowanceSpent: true })))
 
-    const failure = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runBacktest(scriptRequestOf('close', null)).catch((error: unknown) => error)
+    const failure = await run(new BacktestProxy(BASE_URL, signedInSessionStorage())).catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BacktestTimeAllowanceSpentError)
     expect(failure).not.toBeInstanceOf(IndicatorScriptFailedError)
     expect((failure as Error).message).toBe('重演在 90 秒內沒跑完')
+  })
+
+  it.each(everyReplay)('%s的 422 不帶逾時標記時仍是算式的問題', async (_, run) => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(422, '算式第 3 行出錯')))
+
+    const failure = await run(new BacktestProxy(BASE_URL, signedInSessionStorage())).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(IndicatorScriptFailedError)
+    expect(failure).not.toBeInstanceOf(BacktestTimeAllowanceSpentError)
   })
 
   it.each(['validationStartTime', 'fillTiming'] as const)('交易服務指名 %s 時落在那一格', async (field) => {
