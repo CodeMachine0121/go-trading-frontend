@@ -19,7 +19,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
+import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
 } from '../../fixtures/contract-proxies'
@@ -370,5 +370,24 @@ describe('KCandleContractChartPanel', () => {
     }))
 
     expect(wrapper.get('[data-testid="loading-alert"]').text()).toBe('取行情中…')
+  })
+
+  it('手機上控制項一開始收著，預設那一個不在清單上時照樣改畫清單上的第一個', async () => {
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([]))
+    mount(KCandleContractChartPanel, {
+      props: {
+        kCandleChartApplication: new KCandleChartApplication(
+          new KCandleChartService(buildSpotProxy(), buildKCandleContractProxy({ findKCandleContractSeries }))),
+        tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService(
+          { findTradingSymbols: vi.fn() }, buildContractTradingSymbolProxy([buildContractTradingSymbol('ETHUSDT')]))),
+        timeZone: buildTimeZone('UTC'),
+        layoutDensity: onAPhone(),
+      },
+      global: { stubs: { KCandleChart: true } },
+    })
+    await flushPromises()
+
+    const lastLoadPlan = loadPlanOf(findKCandleContractSeries, findKCandleContractSeries.mock.calls.length - 1)
+    expect(lastLoadPlan.symbol).toBe('ETHUSDT')
   })
 })
