@@ -1,5 +1,6 @@
 import type { StrategyScript } from '~/domain/models/entities/strategy-script'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 
@@ -20,7 +21,8 @@ export class StrategyScriptDomain {
       this.strategyScript.name,
       this.strategyScript.description,
       new StrategyScriptContentDto(
-        this.strategyScript.script, resultType.value, this.strategyScript.parameters),
+        this.strategyScript.script, resultType.value, this.strategyScript.parameters,
+        new MarketDataKindDomain(this.strategyScript.marketDataKind).value),
       // 畫得成線的條件就是「值是數字」。既有的種類模型已經知道這件事，
       // 這裡借用它而不是再比對一次種類——多一套判斷就多一個會漂移的地方。
       resultType.holdsNumbers(),

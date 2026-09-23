@@ -1,6 +1,7 @@
 import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：市集上的一張卡，也是「我加入的」那一段每一列的形狀。
@@ -30,6 +31,9 @@ export class PublishedStrategyScriptDto {
      * 交出來的是話而不是代號，多一種種類的時候市集上就不會冒出一個沒人看得懂的字。
      */
     public readonly resultTypeLabel: string,
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
+    /** 給人看的行情種類：「K 線」或「合約行情」。市集上每一張卡都標著它。 */
+    public readonly marketDataKindLabel: string = 'K 線',
   ) {}
 
   /**
@@ -37,7 +41,7 @@ export class PublishedStrategyScriptDto {
    * 不是留了一格空白，是市集上的策略腳本本來就沒有算式這一欄。
    */
   toContent(): StrategyScriptContentDto {
-    return new StrategyScriptContentDto('', this.resultType, this.parameters)
+    return new StrategyScriptContentDto('', this.resultType, this.parameters, this.marketDataKind)
   }
 
   /**

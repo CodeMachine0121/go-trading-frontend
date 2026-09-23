@@ -296,3 +296,19 @@ describe('StrategyScriptMarketplacePanel 的搜尋', () => {
     expect(wrapper.find('[data-testid="marketplace-no-matches"]').exists()).toBe(false)
   })
 })
+
+describe('StrategyScriptMarketplacePanel 標出每一支吃哪一種行情', () => {
+  it.each([
+    { marketDataKind: 'contractKCandle', label: '合約行情' },
+    { marketDataKind: 'kCandle', label: 'K 線' },
+  ])('$marketDataKind 標著「$label」', async ({ marketDataKind, label }) => {
+    const wrapper = await mountPanel({
+      browseMarketplace: vi.fn().mockResolvedValue([
+        buildAdoptedStrategyScript(9, '別人的', { marketDataKind }),
+      ]),
+    })
+
+    expect(wrapper.get('[data-testid="marketplace-strategy-script-9"] [data-testid="marketplace-market-data-kind"]')
+      .text()).toBe(label)
+  })
+})

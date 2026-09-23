@@ -1,4 +1,5 @@
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：一支策略腳本記著的三樣東西——指標算式、指標值種類，與它自己的旋鈕。
@@ -31,5 +32,10 @@ export class StrategyScriptContentDto {
      * 彙總刻度與要看多長仍然不在這裡，理由也沒有變。
      */
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
+    /**
+     * 這支算式吃哪一種行情。它與另外三樣同一層：是這套算法的一部分——進入點收什麼，
+     * 決定它在哪一種計算上跑得動。一個畫面只寫一種，所以它不會在畫面上被改動。
+     */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
   ) {}
 }

@@ -3,13 +3,16 @@ import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-scri
 import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /** Application：策略腳本庫的用例編排，全程只碰 DTO。 */
 export class StrategyScriptApplication {
   constructor(private readonly strategyScriptService: StrategyScriptService) {}
 
-  async listAvailableStrategyScripts(): Promise<AvailableStrategyScriptsDto> {
-    return this.strategyScriptService.listAvailableStrategyScripts()
+  async listAvailableStrategyScripts(
+    marketDataKind: MarketDataKind = 'kCandle',
+  ): Promise<AvailableStrategyScriptsDto> {
+    return this.strategyScriptService.listAvailableStrategyScripts(marketDataKind)
   }
 
   async saveStrategyScript(strategyScriptWriteDto: StrategyScriptWriteDto): Promise<StrategyScriptDto> {

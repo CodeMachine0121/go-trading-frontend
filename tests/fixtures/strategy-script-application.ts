@@ -38,6 +38,7 @@ export function buildStoredStrategyScript(
     script?: string
     resultType?: string
     parameters?: readonly StrategyScriptParameterDto[]
+    marketDataKind?: string
   } = {},
 ): StrategyScript {
   return new StrategyScript(
@@ -48,6 +49,8 @@ export function buildStoredStrategyScript(
     + 'func Calculate(data []indicator.KCandle) map[string][]float64 {\n\tsum := 0.0\n\treturn nil\n}',
     overrides.resultType ?? 'floatList',
     overrides.parameters ?? [],
+    false,
+    overrides.marketDataKind ?? 'kCandle',
   )
 }
 
@@ -60,6 +63,7 @@ export function buildAdoptedStrategyScript(
     resultType?: string
     parameters?: readonly StrategyScriptParameterDto[]
     publisherEmail?: string
+    marketDataKind?: string
   } = {},
 ): PublishedStrategyScript {
   return new PublishedStrategyScript(
@@ -70,6 +74,7 @@ export function buildAdoptedStrategyScript(
     overrides.publisherEmail ?? 'someone@example.com',
     new Date('2026-09-10T08:00:00.000Z'),
     overrides.parameters ?? [],
+    overrides.marketDataKind ?? 'kCandle',
   )
 }
 

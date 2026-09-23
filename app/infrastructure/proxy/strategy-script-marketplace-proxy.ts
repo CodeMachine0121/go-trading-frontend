@@ -19,6 +19,8 @@ type PublishedStrategyScriptWire = {
   publisherEmail: string
   publishedAt: string
   parameters?: { name: string, kind: string, defaultValue: number }[] | null
+  /** 舊版後端不給這一項；讀不到就是 K 線。 */
+  marketDataKind?: string
 }
 
 /** Proxy：打市集端點，並把「市集上沒有這一支」從一般的拒絕裡分出來。 */
@@ -77,6 +79,7 @@ export class StrategyScriptMarketplaceProxy extends BackendApiProxy implements I
         parameter.name,
         STRATEGY_PARAMETER_KINDS.find(kind => kind === parameter.kind) ?? 'number',
         parameter.defaultValue)),
+      publishedWire.marketDataKind ?? 'kCandle',
     )
   }
 }
