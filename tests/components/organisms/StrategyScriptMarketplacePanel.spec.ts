@@ -312,3 +312,39 @@ describe('StrategyScriptMarketplacePanel 標出每一支吃哪一種行情', () 
       .text()).toBe(label)
   })
 })
+
+describe('StrategyScriptMarketplacePanel 認得每一種行情的「我的」與「收下過」', () => {
+  it('收下過的合約行情種類給的是「移除」，不是「加入」', async () => {
+    const wrapper = await mountPanel({
+      browseMarketplace: vi.fn().mockResolvedValue([
+        buildAdoptedStrategyScript(9, '別人的 OI 背離', { marketDataKind: 'contractKCandle' }),
+      ]),
+    }, {
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [],
+        adopted: [buildAdoptedStrategyScript(9, '別人的 OI 背離', { marketDataKind: 'contractKCandle' })],
+      }),
+    })
+
+    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="marketplace-strategy-script-adopted-9"]').text()).toContain('已加入')
+  })
+
+  it('自己分享的合約行情種類標明是自己的，一顆按鈕都不給', async () => {
+    const wrapper = await mountPanel({
+      browseMarketplace: vi.fn().mockResolvedValue([
+        buildAdoptedStrategyScript(9, '我的費率反轉', { marketDataKind: 'contractKCandle' }),
+      ]),
+    }, {
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(9, '我的費率反轉', { marketDataKind: 'contractKCandle' })],
+        adopted: [],
+      }),
+    })
+
+    expect(wrapper.get('[data-testid="marketplace-strategy-script-mine-9"]').text()).toContain('我分享的')
+    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(false)
+  })
+})

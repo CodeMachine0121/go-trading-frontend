@@ -27,17 +27,34 @@ export class StrategyScriptService {
   async listAvailableStrategyScripts(
     marketDataKind: MarketDataKind = 'kCandle',
   ): Promise<AvailableStrategyScriptsDto> {
-    const available = await this.strategyScriptProxy.listAvailableStrategyScripts()
     const wantedKind = new MarketDataKindDomain(marketDataKind)
+
+    return this.readAvailable(kind => wantedKind.isSameAs(kind))
+  }
+
+  /**
+   * 同一份清單，**每一種行情都在**。
+   *
+   * 只有一個地方需要它：市集要說出「這一支是我的／我收下過」，而那個問題與行情種類無關——
+   * 一支自己發佈的合約策略腳本，在市集上就該是「我的」，不該因為清單預設只列 K 線而變回「加入」。
+   */
+  async listAllAvailableStrategyScripts(): Promise<AvailableStrategyScriptsDto> {
+    return this.readAvailable(() => true)
+  }
+
+  /** 兩種清單只差在留下哪幾種行情；讀法與轉成 DTO 的方式完全相同。 */
+  private async readAvailable(
+    keeps: (marketDataKind: MarketDataKindDomain) => boolean,
+  ): Promise<AvailableStrategyScriptsDto> {
+    const available = await this.strategyScriptProxy.listAvailableStrategyScripts()
 
     return new AvailableStrategyScriptsDto(
       available.mine
         .map(strategyScript => strategyScript.toDomain().toDto())
-        .filter(strategyScript => wantedKind.isSameAs(
-          new MarketDataKindDomain(strategyScript.content.marketDataKind))),
+        .filter(strategyScript => keeps(new MarketDataKindDomain(strategyScript.content.marketDataKind))),
       available.adopted
         .map(published => published.toDomain().toDto())
-        .filter(published => wantedKind.isSameAs(new MarketDataKindDomain(published.marketDataKind))),
+        .filter(published => keeps(new MarketDataKindDomain(published.marketDataKind))),
     )
   }
 
