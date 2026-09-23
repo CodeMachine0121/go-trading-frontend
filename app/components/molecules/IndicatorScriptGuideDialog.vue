@@ -81,7 +81,9 @@ const emit = defineEmits<{ close: [] }>()
           <ul class="indicator-script-guide-dialog__caveat-list">
             <li>沒有 <code>ID</code>。</li>
             <li>時間是 Unix 秒的整數，不是 <code>time.Time</code>。</li>
-            <li>價量一律是 <code>float64</code>，直接算就好。</li>
+            <li data-testid="script-value-type-note">
+              {{ guide.valueTypeNote }}
+            </li>
             <li>只開放 <code>math</code> 與 <code>sort</code>，開新的空白算式時已經先幫你匯入。</li>
             <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
             <li

@@ -13,6 +13,8 @@ export class ScriptInputGuideDto {
     /** 那一段的標題，例如「每一根 K 線有什麼」。 */
     public readonly heading: string,
     public readonly fields: readonly KCandleFieldDto[],
+    /** 每一項該用什麼型別去算：現貨一律是 float64，合約另有不是 float64 的項目。 */
+    public readonly valueTypeNote: string,
     /** 這一種行情特有、寫算式時最容易忽略的事。沒有就是空的。 */
     public readonly notes: readonly string[],
   ) {}

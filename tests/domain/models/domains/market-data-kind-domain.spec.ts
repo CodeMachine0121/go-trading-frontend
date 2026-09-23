@@ -42,12 +42,22 @@ describe('MarketDataKindDomain', () => {
     expect(guide.notes.some(note => note.includes('沒有值的一律是零'))).toBe(true)
   })
 
+  it('合約行情的說明不說「價量一律是 float64」，而是點出不是 float64 的那幾項', () => {
+    const guide = new MarketDataKindDomain('contractKCandle').toScriptInputGuideDto()
+
+    expect(guide.valueTypeNote).not.toContain('一律是 float64')
+    expect(guide.valueTypeNote).toContain('TradeCount 是 int64')
+    expect(guide.valueTypeNote).toContain('indicator.PriceLine')
+    expect(guide.valueTypeNote).toContain('FundingSettledInBar 是 bool')
+  })
+
   it('K 線的說明與這一刀之前一字不差：只列十項、沒有額外提醒', () => {
     const guide = new MarketDataKindDomain('kCandle').toScriptInputGuideDto()
 
     expect(guide.entryPoint).toBe('func Calculate(data []indicator.KCandle)')
     expect(guide.heading).toBe('每一根 K 線有什麼')
     expect(guide.fields).toHaveLength(10)
+    expect(guide.valueTypeNote).toBe('價量一律是 float64，直接算就好。')
     expect(guide.notes).toEqual([])
   })
 

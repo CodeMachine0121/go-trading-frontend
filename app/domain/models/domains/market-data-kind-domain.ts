@@ -17,6 +17,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       scriptInputTypeName: string
       guideHeading: string
       fields: readonly KCandleFieldVo[]
+      valueTypeNote: string
       notes: readonly string[]
       offersBacktest: boolean
       picksContractTradingSymbol: boolean
@@ -28,6 +29,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     scriptInputTypeName: 'KCandle',
     guideHeading: '每一根 K 線有什麼',
     fields: K_CANDLE_FIELDS,
+    valueTypeNote: '價量一律是 float64，直接算就好。',
     notes: [],
     offersBacktest: true,
     picksContractTradingSymbol: false,
@@ -37,6 +39,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     scriptInputTypeName: 'ContractKCandle',
     guideHeading: '每一格合約行情有什麼',
     fields: CONTRACT_K_CANDLE_FIELDS,
+    // 不能沿用現貨那一句「一律是 float64」：成交筆數、三組開高低收與結算旗標都不是。
+    valueTypeNote: '價量是 float64，但不是每一項都是：TradeCount 是 int64，要先 float64(...) 才能跟價格一起算；'
+      + 'Mark、Index、PremiumIndex 是 indicator.PriceLine，要取裡面的 Open / High / Low / Close；'
+      + 'FundingSettledInBar 是 bool。',
     notes: [
       '沒有值的一律是零：指數價格開始記錄前的舊資料、第一次結算之前、沒錄到持倉統計的時段。持倉量是零多半代表那時沒有資料。',
       '資金費率是這一格收盤前最近一次結算的費率，兩次結算之間每一格都延續上一次的；真的結算的那一格 FundingSettledInBar 才是 true。',
@@ -102,6 +108,7 @@ export class MarketDataKindDomain {
       `func Calculate(data []indicator.${description.scriptInputTypeName})`,
       description.guideHeading,
       description.fields.map(field => field.toDto()),
+      description.valueTypeNote,
       description.notes,
     )
   }

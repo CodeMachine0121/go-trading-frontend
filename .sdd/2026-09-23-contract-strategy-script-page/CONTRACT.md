@@ -82,7 +82,7 @@ concrete artifact it bridges to (via UL-MAP/ARCH) is what the audit columns chec
 | BR-4 | 🟡 | Rewriting a contract script asserted to resend `contractKCandle` | ✅ |
 | NFR-1, NFR-2 | 🟡 | Shared layout/session code; no contract-specific behaviour exists to test | accepted |
 | Orphan: retarget rewrites a spot entry point | ⚠️ | Added to PRD US-03 as a scenario (already covered by `indicator-script-domain.spec.ts`) | documented |
-| Orphan: 「價量一律是 float64」 on the contract guide | ⚠️ | Kept: every price and volume on a contract bar is `float64`; the int64/bool/PriceLine items are not prices or volumes and are typed in the list itself | no change |
+| Orphan: 「價量一律是 float64」 on the contract guide | ⚠️ | Revisited in PR review: `Mark`/`Index`/`PremiumIndex` are prices yet `indicator.PriceLine`, and `TradeCount` is `int64`, so the blanket note misleads contract authors. The note now comes per kind from `MarketDataKindDomain` (`valueTypeNote`): spot keeps the original sentence, contract names the non-`float64` items; scenario added to PRD US-03 | fixed |
 | Orphan: UL-MAP bottom-bar row | ⚠️ | Updated to 現貨策略腳本 and seven entries under 「更多」 | fixed |
 
 Conformance after fixes: 30/32 conform; NFR-1 and NFR-2 rest on shared code with no feature-specific branch.

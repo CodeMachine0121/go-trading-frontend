@@ -147,6 +147,8 @@ describe('合約策略腳本的工作區', () => {
     expect(fieldNames).toEqual(expect.arrayContaining(['FundingRate', 'FundingSettledInBar', 'OpenInterest', 'Mark']))
     expect(wrapper.findAll('[data-testid="script-input-note"]').map(note => note.text()).join(''))
       .toContain('沒有值的一律是零')
+    expect(wrapper.get('[data-testid="script-value-type-note"]').text()).not.toContain('一律是 float64')
+    expect(wrapper.get('[data-testid="script-value-type-note"]').text()).toContain('TradeCount 是 int64')
   })
 
   it('現貨那一頁的說明一字不差：只列 K 線的那十項，沒有額外提醒', async () => {
@@ -159,6 +161,7 @@ describe('合約策略腳本的工作區', () => {
     expect(wrapper.get('[data-testid="script-entry-point"]').text()).toBe('func Calculate(data []indicator.KCandle)')
     expect(wrapper.findAll('[data-testid="k-candle-field"]')).toHaveLength(10)
     expect(wrapper.findAll('[data-testid="script-input-note"]')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="script-value-type-note"]').text()).toBe('價量一律是 float64，直接算就好。')
   })
 
   it('清單只列合約行情種類的，自己的與加入的都是', async () => {
