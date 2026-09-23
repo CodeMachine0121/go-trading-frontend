@@ -100,28 +100,36 @@ export default defineNuxtPlugin(() => {
    */
   const recoverSession = () => useUserSession().recoverExpiredSession()
 
+  /**
+   * 開始等一件事——頂端那條進度條就是從這裡知道畫面在等的。
+   *
+   * 又是一段接線：「現在有幾件事在等」住在全站共用的那份畫面狀態裡，
+   * 而發請求的那一層只負責報到。每一個打後端的 proxy 都拿到同一個，所以只有一條進度條。
+   */
+  const { beginWaiting } = useRequestActivity()
+
   const backendHealthApplication = new BackendHealthApplication(
-    new BackendHealthService(new BackendHealthProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new BackendHealthService(new BackendHealthProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   const kCandleApplication = new KCandleApplication(
-    new KCandleService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new KCandleService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   const kCandleChartApplication = new KCandleChartApplication(
-    new KCandleChartService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new KCandleChartService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   const tradingSymbolApplication = new TradingSymbolApplication(
-    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   const indicatorCalculationApplication = new IndicatorCalculationApplication(
-    new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new IndicatorCalculationService(new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   const strategyScriptApplication = new StrategyScriptApplication(
-    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 交易策略是中間那一層：策略腳本那一條回答「我寫了什麼」，這一條回答
@@ -129,14 +137,14 @@ export default defineNuxtPlugin(() => {
   // 它存在的全部理由——綁在機器人那一條線上的話，那件事就做不到。
   const tradingStrategyApplication = new TradingStrategyApplication(
     new TradingStrategyService(
-      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 策略機器人是操作台上第一件「沒有人看著的時候還在做事」的東西，所以它有自己的一整條線：
   // 交易策略那一條回答「照什麼判斷」，這一條回答「我派了誰出去、它現在怎麼樣」。
   const strategyBotApplication = new StrategyBotApplication(
     new StrategyBotService(
-      new StrategyBotProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+      new StrategyBotProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 共用的那個貨架是它自己的一件事，所以它有自己的一整條線而不是塞進策略腳本那一條：
@@ -144,16 +152,16 @@ export default defineNuxtPlugin(() => {
   // 長的是這一條，而日常挑策略腳本那條路一行都不會動。
   const strategyScriptMarketplaceApplication = new StrategyScriptMarketplaceApplication(
     new StrategyScriptMarketplaceService(
-      new StrategyScriptMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+      new StrategyScriptMarketplaceProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
     // 它也要問「哪幾支是我的、哪幾支我收下過」，而那只有自己的清單答得出來。
-    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 重演一支策略腳本是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
   // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
   // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
   const backtestApplication = new BacktestApplication(
-    new BacktestService(new BacktestProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new BacktestService(new BacktestProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼、
@@ -163,7 +171,7 @@ export default defineNuxtPlugin(() => {
   // 合起來只會得到一個誰都不好懂的萬用儲存。
   const chartIndicatorApplication = new ChartIndicatorApplication(
     new ChartIndicatorService(
-      new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession),
+      new IndicatorCalculationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting),
       new ChartLineColorPreferenceProxy(),
       new StrategyScriptParameterValuePreferenceProxy(),
       new AppliedChartIndicatorPreferenceProxy(),
@@ -178,7 +186,7 @@ export default defineNuxtPlugin(() => {
 
   // 助手是後端的一項能力，因此它只吃 base URL。
   const assistantConversationApplication = new AssistantConversationApplication(
-    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+    new AssistantConversationService(new AssistantConversationProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 「正在看哪一段對話」則要記在這台瀏覽器上。它以前只活在共用的畫面狀態裡，
@@ -214,7 +222,7 @@ export default defineNuxtPlugin(() => {
   // 憑證改記在 cookie（好讓伺服器端也判斷得出來）的那一天，換的是它，不是後端那一條。
   const userSessionApplication = new UserSessionApplication(
     new UserSessionService(
-      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession), sessionStorageProxy),
+      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting), sessionStorageProxy),
   )
 
   // 換密碼走的是同一個後端資源（使用者）的另一條路，所以它共用 UserProxy——
@@ -224,14 +232,14 @@ export default defineNuxtPlugin(() => {
   // 而「接下來把人帶去哪」是畫面那一層的編排。
   const passwordChangeApplication = new PasswordChangeApplication(
     new PasswordChangeService(
-      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+      new UserProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 這台系統要怎麼找到一個人，是後端的另一項能力，所以它有自己的一條線。
   // 這一條日後會長出「哪些事情要送出去」，而那時它長的仍然是這一條。
   const telegramDeliveryApplication = new TelegramDeliveryApplication(
     new TelegramDeliveryService(
-      new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession)),
+      new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, onSignedOut, recoverSession, beginWaiting)),
   )
 
   // 現在這個寬度代表什麼。它連瀏覽器儲存都不碰——問的是視窗本身，
