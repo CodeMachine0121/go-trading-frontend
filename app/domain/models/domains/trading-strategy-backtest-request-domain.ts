@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
@@ -32,6 +33,10 @@ export class TradingStrategyBacktestRequestDomain {
   // 沒有意見，而那是坐下來調的時候會換來換去的旋鈕。
   readonly entryCostPercentage: Decimal
   readonly exitCostPercentage: Decimal
+  /** 信號在哪一個價格成交。 */
+  readonly fillTiming: FillTimingDomain
+  /** 切出調參段與驗證段的那一刻；`null` 即不切分。 */
+  readonly validationStartTime: Date | null
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
@@ -59,5 +64,7 @@ export class TradingStrategyBacktestRequestDomain {
     this.takeProfitPercentage = requestDto.takeProfitPercentage
     this.entryCostPercentage = requestDto.entryCostPercentage
     this.exitCostPercentage = requestDto.exitCostPercentage
+    this.fillTiming = new FillTimingDomain(requestDto.fillTiming)
+    this.validationStartTime = requestDto.validationStartTime
   }
 }

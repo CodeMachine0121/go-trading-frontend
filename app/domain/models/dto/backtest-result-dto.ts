@@ -1,6 +1,7 @@
 import type { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
 import type { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import type { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
+import type { BacktestResultSectionDto } from '~/domain/models/dto/backtest-result-section-dto'
 
 /**
  * DTO：一次回測的結果形狀，也是畫面拿得到的唯一形狀。
@@ -20,6 +21,11 @@ export class BacktestResultDto {
     public readonly summary: BacktestSummaryDto,
     public readonly closedTrades: readonly ClosedTradeDto[],
     public readonly equityCurve: readonly EquityPointDto[],
+    /**
+     * 結果要畫成的那幾塊，依序。沒有切分時只有整段一塊；
+     * 有驗證起點時是驗證段、調參段、整段。
+     */
+    public readonly sections: readonly BacktestResultSectionDto[] = [],
   ) {}
 
   /**

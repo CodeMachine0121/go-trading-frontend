@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { FillTiming } from '~/domain/models/vo/fill-timing-vo'
 
 /**
  * DTO：使用者在重演一份交易策略那一格填的原始輸入。
@@ -36,5 +37,9 @@ export class TradingStrategyBacktestRequestDto {
      */
     public readonly entryCostPercentage: Decimal,
     public readonly exitCostPercentage: Decimal,
+    /** 信號在哪一個價格成交。沒動即收盤成交。 */
+    public readonly fillTiming: FillTiming = 'close',
+    /** 切出調參段與驗證段的那一刻；`null` 即不切分。 */
+    public readonly validationStartTime: Date | null = null,
   ) {}
 }

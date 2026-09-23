@@ -22,6 +22,9 @@ import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trad
 import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option-dto'
+import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
+import { FILL_TIMINGS } from '~/domain/models/vo/fill-timing-vo'
 
 /**
  * 沒特別填時一開始有多少錢。
@@ -98,6 +101,11 @@ export class BacktestService {
    * 現在這一刻由呼叫端給進來——一個讀時鐘的預設值沒有辦法被驗證，
    * 而「打開回測看到的是哪兩個時間」正是這個切片最該被釘死的一條。
    */
+  /** 成交時點的兩個選項，第一個是預設的收盤成交。 */
+  listFillTimingOptions(): FillTimingOptionDto[] {
+    return FILL_TIMINGS.map(fillTiming => new FillTimingDomain(fillTiming).toOptionDto())
+  }
+
   defaultTimeRange(now: Date): BacktestTimeRangeDto {
     return new BacktestTimeRangeDomain(now, now).defaultRangeAt(now)
   }

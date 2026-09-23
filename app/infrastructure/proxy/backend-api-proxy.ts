@@ -20,6 +20,7 @@ type BackendFailure = {
     minimumCandleCount?: number
     observationWindowHoldsNoTrading?: boolean
     lockedUntil?: string
+    timeAllowanceSpent?: boolean
   }
 }
 
@@ -218,6 +219,9 @@ export abstract class BackendApiProxy {
               marketClosedThroughout:
                 backendFailure.data?.observationWindowHoldsNoTrading ?? false,
               retryableFrom: backendFailure.data?.lockedUntil,
+              // 一次重演沒在整次允許時間內跑完。與算式跑不動同一個狀態碼，
+              // 所以要靠這個標記才分得開——下一步完全不同。
+              timeAllowanceSpent: backendFailure.data?.timeAllowanceSpent ?? false,
             },
           )
         }

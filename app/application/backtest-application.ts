@@ -11,6 +11,7 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option-dto'
 
 /** Application：回測的用例編排，全程只碰 DTO。 */
 export class BacktestApplication {
@@ -40,6 +41,10 @@ export class BacktestApplication {
 
   listContractTradingModeOptions(): ContractTradingModeOptionDto[] {
     return this.backtestService.listContractTradingModeOptions()
+  }
+
+  listFillTimingOptions(): FillTimingOptionDto[] {
+    return this.backtestService.listFillTimingOptions()
   }
 
   defaultTimeRange(now: Date): BacktestTimeRangeDto {

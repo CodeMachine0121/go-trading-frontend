@@ -6,6 +6,7 @@ import type { PositionDirection } from '~/domain/models/vo/position-direction-vo
 import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
 import {
   Backtest,
+  BacktestTradeStatistics,
   ClosedTrade,
   ContractBacktestFigures,
   ContractTradeFigures,
@@ -20,6 +21,8 @@ import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strateg
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-cost-rate-domain'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import type { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
+import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
 
 const BACKTESTS_ENDPOINT = '/backtests'
 
@@ -89,6 +92,21 @@ function contractTermsBody(termsDomain: ContractBacktestTermsDomain): Record<str
   }
 }
 
+/**
+ * 短線回測多問的兩格裡真的給了的那幾格。
+ *
+ * 規則與出場價位同一條——**沒說的不上線**：收盤成交是交易服務本來的讀法，
+ * 沒有驗證起點就是不切分。不送它們，「沒動就與今天一樣」在線上就是字面的意思。
+ */
+function replayTimingBody(
+  fillTiming: FillTimingDomain, validationStartTime: Date | null,
+): Record<string, string> {
+  return {
+    ...(fillTiming.isDefault ? {} : { fillTiming: fillTiming.value }),
+    ...(validationStartTime === null ? {} : { validationStartTime: validationStartTime.toISOString() }),
+  }
+}
+
 /** 重演一份交易策略掛在那一份底下，因為那是對它做的事。 */
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -117,6 +135,9 @@ const BACKTEST_FIELD_TRANSLATIONS: Readonly<Record<string, BacktestField>> = {
   leverage: 'leverage',
   tradingMode: 'tradingMode',
   slippage: 'slippage',
+  // 短線回測多問的兩格。
+  fillTiming: 'fillTiming',
+  validationStartTime: 'validationStartTime',
 }
 
 /**
@@ -197,13 +218,29 @@ type BacktestWire = {
      * 選填，理由與上面那兩個相同：比這一刀早的後端根本不收費，也不說這件事。
      */
     totalTransactionCost?: string
+    /**
+     * 只算已平倉交易的五格。`null` 是「不適用」。
+     *
+     * 選填，因為比這一刀早的交易服務不說——那時就是一格都不適用、連虧零筆。
+     */
+    profitFactor?: number | null
+    expectancy?: string | null
+    averageHoldingSeconds?: number | null
+    maximumConsecutiveLossCount?: number
+    costToGrossProfitRatio?: number | null
   }
   closedTrades: ClosedTradeWire[] | null
   equityCurve: EquityPointWire[] | null
+  /** 選填：比這一刀早的交易服務不說，那時一律收盤成交、不切分。 */
+  fillTiming?: string
+  validationStartTime?: string | null
+  /** 有驗證起點時，調參段與驗證段各自重演的那一份，與整段同一個形狀。 */
+  inSample?: BacktestWire
+  validation?: BacktestWire
 }
 
 /** 合約重演回來的那一份：現貨那一份的每一格，加上合約帳戶才有的那幾格。 */
-type ContractBacktestWire = Omit<BacktestWire, 'closedTrades' | 'summary'> & {
+type ContractBacktestWire = Omit<BacktestWire, 'closedTrades' | 'summary' | 'inSample' | 'validation'> & {
   tradingMode: string
   leverage: string
   summary: BacktestWire['summary'] & {
@@ -217,6 +254,8 @@ type ContractBacktestWire = Omit<BacktestWire, 'closedTrades' | 'summary'> & {
     maintenanceMarginBasis: { kind: string, confirmedAt: string | null }
   }
   closedTrades: ContractClosedTradeWire[] | null
+  inSample?: ContractBacktestWire
+  validation?: ContractBacktestWire
 }
 
 /** Proxy：打回測端點，並把「算式的問題」與「名字對不上」從一般的拒絕裡分出來。 */
@@ -269,6 +308,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       ...transactionCostsBody(
         backtestRequestDomain.entryCostPercentage,
         backtestRequestDomain.exitCostPercentage),
+      ...replayTimingBody(backtestRequestDomain.fillTiming, backtestRequestDomain.validationStartTime),
       // 指名一支策略腳本時**只送識別碼**，與指標計算同一條規則：算式與旋鈕宣告都在那一支身上，
       // 再送一份只會多出一個可能與它不一致的答案——而從市集加入的那些根本沒有算式可以送。
       //
@@ -351,6 +391,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
         requestDomain.stopLossPercentage, requestDomain.takeProfitPercentage),
       ...transactionCostsBody(
         requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
+      ...replayTimingBody(requestDomain.fillTiming, requestDomain.validationStartTime),
       // 借錢、滑點與交易模式不在這一份裡：現貨重演不收它們，
       // 合約重演的那兩格由 contractTermsBody 另外補上。
     }
@@ -409,6 +450,11 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
         wire.summary.blockedOpeningCount,
         wire.summary.maintenanceMarginBasis.kind,
         confirmedAt === null ? null : new Date(confirmedAt)),
+      this.tradeStatisticsOf(wire.summary),
+      wire.fillTiming ?? 'close',
+      this.validationStartTimeOf(wire),
+      wire.inSample === undefined ? null : this.toContractBacktest(wire.inSample),
+      wire.validation === undefined ? null : this.toContractBacktest(wire.validation),
     )
   }
 
@@ -446,7 +492,36 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
       (wire.equityCurve ?? []).map(equityPoint => new EquityPoint(
         new Date(equityPoint.openTime),
         new Decimal(equityPoint.equity))),
+      null,
+      this.tradeStatisticsOf(wire.summary),
+      wire.fillTiming ?? 'close',
+      this.validationStartTimeOf(wire),
+      wire.inSample === undefined ? null : this.toBacktest(wire.inSample),
+      wire.validation === undefined ? null : this.toBacktest(wire.validation),
     )
+  }
+
+  /**
+   * 五格統計，兩種重演讀法一樣。沒說的讀成不適用、連虧零筆——比這一刀早的交易服務根本不算。
+   * 每筆期望值是金額，以字串傳遞，理由與其他金額相同。
+   */
+  private tradeStatisticsOf(summary: BacktestWire['summary']): BacktestTradeStatistics {
+    return new BacktestTradeStatistics(
+      summary.profitFactor ?? null,
+      summary.expectancy === undefined || summary.expectancy === null
+        ? null
+        : new Decimal(summary.expectancy),
+      summary.averageHoldingSeconds ?? null,
+      summary.maximumConsecutiveLossCount ?? 0,
+      summary.costToGrossProfitRatio ?? null,
+    )
+  }
+
+  /** 這一次的驗證起點，兩種重演讀法一樣。 */
+  private validationStartTimeOf(wire: Pick<BacktestWire, 'validationStartTime'>): Date | null {
+    return wire.validationStartTime === undefined || wire.validationStartTime === null
+      ? null
+      : new Date(wire.validationStartTime)
   }
 
   /**
@@ -459,6 +534,11 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
     if (error instanceof BackendRequestRejectedError && error.parameterName !== undefined) {
       return new StrategyScriptParameterNotDeclaredError(
         error.parameterName, error.message, { cause: error })
+    }
+
+    // 與算式跑不動同一個狀態碼，所以先認它：這一次是太長或太細，不是算式寫錯。
+    if (error instanceof BackendRequestRejectedError && error.timeAllowanceSpent) {
+      return new BacktestTimeAllowanceSpentError(error.message, { cause: error })
     }
 
     if (error instanceof BackendRequestRejectedError && error.status === SCRIPT_FAILED_STATUS) {

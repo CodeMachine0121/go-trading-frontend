@@ -5,6 +5,7 @@ import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-ty
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
+import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
@@ -41,6 +42,10 @@ export class BacktestRequestDomain {
   readonly takeProfitPercentage: Decimal
   readonly entryCostPercentage: Decimal
   readonly exitCostPercentage: Decimal
+  /** 信號在哪一個價格成交。 */
+  readonly fillTiming: FillTimingDomain
+  /** 切出調參段與驗證段的那一刻；`null` 即不切分。 */
+  readonly validationStartTime: Date | null
 
   constructor(backtestRequestDto: BacktestRequestDto) {
     const normalizedSymbol = backtestRequestDto.symbol.trim()
@@ -90,6 +95,8 @@ export class BacktestRequestDomain {
     this.takeProfitPercentage = backtestRequestDto.takeProfitPercentage
     this.entryCostPercentage = backtestRequestDto.entryCostPercentage
     this.exitCostPercentage = backtestRequestDto.exitCostPercentage
+    this.fillTiming = new FillTimingDomain(backtestRequestDto.fillTiming)
+    this.validationStartTime = backtestRequestDto.validationStartTime
 
     // 旋鈕的規則由它們自己的模型把關，這裡只負責把拒絕說成這個表單聽得懂的話。
     // 它落在算式那一格：參數宣告與算式同屬工作區，而回測這一側沒有參數那一列可以標。
