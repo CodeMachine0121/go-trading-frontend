@@ -1071,3 +1071,20 @@ describe('K 線圖表：加入來的策略腳本', () => {
     expect(wrapper.text()).toContain('別人的')
   })
 })
+
+describe('K 線圖表只列得出吃 K 線的策略腳本', () => {
+  it('吃合約行情的那幾支——自己的與加入的——挑不到，連列都不列', async () => {
+    const { wrapper } = await mountPanel({
+      strategyScripts: [
+        buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' }),
+        buildStoredStrategyScript(8, '費率反轉', { resultType: 'float', marketDataKind: 'contractKCandle' }),
+      ],
+      adopted: [buildAdoptedStrategyScript(9, '別人的 OI 背離', { resultType: 'float', marketDataKind: 'contractKCandle' })],
+    })
+
+    const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option').map(option => option.text())
+    expect(options.some(option => option.includes('二十根均線'))).toBe(true)
+    expect(options.some(option => option.includes('費率反轉'))).toBe(false)
+    expect(options.some(option => option.includes('別人的 OI 背離'))).toBe(false)
+  })
+})

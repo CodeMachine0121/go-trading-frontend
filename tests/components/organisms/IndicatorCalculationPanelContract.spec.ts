@@ -13,6 +13,9 @@ import { TradingSymbolApplication } from '~/application/trading-symbol-applicati
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import {
   buildStrategyScriptMarketplaceApplication,
@@ -215,6 +218,59 @@ describe('合約策略腳本的工作區', () => {
     expect(createStrategyScript.mock.calls[0]?.[0].marketDataKind).toBe('contractKCandle')
   })
 
+  it('存下的那一支出現在這一頁的清單上', async () => {
+    const saved = buildStoredStrategyScript(9, 'OI 背離', { marketDataKind: 'contractKCandle' })
+    const listAvailableStrategyScripts = vi.fn()
+      .mockResolvedValueOnce({ mine: [], adopted: [] })
+      .mockResolvedValue({ mine: [saved], adopted: [] })
+    const wrapper = mountContractPanel({
+      strategyScriptProxy: { createStrategyScript: vi.fn().mockResolvedValue(saved), listAvailableStrategyScripts },
+    })
+    await typeScript(wrapper, CONTRACT_SCRIPT)
+
+    await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('OI 背離')
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+    await settle()
+
+    const options = wrapper.findAll('[data-testid="strategy-script-picker-select"] option').map(option => option.text())
+    expect(options.join('|')).toContain('OI 背離')
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="strategy-script-picker-select"]').element.value).toBe('9')
+  })
+
+  it('改寫一支合約行情種類的，送出去的仍是合約行情', async () => {
+    const stored = buildStoredStrategyScript(9, '費率反轉', { marketDataKind: 'contractKCandle', script: CONTRACT_SCRIPT })
+    const updateStrategyScript = vi.fn().mockResolvedValue(stored)
+    const wrapper = mountContractPanel({
+      strategyScriptProxy: {
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [stored], adopted: [] }),
+        updateStrategyScript,
+      },
+    })
+    await settle()
+    await wrapper.get('[data-testid="strategy-script-picker-select"]').setValue('9')
+    await settle()
+
+    await wrapper.get('[data-testid="save-strategy-script-button"]').trigger('click')
+    await settle()
+
+    expect(updateStrategyScript).toHaveBeenCalledOnce()
+    expect(updateStrategyScript.mock.calls[0]?.[0].marketDataKind).toBe('contractKCandle')
+  })
+
+  it('在現貨那一頁存下的是 K 線種類', async () => {
+    const createStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(9, '新均線'))
+    const wrapper = mountPanel({ strategyScriptProxy: { createStrategyScript } })
+    await typeScript(wrapper, 'sum := 0.0')
+
+    await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('新均線')
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+    await settle()
+
+    expect(createStrategyScript.mock.calls[0]?.[0].marketDataKind).toBe('kCandle')
+  })
+
   it('執行計算時算的是合約，挑的是合約標的', async () => {
     const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '1m', 3, 'float', []))
     const wrapper = mountContractPanel({ calculateIndicator })
@@ -227,7 +283,9 @@ describe('合約策略腳本的工作區', () => {
     const request = calculateIndicator.mock.calls[0]?.[0] as IndicatorCalculationRequestDomain
     expect(request.marketDataKind.value).toBe('contractKCandle')
     expect(request.symbol).toBe('BTCUSDT')
-    expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 3 根')
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('一分鐘')
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('一個數字')
   })
 
   it('交易服務說這支吃的是 K 線時，照那句話呈現為請求的問題', async () => {
@@ -252,5 +310,32 @@ describe('合約策略腳本的工作區', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="script-failed-alert"]').text()).toContain('[]indicator.ContractKCandle')
+  })
+
+  it('湊不出最少可算根數時，與現貨同一句話，落在「要看多長」旁邊', async () => {
+    const wrapper = mountContractPanel({
+      calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError('span', '可用的只有 12 根，這支策略腳本至少要 20 根')),
+    })
+    await typeScript(wrapper, CONTRACT_SCRIPT)
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('可用的只有 12 根，這支策略腳本至少要 20 根')
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+  })
+
+  it.each([
+    { name: '連不上交易服務', failure: new BackendUnreachableError('連不上'), alert: 'unreachable-alert' },
+    { name: '交易服務出錯', failure: new BackendServerError('壞了', { status: 502 }), alert: 'server-error-alert' },
+  ])('$name 時與現貨同一種呈現，並給重試', async ({ failure, alert }) => {
+    const wrapper = mountContractPanel({ calculateIndicator: vi.fn().mockRejectedValue(failure) })
+    await typeScript(wrapper, CONTRACT_SCRIPT)
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find(`[data-testid="${alert}"]`).exists()).toBe(true)
+    expect(wrapper.get(`[data-testid="${alert}"]`).text()).toContain('重試')
   })
 })
