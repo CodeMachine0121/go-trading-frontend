@@ -6,6 +6,10 @@ import { IndicatorCalculationService } from '~/domain/service/indicator-calculat
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
+import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { Backtest } from '~/domain/models/entities/backtest'
+import Decimal from 'decimal.js'
 import type { IStrategyScriptMarketplaceProxy } from '~/domain/interface/i-strategy-script-marketplace-proxy'
 import { StrategyScriptNameConflictError } from '~/domain/errors/strategy-script-name-conflict-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
@@ -35,6 +39,7 @@ function mountPanel(
   marketplaceProxy: Partial<IStrategyScriptMarketplaceProxy> = {},
   calculateIndicator: IIndicatorCalculationProxy['calculateIndicator'] = vi.fn().mockResolvedValue(
     new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+  backtestProxy: Partial<IBacktestProxy> = {},
 ) {
   return mount(IndicatorCalculationPanel, {
     props: {
@@ -46,7 +51,7 @@ function mountPanel(
       strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(marketplaceProxy),
       strategyScriptApplication: buildStrategyScriptApplication(strategyScriptProxy),
       tradingSymbolApplication: buildTradingSymbolApplication(),
-      backtestApplication: buildBacktestApplication(),
+      backtestApplication: buildBacktestApplication(backtestProxy),
       timeZone: buildTimeZone(),
     },
   })
@@ -1096,6 +1101,44 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     await settle()
 
     expect(calculateIndicator).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: 9 }))
+  })
+
+  it('唯讀時試跑失敗，原因照舊顯示在執行結果那裡', async () => {
+    const calculateIndicator = vi.fn().mockRejectedValue(
+      new IndicatorScriptFailedError('第 3 行出錯'))
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [], adopted: [buildAdoptedStrategyScript(9, '別人的')],
+      }),
+    }, {}, calculateIndicator)
+    await settle()
+    await pickStrategyScript(wrapper, 9)
+
+    await wrapper.get('form').trigger('submit')
+    await settle()
+
+    expect(wrapper.get('[data-testid="script-failed-alert"]').text()).toContain('第 3 行出錯')
+  })
+
+  it('唯讀時照樣回測得了——回測的就是那一支，並顯示它的成績', async () => {
+    const runBacktest = vi.fn().mockResolvedValue(new Backtest(
+      'BTCUSDT', '5m', new Date(0), new Date(0), 12,
+      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0,
+      new Decimal(0), [], []))
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [], adopted: [buildAdoptedStrategyScript(9, '均線交叉', { resultType: 'signal' })],
+      }),
+    }, {}, undefined, { runBacktest })
+    await settle()
+    await pickStrategyScript(wrapper, 9)
+
+    await wrapper.get('[data-testid="tab-backtest"]').trigger('click')
+    await wrapper.findAll('form').at(-1)!.trigger('submit')
+    await settle()
+
+    expect(runBacktest).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: 9, script: '' }))
+    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('回測了 12 根')
   })
 
   it('挑自己的那一支一切照舊：沒有唯讀的說明、每一顆都按得下去、試跑帶的是算式', async () => {
