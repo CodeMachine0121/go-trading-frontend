@@ -1,5 +1,7 @@
 import type { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 
 /**
  * DTO：工作檯交出來要存的那一份，還沒有被任何規則看過。
@@ -17,5 +19,9 @@ export class TradingStrategyWriteDto {
     public readonly signalSources: readonly TradingStrategySignalSourceDto[],
     public readonly buyCondition: TradingStrategyConditionDto | null,
     public readonly sellCondition: TradingStrategyConditionDto | null,
+    /** 它吃哪一種行情。改一份既有的時照抄它存著的那一種——交易服務不讓換。 */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
+    /** 合約交易策略的交易模式；K 線交易策略是 `null`，不上線。 */
+    public readonly tradingMode: ContractTradingMode | null = null,
   ) {}
 }

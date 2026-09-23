@@ -805,6 +805,8 @@ async function calculateIndicator() {
           :parameters="strategyScriptParameters.parameters.value"
           :strategy-script-id="strategyScriptLibrary.namedStrategyScriptId.value"
           :workspace-generation="workspaceGeneration"
+          :market-data-kind="marketDataKind"
+          :replays-on-contract-account="workbench.replaysOnContractAccount"
         />
       </div>
     </div>

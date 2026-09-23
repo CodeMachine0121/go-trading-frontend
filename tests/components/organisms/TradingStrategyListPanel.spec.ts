@@ -144,3 +144,25 @@ describe('TradingStrategyListPanel：螢幕窄到排不開一張工作檯', () =
       .toBe(false)
   })
 })
+
+describe('TradingStrategyListPanel 標出每一份吃的行情', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const, label: 'K 線', tradingModeLabel: null, expected: 'K 線' },
+    { marketDataKind: 'contractKCandle' as const, label: '合約行情', tradingModeLabel: '只做多', expected: '合約行情' },
+  ])('$label 的那一份寫著「$expected」', async ({ marketDataKind, label, tradingModeLabel, expected }) => {
+    const { wrapper } = mountPanel({
+      listTradingStrategies: vi.fn().mockResolvedValue([
+        new TradingStrategyDto(
+          1, '黃金交叉', [], null, null, marketDataKind, label,
+          tradingModeLabel === null ? null : 'longOnly', tradingModeLabel,
+          marketDataKind === 'contractKCandle', marketDataKind === 'kCandle'),
+      ]),
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="trading-strategy-market-data-kind"]').text()).toBe(expected)
+    if (tradingModeLabel !== null) {
+      expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain(tradingModeLabel)
+    }
+  })
+})

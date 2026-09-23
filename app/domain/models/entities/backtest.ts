@@ -38,6 +38,43 @@ export class ClosedTrade {
      */
     public readonly entryCost: Decimal,
     public readonly exitCost: Decimal,
+    /** 合約重演那一筆多出的幾格。現貨重演的每一筆都是 `null`。 */
+    public readonly contractFigures: ContractTradeFigures | null = null,
+  ) {}
+}
+
+/** Entity：合約重演一筆交易多出的幾格——它借了幾倍、買了多少、付收了多少資金費用。 */
+export class ContractTradeFigures {
+  constructor(
+    public readonly leverage: Decimal,
+    public readonly quantity: Decimal,
+    /** 付出的資金費用淨額；負的是收到的。 */
+    public readonly fundingFee: Decimal,
+  ) {}
+}
+
+/**
+ * Entity：一次合約重演的成績單多出的那幾格，原樣。
+ *
+ * 兩個勝率是 `null` 而不是 0，理由與整體勝率相同：那一邊一筆都沒有，與那一邊每一筆都輸，
+ * 是兩件不同的事。
+ */
+export class ContractBacktestFigures {
+  constructor(
+    public readonly tradingMode: string,
+    public readonly leverage: Decimal,
+    public readonly liquidationExitCount: number,
+    /** 淨付出的資金費用；負的是淨收到。 */
+    public readonly totalFundingFee: Decimal,
+    public readonly longTradeCount: number,
+    public readonly longWinRate: number | null,
+    public readonly shortTradeCount: number,
+    public readonly shortWinRate: number | null,
+    public readonly blockedOpeningCount: number,
+    /** `tiers`（完整分級）或 `smallestTier`（最小那一級）。 */
+    public readonly maintenanceMarginBasisKind: string,
+    /** 完整分級的確認時間；最小那一級沒有。 */
+    public readonly maintenanceMarginConfirmedAt: Date | null,
   ) {}
 }
 
@@ -100,6 +137,8 @@ export class Backtest {
     public readonly totalTransactionCost: Decimal,
     public readonly closedTrades: readonly ClosedTrade[],
     public readonly equityCurve: readonly EquityPoint[],
+    /** 合約重演多出的那幾格。現貨重演是 `null`。 */
+    public readonly contractFigures: ContractBacktestFigures | null = null,
   ) {}
 
   toDomain(): BacktestDomain {

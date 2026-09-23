@@ -13,8 +13,15 @@ import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-r
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
-import { BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
+import { BACKTEST_RULES, CONTRACT_BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
+import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
+import { ContractBacktestTermsDomain } from '~/domain/models/domains/contract-backtest-terms-domain'
+import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
+import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
+import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 /**
  * 沒特別填時一開始有多少錢。
@@ -56,6 +63,36 @@ export class BacktestService {
   }
 
   /**
+   * 在逐倉合約帳戶上重演一支合約策略腳本：現貨那幾格與合約多問的那幾格各自驗過（不合法就不送出）→
+   * 送出 → 已經可以直接畫的結果，成績單與明細多出合約那幾格。
+   */
+  async runContractBacktest(
+    backtestRequestDto: BacktestRequestDto, termsDto: ContractBacktestTermsDto,
+  ): Promise<BacktestResultDto> {
+    const requestDomain = new BacktestRequestDomain(backtestRequestDto)
+    const termsDomain = new ContractBacktestTermsDomain(termsDto)
+    const backtest = await this.backtestProxy.runContractBacktest(requestDomain, termsDomain)
+
+    return backtest.toDomain().toDto()
+  }
+
+  /** 在逐倉合約帳戶上重演一份合約交易策略。交易模式是那份交易策略自己的。 */
+  async runContractTradingStrategyBacktest(
+    requestDto: TradingStrategyBacktestRequestDto, termsDto: ContractBacktestTermsDto,
+  ): Promise<BacktestResultDto> {
+    const requestDomain = new TradingStrategyBacktestRequestDomain(requestDto)
+    const termsDomain = new ContractBacktestTermsDomain(termsDto)
+    const backtest = await this.backtestProxy.runContractTradingStrategyBacktest(requestDomain, termsDomain)
+
+    return backtest.toDomain().toDto()
+  }
+
+  /** 合約重演的交易模式選單：三種，連同它們買入與賣出各是什麼意思。 */
+  listContractTradingModeOptions(): ContractTradingModeOptionDto[] {
+    return CONTRACT_TRADING_MODES.map(mode => new ContractTradingModeDomain(mode).toOptionDto())
+  }
+
+  /**
    * 一打開回測就填好的那一段。
    *
    * 現在這一刻由呼叫端給進來——一個讀時鐘的預設值沒有辦法被驗證，
@@ -82,8 +119,12 @@ export class BacktestService {
    * 系統真正的行為。寫在對話框裡的話，行為改了沒有人會知道要回頭改它們，
    * 於是那份說明會安靜地開始說謊——而說明一旦說謊，讀的人比沒看還糟。
    */
-  listBacktestRules(): BacktestRuleDto[] {
-    return BACKTEST_RULES.map(rule => rule.toDto())
+  listBacktestRules(marketDataKind: MarketDataKind = 'kCandle'): BacktestRuleDto[] {
+    const rules = new MarketDataKindDomain(marketDataKind).toWorkbenchDto().replaysOnContractAccount
+      ? CONTRACT_BACKTEST_RULES
+      : BACKTEST_RULES
+
+    return rules.map(rule => rule.toDto())
   }
 
   /** 信號種類的算式能回傳什麼——三個值，排成一張對照表。 */

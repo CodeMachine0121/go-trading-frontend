@@ -1,5 +1,6 @@
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
+import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
@@ -20,5 +21,10 @@ export function useTradingStrategyBacktestRun(backtestApplication: BacktestAppli
     /** 收的是「怎麼組出那份請求」——組裝本身就會失敗，所以它要落在 try 裡面。 */
     run: (buildRequest: () => TradingStrategyBacktestRequestDto) =>
       latestRun.run(() => backtestApplication.runTradingStrategyBacktest(buildRequest())),
+    /** 在合約帳戶上重演一份合約交易策略。 */
+    runContract: (
+      buildRequest: () => TradingStrategyBacktestRequestDto, buildTerms: () => ContractBacktestTermsDto,
+    ) => latestRun.run(
+      () => backtestApplication.runContractTradingStrategyBacktest(buildRequest(), buildTerms())),
   }
 }

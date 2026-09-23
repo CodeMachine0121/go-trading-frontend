@@ -89,13 +89,15 @@ const CONTRACT_SCRIPT = 'package main\n\nimport "indicator"\n\n'
   + 'func Calculate(data []indicator.ContractKCandle) map[string]float64 { return nil }'
 
 describe('合約策略腳本的工作區', () => {
-  it('只有指標預覽：沒有回測分頁，也沒有回測那顆執行鍵', async () => {
+  it('有回測分頁，而它問的是合約帳戶那幾格', async () => {
     const wrapper = mountContractPanel()
     await settle()
 
-    expect(wrapper.text()).not.toContain('回測')
-    expect(wrapper.find('[data-testid="run-backtest-button"]').exists()).toBe(false)
-    expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="run-backtest-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="backtest-leverage-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="backtest-contract-trading-mode-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="backtest-slippage-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="backtest-trading-mode-note"]').exists()).toBe(false)
   })
 
   it('標的從合約標的清單挑，不是現貨那一份', async () => {

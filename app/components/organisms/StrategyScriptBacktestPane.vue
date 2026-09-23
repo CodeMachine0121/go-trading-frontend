@@ -16,7 +16,10 @@ import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregati
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
+import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
 
 // 有機體：回測這一整個去處。
@@ -35,6 +38,8 @@ const {
   strategyScriptId,
   workspaceGeneration,
   backendUnreachable = false,
+  marketDataKind = 'kCandle',
+  replaysOnContractAccount = false,
 } = defineProps<{
   backtestApplication: BacktestApplication
   tradingSymbolApplication: TradingSymbolApplication
@@ -58,6 +63,13 @@ const {
   workspaceGeneration: number
   /** 後端連不上時執行鍵一併停用：按了也沒用，不要讓他按。 */
   backendUnreachable?: boolean
+  /** 這一塊工作區吃哪一種行情——決定「回測照什麼規則走」讀哪一份。 */
+  marketDataKind?: MarketDataKind
+  /**
+   * 這一種行情的回測是在合約帳戶上重演：多問槓桿、交易模式、滑點，
+   * 成績單與明細多出合約那幾格。由工作區的行情種類說，不由這裡比對。
+   */
+  replaysOnContractAccount?: boolean
 }>()
 
 // 市場與彙總刻度是兩個去處共用的那一份，所以是雙向繫結而不是自己的狀態：
@@ -71,7 +83,8 @@ const positionSizingModeOptions = backtestApplication.listPositionSizingModeOpti
 
 // 回測照什麼規則走。三份都不會變，取一次就好——它們描述的是系統的行為，不是這一次的資料。
 const signalReadings = backtestApplication.listSignalReadings()
-const backtestRules = backtestApplication.listBacktestRules()
+const backtestRules = backtestApplication.listBacktestRules(marketDataKind)
+const contractTradingModeOptions = backtestApplication.listContractTradingModeOptions()
 /** 那份規則開著沒有。它是第一次用時讀一遍的東西，所以擺在一顆鍵後面。 */
 const ruleGuideOpen = ref(false)
 
@@ -100,12 +113,31 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
+// 合約重演多問的那三格。槓桿與滑點留白就是「沒說」；交易模式從第一個選項（多空反手）開始。
+const leverage = ref('')
+const tradingMode = ref<string>(contractTradingModeOptions[0]?.value ?? 'longShort')
+const slippagePercentage = ref('')
 
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
 
 async function runBacktest() {
-  await backtestRun.run(() => new BacktestRequestDto(
+  if (replaysOnContractAccount) {
+    await backtestRun.runContract(buildRequest, () => new ContractBacktestTermsDto(
+      // 留白是零，而零就是「沒說」：一倍、不計滑點。
+      new Decimal(leverage.value === '' ? 0 : leverage.value),
+      new Decimal(slippagePercentage.value === '' ? 0 : slippagePercentage.value),
+      tradingMode.value as ContractTradingMode,
+    ))
+
+    return
+  }
+
+  await backtestRun.run(buildRequest)
+}
+
+function buildRequest(): BacktestRequestDto {
+  return new BacktestRequestDto(
     symbol.value,
     aggregationInterval.value,
     timeZone.parseMinuteInput(startTime.value),
@@ -125,7 +157,7 @@ async function runBacktest() {
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
     strategyScriptId,
-  ))
+  )
 }
 </script>
 
@@ -167,6 +199,14 @@ async function runBacktest() {
         v-model:take-profit-percentage="takeProfitPercentage"
         v-model:entry-cost-percentage="entryCostPercentage"
         v-model:exit-cost-percentage="exitCostPercentage"
+        v-model:leverage="leverage"
+        v-model:trading-mode="tradingMode"
+        v-model:slippage-percentage="slippagePercentage"
+        :replays-on-contract-account="replaysOnContractAccount"
+        :contract-trading-mode-options="contractTradingModeOptions"
+        :leverage-error="backtestRun.messageFor('leverage')"
+        :trading-mode-error="backtestRun.messageFor('tradingMode')"
+        :slippage-error="backtestRun.messageFor('slippage')"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
@@ -264,7 +304,10 @@ async function runBacktest() {
           </span>
         </template>
 
-        <BacktestSummaryCard :summary="backtestRun.result.value.summary" />
+        <BacktestSummaryCard
+          :summary="backtestRun.result.value.summary"
+          :time-zone="timeZone"
+        />
       </AppPanel>
 
       <AppPanel
@@ -283,6 +326,7 @@ async function runBacktest() {
           :time-zone="timeZone"
           :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
           :has-open-position="backtestRun.result.value.summary.hasOpenPosition"
+          :show-contract-figures="backtestRun.result.value.summary.contract !== null"
         />
       </AppPanel>
     </template>

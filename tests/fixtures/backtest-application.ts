@@ -24,6 +24,14 @@ export function buildBacktestApplication(
       'BTCUSDT', '5m', new Date(0), new Date(0), 0,
       new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0,
       new Decimal(0), [], [])),
+    runContractBacktest: vi.fn().mockResolvedValue(new Backtest(
+      'BTCUSDT', '5m', new Date(0), new Date(0), 0,
+      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0,
+      new Decimal(0), [], [])),
+    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(new Backtest(
+      'BTCUSDT', '5m', new Date(0), new Date(0), 0,
+      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0,
+      new Decimal(0), [], [])),
     ...overrides,
   }))
 }

@@ -132,3 +132,18 @@ describe('useStrategyBotWorkbench 存回去', () => {
     expect(workbench.failureMessage.value).toBe('名稱已經有人用了')
   })
 })
+
+describe('useStrategyBotWorkbench 只列機器人跟得了的交易策略', () => {
+  it('一份合約交易策略不出現在選項裡——機器人目前只跑 K 線', async () => {
+    tradingStrategyApplication.listTradingStrategies.mockResolvedValue([
+      new TradingStrategyDto(9, '黃金交叉', [], null, null),
+      new TradingStrategyDto(
+        11, '費率反轉', [], null, null, 'contractKCandle', '合約行情', 'longShort', '多空反手', true, false),
+    ])
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.tradingStrategyOptions.value).toEqual([{ value: 9, label: '黃金交叉' }])
+  })
+})

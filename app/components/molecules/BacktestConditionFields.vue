@@ -4,10 +4,12 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 
 // 分子：回測要問使用者的那幾件事。
 //
@@ -26,6 +28,12 @@ const {
   positionSizingValueError = null,
   exitLevelsError = null,
   transactionCostsError = null,
+  replaysOnContractAccount = false,
+  contractTradingModeOptions = [],
+  contractTradingModeNote = null,
+  leverageError = null,
+  tradingModeError = null,
+  slippageError = null,
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   timeZone: TimeZoneDto
@@ -59,6 +67,21 @@ const {
    * 畫一個挑得動的選單，等於在畫面上放第二個答案而沒有規則說哪一個贏。
    */
   aggregationIntervalNote?: string | null
+  /**
+   * 這一次是在合約帳戶上重演：標的從合約標的清單挑，多問槓桿、交易模式與滑點，
+   * 「只做現貨」那一句換成合約重演怎麼算。
+   */
+  replaysOnContractAccount?: boolean
+  /** 交易模式選單的選項。重演一份合約交易策略時不給選單，改給下面那一句。 */
+  contractTradingModeOptions?: readonly ContractTradingModeOptionDto[]
+  /**
+   * 交易模式不由填表的人挑時，要在那一格說的話——與彙總刻度那一句同一個理由：
+   * 交易模式是那份交易策略自己說的，畫一個挑得動的選單等於放第二個答案。
+   */
+  contractTradingModeNote?: string | null
+  leverageError?: string | null
+  tradingModeError?: string | null
+  slippageError?: string | null
 }>()
 
 const symbol = defineModel<string>('symbol', { required: true })
@@ -78,6 +101,14 @@ const takeProfitPercentage = defineModel<string>(
 // 兩組就擺在一起，所以那句話非說不可。
 const entryCostPercentage = defineModel<string>('entryCostPercentage', { required: true })
 const exitCostPercentage = defineModel<string>('exitCostPercentage', { required: true })
+// 合約重演多問的那三格。槓桿與滑點留白就是「沒說」：一倍、不計滑點。
+const leverage = defineModel<string>('leverage', { default: '' })
+const tradingMode = defineModel<string>('tradingMode', { default: '' })
+const slippagePercentage = defineModel<string>('slippagePercentage', { default: '' })
+
+/** 現在選著的那一種交易模式，它的說明寫在選單下面。 */
+const selectedContractTradingMode = computed(
+  () => contractTradingModeOptions.find(option => option.value === tradingMode.value))
 /**
  * 目前這個模式旁邊要不要出現一格，以及那一格叫什麼。
  *
@@ -90,7 +121,15 @@ const selectedPositionSizingMode = computed(
 
 <template>
   <div class="backtest-condition-fields">
+    <!-- 兩份清單、兩個欄位：同一個名字在現貨與合約是兩個商品，從現貨清單挑合約會挑錯。 -->
     <SymbolField
+      v-if="!replaysOnContractAccount"
+      v-model="symbol"
+      :trading-symbol-application="tradingSymbolApplication"
+      :error-message="symbolError"
+    />
+    <ContractSymbolField
+      v-else
       v-model="symbol"
       :trading-symbol-application="tradingSymbolApplication"
       :error-message="symbolError"
@@ -197,7 +236,73 @@ const selectedPositionSizingMode = computed(
       一個「交易模式」的控制項群組，裡面一顆控制項都沒有。句子的開頭
       「只做現貨」本來就是這一格的標題，所以標籤也一起省了。
     -->
+    <template v-if="replaysOnContractAccount">
+      <FormField
+        label="槓桿倍數"
+        hint="留白就是一倍"
+        :error-message="leverageError"
+      >
+        <AppInput
+          v-model="leverage"
+          type="number"
+          inputmode="decimal"
+          :invalid="Boolean(leverageError)"
+          data-testid="backtest-leverage-input"
+        />
+      </FormField>
+
+      <FormField
+        label="交易模式"
+        :hint="selectedContractTradingMode?.description"
+        :error-message="tradingModeError"
+      >
+        <AppSelect
+          v-if="!contractTradingModeNote"
+          v-model="tradingMode"
+          data-testid="backtest-contract-trading-mode-select"
+        >
+          <option
+            v-for="modeOption in contractTradingModeOptions"
+            :key="modeOption.value"
+            :value="modeOption.value"
+          >
+            {{ modeOption.label }}
+          </option>
+        </AppSelect>
+        <p
+          v-else
+          class="backtest-condition-fields__note"
+          data-testid="backtest-contract-trading-mode-note"
+        >
+          {{ contractTradingModeNote }}
+        </p>
+      </FormField>
+
+      <FormField
+        label="滑點（%）"
+        hint="留白就不計。每一次成交往不利的方向偏這麼多"
+        :error-message="slippageError"
+      >
+        <AppInput
+          v-model="slippagePercentage"
+          type="number"
+          inputmode="decimal"
+          :invalid="Boolean(slippageError)"
+          data-testid="backtest-slippage-input"
+        />
+      </FormField>
+
+      <p
+        class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
+        data-testid="backtest-contract-account-note"
+      >
+        逐倉的合約帳戶：每一注最多賠光自己的保證金；強平看標記價格；帶著倉位走過的每一次資金費率結算都收付；
+        數量照交易所的下單規則取整，下不出去的單就不開。
+      </p>
+    </template>
+
     <p
+      v-else
       class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
       data-testid="backtest-trading-mode-note"
     >

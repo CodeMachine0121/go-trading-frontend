@@ -3,6 +3,12 @@ import { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-stra
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-rejected-error'
+import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { MARKET_DATA_KINDS } from '~/domain/models/vo/market-data-kind-vo'
+import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
+import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
+import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
 
 /**
  * Domain Service：交易策略的編排。
@@ -48,5 +54,15 @@ export class TradingStrategyService {
 
   async deleteTradingStrategy(id: number): Promise<void> {
     return this.tradingStrategyProxy.deleteTradingStrategy(id)
+  }
+
+  /** 一份交易策略可以吃的那兩種行情，第一個是新拼一份時的預設。 */
+  listMarketDataKindOptions(): MarketDataKindOptionDto[] {
+    return MARKET_DATA_KINDS.map(kind => new MarketDataKindDomain(kind).toOptionDto())
+  }
+
+  /** 合約交易策略可以選的交易模式，第一個是預設。 */
+  listContractTradingModeOptions(): ContractTradingModeOptionDto[] {
+    return CONTRACT_TRADING_MODES.map(mode => new ContractTradingModeDomain(mode).toOptionDto())
   }
 }

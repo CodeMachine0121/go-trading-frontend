@@ -44,8 +44,10 @@ export function useStrategyBotWorkbench(
 
       editing.value = bot
       // 一次讀完，不為了顯示一個名字而每一列各問一次。
-      tradingStrategyOptions.value = tradingStrategies.map(
-        tradingStrategy => ({ value: tradingStrategy.id, label: tradingStrategy.name }))
+      // 機器人每一輪讀的是現貨 K 線，所以只列它跟得了的那幾份——挑到一份合約交易策略只會被拒絕。
+      tradingStrategyOptions.value = tradingStrategies
+        .filter(tradingStrategy => tradingStrategy.followableByStrategyBot)
+        .map(tradingStrategy => ({ value: tradingStrategy.id, label: tradingStrategy.name }))
     }
     catch (error: unknown) {
       // 要改的那一台不見了與「後端壞了」是兩件事：前者的下一步是回清單，

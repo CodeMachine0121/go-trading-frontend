@@ -1,6 +1,7 @@
 import type { Backtest } from '~/domain/models/entities/backtest'
 import type { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import type { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
+import type { ContractBacktestTermsDomain } from '~/domain/models/domains/contract-backtest-terms-domain'
 
 /**
  * 介面以「能力」命名，不以供應商命名：拿一段歷史重演一次。
@@ -14,5 +15,13 @@ export interface IBacktestProxy {
   runBacktest(backtestRequestDomain: BacktestRequestDomain): Promise<Backtest>
   runTradingStrategyBacktest(
     requestDomain: TradingStrategyBacktestRequestDomain,
+  ): Promise<Backtest>
+  /** 在逐倉合約帳戶上重演一支合約策略腳本。 */
+  runContractBacktest(
+    requestDomain: BacktestRequestDomain, termsDomain: ContractBacktestTermsDomain,
+  ): Promise<Backtest>
+  /** 在逐倉合約帳戶上重演一份合約交易策略；交易模式是它自己的，不送。 */
+  runContractTradingStrategyBacktest(
+    requestDomain: TradingStrategyBacktestRequestDomain, termsDomain: ContractBacktestTermsDomain,
   ): Promise<Backtest>
 }

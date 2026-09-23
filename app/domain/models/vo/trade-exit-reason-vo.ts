@@ -5,7 +5,6 @@
  * 答不出「是哪幾筆」——而看交易明細的人問的正是後者：
  * 那幾筆被掃掉的是不是都擠在同一段行情裡。
  *
- * **三種而不是四種。** 重演只做現貨，借不到錢就沒有人會來平你的倉——
- * 一注不會因為背後的錢用完而被強制出場。
+ * **強平只出現在合約重演**：現貨借不到錢，就沒有人會來平你的倉。
  */
-export type TradeExitReason = 'signal' | 'stopLoss' | 'takeProfit'
+export type TradeExitReason = 'signal' | 'stopLoss' | 'takeProfit' | 'liquidation'

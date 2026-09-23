@@ -15,6 +15,8 @@ import type { TradingSymbolApplication } from '~/application/trading-symbol-appl
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
+import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
 
 // 有機體：重演這一份交易策略。
@@ -29,6 +31,9 @@ const {
   tradingStrategyId,
   savedGeneration,
   backendUnreachable = false,
+  marketDataKind = 'kCandle',
+  replaysOnContractAccount = false,
+  tradingModeLabel = null,
 } = defineProps<{
   backtestApplication: BacktestApplication
   tradingSymbolApplication: TradingSymbolApplication
@@ -44,6 +49,12 @@ const {
   savedGeneration: number
   /** 後端連不上時執行鍵一併停用：按了也沒用，不要讓他按。 */
   backendUnreachable?: boolean
+  /** 這一份吃哪一種行情——決定「回測照什麼規則走」讀哪一份。 */
+  marketDataKind?: MarketDataKind
+  /** 這一份是合約交易策略：在合約帳戶上重演，多問槓桿與滑點。 */
+  replaysOnContractAccount?: boolean
+  /** 合約交易策略自己的交易模式，例如「只做多」。重演時不能另外挑。 */
+  tradingModeLabel?: string | null
 }>()
 
 const symbol = ref('')
@@ -57,7 +68,8 @@ const positionSizingModeOptions = backtestApplication.listPositionSizingModeOpti
 
 // 回測照什麼規則走。兩種受測對象讀的是同一份——規則本來就是同一套。
 const signalReadings = backtestApplication.listSignalReadings()
-const backtestRules = backtestApplication.listBacktestRules()
+// 合約交易策略讀的是合約那一份規則。
+const backtestRules = computed(() => backtestApplication.listBacktestRules(marketDataKind))
 const ruleGuideOpen = ref(false)
 
 const defaultTimeRange = backtestApplication.defaultTimeRange(new Date())
@@ -78,12 +90,32 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
+// 合約重演多問的那兩格；交易模式是那份交易策略自己的，這裡只寫出來。
+const leverage = ref('')
+const slippagePercentage = ref('')
+const contractTradingModeNote = computed(
+  () => (tradingModeLabel === null ? null : `${tradingModeLabel}（由這份交易策略決定，要換請改交易策略）`))
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
 
 async function runBacktest() {
-  await backtestRun.run(() => new TradingStrategyBacktestRequestDto(
+  if (replaysOnContractAccount) {
+    await backtestRun.runContract(buildRequest, () => new ContractBacktestTermsDto(
+      new Decimal(leverage.value === '' ? 0 : leverage.value),
+      new Decimal(slippagePercentage.value === '' ? 0 : slippagePercentage.value),
+      // 交易模式不送：它是那份交易策略自己的。
+      null,
+    ))
+
+    return
+  }
+
+  await backtestRun.run(buildRequest)
+}
+
+function buildRequest(): TradingStrategyBacktestRequestDto {
+  return new TradingStrategyBacktestRequestDto(
     tradingStrategyId ?? 0,
     symbol.value,
     timeZone.parseMinuteInput(startTime.value),
@@ -99,8 +131,7 @@ async function runBacktest() {
     // 兩個費率與上面兩格同一條規則：留白讀成零，而零就是「這一側不收費」。
     new Decimal(entryCostPercentage.value === '' ? 0 : entryCostPercentage.value),
     new Decimal(exitCostPercentage.value === '' ? 0 : exitCostPercentage.value),
-    // 槓桿那兩格與上面四格同一條規則：留白讀成零。
-  ))
+  )
 }
 </script>
 
@@ -150,6 +181,13 @@ async function runBacktest() {
         v-model:take-profit-percentage="takeProfitPercentage"
         v-model:entry-cost-percentage="entryCostPercentage"
         v-model:exit-cost-percentage="exitCostPercentage"
+        v-model:leverage="leverage"
+        v-model:slippage-percentage="slippagePercentage"
+        :replays-on-contract-account="replaysOnContractAccount"
+        :contract-trading-mode-note="contractTradingModeNote"
+        :leverage-error="backtestRun.messageFor('leverage')"
+        :trading-mode-error="backtestRun.messageFor('tradingMode')"
+        :slippage-error="backtestRun.messageFor('slippage')"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
@@ -241,7 +279,10 @@ async function runBacktest() {
           </span>
         </template>
 
-        <BacktestSummaryCard :summary="backtestRun.result.value.summary" />
+        <BacktestSummaryCard
+          :summary="backtestRun.result.value.summary"
+          :time-zone="timeZone"
+        />
       </AppPanel>
 
       <AppPanel
@@ -260,6 +301,7 @@ async function runBacktest() {
           :time-zone="timeZone"
           :show-transaction-costs="backtestRun.result.value.summary.totalTransactionCost !== null"
           :has-open-position="backtestRun.result.value.summary.hasOpenPosition"
+          :show-contract-figures="backtestRun.result.value.summary.contract !== null"
         />
       </AppPanel>
     </template>

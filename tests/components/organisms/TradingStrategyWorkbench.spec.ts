@@ -7,6 +7,13 @@ import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strateg
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
+import { TradingStrategyService } from '~/domain/service/trading-strategy-service'
+import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
+
+// 兩份選單是系統的規則，不是這一份的資料：直接向真的 domain service 要，不在測試裡另抄一份。
+const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
+const MARKET_DATA_KIND_OPTIONS = optionsService.listMarketDataKindOptions()
+const CONTRACT_TRADING_MODE_OPTIONS = optionsService.listContractTradingModeOptions()
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
   return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
@@ -37,10 +44,12 @@ function mountWorkbench(editing: TradingStrategyDto | null = aBot()) {
   return mount(TradingStrategyWorkbench, {
     props: {
       editing,
-      strategyScriptOptions: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }],
+      strategyScriptOptionsByKind: { kCandle: [{ value: 9, label: 'MACD' }, { value: 10, label: 'ATR' }], contractKCandle: [] },
       parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
-      unusableStrategyScripts: {},
-      shortage: null,
+      unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
+      shortageByKind: { kCandle: null, contractKCandle: null },
+      marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
+      contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
       saving: false,
       failureMessage: '',
       savedGeneration: 0,
@@ -482,10 +491,12 @@ describe('TradingStrategyWorkbench：零件指著一支挑不得的策略腳本'
           comparison('b', '壞掉的', 'buy'),
           comparison('s', '壞掉的', 'sell'),
           [new TradingStrategySignalSourceDto('壞掉的', 11, '5m', [])]),
-        strategyScriptOptions: [{ value: 9, label: 'MACD' }],
+        strategyScriptOptionsByKind: { kCandle: [{ value: 9, label: 'MACD' }], contractKCandle: [] },
         parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
-        unusableStrategyScripts,
-        shortage: null,
+        unusableStrategyScriptsByKind: { kCandle: unusableStrategyScripts, contractKCandle: {} },
+        shortageByKind: { kCandle: null, contractKCandle: null },
+        marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
+        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: '',
         savedGeneration: 0,
@@ -536,10 +547,12 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，架子�
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: null,
-        strategyScriptOptions: [],
+        strategyScriptOptionsByKind: { kCandle: [], contractKCandle: [] },
         parameterNamesByStrategyScriptId: {},
-        unusableStrategyScripts: {},
-        shortage,
+        unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
+        shortageByKind: { kCandle: shortage, contractKCandle: null },
+        marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
+        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: '',
         savedGeneration: 0,
@@ -645,10 +658,12 @@ describe('TradingStrategyWorkbench：螢幕窄到排不開一張工作檯', () =
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: aBot(),
-        strategyScriptOptions: [{ value: 9, label: 'MACD' }],
+        strategyScriptOptionsByKind: { kCandle: [{ value: 9, label: 'MACD' }], contractKCandle: [] },
         parameterNamesByStrategyScriptId: { 9: ['快線期數'] },
-        unusableStrategyScripts: {},
-        shortage: null,
+        unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
+        shortageByKind: { kCandle: null, contractKCandle: null },
+        marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
+        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: '',
         savedGeneration: 0,

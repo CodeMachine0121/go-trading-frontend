@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import type { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：成績單那幾個數字。
 //
 // 它一個都不算、一個都不進位、也不判斷正負——收到的 DTO 已經全部決定好了。
 // 賺綠賠紅尤其如此：那是「這個數字是好消息嗎」，而那是領域知識，不是樣式。
-const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
+//
+// 合約重演多出的那一段有才出現：現貨的成績單一格都不多。
+// 分級的確認時間要照使用者選的時區寫，所以時區由外面給。
+const { summary, timeZone = null } = defineProps<{
+  summary: BacktestSummaryDto
+  timeZone?: TimeZoneDto | null
+}>()
 </script>
 
 <template>
@@ -119,6 +126,70 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
         {{ summary.totalTransactionCost }}
       </dd>
     </div>
+    <template v-if="summary.contract">
+      <div class="backtest-summary-card__item">
+        <dt>交易模式</dt>
+        <dd data-testid="summary-contract-trading-mode">
+          {{ summary.contract.tradingModeLabel }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>槓桿</dt>
+        <dd data-testid="summary-contract-leverage">
+          {{ summary.contract.leverageLabel }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>強平出場</dt>
+        <dd data-testid="summary-liquidation-exit-count">
+          {{ summary.contract.liquidationExitCount }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>資金費用</dt>
+        <dd
+          :class="`backtest-summary-card__value--${summary.contract.totalFundingFeeTone}`"
+          data-testid="summary-total-funding-fee"
+        >
+          {{ summary.contract.totalFundingFee }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>做多（筆／勝率）</dt>
+        <dd data-testid="summary-long-trades">
+          {{ summary.contract.longTradeCount }}／{{ summary.contract.longWinRate }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item">
+        <dt>做空（筆／勝率）</dt>
+        <dd data-testid="summary-short-trades">
+          {{ summary.contract.shortTradeCount }}／{{ summary.contract.shortWinRate }}
+        </dd>
+      </div>
+      <!-- 零也照寫：那正是「交易所讓不讓他下這張單」的答案。 -->
+      <div class="backtest-summary-card__item">
+        <dt>被交易規則擋下的開倉</dt>
+        <dd data-testid="summary-blocked-opening-count">
+          {{ summary.contract.blockedOpeningCount }}
+        </dd>
+      </div>
+      <div class="backtest-summary-card__item backtest-summary-card__item--wide">
+        <dt>維持保證金依據</dt>
+        <dd data-testid="summary-maintenance-margin-basis">
+          {{ summary.contract.maintenanceMarginBasisLabel }}
+          <span
+            v-if="summary.contract.maintenanceMarginConfirmedAt && timeZone"
+            data-testid="summary-maintenance-margin-confirmed-at"
+          >（確認於 {{ timeZone.formatDateTime(summary.contract.maintenanceMarginConfirmedAt) }}）</span>
+        </dd>
+        <p
+          class="backtest-summary-card__note"
+          data-testid="summary-maintenance-margin-basis-note"
+        >
+          {{ summary.contract.maintenanceMarginBasisNote }}
+        </p>
+      </div>
+    </template>
   </dl>
 </template>
 
@@ -137,6 +208,17 @@ const { summary } = defineProps<{ summary: BacktestSummaryDto }>()
     flex-direction: column;
     gap: spacing('3xs');
     min-width: 0;
+  }
+
+  // 依據那一格帶一句說明，擠在一個數字那麼寬的格子裡會被摺成一疊。
+  &__item--wide {
+    grid-column: 1 / -1;
+  }
+
+  &__note {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('2xs');
   }
 
   &__item--warning {
