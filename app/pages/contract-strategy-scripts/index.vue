@@ -6,6 +6,7 @@ import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculati
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
+// 這一頁的身分是「合約行情」：同一塊工作區，寫、存、算的都是吃合約行情格的策略腳本。
 const {
   $indicatorCalculationApplication,
   $strategyScriptApplication,
@@ -27,8 +28,8 @@ const { currentUser, signOut } = useUserSession()
 
 <template>
   <ConsoleLayout
-    title="現貨策略腳本"
-    subtitle="寫一支算式、試跑、存起來、拿一段歷史回測它。整份算式都是你的，開新的空白策略腳本時先幫你把開頭與進入點備好；算式一律送到後端沙箱執行。"
+    title="合約策略腳本"
+    subtitle="寫一支吃永續合約行情的算式：每一格除了成交價，還帶著標記價格、資金費率與持倉統計。試跑、存起來；合約的回測還沒開放。算式一律送到後端沙箱執行。"
   >
     <template #timezone>
       <TimeZoneField
@@ -62,6 +63,7 @@ const { currentUser, signOut } = useUserSession()
       :trading-symbol-application="$tradingSymbolApplication"
       :backtest-application="$backtestApplication"
       :time-zone="selectedTimeZone"
+      market-data-kind="contractKCandle"
     />
   </ConsoleLayout>
 </template>

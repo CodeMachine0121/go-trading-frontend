@@ -24,6 +24,9 @@ import { useLayoutDensity } from '~/composables/use-layout-density'
 // 頂上那條窄帶在窄螢幕上也換了角色：它不再是一條有底色的帶子，而是**內容裡的一行
 // 大字**。一條永遠佔著高度的窄帶，在手機上換來的只是少掉一行內容。
 
+// 合約策略腳本緊跟在現貨那一頁後面：同一件事的另一條行情。它不是日常第一動線，
+// 所以收進「更多」，底部那一排仍是四格。
+//
 // 中間那四個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」的順序排：那是同一件事的
 // 四個前後步驟，而交易策略正好是中間那一步——它以前只有機器人清單標頭那一顆按鈕
 // 到得了，於是讀起來像機器人的一部分，但一份規則可以被好幾台機器人引用，它比
@@ -33,7 +36,8 @@ const DESTINATIONS = [
   { to: '/k-candles/chart', label: '現貨 K 線圖表', icon: 'candles', primary: true },
   { to: '/contract-k-candles', label: '合約 K 線瀏覽', icon: 'document', primary: false },
   { to: '/contract-k-candles/chart', label: '合約 K 線圖表', icon: 'infinity', primary: false },
-  { to: '/strategy-scripts', label: '策略腳本', icon: 'formula', primary: true },
+  { to: '/strategy-scripts', label: '現貨策略腳本', icon: 'formula', primary: true },
+  { to: '/contract-strategy-scripts', label: '合約策略腳本', icon: 'contract-formula', primary: false },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', primary: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
   { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot', primary: true },

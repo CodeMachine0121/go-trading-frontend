@@ -33,6 +33,7 @@ type IconName
     | 'document'
     | 'infinity'
     | 'formula'
+    | 'contract-formula'
     | 'refresh'
     | 'info'
     | 'sparkle'
@@ -149,6 +150,12 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
     'M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1',
     'M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1',
     'm10 9 4 6M14 9l-4 6',
+  ],
+  // 一對大括號夾著一個橫躺的八——寫給永續合約的算式
+  'contract-formula': [
+    'M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1',
+    'M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1',
+    'M12 12c-.9-1.2-1.6-1.8-2.4-1.8a1.8 1.8 0 0 0 0 3.6c.8 0 1.5-.6 2.4-1.8Zm0 0c.9 1.2 1.6 1.8 2.4 1.8a1.8 1.8 0 0 0 0-3.6c-.8 0-1.5.6-2.4 1.8Z',
   ],
   // 繞一圈的箭頭——再問一次
   'refresh': [
