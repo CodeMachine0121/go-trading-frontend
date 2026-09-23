@@ -120,12 +120,19 @@ describe('ConsoleLayout', () => {
     expect(new Set(icons).size).toBe(8)
   })
 
-  it('連線狀態已經不是一個去處了', () => {
+  it('連線狀態已經不是一個去處了——側欄上沒有它', () => {
     // 那一頁只在說側欄那顆燈在每一頁都說得出來的事。
     const wrapper = mountLayout()
 
-    expect(wrapper.findAll('.console-layout__link-label').map(label => label.text()))
-      .not.toContain('連線狀態')
+    expect(wrapper.findAll('a').map(link => link.text())).not.toContain('連線狀態')
+  })
+
+  it('連線狀態已經不是一個去處了——窄螢幕的「更多」裡也沒有它', async () => {
+    const wrapper = await mountLayoutAt(PHONE)
+
+    await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="more-/k-candles"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="more-/"]').exists()).toBe(false)
   })
 
