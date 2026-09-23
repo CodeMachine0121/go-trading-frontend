@@ -753,3 +753,16 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     expect(proxy.runBacktest).toHaveBeenCalled()
   })
 })
+
+describe('StrategyScriptBacktestPane 指名一支我加入的策略腳本', () => {
+  it('收到策略腳本的識別碼時，回測指名它本身、不帶算式', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy, { script: '', strategyScriptId: 9 })
+
+    await runBacktest(wrapper)
+
+    const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    expect(sent.strategyScriptId).toBe(9)
+    expect(sent.script).toBe('')
+  })
+})

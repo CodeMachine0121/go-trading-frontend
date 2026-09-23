@@ -16,6 +16,7 @@ function buildProxyMock(overrides: Partial<IAssistantConversationProxy> = {}): I
     ask: vi.fn().mockResolvedValue(new AssistantAnswerStarted(7, 9, 'running')),
     listConversations: vi.fn().mockResolvedValue([]),
     getConversation: vi.fn().mockResolvedValue(new Conversation(7, MOMENT, [])),
+    refreshConversation: vi.fn().mockResolvedValue(new Conversation(7, MOMENT, [])),
     ...overrides,
   }
 }

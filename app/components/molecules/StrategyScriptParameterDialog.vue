@@ -15,11 +15,13 @@ import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strate
  *
  * 它一個業務判斷都不做：每一格長什麼樣、哪裡不對，全部由上面傳進來。
  */
-defineProps<{
+const { readOnly = false } = defineProps<{
   open: boolean
   fields: readonly StrategyScriptParameterFieldDto[]
   kindOptions: readonly { value: StrategyScriptParameterKind, label: string }[]
   errorMessage: string | null
+  /** 只看、不改：從市集加入來的那一支，旋鈕是分享者宣告的。 */
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +49,7 @@ const emit = defineEmits<{
       <StrategyScriptParameterList
         :fields="fields"
         :kind-options="kindOptions"
+        :read-only="readOnly"
         @add="emit('add')"
         @remove="index => emit('remove', index)"
         @rename="(index, name) => emit('rename', index, name)"

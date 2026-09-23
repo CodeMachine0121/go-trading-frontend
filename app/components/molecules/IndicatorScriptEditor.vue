@@ -9,8 +9,15 @@ import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
 //
 // 因此這裡只有一個編輯器、一欄行號，從第 1 行算起——後端說「第 12 行出錯」時，
 // 畫面上就是那一行。
-defineProps<{
+const { concealed = false } = defineProps<{
   errorMessage?: string | null
+  /**
+   * 這支策略腳本的算式不公開——它是從市集加入來的。
+   *
+   * 那時這裡**沒有編輯器**，只有一句話：市集上的策略腳本本來就沒有算式這一欄，
+   * 畫一個空白的編輯器會讓人以為那支策略腳本是空的，或以為自己可以開始寫。
+   */
+  concealed?: boolean
 }>()
 
 const script = defineModel<string>({ required: true })
@@ -32,7 +39,16 @@ function continueWriting() {
     <header class="indicator-script-editor__bar">
       <div class="indicator-script-editor__identity">
         <span class="indicator-script-editor__filename">indicator.go</span>
-        <span class="indicator-script-editor__hint">
+        <span
+          v-if="concealed"
+          class="indicator-script-editor__hint"
+        >
+          從市集加入的，只能用、不能改
+        </span>
+        <span
+          v-else
+          class="indicator-script-editor__hint"
+        >
           整份都改得動，至少要有一個 Calculate 進入點；換指標值種類會改它的回傳型別
         </span>
       </div>
@@ -41,7 +57,18 @@ function continueWriting() {
       </div>
     </header>
 
-    <div class="indicator-script-editor__file">
+    <p
+      v-if="concealed"
+      class="indicator-script-editor__concealed"
+      data-testid="script-concealed"
+    >
+      這支策略腳本的算式不公開
+    </p>
+
+    <div
+      v-else
+      class="indicator-script-editor__file"
+    >
       <AppCodeEditor
         ref="scriptEditor"
         v-model="script"
@@ -141,6 +168,21 @@ function continueWriting() {
     // 寬螢幕上它只是地板：真正決定高度的是這一欄還剩多少，由外面的 flex 給。
     min-height: 24rem;
     overflow: auto;
+  }
+
+  // 它吃掉這一塊剩下的高度，那一句落在正中間。不沿用檔案那一塊的 24rem 底線：
+  // 窄螢幕上外框比那矮，置中的那一句會被推到框外、被切掉——而它是這裡唯一的內容。
+  &__concealed {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: spacing('lg');
+    min-height: 8rem;
+    color: color('text-faint');
+    font-size: font-size('sm');
+    text-align: center;
   }
 
   &__filler {

@@ -47,6 +47,13 @@ export class ChartIndicatorApplication {
     return this.chartIndicatorService.calculateChartIndicator(chartIndicatorRequestDto)
   }
 
+  /** 跟著最新那一根重算——一根 K 線走完時的那一次，不是使用者操作觸發的。 */
+  async recalculateChartIndicator(
+    chartIndicatorRequestDto: ChartIndicatorRequestDto,
+  ): Promise<ChartIndicatorDto> {
+    return this.chartIndicatorService.recalculateChartIndicator(chartIndicatorRequestDto)
+  }
+
   changeChartLineColor(
     chartIndicatorDtos: readonly ChartIndicatorDto[], lineKey: string, colorToken: string,
   ): ChartIndicatorDto[] {

@@ -21,7 +21,7 @@ function buildProxy(
     = vi.fn().mockResolvedValue(new IndicatorCalculation(
       'BTCUSDT', '5m', 12, 'float', [new IndicatorValueVo('ma', [110])], [])),
 ): IIndicatorCalculationProxy {
-  return { calculateIndicator }
+  return { calculateIndicator, recalculateIndicator: vi.fn() }
 }
 
 function mountPanel(indicatorCalculationProxy: IIndicatorCalculationProxy) {

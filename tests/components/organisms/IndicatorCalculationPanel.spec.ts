@@ -25,6 +25,7 @@ const WHOLE_SCRIPT = 'package main\n\nimport "indicator"\n\n'
 function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
   return {
     calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    recalculateIndicator: vi.fn(),
     ...overrides,
   }
 }
@@ -754,6 +755,7 @@ describe('指標計算：按計算不等於存檔', () => {
       {
         calculateIndicator: vi.fn().mockResolvedValue(
           new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+        recalculateIndicator: vi.fn(),
       },
       { createStrategyScript, updateStrategyScript })
     await flushPromises()

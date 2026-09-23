@@ -542,3 +542,38 @@ describe('BacktestProxy 照哪一套規矩操作', () => {
     expect((failure as BacktestFieldError).field).toBe('initialCapital')
   })
 })
+
+describe('BacktestProxy 指名一支策略腳本', () => {
+  function namedRequest(): BacktestRequestDomain {
+    return new BacktestRequestDomain(new BacktestRequestDto(
+      'BTCUSDT', '1h', START_TIME, END_TIME, '', 'signal',
+      [new StrategyScriptParameterDto('週期', 'lookbackCount', 20)],
+      new Decimal('10000'), 'percentage', new Decimal('50'),
+      new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0), 9))
+  }
+
+  it('只送識別碼，不送算式也不送旋鈕宣告；這一次的值照送', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(namedRequest())
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body
+    expect(body).toHaveProperty('strategyScriptId', 9)
+    expect(body).not.toHaveProperty('script')
+    expect(body).not.toHaveProperty('parameters')
+    expect(body).toHaveProperty('parameterValues', [{ name: '週期', value: 20 }])
+  })
+
+  it('自帶算式時送算式與旋鈕宣告，沒有識別碼', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body
+    expect(body).toHaveProperty('script', SCRIPT_BODY)
+    expect(body).toHaveProperty('parameters')
+    expect(body).not.toHaveProperty('strategyScriptId')
+  })
+})

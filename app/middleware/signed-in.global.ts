@@ -1,15 +1,26 @@
 import { LOGIN_PATH, HOME_PATH, PENDING_APPROVAL_PATH } from '~/composables/use-user-session'
 
 /**
+ * 門口的載入至少停留多久。
+ *
+ * 身分確認有時幾乎瞬間就完成，而一閃而過的載入動畫讀起來像畫面壞了——
+ * 看的人來不及讀出那一行字，只看到某個東西跳了一下。比這久就等到確認完，不多等。
+ */
+const DOOR_MINIMUM_DWELL_MILLISECONDS = 600
+
+/**
  * 把關：沒登入就只看得到登入畫面，還沒被放行就只看得到等待開通那一頁。
  *
  * 它是全域中介層而不是每一頁自己判斷，因為一頁忘了寫就是一個洞，而洞不會有人發現。
  * 第二道規則（開通）也長在這裡而不是另開一道門，理由相同再加一個：兩道門會各自
  * 認定一次「該不該放行」，而不一致的那一天，沒有人看得出是哪一道放的行。
  *
- * **只在瀏覽器端跑。** 伺服器算頁面時碰不到瀏覽器的儲存，在那裡判斷必然得到
- * 「一律沒登入」，於是每一次載入都會先閃一下登入畫面再跳回來。代價是伺服器算出來的
- * 頁面不受這道門保護——這台操作台在本機跑、沒有對外的 SSR 需求，接受。
+ * **第一次換頁就是門口。** 整台操作台只在瀏覽器裡畫（`ssr: false`），而第一個畫面要等這道門
+ * 放行才畫得出來——在那之前看得到的只有門口的載入。所以門口的載入要停留多久也在這裡決定：
+ * 第一次換頁時，確認身分與最短停留一起等。之後的每一次換頁都已經知道你是誰，不必再等。
+ *
+ * 伺服器端那一條守衛仍然留著：它今天走不到（沒有伺服器端算的頁面），但那一天真的來了，
+ * 在那裡判斷必然得到「一律沒登入」。
  */
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) {
@@ -19,7 +30,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const { currentUser, awaitingActivation, ensureSessionRestored, rememberRedirectTo }
     = useUserSession()
 
-  await ensureSessionRestored()
+  const doorOpened = useState('door-opened', () => false)
+  if (doorOpened.value) {
+    await ensureSessionRestored()
+  }
+  else {
+    await Promise.all([
+      ensureSessionRestored(),
+      new Promise<void>(resolve => setTimeout(resolve, DOOR_MINIMUM_DWELL_MILLISECONDS)),
+    ])
+    doorOpened.value = true
+  }
 
   const signedIn = currentUser.value !== null
 
@@ -38,15 +59,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // 而這兩件事對一個沒登入的人都答不出來。所以它跟其他每一頁一樣要先登入，
     // 不必為它寫一條例外。
     //
-    // 記下他本來要去哪，好在登入成功後把他放回那裡，而不是一律丟到首頁。
+    // 記下他本來要去哪，好在登入成功後把他放回那裡，而不是一律丟到第一站。
     rememberRedirectTo(to.fullPath)
 
     return navigateTo(LOGIN_PATH)
   }
 
   // 還沒被放行的人**只看得到那一頁**，包含登入頁在內——所以這一條要排在
-  // 「已經進門的人不必再看一次門」之前。倒過來的話，他打開登入頁會先被送到首頁，
-  // 再被首頁送回這裡：多繞一趟，還在網址列閃一下。
+  // 「已經進門的人不必再看一次門」之前。倒過來的話，他打開登入頁會先被送到第一站，
+  // 再被第一站送回這裡：多繞一趟，還在網址列閃一下。
   if (awaitingActivation.value) {
     if (goingToPendingApproval) {
       return

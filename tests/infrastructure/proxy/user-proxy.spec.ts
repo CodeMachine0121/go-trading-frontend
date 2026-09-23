@@ -10,6 +10,7 @@ import { CredentialsRejectedError } from '~/domain/errors/credentials-rejected-e
 import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -99,7 +100,7 @@ describe('UserProxy.signIn', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '電子郵件或密碼不正確' })))
 
-    const failure = await new UserProxy(BASE_URL, sessionStorageProxy, onSignedOut, recoverSession)
+    const failure = await new UserProxy(BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut, recoverSession))
       .signIn('james@example.com', 'wrong horse').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(CredentialsRejectedError)
@@ -115,7 +116,7 @@ describe('UserProxy.signIn', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '請重新登入' })))
 
-    const failure = await new UserProxy(BASE_URL, signedInSessionStorage(), vi.fn(), recoverSession)
+    const failure = await new UserProxy(BASE_URL, signedInSessionStorage(), new BackendRequestHooks(vi.fn(), recoverSession))
       .renewSession('a-refresh-token').catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(AuthenticationRequiredError)

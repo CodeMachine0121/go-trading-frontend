@@ -45,6 +45,21 @@ export function useStrategyScriptLibrary(
    */
   const adoptedStrategyScripts = ref<PublishedStrategyScriptDto[]>([])
   const activeStrategyScript = ref<StrategyScriptDto | null>(null)
+  /**
+   * 正在工作區裡的那一支**我加入的**策略腳本。有它的時候整個工作區是唯讀的。
+   *
+   * 它與 `activeStrategyScript` 不會同時有值：一個是自己的、改得動的那一支，
+   * 一個是別人的、只能用的那一支，工作區一次只裝得下一支。「現在是不是唯讀」
+   * 只看這一個——畫面上每一個停用都從它衍生，不各自判斷。
+   */
+  const activeAdoptedStrategyScript = ref<PublishedStrategyScriptDto | null>(null)
+  /** 工作區是唯讀的：裡面是一支我加入的策略腳本——看得到、用得了、改不動。 */
+  const readOnly = computed(() => activeAdoptedStrategyScript.value !== null)
+  /**
+   * 執行時要指名的那一支。唯讀時工作區裡沒有算式可以送，所以試跑與回測都指名它本身；
+   * 自己的那一支則照舊帶著畫面上的算式送出去（它可能改了還沒存）。
+   */
+  const namedStrategyScriptId = computed(() => activeAdoptedStrategyScript.value?.id)
   /** 載入當下那一份。跟現在畫面上的比，就知道有沒有東西還沒存。 */
   const loadedContent = ref<StrategyScriptContentDto | null>(null)
 
@@ -122,16 +137,25 @@ export function useStrategyScriptLibrary(
   /**
    * 挑一支來用。
    *
-   * **加入來的那一支不會被載入編輯器**，而是就地說明它能做什麼。這裡不是「擋下來」——
-   * 它根本沒有算式可以載，把編輯器變成空的會讓人以為那支策略腳本壞了。
+   * **加入來的那一支載進來的是唯讀的工作區**：它的指標值種類與旋鈕照實換上、算式是空的，
+   * 而整個工作區改不動。以前它不進工作區、只跳一句話，於是編輯區上留著的仍是上一支——
+   * 讀起來像「我正在改加入的那一支」。換上它自己的內容，畫面說的才是實話。
+   *
+   * 兩種都會換掉工作區，所以兩種都先過「有沒有還沒存的東西」那一關。
+   * 反過來離開唯讀時那一關必然放行：唯讀的工作區裡沒有任何一格改得動。
    */
   function selectStrategyScript(id: number) {
     const adopted = adoptedStrategyScripts.value.find(candidate => candidate.id === id)
     if (adopted !== undefined) {
-      clearMessages()
-      noticeMessage.value
-        = `「${adopted.name}」是從市集加入的，看不到它的算式；它可以套到 K 線圖上，或直接拿去算。`
-      openDialog.value = 'none'
+      guardOverwritingDraft(() => {
+        const content = adopted.toContent()
+        applyContent(content)
+        activeStrategyScript.value = null
+        activeAdoptedStrategyScript.value = adopted
+        loadedContent.value = content
+        openDialog.value = 'none'
+        clearMessages()
+      })
 
       return
     }
@@ -157,6 +181,7 @@ export function useStrategyScriptLibrary(
   function applyBlankContent() {
     applyContent(blankContent)
     activeStrategyScript.value = null
+    activeAdoptedStrategyScript.value = null
     loadedContent.value = null
     openDialog.value = 'none'
     clearMessages()
@@ -197,6 +222,7 @@ export function useStrategyScriptLibrary(
 
     applyContent(strategyScript.content)
     activeStrategyScript.value = strategyScript
+    activeAdoptedStrategyScript.value = null
     loadedContent.value = strategyScript.content
     openDialog.value = 'none'
     clearMessages()
@@ -345,6 +371,16 @@ export function useStrategyScriptLibrary(
 
     try {
       await strategyScriptMarketplaceApplication.abandonStrategyScript(id)
+
+      // 拿掉的正是工作區裡那一支：它已經不在我的清單上，工作區不能還裝著它——
+      // 留著的話，畫面仍是它的唯讀樣子，而下一次試跑會指名一支已經不屬於我的策略腳本。
+      // 換成一份空白，與「開一份新的空白」同一個樣子；唯讀裡沒有任何還沒存的東西會因此弄丟。
+      if (activeAdoptedStrategyScript.value?.id === id) {
+        applyContent(blankContent)
+        activeAdoptedStrategyScript.value = null
+        loadedContent.value = null
+      }
+
       openDialog.value = 'library'
       noticeMessage.value = '已經從你的清單移除。它還在市集上，隨時可以再加回來。'
       await refreshStrategyScripts()
@@ -415,6 +451,9 @@ export function useStrategyScriptLibrary(
     strategyScripts,
     adoptedStrategyScripts,
     activeStrategyScript,
+    activeAdoptedStrategyScript,
+    readOnly,
+    namedStrategyScriptId,
     openDialog,
     saving,
     listErrorMessage,

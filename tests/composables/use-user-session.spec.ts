@@ -298,13 +298,13 @@ describe('useUserSession：登入之後回到他本來要去的地方', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/k-candles')
   })
 
-  it('沒有被擋下來過就去首頁', async () => {
+  it('沒有被擋下來過就去第一站（K 線圖表）', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { submitCredentials } = sessionUnderTest()
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('用過就忘記——下一次登入不該被上一次的目的地牽著走', async () => {
@@ -316,7 +316,7 @@ describe('useUserSession：登入之後回到他本來要去的地方', () => {
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 })
 
@@ -355,7 +355,7 @@ describe('useUserSession：登出', () => {
     // 上一個人被擋下來時想去的地方也得忘掉，否則下一個人一登入就被送去那裡。
     navigateToSpy.mockClear()
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 })
 
@@ -525,10 +525,10 @@ describe('useUserSession：還沒被放行的那一段', () => {
 
     await recheckActivation()
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
-  it('還沒被放行就不換頁——把他送去首頁，首頁只會再把他送回來', async () => {
+  it('還沒被放行就不換頁——把他送去第一站，第一站只會再把他送回來', async () => {
     userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
     const { recheckActivation } = sessionUnderTest()
 

@@ -73,6 +73,9 @@ async function mountPanel(
 ) {
   const calculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
     'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
+  // 一根走完後的重算走背景那一條：使用者什麼都沒按。
+  const recalculateIndicator = vi.fn().mockResolvedValue(new IndicatorCalculation(
+    'BTCUSDT', '5m', 1, 'float', [new IndicatorValueVo('均價', [115])]))
 
   const wrapper = mount(KCandleChartPanel, {
     props: {
@@ -81,7 +84,7 @@ async function mountPanel(
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(
         { followKCandles: feed.followKCandles }),
-      chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
+      chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator, recalculateIndicator }),
       strategyScriptApplication: buildStrategyScriptApplication({
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
@@ -92,7 +95,7 @@ async function mountPanel(
   })
   await flushPromises()
 
-  return { wrapper, calculateIndicator }
+  return { wrapper, calculateIndicator, recalculateIndicator }
 }
 
 beforeEach(() => {
@@ -216,24 +219,27 @@ describe('進行中 K 線不影響指標', () => {
   it('一根走完就重算每一支', async () => {
     // 那一刻指標可用的資料真的多了一根。
     const feed = controllableFeed()
-    const { wrapper, calculateIndicator } = await mountPanel(feed)
+    const { wrapper, calculateIndicator, recalculateIndicator } = await mountPanel(feed)
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
 
     feed.report('closed', '118')
     await flushPromises()
 
-    expect(calculateIndicator).toHaveBeenCalledTimes(2)
+    // 加進來那一次是使用者在等的；走完那一根之後的重算是畫面自己做的。
+    expect(calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(recalculateIndicator).toHaveBeenCalledTimes(1)
   })
 
   it('一支都沒套用時，一根走完也不發生任何計算', async () => {
     const feed = controllableFeed()
-    const { calculateIndicator } = await mountPanel(feed)
+    const { calculateIndicator, recalculateIndicator } = await mountPanel(feed)
 
     feed.report('closed', '118')
     await flushPromises()
 
     expect(calculateIndicator).not.toHaveBeenCalled()
+    expect(recalculateIndicator).not.toHaveBeenCalled()
   })
 })
 

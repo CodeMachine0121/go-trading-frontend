@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AssistantDrawer from '~/components/organisms/AssistantDrawer.vue'
 import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButton.vue'
+import AppProgressBar from '~/components/atoms/AppProgressBar.vue'
 
 // 應用程式的根，也是助手那兩塊的接線處。
 //
@@ -105,6 +106,15 @@ function onResizeStart(pointerX: number): void {
   window.addEventListener('pointerup', onUp)
 }
 
+/**
+ * 頂端那條進度條：畫面正在等系統回話，或正在換頁。
+ *
+ * 它掛在這裡，因為「每一個畫面都看得到」的意思就是它得在 NuxtPage 之外——
+ * 與助手那兩塊同一個理由。請求在發請求的那一層報到；換頁在這裡接上一次。
+ */
+const { visible: waiting, followNavigation } = useRequestActivity()
+followNavigation()
+
 /** 視窗變小時，那顆鍵與抽屜都要收回看得見、還能用的範圍。 */
 function keepAssistantUsable(): void {
   keepTriggerInView()
@@ -131,6 +141,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <AppProgressBar :active="waiting" />
   <NuxtRouteAnnouncer />
   <NuxtPage />
 

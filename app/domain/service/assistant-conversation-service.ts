@@ -42,4 +42,11 @@ export class AssistantConversationService {
 
     return conversation.toDomain().toDto()
   }
+
+  /** 回頭詢問：作答中定期把同一段對話再讀一次。 */
+  async refreshConversation(id: number): Promise<ConversationDto> {
+    const conversation = await this.assistantConversationProxy.refreshConversation(id)
+
+    return conversation.toDomain().toDto()
+  }
 }

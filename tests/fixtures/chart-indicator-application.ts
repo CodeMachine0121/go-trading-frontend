@@ -20,7 +20,7 @@ export function buildChartIndicatorApplication(
   appliedChartIndicatorPreferenceProxy: Partial<IAppliedChartIndicatorPreferenceProxy> = {},
 ): ChartIndicatorApplication {
   return new ChartIndicatorApplication(new ChartIndicatorService(
-    { calculateIndicator: vi.fn(), ...indicatorCalculationProxy },
+    { calculateIndicator: vi.fn(), recalculateIndicator: vi.fn(), ...indicatorCalculationProxy },
     {
       readColorToken: vi.fn().mockReturnValue(null),
       writeColorToken: vi.fn(),

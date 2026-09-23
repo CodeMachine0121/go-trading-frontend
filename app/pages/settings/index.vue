@@ -17,8 +17,7 @@ const { currentUser, signOut } = useUserSession()
 const passwordChange = usePasswordChange()
 const telegramDelivery = useTelegramDelivery()
 
-// 這一頁只在瀏覽器這一側取得資料。伺服器算頁面時碰不到這台瀏覽器記著的身分，
-// 在那裡問一次只會得到一個「請重新登入」，然後被丟掉。
+// 這一頁掛載之後才取得資料：身分記在這台瀏覽器裡，而這一份設定是屬於那個人的。
 onMounted(() => {
   void telegramDelivery.loadDeliverySetting()
 })

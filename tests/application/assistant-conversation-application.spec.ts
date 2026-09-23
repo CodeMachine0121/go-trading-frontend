@@ -22,6 +22,7 @@ function buildApplicationUnderTest(overrides: Partial<IAssistantConversationProx
       new ConversationMessage('ask', '問 1', MOMENT, 'answered'),
       new ConversationMessage('answer', '答 1', MOMENT, 'answered', '', 2, false, 3184),
     ])),
+    refreshConversation: vi.fn(),
     ...overrides,
   }
 
@@ -68,5 +69,23 @@ describe('AssistantConversationApplication', () => {
     expect(conversationDto.messages).toHaveLength(2)
     expect(conversationDto.messages[0]?.note).toBeNull()
     expect(conversationDto.messages[1]?.note?.label).toBe('查了 2 次 · 份量 3184')
+  })
+})
+
+describe('AssistantConversationApplication.refreshConversation', () => {
+  it('回頭詢問走背景那一條，交回來的形狀與挑一段對話時相同', async () => {
+    const conversation = new Conversation(5, MOMENT, [
+      new ConversationMessage('ask', '問 1', MOMENT, 'answered'),
+    ])
+    const { application, proxy } = buildApplicationUnderTest({
+      refreshConversation: vi.fn().mockResolvedValue(conversation),
+      getConversation: vi.fn().mockResolvedValue(conversation),
+    })
+
+    const refreshed = await application.refreshConversation(5)
+
+    expect(proxy.refreshConversation).toHaveBeenCalledWith(5)
+    expect(proxy.getConversation).not.toHaveBeenCalled()
+    expect(refreshed).toEqual(await application.getConversation(5))
   })
 })

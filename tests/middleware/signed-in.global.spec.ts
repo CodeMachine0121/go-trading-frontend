@@ -1,5 +1,5 @@
 // @vitest-environment nuxt
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import type { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 import signedInMiddleware from '~/middleware/signed-in.global'
@@ -55,6 +55,12 @@ const AWAITING_ACTIVATION_USER = {
   activationInstruction: { requestMailbox: 'gatekeeper@example.com', subject: '申請' },
 } as SignedInUserDto
 
+// 門口那一次（第一次換頁）另有自己的規則，下面那一組專門測它。其餘每一組都當作
+// 門已經開過了，否則每個檔案的第一個案例都要平白多等那一段最短停留。
+beforeEach(() => {
+  useState('door-opened').value = true
+})
+
 describe('把關：沒登入就只看得到登入畫面', () => {
   it('沒登入時走到操作台會被帶到登入畫面', async () => {
     await walkTo('/k-candles', null)
@@ -74,10 +80,10 @@ describe('把關：沒登入就只看得到登入畫面', () => {
     expect(navigateToSpy).not.toHaveBeenCalled()
   })
 
-  it('已經進門的人走到登入畫面會被帶回首頁——不必再看一次門', async () => {
+  it('已經進門的人走到登入畫面會被帶回第一站（K 線圖表）——不必再看一次門', async () => {
     await walkTo('/login', SIGNED_IN_USER)
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('沒登入的人走到登入畫面就讓他待在那裡', async () => {
@@ -89,12 +95,12 @@ describe('把關：沒登入就只看得到登入畫面', () => {
   it.each([
     { name: '大小寫不同的網址', path: '/Login' },
     { name: '結尾多一條斜線', path: '/login/' },
-  ])('已登入的人走到 $name 也會被帶回首頁', async ({ path }) => {
+  ])('已登入的人走到 $name 也會被帶回第一站（K 線圖表）', async ({ path }) => {
     // 路由器認得這幾種寫法都是登入那一頁，卻把原本的拼法原樣留在 path 上。
     // 拿字串直接比的話，登入成功之後會被送回登入畫面——讀起來像登入失敗。
     await walkTo(path, SIGNED_IN_USER, '/login')
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('沒登入的人走到大小寫不同的登入網址，就讓他待在那裡', async () => {
@@ -127,8 +133,8 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
   })
 
-  it('待開通的人走到登入畫面會被帶到等待開通那一頁，不是首頁', async () => {
-    // 送去首頁的話，首頁又會把他送回這裡——多繞一趟，還在網址列閃一下。
+  it('待開通的人走到登入畫面會被帶到等待開通那一頁，不是第一站', async () => {
+    // 送去第一站的話，第一站又會把他送回這裡——多繞一趟，還在網址列閃一下。
     await walkTo('/login', AWAITING_ACTIVATION_USER)
 
     expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
@@ -147,10 +153,10 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/login')
   })
 
-  it('已經被放行的人走到等待開通那一頁會被帶回首頁', async () => {
+  it('已經被放行的人走到等待開通那一頁會被帶回第一站（K 線圖表）', async () => {
     await walkTo('/pending-approval', SIGNED_IN_USER)
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('被放行之後，操作台每一頁都走得到了——而且不必重新登入', async () => {
@@ -160,5 +166,67 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     await walkTo('/k-candles', SIGNED_IN_USER)
 
     expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('門口：第一次換頁時，門口的載入至少停留一小段', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useState('door-opened').value = false
+  })
+
+  afterEach(() => {
+    session.ensureSessionRestored.mockResolvedValue(undefined)
+    vi.useRealTimers()
+  })
+
+  /** 走一次，並記下這道門什麼時候做完決定。 */
+  function walkWatched(path: string) {
+    const decision = { made: false }
+    void walkTo(path, null).then(() => {
+      decision.made = true
+    })
+
+    return decision
+  }
+
+  it('確認瞬間完成時，到 600 毫秒之前都還不做決定', async () => {
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(599)
+
+    expect(decision.made).toBe(false)
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('停留滿 600 毫秒之後才把沒登入的人帶到登入畫面', async () => {
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(decision.made).toBe(true)
+    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('確認比最短停留久時，等到確認完才做決定——不多等', async () => {
+    session.ensureSessionRestored.mockImplementation(
+      () => new Promise<void>(resolve => setTimeout(resolve, 900)))
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(899)
+    expect(decision.made).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(decision.made).toBe(true)
+  })
+
+  it('門開過之後的換頁不再等最短停留', async () => {
+    walkWatched('/k-candles')
+    await vi.advanceTimersByTimeAsync(600)
+
+    const decision = walkWatched('/strategy-scripts')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(decision.made).toBe(true)
   })
 })

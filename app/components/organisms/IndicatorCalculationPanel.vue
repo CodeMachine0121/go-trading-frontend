@@ -173,6 +173,10 @@ onMounted(() => {
   void strategyScriptLibrary.refreshStrategyScripts()
 })
 
+// 工作區是不是唯讀由策略腳本庫說，畫面上每一個停用都讀它，不各自判斷——
+// 哪一顆忘了看它，就是一個改得動別人東西的洞。
+const readOnly = strategyScriptLibrary.readOnly
+
 /** 同上：打到一半的東西不往下送。 */
 function changeSpanAmount(raw: string | number) {
   const amount = readNumberInput(raw)
@@ -233,7 +237,9 @@ async function calculateIndicator() {
     indicatorCalculationApplication.observationWindowFor(span.value),
     script.value,
     resultType.value,
-    strategyScriptParameters.parameters.value))
+    strategyScriptParameters.parameters.value,
+    // 唯讀時沒有算式可以送——指名那一支本身來跑，那是它唯一跑得動的方式。
+    strategyScriptLibrary.namedStrategyScriptId.value))
 }
 </script>
 
@@ -261,7 +267,7 @@ async function calculateIndicator() {
           <AppButton
             type="button"
             variant="secondary"
-            :disabled="strategyScriptLibrary.saving.value"
+            :disabled="strategyScriptLibrary.saving.value || readOnly"
             label="存回目前這一支"
             data-testid="save-strategy-script-button"
             @click="strategyScriptLibrary.saveStrategyScript"
@@ -271,6 +277,7 @@ async function calculateIndicator() {
           <AppButton
             type="button"
             variant="secondary"
+            :disabled="readOnly"
             label="另存為新的一支"
             data-testid="save-as-strategy-script-button"
             @click="strategyScriptLibrary.openNameDialog"
@@ -330,6 +337,18 @@ async function calculateIndicator() {
         </template>
       </StrategyScriptPicker>
 
+      <!--
+        挑到一支我加入的，工作區就是唯讀的。這一句擺在選單正下方而不是編輯區裡：
+        那一整排按不下去的按鈕就在它上面，看的人第一個問題是「為什麼按不下去」。
+      -->
+      <AppAlert
+        v-if="readOnly"
+        tone="info"
+        data-testid="adopted-read-only-notice"
+      >
+        這支策略腳本是從市集加入的，不是你的——可以拿來試跑、回測，但不能修改。
+      </AppAlert>
+
       <p
         v-if="strategyScriptLibrary.noticeMessage.value"
         class="indicator-calculation-panel__strategy-script-notice"
@@ -364,6 +383,7 @@ async function calculateIndicator() {
         <IndicatorScriptEditor
           v-model="script"
           class="indicator-calculation-panel__editor"
+          :concealed="readOnly"
           :error-message="calculationRun.messageFor('script')"
         >
           <template #toolbar>
@@ -378,6 +398,7 @@ async function calculateIndicator() {
 
             <AppSelect
               :model-value="resultType"
+              :disabled="readOnly"
               class="indicator-calculation-panel__result-type"
               data-testid="result-type-select"
               @update:model-value="retargetResultType"
@@ -394,6 +415,7 @@ async function calculateIndicator() {
               type="button"
               variant="secondary"
               label="帶入範例內容"
+              :disabled="readOnly"
               data-testid="example-button"
               @click="fillExampleScript"
             >
@@ -751,6 +773,7 @@ async function calculateIndicator() {
           :script="script"
           :result-type="resultType"
           :parameters="strategyScriptParameters.parameters.value"
+          :strategy-script-id="strategyScriptLibrary.namedStrategyScriptId.value"
           :workspace-generation="workspaceGeneration"
         />
       </div>
@@ -761,6 +784,7 @@ async function calculateIndicator() {
       :fields="strategyScriptParameters.fields.value"
       :kind-options="strategyScriptParameters.kindOptions"
       :error-message="calculationRun.messageFor('parameters')"
+      :read-only="readOnly"
       @close="parametersOpen = false"
       @add="strategyScriptParameters.add"
       @remove="strategyScriptParameters.remove"

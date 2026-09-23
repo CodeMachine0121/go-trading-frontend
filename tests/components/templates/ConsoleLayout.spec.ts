@@ -91,13 +91,12 @@ describe('ConsoleLayout', () => {
     //
     // 順序本身是規則的一部分：中間那幾個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」排。
     const wrapper = mount(ConsoleLayout, {
-      props: { title: '連線狀態' },
+      props: { title: 'K 線瀏覽' },
       global: { stubs: { NuxtLink: { template: '<a><slot /></a>' } } },
     })
 
     expect(wrapper.findAll('.console-layout__link-label').map(label => label.text()))
       .toEqual([
-        '連線狀態',
         'K 線瀏覽',
         'K 線圖表',
         '策略腳本',
@@ -117,8 +116,24 @@ describe('ConsoleLayout', () => {
     const icons = wrapper.findAll('.console-layout__link svg')
       .map(icon => icon.attributes('data-icon'))
 
-    expect(icons).toHaveLength(9)
-    expect(new Set(icons).size).toBe(9)
+    expect(icons).toHaveLength(8)
+    expect(new Set(icons).size).toBe(8)
+  })
+
+  it('連線狀態已經不是一個去處了——側欄上沒有它', () => {
+    // 那一頁只在說側欄那顆燈在每一頁都說得出來的事。
+    const wrapper = mountLayout()
+
+    expect(wrapper.findAll('a').map(link => link.text())).not.toContain('連線狀態')
+  })
+
+  it('連線狀態已經不是一個去處了——窄螢幕的「更多」裡也沒有它', async () => {
+    const wrapper = await mountLayoutAt(PHONE)
+
+    await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="more-/k-candles"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="more-/"]').exists()).toBe(false)
   })
 
   it('觀察清單已經不是一個去處了', () => {
@@ -138,7 +153,7 @@ describe('ConsoleLayout', () => {
 
     // 名字仍然在 DOM 裡（只是看不見）：拿掉它們，讀螢幕的人聽到的
     // 就是一排沒有名字的連結，而那條側欄等於壞了。
-    expect(wrapper.findAll('a')).toHaveLength(9)
+    expect(wrapper.findAll('a')).toHaveLength(8)
     expect(wrapper.text()).toContain('策略腳本')
     expect(wrapper.text()).toContain('交易策略')
     expect(wrapper.text()).toContain('設定')
@@ -198,7 +213,7 @@ describe('ConsoleLayout', () => {
       expect(wrapper.findAll('[data-testid^="tab-"]')).toHaveLength(5)
     })
 
-    it('其餘五個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
+    it('其餘四個收在「更多」那張紙裡，連同那顆燈與現在是誰在用', async () => {
       // 側欄底部那兩樣在窄螢幕上沒有側欄可待，而它們與「我還能去哪裡」
       // 回答的是同一個問題：這條線路現在怎麼了。
       const wrapper = mount(ConsoleLayout, {
@@ -215,7 +230,6 @@ describe('ConsoleLayout', () => {
 
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
-      expect(wrapper.get('[data-testid="more-/"]').text()).toContain('連線狀態')
       expect(wrapper.get('[data-testid="more-/k-candles"]').text()).toContain('K 線瀏覽')
       expect(wrapper.get('[data-testid="more-/marketplace"]').text()).toContain('Marketplace')
       expect(wrapper.get('[data-testid="more-/trading-strategies"]').text())
@@ -232,13 +246,13 @@ describe('ConsoleLayout', () => {
       expect(wrapper.get('[data-testid="tab-more"]').attributes('aria-expanded')).toBe('false')
     })
 
-    it('九個去處加起來出現一次，不多不少', async () => {
-      // 四格加五條，剛好是側欄上的那九個——兩份導覽會讓讀螢幕的人聽到兩遍。
+    it('八個去處加起來出現一次，不多不少', async () => {
+      // 四格加四條，剛好是側欄上的那八個——兩份導覽會讓讀螢幕的人聽到兩遍。
       const wrapper = await mountLayoutAt(PHONE)
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
       expect(wrapper.findAll('nav')).toHaveLength(1)
-      expect(wrapper.findAll('a')).toHaveLength(9)
+      expect(wrapper.findAll('a')).toHaveLength(8)
     })
 
     it('待在「更多」裡面的那一頁時，那一格自己會亮', async () => {
@@ -313,7 +327,7 @@ describe('ConsoleLayout', () => {
 
       expect(wrapper.find('[data-testid="tab-more"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="toggle-rail"]').exists()).toBe(true)
-      expect(wrapper.findAll('a')).toHaveLength(9)
+      expect(wrapper.findAll('a')).toHaveLength(8)
     })
   })
 })

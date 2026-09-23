@@ -31,6 +31,7 @@ export class BacktestRequestDomain {
   readonly aggregationInterval: AggregationIntervalDomain
   readonly startTime: Date
   readonly endTime: Date
+  readonly strategyScriptId: number | undefined
   readonly script: string
   readonly parameters: StrategyScriptParametersDomain
   readonly initialCapital: Decimal
@@ -47,9 +48,15 @@ export class BacktestRequestDomain {
       throw new BacktestFieldError('symbol', '請指定交易標的')
     }
 
-    // 與指標預覽同一條規則：只有「整份是空白」才擋，而判斷讀的是去空白後的樣子，
-    // 送出去的仍是使用者眼前那一份原文。
-    if (backtestRequestDto.script.trim() === '') {
+    // 與指標預覽同一條規則：要嘛指名一支策略腳本，要嘛自帶一段算式，兩者只能挑一種。
+    // 「有沒有自帶」讀的是去空白後的樣子——只有整份是空白才算沒有——送出去的仍是原文。
+    const namesAStrategyScript = backtestRequestDto.strategyScriptId !== undefined
+    const carriesAnAlgorithm = backtestRequestDto.script.trim() !== ''
+
+    if (namesAStrategyScript && carriesAnAlgorithm) {
+      throw new BacktestFieldError('script', '指名一支策略腳本與自帶一段算式只能挑一種')
+    }
+    if (!namesAStrategyScript && !carriesAnAlgorithm) {
       throw new BacktestFieldError('script', '請填寫算式內容')
     }
 
@@ -74,7 +81,8 @@ export class BacktestRequestDomain {
       = new AggregationIntervalDomain(backtestRequestDto.aggregationInterval)
     this.startTime = backtestRequestDto.startTime
     this.endTime = backtestRequestDto.endTime
-    this.script = backtestRequestDto.script
+    this.strategyScriptId = backtestRequestDto.strategyScriptId
+    this.script = namesAStrategyScript ? '' : backtestRequestDto.script
     this.initialCapital = backtestRequestDto.initialCapital
     this.positionSizingMode = backtestRequestDto.positionSizingMode
     this.positionSizingValue = backtestRequestDto.positionSizingValue

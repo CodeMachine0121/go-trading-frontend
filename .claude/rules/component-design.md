@@ -18,7 +18,7 @@
 | 層級 | 資料夾 | 是什麼 | 例 |
 | :--- | :--- | :--- | :--- |
 | **Atoms（原子）** | `app/components/atoms/` | 不可再拆的通用 UI 單位。**純展示、不認識任何領域概念** | `AppButton`、`AppInput`、`AppBadge`、`AppSpinner` |
-| **Molecules（分子）** | `app/components/molecules/` | 幾個原子組成的一個功能單位，開始認識 DTO | `BackendHealthCard`、`StockSymbolSearchField` |
+| **Molecules（分子）** | `app/components/molecules/` | 幾個原子組成的一個功能單位，開始認識 DTO | `BackendStatusIndicator`、`StockSymbolSearchField` |
 | **Organisms（有機體）** | `app/components/organisms/` | 由分子與原子組成的完整區塊，通常對應畫面上的一個獨立段落 | `InvestmentVerdictTable`、`PipelineRunTimeline` |
 | **Templates（樣板）** | `app/components/templates/` | 只負責版面骨架與插槽，**不綁任何資料** | `DashboardLayout` |
 | **Pages（頁面）** | `app/pages/` | Nuxt 路由層。呼叫 Application、拿 DTO、往下餵給元件 | `investment-verdicts/index.vue` |
@@ -51,7 +51,7 @@ Nuxt 的 auto-import 雖然可用（`components.pathPrefix` 已設為 `false`，
 ### 命名
 
 - **Atoms 一律 `App` 前綴**（`AppButton`、`AppTag`）——它是全站唯一的那一個通用元件，前綴同時避開與原生標籤同名。
-- **Molecules 以上用領域語彙命名**（`BackendHealthCard`、`InvestmentVerdictTable`），不加層級前綴。
+- **Molecules 以上用領域語彙命名**（`BackendStatusIndicator`、`InvestmentVerdictTable`），不加層級前綴。
 - 不叫 `XxxView` / `XxxContainer` / `XxxWrapper`。
 
 ---

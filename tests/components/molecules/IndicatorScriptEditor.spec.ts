@@ -16,7 +16,9 @@ const WHOLE_SCRIPT = [
   '}',
 ].join('\n')
 
-async function mountEditor(overrides: { errorMessage?: string | null, modelValue?: string } = {}) {
+async function mountEditor(
+  overrides: { errorMessage?: string | null, modelValue?: string, concealed?: boolean } = {},
+) {
   const wrapper = mount(IndicatorScriptEditor, {
     // 掛到真正的文件上：這一份裡有一條驗的是游標落在哪裡，而沒進文件的元素收不到焦點。
     attachTo: document.body,
@@ -92,5 +94,28 @@ describe('IndicatorScriptEditor', () => {
     const wrapper = await mountEditor()
 
     expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+})
+
+describe('IndicatorScriptEditor 算式不公開的時候', () => {
+  it.each([
+    { concealed: true, hasEditor: false, saysConcealed: true },
+    { concealed: false, hasEditor: true, saysConcealed: false },
+  ])('concealed = $concealed：有編輯器 $hasEditor、說「算式不公開」$saysConcealed',
+    async ({ concealed, hasEditor, saysConcealed }) => {
+      const wrapper = await mountEditor({ concealed })
+
+      expect(wrapper.find('[data-testid="script"]').exists()).toBe(hasEditor)
+      expect(wrapper.text().includes('這支策略腳本的算式不公開')).toBe(saysConcealed)
+    })
+
+  it.each([
+    { concealed: true, says: '從市集加入的，只能用、不能改', doesNotSay: '整份都改得動' },
+    { concealed: false, says: '整份都改得動', doesNotSay: '從市集加入的，只能用、不能改' },
+  ])('concealed = $concealed 時標頭提示說「$says」', async ({ concealed, says, doesNotSay }) => {
+    const wrapper = await mountEditor({ concealed })
+
+    expect(wrapper.text()).toContain(says)
+    expect(wrapper.text()).not.toContain(doesNotSay)
   })
 })

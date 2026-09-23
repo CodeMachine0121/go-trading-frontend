@@ -1,4 +1,5 @@
 import type { ISessionStorageProxy } from '~/domain/interface/i-session-storage-proxy'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -78,6 +79,16 @@ type BackendRequestOptions = {
    * 把它們也當成過期，會在登入畫面上把「密碼打錯」演成一次被登出。
    */
   refusalMeansSignedOut?: boolean
+  /**
+   * 這一發是畫面自己定期做的、不是使用者在等的嗎？
+   *
+   * 預設不是：**每一發都算使用者在等**，所以新開的 proxy 什麼都不用做就會被計入。
+   * 例外只有畫面自己定期去做的那幾發（助手作答中的回頭詢問、圖上指標跟著最新那一根重算）
+   * ——算進去的話，頂端那條進度條會規律地閃，或永遠在跑。
+   *
+   * 它不是給後端的，所以不會跟著送出去。
+   */
+  background?: boolean
 }
 
 /**
@@ -97,32 +108,29 @@ export abstract class BackendApiProxy {
   constructor(
     private readonly baseUrl: string,
     private readonly sessionStorageProxy: ISessionStorageProxy,
-    /**
-     * 被登出時要做的事——通常是清掉全站共用的那份狀態並回到登入畫面。
-     *
-     * 它是一個回呼而不是一個介面，因為那不是一份資料，也不是一個外部資源：
-     * 它是**應用程式的編排**，而發請求的東西不該懂得導頁。由組裝根給進來，
-     * 那裡本來就是唯一知道全部具體型別的地方。
-     */
-    private readonly onSignedOut: () => void = () => {},
-    /**
-     * 試著把這一段登入救回來，救回來了回 `true`。
-     *
-     * 它存在是因為**登入憑證只活十五分鐘，而續用憑證活三十天**。少了它，坐在圖表前
-     * 十六分鐘之後按一下計算，就會被踢回登入畫面——而手上那份續用憑證明明還好著。
-     * 這一發本來只是過期，不是「這個人不算數了」。
-     *
-     * 它必須**同時只跑一次**（這件事由給進來的那一邊保證）：續用憑證用過就失效，
-     * 同時換兩次會被後端判定為盜用，把「這台需要重登」升級成「這個人每一台都被登出」。
-     */
-    private readonly recoverSession: () => Promise<boolean> = async () => false,
+    /** 被登出、救回這一段登入、開始等一件事——三個時刻要做的應用程式編排，見那一份自己的說明。 */
+    private readonly hooks: BackendRequestHooks = new BackendRequestHooks(),
   ) {}
 
+  /**
+   * 發一發請求。
+   *
+   * 報到包在**最外層**：「過期 → 救回 → 重送」對使用者是同一件事，
+   * 在裡面報到的話，那一次重送會被算成第二件。
+   */
   protected async requestBackend<TWire>(
     path: string,
     options: BackendRequestOptions = {},
   ): Promise<TWire> {
-    return this.sendRequest<TWire>(path, options, true)
+    const { background = false, ...requestOptions } = options
+    const endWaiting = background ? () => {} : this.hooks.beginWaiting()
+
+    try {
+      return await this.sendRequest<TWire>(path, requestOptions, true)
+    }
+    finally {
+      endWaiting()
+    }
   }
 
   /**
@@ -168,14 +176,14 @@ export abstract class BackendApiProxy {
             // 救回來之後重發一次，而不是把失敗回報上去讓畫面自己重試：呼叫端根本不知道
             // 剛才那一發是因為過期才失敗的，而每一個呼叫端各自記得重試一次，
             // 就是同一段規則寫十遍。
-            if (mayRenew && await this.recoverSession()) {
+            if (mayRenew && await this.hooks.recoverSession()) {
               return await this.sendRequest<TWire>(path, options, false)
             }
 
             // 救不回來了。記著的那一份已經不算數，留著它下一發還是會被擋，
             // 而把關那一道門會繼續以為這個人登入著。
             this.sessionStorageProxy.clearSession()
-            this.onSignedOut()
+            this.hooks.onSignedOut()
 
             throw new SignedOutError(message, { cause: error })
           }
