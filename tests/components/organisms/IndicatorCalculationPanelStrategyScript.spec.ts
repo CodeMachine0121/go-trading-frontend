@@ -28,6 +28,22 @@ import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
 
+// 唯讀那一組會真的跑完一次回測，而成績單旁邊那張資金曲線要一塊真的畫布——這裡沒有。
+// 替身擋在第三方繪圖套件的邊界上，與回測那一塊自己的測試同一個做法。
+const chartLibrary = vi.hoisted(() => ({
+  createChart: vi.fn(() => ({
+    addSeries: vi.fn(() => ({ setData: vi.fn() })),
+    applyOptions: vi.fn(),
+    timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
+    remove: vi.fn(),
+  })),
+}))
+
+vi.mock('lightweight-charts', () => ({
+  createChart: chartLibrary.createChart,
+  LineSeries: 'LineSeries',
+}))
+
 /** 算式內容住在編輯區裡，而編輯區是掛載後才動態載入的，microtask 還輪不到它。 */
 async function settle() {
   await new Promise(resolve => setTimeout(resolve, 20))
