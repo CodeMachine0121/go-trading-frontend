@@ -9,6 +9,7 @@ import { BacktestService } from '~/domain/service/backtest-service'
 import { Backtest, BacktestTradeStatistics, ContractBacktestFigures, EquityPoint } from '~/domain/models/entities/backtest'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
+import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
@@ -118,6 +119,20 @@ describe('短線回測條件（重演一支腳本）', () => {
 
     expect(proxy.runBacktest).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('驗證起點必須落在期間之內（晚於起點、早於終點）')
+  })
+
+  it('交易服務指名驗證起點時，那句話落在驗證起點那一格旁邊', async () => {
+    const proxy = buildProxy()
+    vi.mocked(proxy.runBacktest).mockRejectedValue(
+      new BacktestFieldError('validationStartTime', '驗證段湊不出任何一格'))
+    const wrapper = mountScriptPane(proxy)
+
+    await fillStretch(wrapper, '2026-01-31T23:00')
+    await submit(wrapper)
+
+    const validationField = wrapper.get('[data-testid="backtest-validation-start-time-input"]').element
+      .closest('label, div')?.parentElement
+    expect(validationField?.textContent).toContain('驗證段湊不出任何一格')
   })
 
   it('沒在允許時間內跑完時說沒有成績單與下一步，不說成算式的問題', async () => {

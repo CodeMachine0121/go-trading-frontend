@@ -51,4 +51,18 @@ describe('BacktestDomain 結果畫成哪幾塊', () => {
     expect(summary.tradeStatistics?.profitFactor).toBe('2.50')
     expect(summary.tradeStatistics?.averageHoldingTime).toBe('2 小時 30 分')
   })
+  it('每一塊畫的是取樣過的曲線，成績單的數字仍照完整的結果', () => {
+    const longCurve = Array.from({ length: 3000 }, (_, pointIndex) =>
+      new EquityPoint(new Date(pointIndex * 60_000), new Decimal(10_000 + pointIndex)))
+    const replay = new Backtest(
+      'BTCUSDT', '1m', new Date(0), new Date(3000 * 60_000), 3000,
+      new Decimal('10000'), new Decimal('12999'), 0.3, 0, null, 0, 0, 0, 0, new Decimal(0),
+      [], longCurve)
+
+    const resultDto = replay.toDomain().toDto()
+
+    expect(resultDto.equityCurve).toHaveLength(3000)
+    expect(resultDto.sections[0]!.chartEquityCurve.length).toBeLessThanOrEqual(2000)
+    expect(resultDto.sections[0]!.summary.finalEquity).toBe('12999.00')
+  })
 })
