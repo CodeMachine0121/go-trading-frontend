@@ -4,6 +4,7 @@ import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-con
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 
 // 「畫面正在等」是在發請求的那一層報到的。這一組經由兩支真的 proxy 來問它——
 // 那一層本身是抽象的，而它的行為只有透過繼承它的 proxy 才看得到。
@@ -33,7 +34,7 @@ function conversationProxy(
   recoverSession: () => Promise<boolean> = async () => false,
 ) {
   return new AssistantConversationProxy(
-    BASE_URL, signedInSessionStorage(), vi.fn(), recoverSession, beginWaiting)
+    BASE_URL, signedInSessionStorage(), new BackendRequestHooks(vi.fn(), recoverSession, beginWaiting))
 }
 
 afterEach(() => {
@@ -98,7 +99,7 @@ describe('BackendApiProxy：連線燈的檢查是使用者在等的', () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ status: 'Healthy' }))
 
     await new BackendHealthProxy(
-      BASE_URL, signedInSessionStorage(), vi.fn(), async () => false, beginWaiting)
+      BASE_URL, signedInSessionStorage(), new BackendRequestHooks(vi.fn(), async () => false, beginWaiting))
       .fetchBackendHealth()
 
     expect(beginWaiting).toHaveBeenCalledTimes(1)

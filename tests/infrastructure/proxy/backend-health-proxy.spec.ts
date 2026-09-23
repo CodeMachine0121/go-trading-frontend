@@ -7,6 +7,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { SignedOutError } from '~/domain/errors/signed-out-error'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -94,7 +95,7 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     const onSignedOut = vi.fn()
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildSignedOutError()))
 
-    const failure = await new BackendHealthProxy(BASE_URL, sessionStorageProxy, onSignedOut)
+    const failure = await new BackendHealthProxy(BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut))
       .fetchBackendHealth().catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(SignedOutError)
@@ -115,7 +116,7 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     const backendHealth = await new BackendHealthProxy(
-      BASE_URL, sessionStorageProxy, onSignedOut, recoverSession).fetchBackendHealth()
+      BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut, recoverSession)).fetchBackendHealth()
 
     expect(backendHealth.status).toBe('Healthy')
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -140,7 +141,7 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BackendHealthProxy(
-      BASE_URL, sessionStorageProxy, vi.fn(), vi.fn().mockResolvedValue(true)).fetchBackendHealth()
+      BASE_URL, sessionStorageProxy, new BackendRequestHooks(vi.fn(), vi.fn().mockResolvedValue(true))).fetchBackendHealth()
 
     expect(fetchMock.mock.calls[0]?.[1]).toEqual({ headers: { Authorization: 'Bearer an-expired-proof' } })
     expect(fetchMock.mock.calls[1]?.[1]).toEqual({ headers: SIGNED_IN_HEADERS })
@@ -152,7 +153,7 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildSignedOutError()))
 
     const failure = await new BackendHealthProxy(
-      BASE_URL, sessionStorageProxy, onSignedOut, vi.fn().mockResolvedValue(false))
+      BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut, vi.fn().mockResolvedValue(false)))
       .fetchBackendHealth().catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(SignedOutError)
@@ -168,7 +169,7 @@ describe('BackendApiProxy：身分是每一發的事', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     const failure = await new BackendHealthProxy(
-      BASE_URL, signedInSessionStorage(), vi.fn(), recoverSession)
+      BASE_URL, signedInSessionStorage(), new BackendRequestHooks(vi.fn(), recoverSession))
       .fetchBackendHealth().catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(SignedOutError)

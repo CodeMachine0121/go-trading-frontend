@@ -11,6 +11,7 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 
 const BASE_URL = 'http://localhost:8080'
 const SCRIPT_BODY = 'return map[string]float64{"均價": 110}'
@@ -510,7 +511,7 @@ describe('IndicatorCalculationProxy.recalculateIndicator', () => {
     vi.stubGlobal('$fetch', fetchMock)
     const beginWaiting = vi.fn(() => () => {})
     const proxy = new IndicatorCalculationProxy(
-      BASE_URL, signedInSessionStorage(), vi.fn(), async () => false, beginWaiting)
+      BASE_URL, signedInSessionStorage(), new BackendRequestHooks(vi.fn(), async () => false, beginWaiting))
 
     const recalculated = await proxy.recalculateIndicator(REQUEST)
     expect(beginWaiting).not.toHaveBeenCalled()
