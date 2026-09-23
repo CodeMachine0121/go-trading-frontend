@@ -110,26 +110,10 @@ function onResizeStart(pointerX: number): void {
  * 頂端那條進度條：畫面正在等系統回話，或正在換頁。
  *
  * 它掛在這裡，因為「每一個畫面都看得到」的意思就是它得在 NuxtPage 之外——
- * 與助手那兩塊同一個理由。請求在發請求的那一層報到；換頁則在這裡報到，
- * 讓同一條進度條也走一次，而不是另開一條只給換頁用的。
+ * 與助手那兩塊同一個理由。請求在發請求的那一層報到；換頁在這裡接上一次。
  */
-const { visible: waiting, beginWaiting } = useRequestActivity()
-const nuxtApp = useNuxtApp()
-/** 正在進行的那一次換頁。一次只會有一次：新的開始時，上一次必然已經不算數了。 */
-let endNavigation: (() => void) | null = null
-
-function finishNavigation(): void {
-  endNavigation?.()
-  endNavigation = null
-}
-
-nuxtApp.hook('page:loading:start', () => {
-  finishNavigation()
-  endNavigation = beginWaiting()
-})
-nuxtApp.hook('page:loading:end', finishNavigation)
-// 換頁到一半出錯時「換完了」那一聲不會來；少了這一行，進度條會一直跑到下一次換頁。
-nuxtApp.hook('vue:error', finishNavigation)
+const { visible: waiting, followNavigation } = useRequestActivity()
+followNavigation()
 
 /** 視窗變小時，那顆鍵與抽屜都要收回看得見、還能用的範圍。 */
 function keepAssistantUsable(): void {

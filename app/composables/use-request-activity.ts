@@ -59,5 +59,29 @@ export function useRequestActivity() {
     }
   }
 
-  return { visible: readonly(visible), beginWaiting }
+  /**
+   * 換頁也算一件在等的事——同一條進度條走一次，不另開一條只給換頁用的。
+   *
+   * 由應用程式的根叫一次。一次只會有一次換頁：新的開始時，上一次必然已經不算數了，
+   * 所以開始之前先把上一次結束掉；換頁到一半出錯時「換完了」那一聲不會來，
+   * 所以出錯也算結束——少了它，進度條會一直跑到下一次換頁。
+   */
+  function followNavigation(): void {
+    const nuxtApp = useNuxtApp()
+    let endNavigation: (() => void) | null = null
+
+    const finishNavigation = () => {
+      endNavigation?.()
+      endNavigation = null
+    }
+
+    nuxtApp.hook('page:loading:start', () => {
+      finishNavigation()
+      endNavigation = beginWaiting()
+    })
+    nuxtApp.hook('page:loading:end', finishNavigation)
+    nuxtApp.hook('vue:error', finishNavigation)
+  }
+
+  return { visible: readonly(visible), beginWaiting, followNavigation }
 }

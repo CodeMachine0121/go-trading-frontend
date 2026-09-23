@@ -98,3 +98,63 @@ describe('useRequestActivity', () => {
     expect(visible.value).toBe(true)
   })
 })
+
+describe('useRequestActivity 換頁也走一次', () => {
+  // 每個案例從乾淨的共用狀態開始，再接上換頁的那幾聲——與應用程式的根一樣只接一次。
+  // 前一個案例接上的那一份仍然掛著，但它寫的是已經被清掉的那一份狀態，這裡讀不到。
+  beforeEach(() => {
+    clearNuxtState()
+    vi.useFakeTimers()
+    useRequestActivity().followNavigation()
+  })
+
+  afterEach(async () => {
+    await useNuxtApp().callHook('page:loading:end')
+    vi.useRealTimers()
+  })
+
+  it('換頁開始後超過門檻時進度條出現，換完了就收', async () => {
+    const { visible } = useRequestActivity()
+
+    await useNuxtApp().callHook('page:loading:start')
+    vi.advanceTimersByTime(200)
+    expect(visible.value).toBe(true)
+
+    await useNuxtApp().callHook('page:loading:end')
+    expect(visible.value).toBe(false)
+  })
+
+  it('換到一半又換一次，仍然只算一件——換完了就收', async () => {
+    const { visible } = useRequestActivity()
+
+    await useNuxtApp().callHook('page:loading:start')
+    await useNuxtApp().callHook('page:loading:start')
+    vi.advanceTimersByTime(200)
+    await useNuxtApp().callHook('page:loading:end')
+
+    expect(visible.value).toBe(false)
+  })
+
+  it('換頁到一半出錯也算結束，進度條不會一直跑', async () => {
+    const { visible } = useRequestActivity()
+
+    await useNuxtApp().callHook('page:loading:start')
+    vi.advanceTimersByTime(200)
+    await useNuxtApp().callHook('vue:error', new Error('壞了'), null, '')
+
+    expect(visible.value).toBe(false)
+  })
+
+  it('換頁中又有一發請求在等時，換完了進度條還在', async () => {
+    const { visible, beginWaiting } = useRequestActivity()
+    const endRequest = beginWaiting()
+
+    await useNuxtApp().callHook('page:loading:start')
+    vi.advanceTimersByTime(200)
+    await useNuxtApp().callHook('page:loading:end')
+    expect(visible.value).toBe(true)
+
+    endRequest()
+    expect(visible.value).toBe(false)
+  })
+})

@@ -80,6 +80,15 @@
 | W7 | 全部結束後再開始一件 | 又要等 200 毫秒才 `visible` |
 | W7a | 開始一件，150 毫秒時再開始一件，兩件都在 180 毫秒結束，再過 1000 毫秒 | `visible` 從頭到尾為 false（兩件都是一眨眼就回來的） |
 
+### `useRequestActivity.followNavigation`（換頁）
+
+| # | 動作 | 預期結果 |
+|---|---|---|
+| W7b | 換頁開始，過 200 毫秒；換完 | 先 `visible` 為 true，換完之後 false |
+| W7c | 換頁開始，還沒換完又開始一次；過 200 毫秒後換完 | `visible` 為 false（只算一件） |
+| W7d | 換頁開始，過 200 毫秒後出錯 | `visible` 為 false |
+| W7e | 一發請求在等時換頁開始又換完 | 換完之後仍 `visible`；那一發結束才收 |
+
 ### `BackendApiProxy`（經由 `BackendHealthProxy`、`AssistantConversationProxy`、`IndicatorCalculationProxy` 觀察；mock `$fetch`）
 
 | # | 動作 | 預期結果 |
