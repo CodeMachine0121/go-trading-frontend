@@ -19,7 +19,7 @@
  *   bun run dev                      # 另一個終端，開著不要關
  *   node scripts/shots.mjs           # 三種寬度全跑
  *   node scripts/shots.mjs --only=/k-candles/chart --width=390
- *   node scripts/shots.mjs --no-js   # 只截伺服器端畫出來、還沒補正的那一版
+ *   node scripts/shots.mjs --no-js   # 只截 JS 跑起來之前的那一版（整台只在瀏覽器裡畫，所以就是門口的載入）
  */
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -125,7 +125,7 @@ async function signInOnce(browser, { fresh = false } = {}) {
 
   if (email === undefined || password === undefined) {
     throw new Error('請在 .env 裡給 SHOTS_EMAIL 與 SHOTS_PASSWORD（`.env` 不進版控），'
-      + '或用環境變數傳進來。只跑伺服器端那一版的話加上 --no-js，那一趟不必登入。')
+      + '或用環境變數傳進來。只截 JS 跑起來之前那一版（門口的載入）的話加上 --no-js，那一趟不必登入。')
   }
 
   const context = await browser.newContext()

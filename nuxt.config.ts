@@ -23,12 +23,23 @@ export default defineNuxtConfig({
       appManifest: false,
     },
   },
+  // 整台操作台只在瀏覽器裡畫。
+  //
+  // 它本來就只在瀏覽器裡用：沒有 server/ 目錄、沒有任何在伺服器端發生的資料抓取，
+  // 部署是 `nuxt generate` 出來的一包靜態檔交給 nginx（它已經把找不到的路 fallback 到
+  // /200.html）。伺服器端先算的那一份只會壞事——那裡不知道你是誰，於是每一次打開
+  // 都先送出一片空白的操作台，瀏覽器接手之後才發現你沒登入、再把你帶去登入畫面。
+  //
+  // 關掉之後，身分確認完之前唯一畫出來的是下面那一份門口的載入。
+  ssr: false,
   // 原子化設計的資料夾（atoms/molecules/organisms/templates）只表示層級，不進元件名字：
   // components/atoms/AppButton.vue 的元件名就是 AppButton，不是 AtomsAppButton。
   components: [{ path: '~/components', pathPrefix: false }],
   devtools: { enabled: true },
   // 全域樣式只有這一支入口（token + reset + 排版底色調），其餘一律是元件自己的 scoped 樣式
   css: ['~/assets/styles/main.scss'],
+  // 門口的載入：路徑相對於 srcDir（app/）。它為什麼是一份靜態 HTML，見檔案開頭。
+  spaLoadingTemplate: 'spa-loading-template.html',
   runtimeConfig: {
     public: {
       // 後端 go-trading REST API base URL；以 NUXT_PUBLIC_BACKEND_BASE_URL 覆寫

@@ -29,7 +29,7 @@
 
 | Layer | Technology | Version / Notes |
 | :--- | :--- | :--- |
-| Frontend | Nuxt 3 + Vue 3 | 3.21.x；`srcDir: app/`；SSR 預設開啟 |
+| Frontend | Nuxt 3 + Vue 3 | 3.21.x；`srcDir: app/`；**只在瀏覽器裡畫**（`ssr: false`）——身分確認完之前只露出門口的載入 |
 | Backend | go-trading（Go + Gin） | 本專案唯一的資料來源，見 `../go-trading` |
 | Database | 無 | **前端沒有資料庫**；資料真相永遠在後端 |
 | Infrastructure | 本機執行 | 無 Docker、無 CI／CD、無部署目標 |

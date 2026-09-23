@@ -1,5 +1,5 @@
 // @vitest-environment nuxt
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import type { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 import signedInMiddleware from '~/middleware/signed-in.global'
@@ -54,6 +54,12 @@ const AWAITING_ACTIVATION_USER = {
   isEnabled: false,
   activationInstruction: { requestMailbox: 'gatekeeper@example.com', subject: '申請' },
 } as SignedInUserDto
+
+// 門口那一次（第一次換頁）另有自己的規則，下面那一組專門測它。其餘每一組都當作
+// 門已經開過了，否則每個檔案的第一個案例都要平白多等那一段最短停留。
+beforeEach(() => {
+  useState('door-opened').value = true
+})
 
 describe('把關：沒登入就只看得到登入畫面', () => {
   it('沒登入時走到操作台會被帶到登入畫面', async () => {
@@ -160,5 +166,67 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     await walkTo('/k-candles', SIGNED_IN_USER)
 
     expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('門口：第一次換頁時，門口的載入至少停留一小段', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useState('door-opened').value = false
+  })
+
+  afterEach(() => {
+    session.ensureSessionRestored.mockResolvedValue(undefined)
+    vi.useRealTimers()
+  })
+
+  /** 走一次，並記下這道門什麼時候做完決定。 */
+  function walkWatched(path: string) {
+    const decision = { made: false }
+    void walkTo(path, null).then(() => {
+      decision.made = true
+    })
+
+    return decision
+  }
+
+  it('確認瞬間完成時，到 600 毫秒之前都還不做決定', async () => {
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(599)
+
+    expect(decision.made).toBe(false)
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('停留滿 600 毫秒之後才把沒登入的人帶到登入畫面', async () => {
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(decision.made).toBe(true)
+    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('確認比最短停留久時，等到確認完才做決定——不多等', async () => {
+    session.ensureSessionRestored.mockImplementation(
+      () => new Promise<void>(resolve => setTimeout(resolve, 900)))
+    const decision = walkWatched('/k-candles')
+
+    await vi.advanceTimersByTimeAsync(899)
+    expect(decision.made).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(decision.made).toBe(true)
+  })
+
+  it('門開過之後的換頁不再等最短停留', async () => {
+    walkWatched('/k-candles')
+    await vi.advanceTimersByTimeAsync(600)
+
+    const decision = walkWatched('/strategy-scripts')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(decision.made).toBe(true)
   })
 })

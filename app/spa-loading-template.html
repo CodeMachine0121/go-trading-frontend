@@ -1,0 +1,110 @@
+<!--
+  門口的載入：打開或重新整理操作台時，還不知道你是誰之前唯一畫出來的東西。
+
+  它是一份靜態 HTML，因為它出現的時候**什麼都還沒跑起來**——沒有 Vue、沒有樣式表、
+  也還沒問過後端你是誰。Nuxt 把它放進 #__nuxt，等身分確認完、第一個畫面真的畫好了
+  才換掉它；於是沒登入的人從頭到尾只看得到登入卡片的位置，不會先看到一片空白的操作台。
+
+  **這裡的顏色與尺寸是字面值，抄自 app/assets/styles/abstracts/_tokens.scss**
+  （background、surface、border、text-faint、text-strong、primary、primary-soft、
+  spacing xl / lg / md、radius md、shadow md）。這是全站唯一的例外：它畫出來的那一刻，
+  那些 token 還不存在。改 token 時要一起改這裡，否則門口與登入卡片會差一點點。
+-->
+<style>
+  .door {
+    display: flex;
+    position: fixed;
+    align-items: center;
+    justify-content: center;
+    inset: 0;
+    background-color: #0b0d10;
+    padding: 1.25rem;
+    font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif;
+    isolation: isolate;
+  }
+
+  .door__card {
+    display: flex;
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+    border: 1px solid #23282f;
+    border-radius: 0.625rem;
+    background-color: #12151a;
+    padding: 1.5rem 1.25rem;
+    width: 100%;
+    max-width: 22rem;
+  }
+
+  .door__card::before {
+    position: absolute;
+    z-index: -1;
+    /* 這張卡片比登入卡片矮，同一個 circle 漸層在它的四個角還沒淡完就被切掉，
+       會看得到一圈方方的邊。收到最近的邊為止，光暈就一路淡到透明。 */
+    background: radial-gradient(closest-side, #14202e, transparent);
+    content: '';
+    inset: -40%;
+    pointer-events: none;
+  }
+
+  .door__brand {
+    display: flex;
+    gap: 0.625rem;
+    align-items: center;
+    color: #f2f5f9;
+    font-weight: 600;
+    font-size: 0.875rem;
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
+  }
+
+  .door__brand-mark {
+    border-radius: 999px;
+    background-color: #6cb6ff;
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+
+  .door__spinner {
+    animation: door-spin 0.9s linear infinite;
+    border: 2px solid #23282f;
+    border-top-color: #6cb6ff;
+    border-radius: 999px;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .door__caption {
+    margin: 0;
+    color: #7c8492;
+    font-size: 0.875rem;
+  }
+
+  @keyframes door-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .door__spinner {
+      animation-duration: 2.4s;
+    }
+  }
+</style>
+
+<div class="door">
+  <div
+    class="door__card"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="door__brand">
+      <span class="door__brand-mark"></span>
+      <span>go-trading</span>
+    </div>
+    <div class="door__spinner" aria-hidden="true"></div>
+    <p class="door__caption">正在確認登入狀態…</p>
+  </div>
+</div>
