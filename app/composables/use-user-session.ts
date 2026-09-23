@@ -9,8 +9,13 @@ import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-regis
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
-/** 沒有「原本想去的那一頁」時，登入成功要去哪。 */
-export const HOME_PATH = '/'
+/**
+ * 第一站：沒有「原本想去的那一頁」時，登入成功要去哪。
+ *
+ * 是 K 線圖表，因為那是每天打開操作台第一眼要看的東西。它以前是「連線狀態」那一頁，
+ * 而那一頁說的只是側欄那顆燈在每一頁都說得出來的事。
+ */
+export const HOME_PATH = '/k-candles/chart'
 
 /** 登入畫面的位址。把關與登入那一頁都得說得出它，所以它只寫在這裡一次。 */
 export const LOGIN_PATH = '/login'

@@ -44,7 +44,6 @@ const VIEWPORTS = [
 ]
 
 const SCREENS = [
-  { path: '/', name: 'health' },
   { path: '/k-candles', name: 'k-candles' },
   { path: '/k-candles/chart', name: 'chart' },
   { path: '/strategy-scripts', name: 'strategy-scripts' },

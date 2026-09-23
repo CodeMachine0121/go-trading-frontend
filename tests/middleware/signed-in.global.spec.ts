@@ -74,10 +74,10 @@ describe('把關：沒登入就只看得到登入畫面', () => {
     expect(navigateToSpy).not.toHaveBeenCalled()
   })
 
-  it('已經進門的人走到登入畫面會被帶回首頁——不必再看一次門', async () => {
+  it('已經進門的人走到登入畫面會被帶回第一站（K 線圖表）——不必再看一次門', async () => {
     await walkTo('/login', SIGNED_IN_USER)
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('沒登入的人走到登入畫面就讓他待在那裡', async () => {
@@ -89,12 +89,12 @@ describe('把關：沒登入就只看得到登入畫面', () => {
   it.each([
     { name: '大小寫不同的網址', path: '/Login' },
     { name: '結尾多一條斜線', path: '/login/' },
-  ])('已登入的人走到 $name 也會被帶回首頁', async ({ path }) => {
+  ])('已登入的人走到 $name 也會被帶回第一站（K 線圖表）', async ({ path }) => {
     // 路由器認得這幾種寫法都是登入那一頁，卻把原本的拼法原樣留在 path 上。
     // 拿字串直接比的話，登入成功之後會被送回登入畫面——讀起來像登入失敗。
     await walkTo(path, SIGNED_IN_USER, '/login')
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('沒登入的人走到大小寫不同的登入網址，就讓他待在那裡', async () => {
@@ -147,10 +147,10 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/login')
   })
 
-  it('已經被放行的人走到等待開通那一頁會被帶回首頁', async () => {
+  it('已經被放行的人走到等待開通那一頁會被帶回第一站（K 線圖表）', async () => {
     await walkTo('/pending-approval', SIGNED_IN_USER)
 
-    expect(navigateToSpy).toHaveBeenCalledWith('/')
+    expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
   it('被放行之後，操作台每一頁都走得到了——而且不必重新登入', async () => {

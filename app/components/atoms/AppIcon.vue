@@ -28,7 +28,6 @@ type IconName
     | 'delete'
     | 'close'
     | 'example'
-    | 'connection'
     | 'table'
     | 'candles'
     | 'formula'
@@ -121,10 +120,6 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   // 星芒——帶入一段現成的東西
   'example': [
     'm12 3-1.9 5.8L4 10.7l6.1 1.9L12 18.5l1.9-5.9L20 10.7l-6.1-1.9Z',
-  ],
-  // 一段心跳——後端還活著嗎
-  'connection': [
-    'M3 12h4l2.5-7 4.5 14 2.5-7h4',
   ],
   // 一張有欄有列的表
   'table': [
