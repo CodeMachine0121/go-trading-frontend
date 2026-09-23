@@ -172,7 +172,6 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           aggregationInterval: backtestRequestDomain.aggregationInterval.value,
           startTime: backtestRequestDomain.startTime.toISOString(),
           endTime: backtestRequestDomain.endTime.toISOString(),
-          script: backtestRequestDomain.script,
           // 金額以字串送出，理由與回來時相同：它是精確小數。
           initialCapital: backtestRequestDomain.initialCapital.toString(),
           positionSizingMode: backtestRequestDomain.positionSizingMode,
@@ -183,13 +182,21 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
           ...transactionCostsBody(
             backtestRequestDomain.entryCostPercentage,
             backtestRequestDomain.exitCostPercentage),
-          // 宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
+          // 指名一支策略腳本時**只送識別碼**，與指標計算同一條規則：算式與旋鈕宣告都在那一支身上，
+          // 再送一份只會多出一個可能與它不一致的答案——而從市集加入的那些根本沒有算式可以送。
+          //
+          // 自帶算式時，宣告與這一次的值分兩份送，與指標計算完全相同：系統要先知道這支算式
           // **宣告**了哪些名字，才有辦法在算式取用一個沒宣告的名字時指名說出是哪一個。
-          parameters: backtestRequestDomain.parameters.all.map(parameter => ({
-            name: parameter.name,
-            kind: parameter.kind,
-            defaultValue: parameter.value,
-          })),
+          ...(backtestRequestDomain.strategyScriptId === undefined
+            ? {
+                script: backtestRequestDomain.script,
+                parameters: backtestRequestDomain.parameters.all.map(parameter => ({
+                  name: parameter.name,
+                  kind: parameter.kind,
+                  defaultValue: parameter.value,
+                })),
+              }
+            : { strategyScriptId: backtestRequestDomain.strategyScriptId }),
           parameterValues: backtestRequestDomain.parameters.all.map(parameter => ({
             name: parameter.name,
             value: parameter.value,

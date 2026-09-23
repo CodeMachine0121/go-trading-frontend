@@ -56,5 +56,12 @@ export class BacktestRequestDto {
      * 台股買賣不對稱才要填兩格。
      */
     public readonly exitCostPercentage: Decimal,
+    /**
+     * 指名一支已經存在的策略腳本來回測，而不是自帶一段算式。
+     *
+     * 從市集加入的那些**沒有算式可以送**——指名是它們唯一回測得了的方式；
+     * 指名時 `script` 留空，那一段從頭到尾不離開系統。
+     */
+    public readonly strategyScriptId?: number,
   ) {}
 }

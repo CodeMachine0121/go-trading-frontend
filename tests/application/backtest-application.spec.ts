@@ -59,6 +59,7 @@ function backtestRequest(overrides: Partial<{
   initialCapital: Decimal
   positionSizingMode: 'allIn' | 'percentage' | 'fixedAmount'
   positionSizingValue: Decimal
+  strategyScriptId: number
 }> = {}): BacktestRequestDto {
   return new BacktestRequestDto(
     overrides.symbol ?? 'BTCUSDT',
@@ -71,7 +72,8 @@ function backtestRequest(overrides: Partial<{
     overrides.initialCapital ?? new Decimal('10000'),
     overrides.positionSizingMode ?? 'allIn',
     overrides.positionSizingValue ?? new Decimal('50'),
-    new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
+    new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0),
+    overrides.strategyScriptId)
 }
 
 describe('BacktestApplication', () => {
@@ -106,6 +108,41 @@ describe('BacktestApplication', () => {
       const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
       expect(sent.parameters.all).toHaveLength(1)
       expect(sent.parameters.all[0]!.name).toBe('period')
+    })
+  })
+
+  describe('指名一支策略腳本來回測', () => {
+    it('指名時算式留空也跑得動，送出去的就是那一支', async () => {
+      // 從市集加入的那些沒有算式可以送——指名是它們唯一回測得了的方式。
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ script: '', strategyScriptId: 9 }))
+
+      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      expect(sent.strategyScriptId).toBe(9)
+      expect(sent.script).toBe('')
+    })
+
+    it('指名時只有空白字元的算式不算一段算式，也不跟著送', async () => {
+      const proxy = buildProxy()
+
+      await buildApplication(proxy).runBacktest(backtestRequest({ script: '  ', strategyScriptId: 9 }))
+
+      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      expect(sent.script).toBe('')
+    })
+
+    it('指名一支又自帶一段算式時擋在算式那一格，一次都沒打出去', async () => {
+      const proxy = buildProxy()
+
+      const rejection = await buildApplication(proxy)
+        .runBacktest(backtestRequest({ strategyScriptId: 9 }))
+        .catch((error: unknown) => error)
+
+      expect(rejection).toBeInstanceOf(BacktestFieldError)
+      expect((rejection as BacktestFieldError).field).toBe('script')
+      expect((rejection as BacktestFieldError).message).toBe('指名一支策略腳本與自帶一段算式只能挑一種')
+      expect(proxy.runBacktest).not.toHaveBeenCalled()
     })
   })
 

@@ -58,6 +58,9 @@
 | R20 | 回測請求帶著 `strategyScriptId = 9` | proxy 送出 | 送出的內容有 `strategyScriptId: 9`，**沒有** `script`、**沒有** `parameters`；`parameterValues` 照送 |
 | R21 | 回測請求沒有識別碼、算式是 `package main…` | proxy 送出 | 送出的內容有 `script` 與 `parameters`，**沒有** `strategyScriptId` |
 | R22 | 面板收到 `strategyScriptId = 9` | 按執行回測 | 交給 application 的回測請求 `strategyScriptId` 是 9 |
+| R23 | 回測請求帶著 `strategyScriptId = 9`、算式是空白 | 建立回測請求 | 成立（不因算式空白被擋） |
+| R23a | 回測請求帶著 `strategyScriptId = 9`、算式只有空白字元 `'  '` | 建立回測請求 | 成立，而且請求裡的算式是 `''`（空白字元不算一段算式，也不跟著送） |
+| R24 | 回測請求帶著 `strategyScriptId = 9`、算式也有內容 | 建立回測請求 | 被擋在算式那一格：「指名一支策略腳本與自帶一段算式只能挑一種」 |
 
 ## 二、等待看得出來
 
