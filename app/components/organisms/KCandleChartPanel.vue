@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
@@ -450,18 +451,25 @@ onMounted(async () => {
       :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
     >
       <KCandleChartToolbar
-        v-model:symbol="symbol"
         v-model:drawing="drawing"
-        :trading-symbol-application="tradingSymbolApplication"
         :presets="presets"
         :active-preset-label="activePresetLabel"
         :aggregation-interval-choices="aggregationIntervalChoices"
         :active-aggregation-interval-choice="aggregationIntervalChoice"
         :loading="loading"
-        @selected="selectedTradingSymbol = $event"
         @select-preset="selectPreset"
         @select-aggregation-interval-choice="selectAggregationIntervalChoice"
-      />
+      >
+        <!-- 選著的是哪一檔由挑標的那個欄位說：圖表這一層才是需要知道
+             「這一檔會不會收盤、有沒有即時更新」的人。 -->
+        <template #symbol>
+          <SymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            @selected="selectedTradingSymbol = $event"
+          />
+        </template>
+      </KCandleChartToolbar>
 
       <ChartIndicatorPanel
         :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"

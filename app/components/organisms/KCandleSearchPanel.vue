@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
 import KCandleTable from '~/components/organisms/KCandleTable.vue'
 import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
@@ -126,15 +127,20 @@ async function searchKCandles() {
   <section class="k-candle-search-panel">
     <AppPanel title="查詢條件">
       <KCandleQueryForm
-        v-model:symbol="symbol"
         v-model:start-time="startTime"
-        :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :loading="loading"
-        :symbol-error="symbolError"
         :start-time-error="startTimeError"
         @submit="searchKCandles"
-      />
+      >
+        <template #symbol>
+          <SymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            :error-message="symbolError"
+          />
+        </template>
+      </KCandleQueryForm>
 
       <AppAlert
         v-if="rejectedMessage"

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import SymbolField from '~/components/molecules/SymbolField.vue'
-import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
-import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
@@ -12,29 +9,29 @@ import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregati
 // 這裡只放「使用者按得動的東西」。**「我要多細」按得動，「這一批實際多細」按不動**：
 // 後者是系統回報的結果，跟著圖走（寫在圖那塊面板的標題列上），不混進控制項裡。
 // 兩者共用「每根涵蓋」這個名字，因為它們就是同一件事的兩面。
+//
+// 挑標的那一格由使用端放進 `symbol` 插槽：現貨從現貨的清單挑、合約從合約的清單挑，
+// 而看多長、每根涵蓋、畫法這一排兩條線一模一樣。
 const {
-  tradingSymbolApplication, presets, activePresetLabel = null,
+  presets, activePresetLabel = null,
   aggregationIntervalChoices, activeAggregationIntervalChoice,
-  drawing, loading = false, symbolError = null,
+  drawing, loading = false,
 } = defineProps<{
-  tradingSymbolApplication: TradingSymbolApplication
   presets: KCandleChartRangePresetDto[]
   activePresetLabel?: string | null
   aggregationIntervalChoices: AggregationIntervalChoiceDto[]
   activeAggregationIntervalChoice: AggregationIntervalChoiceDto
   drawing: 'candlestick' | 'line'
   loading?: boolean
-  symbolError?: string | null
 }>()
 
 const emit = defineEmits<{
   'selectPreset': [preset: KCandleChartRangePresetDto]
   'selectAggregationIntervalChoice': [choice: AggregationIntervalChoiceDto]
   'update:drawing': [drawing: 'candlestick' | 'line']
-  // 挑標的那個欄位已經握有清單，選著的是哪一檔由它說；這裡只是轉一手，
-  // 因為圖表那一層才是需要知道「這一檔會不會收盤、有沒有即時更新」的人。
-  'selected': [tradingSymbol: TradingSymbolDto | null]
 }>()
+
+defineSlots<{ symbol: () => unknown }>()
 
 /**
  * 下拉選單認得的是字串，而上一層要的是那個選擇本身。
@@ -56,8 +53,6 @@ const selectedAggregationIntervalValue = computed({
   },
 })
 
-const symbol = defineModel<string>('symbol', { required: true })
-
 const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
   { value: 'candlestick', label: '蠟燭' },
   { value: 'line', label: '曲線' },
@@ -66,13 +61,9 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
 
 <template>
   <div class="k-candle-chart-toolbar">
-    <SymbolField
-      v-model="symbol"
-      :trading-symbol-application="tradingSymbolApplication"
-      :error-message="symbolError"
-      class="k-candle-chart-toolbar__symbol"
-      @selected="emit('selected', $event)"
-    />
+    <div class="k-candle-chart-toolbar__symbol">
+      <slot name="symbol" />
+    </div>
 
     <div class="k-candle-chart-toolbar__group">
       <span class="k-candle-chart-toolbar__group-label">看多長</span>
