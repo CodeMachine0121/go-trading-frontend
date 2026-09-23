@@ -81,6 +81,8 @@ describe('ContractSymbolField', () => {
     })
 
     expect(wrapper.text()).toContain('取合約標的清單中…')
+    // 清單還在路上時，預設那一個照樣顯示著
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="contract-symbol-select"]').element.value).toBe('BTCUSDT')
   })
 
   it('錯誤訊息標在這一格旁', async () => {

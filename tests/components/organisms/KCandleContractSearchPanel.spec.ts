@@ -232,4 +232,34 @@ describe('KCandleContractSearchPanel', () => {
 
     expect(wrapper.get('[data-testid="rejected-alert"]').text()).toBe('查詢時發生未預期的錯誤。')
   })
+
+  it('版面：「查詢條件」與「查詢結果」兩塊', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy())
+
+    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['查詢條件', '查詢結果'])
+  })
+
+  it('表格的欄位：成交價那一組之後是成交筆數與三條線的收盤', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractsInRange: vi.fn().mockResolvedValue([buildKCandleContract('2026-09-23T08:00:00.000Z', null)]),
+    }))
+
+    await search(wrapper)
+
+    expect(wrapper.findAll('th').map(header => header.text())).toEqual([
+      '起始時間（世界標準時間）', '漲跌', '開盤價', '最高價', '最低價', '收盤價', '成交量',
+      '成交筆數', '標記價格收盤', '指數價格收盤', '溢價指數收盤',
+    ])
+  })
+
+  it('查詢的時候說正在查', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractsInRange: vi.fn().mockReturnValue(new Promise(() => {})),
+    }))
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="loading-alert"]').text()).toBe('查詢中…')
+  })
 })

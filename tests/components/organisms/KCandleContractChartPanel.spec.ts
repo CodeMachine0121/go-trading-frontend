@@ -123,9 +123,13 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('五分鐘')
   })
 
-  it('在圖上拉遠時換成那一段', async () => {
-    const findKCandleContractSeries = vi.fn().mockResolvedValue(
-      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+  it('在圖上拉遠時換成那一段，由系統換粗一點的每根涵蓋', async () => {
+    const findKCandleContractSeries = vi.fn()
+      .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+      .mockResolvedValueOnce(contractSeriesOf([
+        buildKCandleContract('2026-09-14T00:00:00.000Z', '90'),
+        buildKCandleContract('2026-09-23T11:00:00.000Z', '95'),
+      ], '1h'))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -135,6 +139,11 @@ describe('KCandleContractChartPanel', () => {
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
     expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-13T12:00:00.000Z')
+    // 挑的仍是「自動」：粗細由系統換，圖上標的是它說的那一種
+    expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBeNull()
+    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+    expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles.map(kCandle => kCandle.close.toString()))
+      .toEqual(['90', '95'])
   })
 
   it('換合約時換一批資料，看的那一段不變', async () => {
@@ -333,5 +342,33 @@ describe('KCandleContractChartPanel', () => {
 
     expect(findKCandleContractSeries).toHaveBeenCalledTimes(1)
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(1)
+  })
+
+  it('版面：「看什麼」一塊，圖的標題是畫出來的那一個合約', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockResolvedValue(
+        contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
+    }))
+
+    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['看什麼', 'BTCUSDT'])
+  })
+
+  it('收起「看什麼」之後，沒有即時跟盤那一句照樣在', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
+    }))
+
+    await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="toggle-panel"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('[data-testid="no-live-follow-notice"]').text()).toContain('沒有即時跟盤')
+  })
+
+  it('取行情的時候說正在取', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockReturnValue(new Promise(() => {})),
+    }))
+
+    expect(wrapper.get('[data-testid="loading-alert"]').text()).toBe('取行情中…')
   })
 })
