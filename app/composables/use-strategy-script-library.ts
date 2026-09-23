@@ -1,4 +1,5 @@
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
@@ -34,6 +35,11 @@ export function useStrategyScriptLibrary(
   applyContent: (content: StrategyScriptContentDto) => void,
   /** 一份空白的策略腳本內容。「空白長什麼樣」由畫面定義，這裡只負責在對的時機套用它。 */
   blankContent: StrategyScriptContentDto,
+  /**
+   * 這個庫只管哪一種行情的策略腳本。清單只列這一種——另一種在這一頁跑不動，
+   * 列出來只會換來一個挑了就失敗的選項。存下的是哪一種則由內容自己說。
+   */
+  marketDataKind: MarketDataKind = 'kCandle',
 ) {
   /**
    * 自己寫的那些。它們帶著算式，所以載得進編輯器、改得動、刪得掉、發得出去。
@@ -86,7 +92,7 @@ export function useStrategyScriptLibrary(
     listErrorMessage.value = null
 
     try {
-      const available = await strategyScriptApplication.listAvailableStrategyScripts()
+      const available = await strategyScriptApplication.listAvailableStrategyScripts(marketDataKind)
       strategyScripts.value = [...available.mine]
       adoptedStrategyScripts.value = [...available.adopted]
       refreshActiveStrategyScript()

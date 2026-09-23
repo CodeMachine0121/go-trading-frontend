@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
-import type { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
+import type { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 
@@ -20,7 +20,11 @@ import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
  */
 defineProps<{
   open: boolean
-  fields: readonly KCandleFieldDto[]
+  /**
+   * 算式收到的每一格長什麼樣：進入點、標題、欄位與提醒，一整份由領域依這一頁的行情種類交來。
+   * 這個元件不知道有幾種行情——它只把交來的那一份畫出來。
+   */
+  guide: ScriptInputGuideDto
   parameterAccesses: readonly ScriptParameterAccessDto[]
   /** 「一個信號」種類之下，算式能回傳的三個值。 */
   signalReadings: readonly SignalReadingDto[]
@@ -37,15 +41,21 @@ const emit = defineEmits<{ close: [] }>()
   >
     <div class="indicator-script-guide-dialog">
       <section class="indicator-script-guide-dialog__section">
-        <h3 class="indicator-script-guide-dialog__heading">
-          每一根 K 線有什麼
+        <h3
+          class="indicator-script-guide-dialog__heading"
+          data-testid="script-input-heading"
+        >
+          {{ guide.heading }}
         </h3>
 
-        <pre class="indicator-script-guide-dialog__code"><code>func Calculate(data []indicator.KCandle)</code></pre>
+        <pre
+          class="indicator-script-guide-dialog__code"
+          data-testid="script-entry-point"
+        ><code>{{ guide.entryPoint }}</code></pre>
 
         <dl class="indicator-script-guide-dialog__fields">
           <template
-            v-for="field in fields"
+            v-for="field in guide.fields"
             :key="field.name"
           >
             <dt
@@ -74,6 +84,13 @@ const emit = defineEmits<{ close: [] }>()
             <li>價量一律是 <code>float64</code>，直接算就好。</li>
             <li>只開放 <code>math</code> 與 <code>sort</code>，開新的空白算式時已經先幫你匯入。</li>
             <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
+            <li
+              v-for="note in guide.notes"
+              :key="note"
+              data-testid="script-input-note"
+            >
+              {{ note }}
+            </li>
           </ul>
         </div>
       </section>

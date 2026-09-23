@@ -1,4 +1,5 @@
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
@@ -29,6 +30,8 @@ export class IndicatorCalculationRequestDomain {
   /** 要送出去的那一整段算式；指名了策略腳本時是空字串——那時算式由系統自己取出。 */
   readonly script: string
   readonly parameters: StrategyScriptParametersDomain
+  /** 這一次算哪一種行情。 */
+  readonly marketDataKind: MarketDataKindDomain
 
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
@@ -55,6 +58,7 @@ export class IndicatorCalculationRequestDomain {
     this.aggregationInterval
       = new AggregationIntervalDomain(indicatorCalculationRequestDto.aggregationInterval)
     this.observationWindow = indicatorCalculationRequestDto.observationWindow
+    this.marketDataKind = new MarketDataKindDomain(indicatorCalculationRequestDto.marketDataKind)
     this.resultType = new IndicatorResultTypeDomain(indicatorCalculationRequestDto.resultType)
     this.strategyScriptId = indicatorCalculationRequestDto.strategyScriptId
     // 指名策略腳本時沒有算式要送——那一段從頭到尾不離開系統，正是它跑得動卻讀不到的理由。
