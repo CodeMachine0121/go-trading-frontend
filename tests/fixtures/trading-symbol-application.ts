@@ -3,6 +3,7 @@ import { TradingSymbolApplication } from '~/application/trading-symbol-applicati
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { TradingSymbol } from '~/domain/models/entities/trading-symbol'
 import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
+import { buildContractTradingSymbolProxy } from './contract-proxies'
 
 /**
  * 交易標的清單來自另一個外部資源，只 mock 它的介面；
@@ -18,7 +19,7 @@ export function buildTradingSymbolApplication(
   return new TradingSymbolApplication(new TradingSymbolService({
     findTradingSymbols: vi.fn().mockResolvedValue(
       symbols.map(symbol => buildTradingSymbol(symbol, overrides))),
-  }))
+  }, buildContractTradingSymbolProxy()))
 }
 
 /** 一個案例真正在意的那幾個欄位；其餘交給中性的預設。 */

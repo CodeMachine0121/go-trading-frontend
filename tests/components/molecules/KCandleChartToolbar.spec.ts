@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../fixtures/aggregation-interval-choice'
@@ -36,14 +35,13 @@ function mountToolbar(
 ) {
   return mount(KCandleChartToolbar, {
     props: {
-      tradingSymbolApplication: buildTradingSymbolApplication(),
-      symbol: 'BTCUSDT',
       presets: [new KCandleChartRangePresetDto('一天', 24 * 60 * 60 * 1000)],
       aggregationIntervalChoices: AGGREGATION_INTERVAL_CHOICES,
       activeAggregationIntervalChoice: activeChoice,
       drawing: 'candlestick' as const,
       loading,
     },
+    slots: { symbol: '<span data-testid="symbol-slot">挑標的那一格</span>' },
   })
 }
 
@@ -112,5 +110,11 @@ describe('圖表上挑一根 K 線涵蓋多久', () => {
     await intervalSelect(wrapper).setValue('4h')
 
     expect(wrapper.emitted('selectAggregationIntervalChoice')).toBeUndefined()
+  })
+
+  it('挑標的那一格由使用端放進來——現貨與合約各從自己的清單挑', () => {
+    const wrapper = mountToolbar()
+
+    expect(wrapper.get('[data-testid="symbol-slot"]').text()).toBe('挑標的那一格')
   })
 })

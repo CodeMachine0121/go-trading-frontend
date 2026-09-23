@@ -2,6 +2,8 @@ import type { TradingSymbolService } from '~/domain/service/trading-symbol-servi
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { TradingSymbolOptionsDto } from '~/domain/models/dto/trading-symbol-options-dto'
 import type { MarketValue } from '~/domain/models/vo/market-vo'
+import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
+import type { ContractTradingSymbolOptionsDto } from '~/domain/models/dto/contract-trading-symbol-options-dto'
 
 /**
  * Application：可查交易標的的用例編排，全程只碰 DTO。
@@ -21,5 +23,17 @@ export class TradingSymbolApplication {
     selectedSymbol: string,
   ): TradingSymbolOptionsDto {
     return this.tradingSymbolService.optionsFor(tradingSymbols, market, selectedSymbol)
+  }
+
+  async listContractTradingSymbols(): Promise<ContractTradingSymbolDto[]> {
+    return this.tradingSymbolService.listContractTradingSymbols()
+  }
+
+  /** 挑合約那一格這一次該長什麼樣子。 */
+  contractOptionsFor(
+    contractTradingSymbols: readonly ContractTradingSymbolDto[],
+    selectedSymbol: string,
+  ): ContractTradingSymbolOptionsDto {
+    return this.tradingSymbolService.contractOptionsFor(contractTradingSymbols, selectedSymbol)
   }
 }

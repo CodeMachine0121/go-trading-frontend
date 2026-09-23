@@ -1,19 +1,16 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
-import SymbolField from '~/components/molecules/SymbolField.vue'
-import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 function mountForm(props: Record<string, unknown> = {}) {
   return mount(KCandleQueryForm, {
     props: {
-      symbol: 'BTCUSDT',
-      tradingSymbolApplication: buildTradingSymbolApplication(),
       startTime: '2026-08-29T12:00',
       timeZone: buildTimeZone(),
       ...props,
     },
+    slots: { symbol: '<span data-testid="symbol-slot">挑標的那一格</span>' },
   })
 }
 
@@ -43,7 +40,6 @@ describe('KCandleQueryForm', () => {
   })
 
   it.each([
-    { description: '交易標的沒填', field: 'symbolError', message: '請指定交易標的' },
     { description: '開始時間沒填', field: 'startTimeError', message: '請填寫開始時間' },
     { description: '開始時間指向未來', field: 'startTimeError', message: '開始時間不得晚於目前時間' },
   ])('$description 時把訊息標在對應欄位旁', ({ field, message }) => {
@@ -60,11 +56,17 @@ describe('KCandleQueryForm', () => {
     expect(wrapper.find('[data-testid="end-time-input"]').exists()).toBe(false)
   })
 
-  it('使用者改動輸入時把新值往上送', async () => {
+  it('使用者改動開始時間時把新值往上送', async () => {
     const wrapper = mountForm()
 
-    wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', 'ETHUSDT')
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T08:00')
 
-    expect(wrapper.emitted('update:symbol')?.at(-1)).toEqual(['ETHUSDT'])
+    expect(wrapper.emitted('update:startTime')?.at(-1)).toEqual(['2026-08-30T08:00'])
+  })
+
+  it('挑標的那一格由使用端放進來——現貨與合約各從自己的清單挑', () => {
+    const wrapper = mountForm()
+
+    expect(wrapper.get('[data-testid="symbol-slot"]').text()).toBe('挑標的那一格')
   })
 })

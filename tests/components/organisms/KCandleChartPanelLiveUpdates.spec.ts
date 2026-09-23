@@ -19,6 +19,7 @@ import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-applic
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { onADesktop } from '../../fixtures/layout-density'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 const CURRENT_TIME = new Date('2026-09-03T12:00:00.000Z')
 
@@ -80,7 +81,7 @@ async function mountPanel(
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(
-        new KCandleChartService({ ...buildKCandleProxy(), ...kCandleProxy })),
+        new KCandleChartService({ ...buildKCandleProxy(), ...kCandleProxy }, buildKCandleContractProxy())),
       tradingSymbolApplication,
       liveKCandleApplication: buildLiveKCandleApplication(
         { followKCandles: feed.followKCandles }),

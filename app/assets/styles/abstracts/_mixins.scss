@@ -90,6 +90,68 @@
   font-family: font-family('mono');
 }
 
+// 一張「左邊是時間、往右是一排數字」的表：K 線那兩張表（現貨、合約）都照這把尺畫。
+//
+// 時間是每一列的身分，所以它**釘在左邊不跟著捲**：欄數在一支手機上放不下，
+// 表格自己橫向捲，捲到第八欄時如果連時間也一起走掉，讀到的就是一個
+// 不知道屬於哪一分鐘的數字。表頭同樣釘在上面。
+//
+// 釘住的格子必須自己不透明，否則捲過去的數字會從它底下透出來；左上角那一格同時被
+// 兩個方向釘住，所以它要壓在另外兩條之上。
+//
+// 時間報到就好、不與數字爭，所以它比數字淡一階。
+@mixin time-series-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: font-size('xs');
+
+  th,
+  td {
+    border-bottom: 1px solid color('border');
+    padding: spacing('2xs') spacing('sm');
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  // 一整欄的價量數字要能上下對齊著讀
+  td {
+    color: color('text-strong');
+
+    @include numeric;
+  }
+
+  th:first-child,
+  td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: color('surface');
+    text-align: left;
+  }
+
+  td:first-child {
+    color: color('text-muted');
+  }
+
+  th:first-child {
+    z-index: 1;
+    background-color: color('surface-muted');
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background-color: color('surface-muted');
+
+    @include dense-label;
+  }
+
+  tbody tr:hover td,
+  tbody tr:hover td:first-child {
+    background-color: color('surface-muted');
+  }
+}
+
 // 程式碼要看起來像一份檔案，行高、字體與行號欄的寬度就必須到處一致——
 // 算式編輯器、助手圈起來的程式碼、以及任何日後要呈現程式碼的地方，
 // 都照這個 mixin 這把尺畫。

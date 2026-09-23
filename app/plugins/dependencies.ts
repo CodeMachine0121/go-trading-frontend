@@ -1,6 +1,8 @@
 import { BackendHealthProxy } from '~/infrastructure/proxy/backend-health-proxy'
 import { KCandleProxy } from '~/infrastructure/proxy/k-candle-proxy'
 import { TradingSymbolProxy } from '~/infrastructure/proxy/trading-symbol-proxy'
+import { KCandleContractProxy } from '~/infrastructure/proxy/k-candle-contract-proxy'
+import { ContractTradingSymbolProxy } from '~/infrastructure/proxy/contract-trading-symbol-proxy'
 import { IndicatorCalculationProxy } from '~/infrastructure/proxy/indicator-calculation-proxy'
 import { StrategyScriptProxy } from '~/infrastructure/proxy/strategy-script-proxy'
 import { StrategyBotProxy } from '~/infrastructure/proxy/strategy-bot-proxy'
@@ -117,15 +119,21 @@ export default defineNuxtPlugin(() => {
   )
 
   const kCandleApplication = new KCandleApplication(
-    new KCandleService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+    new KCandleService(
+      new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new KCandleContractProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
   const kCandleChartApplication = new KCandleChartApplication(
-    new KCandleChartService(new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+    new KCandleChartService(
+      new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new KCandleContractProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
   const tradingSymbolApplication = new TradingSymbolApplication(
-    new TradingSymbolService(new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+    new TradingSymbolService(
+      new TradingSymbolProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new ContractTradingSymbolProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
   const indicatorCalculationApplication = new IndicatorCalculationApplication(

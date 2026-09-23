@@ -12,6 +12,7 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-08-30T12:00:00.000Z')
@@ -57,7 +58,7 @@ function expectQueriedUntilSubmissionTime(kCandleProxy: IKCandleProxy) {
 async function mountPanel(kCandleProxy: IKCandleProxy, timeZoneIdentifier = 'UTC') {
   const wrapper = mount(KCandleSearchPanel, {
     props: {
-      kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy)),
+      kCandleApplication: new KCandleApplication(new KCandleService(kCandleProxy, buildKCandleContractProxy())),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(timeZoneIdentifier),
     },

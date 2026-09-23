@@ -22,6 +22,7 @@ import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-a
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { onADesktop } from '../../fixtures/layout-density'
+import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -75,7 +76,7 @@ async function mountPanel(overrides: {
   const wrapper = mount(KCandleChartPanel, {
     props: {
       kCandleChartApplication: new KCandleChartApplication(
-        new KCandleChartService(buildKCandleProxy())),
+        new KCandleChartService(buildKCandleProxy(), buildKCandleContractProxy())),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       liveKCandleApplication: buildLiveKCandleApplication(),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
@@ -577,7 +578,7 @@ describe('圖表上的指標：線的顏色', () => {
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(
-          new KCandleChartService(buildKCandleProxy())),
+          new KCandleChartService(buildKCandleProxy(), buildKCandleContractProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(
@@ -645,7 +646,7 @@ describe('圖表上的指標：邊界', () => {
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(
-          new KCandleChartService(emptyChartProxy)),
+          new KCandleChartService(emptyChartProxy, buildKCandleContractProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
@@ -712,7 +713,7 @@ describe('圖表上的指標：邊界', () => {
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(
-          new KCandleChartService(buildKCandleProxy())),
+          new KCandleChartService(buildKCandleProxy(), buildKCandleContractProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication(),
@@ -869,7 +870,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
     const wrapper = mount(KCandleChartPanel, {
       props: {
         kCandleChartApplication: new KCandleChartApplication(
-          new KCandleChartService({ ...buildKCandleProxy(), findKCandleSeries })),
+          new KCandleChartService({ ...buildKCandleProxy(), findKCandleSeries }, buildKCandleContractProxy())),
         tradingSymbolApplication: buildTradingSymbolApplication(),
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({

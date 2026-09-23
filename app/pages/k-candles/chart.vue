@@ -31,7 +31,7 @@ const { layoutDensity } = useLayoutDensity()
 
 <template>
   <ConsoleLayout
-    title="K 線圖表"
+    title="現貨 K 線圖表"
     subtitle="拉遠拉近就是在選要看多長；每根涵蓋多久會跟著換，時間一律照頂欄選定的時區呈現。"
   >
     <template #timezone>

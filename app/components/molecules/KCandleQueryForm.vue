@@ -2,24 +2,24 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
-import SymbolField from '~/components/molecules/SymbolField.vue'
-import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 分子：查詢條件的輸入與送出。
 // 欄位是否有錯由外部傳入——條件合不合法是業務規則，不在元件裡判斷。
 // 結束時間不是欄位：查詢一律查到送出當下，因此表單只收開始時間。
-const { tradingSymbolApplication, timeZone, loading = false, symbolError = null, startTimeError = null } = defineProps<{
-  tradingSymbolApplication: TradingSymbolApplication
+//
+// 挑標的那一格由使用端放進 `symbol` 插槽：現貨從現貨的清單挑、合約從合約的清單挑，
+// 而「查詢條件」這張表單只有一張——開始時間與送出的規則兩條線一模一樣。
+const { timeZone, loading = false, startTimeError = null } = defineProps<{
   timeZone: TimeZoneDto
   loading?: boolean
-  symbolError?: string | null
   startTimeError?: string | null
 }>()
 
 const emit = defineEmits<{ submit: [] }>()
 
-const symbol = defineModel<string>('symbol', { required: true })
+defineSlots<{ symbol: () => unknown }>()
+
 const startTime = defineModel<string>('startTime', { required: true })
 </script>
 
@@ -28,12 +28,9 @@ const startTime = defineModel<string>('startTime', { required: true })
     class="k-candle-query-form"
     @submit.prevent="emit('submit')"
   >
-    <SymbolField
-      v-model="symbol"
-      :trading-symbol-application="tradingSymbolApplication"
-      :error-message="symbolError"
-      class="k-candle-query-form__field"
-    />
+    <div class="k-candle-query-form__field">
+      <slot name="symbol" />
+    </div>
 
     <FormField
       label="開始時間"

@@ -29,8 +29,10 @@ import { useLayoutDensity } from '~/composables/use-layout-density'
 // 到得了，於是讀起來像機器人的一部分，但一份規則可以被好幾台機器人引用，它比
 // 任何一台活得久。
 const DESTINATIONS = [
-  { to: '/k-candles', label: 'K 線瀏覽', icon: 'table', primary: false },
-  { to: '/k-candles/chart', label: 'K 線圖表', icon: 'candles', primary: true },
+  { to: '/k-candles', label: '現貨 K 線瀏覽', icon: 'table', primary: false },
+  { to: '/k-candles/chart', label: '現貨 K 線圖表', icon: 'candles', primary: true },
+  { to: '/contract-k-candles', label: '合約 K 線瀏覽', icon: 'document', primary: false },
+  { to: '/contract-k-candles/chart', label: '合約 K 線圖表', icon: 'infinity', primary: false },
   { to: '/strategy-scripts', label: '策略腳本', icon: 'formula', primary: true },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', primary: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
@@ -42,7 +44,7 @@ const DESTINATIONS = [
 /**
  * 底部那一排放哪幾個。
  *
- * 四個，不是八個：一排超過五格之後，每一格就窄到放不下一個讀得出來的名字，
+ * 四個，不是十個：一排超過五格之後，每一格就窄到放不下一個讀得出來的名字，
  * 而沒有名字的圖示等於要使用者猜。挑的是**日常動線**上的那四個——
  * 看圖、寫腳本、我派出去的機器人、隨口問一句——其餘的走「更多」。
  *
@@ -63,7 +65,7 @@ const route = useRoute()
  * 側欄收起來了沒有。
  *
  * **收起來的是那幾個字，不是那幾個地方**：側欄縮成一條只剩圖示的窄邊，
- * 八個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
+ * 十個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
  * 而他多數時候只是想讓圖寬一點。
  *
  * 它是跨畫面共用的狀態（`useState`）而不是這個元件裡的一個 `ref`：
@@ -302,7 +304,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
   // 掛載以前量不到視窗，所以第一次畫出來的一律是側欄那一版（見 useLayoutDensity）。
   // 在手機上，那一版在補正之前會**真的佔掉版面的第一列**，把整個工作區推到摺線以下。
   // 因此這裡還要再擋一次：程式決定要不要渲染它，樣式決定它在這個寬度看不看得見。
-  // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條八個項目的側欄。
+  // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條十個項目的側欄。
   &__rail {
     display: none;
     flex-direction: column;

@@ -114,7 +114,7 @@ const ABSENT_FIGURE = '—'
             :key="kCandle.openTime.toISOString()"
             data-testid="k-candle-row"
           >
-            <td class="k-candle-table__time">
+            <td>
               {{ timeZone.formatDateTime(kCandle.openTime) }}
             </td>
             <td>
@@ -160,11 +160,6 @@ const ABSENT_FIGURE = '—'
   flex: 1;
   min-height: 18rem;
 
-  // 沒有值的那一格：淡化，讓它與旁邊真的是 0 的數字一眼分得開。
-  &__absent {
-    color: color('text-faint');
-  }
-
   &__placeholder {
     margin: auto;
     padding: spacing('2xl') spacing('md');
@@ -179,72 +174,15 @@ const ABSENT_FIGURE = '—'
     overflow: auto;
   }
 
+  // 時間釘在左邊、數字往右排的那一種表，與另一張 K 線表同一把尺。
   &__table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-    font-size: font-size('xs');
+    @include time-series-table;
 
-    th,
-    td {
-      border-bottom: 1px solid color('border');
-      padding: spacing('2xs') spacing('sm');
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    // 一整欄的價量數字要能上下對齊著讀，等寬與定寬數字是為了這件事
-    td {
-      color: color('text-strong');
-
-      @include numeric;
-    }
-
-    // 時間是每一列的身分，所以它**釘在左邊不跟著捲**。
-    //
-    // 十二欄在一支手機上放不下，於是表格自己橫向捲（`__scroller` 那一層）；
-    // 捲到第八欄時如果連時間也一起走掉，讀到的就是一個不知道屬於哪一分鐘的數字。
-    // 釘住它，橫向捲動才是「多看幾欄」而不是「弄丟座標」。
-    //
-    // 釘住的格子必須自己不透明，否則捲過去的數字會從它底下透出來。
-    th:first-child,
-    td:first-child {
-      position: sticky;
-      left: 0;
-      background-color: color('surface');
-      text-align: left;
-    }
-
-    // 左上角那一格同時被兩個方向釘住，所以它要壓在另外兩條之上——
-    // 少了這一行，它會在捲動時被表頭或第一欄蓋掉一半。
-    th:first-child {
-      z-index: 1;
-      background-color: color('surface-muted');
-    }
-
-    tbody tr:hover td:first-child {
-      background-color: color('surface-muted');
-    }
-
-    th {
-      position: sticky;
-      top: 0;
-
-      // sticky 的表頭必須自己不透明，否則捲上來的列會從它底下透出來。
-      background-color: color('surface-muted');
-
-      @include dense-label;
-    }
-
-    tbody tr:hover td {
-      background-color: color('surface-muted');
-    }
-
-    // 時間是每一列的身分，不是要互相比較的數字——它報到就好，數字才是主角。
-    // 這條必須住在 &__table 裡面：上面那條 `td` 的顏色比單一個 class 更明確，
-    // 擺在外面的話這行會被它蓋掉，而且不會有任何錯誤提醒你。
-    td.k-candle-table__time {
-      color: color('text-muted');
+    // 沒有值的那一格：淡化，讓它與旁邊真的是 0 的數字一眼分得開。
+    // 這條必須住在 &__table 裡面：表格那條 `td` 的顏色比單一個 class 更明確，
+    // 擺在外面的話它會被蓋掉，而且不會有任何錯誤提醒你。
+    td.k-candle-table__absent {
+      color: color('text-faint');
     }
   }
 }
