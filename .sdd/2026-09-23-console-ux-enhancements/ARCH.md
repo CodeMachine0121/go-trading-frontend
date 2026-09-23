@@ -75,14 +75,14 @@
 
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
-| `BackendApiProxy` | 所有打 go-trading 的請求執行、身分、錯誤翻譯、過期重試 | 建構子第五個參數 `beginWaiting: () => () => void`（預設不做事，測試與既有呼叫端不必改）。`requestBackend` 在 `options.background !== true` 時先 `beginWaiting()`，`finally` 結束——**包在外層**，所以「過期→救回→重送」算同一件 |
+| `BackendApiProxy` | 所有打 go-trading 的請求執行、身分、錯誤翻譯、過期重試 | 建構子的三個回呼收成一份 `BackendRequestHooks`（`onSignedOut`、`recoverSession`、`beginWaiting`，皆有不做事的預設），由組裝根建一次、每一個 proxy 共用。`requestBackend` 在 `options.background !== true` 時先 `beginWaiting()`，`finally` 結束——**包在外層**，所以「過期→救回→重送」算同一件 |
 | `BackendRequestOptions` | 單一請求的選項 | 加 `background?: boolean`：畫面自己定期做、不是使用者在等的那幾發 |
 | `AssistantConversationProxy` | 助手對話 | 新方法 `refreshConversation(id)`：與 `getConversation` 同一條路、同一份翻譯，只多 `background: true`（兩者共用私有 `readConversation(id, background)`——兩個公開方法都用它，過得了門檻） |
 | `IndicatorCalculationProxy` | 指標計算 | 新方法 `recalculateIndicator(domain)`：與 `calculateIndicator` 同一份請求與翻譯，只多 `background: true`（共用私有 helper） |
 | `ChartIndicatorService` / `ChartIndicatorApplication` | 圖上指標計算 | 新 `recalculateChartIndicator(dto)`：與 `calculateChartIndicator` 同一段轉換，只換呼叫 proxy 的那個方法 |
 | `use-chart-indicators` | 圖上指標的畫面狀態 | `calculateOne(appliedIndicator, following = false)`；`recalculateAfterKCandleClosed` 傳 `true` |
 | `use-assistant-conversation` | 助手畫面狀態 | 回頭詢問（`refreshCurrentConversation`）改呼叫 `refreshConversation` |
-| `useStrategyScriptLibrary` | 策略腳本庫的畫面狀態 | `activeAdoptedStrategyScript: Ref<PublishedStrategyScriptDto \| null>`。`selectStrategyScript` 遇到我加入的 → `guardOverwritingDraft(() => viewAdoptedStrategyScript(adopted))`：`applyContent(adopted.toContent())`、`loadedContent = 同一份`、`activeStrategyScript = null`。其餘會換掉工作區的路（載入自己的、開空白、儲存成功）一律把它設回 `null`。`refreshStrategyScripts` 發現它已不在清單上時**不動**（與 `refreshActiveStrategyScript` 同一條規則） |
+| `useStrategyScriptLibrary` | 策略腳本庫的畫面狀態 | `activeAdoptedStrategyScript: Ref<PublishedStrategyScriptDto \| null>`。`selectStrategyScript` 遇到我加入的 → `guardOverwritingDraft(() => { … })`（就地寫在那一個呼叫裡）：`applyContent(adopted.toContent())`、`loadedContent = 同一份`、`activeStrategyScript = null`。另外交出 `readOnly` 與 `namedStrategyScriptId`（畫面不自己判斷）；從清單移除工作區裡那一支時換成一份空白。其餘會換掉工作區的路（載入自己的、開空白、儲存成功）一律把它設回 `null`。`refreshStrategyScripts` 發現它已不在清單上時**不動**（與 `refreshActiveStrategyScript` 同一條規則） |
 | `PublishedStrategyScriptDto` | 市集上的一張卡 | `toContent(): StrategyScriptContentDto` → `('', resultType, parameters)` |
 | `IndicatorCalculationPanel` | 策略腳本那一頁 | `readOnly = computed(() => library.activeAdoptedStrategyScript.value !== null)`；儲存／另存／改名／分享／帶入範例 `:disabled` 加上 `readOnly`；指標值種類 `AppSelect` 停用；上方 `AppAlert tone="info"` 說明；試跑帶 `strategyScriptId`；原本那句「看不到它的算式」通知移除 |
 | `IndicatorScriptEditor` | 算式編輯器外框 | `concealed?: boolean`：為真時不掛 `AppCodeEditor`，改放一行置中說明 |
@@ -150,13 +150,13 @@ flowchart TD
 | 唯讀時照樣試跑得了 | `IndicatorCalculationRequestDto.strategyScriptId` → `IndicatorCalculationProxy`（既有） |
 | 唯讀時照樣回測得了 | `StrategyScriptBacktestPane.strategyScriptId` → `BacktestRequestDto/Domain` → `BacktestProxy` |
 | 離開唯讀挑自己的一支／開空白不必確認 | `loadedContent = adopted.toContent()` → `StrategyScriptDraftDomain.hasUnsavedChanges` 為假 |
-| 有尚未儲存的變更時先確認 | `guardOverwritingDraft` 包住 `viewAdoptedStrategyScript` |
+| 有尚未儲存的變更時先確認 | `guardOverwritingDraft` 包住載入唯讀內容的那一段 |
 | 自己的一支一切照舊 | `activeAdoptedStrategyScript = null` on `loadStrategyScript` |
 | 按了之後要等一會兒／同時兩件／一眨眼／失敗照樣收 | `BackendApiProxy.requestBackend` + `useRequestActivity` |
 | 即時更新不算 | `LiveKCandleProxy` 不經過 `BackendApiProxy` + `recalculateIndicator` 背景 |
 | 助手作答中的回頭詢問不算 | `refreshConversation` 背景 |
 | 按下連線燈的重新檢查也算 | `BackendHealthProxy` 照預設計入 |
-| 換畫面時也走一次 | `app.vue` 的 `page:start/finish` |
+| 換畫面時也走一次 | `useRequestActivity.followNavigation()`（`page:loading:start/end`、`vue:error`） |
 | 寬螢幕側欄／窄螢幕「更多」 | `ConsoleLayout` 的 `DESTINATIONS` |
 | 登入成功沒有原本想去的地方／打開根目錄 | `HOME_PATH` + `pages/index.vue` redirect |
 | 沒登入／已登入／重新整理 | `ssr: false` + `spa-loading-template.html` + `signed-in.global` |

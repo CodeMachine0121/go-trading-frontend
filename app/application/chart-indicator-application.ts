@@ -47,7 +47,7 @@ export class ChartIndicatorApplication {
     return this.chartIndicatorService.calculateChartIndicator(chartIndicatorRequestDto)
   }
 
-  /** 跟著最新那一根重算——畫面自己做的那一次，不是使用者在等的。 */
+  /** 跟著最新那一根重算——一根 K 線走完時的那一次，不是使用者操作觸發的。 */
   async recalculateChartIndicator(
     chartIndicatorRequestDto: ChartIndicatorRequestDto,
   ): Promise<ChartIndicatorDto> {

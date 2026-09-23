@@ -528,7 +528,7 @@ describe('useUserSession：還沒被放行的那一段', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/k-candles/chart')
   })
 
-  it('還沒被放行就不換頁——把他送去首頁，首頁只會再把他送回來', async () => {
+  it('還沒被放行就不換頁——把他送去第一站，第一站只會再把他送回來', async () => {
     userSessionApplication.restoreSession.mockResolvedValue(AWAITING_USER)
     const { recheckActivation } = sessionUnderTest()
 

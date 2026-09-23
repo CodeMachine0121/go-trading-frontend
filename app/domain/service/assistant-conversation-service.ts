@@ -43,7 +43,7 @@ export class AssistantConversationService {
     return conversation.toDomain().toDto()
   }
 
-  /** 回頭詢問：同一段對話再讀一次。那是畫面自己定期做的，不是使用者在等的。 */
+  /** 回頭詢問：作答中定期把同一段對話再讀一次。 */
   async refreshConversation(id: number): Promise<ConversationDto> {
     const conversation = await this.assistantConversationProxy.refreshConversation(id)
 

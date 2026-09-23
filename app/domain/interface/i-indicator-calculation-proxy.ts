@@ -11,7 +11,7 @@ export interface IIndicatorCalculationProxy {
     indicatorCalculationRequestDomain: IndicatorCalculationRequestDomain,
   ): Promise<IndicatorCalculation>
 
-  /** 跟著最新那一根重算：與 `calculateIndicator` 同一件事，但那是畫面自己做的，不是使用者在等的。 */
+  /** 跟著最新那一根重算：與 `calculateIndicator` 同一件事，但它由一根 K 線走完而觸發，不是由使用者的操作。 */
   recalculateIndicator(
     indicatorCalculationRequestDomain: IndicatorCalculationRequestDomain,
   ): Promise<IndicatorCalculation>

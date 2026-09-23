@@ -31,7 +31,7 @@ describe('LayoutDensityDomain 導覽的形狀', () => {
     expect(at(width).usesBottomNavigation).toBe(expected)
   })
 
-  it('導覽的分界比疏密的分界寬——平板放得下寬鬆的表單，放不下九個並排的去處', () => {
+  it('導覽的分界比疏密的分界寬——平板放得下寬鬆的表單，放不下八個並排的去處', () => {
     expect(at(800).density).toBe('compact')
     expect(at(800).usesBottomNavigation).toBe(true)
   })

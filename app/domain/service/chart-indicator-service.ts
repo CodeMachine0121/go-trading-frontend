@@ -143,8 +143,8 @@ export class ChartIndicatorService {
   /**
    * 跟著最新那一根重算：一根走完了，圖上的指標自己重算一次。
    *
-   * 與 `calculateChartIndicator` 交出的東西完全相同；差別只在它是畫面自己做的——
-   * 使用者什麼都沒按，所以它不該讓頂端那條「正在等」的進度條亮起來。
+   * 與 `calculateChartIndicator` 交出的東西完全相同；差別只在觸發它的是一根 K 線走完，
+   * 不是使用者的操作——所以它走 proxy 的另一條路（`recalculateIndicator`）。
    */
   async recalculateChartIndicator(
     chartIndicatorRequestDto: ChartIndicatorRequestDto,

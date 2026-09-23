@@ -133,8 +133,8 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
   })
 
-  it('待開通的人走到登入畫面會被帶到等待開通那一頁，不是首頁', async () => {
-    // 送去首頁的話，首頁又會把他送回這裡——多繞一趟，還在網址列閃一下。
+  it('待開通的人走到登入畫面會被帶到等待開通那一頁，不是第一站', async () => {
+    // 送去第一站的話，第一站又會把他送回這裡——多繞一趟，還在網址列閃一下。
     await walkTo('/login', AWAITING_ACTIVATION_USER)
 
     expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')

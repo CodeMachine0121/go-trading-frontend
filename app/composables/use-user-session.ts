@@ -164,7 +164,7 @@ export function useUserSession(
   }
 
   /**
-   * 取出並用掉「原本想去的那一頁」；沒有就回首頁。用掉之後就忘記，
+   * 取出並用掉「原本想去的那一頁」；沒有就回第一站。用掉之後就忘記，
    * 否則下一次登入會被上一次的目的地牽著走。
    */
   function takeRedirectTo(): string {

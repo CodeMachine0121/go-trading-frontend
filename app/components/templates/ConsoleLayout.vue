@@ -299,7 +299,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     }
   }
 
-  // 伺服器端量不到視窗，所以它畫出來的一律是側欄那一版（見 useLayoutDensity）。
+  // 掛載以前量不到視窗，所以第一次畫出來的一律是側欄那一版（見 useLayoutDensity）。
   // 在手機上，那一版在補正之前會**真的佔掉版面的第一列**，把整個工作區推到摺線以下。
   // 因此這裡還要再擋一次：程式決定要不要渲染它，樣式決定它在這個寬度看不看得見。
   // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條八個項目的側欄。

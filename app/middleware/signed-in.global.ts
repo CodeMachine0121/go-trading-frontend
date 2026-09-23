@@ -59,15 +59,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // 而這兩件事對一個沒登入的人都答不出來。所以它跟其他每一頁一樣要先登入，
     // 不必為它寫一條例外。
     //
-    // 記下他本來要去哪，好在登入成功後把他放回那裡，而不是一律丟到首頁。
+    // 記下他本來要去哪，好在登入成功後把他放回那裡，而不是一律丟到第一站。
     rememberRedirectTo(to.fullPath)
 
     return navigateTo(LOGIN_PATH)
   }
 
   // 還沒被放行的人**只看得到那一頁**，包含登入頁在內——所以這一條要排在
-  // 「已經進門的人不必再看一次門」之前。倒過來的話，他打開登入頁會先被送到首頁，
-  // 再被首頁送回這裡：多繞一趟，還在網址列閃一下。
+  // 「已經進門的人不必再看一次門」之前。倒過來的話，他打開登入頁會先被送到第一站，
+  // 再被第一站送回這裡：多繞一趟，還在網址列閃一下。
   if (awaitingActivation.value) {
     if (goingToPendingApproval) {
       return
