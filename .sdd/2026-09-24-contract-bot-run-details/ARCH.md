@@ -29,7 +29,11 @@
 
 ## 3. New Classes / Modules
 
-無新類別。行為加在既有的 `StrategyBotRunRecordDomain` 上（它本來就是「一輪對畫面的樣子」）。
+| Name | Kind | Responsibility (purpose) | Collaborators | Satisfies |
+| :--- | :--- | :--- | :--- | :--- |
+| `StrategyBotRunSuggestionDomain` | Domain Model | 一輪建議過的部位寫成一句話（現貨／合約兩種寫法、方向詞、出場價有才寫） | `StrategyBotRunRecord` | US-01 全部 |
+
+> 改善階段從 `StrategyBotRunRecordDomain` 拆出：句子規則是建議部位自己的一套規則，留在紀錄的 domain 裡只會是一個單一呼叫者的 private getter。
 
 ---
 
