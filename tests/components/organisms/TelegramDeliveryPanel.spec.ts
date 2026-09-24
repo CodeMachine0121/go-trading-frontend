@@ -59,7 +59,7 @@ describe('TelegramDeliveryPanel：目前的狀態', () => {
     const wrapper = mountConnected()
 
     const connection = wrapper.get('[data-testid="telegram-summary"]').text()
-    expect(connection).toContain('已連線')
+    expect(wrapper.get('[data-testid="telegram-connected"]').text()).toContain('已連線')
     expect(connection).toContain('金鑰結尾 1234')
     expect(connection).toContain('987654')
   })

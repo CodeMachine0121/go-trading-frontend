@@ -3,7 +3,7 @@ import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
-// 分子：一台機器人跑過的那幾輪。
+// 分子：一台機器人跑過的那幾輪，畫成一條由新到舊的時間軸。
 //
 // 它只在被展開時才有東西可畫，所以取資料是上面的事——一份清單裡十台機器人
 // 各自先把自己的歷史撈回來，等於為了一個多數時候沒人展開的區塊打十次後端。
@@ -48,7 +48,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
       還沒跑過。啟動之後，每一輪的結果都會記在這裡。
     </p>
 
-    <ul
+    <ol
       v-else
       class="strategy-bot-run-history__rows"
     >
@@ -56,52 +56,63 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
         v-for="runRecord in runRecords"
         :key="runRecord.runNumber"
         class="strategy-bot-run-history__row"
-        :class="{
-          'strategy-bot-run-history__row--needs-attention': runRecord.needsAttention,
-        }"
+        :class="[
+          `strategy-bot-run-history__row--${runRecord.resultTone}`,
+          { 'strategy-bot-run-history__row--needs-attention': runRecord.needsAttention },
+        ]"
         data-testid="run-history-row"
       >
-        <span class="strategy-bot-run-history__number">Run {{ runRecord.runNumber }}</span>
-        <span class="strategy-bot-run-history__moment">
-          {{ formatDateTimeInTimeZone(runRecord.ranAt, timeZoneIdentifier) }}
-        </span>
-        <AppBadge
-          :variant="runRecord.resultTone"
-          data-testid="run-history-result"
-        >
-          {{ runRecord.resultLabel }}
-        </AppBadge>
-
-        <!--
-          那一輪建議過的數字，**只在建議過的時候**。沒有建議是常態
-          （沒填部位規劃的機器人、判出持有的那幾輪），而一排寫著「—」的欄位
-          會讓這張表讀起來像壞掉的。
-        -->
+        <!-- 軸上的那一點與結果同一個語氣：掃過一整條軸就看得出哪一輪不一樣。 -->
         <span
-          v-if="runRecord.suggestionText !== null"
-          class="strategy-bot-run-history__plan"
-          data-testid="run-history-plan"
-        >
-          {{ runRecord.suggestionText }}
-        </span>
+          class="strategy-bot-run-history__rail"
+          aria-hidden="true"
+        />
 
-        <!--
-          衝突是這一排裡唯一**要人去處理**的一種，所以它自己說出下一步。
-          只多一個詞而不說要做什麼的話，讀的人還是得自己想。
-        -->
-        <span
-          v-if="runRecord.needsAttention"
-          class="strategy-bot-run-history__attention"
-          data-testid="run-history-attention"
-        >
-          買入與賣出同時成立，在改掉其中一邊之前它不會說話
-        </span>
+        <div class="strategy-bot-run-history__body">
+          <div class="strategy-bot-run-history__headline">
+            <span class="strategy-bot-run-history__number">Run {{ runRecord.runNumber }}</span>
+            <AppBadge
+              :variant="runRecord.resultTone"
+              data-testid="run-history-result"
+            >
+              {{ runRecord.resultLabel }}
+            </AppBadge>
+            <span class="strategy-bot-run-history__moment">
+              {{ formatDateTimeInTimeZone(runRecord.ranAt, timeZoneIdentifier) }}
+            </span>
+          </div>
+
+          <!--
+            那一輪建議過的數字，**只在建議過的時候**。沒有建議是常態
+            （沒填部位規劃的機器人、判出持有的那幾輪），而一排寫著「—」的欄位
+            會讓這條軸讀起來像壞掉的。
+          -->
+          <p
+            v-if="runRecord.suggestionText !== null"
+            class="strategy-bot-run-history__plan"
+            data-testid="run-history-plan"
+          >
+            {{ runRecord.suggestionText }}
+          </p>
+
+          <!--
+            衝突是這一排裡唯一**要人去處理**的一種，所以它自己說出下一步，
+            而且墊一塊警示底：只多一個詞而不說要做什麼的話，讀的人還是得自己想。
+          -->
+          <p
+            v-if="runRecord.needsAttention"
+            class="strategy-bot-run-history__attention"
+            data-testid="run-history-attention"
+          >
+            買入與賣出同時成立，在改掉其中一邊之前它不會說話
+          </p>
+        </div>
       </li>
-    </ul>
+    </ol>
 
     <p
       v-if="note !== null && runRecords.length > 0"
-      class="strategy-bot-run-history__plan"
+      class="strategy-bot-run-history__note"
       data-testid="run-history-note"
     >
       {{ note }}
@@ -113,16 +124,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
 .strategy-bot-run-history {
   display: flex;
   flex-direction: column;
-  gap: spacing('2xs');
-  padding: spacing('xs');
-  border-radius: radius('md');
-  background: color('surface');
-
-  &__plan {
-    // 讀起來是註腳而不是一格資料：它是那一輪的來歷，不是那一輪的結論。
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
+  gap: spacing('xs');
 
   &__notice {
     margin: 0;
@@ -137,46 +139,118 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
   &__rows {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  // 一輪一列，三欄對齊：第幾輪、什麼時候、結果。
-  // 對齊才看得出哪一輪跟別的不一樣——那正是打開歷史的人在找的東西。
+  // 一輪一格：左邊是軸，右邊是那一輪。軸線畫在格子的左緣，一格接一格就連成一條。
   &__row {
     display: grid;
-    grid-template-columns: 6rem 1fr auto;
-    align-items: center;
+    grid-template-columns: spacing('md') minmax(0, 1fr);
     gap: spacing('xs');
-    padding: spacing('3xs') 0;
+
+    &:last-child .strategy-bot-run-history__body {
+      border-bottom: none;
+    }
   }
 
-  // 這一列要人去處理。左邊一條線，因為一排紀錄是用掃的——
-  // 掃過去時要看得出哪一列不一樣，而不是每一列都讀完。
-  &__row--needs-attention {
-    border-left: 2px solid color('warning');
-    padding-left: spacing('2xs');
+  // 軸上的一點，底下拖著一條髮絲線通到下一輪。
+  &__rail {
+    position: relative;
+    display: flex;
+    justify-content: center;
+
+    &::before {
+      margin-top: spacing('sm');
+      border-radius: radius('pill');
+      background-color: color('text-faint');
+      width: spacing('xs');
+      height: spacing('xs');
+      content: '';
+    }
+
+    &::after {
+      position: absolute;
+      top: calc(#{spacing('sm')} + #{spacing('xs')});
+      bottom: 0;
+      left: 50%;
+      background-color: color('border');
+      width: 1px;
+      content: '';
+    }
   }
 
-  &__attention {
-    // 跨過整列，不擠在那三欄裡：它是一句話，不是一個欄位。
-    grid-column: 1 / -1;
-    color: color('warning');
-    font-size: font-size('2xs');
+  &__row--success &__rail::before {
+    background-color: color('success');
+  }
+
+  &__row--danger &__rail::before {
+    background-color: color('danger');
+  }
+
+  &__row--warning &__rail::before,
+  &__row--needs-attention &__rail::before {
+    background-color: color('warning');
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    border-bottom: 1px solid color('border');
+    padding: spacing('xs') 0;
+    min-width: 0;
+  }
+
+  &__headline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: spacing('2xs') spacing('xs');
   }
 
   &__number {
-    color: color('text-muted');
+    color: color('text-strong');
+    font-weight: font-weight('semibold');
     font-size: font-size('sm');
-    font-variant-numeric: tabular-nums;
+
+    @include numeric;
   }
 
+  // 時間推到最右邊：先讀第幾輪、結果是什麼，時間是查的時候才看的。
   &__moment {
-    color: color('text');
-    font-size: font-size('sm');
-    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+
+    @include numeric;
+  }
+
+  // 讀起來是註腳而不是一格資料：它是那一輪的來歷，不是那一輪的結論。
+  &__plan {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
+
+    @include numeric;
+  }
+
+  &__attention {
+    margin: spacing('3xs') 0 0;
+    border-radius: radius('sm');
+    background-color: color('warning-soft');
+    padding: spacing('2xs') spacing('xs');
+    color: color('warning');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
+  }
+
+  &__note {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
   }
 }
 </style>

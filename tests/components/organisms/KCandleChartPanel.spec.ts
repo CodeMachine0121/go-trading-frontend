@@ -612,6 +612,19 @@ describe('KCandleChartPanel 立刻更新', () => {
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 
+  it('連不上後端時說連不上，而不是一串內部的端點路徑', async () => {
+    const wrapper = await mountPanel(
+      buildProxy({ catchUpSymbol: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles/catch-up')) }),
+      marketThatCloses())
+
+    await wrapper.get('[data-testid="catch-up-button"]').trigger('click')
+    await flushPromises()
+
+    const message = wrapper.get('[data-testid="catch-up-message"]').text()
+    expect(message).toContain('連不上後端')
+    expect(message).not.toContain('/k-candles/catch-up')
+  })
+
   it('連原因都說不出來時，仍然說一句「補不回來」', async () => {
     // 什麼都不說的話，看的人會以為按了沒反應，然後一直按。
     const wrapper = await mountPanel(

@@ -48,6 +48,7 @@ const startTime = defineModel<string>('startTime', { required: true })
 
     <AppButton
       type="submit"
+      variant="secondary"
       :disabled="loading"
       class="k-candle-query-form__submit"
       data-testid="submit-button"
@@ -58,23 +59,26 @@ const startTime = defineModel<string>('startTime', { required: true })
 </template>
 
 <style scoped lang="scss">
+// 查詢列：一條橫跨結果卡片頂端的窄帶，條件與送出排成一行。
 .k-candle-query-form {
   display: grid;
   gap: spacing('xs') spacing('sm');
 
   // 從上面對齊：欄位的標籤因此排成一條線，而按鈕自己補上那一行的高度（見下方）。
   align-items: start;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 
-  @include respond-to('md') {
-    // 條件只有兩格，剩下的寬度不必分給它們——擺完就靠左收起來，
-    // 一排跨滿整個寬度的輸入框只會讓兩個欄位看起來像八個。
-    grid-template-columns: minmax(10rem, 16rem) minmax(12rem, 18rem) auto;
+  // 兩格條件並排、按鈕跟在後面；再寬也不把兩格拉長——
+  // 一排跨滿整個寬度的輸入框只會讓兩個欄位看起來像八個。
+  @include respond-to('sm') {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 16rem) auto;
     justify-content: start;
   }
 
   &__submit {
-    @include align-with-field-control;
+    @include respond-to('sm') {
+      @include align-with-field-control;
+    }
   }
 }
 </style>

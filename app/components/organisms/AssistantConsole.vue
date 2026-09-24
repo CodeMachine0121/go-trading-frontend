@@ -123,16 +123,9 @@ $list-width: 16rem;
   //
   // **欄數由樣式決定，不由程式決定。** 掛載以前量不到視窗，所以第一次畫出來的
   // 一律是寬螢幕那一版；欄數若跟著程式那個答案走，手機在補正之前會先看到
-  // 一個擠成兩欄的畫面——對話被壓成一條直排的字。樣式沒有這個問題：
-  // 它在第一次畫出來的那一刻就已經是對的。
-  //
-  // 程式那個答案仍然管一件事，但只有一件：**清單要不要收在一顆鍵後面**。
-  // 那是行為，不是版面。
+  // 一個擠成兩欄的畫面。程式那個答案只管一件事：**清單要不要收在一顆鍵後面**。
   display: flex;
   flex-direction: column;
-
-  // 兩塊圓角的面板之間留一道縫，而不是靠一條直線把它們切開——
-  // 直線讀起來是「同一張表格的兩欄」，留縫讀起來是「兩塊各自的東西」。
   gap: spacing('sm');
 
   // 各自捲動，不讓整頁一起捲——輸入框必須一直在原地。
@@ -142,10 +135,10 @@ $list-width: 16rem;
   @include respond-to('md') {
     display: grid;
     grid-template-columns: $list-width minmax(0, 1fr);
+    gap: spacing('md');
   }
 
-  // 這顆鍵只活在窄螢幕那一版，而那一版是 flex column——
-  // 在那裡要它不要撐滿一整條的是 align-self，不是 justify-self（後者只有 grid 認得）。
+  // 這顆鍵只活在窄螢幕那一版（flex column），所以用 align-self 讓它不撐滿一整條。
   &__history-toggle {
     align-self: start;
   }
@@ -165,17 +158,15 @@ $list-width: 16rem;
     flex: 1;
     flex-direction: column;
     border: 1px solid color('border');
-    border-radius: radius('2xl');
+    border-radius: radius('md');
     background-color: color('surface');
     min-height: 0;
-
-    // 圓角要吃到裡面捲動的對話串，否則它的直角會戳出面板的邊。
     overflow: hidden;
   }
 
   &__composer {
-    border-top: 1px solid color('border');
-    padding: spacing('sm') spacing('md');
+    flex: none;
+    padding: 0 spacing('md') spacing('md');
   }
 }
 </style>

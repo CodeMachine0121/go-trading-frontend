@@ -2,7 +2,6 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import MarketplaceStrategyScriptCard from '~/components/molecules/MarketplaceStrategyScriptCard.vue'
 import type { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
@@ -110,7 +109,7 @@ onMounted(reload)
 
 <template>
   <section class="strategy-script-marketplace-panel">
-    <AppPanel title="市集上的策略腳本">
+    <header class="strategy-script-marketplace-panel__toolbar">
       <!--
         常駐說明，不是提示訊息：「看不到算式」是這個地方的規則，任何時候看這一頁的人都需要知道。
       -->
@@ -139,97 +138,118 @@ onMounted(reload)
           data-testid="marketplace-search-input"
         />
       </div>
+    </header>
 
-      <AppAlert
-        v-if="failureMessage"
-        tone="danger"
-        data-testid="marketplace-failure-alert"
-      >
-        {{ failureMessage }}
-      </AppAlert>
+    <AppAlert
+      v-if="failureMessage"
+      tone="danger"
+      data-testid="marketplace-failure-alert"
+    >
+      {{ failureMessage }}
+    </AppAlert>
 
-      <AppAlert
-        v-else-if="noticeMessage"
-        tone="success"
-        data-testid="marketplace-notice"
-      >
-        {{ noticeMessage }}
-      </AppAlert>
+    <AppAlert
+      v-else-if="noticeMessage"
+      tone="success"
+      data-testid="marketplace-notice"
+    >
+      {{ noticeMessage }}
+    </AppAlert>
 
-      <AppAlert
-        v-if="unavailable"
-        tone="danger"
-        data-testid="marketplace-unavailable-alert"
-      >
-        讀不到市集，請確認後端已啟動。
-      </AppAlert>
+    <AppAlert
+      v-if="unavailable"
+      tone="danger"
+      data-testid="marketplace-unavailable-alert"
+    >
+      讀不到市集，請確認後端已啟動。
+    </AppAlert>
 
-      <p
-        v-else-if="loading"
-        class="strategy-script-marketplace-panel__placeholder"
-      >
-        讀取市集中…
-      </p>
+    <p
+      v-else-if="loading"
+      class="strategy-script-marketplace-panel__placeholder"
+    >
+      讀取市集中…
+    </p>
 
-      <p
-        v-else-if="listingRows.length === 0"
-        class="strategy-script-marketplace-panel__placeholder"
-        data-testid="marketplace-empty"
-      >
-        市集上還沒有任何策略腳本。把自己調好的一支分享出來，別人就看得到它了。
-      </p>
+    <p
+      v-else-if="listingRows.length === 0"
+      class="strategy-script-marketplace-panel__placeholder strategy-script-marketplace-panel__placeholder--empty"
+      data-testid="marketplace-empty"
+    >
+      市集上還沒有任何策略腳本。把自己調好的一支分享出來，別人就看得到它了。
+    </p>
 
-      <!--
-        「沒有符合」與「市集上還沒有任何策略腳本」是兩句不同的話，因為它們要人做的事相反：
-        一句要他換個關鍵字，一句要他等別人分享。說成同一句，他會把自己打錯的幾個字
-        讀成「這裡什麼都沒有」，然後就不再回來了。
-      -->
-      <p
-        v-else-if="visibleRows.length === 0"
-        class="strategy-script-marketplace-panel__placeholder"
-        data-testid="marketplace-no-matches"
+    <!--
+      「沒有符合」與「市集上還沒有任何策略腳本」是兩句不同的話，因為它們要人做的事相反：
+      一句要他換個關鍵字，一句要他等別人分享。說成同一句，他會把自己打錯的幾個字
+      讀成「這裡什麼都沒有」，然後就不再回來了。
+    -->
+    <p
+      v-else-if="visibleRows.length === 0"
+      class="strategy-script-marketplace-panel__placeholder strategy-script-marketplace-panel__placeholder--empty"
+      data-testid="marketplace-no-matches"
+    >
+      沒有符合「{{ searchQuery.trim() }}」的策略腳本。
+      <AppButton
+        variant="ghost"
+        size="small"
+        data-testid="marketplace-clear-search"
+        @click="searchQuery = ''"
       >
-        沒有符合「{{ searchQuery.trim() }}」的策略腳本。
-        <AppButton
-          variant="ghost"
-          size="small"
-          data-testid="marketplace-clear-search"
-          @click="searchQuery = ''"
-        >
-          清掉搜尋
-        </AppButton>
-      </p>
+        清掉搜尋
+      </AppButton>
+    </p>
 
-      <ul
-        v-else
-        class="strategy-script-marketplace-panel__list"
-      >
-        <MarketplaceStrategyScriptCard
-          v-for="row in visibleRows"
-          :key="row.strategyScript.id"
-          :row="row"
-          :busy="changingStrategyScriptId === row.strategyScript.id"
-          @adopt="adopt"
-          @abandon="abandon"
-        />
-      </ul>
-    </AppPanel>
+    <ul
+      v-else
+      class="strategy-script-marketplace-panel__list"
+    >
+      <MarketplaceStrategyScriptCard
+        v-for="row in visibleRows"
+        :key="row.strategyScript.id"
+        :row="row"
+        :busy="changingStrategyScriptId === row.strategyScript.id"
+        @adopt="adopt"
+        @abandon="abandon"
+      />
+    </ul>
   </section>
 </template>
 
 <style scoped lang="scss">
 .strategy-script-marketplace-panel {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('sm');
+
+  &__toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+
+    @include respond-to('lg') {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
   &__note {
-    margin: 0 0 spacing('sm');
-    color: color('text-faint');
-    font-size: font-size('2xs');
+    margin: 0;
+    max-width: 44rem;
+    color: color('text-muted');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 
   &__search {
     display: flex;
     align-items: center;
     gap: spacing('xs');
-    margin-bottom: spacing('sm');
+
+    @include respond-to('lg') {
+      flex: 0 0 20rem;
+    }
   }
 
   &__search-label {
@@ -239,11 +259,20 @@ onMounted(reload)
   }
 
   &__placeholder {
+    margin: 0;
     padding: spacing('lg') 0;
     color: color('text-faint');
-    font-size: font-size('xs');
+    font-size: font-size('sm');
+
+    &--empty {
+      border: 1px dashed color('border-strong');
+      border-radius: radius('md');
+      padding: spacing('xl') spacing('md');
+      text-align: center;
+    }
   }
 
+  // 一格一張卡：手機一欄、平板兩欄、寬螢幕三欄——多欄才看得出它們是一組可以挑的東西。
   &__list {
     display: grid;
     gap: spacing('sm');
@@ -251,9 +280,12 @@ onMounted(reload)
     padding: 0;
     list-style: none;
 
-    // 一列一張時每一張都很寬，讀起來像一份表格；兩欄起就看得出它們是一組可以挑的東西。
-    @include respond-to('lg') {
+    @include respond-to('md') {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @include respond-to('xl') {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 }

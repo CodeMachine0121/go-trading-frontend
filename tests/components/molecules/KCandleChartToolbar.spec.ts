@@ -41,7 +41,6 @@ function mountToolbar(
       drawing: 'candlestick' as const,
       loading,
     },
-    slots: { symbol: '<span data-testid="symbol-slot">挑標的那一格</span>' },
   })
 }
 
@@ -110,11 +109,5 @@ describe('圖表上挑一根 K 線涵蓋多久', () => {
     await intervalSelect(wrapper).setValue('4h')
 
     expect(wrapper.emitted('selectAggregationIntervalChoice')).toBeUndefined()
-  })
-
-  it('挑標的那一格由使用端放進來——現貨與合約各從自己的清單挑', () => {
-    const wrapper = mountToolbar()
-
-    expect(wrapper.get('[data-testid="symbol-slot"]').text()).toBe('挑標的那一格')
   })
 })

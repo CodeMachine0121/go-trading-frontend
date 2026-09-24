@@ -136,9 +136,8 @@ const emit = defineEmits<{
 
   &__heading {
     margin: 0;
-    color: color('text-strong');
-    font-weight: font-weight('medium');
-    font-size: font-size('xs');
+
+    @include dense-label;
   }
 
   &__note {
@@ -150,6 +149,8 @@ const emit = defineEmits<{
 
   &__line {
     display: grid;
+    border-bottom: 1px solid color('border');
+    padding: spacing('2xs') 0;
     gap: spacing('2xs');
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
@@ -157,14 +158,14 @@ const emit = defineEmits<{
 
   &__swatch {
     display: inline-block;
-    border-radius: radius('pill');
+    border-radius: radius('xs');
     width: 0.625rem;
     height: 0.625rem;
   }
 
   &__line-name {
-    color: color('text-muted');
-    font-size: font-size('2xs');
+    color: color('text');
+    font-size: font-size('xs');
 
     @include numeric;
   }

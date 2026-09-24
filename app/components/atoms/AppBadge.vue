@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 原子：狀態標籤。語氣由使用端決定，元件本身不認識任何領域概念。
-type BadgeVariant = 'success' | 'danger' | 'neutral' | 'info' | 'warning'
+type BadgeVariant = 'success' | 'danger' | 'neutral' | 'info' | 'warning' | 'accent'
 
 const { variant = 'neutral' } = defineProps<{ variant?: BadgeVariant }>()
 </script>
@@ -50,8 +50,14 @@ const { variant = 'neutral' } = defineProps<{ variant?: BadgeVariant }>()
   }
 
   &--neutral {
+    box-shadow: inset 0 0 0 1px color('border');
     background-color: color('surface-muted');
     color: color('text-muted');
+  }
+
+  &--accent {
+    background-color: color('primary-soft');
+    color: color('primary');
   }
 }
 </style>

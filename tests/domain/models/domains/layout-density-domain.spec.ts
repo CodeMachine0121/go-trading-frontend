@@ -37,16 +37,6 @@ describe('LayoutDensityDomain 導覽的形狀', () => {
   })
 })
 
-describe('LayoutDensityDomain 積木工作檯編不編得動', () => {
-  it.each([
-    { name: '手機上編不動', width: PHONE, expected: false },
-    { name: '差一個像素就到分界，仍然編不動', width: 767, expected: false },
-    { name: '剛好到分界就編得動', width: 768, expected: true },
-  ])('$name', ({ width, expected }) => {
-    expect(at(width).allowsBlockEditing).toBe(expected)
-  })
-})
-
 describe('LayoutDensityDomain K 線控制項的起始狀態', () => {
   it.each([
     { name: '手機上一開始就收起來，高度先讓給圖', width: PHONE, expected: true },
@@ -70,11 +60,10 @@ describe('LayoutDensityDomain 助手蓋不蓋滿畫面', () => {
 describe('LayoutDensityDomain 極端的寬度', () => {
   it('寬度是零時，每一個答案都是窄螢幕那一邊', () => {
     // 量不到寬度也得給一組答案，而窄的那一組在任何寬度下都還能用——
-    // 反過來則會在手機上給出一張改不動的工作檯與一條擠不下的側欄。
+    // 反過來則會在手機上給出一個蓋不住畫面的助手與一條擠不下的側欄。
     expect(at(0)).toEqual({
       density: 'roomy',
       usesBottomNavigation: true,
-      allowsBlockEditing: false,
       startsChartControlsCollapsed: true,
       assistantCoversScreen: true,
     })

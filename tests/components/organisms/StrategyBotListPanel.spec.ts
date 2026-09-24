@@ -37,6 +37,7 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
 function mountPanel(
   overrides: Partial<StrategyBotApplication> = {},
   marketDataKind: MarketDataKind = 'kCandle',
+  showsDetailInline = false,
 ) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
@@ -55,6 +56,7 @@ function mountPanel(
       strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
       page: new MarketDataKindDomain(marketDataKind).toStrategyBotPageDto(),
       timeZoneIdentifier: 'Asia/Taipei',
+      showsDetailInline,
     },
     // 連結要照樣渲染出 href：那正是這幾條測試在問的事。
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
@@ -394,5 +396,69 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="run-history-note"]').exists()).toBe(shown)
+  })
+})
+
+describe('StrategyBotListPanel 選中一台之後', () => {
+  const twoBots = () => vi.fn().mockResolvedValue([
+    botDto(1, '早盤突破', stoppedState()),
+    botDto(2, '收盤反轉', runningState()),
+  ])
+
+  it.each([
+    { showsDetailInline: false, name: '寬螢幕：紀錄在清單旁邊，標題是那一台', besideList: true },
+    { showsDetailInline: true, name: '手機：紀錄展開在那一台底下，沒有旁邊那一塊', besideList: false },
+  ])('$name', async ({ showsDetailInline, besideList }) => {
+    const { wrapper } = mountPanel({ listStrategyBots: twoBots() }, 'kCandle', showsDetailInline)
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="bot-history-toggle"]')[1]!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-detail"]').exists()).toBe(besideList)
+    if (besideList) {
+      expect(wrapper.get('[data-testid="bot-detail"]').text()).toContain('收盤反轉')
+    }
+    // 不論在哪裡，紀錄都只出現一份，而且屬於按下去的那一台。
+    expect(wrapper.findAll('[data-testid="run-history-empty"]')).toHaveLength(1)
+    const rows = wrapper.findAll('[data-testid="bot-row"]')
+    expect(rows[0]!.find('[data-testid="run-history-empty"]').exists()).toBe(false)
+    expect(rows[1]!.find('[data-testid="run-history-empty"]').exists()).toBe(showsDetailInline)
+  })
+
+  it('旁邊那一塊關得掉，關掉就是收起紀錄', async () => {
+    const { wrapper } = mountPanel({ listStrategyBots: twoBots() })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-detail-close"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-detail"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="bot-history-toggle"]').text()).toContain('執行紀錄')
+  })
+
+  it('清單上方只數得出清單上有的：全部幾台、幾台執行中、幾台停擺', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botDto(1, '早盤突破', stoppedState()),
+        botDto(2, '收盤反轉', runningState()),
+        botDto(3, '午盤回檔', haltedState()),
+      ]),
+    })
+    await flushPromises()
+
+    const summary = wrapper.get('[data-testid="bot-summary"]').text()
+    expect(summary).toContain('全部3')
+    expect(summary).toContain('執行中1')
+    expect(summary).toContain('停擺1')
+  })
+
+  it('一台都沒有時不畫那一條數字', async () => {
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-summary"]').exists()).toBe(false)
   })
 })

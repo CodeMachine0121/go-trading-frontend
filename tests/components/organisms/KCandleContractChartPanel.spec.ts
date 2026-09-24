@@ -42,6 +42,19 @@ function buildKCandleContract(openTime: string, closePrice: string): KCandleCont
   )
 }
 
+/** 一根三條價格線都有記錄的合約 K 線。 */
+function buildKCandleContractWithLines(markClose: string, indexClose: string, premiumClose: string): KCandleContract {
+  const lineClosingAt = (close: string) => new ContractPriceLineVo(
+    new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal(close))
+
+  return new KCandleContract(
+    'BTCUSDT', new Date('2026-09-23T11:59:00.000Z'),
+    new Decimal('100'), new Decimal('130'), new Decimal('90'), new Decimal('110'),
+    new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
+    3, lineClosingAt(markClose), lineClosingAt(indexClose), lineClosingAt(premiumClose),
+  )
+}
+
 function contractSeriesOf(kCandleContracts: KCandleContract[], interval = '15m'): KCandleContractSeriesVo {
   return new KCandleContractSeriesVo(kCandleContracts, aggregationIntervalOf(interval))
 }
@@ -351,7 +364,58 @@ describe('KCandleContractChartPanel', () => {
         contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
     }))
 
-    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['看什麼', 'BTCUSDT'])
+    // 圖在前、「看什麼」在旁邊那一欄（手機上排在圖的後面）。
+    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['BTCUSDT', '看什麼'])
+  })
+
+  it.each([
+    [
+      '三條都有記錄時照最新那一根說',
+      () => [
+        buildKCandleContract('2026-09-23T11:00:00.000Z', '110'),
+        buildKCandleContractWithLines('7777', '7770', '0.0003'),
+      ],
+      ['7777', '7770', '0.0003'],
+    ],
+    [
+      '沒有記錄的那一條畫成「—」，不是零',
+      () => [buildKCandleContract('2026-09-23T11:45:00.000Z', '110')],
+      ['7777', '—', '—'],
+    ],
+  ])('行情摘要上的標記價格、指數價格與溢價指數：%s', async (_label, kCandleContracts, expected) => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf(kCandleContracts())),
+    }))
+
+    expect([
+      wrapper.get('[data-testid="mark-price-stat"]').text(),
+      wrapper.get('[data-testid="index-price-stat"]').text(),
+      wrapper.get('[data-testid="premium-index-stat"]').text(),
+    ]).toEqual([
+      `標記價格${expected[0]}`, `指數價格${expected[1]}`, `溢價指數${expected[2]}`,
+    ])
+  })
+
+  it('那三條說出自己是哪一根的，不被當成即時的現價', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([
+        buildKCandleContractWithLines('7777', '7770', '0.0003'),
+      ])),
+    }))
+
+    expect(wrapper.get('[data-testid="contract-prices-at"]').text())
+      .toBe(`記錄於 ${buildTimeZone('UTC').formatDateTime(new Date('2026-09-23T11:59:00.000Z'))}`)
+  })
+
+  it('標記價格那三條不另外去問——它們跟著圖那一批一起來', async () => {
+    const findKCandleContractsInRange = vi.fn().mockResolvedValue([])
+    await mountPanel(buildKCandleContractProxy({
+      findKCandleContractSeries: vi.fn().mockResolvedValue(
+        contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
+      findKCandleContractsInRange,
+    }))
+
+    expect(findKCandleContractsInRange).not.toHaveBeenCalled()
   })
 
   it('收起「看什麼」之後，沒有指標那一句照樣在', async () => {

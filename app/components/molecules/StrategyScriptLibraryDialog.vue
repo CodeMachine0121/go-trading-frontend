@@ -1,34 +1,28 @@
 <script setup lang="ts">
-import AppButton from '~/components/atoms/AppButton.vue'
-import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
+import StrategyScriptLibraryList from '~/components/molecules/StrategyScriptLibraryList.vue'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 
-// 分子：留著的每一支策略腳本，逐列可以載入或刪除。
+// 分子：窄螢幕上的策略腳本清單——同一份清單，收在一張蓋上來的紙裡。
 //
-// 它是覆蓋在畫面上的，不是另一頁——換頁的話，編輯器裡寫到一半的內容
-// 要嘛丟失、要嘛得額外做一套狀態保存。
-//
-// 連不上後端與一支都沒有是兩件事：後者說「還沒有任何策略腳本」，
-// 前者要說連不上。把連線失敗顯示成空清單，會讓人以為自己什麼都沒存過。
+// 寬螢幕上那一份是工作台左邊常駐的一欄；窄螢幕放不下第三欄，
+// 所以它在一顆鍵後面。它是覆蓋在畫面上的，不是另一頁——換頁的話，
+// 編輯器裡寫到一半的內容要嘛丟失、要嘛得額外做一套狀態保存。
 const {
   open,
   strategyScripts,
   adoptedStrategyScripts,
   errorMessage = null,
   activeStrategyScriptId = null,
+  activeAdoptedStrategyScriptId = null,
 } = defineProps<{
   open: boolean
-  /** 自己寫的那些。它們帶著算式，所以每一種動作都做得到。 */
   strategyScripts: StrategyScriptDto[]
-  /**
-   * 從市集加入的那些。它們**沒有算式**，所以這裡連「載入」都不提供——
-   * 那不是擋下來，是沒有東西可以載。
-   */
   adoptedStrategyScripts: PublishedStrategyScriptDto[]
   errorMessage?: string | null
   activeStrategyScriptId?: number | null
+  activeAdoptedStrategyScriptId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -45,216 +39,25 @@ const emit = defineEmits<{
     title="策略腳本清單"
     @close="emit('close')"
   >
-    <p
-      v-if="errorMessage"
-      class="strategy-script-library__error"
-      data-testid="strategy-script-library-error"
-    >
-      {{ errorMessage }}
-    </p>
-
-    <p
-      v-else-if="strategyScripts.length === 0 && adoptedStrategyScripts.length === 0"
-      class="strategy-script-library__empty"
-      data-testid="strategy-script-library-empty"
-    >
-      還沒有任何策略腳本。到 Marketplace 看看別人分享了什麼，或自己存一支。
-    </p>
-
-    <h3
-      v-if="strategyScripts.length > 0"
-      class="strategy-script-library__section"
-    >
-      我的策略腳本
-    </h3>
-
-    <ul
-      v-if="strategyScripts.length > 0"
-      class="strategy-script-library__list"
-    >
-      <li
-        v-for="strategyScript in strategyScripts"
-        :key="strategyScript.id"
-        class="strategy-script-library__row"
-        data-testid="strategy-script-library-row"
-      >
-        <span class="strategy-script-library__name">
-          {{ strategyScript.name }}
-          <span
-            v-if="strategyScript.id === activeStrategyScriptId"
-            class="strategy-script-library__active"
-          >使用中</span>
-          <!--
-            分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
-            但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
-            就只能一支一支載進來看那顆按鈕。
-          -->
-          <span
-            v-if="strategyScript.published"
-            class="strategy-script-library__shared"
-            :data-testid="`strategy-script-library-shared-${strategyScript.id}`"
-          >已分享</span>
-        </span>
-
-        <span class="strategy-script-library__actions">
-          <AppButton
-            variant="secondary"
-            size="small"
-            :label="`載入「${strategyScript.name}」`"
-            :data-testid="`strategy-script-library-load-${strategyScript.id}`"
-            @click="emit('load', strategyScript.id)"
-          >
-            <AppIcon
-              name="load"
-              size="small"
-            />
-          </AppButton>
-          <AppButton
-            variant="danger"
-            size="small"
-            :label="`刪除「${strategyScript.name}」`"
-            :data-testid="`strategy-script-library-delete-${strategyScript.id}`"
-            @click="emit('remove', strategyScript.id)"
-          >
-            <AppIcon
-              name="delete"
-              size="small"
-            />
-          </AppButton>
-        </span>
-      </li>
-    </ul>
-
-    <!--
-      加入來的那一段自成一節，而不是混進上面那一份：它們能做的事完全不同，
-      混在一起就得靠每一列自己解釋為什麼少了幾顆按鈕。
-    -->
-    <h3
-      v-if="adoptedStrategyScripts.length > 0"
-      class="strategy-script-library__section"
-      data-testid="strategy-script-library-adopted-section"
-    >
-      我加入的
-    </h3>
-
-    <ul
-      v-if="adoptedStrategyScripts.length > 0"
-      class="strategy-script-library__list"
-    >
-      <li
-        v-for="adopted in adoptedStrategyScripts"
-        :key="adopted.id"
-        class="strategy-script-library__row"
-        :data-testid="`strategy-script-library-adopted-row-${adopted.id}`"
-      >
-        <span class="strategy-script-library__name">
-          {{ adopted.name }}
-          <span class="strategy-script-library__sharer">{{ adopted.publisherEmail }} 分享</span>
-        </span>
-
-        <span class="strategy-script-library__actions">
-          <!--
-            這一列**只有**「移除」。載入、改名、刪除、分享一顆都不給——
-            它沒有算式可以載，也不是我的東西。
-          -->
-          <AppButton
-            variant="danger"
-            size="small"
-            :label="`把「${adopted.name}」從我的清單移除`"
-            :data-testid="`strategy-script-library-abandon-${adopted.id}`"
-            @click="emit('abandon', adopted.id)"
-          >
-            移除
-          </AppButton>
-        </span>
-      </li>
-    </ul>
+    <StrategyScriptLibraryList
+      class="strategy-script-library-dialog"
+      :strategy-scripts="strategyScripts"
+      :adopted-strategy-scripts="adoptedStrategyScripts"
+      :error-message="errorMessage"
+      :active-strategy-script-id="activeStrategyScriptId"
+      :active-adopted-strategy-script-id="activeAdoptedStrategyScriptId"
+      @load="id => emit('load', id)"
+      @remove="id => emit('remove', id)"
+      @abandon="id => emit('abandon', id)"
+    />
   </AppModal>
 </template>
 
 <style scoped lang="scss">
-.strategy-script-library {
-  &__error,
-  &__empty {
-    margin: 0;
-    color: color('text-faint');
-    font-size: font-size('sm');
-  }
-
-  &__error {
-    color: color('danger');
-  }
-
-  &__section {
-    margin: spacing('sm') 0 spacing('2xs');
-    color: color('text-faint');
-    font-weight: font-weight('medium');
-    font-size: font-size('2xs');
-  }
-
-  &__shared {
-    margin-left: spacing('2xs');
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
-
-  &__sharer {
-    margin-left: spacing('2xs');
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
-
-  // 一份清單就畫成一份清單：一條一條以髮絲線隔開，不是一疊各自帶框的小卡。
-  // 十支策略腳本疊起來時，十個框會比十行字更難數。
-  &__list {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    padding: 0;
-    list-style: none;
-    overflow: hidden;
-  }
-
-  &__row {
-    display: flex;
-    gap: spacing('md');
-    align-items: center;
-    justify-content: space-between;
-    padding: spacing('2xs') spacing('xs') spacing('2xs') spacing('sm');
-
-    &:not(:last-child) {
-      border-bottom: 1px solid color('border');
-    }
-
-    &:hover {
-      background-color: color('surface-muted');
-    }
-  }
-
-  &__name {
-    display: flex;
-    gap: spacing('xs');
-    align-items: center;
-    min-width: 0;
-    color: color('text-strong');
-    font-size: font-size('sm');
-  }
-
-  &__active {
-    flex: none;
-    border-radius: radius('sm');
-    background-color: color('primary-soft');
-    padding: 0 spacing('2xs');
-    color: color('primary');
-    font-size: font-size('2xs');
-  }
-
-  &__actions {
-    display: flex;
-    flex: none;
-    gap: spacing('2xs');
-  }
+// 對話框自己的內距之內再畫一圈外框：清單一列一列貼齊這一圈，不必各自帶框。
+.strategy-script-library-dialog {
+  border: 1px solid color('border');
+  border-radius: radius('md');
+  overflow: hidden;
 }
 </style>

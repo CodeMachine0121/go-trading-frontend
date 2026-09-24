@@ -39,17 +39,18 @@ const notice = ref(takeSignInNotice())
 
 <style scoped lang="scss">
 .login-page {
+  // 窄螢幕：卡片就是整個畫面，從上往下排；寬螢幕：一張置中的卡片。
   display: flex;
-  align-items: center;
   justify-content: center;
   background-color: color('background');
-  padding: spacing('lg');
-
-  // 卡片後面那層光暈是它自己的 ::before，畫在 z-index -1 上。
-  // 沒有這一行的話，那個負數會把它推到這一層的底色後面去——也就是看不見。
-  isolation: isolate;
+  padding: spacing('2xl') spacing('xl') spacing('lg');
 
   // 整片視窗都是這一頁：門後面的東西一點都不該露出來。
-  min-height: 100%;
+  min-height: 100dvh;
+
+  @include respond-to('md') {
+    align-items: center;
+    padding: spacing('lg');
+  }
 }
 </style>

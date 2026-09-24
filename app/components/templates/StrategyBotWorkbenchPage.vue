@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
-import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
-import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
 import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
-import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import { useStrategyBotWorkbench } from '~/composables/use-strategy-bot-workbench'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
-// 模板：拼一台機器人那一頁的整個殼。
+// 模板：拼一台機器人那一頁的內容。
 //
 // 新增與編輯共用它，因為那兩件事要做的一模一樣——差別只有「有沒有一台要讀」，
-// 而那是一個參數，不是兩個頁面。
+// 而那是一個參數，不是兩個頁面。頂列的標題說的是哪一邊（現貨／合約），
+// 這一頁在做的是新拼還是改一台，由內容自己的標題說。
 const { strategyBotId, marketDataKind } = defineProps<{
   /** 有值就是改那一台，`null` 就是新拼一台。 */
   strategyBotId: number | null
@@ -24,9 +23,6 @@ const { $strategyBotApplication, $tradingStrategyApplication, $tradingSymbolAppl
 const workbench = useStrategyBotWorkbench(
   $strategyBotApplication, $tradingStrategyApplication, strategyBotId, marketDataKind)
 const page = workbench.page
-
-const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
-const { currentUser, signOut } = useUserSession()
 
 onMounted(() => {
   void workbench.load()
@@ -58,30 +54,28 @@ onBeforeRouteLeave(() => workbench.dirty.value
 </script>
 
 <template>
-  <ConsoleLayout
-    :title="strategyBotId === null ? page.createTitle : page.editTitle"
-    subtitle="挑一份交易策略，說它盯哪個市場、多久看一次。規則本身在交易策略那一頁調——同一份可以讓好幾台機器人一起用。"
-  >
-    <template #status>
-      <BackendStatusIndicator
-        :health="health"
-        :checking="checking"
-        :error-message="errorMessage"
-        @recheck="checkBackendHealth"
-      />
-    </template>
-
-    <template #identity>
-      <SignedInUserBadge
-        v-if="currentUser"
-        :user="currentUser"
-        @sign-out="signOut"
-      />
-    </template>
+  <div class="strategy-bot-workbench">
+    <header class="strategy-bot-workbench__header">
+      <AppButton
+        variant="ghost"
+        size="small"
+        :to="page.listPath"
+        data-testid="workbench-back"
+      >
+        ‹ 回清單
+      </AppButton>
+      <h2
+        class="strategy-bot-workbench__title"
+        data-testid="workbench-title"
+      >
+        {{ strategyBotId === null ? page.createTitle : page.editTitle }}
+      </h2>
+    </header>
 
     <!-- 要被送去另一頁的那一刻也還是「讀取中」：一閃而過的空白表單會讓人以為要新拼一台。 -->
     <p
       v-if="workbench.loading.value || workbench.redirectPath.value !== null"
+      class="strategy-bot-workbench__notice"
       data-testid="workbench-loading"
     >
       讀取中…
@@ -107,5 +101,38 @@ onBeforeRouteLeave(() => workbench.dirty.value
       @save="workbench.save"
       @dirty-change="workbench.markDirty"
     />
-  </ConsoleLayout>
+  </div>
 </template>
+
+<style scoped lang="scss">
+// 一張表單讀起來是一欄：拉得跟寬螢幕一樣寬的話，一格名稱會長到半個畫面，
+// 而眼睛要在每一格之間橫跨整個螢幕。
+.strategy-bot-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('md');
+  margin: 0 auto;
+  width: 100%;
+  max-width: 44rem;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: spacing('2xs');
+  }
+
+  &__title {
+    margin: 0;
+    color: color('text-strong');
+    font-weight: font-weight('bold');
+    font-size: font-size('lg');
+  }
+
+  &__notice {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('sm');
+  }
+}
+</style>

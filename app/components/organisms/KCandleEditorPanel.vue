@@ -2,7 +2,9 @@
 import KCandleForm from '~/components/molecules/KCandleForm.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
+import AppModal from '~/components/atoms/AppModal.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
@@ -15,13 +17,19 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 
 // 有機體：一次 K 線維護的互動。
 // editingKCandle 為 null 代表新增，否則代表修改那一根（身分唯讀）。
-const { kCandleApplication, timeZone, editingKCandle = null, defaultSymbol = '' } = defineProps<{
+//
+// 它有兩種樣子，內容一模一樣：寬螢幕上是表格旁邊的一張卡，手機上是從底部拉出的一張紙。
+const {
+  kCandleApplication, timeZone, editingKCandle = null, defaultSymbol = '', asSheet = false,
+} = defineProps<{
   kCandleApplication: KCandleApplication
   /** 起始時間用哪一個時區填與呈現。 */
   timeZone: TimeZoneDto
   editingKCandle?: KCandleDto | null
   /** 新增時預先帶入的交易標的——沿用使用者正在瀏覽的那一個，才不必在兩處之間抄。 */
   defaultSymbol?: string
+  /** 從底部拉出來，而不是一張擺在表格旁的卡。 */
+  asSheet?: boolean
 }>()
 
 const emit = defineEmits<{ changed: [], cancel: [], busyChange: [boolean] }>()
@@ -48,6 +56,78 @@ const confirmingDelete = ref(false)
 const deleted = ref(false)
 
 const editing = computed(() => editingKCandle !== null)
+const title = computed(() => editing.value ? '修改 K 線' : '新增 K 線')
+
+/**
+ * 照寫入規則即時檢查這份草稿：每改一格就重看一次，與按下儲存時被擋下的是同一套規則、同一句話。
+ * 有任何一條不成立，儲存就按不下去。
+ */
+const draftIssue = computed(() => kCandleApplication.inspectKCandleDraft(buildWriteDto()))
+
+/**
+ * 使用者動過的那幾格。一張剛打開的空白草稿每一格都「還沒填」，
+ * 一打開就滿版紅字等於在罵一個還沒開始的人——所以只有動過的那一格才說話。
+ * 既有的那一根是整份帶進來的，一打開就該照實說（見 onMounted）。
+ */
+const touchedFields = ref(new Set<KCandleWriteField>())
+/** 按過一次儲存之後，每一格都要說話：那是使用者在問「還差什麼」。 */
+const revealsEveryIssue = ref(editingKCandle !== null)
+
+function touchField(field: KCandleWriteField) {
+  touchedFields.value = new Set(touchedFields.value).add(field)
+}
+
+/**
+ * 標在欄位旁的那一句：送出時後端那一側擋下的優先（它說的是剛才那一次），
+ * 否則是即時檢查的結果——只要那一格該說話。
+ */
+const shownFieldError = computed(() => {
+  if (fieldError.value !== null) {
+    return fieldError.value
+  }
+
+  const issue = draftIssue.value
+  if (issue === null || !(revealsEveryIssue.value || touchedFields.value.has(issue.field))) {
+    return null
+  }
+
+  return { field: issue.field, message: issue.message }
+})
+
+// 送出時被擋下的那一句是對「上一次送出的內容」說的。使用者一動手改，那句話就可能已經不成立，
+// 所以一改就收起來——之後由即時檢查接手。
+watch(
+  [symbol, openTime, open, high, low, close, volume, quoteVolume, takerBuyBaseVolume, takerBuyQuoteVolume],
+  () => {
+    fieldError.value = null
+  },
+)
+
+/** 表單此刻的內容，整理成一份寫入草稿。即時檢查與真的送出看的是同一份。 */
+function buildWriteDto(): KCandleWriteDto {
+  return new KCandleWriteDto(
+    symbol.value,
+    timeZone.parseMinuteInput(openTime.value),
+    open.value,
+    high.value,
+    low.value,
+    close.value,
+    volume.value,
+    quoteVolume.value,
+    takerBuyBaseVolume.value,
+    takerBuyQuoteVolume.value,
+  )
+}
+
+/**
+ * 關掉這張卡／這張紙。請求還在飛的時候不收：收掉的話，那次結果就沒有人接得住——
+ * 與表單裡那顆取消鍵在送出中是灰的同一個道理。
+ */
+function requestClose() {
+  if (!submitting.value) {
+    emit('cancel')
+  }
+}
 
 onMounted(() => {
   if (editingKCandle === null) {
@@ -82,20 +162,16 @@ watch(() => timeZone, (nextTimeZone, previousTimeZone) => {
 })
 
 async function submitKCandle() {
+  // 按下儲存就是在問「還差什麼」：從這一刻起每一格都說話。
+  // 草稿還有不成立的規則就不送——儲存鍵本來就是灰的，這裡擋的是 Enter 那一條路。
+  revealsEveryIssue.value = true
+  if (draftIssue.value !== null) {
+    return
+  }
+
   startRequest()
 
-  const writeDto = new KCandleWriteDto(
-    symbol.value,
-    timeZone.parseMinuteInput(openTime.value),
-    open.value,
-    high.value,
-    low.value,
-    close.value,
-    volume.value,
-    quoteVolume.value,
-    takerBuyBaseVolume.value,
-    takerBuyQuoteVolume.value,
-  )
+  const writeDto = buildWriteDto()
 
   try {
     if (editing.value) {
@@ -169,15 +245,39 @@ function reportFailure(error: unknown) {
 </script>
 
 <template>
-  <AppPanel
-    :title="editing ? '修改 K 線' : '新增 K 線'"
+  <!--
+    兩種外框、同一份內容：AppModal 在手機上本來就是從底部升起的那一張紙；
+    寬螢幕上它不用對話框，而是一塊擺在表格旁的面板——改的時候還看得到表格。
+  -->
+  <component
+    :is="asSheet ? AppModal : AppPanel"
+    :title="title"
+    :open="asSheet ? true : undefined"
     class="k-candle-editor-panel"
+    :class="{ 'k-candle-editor-panel--sheet': asSheet }"
+    @close="requestClose"
   >
     <template
-      v-if="editing"
+      v-if="editing && !asSheet"
       #meta
     >
       <span class="k-candle-editor-panel__identity">{{ symbol }} · {{ openTime }}</span>
+    </template>
+
+    <template
+      v-if="!asSheet"
+      #actions
+    >
+      <AppButton
+        variant="ghost"
+        size="small"
+        label="關閉"
+        :disabled="submitting"
+        data-testid="editor-dismiss"
+        @click="requestClose"
+      >
+        <AppIcon name="close" />
+      </AppButton>
     </template>
 
     <KCandleForm
@@ -195,9 +295,11 @@ function reportFailure(error: unknown) {
       :time-zone="timeZone"
       :identity-readonly="editing"
       :submitting="submitting"
-      :field-error="fieldError"
+      :field-error="shownFieldError"
+      :savable="draftIssue === null"
       :submit-label="editing ? '儲存變更' : '新增'"
       @submit="submitKCandle"
+      @touch="touchField"
       @cancel="emit('cancel')"
     >
       <template
@@ -206,7 +308,7 @@ function reportFailure(error: unknown) {
       >
         <AppButton
           type="button"
-          variant="danger"
+          variant="danger-ghost"
           :disabled="submitting"
           data-testid="delete-button"
           @click="confirmingDelete = true"
@@ -290,12 +392,12 @@ function reportFailure(error: unknown) {
     >
       連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
     </AppAlert>
-  </AppPanel>
+  </component>
 </template>
 
 <style scoped lang="scss">
 .k-candle-editor-panel {
-  // 維護表單是暫時插進來的一塊，不跟表格搶剩下的高度。
+  // 維護表單是暫時插進來的一塊，不跟表格搶高度。
   flex: none;
 
   // 正在動的是哪一根，寫在標題列上而不是表單裡——

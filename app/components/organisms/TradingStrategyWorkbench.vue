@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
-import AppBadge from '~/components/atoms/AppBadge.vue'
-import TradingStrategyCanvas from '~/components/organisms/TradingStrategyCanvas.vue'
+import FormField from '~/components/molecules/FormField.vue'
+import TradingStrategyConditionCard from '~/components/organisms/TradingStrategyConditionCard.vue'
+import TradingStrategySignalSourceCard from '~/components/organisms/TradingStrategySignalSourceCard.vue'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
@@ -12,31 +14,28 @@ import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-ki
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
+import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 
-// 有機體：拼一份交易策略的整個工作台。
+// 有機體：拼一份交易策略的整個工作檯。
 //
 // 它**不知道自己是在新增還是在改**——收到一份交易策略（或 null），交出一份要存的東西。
 // 知道的話，這裡就會長出兩條各自的路，而它們要做的事其實一模一樣。
 //
-// 整頁只有兩塊：一格名稱，和底下那張**工作檯**。
+// 最上面一列是這份規則的身分：名稱、行情種類，以及（合約的）交易模式，存在同一列。
+// 交易模式在這裡，因為它變的是規則的語意——同一棵條件樹在「賣出＝出清回現金」
+// 與「賣出＝反手做空」兩種讀法下，講的是兩件不同的事。
 //
-// 交易標的與觸發間隔不在這裡：那兩樣說的是「哪一台機器、盯哪裡、多久看一次」，
-// 是機器的事。分開之後，同一份規則才能被好幾台機器人同時用。
+// 交易標的、觸發間隔與部位規劃**不在這裡**：那是機器人的事。分開之後，
+// 同一份規則才能被好幾台機器人同時用。
 //
-// **交易模式在這裡**，而且與名稱同一列：它變的是規則的語意——同一棵條件樹在
-// 「賣出＝出清回現金」與「賣出＝反手做空」兩種讀法下，講的是兩件不同的事。
-//
-// 這裡試過表單、樹、抽屜、矩陣、以及一個點兩下就拼好的零件盤，
-// 每一版得到的評語都一樣：「區塊換位置而已」。那是對的——那幾版真正在做的事
-// 都是「填欄位」，只是欄位排得不同。
-//
-// 工作檯做的是**搬東西**：左邊一個零件架，右邊兩張墊子（買入、賣出）。
-// 把零件拖上墊子、在墊子之間搬、拖回架子就收走。墊子上的順序是使用者自己排的，
-// 而且會被存下來——樹的子節點本來就有順序，所以那不是一個假的自由度。
+// 底下是由上而下三張步驟卡：訊號來源 → 什麼算買入 → 什麼算賣出。
+// 點一張卡，它的設定出現在旁邊（窄螢幕從下方拉出）。一切都用點的，不用拖的，
+// 所以手機上也編得動。
 const {
   editing,
   strategyScriptOptionsByKind,
+  parameterNamesByStrategyScriptId,
   unusableStrategyScriptsByKind,
   shortageByKind,
   marketDataKindOptions,
@@ -49,11 +48,11 @@ const {
   = defineProps<{
   /** 有值就是改那一份，沒有就是新的一份。 */
     editing: TradingStrategyDto | null
-    /** 每一種行情各自挑得到哪幾支策略腳本；零件架只列這一份吃的那一種。 */
+    /** 每一種行情各自挑得到哪幾支策略腳本；訊號來源只挑得到這一份吃的那一種。 */
     strategyScriptOptionsByKind: Readonly<Record<MarketDataKind, readonly { value: number, label: string }[]>>
     /** 每一支策略腳本開得出來的那幾個參數名。 */
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
-    /** 存在、但當不了信號來源的那幾支，以及原因。一塊指著它們的零件要說得出來。 */
+    /** 存在、但當不了訊號來源的那幾支，以及原因。一個指著它們的來源要說得出來。 */
     unusableStrategyScriptsByKind: Readonly<Record<MarketDataKind, Readonly<Record<number, string>>>>
     /** 一支都挑不到時，是哪一種挑不到。挑得到就是 `null`。 */
     shortageByKind: Readonly<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>
@@ -67,7 +66,7 @@ const {
     /** 這一份被成功存過幾次。每多一次，「打開時的樣子」就重新記一次。 */
     savedGeneration: number
     /**
-     * 現在這個寬度代表什麼。這裡用到的是「積木工作檯編不編得動」。
+     * 現在這個寬度代表什麼。這裡用到的是「設定擺在卡旁邊，還是從下方拉出」。
      *
      * 它由上面那一層問來、往下傳：這個有機體因此在任何地方都掛得起來，
      * 包括一個沒有整個應用程式在跑的測試裡。
@@ -84,11 +83,12 @@ const emit = defineEmits<{
 const form = useTradingStrategyForm(
   () => editing,
   () => strategyScriptOptionsByKind[form.marketDataKind.value],
+  () => unusableStrategyScriptsByKind[form.marketDataKind.value],
+  () => parameterNamesByStrategyScriptId,
 )
 
-// 零件架、它挑不得的那幾支與「一支都挑不到」那一句，都跟著這一份吃的行情走。
+// 挑得到的策略腳本與「一支都挑不到」那一句，都跟著這一份吃的行情走。
 const strategyScriptOptions = computed(() => strategyScriptOptionsByKind[form.marketDataKind.value])
-const unusableStrategyScripts = computed(() => unusableStrategyScriptsByKind[form.marketDataKind.value])
 const shortage = computed(() => shortageByKind[form.marketDataKind.value])
 
 /** 已存的那一份寫出它是哪一種行情；它換不了，所以是一句話，不是選單。 */
@@ -98,13 +98,6 @@ const selectedContractTradingMode = computed(
   () => contractTradingModeOptions.find(option => option.value === form.tradingMode.value))
 
 form.reset()
-
-/**
- * 這一組單選鈕共用的名字。
- *
- * 每個實例各不相同，理由與回測那一列相同：兩張表單若同時在頁面上，
- * 共用一個名字會讓兩邊的選項彼此互斥。
- */
 
 /**
  * 這一頁被改過了沒有。
@@ -119,11 +112,18 @@ const pristine = ref(JSON.stringify(form.toWriteDto() ?? form.rejection.value))
 watch(() => savedGeneration, () => {
   pristine.value = JSON.stringify(form.toWriteDto() ?? form.rejection.value)
 })
+const dirty = computed(
+  () => JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
 watchEffect(() => {
-  emit(
-    'dirtyChange',
-    JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
+  emit('dirtyChange', dirty.value)
 })
+
+/** 現在被選著的那一張卡。一次只開一張的設定——兩張同時開，旁邊那一欄就說不清是誰的。 */
+const selectedStep = ref<'sources' | ConditionSideVo | null>(null)
+
+/** 寬螢幕上設定貼在卡旁邊；導覽貼到底部的寬度放不下第二欄，改從下方拉出。 */
+const settingsPlacement = computed(
+  () => (layoutDensity.usesBottomNavigation ? 'sheet' as const : 'beside' as const))
 
 function onSave() {
   const writeDto = form.toWriteDto()
@@ -136,26 +136,32 @@ function onSave() {
 <template>
   <div class="workbench">
     <!--
-      這份交易策略叫什麼：一格就夠。它填一次就不會再動，所以不該佔著畫面——
-      而**拼**這件事會做上半小時。
+      這份交易策略的身分：名稱、行情種類、（合約的）交易模式，與唯一的那一顆儲存鍵。
+      它填一次就不會再動，所以只佔一列——**拼**這件事會做上半小時。
     -->
-    <div class="workbench__identity">
-      <AppInput
-        v-model="form.name.value"
-        type="text"
-        placeholder="交易策略名稱"
-        data-testid="trading-strategy-name-input"
-      />
+    <header class="workbench__identity">
+      <FormField
+        label="交易策略名稱"
+        class="workbench__name"
+      >
+        <AppInput
+          v-model="form.name.value"
+          type="text"
+          placeholder="例如：突破＋動能確認"
+          data-testid="trading-strategy-name-input"
+        />
+      </FormField>
 
       <!--
-        行情種類與名稱同一塊：它說的是「這份規則寫給哪一種行情」，決定零件架上挑得到哪幾支。
-        存過之後它換不了（每一個來源都是照它挑的），所以改成一句話。
+        行情種類決定訊號來源挑得到哪幾支。存過之後它換不了
+        （每一個來源都是照它挑的），所以改成一句話。
       -->
-      <div class="workbench__market">
+      <FormField
+        v-if="!form.marketDataKindLocked.value"
+        label="行情種類"
+      >
         <AppSelect
-          v-if="!form.marketDataKindLocked.value"
           :model-value="form.marketDataKind.value"
-          aria-label="行情種類"
           data-testid="trading-strategy-market-data-kind-select"
           @update:model-value="kind => form.changeMarketDataKind(kind as MarketDataKind)"
         >
@@ -167,18 +173,22 @@ function onSave() {
             {{ kindOption.label }}
           </option>
         </AppSelect>
-        <AppBadge
-          v-else
-          variant="info"
-          data-testid="trading-strategy-market-data-kind-locked"
-        >
-          {{ lockedMarketDataKindLabel }}（存過之後不能換）
-        </AppBadge>
+      </FormField>
+      <AppBadge
+        v-else
+        variant="info"
+        class="workbench__locked"
+        data-testid="trading-strategy-market-data-kind-locked"
+      >
+        {{ lockedMarketDataKindLabel }}（存過之後不能換）
+      </AppBadge>
 
+      <FormField
+        v-if="form.replaysOnContractAccount.value"
+        label="交易模式"
+      >
         <AppSelect
-          v-if="form.replaysOnContractAccount.value"
           :model-value="form.tradingMode.value"
-          aria-label="交易模式"
           data-testid="trading-strategy-trading-mode-select"
           @update:model-value="mode => form.changeTradingMode(mode as ContractTradingMode)"
         >
@@ -190,16 +200,36 @@ function onSave() {
             {{ modeOption.label }}
           </option>
         </AppSelect>
-      </div>
+      </FormField>
 
-      <p
-        v-if="form.replaysOnContractAccount.value && selectedContractTradingMode"
-        class="workbench__hint"
-        data-testid="trading-strategy-trading-mode-description"
+      <!--
+        只有一顆鍵。儲存不離開這一頁，所以一顆叫「取消」的按鈕放在旁邊讀起來像在問取消什麼——
+        而回清單那顆按鈕就在這一頁頂端，說得出自己要去哪。
+      -->
+      <!-- 改過還沒存時說一聲：離開時才被攔下來問，他在那之前不會知道這一頁還沒存。 -->
+      <span
+        v-if="dirty"
+        class="workbench__unsaved"
+        data-testid="trading-strategy-unsaved"
+      >還沒存的改動</span>
+      <AppButton
+        type="button"
+        class="workbench__save"
+        :disabled="saving || form.rejection.value !== null"
+        data-testid="trading-strategy-form-save"
+        @click="onSave"
       >
-        {{ selectedContractTradingMode.description }}
-      </p>
-    </div>
+        {{ saving ? '儲存中…' : '儲存' }}
+      </AppButton>
+    </header>
+
+    <p
+      v-if="form.replaysOnContractAccount.value && selectedContractTradingMode"
+      class="workbench__hint"
+      data-testid="trading-strategy-trading-mode-description"
+    >
+      {{ selectedContractTradingMode.description }}
+    </p>
 
     <AppAlert
       v-if="form.marketDataKindNotice.value !== ''"
@@ -209,40 +239,7 @@ function onSave() {
       {{ form.marketDataKindNotice.value }}
     </AppAlert>
 
-    <TradingStrategyCanvas
-      :editable="layoutDensity.allowsBlockEditing"
-      :sources="form.signalSources.value"
-      :buy-board="form.conditionSides[0].board.value"
-      :sell-board="form.conditionSides[1].board.value"
-      :strategy-script-options="strategyScriptOptions"
-      :interval-options="form.intervalOptions"
-      :parameter-names-by-strategy-script-id="parameterNamesByStrategyScriptId"
-      :unusable-strategy-scripts="unusableStrategyScripts"
-      :can-add="form.canAddSignalSource.value"
-      :signal-source-limit="form.signalSourceLimit"
-      :shortage="shortage"
-      @add="form.addSignalSource"
-      @remove="form.removeSignalSource"
-      @change-label="form.changeSignalSourceLabel"
-      @change-strategy-script="form.changeSignalSourceStrategyScript"
-      @change-interval="form.changeSignalSourceInterval"
-      @change-parameter-value="form.changeSignalSourceParameterValue"
-      @toggle-signal="(side, sourceLabel, signal) => form.conditionSides.find(
-        candidate => candidate.key === side)?.toggleSignal(sourceLabel, signal)"
-      @place="(side, sourceLabel, position) => form.conditionSides.find(
-        candidate => candidate.key === side)?.placeAt(sourceLabel, position)"
-      @take-off="(side, sourceLabel) => form.conditionSides.find(
-        candidate => candidate.key === side)?.takeOff(sourceLabel)"
-      @bundle-onto="(side, sourceLabel, targetLabel) => form.conditionSides.find(
-        candidate => candidate.key === side)?.bundleOnto(sourceLabel, targetLabel)"
-      @unbundle="(side, sourceLabel) => form.conditionSides.find(
-        candidate => candidate.key === side)?.unbundle(sourceLabel)"
-      @change-bundle-operator="(side, itemKey, operator) => form.conditionSides.find(
-        candidate => candidate.key === side)?.changeBundleOperator(itemKey, operator)"
-      @change-operator="(side, operator) => form.conditionSides.find(
-        candidate => candidate.key === side)?.changeOperator(operator)"
-    />
-
+    <!-- 擋下來的原因貼著儲存鍵講，而不是在三張卡的最底下。 -->
     <AppAlert
       v-if="form.rejection.value !== null"
       tone="warning"
@@ -259,20 +256,70 @@ function onSave() {
       {{ failureMessage }}
     </AppAlert>
 
-    <!--
-      只有一顆鍵。儲存不再離開這一頁之後，一顆叫「取消」的按鈕旁邊放著一顆
-      不會離開的「儲存」，讀起來像在問取消什麼——而回清單那顆按鈕就在這一頁頂端，
-      說得出自己要去哪。
-    -->
-    <div class="workbench__actions">
-      <AppButton
-        type="button"
-        :disabled="saving || form.rejection.value !== null"
-        data-testid="trading-strategy-form-save"
-        @click="onSave"
+    <div
+      class="workbench__steps"
+      :class="{ 'workbench__steps--beside': settingsPlacement === 'beside' }"
+    >
+      <TradingStrategySignalSourceCard
+        :sources="form.signalSources.value"
+        :strategy-script-options="strategyScriptOptions"
+        :strategy-script-labels="form.signalSourceStrategyScriptLabels.value"
+        :parameter-summaries="form.signalSourceParameterSummaries.value"
+        :parameter-inputs="form.signalSourceParameterInputs.value"
+        :interval-options="form.intervalOptions"
+        :can-add="form.canAddSignalSource.value"
+        :signal-source-limit="form.signalSourceLimit"
+        :shortage="shortage"
+        :usage-warnings="form.signalSourceUsageWarnings.value"
+        :selected="selectedStep === 'sources'"
+        :settings-placement="settingsPlacement"
+        @select="selectedStep = 'sources'"
+        @close="selectedStep = null"
+        @add="form.addSignalSource"
+        @remove="form.removeSignalSource"
+        @change-label="form.changeSignalSourceLabel"
+        @change-strategy-script="form.changeSignalSourceStrategyScript"
+        @change-interval="form.changeSignalSourceInterval"
+        @change-parameter-value="form.changeSignalSourceParameterValue"
+      />
+
+      <template
+        v-for="conditionSide in form.conditionSides"
+        :key="conditionSide.key"
       >
-        {{ saving ? '儲存中…' : '儲存' }}
-      </AppButton>
+        <!-- 卡與卡之間那一小段線：由上往下讀，就是這份規則怎麼想事情的順序。 -->
+        <div
+          class="workbench__connector"
+          aria-hidden="true"
+        >
+          <span class="workbench__connector-label">
+            {{ conditionSide.connectorWord }}
+          </span>
+        </div>
+
+        <TradingStrategyConditionCard
+          :side="conditionSide.key"
+          :heading="conditionSide.heading"
+          :tone="conditionSide.tone"
+          :board="conditionSide.board.value"
+          :source-labels="form.sourceLabels.value"
+          :signal-options="form.signalOptions"
+          :selected="selectedStep === conditionSide.key"
+          :settings-placement="settingsPlacement"
+          @select="selectedStep = conditionSide.key"
+          @close="selectedStep = null"
+          @change-operator="conditionSide.changeOperator"
+          @change-bundle-operator="conditionSide.changeBundleOperator"
+          @add-clause="conditionSide.addClause"
+          @toggle-signal="conditionSide.toggleSignal"
+          @take-off="conditionSide.takeOff"
+          @bundle-onto="conditionSide.bundleOnto"
+          @bundle-with="conditionSide.bundleWith"
+          @unbundle="conditionSide.unbundle"
+          @split-bundle="conditionSide.splitBundle"
+          @place-at="conditionSide.placeAt"
+        />
+      </template>
     </div>
   </div>
 </template>
@@ -283,33 +330,85 @@ function onSave() {
   flex-direction: column;
   gap: spacing('sm');
 
+  // 排得下就一列，排不下就往下折：名稱最寬，行情種類與交易模式各佔一格，儲存靠右。
   &__identity {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: spacing('2xs');
-    border: 1px solid color('border');
-    border-radius: radius('md');
-    background-color: color('surface');
-    padding: spacing('sm');
-  }
-
-  &__market {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: spacing('2xs');
+    gap: spacing('xs');
+    align-items: flex-end;
+    border: 1px solid color('border');
+    border-radius: radius('lg');
+    background-color: color('surface');
+    padding: spacing('sm');
+
+    > * {
+      flex: 1 1 10rem;
+    }
+  }
+
+  &__unsaved {
+    align-self: center;
+    color: color('warning');
+    font-size: font-size('xs');
+    white-space: nowrap;
+  }
+
+  &__name {
+    flex: 2 1 16rem;
+  }
+
+  &__locked {
+    flex: none;
+    align-self: center;
+  }
+
+  &__save {
+    flex: none;
+    margin-left: auto;
   }
 
   &__hint {
     margin: 0;
     color: color('text-faint');
-    font-size: font-size('2xs');
+    font-size: font-size('xs');
   }
 
-  &__actions {
+  &__steps {
     display: flex;
-    justify-content: flex-end;
-    gap: spacing('2xs');
+    flex-direction: column;
+  }
+
+  &__connector {
+    display: flex;
+    position: relative;
+    justify-content: center;
+    height: spacing('xl');
+
+    // 那條線畫在正中間；寬螢幕上它只跨卡片那一欄，不跨右邊的設定欄。
+    &::before {
+      position: absolute;
+      inset-block: 0;
+      left: 50%;
+      background-color: color('border-strong');
+      width: 1px;
+      content: '';
+    }
+  }
+
+  // 右邊那一欄的寬度與 StepCard 留給設定的那一欄相同，線因此落在卡片的正中間。
+  &__steps--beside &__connector {
+    margin-right: calc(20rem + #{spacing('sm')});
+  }
+
+  &__connector-label {
+    position: relative;
+    align-self: center;
+    border: 1px solid color('border-strong');
+    border-radius: radius('pill');
+    background-color: color('background');
+    padding: 0 spacing('xs');
+    color: color('text-muted');
+    font-size: font-size('2xs');
   }
 }
 </style>

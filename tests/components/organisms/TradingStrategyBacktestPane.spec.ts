@@ -14,7 +14,7 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 const chartLibrary = vi.hoisted(() => {
-  const lineSeries = { setData: vi.fn() }
+  const lineSeries = { setData: vi.fn(), applyOptions: vi.fn() }
 
   return {
     lineSeries,

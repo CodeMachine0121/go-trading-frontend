@@ -4,104 +4,80 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import { useLayoutDensity } from '~/composables/use-layout-density'
 
-// 樣板：全站共用的版面骨架，只有結構與插槽，不綁任何資料。
-//
-// **兩種外框，同一份去處。**
-//
-// 寬螢幕是交易終端機的樣子：導覽收在左邊一條固定的側欄，頂上一條窄帶說「我在哪一個
-// 畫面」，剩下的整片都是工作區。工作區永遠填滿視窗——表格與圖在自己的框裡捲，
-// 不是整頁一起捲。
-//
-// 窄螢幕是一台 app 的樣子：**去處貼在畫面底部**，常用的四個直接露出來，其餘收進
-// 「更多」。這不是把側欄縮小，是換一種東西：
-//
-// - 去處**永遠看得見**。藏在一顆鍵後面的清單，每次換畫面都是兩下（開、選），
-//   而且使用者不按下去就不知道自己還能去哪裡。
-// - 拇指**構得到**。畫面最上緣是單手握著時最遠的地方，而導覽是全站按最多次的東西。
-// - 它是這一類 app 的既有慣例：交易 app 幾乎一律如此（TradingView、Yahoo Finance、
-//   Bloomberg、Fidelity、Stake、Wealthsimple 都是底部一排分頁），使用者不必重新學。
-//
-// 頂上那條窄帶在窄螢幕上也換了角色：它不再是一條有底色的帶子，而是**內容裡的一行
-// 大字**。一條永遠佔著高度的窄帶，在手機上換來的只是少掉一行內容。
-
-// 合約策略腳本緊跟在現貨那一頁後面：同一件事的另一條行情。它不是日常第一動線，
-// 所以收進「更多」，底部那一排仍是四格。
-//
-// 中間那四個照「寫腳本 → 逛市集 → 拼規則 → 派機器人」的順序排：那是同一件事的
-// 四個前後步驟，而交易策略正好是中間那一步——它以前只有機器人清單標頭那一顆按鈕
-// 到得了，於是讀起來像機器人的一部分，但一份規則可以被好幾台機器人引用，它比
-// 任何一台活得久。
+/**
+ * 樣板：操作台的骨架。
+ *
+ * 寬螢幕是「側欄＋頂列＋工作區」，窄螢幕是「頂部標題列＋工作區＋底部五格」。
+ * 它只出骨架與位置：連線燈、帳號、時區、現貨／合約開關、外觀切換與助手鍵
+ * 全部由使用它的那一層用 slot 填進來，樣板不認識任何資料。
+ *
+ * **每個去處在導覽上只佔一格，但認得兩邊的路**：它實際要去哪一邊由 `destinationPaths` 說
+ * （使用者最後停留的那一邊），人在合約 K 線圖表上時「行情圖表」照樣亮著——
+ * 現貨與合約之間靠頂列的開關移動，不在導覽上各佔一格。
+ */
 const DESTINATIONS = [
-  { to: '/k-candles', label: '現貨 K 線瀏覽', icon: 'table', primary: false },
-  { to: '/k-candles/chart', label: '現貨 K 線圖表', icon: 'candles', primary: true },
-  { to: '/contract-k-candles', label: '合約 K 線瀏覽', icon: 'document', primary: false },
-  { to: '/contract-k-candles/chart', label: '合約 K 線圖表', icon: 'infinity', primary: false },
-  { to: '/strategy-scripts', label: '現貨策略腳本', icon: 'formula', primary: true },
-  { to: '/contract-strategy-scripts', label: '合約策略腳本', icon: 'contract-formula', primary: false },
-  { to: '/marketplace', label: 'Marketplace', icon: 'store', primary: false },
-  { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
-  { to: '/strategy-bots', label: '現貨策略機器人', icon: 'standing-bot', primary: true },
-  // 合約策略機器人緊跟在現貨那一台後面，理由與合約策略腳本相同：同一件事的另一條行情，收進「更多」。
-  { to: '/contract-strategy-bots', label: '合約策略機器人', icon: 'contract-bot', primary: false },
-  { to: '/chat', label: 'AI-Assistant', icon: 'sparkle', primary: true },
-  { to: '/settings', label: '設定', icon: 'settings', primary: false },
+  { to: '/k-candles/chart', label: '行情圖表', icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
+  { to: '/k-candles', label: 'K 線資料', icon: 'table', paths: ['/k-candles', '/contract-k-candles'], nested: false },
+  { to: '/strategy-scripts', label: '策略腳本', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
+  { to: '/trading-strategies', label: '交易策略', icon: 'flow', paths: ['/trading-strategies'], nested: true },
+  { to: '/strategy-bots', label: '策略機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
+  { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
 ] as const
 
-/**
- * 底部那一排放哪幾個。
- *
- * 四個，不是十個：一排超過五格之後，每一格就窄到放不下一個讀得出來的名字，
- * 而沒有名字的圖示等於要使用者猜。挑的是**日常動線**上的那四個——
- * 看圖、寫腳本、我派出去的機器人、隨口問一句——其餘的走「更多」。
- *
- * 交易策略不在裡面：一份規則拼好之後就不太動，而底下這四格是每天按很多次的地方。
- */
-const PRIMARY_DESTINATIONS = DESTINATIONS.filter(destination => destination.primary)
-const SECONDARY_DESTINATIONS = DESTINATIONS.filter(destination => !destination.primary)
+const SETTINGS_DESTINATION = { to: '/settings', label: '設定', icon: 'settings', paths: ['/settings'], nested: false } as const
 
-defineProps<{
+/** 窄螢幕底部直接露出來的四格（第五格是「更多」）。 */
+const TAB_DESTINATIONS = [
+  { to: '/k-candles/chart', label: '行情', icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
+  { to: '/strategy-scripts', label: '策略', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
+  { to: '/strategy-bots', label: '機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
+  { to: '/chat', label: '助手', icon: 'sparkle', paths: ['/chat'], nested: false },
+] as const
+
+/** 收在「更多」裡的去處。 */
+const MORE_DESTINATIONS = [
+  DESTINATIONS[1], DESTINATIONS[3], DESTINATIONS[5], SETTINGS_DESTINATION,
+] as const
+
+const { destinationPaths = {} } = defineProps<{
   title: string
   subtitle?: string
+  /**
+   * 這一頁要剛好撐滿視窗、自己在裡面捲（對話串與它的輸入框），而不是讓整頁一起往下長。
+   * 版面因此固定成視窗的高度，工作區吃掉剩下的全部。
+   */
+  fillsViewport?: boolean
+  /**
+   * 導覽上某一格此刻實際要去的路（例如使用者最後切到合約時，「行情圖表」去合約 K 線圖表）。
+   * 沒列在裡面的一格就去它自己的 `to`。樣板不判斷哪一邊，只照這份對照指路。
+   */
+  destinationPaths?: Readonly<Record<string, string>>
 }>()
 
 const { layoutDensity } = useLayoutDensity()
 const route = useRoute()
 
-/**
- * 側欄收起來了沒有。
- *
- * **收起來的是那幾個字，不是那幾個地方**：側欄縮成一條只剩圖示的窄邊，
- * 十個畫面照樣按得到。整條藏起來會逼使用者為了回去而先展開，
- * 而他多數時候只是想讓圖寬一點。
- *
- * 它是跨畫面共用的狀態（`useState`）而不是這個元件裡的一個 `ref`：
- * 每換一個畫面，樣板就重新掛載一次，而使用者收起來的側欄不該在他走到下一頁時彈回來。
- */
+/** 側欄收起來只剩圖示。跨畫面記著，換頁時不會彈回來。 */
 const railStowed = useState('console-rail-stowed', () => false)
 
-/** 「更多」那張紙開著沒有。它是當下的動作，換了畫面就結束，所以不跨畫面共用。 */
 const moreOpen = ref(false)
 
-/**
- * 現在待的這個畫面藏在「更多」裡。
- *
- * 那時候底下四格沒有一格是亮的，而一排全暗的分頁讀起來像「我不在任何地方」。
- * 把「更多」點亮，那一排才說得出使用者現在在哪裡。
- */
-const insideMore = computed(
-  () => SECONDARY_DESTINATIONS.some(destination => destination.to === route.path))
+function pathOf(destination: { to: string }): string {
+  return destinationPaths[destination.to] ?? destination.to
+}
 
-// 走到別的畫面就把那張紙收起來——它的任務在使用者挑完那一刻就結束了。
+function isCurrent(destination: { paths: readonly string[], nested: boolean }): boolean {
+  return destination.paths.some(path => route.path === path
+    || (destination.nested && route.path.startsWith(`${path}/`)))
+}
+
+/** 人在「更多」裡的畫面時，「更多」那一格自己亮——否則整排全暗，讀起來像哪裡都不在。 */
+const insideMore = computed(() => MORE_DESTINATIONS.some(destination => isCurrent(destination)))
+
 watch(() => route.fullPath, () => {
   moreOpen.value = false
 })
 
-/**
- * 視窗變寬到不再需要底部那一排時，把那張紙也收掉。
- *
- * 不收的話那個「開著」會留在狀態裡：使用者把視窗拉寬、再拉窄回來，
- * 紙就自己跳出來，而他沒有按過任何東西。
- */
 watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => {
   if (!usesBottomNavigation) {
     moreOpen.value = false
@@ -115,6 +91,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     :class="{
       'console-layout--stowed': railStowed,
       'console-layout--bottom-navigation': layoutDensity.usesBottomNavigation,
+      'console-layout--fills-viewport': fillsViewport,
     }"
   >
     <nav
@@ -123,13 +100,14 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
       aria-label="操作台"
     >
       <div class="console-layout__brand">
-        <span class="console-layout__brand-mark" />
-        <span class="console-layout__brand-name">go-trading</span>
+        <span class="console-layout__brand-mark">
+          <AppIcon
+            name="candles"
+            size="small"
+          />
+        </span>
+        <span class="console-layout__brand-name">Go Trading</span>
 
-        <!--
-          收起來那顆鍵釘在標記旁邊：收起來之後那裡只剩一個點，
-          而使用者要把側欄拿回來，就得知道去哪裡按——那個位置不能跟著字一起消失。
-        -->
         <AppButton
           variant="ghost"
           size="small"
@@ -151,59 +129,76 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           v-for="destination in DESTINATIONS"
           :key="destination.to"
         >
-          <!--
-            收起來時名字仍然在 DOM 裡，只是看不見：拿掉它，讀螢幕的人聽到的
-            就是八條沒有名字的連結；停在上面的人則靠 title 讀出它是哪一個。
-          -->
           <NuxtLink
-            :to="destination.to"
+            :to="pathOf(destination)"
             class="console-layout__link"
+            :class="{ 'console-layout__link--current': isCurrent(destination) }"
+            :aria-current="isCurrent(destination) ? 'page' : undefined"
             :title="destination.label"
+            :data-testid="`destination-${destination.to}`"
           >
             <AppIcon
               :name="destination.icon"
               size="small"
+              class="console-layout__link-icon"
             />
             <span class="console-layout__link-label">{{ destination.label }}</span>
           </NuxtLink>
         </li>
       </ul>
 
-      <!-- 那顆燈由頁面填進來：樣板只出骨架與位置，不認識任何資料 -->
-      <div class="console-layout__status">
-        <slot name="status" />
-      </div>
+      <div class="console-layout__rail-foot">
+        <NuxtLink
+          :to="SETTINGS_DESTINATION.to"
+          class="console-layout__link"
+          :class="{ 'console-layout__link--current': isCurrent(SETTINGS_DESTINATION) }"
+          :aria-current="isCurrent(SETTINGS_DESTINATION) ? 'page' : undefined"
+          :title="SETTINGS_DESTINATION.label"
+          :data-testid="`destination-${SETTINGS_DESTINATION.to}`"
+        >
+          <AppIcon
+            :name="SETTINGS_DESTINATION.icon"
+            size="small"
+            class="console-layout__link-icon"
+          />
+          <span class="console-layout__link-label">{{ SETTINGS_DESTINATION.label }}</span>
+        </NuxtLink>
 
-      <!--
-        現在是誰在用，同樣由頁面填進來。它釘在那顆燈下面：
-        「線路狀態」與「是誰在線上」是同一類東西，都屬於這條側欄的底部。
-      -->
-      <div class="console-layout__account">
-        <slot name="account" />
+        <div class="console-layout__status">
+          <slot name="status" />
+        </div>
+
+        <div class="console-layout__account">
+          <slot name="account" />
+        </div>
       </div>
     </nav>
 
     <div class="console-layout__frame">
-      <!--
-        三樣東西擺成一個格子，而不是一個「標題組」加一個「控制項組」：
-        窄螢幕上標題與那顆控制項並排、副標自己整行；寬螢幕上三樣同一行。
-        包成兩組的話，副標會被綁在標題旁邊那一欄裡，而那一欄在 390 的螢幕上
-        扣掉時區選單只剩不到三分之一——一句四十個字的說明會被擠成一行六個字。
-      -->
       <header class="console-layout__strip">
-        <h1 class="console-layout__title">
-          {{ title }}
-        </h1>
-        <p
-          v-if="subtitle"
-          class="console-layout__subtitle"
-        >
-          {{ subtitle }}
-        </p>
+        <div class="console-layout__heading">
+          <h1 class="console-layout__title">
+            {{ title }}
+          </h1>
+          <p
+            v-if="subtitle"
+            class="console-layout__subtitle"
+          >
+            {{ subtitle }}
+          </p>
+        </div>
 
-        <!-- 時區選單由頁面填進來：樣板只出骨架與位置，不認識任何資料 -->
-        <div class="console-layout__context">
+        <div class="console-layout__market">
+          <slot name="market" />
+        </div>
+
+        <div
+          v-if="!layoutDensity.usesBottomNavigation"
+          class="console-layout__tools"
+        >
           <slot name="timezone" />
+          <slot name="appearance" />
+          <slot name="assistant" />
         </div>
       </header>
 
@@ -212,23 +207,24 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
       </main>
     </div>
 
-    <!--
-      窄螢幕上的導覽。它是版面的一格（不是浮在內容上），所以內容永遠不會被它蓋住，
-      也不需要任何層級——這一點與一片疊上來的抽屜正好相反。
-    -->
     <nav
       v-if="layoutDensity.usesBottomNavigation"
       class="console-layout__tabs"
       aria-label="操作台"
     >
       <NuxtLink
-        v-for="destination in PRIMARY_DESTINATIONS"
+        v-for="destination in TAB_DESTINATIONS"
         :key="destination.to"
-        :to="destination.to"
+        :to="pathOf(destination)"
         class="console-layout__tab"
+        :class="{ 'console-layout__tab--current': isCurrent(destination) }"
+        :aria-current="isCurrent(destination) ? 'page' : undefined"
         :data-testid="`tab-${destination.to}`"
       >
-        <AppIcon :name="destination.icon" />
+        <AppIcon
+          :name="destination.icon"
+          class="console-layout__tab-icon"
+        />
         <span class="console-layout__tab-label">{{ destination.label }}</span>
       </NuxtLink>
 
@@ -240,15 +236,14 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
         data-testid="tab-more"
         @click="moreOpen = true"
       >
-        <AppIcon name="menu" />
+        <AppIcon
+          name="menu"
+          class="console-layout__tab-icon"
+        />
         <span class="console-layout__tab-label">更多</span>
       </button>
     </nav>
 
-    <!--
-      其餘的去處，加上那顆燈與現在是誰在用——側欄底部那兩樣在窄螢幕上沒有側欄可待，
-      而它們說的是「這條線路現在怎麼了」，與「我還能去哪裡」屬於同一個問題。
-    -->
     <AppModal
       v-if="layoutDensity.usesBottomNavigation"
       :open="moreOpen"
@@ -257,11 +252,11 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     >
       <ul class="console-layout__more-list">
         <li
-          v-for="destination in SECONDARY_DESTINATIONS"
+          v-for="destination in MORE_DESTINATIONS"
           :key="destination.to"
         >
           <NuxtLink
-            :to="destination.to"
+            :to="pathOf(destination)"
             class="console-layout__more-link"
             :data-testid="`more-${destination.to}`"
           >
@@ -279,6 +274,11 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
         </li>
       </ul>
 
+      <div class="console-layout__more-tools">
+        <slot name="timezone" />
+        <slot name="appearance" />
+      </div>
+
       <div class="console-layout__more-footer">
         <slot name="status" />
         <slot name="account" />
@@ -288,119 +288,107 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
 </template>
 
 <style scoped lang="scss">
+$rail-width: 13.5rem;
+$rail-stowed-width: 4rem;
+
+// 底部那一排的高度。它也以 --console-bottom-navigation-height 交給工作區裡的頁面，
+// 讓頁面自己那一排釘在底部的動作鍵停在分頁列之上，而不是被它蓋住。
+$bottom-navigation-height: 3.75rem;
+
 .console-layout {
   display: grid;
-
-  // 窄螢幕：工作區一格，底下那一排分頁一格。分頁是版面的一部分而不是浮在上面，
-  // 所以內容不會有一截藏在它底下，也不必替它保留內距。
-  grid-template-rows: minmax(0, 1fr) auto;
-  height: 100%;
-
-  @include respond-to('lg') {
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-columns: 13rem minmax(0, 1fr);
-  }
+  grid-template-columns: $rail-width minmax(0, 1fr);
+  transition: grid-template-columns duration('normal') ease;
+  background-color: color('background');
+  min-height: 100dvh;
 
   &--stowed {
-    @include respond-to('lg') {
-      grid-template-columns: 3rem minmax(0, 1fr);
-    }
+    grid-template-columns: $rail-stowed-width minmax(0, 1fr);
   }
 
-  // 掛載以前量不到視窗，所以第一次畫出來的一律是側欄那一版（見 useLayoutDensity）。
-  // 在手機上，那一版在補正之前會**真的佔掉版面的第一列**，把整個工作區推到摺線以下。
-  // 因此這裡還要再擋一次：程式決定要不要渲染它，樣式決定它在這個寬度看不看得見。
-  // 兩道各自獨立——少了樣式這一道，第一眼看到的就是一條十個項目的側欄。
-  &__rail {
-    display: none;
+  &--bottom-navigation {
+    --console-bottom-navigation-height: calc(#{$bottom-navigation-height} + env(safe-area-inset-bottom, 0px));
+
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &--fills-viewport {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  &--fills-viewport &__frame {
+    min-height: 0;
+  }
+
+  &--fills-viewport &__workspace {
+    display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-    @include respond-to('lg') {
-      display: flex;
-    }
-
-    gap: spacing('lg');
+  &__rail {
+    display: flex;
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    gap: spacing('3xs');
     border-right: 1px solid color('border');
-    background-color: color('surface');
-    padding: spacing('md') spacing('sm');
-    overflow-y: auto;
+    background-color: color('surface-raised');
+    padding: spacing('sm') spacing('xs');
+    height: 100dvh;
+    overflow: hidden;
   }
 
   &__brand {
     display: flex;
-    flex: none;
     gap: spacing('xs');
     align-items: center;
-    padding: 0 spacing('2xs');
-  }
-
-  &__stow {
-    display: inline-flex;
-    margin-left: auto;
-    color: color('text-faint');
-  }
-
-  // 那個角指著它按下去會往哪裡走：開著時往左（收過去），收著時往右（拉回來）。
-  &__stow-chevron {
-    transition: transform duration('fast') ease;
-    transform: rotate(90deg);
-  }
-
-  &--stowed &__stow {
-    margin-left: 0;
-  }
-
-  &--stowed &__stow-chevron {
-    transform: rotate(-90deg);
-  }
-
-  &__brand-mark {
-    flex: none;
-    border-radius: radius('pill');
-    background-color: color('primary');
-    width: 0.5rem;
-    height: 0.5rem;
-  }
-
-  &__brand-name {
+    padding: spacing('2xs') spacing('2xs') spacing('md');
     color: color('text-strong');
-    font-weight: font-weight('semibold');
-    font-size: font-size('sm');
-    font-family: font-family('mono');
+    font-weight: font-weight('bold');
     white-space: nowrap;
   }
 
-  // 收起來時那幾個字退到看不見，**但留在 DOM 裡**：拿掉它們，
-  // 讀螢幕的人聽到的就是八條沒有名字的連結，而那條側欄等於壞了。
-  &--stowed &__brand-name {
-    @include visually-hidden;
+  &__brand-mark {
+    display: grid;
+    flex: none;
+    place-items: center;
+    border-radius: radius('sm');
+    background-image: linear-gradient(135deg, color('primary'), color('primary-strong'));
+    width: 1.75rem;
+    height: 1.75rem;
+    color: color('text-inverse');
   }
 
-  // 名字不見了，那顆點就不再是標記而只是一個點——三公分寬的邊上，
-  // 它佔的是那顆「把側欄拿回來」的鍵需要的位置。
-  &--stowed &__brand-mark {
-    display: none;
+  &__brand-name {
+    flex: 1;
+    overflow: hidden;
   }
 
+  &__stow-chevron {
+    transform: rotate(180deg);
+    transition: transform duration('normal') ease;
+  }
+
+  &--stowed &__stow-chevron {
+    transform: none;
+  }
+
+  &--stowed &__brand-name,
   &--stowed &__link-label {
     @include visually-hidden;
   }
 
-  // 只剩圖示時，一條左邊留著字距的連結會讓那排圖示歪在一邊。
-  &--stowed &__link {
-    justify-content: center;
-    padding: spacing('xs') 0;
-  }
-
-  // 側欄自己也收窄：留著給文字的內距，那條邊就不是三公分而是四公分。
-  &--stowed &__rail {
-    padding-right: spacing('2xs');
-    padding-left: spacing('2xs');
-  }
-
   &--stowed &__brand {
-    justify-content: center;
-    padding: 0;
+    flex-direction: column;
+  }
+
+  &--stowed &__status,
+  &--stowed &__account {
+    display: none;
   }
 
   &__destinations {
@@ -418,12 +406,14 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     align-items: center;
     transition: background-color duration('fast') ease, color duration('fast') ease;
     border-radius: radius('sm');
-    padding: spacing('xs');
+    padding: spacing('2xs') spacing('xs');
     color: color('text-muted');
+    font-weight: font-weight('medium');
     font-size: font-size('sm');
-    text-decoration: none;
     white-space: nowrap;
+    text-decoration: none;
 
+    @include focus-ring;
     @include tap-target;
 
     &:hover {
@@ -431,150 +421,124 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
       color: color('text-strong');
     }
 
-    // Nuxt 會在目前這條路由的連結上掛 exact-active，讓「我在哪一頁」看得出來。
-    // 除了換底色，左邊還立一條強調色的短邊——一整排文字裡，那條邊比顏色更快被找到。
-    &.router-link-exact-active {
-      box-shadow: inset 2px 0 0 0 color('primary');
+    &--current {
       background-color: color('primary-soft');
-      color: color('primary');
+      color: color('text-strong');
     }
   }
 
-  &__status {
-    flex: none;
+  &__link--current &__link-icon {
+    color: color('primary');
+  }
+
+  &__rail-foot {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('2xs');
     margin-top: auto;
     border-top: 1px solid color('border');
-    padding: spacing('sm') spacing('2xs') 0;
+    padding-top: spacing('sm');
   }
 
+  &__status,
   &__account {
-    flex: none;
-    padding: spacing('2xs') spacing('2xs') 0;
-  }
-
-  // 側欄收起來時那一行電子郵件沒有地方站——三公分寬的邊上，它只會被切成
-  // 兩個字。那顆離開仍然在，因為它是一個動作，而動作只需要一個圖示。
-  &--stowed &__account {
-    padding-right: 0;
-    padding-left: 0;
+    padding: 0 spacing('2xs');
   }
 
   &__frame {
     display: flex;
     flex-direction: column;
     min-width: 0;
-    min-height: 0;
   }
 
-  // 窄螢幕上這不是一條帶子，是內容的第一行：沒有底色、沒有框線，字大一階。
-  // 一條有底色的窄帶會把畫面切成「介面」與「內容」兩塊，而手機上整片都該是內容。
   &__strip {
-    display: grid;
-    flex: none;
-
-    // 窄螢幕：標題與那顆控制項並排，副標自己一整行。
-    //
-    // 第二欄跟著內容長，但那個內容自己有上限（見 `__context`）。
-    // 給軌道一個固定上限是錯的：有三個畫面根本沒有填那個插槽，
-    // 而固定上限的軌道即使裡面空無一物也會把那段寬度佔著不放。
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: spacing('3xs') spacing('sm');
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: z-index('chrome');
+    flex-wrap: wrap;
+    gap: spacing('sm');
     align-items: center;
+    border-bottom: 1px solid color('border');
     background-color: color('background');
-    padding: spacing('sm') spacing('md') spacing('2xs');
+    padding: spacing('xs') spacing('md');
+  }
 
-    @include respond-to('lg') {
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      gap: spacing('md');
-      align-items: baseline;
-      border-bottom: 1px solid color('border');
-      background-color: color('surface');
-      padding: spacing('xs') spacing('md');
-    }
+  &__heading {
+    flex: 1;
+    min-width: 0;
+  }
+
+  // 窄螢幕：標題與開關一行，說明自己一整行、最多兩行——擠在開關旁邊那一欄裡的話，
+  // 一句四十個字的說明會被壓成一行六個字，高度吃掉半個畫面。
+  &--bottom-navigation &__strip {
+    display: grid;
+    grid-template-areas: 'title market' 'subtitle subtitle';
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: spacing('3xs');
+  }
+
+  &--bottom-navigation &__heading {
+    display: contents;
+  }
+
+  &--bottom-navigation &__title {
+    grid-area: title;
+    align-self: center;
+  }
+
+  &--bottom-navigation &__subtitle {
+    display: -webkit-box;
+    grid-area: subtitle;
+    -webkit-box-orient: vertical;
+    margin: 0;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+  }
+
+  &--bottom-navigation &__market {
+    grid-area: market;
   }
 
   &__title {
-    flex: none;
     margin: 0;
-    font-size: font-size('xl');
-
-    @include respond-to('lg') {
-      font-size: font-size('lg');
-    }
+    color: color('text-strong');
+    font-weight: font-weight('bold');
+    font-size: font-size('lg');
+    line-height: line-height('tight');
   }
 
-  // 副標說的是「這個畫面怎麼用」，看過一次就不必再看。窄螢幕上它橫跨整行
-  // （那裡本來就是讀字的地方），寬螢幕上與標題同一行，不多佔高度。
   &__subtitle {
-    grid-column: 1 / -1;
-    margin: 0;
-    color: color('text-faint');
-    font-size: font-size('2xs');
-
-    @include respond-to('lg') {
-      grid-column: 2;
-      grid-row: 1;
-    }
+    margin: spacing('3xs') 0 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
   }
 
-  &__context {
+  &__market,
+  &__tools {
     display: flex;
-    grid-column: 2;
-    grid-row: 1;
     gap: spacing('xs');
     align-items: center;
-    justify-self: end;
-    min-width: 0;
-
-    // 時區選單的字很長（「世界標準時間（UTC+00:00）」），不封頂的話它會佔掉
-    // 三分之二，把一個五個字的標題擠到換行。這一行的主角是「我在哪一個畫面」，
-    // 時區是設好就不太動的偏好。封在元素上而不是軌道上，空插槽才會真的收成零。
-    max-width: 10rem;
-
-    // 光封住這一層不夠：填進來的東西是 flex 的子項，而 flex 子項預設
-    // **不會縮得比自己的內容窄**。那個選單的內容是一串很長的字，於是它撐破
-    // 這一層、再撐破整頁——量出來的視窗會從 390 變成 418。
-    //
-    // `::v-slotted` 是用來管「別人放進我這個位置的東西」的，與伸手去改
-    // 別人家的內部（`:deep`）是兩回事：這裡管的是它在我的版面裡佔多大。
-    ::v-slotted(*) {
-      min-width: 0;
-      max-width: 100%;
-    }
-
-    @include respond-to('lg') {
-      grid-column: 3;
-      max-width: none;
-    }
   }
 
-  // 工作區是唯一會捲的地方，而且它自己就是整片深色底——面板浮在上面。
   &__workspace {
-    display: flex;
     flex: 1;
-    flex-direction: column;
-    gap: spacing('sm');
-    min-height: 0;
-    background-color: color('background');
-    padding: spacing('sm');
-    overflow: auto;
+    padding: spacing('md');
+    min-width: 0;
   }
 
-  // 底部那一排。每一格是一個等寬的直欄：圖示在上、名字在下，整格都按得到。
-  // 同上，反過來：底部那一排在寬螢幕上不該出現，即使有誰把它渲染出來。
   &__tabs {
     display: grid;
-    grid-auto-columns: 1fr;
-    grid-auto-flow: column;
-
-    @include respond-to('lg') {
-      display: none;
-    }
-
+    position: sticky;
+    bottom: 0;
+    grid-template-columns: repeat(5, 1fr);
+    z-index: z-index('chrome');
+    align-content: center;
     border-top: 1px solid color('border');
     background-color: color('surface');
+    padding: 0 spacing('2xs');
+    height: var(--console-bottom-navigation-height);
 
-    // 讓開手機自己的那一條橫條，否則最底下那一排有一半按不到。
     @include safe-area-bottom;
   }
 
@@ -583,71 +547,68 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     flex-direction: column;
     gap: spacing('3xs');
     align-items: center;
-    justify-content: center;
-    transition: color duration('fast') ease;
     border: none;
+    background: none;
     cursor: pointer;
-    background-color: transparent;
-
-    // 一格分頁要放得下一根手指，而且上下都要留出餘地——這是全站按最多次的東西。
-    padding: spacing('xs') spacing('3xs');
-    min-height: 3.25rem;
+    padding: spacing('2xs') 0;
     color: color('text-faint');
+    font-weight: font-weight('medium');
+    font-size: font-size('2xs');
     text-decoration: none;
 
     @include focus-ring;
+    @include tap-target;
 
-    &.router-link-exact-active,
     &--current {
-      color: color('primary');
+      color: color('text-strong');
     }
   }
 
-  &__tab-label {
-    font-size: font-size('2xs');
-    line-height: line-height('tight');
-    white-space: nowrap;
+  &__tab--current &__tab-icon {
+    color: color('primary');
   }
 
   &__more-list {
     display: flex;
     flex-direction: column;
     margin: 0;
-    padding: 0;
+    padding: 0 spacing('md');
     list-style: none;
   }
 
   &__more-link {
-    border-radius: radius('sm');
-    padding: spacing('xs') spacing('2xs');
+    display: flex;
+    gap: spacing('sm');
+    align-items: center;
+    border-bottom: 1px solid color('border');
+    padding: spacing('sm') 0;
     color: color('text');
-    font-size: font-size('md');
     text-decoration: none;
 
-    @include pressable-row;
-
-    &.router-link-exact-active {
-      color: color('primary');
-    }
+    @include focus-ring;
+    @include tap-target;
   }
 
   &__more-label {
     flex: 1;
   }
 
-  // 那個角只是說「按下去會走到別的地方」，不該與名字爭。
   &__more-chevron {
-    flex: none;
     color: color('text-faint');
   }
 
+  &__more-tools,
   &__more-footer {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: spacing('sm');
-    margin-top: spacing('sm');
+    align-items: center;
+    padding: spacing('md');
+  }
+
+  &__more-footer {
+    justify-content: space-between;
     border-top: 1px solid color('border');
-    padding-top: spacing('sm');
   }
 }
 </style>

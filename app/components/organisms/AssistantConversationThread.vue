@@ -12,6 +12,8 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 //
 // 它自己捲動而不是讓整頁一起捲：對話會越來越長，而輸入框必須一直在原地。
 // 新東西出現時捲到底，因為新東西就是使用者在等的東西。
+//
+// 對話還是空的時候，建議提問排在串的最底下——緊貼著輸入框，看到就能點。
 const { messages, pending, rejectionMessage, suggestedPrompts, timeZone } = defineProps<{
   messages: readonly ConversationMessageDto[]
   pending: boolean
@@ -69,11 +71,6 @@ onMounted(scrollToBottom)
       <p class="assistant-conversation-thread__lead">
         用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略腳本，再用一段話回答。
       </p>
-
-      <AssistantSuggestedPrompts
-        :prompts="suggestedPrompts"
-        @select="prompt => emit('selectPrompt', prompt)"
-      />
     </div>
 
     <template v-else>
@@ -93,6 +90,13 @@ onMounted(scrollToBottom)
       :retryable="messages.length > 0"
       @retry="emit('retry')"
     />
+
+    <AssistantSuggestedPrompts
+      v-if="isEmpty"
+      class="assistant-conversation-thread__prompts"
+      :prompts="suggestedPrompts"
+      @select="prompt => emit('selectPrompt', prompt)"
+    />
   </div>
 </template>
 
@@ -101,34 +105,43 @@ onMounted(scrollToBottom)
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: spacing('md');
+  gap: spacing('sm');
   padding: spacing('md');
+  min-height: 0;
   overflow-y: auto;
 
+  // 空的時候那一段置中，建議提問沉到底、貼著輸入框。
   &__empty {
     display: flex;
     flex-direction: column;
-    gap: spacing('md');
+    align-items: center;
+    gap: spacing('sm');
     margin: auto 0;
+    padding: spacing('lg') spacing('md');
+    text-align: center;
   }
 
-  // 空的時候先看到那顆頭像，一眼知道這裡是在跟誰講話。
   &__mark {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: radius('pill');
     background-color: color('primary-soft');
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
     color: color('primary');
   }
 
   &__lead {
     margin: 0;
+    max-width: 28rem;
     color: color('text-muted');
     font-size: font-size('sm');
     line-height: line-height('relaxed');
+  }
+
+  &__prompts {
+    flex: none;
   }
 }
 </style>

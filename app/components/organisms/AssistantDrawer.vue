@@ -10,22 +10,14 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 // 有機體：任何畫面都叫得出來的助手抽屜。
 //
-// 叫出它的那一顆鍵**不在這裡**（見 AssistantTriggerButton）：它可以被拖到畫面上
-// 任何地方，而抽屜永遠靠右——一塊 420 像素的面板跟著一顆鍵到處跑，
-// 會在半數位置把它自己推出視窗。兩者因此是兩個元件。
+// 叫出它的是頂列右上的助手鍵（見 layouts/console），不在這裡；抽屜本身貼齊視窗右緣、
+// 上下通到底，左緣那條邊拉得動寬度。窄螢幕上它蓋滿整個畫面。
 //
-// 抽屜本身不貼齊視窗邊緣，而是**浮在畫面上的一塊圓角卡片**。貼齊邊緣的直角面板
-// 看起來像介面的一部分（於是使用者會找它的關閉在哪、會以為它一直都在），
-// 浮起來的圓角卡片一眼就知道是暫時叫出來的東西。
-//
-// 它掛在 app.vue 而不是塞進 ConsoleLayout：樣板**不得綁任何資料**，
-// 而這一塊要顯示對話。叫出它的鍵因此長在它自己身上（畫面右下的浮動鍵），
-// 這也讓四個既有畫面一行都不必改。
+// 它掛在 app.vue 而不是塞進 ConsoleLayout：樣板**不得綁任何資料**，而這一塊要顯示對話。
 //
 // **開新對話與回到舊對話都在這裡辦得到。** 清單不是常駐的第二欄（420 像素硬塞兩欄
-// 的結果是兩邊都難用），而是**標頭按一下才蓋上來的一層**：開新對話在最上面、
-// 歷史列在下面，這是窄面板裡的既有順序（Bard、Copilot、ChatGPT、Grok 都是這樣）。
-// 挑了一段就把那一層收起來，因為挑完要看的是對話本身。
+// 的結果是兩邊都難用），而是**標頭按一下才蓋上來的一層**。挑了一段就把那一層收起來，
+// 因為挑完要看的是對話本身。要看清單與對話並排，按「展開」到整頁。
 //
 // 對話串與輸入區都是與整頁共用的那兩個元件，所以兩邊不可能講不同的話。
 // 資料一律由上往下傳、事件由下往上 emit——拿資料是接線那一層的事。
@@ -141,15 +133,11 @@ watch(() => open, (isOpen) => {
 
       <header class="assistant-drawer__head">
         <span class="assistant-drawer__title">
-          <span
+          <AppIcon
+            name="sparkle"
+            size="small"
             class="assistant-drawer__mark"
-            aria-hidden="true"
-          >
-            <AppIcon
-              name="sparkle"
-              size="small"
-            />
-          </span>
+          />
           AI-Assistant
         </span>
 
@@ -157,13 +145,13 @@ watch(() => open, (isOpen) => {
           <AppButton
             variant="ghost"
             size="small"
-            shape="circle"
-            label="開新對話"
-            data-testid="assistant-drawer-start-new"
-            @click="startNewConversation()"
+            :label="historyOpen ? '收起歷史對話' : '歷史對話'"
+            :aria-pressed="historyOpen"
+            data-testid="assistant-drawer-history-toggle"
+            @click="toggleHistory()"
           >
             <AppIcon
-              name="new"
+              name="menu"
               size="small"
             />
           </AppButton>
@@ -171,30 +159,29 @@ watch(() => open, (isOpen) => {
           <AppButton
             variant="ghost"
             size="small"
-            shape="circle"
-            :label="historyOpen ? '收起歷史對話' : '歷史對話'"
-            data-testid="assistant-drawer-history-toggle"
-            @click="toggleHistory()"
+            label="開新對話"
+            data-testid="assistant-drawer-start-new"
+            @click="startNewConversation()"
           >
             <AppIcon
-              name="library"
+              name="plus"
               size="small"
             />
           </AppButton>
 
-          <!-- 展開是抽屜裡換對話的唯一去處：清單在整頁那邊 -->
-          <NuxtLink
+          <!-- 展開到整頁：清單與對話並排的地方 -->
+          <AppButton
             to="/chat"
-            class="assistant-drawer__expand"
-            title="展開成整頁"
-            aria-label="展開成整頁"
+            variant="ghost"
+            size="small"
+            label="展開成整頁"
             data-testid="assistant-drawer-expand"
           >
             <AppIcon
               name="expand"
               size="small"
             />
-          </NuxtLink>
+          </AppButton>
 
           <AppButton
             variant="ghost"
@@ -250,32 +237,26 @@ watch(() => open, (isOpen) => {
 </template>
 
 <style scoped lang="scss">
-// 浮起來的卡片與視窗邊緣之間留一圈，讓它看得出是「疊在上面」而不是「介面的一部分」。
-$drawer-inset: 0.75rem;
-
-// 那條邊要細到不佔版面，又寬到抓得住。指標熱區另外用 padding 往外借一點。
-$resize-handle-width: 5px;
+// 那條邊要細到不佔版面，又寬到抓得住。
+$resize-handle-width: 6px;
 
 .assistant-drawer {
   &__panel {
     display: flex;
     position: fixed;
-    top: $drawer-inset;
-    right: $drawer-inset;
-    bottom: $drawer-inset;
+    top: 0;
+    right: 0;
+    bottom: 0;
     flex-direction: column;
-    z-index: z-index('modal');
+
+    // 頂列與底部分頁是 dock 那一層；抽屜要疊在它們之上，又不能蓋過提示訊息。
+    z-index: z-index('dock');
     box-shadow: shadow('lg');
-    border: 1px solid color('border-strong');
-    border-radius: radius('2xl');
+    border-left: 1px solid color('border');
     background-color: color('surface');
 
-    // 寬度由外面給（見 props 上那段），這裡只保證它不會比視窗還寬——
-    // 極窄的瀏覽器上，夾回範圍那條規則守不住的那一段由這一行接手。
-    max-width: calc(100vw - #{$drawer-inset} * 2);
-
-    // 圓角要吃到裡面的標題列與輸入區，否則它們的直角會戳出卡片的邊。
-    overflow: hidden;
+    // 寬度由外面給（見 props 上那段），這裡只保證它不會比視窗還寬。
+    max-width: 100vw;
 
     &--resizing {
       // 拉動中不要選到裡面的文字，也不要讓游標一離開那條邊就變回箭頭。
@@ -283,23 +264,23 @@ $resize-handle-width: 5px;
       user-select: none;
     }
 
-    // 蓋滿整個畫面：那一圈留白與圓角是用來說「我只是疊在上面」的，
-    // 而一塊佔滿螢幕的東西不必說那句話——它就是現在唯一在的東西。
+    // 蓋滿整個畫面：它就是現在唯一在的東西。
     &--full {
-      inset: 0;
-      border: none;
-      border-radius: 0;
+      left: 0;
+      border-left: 0;
+      box-shadow: none;
       width: auto;
-      max-width: none;
+
+      @include safe-area-bottom;
     }
   }
 
-  // 那條邊只有拉動這一個用途，所以它自己就是熱區：貼在卡片左緣、上下通到底。
+  // 那條邊只有拉動這一個用途，所以它自己就是熱區：騎在左緣上、上下通到底。
   &__resize-handle {
     position: absolute;
     top: 0;
-    left: 0;
     bottom: 0;
+    left: calc(#{$resize-handle-width} / -2);
     z-index: 1;
     width: $resize-handle-width;
     cursor: col-resize;
@@ -315,58 +296,36 @@ $resize-handle-width: 5px;
 
   &__head {
     display: flex;
-    justify-content: space-between;
+    flex: none;
     align-items: center;
     gap: spacing('xs');
     border-bottom: 1px solid color('border');
-    background-color: color('surface-raised');
-    padding: spacing('xs') spacing('sm');
+    padding: spacing('xs') spacing('xs') spacing('xs') spacing('md');
   }
 
   &__title {
     display: inline-flex;
+    flex: 1;
     align-items: center;
     gap: spacing('xs');
+    min-width: 0;
     color: color('text-strong');
-    font-weight: font-weight('medium');
+    font-weight: font-weight('semibold');
     font-size: font-size('sm');
   }
 
-  // 標題旁那顆頭像與對話串裡回答的頭像是同一個圓，所以一眼看得出是同一位。
   &__mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: radius('pill');
-    background-color: color('primary-soft');
-    width: 1.5rem;
-    height: 1.5rem;
     color: color('primary');
   }
 
   &__actions {
     display: inline-flex;
+    flex: none;
     align-items: center;
-    gap: spacing('xs');
-  }
-
-  &__expand {
-    display: inline-flex;
-    align-items: center;
-    border-radius: radius('pill');
-    padding: spacing('xs');
-    color: color('text-muted');
-
-    @include focus-ring;
-
-    &:hover {
-      background-color: color('surface-muted');
-      color: color('text-strong');
-    }
+    gap: spacing('3xs');
   }
 
   // 那一層歷史蓋掉對話，而不是擠在它旁邊：420 像素放不下兩欄。
-  // 它自己捲動，所以圓角卡片的邊不會被列表撐開。
   &__history {
     flex: 1;
     border: 0;
@@ -375,8 +334,8 @@ $resize-handle-width: 5px;
   }
 
   &__composer {
-    border-top: 1px solid color('border');
-    padding: spacing('sm');
+    flex: none;
+    padding: 0 spacing('md') spacing('md');
   }
 }
 </style>

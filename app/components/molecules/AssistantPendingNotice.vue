@@ -5,7 +5,7 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 //
 // 它長在提問下面而不是蓋住整頁，因為使用者要看得到自己問了什麼——
 // 一片遮罩會讓那兩分鐘變成「什麼都看不到的兩分鐘」。它的外形與一則回答一樣
-// （圓頭像加一枚圓角泡泡），所以回答回來時是**換內容**，不是換一個形狀。
+// （助手記號加一枚靠左的泡泡），所以回答回來時是**換內容**，不是換一個形狀。
 //
 // 助手一次回答可能來回查好幾次，因此比操作台任何既有操作都久。等超過門檻
 // 就補一句說明：太早講顯得系統很慢，完全不講則讓人以為畫面壞了而去重整——
@@ -61,6 +61,8 @@ onMounted(() => {
 </template>
 
 <style scoped lang="scss">
+$dot-size: 5px;
+
 .assistant-pending-notice {
   display: flex;
   gap: spacing('xs');
@@ -72,34 +74,34 @@ onMounted(() => {
     justify-content: center;
     border-radius: radius('pill');
     background-color: color('primary-soft');
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.5rem;
+    height: 1.5rem;
     color: color('primary');
   }
 
   &__bubble {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: spacing('xs');
-    border-radius: radius('2xl');
-    border-bottom-left-radius: radius('sm');
+    border: 1px solid color('border');
+    border-radius: radius('lg');
+    border-bottom-left-radius: radius('xs');
     background-color: color('surface-muted');
-    padding: spacing('xs') spacing('md');
+    padding: spacing('xs') spacing('sm');
     color: color('text-muted');
-    font-size: font-size('sm');
+    font-size: font-size('xs');
   }
 
   &__dots {
     display: inline-flex;
-    gap: 3px;
-    padding-top: 6px;
+    gap: spacing('3xs');
 
     > span {
       animation: assistant-pending-pulse 1.2s ease-in-out infinite;
       border-radius: radius('pill');
-      background-color: color('text-faint');
-      width: 5px;
-      height: 5px;
+      background-color: color('text-muted');
+      width: $dot-size;
+      height: $dot-size;
 
       &:nth-child(2) {
         animation-delay: 0.2s;
@@ -113,15 +115,16 @@ onMounted(() => {
 
   &__patience {
     display: block;
+    margin-top: spacing('3xs');
     color: color('text-faint');
-    font-size: font-size('xs');
+    font-size: font-size('2xs');
   }
 }
 
 @keyframes assistant-pending-pulse {
   0%,
   100% {
-    opacity: 0.3;
+    opacity: 0.25;
   }
 
   50% {

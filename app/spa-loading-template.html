@@ -22,9 +22,9 @@
     align-items: center;
     justify-content: center;
     inset: 0;
-    background-color: #0b0d10; /* token: $colors.background */
+    background-color: #0a0c10; /* token: $colors.background */
     padding: 1.25rem; /* token: $spacings.lg */
-    font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif; /* token: $font-families.base */
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif; /* token: $font-families.base */
     isolation: isolate;
   }
 
@@ -35,9 +35,9 @@
     align-items: center;
     gap: 1rem; /* token: $spacings.md */
     box-shadow: 0 8px 24px rgb(0 0 0 / 45%); /* token: $shadows.md */
-    border: 1px solid #23282f; /* token: $colors.border */
+    border: 1px solid #222833; /* token: $colors.border */
     border-radius: 0.625rem; /* token: $radii.md */
-    background-color: #12151a; /* token: $colors.surface */
+    background-color: #11141a; /* token: $colors.surface */
     padding: 1.5rem 1.25rem; /* token: $spacings.xl $spacings.lg */
     width: 100%;
     max-width: 22rem;
@@ -59,7 +59,7 @@
     z-index: -1;
     /* 這張卡片比登入卡片矮，同一個 circle 漸層在它的四個角還沒淡完就被切掉，
        會看得到一圈方方的邊。收到最近的邊為止，光暈就一路淡到透明。 */
-    background: radial-gradient(closest-side, #14202e, transparent); /* token: $colors.primary-soft */
+    background: radial-gradient(closest-side, rgb(139 123 255 / 14%), transparent); /* token: $colors.primary-soft */
     content: '';
     inset: -40%;
     pointer-events: none;
@@ -69,23 +69,23 @@
     display: flex;
     gap: 0.625rem; /* token: $spacings.xs */
     align-items: center;
-    color: #f2f5f9; /* token: $colors.text-strong */
+    color: #f1f3f7; /* token: $colors.text-strong */
     font-weight: 600; /* token: $font-weights.semibold */
     font-size: 0.8125rem; /* token: $font-sizes.sm */
-    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace; /* token: $font-families.mono */
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace; /* token: $font-families.mono */
   }
 
   .door__brand-mark {
     border-radius: 9999px; /* token: $radii.pill */
-    background-color: #6cb6ff; /* token: $colors.primary */
+    background-color: #8b7bff; /* token: $colors.primary */
     width: 0.5rem;
     height: 0.5rem;
   }
 
   .door__spinner {
     animation: door-spin 0.9s linear infinite;
-    border: 2px solid #23282f; /* token: $colors.border */
-    border-top-color: #6cb6ff; /* token: $colors.primary */
+    border: 2px solid #222833; /* token: $colors.border */
+    border-top-color: #8b7bff; /* token: $colors.primary */
     border-radius: 9999px; /* token: $radii.pill */
     width: 1.75rem;
     height: 1.75rem;
@@ -93,8 +93,42 @@
 
   .door__caption {
     margin: 0;
-    color: #7c8492; /* token: $colors.text-faint */
+    color: #808999; /* token: $colors.text-faint */
     font-size: 0.8125rem; /* token: $font-sizes.sm */
+  }
+
+  /* 淺色：門口出現時還讀不到使用者選的外觀，所以只看系統；選了深色的人在淺色系統上會先看到一瞬間的淺色門口。 */
+  @media (prefers-color-scheme: light) {
+    .door {
+      background-color: #f5f6f8; /* token: $colors-light.background */
+    }
+
+    .door__card {
+      box-shadow: 0 8px 24px rgb(17 21 28 / 10%); /* token: $shadows-light.md */
+      border: 1px solid #e2e5ea; /* token: $colors-light.border */
+      background-color: #fff; /* token: $colors-light.surface */
+    }
+
+    .door__card::before {
+      background: radial-gradient(closest-side, rgb(106 87 238 / 10%), transparent); /* token: $colors-light.primary-soft */
+    }
+
+    .door__brand {
+      color: #11151c; /* token: $colors-light.text-strong */
+    }
+
+    .door__brand-mark {
+      background-color: #6a57ee; /* token: $colors-light.primary */
+    }
+
+    .door__spinner {
+      border: 2px solid #e2e5ea; /* token: $colors-light.border */
+      border-top-color: #6a57ee; /* token: $colors-light.primary */
+    }
+
+    .door__caption {
+      color: #646d7e; /* token: $colors-light.text-faint */
+    }
   }
 
   @keyframes door-spin {

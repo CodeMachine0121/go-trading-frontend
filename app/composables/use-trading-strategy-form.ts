@@ -1,9 +1,5 @@
 import { ConditionBoardDomain } from '~/domain/models/domains/condition-board-domain'
-import {
-  ConditionBoardDto,
-  ConditionBoardItemDto,
-  ConditionBoardPieceDto,
-} from '~/domain/models/dto/condition-board-dto'
+import { SignalDomain } from '~/domain/models/domains/signal-domain'
 import { TradingStrategyConditionDomain } from '~/domain/models/domains/trading-strategy-condition-domain'
 import { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-strategy-write-domain'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
@@ -14,6 +10,8 @@ import {
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
+import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
+import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
@@ -27,12 +25,11 @@ const DEFAULT_CONTRACT_TRADING_MODE: ContractTradingMode = 'longShort'
 const MARKET_DATA_KIND_CHANGED_NOTICE
   = '換了行情種類：原本的信號來源吃的是另一種行情，已經拿掉，請從這一種的策略腳本重新挑。'
 
-/** 一句比對挑得到的三個值。信號只有三個，所以它是選的。 */
-const SIGNAL_OPTIONS = [
-  { value: 'buy', label: '買入' },
-  { value: 'sell', label: '賣出' },
-  { value: 'hold', label: '持有' },
-] as const
+/** 一條條件挑得到的三個值。信號只有三個，所以它是選的；怎麼稱呼它們由 SignalDomain 說。 */
+const SIGNAL_OPTIONS = SIGNAL_VALUES.map(signal => ({
+  value: signal,
+  label: new SignalDomain(signal).label(),
+}))
 
 /** 新增一個信號來源時它的預設刻度。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_AGGREGATION_INTERVAL = '5m'
@@ -50,6 +47,10 @@ const DEFAULT_AGGREGATION_INTERVAL = '5m'
 export function useTradingStrategyForm(
   editing: () => TradingStrategyDto | null,
   strategyScriptOptions: () => readonly { value: number, label: string }[],
+  /** 存在、但當不了訊號來源的那幾支，以及原因——一個指著它們的來源要說得出自己指著誰。 */
+  unusableStrategyScripts: () => Readonly<Record<number, string>> = () => ({}),
+  /** 每一支策略腳本宣告了哪幾個參數。 */
+  parameterNamesByStrategyScriptId: () => Readonly<Record<number, readonly string[]>> = () => ({}),
 ) {
   const name = ref('')
   /**
@@ -82,6 +83,37 @@ export function useTradingStrategyForm(
   const sourceLabels = computed(
     () => signalSources.value.map(signalSource => signalSource.label).filter(label => label !== ''))
 
+  /**
+   * 每一個訊號來源用的那一支策略腳本叫什麼（與 `signalSources` 同一個順序）。
+   *
+   * 挑得到的就是它的名字；存在但挑不得的，說它為什麼挑不得；認不得那個識別碼時
+   * （腳本被刪了、或那份採用被收回）也照樣說一句——一片空白看起來像「還沒選」。
+   */
+  const signalSourceStrategyScriptLabels = computed(() => signalSources.value.map(
+    signalSource => strategyScriptOptions().find(
+      option => option.value === signalSource.strategyScriptId)?.label
+      ?? unusableStrategyScripts()[signalSource.strategyScriptId]
+      ?? `這支策略腳本（編號 ${signalSource.strategyScriptId}）已經不在了`))
+
+  /** 每一個訊號來源調過的參數讀成一行：調過的才列，沒調的就是用那支策略腳本自己的預設值。 */
+  const signalSourceParameterSummaries = computed(() => signalSources.value.map(
+    signalSource => signalSource.parameterValues
+      .map(parameter => `${parameter.name}=${parameter.value}`)
+      .join(' · ')))
+
+  /**
+   * 每一個訊號來源的每一個參數欄該填著什麼，依那支策略腳本宣告的順序。
+   *
+   * 沒填過的是空白，而不是一個假的 0——0 是一個值，空白是還沒決定。
+   */
+  const signalSourceParameterInputs = computed(() => signalSources.value.map(
+    signalSource => Object.fromEntries(
+      (parameterNamesByStrategyScriptId()[signalSource.strategyScriptId] ?? []).map(parameterName => [
+        parameterName,
+        signalSource.parameterValues
+          .find(parameter => parameter.name === parameterName)?.value.toString() ?? '',
+      ]))))
+
   const canAddSignalSource = computed(
     () => signalSources.value.length < STRATEGY_BOT_LIMITS.signalSourceCount)
 
@@ -106,7 +138,7 @@ export function useTradingStrategyForm(
     const warnings: Record<number, string> = {}
     signalSources.value.forEach((signalSource, index) => {
       if (usedLabels.has(signalSource.label)) {
-        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉之後那幾句要改或拿掉`
+        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉它會一併拿掉那幾句條件`
       }
     })
 
@@ -146,7 +178,7 @@ export function useTradingStrategyForm(
     // 與後端對一份沒填的交易策略的讀法一字不差。
     signalSources.value = [...(loaded?.signalSources ?? [])]
     committedLabels.value = signalSources.value.map(signalSource => signalSource.label)
-    // 存進來的那棵樹在這裡、而且只在這裡，被讀成「墊子上擺了哪幾塊」。
+    // 存進來的那棵樹在這裡、而且只在這裡，被讀成「條件卡上有哪幾條條件」。
     boards.buy.value = new TradingStrategyConditionDomain(loaded?.buyCondition ?? null).toBoardDto()
     boards.sell.value = new TradingStrategyConditionDomain(
       loaded?.sellCondition ?? null).toBoardDto()
@@ -165,9 +197,9 @@ export function useTradingStrategyForm(
       new TradingStrategySignalSourceDto(
         label,
         strategyScriptId,
-        // 跟著架上已經有的那幾塊，而不是一律用預設值。
-        // 一份交易策略只看一種粗細，所以新的一塊與舊的一塊不同，
-        // 從來不是使用者想要的——那只會讓他一加零件就撞到那句提醒。
+        // 跟著已經有的那幾個訊號來源，而不是一律用預設值。
+        // 一份交易策略只看一種粗細，所以新的一個與舊的一個不同，
+        // 從來不是使用者想要的——那只會讓他一加訊號來源就撞到那句提醒。
         signalSources.value[0]?.aggregationInterval ?? DEFAULT_AGGREGATION_INTERVAL,
         [],
       ),
@@ -270,10 +302,10 @@ export function useTradingStrategyForm(
       return
     }
 
-    // 表上那一列跟著改名。代號是列的身分，改了名卻不跟著改的話，
-    // 使用者會看到一列空白的新策略腳本，和一列指著一個已經不存在的名字的舊資料。
-    boards.buy.value = renamedPieces(boards.buy.value, committedLabel, label)
-    boards.sell.value = renamedPieces(boards.sell.value, committedLabel, label)
+    // 條件跟著改名。代號是條件指著來源的唯一方式，改了名卻不跟著改的話，
+    // 那幾條會指著一個已經不存在的名字。
+    boards.buy.value = new ConditionBoardDomain(boards.buy.value).renamed(committedLabel, label).value
+    boards.sell.value = new ConditionBoardDomain(boards.sell.value).renamed(committedLabel, label).value
     committedLabels.value = committedLabels.value.map(
       (existing, position) => (position === index ? label : existing))
   }
@@ -301,20 +333,6 @@ export function useTradingStrategyForm(
     ))
   }
 
-  /** 墊子上某一塊零件改名之後的樣子。它擺在哪裡、收什麼，一樣都不動。 */
-  function renamedPieces(board: ConditionBoardDto, fromLabel: string, toLabel: string) {
-    return new ConditionBoardDto(
-      board.operator,
-      board.items.map(item => new ConditionBoardItemDto(
-        item.operator,
-        item.pieces.map(piece => (piece.sourceLabel === fromLabel
-          ? new ConditionBoardPieceDto(toLabel, piece.acceptedSignals)
-          : piece)),
-      )),
-      board.representable,
-    )
-  }
-
   function replaceSignalSource(
     index: number,
     transform: (signalSource: TradingStrategySignalSourceDto) => TradingStrategySignalSourceDto,
@@ -324,7 +342,7 @@ export function useTradingStrategyForm(
   }
 
   /**
-   * 兩邊的判斷，以矩陣的形狀跟著使用者的每一次點擊走。
+   * 兩邊的判斷，以條件卡的形狀跟著使用者的每一次點擊走。
    *
    * 它由存進來的那棵樹讀出來一次，之後就是這一頁的狀態；要送出去時再寫回一棵樹。
    * **兩邊各存一份的話，第二份遲早會說出第一份沒有的話**——所以樹那一份只在
@@ -339,13 +357,18 @@ export function useTradingStrategyForm(
    * 兩邊的判斷長得一模一樣，所以它們共用這一段而不是各寫一份。
    * 寫兩份的話，第二份就是那個忘記同步的地方。
    */
-  function conditionSide(key: 'buy' | 'sell', heading: string) {
+  function conditionSide(
+    key: ConditionSideVo,
+    heading: string,
+    tone: 'success' | 'danger',
+    connectorWord: string,
+  ) {
     const board = boards[key]
 
     /**
      * 每次讀之前先跟這一刻的來源對齊。
      *
-     * 表的列是由**來源**決定的：加一支策略腳本就多一列，刪一支就少一列，改代號就跟著改。
+     * 條件指得到哪幾個來源，是由**訊號來源**決定的：刪一支就少一條，改代號就跟著改。
      * 對齊寫在讀的路上而不是各個改動的路上，是因為來源有五種改法，
      * 而每一種都要記得同步一次的話，第五種就是那個被忘記的。
      */
@@ -355,28 +378,42 @@ export function useTradingStrategyForm(
     return {
       key,
       heading,
-      board: computed(() => aligned.value.value),
+      /** 買入那一張用上漲的綠，賣出那一張用下跌的紅——與整站漲跌的顏色同一套。 */
+      tone,
+      /** 卡與卡之間那一小段線上寫的字：來源拿來判斷買入，而賣出與買入同時在看。 */
+      connectorWord,
+      board: computed(() => aligned.value.toDto()),
       condition: computed(() => aligned.value.toCondition()),
       toggleSignal: (sourceLabel: string, signal: string) => {
         board.value = aligned.value.toggleSignal(sourceLabel, signal).value
       },
-      /** 這張墊子上擺了這塊零件沒有。 */
-      holds: (sourceLabel: string) => aligned.value.holds(sourceLabel),
-      /** 把一塊零件擺上這張墊子的第幾格；已經在上面就是搬位置。 */
+      /** 加一條條件：那個來源排到最後面，而且只收挑的那一個信號。 */
+      addClause: (sourceLabel: string, signal: string) => {
+        board.value = aligned.value.addClause(sourceLabel, signal).value
+      },
+      /** 把一條條件排到這張卡的第幾格；已經在上面就是換位置。 */
       placeAt: (sourceLabel: string, position: number) => {
         board.value = aligned.value.placeAt(sourceLabel, position).value
       },
-      /** 把一塊零件從這張墊子上拿走。它回到架子上，不是被刪掉。 */
+      /** 把一條條件從這張卡上拿掉。那個訊號來源還在，不是被刪掉。 */
       takeOff: (sourceLabel: string) => {
         board.value = aligned.value.takeOff(sourceLabel).value
       },
-      /** 把一塊零件扣到另一塊上，變成一組——「A 而且（B 或 C）」唯一的寫法。 */
+      /** 把一條條件扣到另一條上，變成一組——「A 而且（B 或 C）」唯一的寫法。 */
       bundleOnto: (sourceLabel: string, targetLabel: string) => {
         board.value = aligned.value.bundleOnto(sourceLabel, targetLabel).value
       },
-      /** 把一塊零件從一組裡拆出來，放回它自己一格。 */
+      /** 把一條單獨的條件和另一格扣成一組；往哪個方向扣由 ConditionBoardDomain 決定。 */
+      bundleWith: (sourceLabel: string, targetKey: string) => {
+        board.value = aligned.value.bundleWith(sourceLabel, targetKey).value
+      },
+      /** 把一條條件從一組裡拆出來，放回它自己一格。 */
       unbundle: (sourceLabel: string) => {
         board.value = aligned.value.unbundle(sourceLabel).value
+      },
+      /** 把一整組拆開，回到一條一條、順序不變。 */
+      splitBundle: (itemKey: string) => {
+        board.value = aligned.value.splitBundle(itemKey).value
       },
       /** 換掉某一組裡面怎麼合併。 */
       changeBundleOperator: (itemKey: string, operator: ConditionOperatorVo) => {
@@ -389,8 +426,8 @@ export function useTradingStrategyForm(
   }
 
   const conditionSides = [
-    conditionSide('buy', '什麼算買入'),
-    conditionSide('sell', '什麼算賣出'),
+    conditionSide('buy', '什麼算買入', 'success', '拿來判斷'),
+    conditionSide('sell', '什麼算賣出', 'danger', '同時也看'),
   ]
 
   return {
@@ -410,13 +447,10 @@ export function useTradingStrategyForm(
     // 與擋住新增的是同一個數字，往下傳給要說出它的那個元件。
     signalSourceLimit: STRATEGY_BOT_LIMITS.signalSourceCount,
     signalSourceUsageWarnings,
+    signalSourceStrategyScriptLabels,
+    signalSourceParameterSummaries,
+    signalSourceParameterInputs,
     conditionSides,
-    /**
-     * 積木抽屜這一刻的樣子。
-     *
-     * 每次都由**這一刻已宣告的代號**與**現在選著的空位**重算，不留快取：
-     * 抽屜列的就是現在拼得出來的東西，而使用者隨時會在第二段加一個、刪一個、改一個代號。
-     */
     rejection,
     reset,
     toWriteDto,

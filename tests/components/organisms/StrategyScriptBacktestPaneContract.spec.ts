@@ -21,7 +21,7 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 
 const chartLibrary = vi.hoisted(() => ({
   createChart: vi.fn(() => ({
-    addSeries: vi.fn(() => ({ setData: vi.fn() })),
+    addSeries: vi.fn(() => ({ setData: vi.fn(), applyOptions: vi.fn() })),
     applyOptions: vi.fn(),
     timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
     remove: vi.fn(),

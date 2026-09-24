@@ -11,6 +11,7 @@ import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
+import { AppearancePreferenceProxy } from '~/infrastructure/proxy/appearance-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyScriptParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-script-parameter-value-preference-proxy'
 import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
@@ -40,13 +41,15 @@ import { StrategyScriptMarketplaceProxy } from '~/infrastructure/proxy/strategy-
 import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
 import { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
+import { AppearanceApplication } from '~/application/appearance-application'
+import { AppearanceService } from '~/domain/service/appearance-service'
+import { MarketCounterpartApplication } from '~/application/market-counterpart-application'
+import { MarketSideService } from '~/domain/service/market-side-service'
+import { MarketSidePreferenceProxy } from '~/infrastructure/proxy/market-side-preference-proxy'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
 import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
 import { AssistantConversationApplication } from '~/application/assistant-conversation-application'
-import { AssistantTriggerPositionPreferenceProxy } from '~/infrastructure/proxy/assistant-trigger-position-preference-proxy'
-import { AssistantTriggerService } from '~/domain/service/assistant-trigger-service'
-import { AssistantTriggerApplication } from '~/application/assistant-trigger-application'
 import { AssistantDrawerWidthPreferenceProxy } from '~/infrastructure/proxy/assistant-drawer-width-preference-proxy'
 import { CurrentConversationPreferenceProxy } from '~/infrastructure/proxy/current-conversation-preference-proxy'
 import { AssistantDrawerWidthService } from '~/domain/service/assistant-drawer-width-service'
@@ -215,15 +218,9 @@ export default defineNuxtPlugin(() => {
   // 兩者會分開改變，而且後者換成後端偏好設定時，介面一個字都不必動。
   const currentConversationPreferenceProxy = new CurrentConversationPreferenceProxy()
 
-  // 那顆叫出助手的鍵擺在哪裡，是這台裝置的習慣而不是行情，所以它只碰瀏覽器儲存、
-  // 不吃 base URL——與時區、線色那幾份記憶同一類。它與上面那一支分開，
-  // 因為「我們正在談什麼」與「那顆鍵擺在哪」會分開改變。
-  const assistantTriggerApplication = new AssistantTriggerApplication(
-    new AssistantTriggerService(new AssistantTriggerPositionPreferenceProxy()),
-  )
-
-  // 抽屜拉成多寬同樣是這台裝置的習慣。它與上面那一支分開，因為「那顆鍵擺在哪」與
-  // 「抽屜多寬」會分開改變——合成一個，它的公開方法會乾淨地分成兩半互不相干。
+  // 抽屜拉成多寬是這台裝置的習慣而不是行情，所以它只碰瀏覽器儲存、不吃 base URL——
+  // 與時區、線色那幾份記憶同一類。它與上面那一支分開，因為「我們正在談什麼」與
+  // 「抽屜多寬」會分開改變。
   const assistantDrawerWidthApplication = new AssistantDrawerWidthApplication(
     new AssistantDrawerWidthService(new AssistantDrawerWidthPreferenceProxy()),
   )
@@ -264,6 +261,17 @@ export default defineNuxtPlugin(() => {
   // 所以既沒有 proxy 也沒有 domain service，只有一個把寬度翻成答案的 model。
   const layoutDensityApplication = new LayoutDensityApplication()
 
+  // 外觀：淺色／深色／跟隨系統，記在這台瀏覽器。
+  const appearanceApplication = new AppearanceApplication(
+    new AppearanceService(new AppearancePreferenceProxy()),
+  )
+
+  // 現貨／合約開關：一條路徑在另一邊的對應畫面。
+  // 以及使用者最後切到哪一邊，記在這台瀏覽器，導覽跟著那一邊走。
+  const marketCounterpartApplication = new MarketCounterpartApplication(
+    new MarketSideService(new MarketSidePreferenceProxy()),
+  )
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -287,13 +295,14 @@ export default defineNuxtPlugin(() => {
       timeZoneApplication,
       assistantConversationApplication,
       currentConversationPreferenceProxy,
-      assistantTriggerApplication,
       assistantDrawerWidthApplication,
       clipboardApplication,
       userSessionApplication,
       passwordChangeApplication,
       telegramDeliveryApplication,
       layoutDensityApplication,
+      appearanceApplication,
+      marketCounterpartApplication,
     },
   }
 })

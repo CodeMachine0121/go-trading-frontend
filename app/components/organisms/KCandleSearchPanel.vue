@@ -5,13 +5,14 @@ import KCandleTable from '~/components/organisms/KCandleTable.vue'
 import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -21,12 +22,23 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 const DEFAULT_SYMBOL = 'BTCUSDT'
 
 // 有機體：K 線查詢這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
-const { kCandleApplication, tradingSymbolApplication, timeZone } = defineProps<{
+const { kCandleApplication, tradingSymbolApplication, timeZone, layoutDensity = null } = defineProps<{
   kCandleApplication: KCandleApplication
   tradingSymbolApplication: TradingSymbolApplication
   /** 開始時間用哪一個時區填與呈現；查到的 K 線也用它說。 */
   timeZone: TimeZoneDto
+  /**
+   * 現在這個寬度代表什麼。沒給時當成一台坐著用的機器——
+   * 那是掛載以前第一次畫出來的樣子（見 useLayoutDensity）。
+   */
+  layoutDensity?: LayoutDensityDto | null
 }>()
+
+/**
+ * 維護表單從底部拉出來，而不是擺在表格旁。
+ * 與導覽貼到底部是同一道分界：那個寬度分不出第二欄給表單。
+ */
+const editorAsSheet = computed(() => layoutDensity?.usesBottomNavigation ?? false)
 
 const symbol = ref('')
 const startTime = ref('')
@@ -51,6 +63,11 @@ function startCreating() {
 }
 
 function startEditing(kCandle: KCandleDto) {
+  // 與列上那顆「編輯」在忙碌時是灰的同一條規則；點整列挑一根也走這裡。
+  if (editorBusy.value) {
+    return
+  }
+
   editingKCandle.value = kCandle
   editorOpen.value = true
 }
@@ -124,76 +141,118 @@ async function searchKCandles() {
 </script>
 
 <template>
-  <section class="k-candle-search-panel">
-    <AppPanel title="查詢條件">
-      <KCandleQueryForm
-        v-model:start-time="startTime"
-        :time-zone="timeZone"
-        :loading="loading"
-        :start-time-error="startTimeError"
-        @submit="searchKCandles"
-      >
-        <template #symbol>
-          <SymbolField
-            v-model="symbol"
-            :trading-symbol-application="tradingSymbolApplication"
-            :error-message="symbolError"
+  <section
+    class="k-candle-search-panel"
+    :class="{ 'k-candle-search-panel--editing': editorOpen && !editorAsSheet }"
+  >
+    <KCandleTable
+      :result="result"
+      :time-zone="timeZone"
+      :selected-k-candle="editorOpen ? editingKCandle : null"
+      selectable
+      class="k-candle-search-panel__table"
+      @select="startEditing"
+    >
+      <!-- 查詢列畫在結果那張卡的頂端：條件與它查出來的東西是同一張卡。 -->
+      <template #query>
+        <KCandleQueryForm
+          v-model:start-time="startTime"
+          :time-zone="timeZone"
+          :loading="loading"
+          :start-time-error="startTimeError"
+          @submit="searchKCandles"
+        >
+          <template #symbol>
+            <SymbolField
+              v-model="symbol"
+              :trading-symbol-application="tradingSymbolApplication"
+              :error-message="symbolError"
+            />
+          </template>
+        </KCandleQueryForm>
+
+        <AppAlert
+          v-if="rejectedMessage"
+          tone="danger"
+          data-testid="rejected-alert"
+        >
+          {{ rejectedMessage }}
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="serverErrorMessage"
+          tone="danger"
+          data-testid="server-error-alert"
+        >
+          後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="loading"
+              @click="searchKCandles"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="backendUnreachable"
+          tone="danger"
+          data-testid="unreachable-alert"
+        >
+          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="loading"
+              @click="searchKCandles"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="loading"
+          tone="info"
+          data-testid="loading-alert"
+        >
+          查詢中…
+        </AppAlert>
+      </template>
+
+      <!-- 維護入口掛在結果那一塊的標題列上：要動哪一根，就在看得到它的地方動。 -->
+      <template #actions>
+        <AppButton
+          size="small"
+          :disabled="editorOpen"
+          data-testid="create-button"
+          @click="startCreating"
+        >
+          <AppIcon
+            name="plus"
+            size="small"
           />
-        </template>
-      </KCandleQueryForm>
+          新增 K 線
+        </AppButton>
+      </template>
 
-      <AppAlert
-        v-if="rejectedMessage"
-        tone="danger"
-        data-testid="rejected-alert"
-      >
-        {{ rejectedMessage }}
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="serverErrorMessage"
-        tone="danger"
-        data-testid="server-error-alert"
-      >
-        後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="searchKCandles"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="backendUnreachable"
-        tone="danger"
-        data-testid="unreachable-alert"
-      >
-        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="searchKCandles"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="loading"
-        tone="info"
-        data-testid="loading-alert"
-      >
-        查詢中…
-      </AppAlert>
-    </AppPanel>
+      <!-- 整列點得到之外仍留這顆鍵：鍵盤走得到它，而一整列不是一個可以 Tab 到的東西。 -->
+      <template #row-actions="{ kCandle }">
+        <AppButton
+          variant="ghost"
+          size="small"
+          :disabled="editorBusy"
+          data-testid="edit-button"
+          @click.stop="startEditing(kCandle)"
+        >
+          編輯
+        </AppButton>
+      </template>
+    </KCandleTable>
 
     <KCandleEditorPanel
       v-if="editorOpen"
@@ -202,40 +261,12 @@ async function searchKCandles() {
       :time-zone="timeZone"
       :editing-k-candle="editingKCandle"
       :default-symbol="symbol"
+      :as-sheet="editorAsSheet"
+      class="k-candle-search-panel__editor"
       @changed="searchKCandles"
       @cancel="closeEditor"
       @busy-change="editorBusy = $event"
     />
-
-    <KCandleTable
-      :result="result"
-      :time-zone="timeZone"
-    >
-      <!-- 維護入口掛在結果那一塊的標題列上：要動哪一根，就在看得到它的地方動。 -->
-      <template #actions>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="editorOpen"
-          data-testid="create-button"
-          @click="startCreating"
-        >
-          新增 K 線
-        </AppButton>
-      </template>
-
-      <template #row-actions="{ kCandle }">
-        <AppButton
-          variant="ghost"
-          size="small"
-          :disabled="editorBusy"
-          data-testid="edit-button"
-          @click="startEditing(kCandle)"
-        >
-          編輯
-        </AppButton>
-      </template>
-    </KCandleTable>
   </section>
 </template>
 
@@ -246,5 +277,38 @@ async function searchKCandles() {
   flex-direction: column;
   gap: spacing('sm');
   min-height: 0;
+
+  // 表格與表單上下疊的那一段寬度，表單擺在表格上面：
+  // 按下「編輯」之後，要看的東西出現在眼前，而不是一整張表格的底下。
+  &__editor {
+    order: -1;
+  }
+
+  // 寬螢幕上表單是表格旁邊的一張卡：改的時候那一列仍然亮著、看得到。
+  &--editing {
+    @include respond-to('lg') {
+      display: grid;
+      align-items: start;
+      grid-template-columns: minmax(0, 1fr) 22.5rem;
+
+      // 這一列吃滿整個工作區的高度：表格在自己的框裡捲，不把整頁撐長。
+      grid-template-rows: minmax(0, 1fr);
+    }
+  }
+
+  &--editing &__table {
+    @include respond-to('lg') {
+      align-self: stretch;
+    }
+  }
+
+  // 表單比工作區高時，它自己捲——不把旁邊那張表格一起推走。
+  &--editing &__editor {
+    @include respond-to('lg') {
+      order: 0;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+  }
 }
 </style>

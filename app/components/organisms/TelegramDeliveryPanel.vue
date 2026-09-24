@@ -15,9 +15,10 @@ import SettingsSection from '~/components/molecules/SettingsSection.vue'
 // 同一張卡，中間只好拿一條分隔線硬切開——而一條分隔線正是「這裡其實是兩段」最誠實
 // 的自白。它們仍然住在同一個元件裡，因為第二段能不能按完全取決於第一段設好了沒。
 //
-// 已經連上之後，那兩格是**收起來的**：一份存好的憑證應該讀起來像一列紀錄
-// （這是什麼、認得出是哪一組、可以拿它做什麼），不是一張永遠攤在那裡、而且金鑰欄
-// 永遠空著的表單——空著的密碼框擺在「已連線」下面，看起來像設定掉了。
+// 已經連上之後，那兩格是**收起來的**：一份存好的憑證應該讀起來像幾列紀錄
+// （送去哪個聊天室、認得出是哪一把金鑰、可以拿它做什麼），不是一張永遠攤在那裡、
+// 而且金鑰欄永遠空著的表單——空著的密碼框擺在「已連線」下面，看起來像設定掉了。
+// 「已連線」本身掛在這一段的標題列上，一眼就讀得到。
 //
 // 這裡不寫任何規則：訊息的長度由 TestMessageDomain 說了算，四種送不出去的說法由
 // 領域備好，這裡只畫。
@@ -91,6 +92,18 @@ function confirmRemoval(): void {
     title="Telegram 投遞"
     description="留下一組機器人金鑰與一個聊天室代號，這台系統就送得出訊息到你的 Telegram。金鑰存進去之後拿不回來，只看得到最後四個字。"
   >
+    <template
+      v-if="!loading && !loadErrorMessage && configured"
+      #status
+    >
+      <AppBadge
+        variant="success"
+        data-testid="telegram-connected"
+      >
+        已連線
+      </AppBadge>
+    </template>
+
     <p
       v-if="loading"
       class="telegram-delivery-panel__state"
@@ -107,52 +120,63 @@ function confirmRemoval(): void {
       {{ loadErrorMessage }}
     </AppAlert>
 
-    <!--
-      存好的那一組讀起來像一列紀錄：認得出是哪一組、送去哪裡，以及可以拿它做什麼。
-      它不重複下面任何東西，因為下面那兩格這時候是收起來的。
-    -->
-    <div
+    <!-- 存好的那一組讀起來像幾列紀錄。它不重複下面任何東西，因為下面那兩格這時候是收起來的。 -->
+    <dl
       v-else-if="configured && !formVisible"
       class="telegram-delivery-panel__connection"
       data-testid="telegram-summary"
     >
-      <div class="telegram-delivery-panel__connection-facts">
-        <AppBadge variant="success">
-          已連線
-        </AppBadge>
-        <span class="telegram-delivery-panel__secret">{{ setting?.summary }}</span>
-        <span class="telegram-delivery-panel__destination">送往聊天室 {{ setting?.chatId }}</span>
+      <div class="telegram-delivery-panel__row">
+        <dt class="telegram-delivery-panel__label">
+          聊天室代號
+        </dt>
+        <dd class="telegram-delivery-panel__value">
+          <span class="telegram-delivery-panel__secret">{{ setting?.chatId }}</span>
+        </dd>
+      </div>
+
+      <div class="telegram-delivery-panel__row">
+        <dt class="telegram-delivery-panel__label">
+          機器人金鑰
+          <span class="telegram-delivery-panel__hint">只看得到最後四個字</span>
+        </dt>
+        <dd class="telegram-delivery-panel__value">
+          <span class="telegram-delivery-panel__secret">{{ setting?.summary }}</span>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="saving"
+            data-testid="telegram-edit"
+            @click="emit('startEditing')"
+          >
+            更換金鑰
+          </AppButton>
+        </dd>
       </div>
 
       <!--
         會弄丟東西的那一顆是安靜的，而且與「更換」隔開。兩顆長得一樣重的話，
         一整列裡最先被眼睛抓到的會是那顆刪東西的。
       -->
-      <div class="telegram-delivery-panel__connection-actions">
-        <AppButton
-          variant="danger-ghost"
-          size="small"
-          :disabled="saving"
-          data-testid="telegram-remove"
-          @click="removeConfirmationOpen = true"
-        >
-          移除
-        </AppButton>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="saving"
-          data-testid="telegram-edit"
-          @click="emit('startEditing')"
-        >
-          更換金鑰
-        </AppButton>
+      <div class="telegram-delivery-panel__row">
+        <dt class="telegram-delivery-panel__label">
+          移除設定
+        </dt>
+        <dd class="telegram-delivery-panel__value">
+          <AppButton
+            variant="danger-ghost"
+            size="small"
+            :disabled="saving"
+            data-testid="telegram-remove"
+            @click="removeConfirmationOpen = true"
+          >
+            移除
+          </AppButton>
+        </dd>
       </div>
-    </div>
+    </dl>
 
-    <!--
-      還沒設定過要明說，而且不能長得像錯誤——它是這一段的正常起點，不是出了什麼事。
-    -->
+    <!-- 還沒設定過要明說，而且不能長得像錯誤——它是這一段的正常起點，不是出了什麼事。 -->
     <p
       v-if="!loading && !loadErrorMessage && !configured"
       class="telegram-delivery-panel__state"
@@ -161,7 +185,10 @@ function confirmRemoval(): void {
       還沒有設定。填好下面兩格並儲存，就能試送一則訊息。
     </p>
 
-    <template v-if="formVisible">
+    <div
+      v-if="formVisible"
+      class="telegram-delivery-panel__form"
+    >
       <FormField
         label="機器人金鑰"
         hint="要更換請填入整串——存進去之後就拿不回來了，畫面只留得下最後四個字。"
@@ -198,6 +225,14 @@ function confirmRemoval(): void {
 
       <div class="telegram-delivery-panel__actions">
         <AppButton
+          variant="primary"
+          :disabled="!savable"
+          data-testid="telegram-save"
+          @click="emit('save')"
+        >
+          {{ saveLabel }}
+        </AppButton>
+        <AppButton
           v-if="editing"
           variant="ghost"
           data-testid="telegram-cancel"
@@ -205,17 +240,8 @@ function confirmRemoval(): void {
         >
           取消
         </AppButton>
-        <AppButton
-          variant="primary"
-          class="telegram-delivery-panel__primary"
-          :disabled="!savable"
-          data-testid="telegram-save"
-          @click="emit('save')"
-        >
-          {{ saveLabel }}
-        </AppButton>
       </div>
-    </template>
+    </div>
 
     <ConfirmDialog
       :open="removeConfirmationOpen"
@@ -232,51 +258,53 @@ function confirmRemoval(): void {
     title="試送一則訊息"
     description="按一下，看它有沒有真的出現在你的 Telegram。送不出去時會說是哪一件事出了問題。"
   >
-    <FormField
-      label="測試訊息"
-      :error-message="messageError"
-    >
-      <AppTextarea
-        v-model="message"
-        :invalid="messageError !== null"
-        data-testid="test-message-input"
-      />
-    </FormField>
+    <div class="telegram-delivery-panel__form">
+      <FormField
+        label="測試訊息"
+        :error-message="messageError"
+      >
+        <AppTextarea
+          v-model="message"
+          :invalid="messageError !== null"
+          data-testid="test-message-input"
+        />
+      </FormField>
 
-    <p class="telegram-delivery-panel__counter">
-      {{ characterCount }} / {{ maximumCharacterCount }} 個字
-    </p>
+      <p class="telegram-delivery-panel__counter">
+        {{ characterCount }} / {{ maximumCharacterCount }} 個字
+      </p>
+    </div>
 
     <p
       v-if="!configured"
-      class="telegram-delivery-panel__note"
+      class="telegram-delivery-panel__state"
       data-testid="test-message-blocked"
     >
       先完成上面的 Telegram 設定，才送得出測試訊息。
     </p>
 
-    <AppAlert
-      v-if="sendResultMessage"
-      :tone="sendSucceeded ? 'success' : 'danger'"
-      data-testid="test-message-result"
-    >
-      {{ sendResultMessage }}
-    </AppAlert>
-
     <!--
-      這一顆刻意不是實心藍的。實心的強調色只留給「這一段要按的那一顆」，而試送
-      **不改變任何東西**——它是一次檢查，不是一個決定。
+      這一顆刻意不是實心的。實心的強調色只留給「這一段要按的那一顆」，而試送
+      **不改變任何東西**——它是一次檢查，不是一個決定。結果就接在它旁邊。
     -->
-    <div class="telegram-delivery-panel__actions">
+    <div class="telegram-delivery-panel__send">
       <AppButton
         variant="secondary"
-        class="telegram-delivery-panel__primary"
         :disabled="!canSendTestMessage"
         data-testid="test-message-send"
         @click="emit('sendTestMessage')"
       >
         {{ sendLabel }}
       </AppButton>
+
+      <AppAlert
+        v-if="sendResultMessage"
+        class="telegram-delivery-panel__result"
+        :tone="sendSucceeded ? 'success' : 'danger'"
+        data-testid="test-message-result"
+      >
+        {{ sendResultMessage }}
+      </AppAlert>
     </div>
   </SettingsSection>
 </template>
@@ -290,71 +318,90 @@ function confirmRemoval(): void {
     font-size: font-size('xs');
   }
 
-  // 存好的那一組：一列內凹的紀錄。它不長得像輸入框，因為它不能填；
-  // 也不長得像卡片，因為它住在一張卡裡面。
+  // 存好的那一組：標籤在左、值在右，一列一條髮絲線，與帳號那一段同一種讀法。
   &__connection {
     display: flex;
-    flex-wrap: wrap;
-    gap: spacing('sm');
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid color('border');
-    border-radius: radius('md');
-    background-color: color('surface-muted');
-    padding: spacing('sm') spacing('md');
+    flex-direction: column;
+    margin: calc(-1 * spacing('sm')) 0;
   }
 
-  &__connection-facts {
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: spacing('2xs');
+    align-items: center;
+    border-bottom: 1px solid color('border');
+    padding: spacing('sm') 0;
+
+    @include respond-to('md') {
+      grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+      gap: spacing('md');
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__label {
     display: flex;
-    flex-wrap: wrap;
-    gap: spacing('2xs') spacing('sm');
-    align-items: center;
-    min-width: 0;
-  }
-
-  // 金鑰結尾用等寬字：它是一串要被「認出來」而不是「讀出來」的字元，
-  // 比例字型會讓 1234 與 l234 長得一樣。
-  &__secret {
-    color: color('text-strong');
+    flex-direction: column;
+    gap: spacing('3xs');
+    color: color('text');
+    font-weight: font-weight('medium');
     font-size: font-size('sm');
-    font-family: font-family('mono');
   }
 
-  &__destination {
+  &__hint {
     color: color('text-faint');
+    font-weight: font-weight('regular');
     font-size: font-size('2xs');
   }
 
-  &__connection-actions {
+  &__value {
     display: flex;
-    gap: spacing('2xs');
+    flex-wrap: wrap;
+    gap: spacing('xs');
     align-items: center;
+    margin: 0;
+    min-width: 0;
   }
 
-  // 一個聊天室代號是幾個數字。給它一整張卡的寬度，旁邊那片空白會看起來像忘了填。
-  //
-  // 寬度掛在輸入框本身而不是整個欄位上：掛在欄位上的話，底下那句說明也跟著收窄，
-  // 於是一句短短的提示被硬折成兩行。
+  // 金鑰結尾與聊天室代號用等寬字：它們是一串要被「認出來」而不是「讀出來」的字元，
+  // 比例字型會讓 1234 與 l234 長得一樣。
+  &__secret {
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    background-color: color('surface-raised');
+    padding: spacing('2xs') spacing('xs');
+    overflow-wrap: anywhere;
+    color: color('text-strong');
+    font-size: font-size('sm');
+
+    @include numeric;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    max-width: 30rem;
+  }
+
+  // 一個聊天室代號是幾個數字。寬度掛在輸入框本身而不是整個欄位上：
+  // 掛在欄位上的話，底下那句說明也跟著收窄。
   &__chat-id {
     max-width: 14rem;
   }
 
-  // 字數貼在輸入框正下方、靠右——它講的是「還能打多少」，
-  // 那件事只有在看著那一格的時候才有意義。
+  // 字數貼在輸入框正下方、靠右——它講的是「還能打多少」。
   &__counter {
-    margin: 0;
-    margin-top: calc(-1 * spacing('xs'));
+    margin: calc(-1 * spacing('xs')) 0 0;
     text-align: right;
     color: color('text-faint');
     font-size: font-size('2xs');
-    font-variant-numeric: tabular-nums;
-  }
 
-  &__note {
-    margin: 0;
-    color: color('text-faint');
-    line-height: line-height('normal');
-    font-size: font-size('2xs');
+    @include numeric;
   }
 
   &__actions {
@@ -363,8 +410,15 @@ function confirmRemoval(): void {
     align-items: center;
   }
 
-  &__primary {
-    margin-left: auto;
+  &__send {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('sm');
+    align-items: center;
+  }
+
+  &__result {
+    flex: 1 1 16rem;
   }
 }
 </style>

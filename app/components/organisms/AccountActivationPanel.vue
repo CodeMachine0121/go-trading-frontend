@@ -2,6 +2,7 @@
 import type { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 
 // 有機體：等待開通那一頁上的整張卡片。這一頁的互動全部住在這裡。
 //
@@ -41,8 +42,10 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
 <template>
   <section class="account-activation-panel">
     <div class="account-activation-panel__brand">
-      <span class="account-activation-panel__brand-mark" />
-      <span class="account-activation-panel__brand-name">go-trading</span>
+      <span class="account-activation-panel__brand-mark">
+        <AppIcon name="candles" />
+      </span>
+      <span class="account-activation-panel__brand-name">Go Trading</span>
     </div>
 
     <div class="account-activation-panel__heading">
@@ -122,94 +125,93 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
       這個帳號還沒有被開通。請聯絡這台操作台的管理者。
     </AppAlert>
 
-    <AppButton
-      variant="secondary"
-      block
-      :disabled="rechecking"
-      data-testid="recheck"
-      @click="emit('recheck')"
-    >
-      {{ rechecking ? '檢查中…' : '重新檢查' }}
-    </AppButton>
+    <div class="account-activation-panel__actions">
+      <AppButton
+        variant="secondary"
+        size="large"
+        block
+        :disabled="rechecking"
+        data-testid="recheck"
+        @click="emit('recheck')"
+      >
+        {{ rechecking ? '檢查中…' : '重新檢查' }}
+      </AppButton>
 
-    <!--
-      登出留在這裡，因為這一頁是他唯一到得了的地方——沒有它，想換一個帳號的人
-      就只能自己去清瀏覽器儲存。
-    -->
-    <AppButton
-      variant="ghost"
-      size="small"
-      data-testid="sign-out"
-      @click="emit('signOut')"
-    >
-      登出
-    </AppButton>
+      <!--
+        登出留在這裡，因為這一頁是他唯一到得了的地方——沒有它，想換一個帳號的人
+        就只能自己去清瀏覽器儲存。
+      -->
+      <AppButton
+        variant="ghost"
+        size="small"
+        data-testid="sign-out"
+        @click="emit('signOut')"
+      >
+        登出
+      </AppButton>
+    </div>
   </section>
 </template>
 
 <style scoped lang="scss">
+// 與登入那一張同一種語言：單欄、窄螢幕上佔滿畫面、主要動作沉到底；寬螢幕上一張置中的卡片。
 .account-activation-panel {
   display: flex;
-  position: relative;
   flex-direction: column;
-  gap: spacing('md');
-  box-shadow: shadow('md');
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing('xl') spacing('lg');
+  gap: spacing('lg');
   width: 100%;
-  max-width: 26rem;
+  max-width: 28rem;
 
-  // 與登入卡片同一層光暈，因為它們是同一類畫面。
-  &::before {
-    position: absolute;
-    z-index: -1;
-    background: radial-gradient(circle, color('primary-soft'), transparent 70%);
-    content: '';
-    inset: -40%;
-    pointer-events: none;
+  @include respond-to('md') {
+    box-shadow: shadow('md');
+    border: 1px solid color('border');
+    border-radius: radius('lg');
+    background-color: color('surface');
+    padding: spacing('2xl') spacing('xl');
   }
 
   &__brand {
     display: flex;
     gap: spacing('xs');
     align-items: center;
-    justify-content: center;
   }
 
   &__brand-mark {
+    display: grid;
     flex: none;
-    border-radius: radius('pill');
-    background-color: color('primary');
-    width: 0.5rem;
-    height: 0.5rem;
+    place-items: center;
+    border-radius: radius('md');
+    background-image: linear-gradient(135deg, color('primary'), color('primary-strong'));
+    width: 2.75rem;
+    height: 2.75rem;
+    color: color('text-inverse');
   }
 
   &__brand-name {
     color: color('text-strong');
     font-weight: font-weight('semibold');
     font-size: font-size('sm');
-    font-family: font-family('mono');
   }
 
   &__heading {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
-    text-align: center;
+    gap: spacing('2xs');
   }
 
   &__title {
     margin: 0;
-    font-size: font-size('xl');
+    color: color('text-strong');
+    font-weight: font-weight('bold');
+    font-size: font-size('2xl');
+    line-height: line-height('tight');
   }
 
   &__caption {
     margin: 0;
-    color: color('text-faint');
-    line-height: 1.6;
-    font-size: font-size('xs');
+    color: color('text-muted');
+    line-height: line-height('relaxed');
+    font-size: font-size('sm');
   }
 
   &__field {
@@ -219,8 +221,8 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
   }
 
   &__label {
-    color: color('text-faint');
-    font-size: font-size('2xs');
+    color: color('text-muted');
+    font-size: font-size('xs');
   }
 
   &__value-row {
@@ -229,7 +231,7 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
     align-items: flex-start;
     border: 1px solid color('border');
     border-radius: radius('sm');
-    background-color: color('background');
+    background-color: color('surface-raised');
     padding: spacing('xs');
   }
 
@@ -265,8 +267,26 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
     font-size: font-size('sm');
     text-decoration: none;
 
+    @include tap-target;
+    @include focus-ring;
+
     &:hover {
       background-color: color('primary-strong');
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('xs');
+    align-items: center;
+    margin-top: auto;
+
+    @include safe-area-bottom;
+
+    @include respond-to('md') {
+      margin-top: 0;
+      padding-bottom: 0;
     }
   }
 }

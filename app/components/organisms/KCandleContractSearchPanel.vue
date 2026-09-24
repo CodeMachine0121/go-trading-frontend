@@ -4,7 +4,6 @@ import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import KCandleContractTable from '~/components/organisms/KCandleContractTable.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleApplication } from '~/application/k-candle-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
@@ -102,80 +101,81 @@ async function searchKCandleContracts() {
 
 <template>
   <section class="k-candle-contract-search-panel">
-    <AppPanel title="查詢條件">
-      <KCandleQueryForm
-        v-model:start-time="startTime"
-        :time-zone="timeZone"
-        :loading="loading"
-        :start-time-error="startTimeError"
-        @submit="searchKCandleContracts"
-      >
-        <template #symbol>
-          <ContractSymbolField
-            v-model="symbol"
-            :trading-symbol-application="tradingSymbolApplication"
-            :error-message="symbolError"
-          />
-        </template>
-      </KCandleQueryForm>
-
-      <AppAlert
-        v-if="rejectedMessage"
-        tone="danger"
-        data-testid="rejected-alert"
-      >
-        {{ rejectedMessage }}
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="serverErrorMessage"
-        tone="danger"
-        data-testid="server-error-alert"
-      >
-        後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="searchKCandleContracts"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="backendUnreachable"
-        tone="danger"
-        data-testid="unreachable-alert"
-      >
-        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="searchKCandleContracts"
-          >
-            重試
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="loading"
-        tone="info"
-        data-testid="loading-alert"
-      >
-        查詢中…
-      </AppAlert>
-    </AppPanel>
-
+    <!-- 查詢列畫在結果那張卡的頂端：條件與它查出來的東西是同一張卡。 -->
     <KCandleContractTable
       :result="result"
       :time-zone="timeZone"
-    />
+    >
+      <template #query>
+        <KCandleQueryForm
+          v-model:start-time="startTime"
+          :time-zone="timeZone"
+          :loading="loading"
+          :start-time-error="startTimeError"
+          @submit="searchKCandleContracts"
+        >
+          <template #symbol>
+            <ContractSymbolField
+              v-model="symbol"
+              :trading-symbol-application="tradingSymbolApplication"
+              :error-message="symbolError"
+            />
+          </template>
+        </KCandleQueryForm>
+
+        <AppAlert
+          v-if="rejectedMessage"
+          tone="danger"
+          data-testid="rejected-alert"
+        >
+          {{ rejectedMessage }}
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="serverErrorMessage"
+          tone="danger"
+          data-testid="server-error-alert"
+        >
+          後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="loading"
+              @click="searchKCandleContracts"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="backendUnreachable"
+          tone="danger"
+          data-testid="unreachable-alert"
+        >
+          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+          <template #action>
+            <AppButton
+              variant="secondary"
+              size="small"
+              :disabled="loading"
+              @click="searchKCandleContracts"
+            >
+              重試
+            </AppButton>
+          </template>
+        </AppAlert>
+
+        <AppAlert
+          v-else-if="loading"
+          tone="info"
+          data-testid="loading-alert"
+        >
+          查詢中…
+        </AppAlert>
+      </template>
+    </KCandleContractTable>
   </section>
 </template>
 

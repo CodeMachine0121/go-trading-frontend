@@ -195,6 +195,11 @@ export function useStrategyScriptLibrary(
     noticeMessage.value = '已經開了一份新的空白策略腳本。'
   }
 
+  /** 編輯區裡有還沒存的東西。離開這一頁、蓋掉編輯區之前都要先問這一句。 */
+  function hasUnsavedDraft(): boolean {
+    return strategyScriptApplication.hasUnsavedChanges(loadedContent.value, readCurrentContent())
+  }
+
   /**
    * 這件事會蓋掉編輯區，所以有還沒存的東西時先問過——
    * 其他事情做錯了可以重來，弄丟寫到一半的算式沒得重來。
@@ -203,7 +208,7 @@ export function useStrategyScriptLibrary(
    * 把關的條件與那個對話框因此只有一份。
    */
   function guardOverwritingDraft(action: () => void) {
-    if (strategyScriptApplication.hasUnsavedChanges(loadedContent.value, readCurrentContent())) {
+    if (hasUnsavedDraft()) {
       pendingDraftAction.value = action
       openDialog.value = 'discard'
       return
@@ -472,6 +477,7 @@ export function useStrategyScriptLibrary(
     selectStrategyScript,
     startBlankStrategyScript,
     confirmDiscard,
+    hasUnsavedDraft,
     saveStrategyScript,
     openNameDialog,
     openRenameDialog,

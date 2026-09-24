@@ -2,7 +2,10 @@
 import { describe, expect, it } from 'vitest'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
-import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
+import {
+  StrategyBotParameterValueDto,
+  TradingStrategySignalSourceDto,
+} from '~/domain/models/dto/trading-strategy-signal-source-dto'
 
 const STRATEGY_OPTIONS = [
   { value: 9, label: '均線' },
@@ -10,7 +13,12 @@ const STRATEGY_OPTIONS = [
 ]
 
 function formUnderTest(editing: TradingStrategyDto | null = null) {
-  return useTradingStrategyForm(() => editing, () => STRATEGY_OPTIONS)
+  return useTradingStrategyForm(
+    () => editing,
+    () => STRATEGY_OPTIONS,
+    () => ({ 11: '收盤價（不是一個信號）' }),
+    () => ({ 9: ['快線期數', '慢線期數'] }),
+  )
 }
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
@@ -78,8 +86,8 @@ describe('useTradingStrategyForm 的策略腳本清單', () => {
     form.conditionSides[0]!.placeAt('均線', 0)
 
     expect(readable(form, 0)).toEqual(['均線:buy'])
-    expect(form.conditionSides[0]!.holds('均線')).toBe(true)
-    expect(form.conditionSides[1]!.holds('均線')).toBe(false)
+    expect(form.conditionSides[0]!.board.value.placedLabels).toContain('均線')
+    expect(form.conditionSides[1]!.board.value.placedLabels).not.toContain('均線')
   })
 
   it('把零件拿下墊子，零件本身還在架子上', () => {
@@ -244,5 +252,86 @@ describe('useTradingStrategyForm 存得下去嗎', () => {
 
     expect(form.rejection.value).toContain('名稱')
     expect(form.toWriteDto()).toBeNull()
+  })
+})
+
+describe('useTradingStrategyForm：一個動作一次呼叫', () => {
+  it.each([
+    { signal: 'sell', expected: ['均線:buy', '動能:sell'] },
+    { signal: 'buy', expected: ['均線:buy', '動能:buy'] },
+  ])('加一條「動能 等於 $signal」：排到最後面，只收挑的那一個', ({ signal, expected }) => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+    form.conditionSides[0]!.takeOff('動能')
+
+    form.conditionSides[0]!.addClause('動能', signal)
+
+    expect(readable(form, 0)).toEqual(expected)
+  })
+
+  it('和一條單獨的扣成一組，再整組拆開，回到原本的順序', () => {
+    const form = formUnderTest(aStoredBot())
+    form.reset()
+
+    form.conditionSides[0]!.bundleWith('均線', '動能')
+    expect(readable(form, 0)).toEqual(['(or 均線:buy 動能:buy)'])
+
+    form.conditionSides[0]!.splitBundle('均線+動能')
+    expect(readable(form, 0)).toEqual(['均線:buy', '動能:buy'])
+  })
+
+  it.each([
+    { side: 0 as const, tone: 'success', connectorWord: '拿來判斷' },
+    { side: 1 as const, tone: 'danger', connectorWord: '同時也看' },
+  ])('每一邊說得出自己的顏色與卡前那一句（$tone）', ({ side, tone, connectorWord }) => {
+    const form = formUnderTest()
+
+    expect(form.conditionSides[side]!.tone).toBe(tone)
+    expect(form.conditionSides[side]!.connectorWord).toBe(connectorWord)
+  })
+
+  it('信號選單由 SignalDomain 說它們叫什麼', () => {
+    expect(formUnderTest().signalOptions).toEqual([
+      { value: 'buy', label: '買入' },
+      { value: 'sell', label: '賣出' },
+      { value: 'hold', label: '持有' },
+    ])
+  })
+})
+
+describe('useTradingStrategyForm：訊號來源卡上讀出來的字', () => {
+  it.each([
+    { name: '挑得到的就是它的名字', strategyScriptId: 9, expected: '均線' },
+    { name: '存在但挑不得的，說它為什麼挑不得', strategyScriptId: 11, expected: '收盤價（不是一個信號）' },
+    { name: '認不得的，說它已經不在了', strategyScriptId: 42, expected: '這支策略腳本（編號 42）已經不在了' },
+  ])('策略腳本那一欄：$name', ({ strategyScriptId, expected }) => {
+    const form = formUnderTest(new TradingStrategyDto(
+      3, '黃金交叉', [new TradingStrategySignalSourceDto('來源', strategyScriptId, '1h', [])], null, null))
+    form.reset()
+
+    expect(form.signalSourceStrategyScriptLabels.value).toEqual([expected])
+  })
+
+  it.each([
+    { name: '沒調過就是空的一行、每一欄都是空白', values: [], summary: '', inputs: { 快線期數: '', 慢線期數: '' } },
+    {
+      name: '調過的才列，沒填的那一欄是空白而不是 0',
+      values: [new StrategyBotParameterValueDto('快線期數', 12)],
+      summary: '快線期數=12',
+      inputs: { 快線期數: '12', 慢線期數: '' },
+    },
+    {
+      name: '調過好幾個時用 · 隔開',
+      values: [new StrategyBotParameterValueDto('快線期數', 12), new StrategyBotParameterValueDto('慢線期數', 0)],
+      summary: '快線期數=12 · 慢線期數=0',
+      inputs: { 快線期數: '12', 慢線期數: '0' },
+    },
+  ])('參數：$name', ({ values, summary, inputs }) => {
+    const form = formUnderTest(new TradingStrategyDto(
+      3, '黃金交叉', [new TradingStrategySignalSourceDto('均線', 9, '1h', values)], null, null))
+    form.reset()
+
+    expect(form.signalSourceParameterSummaries.value).toEqual([summary])
+    expect(form.signalSourceParameterInputs.value).toEqual([inputs])
   })
 })

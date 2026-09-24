@@ -10,6 +10,9 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 它與現貨那張表（KCandleTable）是兩張表，因為欄位不同：合約每一項成交數字都報，
 // 另外多出成交筆數與三條線。三條線各只列收盤——那是讀一根合約 K 線時
 // 第一眼要對照的數字；完整的開高低收在圖上看。
+//
+// 這裡只讀，所以列不能挑、沒有操作欄。查詢列由使用端放進 `query` 插槽，
+// 畫在表格正上方：條件與它查出來的結果是同一張卡。
 defineProps<{
   result?: KCandleContractSearchResultDto | null
   timeZone: TimeZoneDto
@@ -35,6 +38,13 @@ const ABSENT_FIGURE = '—'
     >
       <span data-testid="result-count">共 {{ result.count }} 根</span>
     </template>
+
+    <div
+      v-if="$slots.query"
+      class="k-candle-contract-table__query"
+    >
+      <slot name="query" />
+    </div>
 
     <p
       v-if="!result"
@@ -111,7 +121,10 @@ const ABSENT_FIGURE = '—'
             <td>{{ kCandleContract.open.toString() }}</td>
             <td>{{ kCandleContract.high.toString() }}</td>
             <td>{{ kCandleContract.low.toString() }}</td>
-            <td>{{ kCandleContract.close.toString() }}</td>
+            <!-- 收盤價帶著這一根的漲跌語氣：一整欄往下讀，紅綠就是走勢。 -->
+            <td :class="`k-candle-contract-table__close--${kCandleContract.trend.tone}`">
+              {{ kCandleContract.close.toString() }}
+            </td>
             <td>{{ kCandleContract.volume.toString() }}</td>
             <td data-testid="trade-count">
               {{ kCandleContract.tradeCount }}
@@ -144,6 +157,16 @@ const ABSENT_FIGURE = '—'
   flex: 1;
   min-height: 18rem;
 
+  // 查詢列：卡片頂端的一條窄帶，與底下的表格以一條髮絲線分開。
+  &__query {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: spacing('xs');
+    border-bottom: 1px solid color('border');
+    padding: spacing('sm');
+  }
+
   &__placeholder {
     margin: auto;
     padding: spacing('2xl') spacing('md');
@@ -159,14 +182,23 @@ const ABSENT_FIGURE = '—'
   }
 
   // 時間釘在左邊、數字往右排的那一種表，與另一張 K 線表同一把尺。
+  //
+  // 下面幾條必須住在 &__table 裡面：表格那條 `td` 的顏色比單一個 class 更明確，
+  // 擺在外面的話它會被蓋掉，而且不會有任何錯誤提醒你。
   &__table {
     @include time-series-table;
 
     // 沒有值的那一格：淡化，讓它與旁邊真的是 0 的數字一眼分得開。
-    // 這條必須住在 &__table 裡面：表格那條 `td` 的顏色比單一個 class 更明確，
-    // 擺在外面的話它會被蓋掉，而且不會有任何錯誤提醒你。
     td.k-candle-contract-table__absent {
       color: color('text-faint');
+    }
+
+    td.k-candle-contract-table__close--success {
+      color: color('success');
+    }
+
+    td.k-candle-contract-table__close--danger {
+      color: color('danger');
     }
   }
 }

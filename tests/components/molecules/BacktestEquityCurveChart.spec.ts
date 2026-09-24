@@ -8,7 +8,7 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對，
 // 是我們餵給它的東西對不對。
 const chartLibrary = vi.hoisted(() => {
-  const lineSeries = { setData: vi.fn() }
+  const lineSeries = { setData: vi.fn(), applyOptions: vi.fn() }
 
   return {
     lineSeries,
@@ -71,5 +71,16 @@ describe('BacktestEquityCurveChart', () => {
     await mountChart('UTC')
 
     expect(drawnRows()[0]!.time).toBe(FIRST_MOMENT.getTime() / 1000)
+  })
+
+  it('外觀換了就重新上色——畫布把顏色抄進去之後不會自己再讀', async () => {
+    await mountChart()
+    chartLibrary.lineSeries.applyOptions.mockClear()
+
+    document.documentElement.dataset.theme = 'light'
+    await flushPromises()
+
+    expect(chartLibrary.lineSeries.applyOptions).toHaveBeenCalled()
+    delete document.documentElement.dataset.theme
   })
 })

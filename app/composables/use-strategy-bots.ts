@@ -1,4 +1,5 @@
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
@@ -178,6 +179,10 @@ export function useStrategyBots(
   }
 
   function messageOf(error: unknown): string {
+    if (error instanceof BackendUnreachableError) {
+      return error.explanation
+    }
+
     return error instanceof Error ? error.message : '發生了一個說不出原因的錯誤'
   }
 

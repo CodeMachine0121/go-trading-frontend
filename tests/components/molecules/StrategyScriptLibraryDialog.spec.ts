@@ -124,6 +124,17 @@ describe('StrategyScriptLibraryDialog：兩段清單', () => {
     expect(wrapper.find('[data-testid="strategy-script-library-withdraw-9"]').exists()).toBe(false)
   })
 
+  it('加入來的那一列挑得起來（進工作區是唯讀的），說出挑的是哪一支', async () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    await wrapper.get('[data-testid="strategy-script-library-adopted-load-9"]').trigger('click')
+
+    expect(wrapper.emitted('load')).toEqual([[9]])
+  })
+
   it('加入來的那一列標出是誰分享的', () => {
     const wrapper = mountLibrary({
       strategyScripts: [],

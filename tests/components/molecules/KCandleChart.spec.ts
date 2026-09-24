@@ -268,6 +268,33 @@ describe('KCandleChart', () => {
     )
   })
 
+  it('格線與底色讀的是圖表那幾個 token', async () => {
+    await mountChart(chartDto([]))
+
+    expect(chartLibrary.chartApi.applyOptions).toHaveBeenCalledWith(expect.objectContaining({
+      layout: { background: { color: '--color-surface' }, textColor: '--color-text-muted' },
+      grid: { vertLines: { color: '--color-chart-grid' }, horzLines: { color: '--color-chart-grid' } },
+    }))
+  })
+
+  it('外觀換了就重新上色——K 線與圖框都重讀一次，畫的還是同一批', async () => {
+    await mountChart(chartDto([
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success')),
+    ]))
+    chartLibrary.chartApi.applyOptions.mockClear()
+    chartLibrary.candlestickSeries.setData.mockClear()
+
+    document.documentElement.dataset.theme = 'light'
+    await flushPromises()
+
+    expect(chartLibrary.chartApi.applyOptions).toHaveBeenCalledWith(expect.objectContaining({
+      grid: { vertLines: { color: '--color-chart-grid' }, horzLines: { color: '--color-chart-grid' } },
+    }))
+    expect(drawnRows()).toHaveLength(1)
+    expect(drawnRows()[0]).toMatchObject({ color: '--color-success' })
+    delete document.documentElement.dataset.theme
+  })
+
   it('沒有資料時畫的是空的一批', async () => {
     await mountChart(null)
 

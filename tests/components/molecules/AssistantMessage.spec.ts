@@ -55,7 +55,7 @@ describe('AssistantMessage', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="assistant-message-meta"]').text())
+    expect(wrapper.get('[data-testid="assistant-message-note"]').text())
       .toContain('查了 3 次 · 份量 3184')
   })
 
@@ -65,7 +65,7 @@ describe('AssistantMessage', () => {
       props: { message: buildMessage('answer', '答一句'), timeZone: buildTimeZone() },
     })
 
-    expect(wrapper.get('[data-testid="assistant-message-meta"]').text()).not.toContain('份量')
+    expect(wrapper.find('[data-testid="assistant-message-note"]').exists()).toBe(false)
   })
 
   it('提早收尾的那一則另外標明', () => {

@@ -248,6 +248,7 @@ function applyPicked(value: string) {
         <AppAlert
           v-if="row.parameterMessage"
           tone="danger"
+          class="chart-indicator-panel__item-alert"
           :data-testid="`indicator-parameters-error-${row.appliedIndicator.id}`"
         >
           {{ row.parameterMessage }}
@@ -264,6 +265,7 @@ function applyPicked(value: string) {
         <AppAlert
           v-else-if="row.failureMessage"
           tone="danger"
+          class="chart-indicator-panel__item-alert"
           :data-testid="`indicator-error-${row.appliedIndicator.id}`"
         >
           {{ row.failureMessage }}
@@ -296,20 +298,37 @@ function applyPicked(value: string) {
   flex-direction: column;
   gap: spacing('xs');
 
+  &__picker {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+  }
+
+  &__label {
+    @include dense-label;
+  }
+
+  &__empty {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
+  }
+
   &__pending {
     display: flex;
     flex-direction: column;
     gap: spacing('2xs');
-    border: 1px solid color('border-strong');
+    border: 1px solid color('primary');
     border-radius: radius('sm');
-    background-color: color('surface-muted');
+    background-color: color('primary-soft');
     padding: spacing('xs');
   }
 
   &__pending-title {
     margin: 0;
     color: color('text-strong');
-    font-weight: 600;
+    font-weight: font-weight('semibold');
     font-size: font-size('sm');
   }
 
@@ -318,49 +337,31 @@ function applyPicked(value: string) {
     gap: spacing('2xs');
   }
 
-  &__summary {
-    margin-left: spacing('3xs');
-    color: color('text-muted');
-    font-size: font-size('xs');
-  }
-
-  &__picker {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('3xs');
-  }
-
-  &__label {
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
-
-  &__empty {
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
-
   // 套用得越多，這份清單越長。它自己捲，而不是一路把圖往下推——
   // 這個畫面是為了看圖而存在的。
   &__applied {
     display: flex;
     flex-direction: column;
-    gap: spacing('2xs');
     margin: 0;
+    border: 1px solid color('border');
+    border-radius: radius('sm');
     padding: 0;
-    max-height: 11rem;
+    max-height: 16rem;
     overflow-y: auto;
     list-style: none;
   }
 
+  // 一筆一列，列與列之間一條細線——像一張清單，而不是一疊卡片。
   &__item {
     display: flex;
     flex-direction: column;
     gap: spacing('3xs');
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    background-color: color('surface-muted');
-    padding-bottom: spacing('3xs');
+    border-bottom: 1px solid color('border');
+    padding-bottom: spacing('2xs');
+
+    &:last-child {
+      border-bottom: 0;
+    }
 
     // 沒有狀態要說的時候，那一列自己就是整筆——不留一條空的下緣。
     &:not(:has(.chart-indicator-panel__note, .app-alert)) {
@@ -372,7 +373,7 @@ function applyPicked(value: string) {
     display: flex;
     gap: spacing('2xs');
     align-items: center;
-    padding: spacing('2xs');
+    padding: spacing('2xs') spacing('3xs');
   }
 
   // 整列都可以點——要改東西的人不必去瞄準一顆小按鈕。
@@ -380,16 +381,22 @@ function applyPicked(value: string) {
   &__open {
     display: flex;
     flex: 1;
-    gap: spacing('2xs');
+    gap: spacing('xs');
     align-items: center;
     cursor: pointer;
     border: 0;
+    border-radius: radius('xs');
     background: none;
-    padding: 0;
+    padding: spacing('3xs');
     min-width: 0;
+    color: inherit;
     text-align: left;
 
     @include focus-ring;
+
+    &:hover {
+      background-color: color('surface-muted');
+    }
 
     // 收起來的那一列要看得出「它在，只是圖上沒有」——所以是暗下來，不是消失。
     &--hidden {
@@ -399,10 +406,19 @@ function applyPicked(value: string) {
 
   // 名字吃掉中間所有剩下的寬度，右邊那幾樣（狀態、移除）才會貼齊右緣。
   &__name {
+    display: flex;
     flex: 1;
+    flex-direction: column;
     min-width: 0;
     color: color('text-strong');
     font-size: font-size('xs');
+  }
+
+  &__summary {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+
+    @include numeric;
   }
 
   // 收起來也看得到它畫了哪幾條線——顏色是這幾筆之間唯一的視覺分別。
@@ -413,44 +429,25 @@ function applyPicked(value: string) {
     align-items: center;
   }
 
+  // 色票就是那條線在圖上的樣子，所以它必須用那條線的實際顏色——
+  // 值仍然來自 token，只是選哪一個由領域說了算。
+  &__swatch {
+    flex: none;
+    border-radius: radius('xs');
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
   &__note {
     margin: 0;
+    padding: 0 spacing('xs');
     color: color('text-faint');
     font-size: font-size('2xs');
   }
 
-  &__line {
-    display: flex;
-    align-items: center;
-    gap: spacing('2xs');
-  }
-
-  // 色票就是那條線在圖上的樣子，所以它必須用那條線的實際顏色——
-  // 這是全站唯一由資料決定顏色的地方，值仍然來自 token，只是選哪一個由領域說了算。
-  &__swatch {
-    flex: none;
-    border-radius: radius('sm');
-    width: 0.75rem;
-    height: 0.75rem;
-  }
-
-  // 指標名稱吃掉整列剩下的寬度，並且**不斷行**：一個兩個字的名稱被拆成兩行，
-  // 只是因為旁邊那個選單貪掉了它不需要的寬度。
-  &__line-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    color: color('text-muted');
-    font-size: font-size('2xs');
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  // 換色的選單只裝得下一個顏色的名字，沒有理由更寬——
-  // 它多佔的每一點寬度都是從指標名稱那裡拿走的。
-  &__color-select {
-    flex: none;
-    width: 5rem;
+  // 清單裡的提示條貼著這一列的左右留一點邊。
+  &__item-alert {
+    margin: 0 spacing('2xs');
   }
 }
 </style>

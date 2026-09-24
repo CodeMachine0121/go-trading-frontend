@@ -80,16 +80,22 @@ function onValueInput(parameterName: string, raw: string | number) {
   padding: 0;
   list-style: none;
 
+  // 名字在左、值在右，一格一列：值那一欄固定寬，整排的輸入框才會上下切齊。
   &__row {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) minmax(5rem, 7rem);
     align-items: center;
-    gap: spacing('2xs');
+    gap: spacing('xs');
   }
 
   &__name {
-    color: color('text-muted');
+    overflow: hidden;
+    color: color('text');
     font-size: font-size('xs');
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @include numeric;
   }
 }
 </style>

@@ -1,50 +1,50 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import SpotStrategyBotPage from '~/pages/strategy-bots/index.vue'
 import ContractStrategyBotPage from '~/pages/contract-strategy-bots/index.vue'
 import SpotStrategyBotNewPage from '~/pages/strategy-bots/new.vue'
 import ContractStrategyBotNewPage from '~/pages/contract-strategy-bots/new.vue'
-import { StrategyBotApplication } from '~/application/strategy-bot-application'
-import { StrategyBotService } from '~/domain/service/strategy-bot-service'
-import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
-import { buildTimeZone } from '../fixtures/time-zone'
+import SpotStrategyBotEditPage from '~/pages/strategy-bots/[id].vue'
+import ContractStrategyBotEditPage from '~/pages/contract-strategy-bots/[id].vue'
 
-// 頁面只做接線，這裡只看兩件事：名字說出它管的是哪一種機器人，以及它交給底下的是哪一種。
-mockNuxtImport('useNuxtApp', () => () => ({
-  $strategyBotApplication: new StrategyBotApplication(new StrategyBotService({} as IStrategyBotProxy)),
-}))
-mockNuxtImport('useSelectedTimeZone', () => () => ({
-  selectableTimeZones: [], selectedTimeZone: buildTimeZone('UTC'), selectTimeZone: () => {},
-}))
-mockNuxtImport('useBackendHealth', () => () => ({
-  health: null, checking: false, errorMessage: null, checkBackendHealth: () => {},
-}))
-mockNuxtImport('useUserSession', () => () => ({ currentUser: null, signOut: () => {} }))
+// 頁面只做接線，這裡只看兩件事：它向版型宣告的標題說出管的是哪一種機器人，以及它交給底下的是哪一種。
+// 標題由 console 版型讀 definePageMeta 畫出來，所以這裡攔下頁面宣告的那一份來看。
+const declaredMeta = vi.hoisted(() => [] as { layout?: string, consoleTitle?: string }[])
 
-const LAYOUT_STUB = { props: ['title', 'subtitle'], template: '<div><h1>{{ title }}</h1><slot /></div>' }
-const PANEL_STUB = { props: ['page'], template: '<p data-testid="kind">{{ page.marketDataKind }}</p>' }
-const WORKBENCH_STUB = { props: ['marketDataKind', 'strategyBotId'], template: '<p data-testid="kind">{{ marketDataKind }}</p>' }
+mockNuxtImport('definePageMeta', () => (meta: { layout?: string, consoleTitle?: string }) => {
+  declaredMeta.push(meta)
+})
+mockNuxtImport('useRoute', () => () => ({ params: { id: '7' } }))
+
+const LIST_STUB = { props: ['marketDataKind'], template: '<p data-testid="kind">{{ marketDataKind }}</p>' }
+const WORKBENCH_STUB = {
+  props: ['marketDataKind', 'strategyBotId'],
+  template: '<p data-testid="kind">{{ marketDataKind }}:{{ strategyBotId }}</p>',
+}
 
 describe('兩個策略機器人畫面', () => {
   it.each([
     ['現貨策略機器人', 'kCandle', SpotStrategyBotPage],
     ['合約策略機器人', 'contractKCandle', ContractStrategyBotPage],
   ])('標題是「%s」，清單列的是 %s', (expectedTitle, expectedKind, page) => {
-    const wrapper = mount(page, {
-      global: { stubs: { ConsoleLayout: LAYOUT_STUB, StrategyBotListPanel: PANEL_STUB } },
-    })
+    declaredMeta.length = 0
+    const wrapper = mount(page, { global: { stubs: { StrategyBotListPage: LIST_STUB } } })
 
-    expect(wrapper.get('h1').text()).toBe(expectedTitle)
+    expect(declaredMeta).toEqual([expect.objectContaining({ layout: 'console', consoleTitle: expectedTitle })])
     expect(wrapper.get('[data-testid="kind"]').text()).toBe(expectedKind)
   })
 
   it.each([
-    ['kCandle', SpotStrategyBotNewPage],
-    ['contractKCandle', ContractStrategyBotNewPage],
-  ])('拼一台的那一頁拼的是 %s', (expectedKind, page) => {
+    ['現貨策略機器人', 'kCandle:', SpotStrategyBotNewPage],
+    ['合約策略機器人', 'contractKCandle:', ContractStrategyBotNewPage],
+    ['現貨策略機器人', 'kCandle:7', SpotStrategyBotEditPage],
+    ['合約策略機器人', 'contractKCandle:7', ContractStrategyBotEditPage],
+  ])('拼一台與改一台的那一頁，標題仍是「%s」，交給工作台的是 %s', (expectedTitle, expectedWiring, page) => {
+    declaredMeta.length = 0
     const wrapper = mount(page, { global: { stubs: { StrategyBotWorkbenchPage: WORKBENCH_STUB } } })
 
-    expect(wrapper.get('[data-testid="kind"]').text()).toBe(expectedKind)
+    expect(declaredMeta).toEqual([expect.objectContaining({ layout: 'console', consoleTitle: expectedTitle })])
+    expect(wrapper.get('[data-testid="kind"]').text()).toBe(expectedWiring)
   })
 })

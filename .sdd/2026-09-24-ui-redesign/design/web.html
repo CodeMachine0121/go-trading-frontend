@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Go Trading · Web 設計稿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ───────────── Design tokens（未來搬進 abstracts/_tokens.scss） ───────────── */
+:root {
+  --bg: #0a0c10;
+  --surface: #11141a;
+  --surface-raised: #171b22;
+  --surface-sunken: #0d1015;
+  --border: #222833;
+  --border-strong: #2e3542;
+  --text: #e7eaf0;
+  --text-muted: #8b94a3;
+  --text-faint: #5b6473;
+  --accent: #8b7bff;
+  --accent-soft: rgba(139, 123, 255, .14);
+  --up: #2fbf8a;
+  --up-soft: rgba(47, 191, 138, .13);
+  --down: #f2556a;
+  --down-soft: rgba(242, 85, 106, .13);
+  --warning: #f0b44c;
+  --warning-soft: rgba(240, 180, 76, .13);
+  --info: #4fa3ff;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 12px 40px rgba(0, 0, 0, .45);
+  --font: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --deck: #06070a;
+  --on-accent: #0b0a1a;
+  --code-keyword: #c792ea; --code-function: #82aaff; --code-string: #c3e88d;
+  --code-number: #f78c6c; --code-comment: #5b6473; --code-type: #ffcb6b;
+  --chart-ma-fast: #f0b44c; --chart-ma-slow: #4fa3ff; --chart-oscillator: #c792ea;
+  color-scheme: dark;
+}
+/* 淺色主題：同一組 token 名、換一組值；預設跟隨系統，可手動覆寫 */
+:root[data-theme="light"] {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-raised: #f0f2f5; --surface-sunken: #f7f8fa;
+  --border: #e2e5ea; --border-strong: #d0d5dd;
+  --text: #11151c; --text-muted: #566072; --text-faint: #8c95a4;
+  --accent: #6a57ee; --accent-soft: rgba(106, 87, 238, .10);
+  --up: #0e9b69; --up-soft: rgba(14, 155, 105, .10); --down: #df3550; --down-soft: rgba(223, 53, 80, .09);
+  --warning: #b87512; --warning-soft: rgba(184, 117, 18, .11); --info: #2d7ad9;
+  --shadow: 0 12px 40px rgba(17, 21, 28, .12);
+  --deck: #e9ecf1; --on-accent: #ffffff;
+  --code-keyword: #7c3aed; --code-function: #2563eb; --code-string: #15803d;
+  --code-number: #c2410c; --code-comment: #9aa3b2; --code-type: #a16207;
+  --chart-ma-fast: #d48806; --chart-ma-slow: #2d7ad9; --chart-oscillator: #8b5cf6;
+  color-scheme: light;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font: 13px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--text-muted); } .faint { color: var(--text-faint); }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+svg { display: block; }
+
+/* ───────────── 設計稿外框：screen switcher ───────────── */
+.deck { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--deck); border-bottom: 1px solid var(--border); }
+.deck__title { font-weight: 600; margin-right: 12px; }
+.deck__title span { color: var(--text-faint); font-weight: 400; margin-left: 6px; }
+.deck__tab { padding: 6px 12px; border-radius: 999px; color: var(--text-muted); border: 1px solid transparent; }
+.deck__tab.is-active { color: var(--text); border-color: var(--border-strong); background: var(--surface-raised); }
+.deck__hint { margin-left: auto; color: var(--text-faint); font-size: 12px; }
+
+/* ───────────── App shell ───────────── */
+.app { display: grid; grid-template-columns: 216px 1fr; height: calc(100vh - 88px); min-height: 760px; }
+.side { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; border-right: 1px solid var(--border); background: var(--surface-sunken); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 18px; font-weight: 700; letter-spacing: .2px; }
+.brand__mark { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, var(--accent), #5b4bd6); display: grid; place-items: center; }
+.side__group { padding: 14px 10px 6px; font-size: 11px; color: var(--text-faint); letter-spacing: .6px; text-transform: uppercase; }
+.side__link { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text-muted); }
+.side__link:hover { background: var(--surface-raised); color: var(--text); }
+.side__link.is-active { background: var(--accent-soft); color: var(--text); }
+.side__link.is-active svg { color: var(--accent); }
+.side__count { margin-left: auto; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-raised); color: var(--text-muted); }
+.side__foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.health { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: var(--text-muted); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--up); box-shadow: 0 0 0 3px var(--up-soft); }
+.user { display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border-strong); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.side { overflow: hidden; }
+.topbar { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+.search { display: flex; align-items: center; gap: 8px; width: 300px; height: 34px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); color: var(--text-faint); }
+.kbd { margin-left: auto; font: 11px var(--mono); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-strong); }
+.topbar__right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.segmented { display: inline-flex; padding: 3px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+.segmented button { padding: 5px 12px; border-radius: 6px; color: var(--text-muted); font-weight: 500; }
+.segmented button.is-active { background: var(--surface-raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: var(--radius-sm); font-weight: 500; border: 1px solid var(--border-strong); background: var(--surface-raised); }
+.btn:hover { border-color: var(--text-faint); }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn--ghost { border-color: transparent; background: transparent; color: var(--text-muted); }
+.btn--small { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn--danger { color: var(--down); }
+.icon-btn { width: 34px; height: 34px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--text-muted); border: 1px solid var(--border); }
+.assist-btn { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 999px; background: linear-gradient(90deg, rgba(139,123,255,.22), rgba(79,163,255,.18)); border: 1px solid rgba(139,123,255,.45); font-weight: 500; }
+
+.content { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 20px; }
+.screen { display: none; } .screen.is-active { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.card__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.card__title { font-weight: 600; }
+.card__body { padding: 14px; }
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 500; background: var(--surface-raised); color: var(--text-muted); border: 1px solid var(--border); white-space: nowrap; }
+.tag--up { background: var(--up-soft); color: var(--up); border-color: transparent; }
+.tag--down { background: var(--down-soft); color: var(--down); border-color: transparent; }
+.tag--warning { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+.tag--accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.tabs { display: flex; gap: 2px; }
+.tabs button { padding: 6px 10px; border-radius: 6px; color: var(--text-muted); font-weight: 500; }
+.tabs button.is-active { color: var(--text); background: var(--surface-raised); }
+.underline-tabs { display: flex; gap: 18px; padding: 0 14px; border-bottom: 1px solid var(--border); }
+.underline-tabs button { padding: 11px 0; color: var(--text-muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.underline-tabs button.is-active { color: var(--text); border-color: var(--accent); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 500; font-size: 11.5px; color: var(--text-faint); padding: 8px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-raised); }
+.t-right { text-align: right; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12px; color: var(--text-muted); }
+.input { display: flex; align-items: center; height: 34px; padding: 0 10px; border-radius: var(--radius-sm); background: var(--surface-sunken); border: 1px solid var(--border); gap: 8px; }
+.input .suffix { margin-left: auto; color: var(--text-faint); font-size: 12px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.spacer { flex: 1; }
+
+/* 市場切換：toggle switch（現貨 ↔ 合約是兩組不同的頁面） */
+.market-switch { display: inline-flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; user-select: none; }
+.market-switch__label { font-weight: 500; color: var(--text-faint); transition: color .15s; }
+.market-switch__track { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--surface-raised); border: 1px solid var(--border-strong); transition: background .18s, border-color .18s; }
+.market-switch__thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: transform .18s; }
+.market-switch[aria-checked="false"] [data-side="spot"], .market-switch[aria-checked="true"] [data-side="contract"] { color: var(--text); }
+.market-switch[aria-checked="true"] .market-switch__track { background: var(--accent); border-color: var(--accent); }
+.market-switch[aria-checked="true"] .market-switch__thumb { transform: translateX(16px); background: var(--on-accent); }
+.market-switch[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
+.route { font: 11.5px var(--mono); color: var(--text-faint); padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--border-strong); }
+.theme-toggle { display: inline-flex; padding: 3px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); }
+.theme-toggle button { width: 28px; height: 26px; border-radius: 6px; display: grid; place-items: center; color: var(--text-faint); }
+.theme-toggle button.is-active { background: var(--surface-raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
+body[data-market="spot"] .only-contract, body[data-market="contract"] .only-spot { display: none !important; }
+
+/* ───────────── 1. 行情圖表 ───────────── */
+.ticker { display: flex; align-items: center; gap: 28px; padding: 4px 2px 14px; }
+.symbol { display: flex; align-items: center; gap: 10px; }
+.coin { width: 30px; height: 30px; border-radius: 50%; background: #f7931a; display: grid; place-items: center; font-weight: 700; color: #1a1205; font-size: 14px; }
+.symbol__name { font-size: 18px; font-weight: 700; }
+.symbol__meta { font-size: 12px; color: var(--text-muted); }
+.price { font: 600 26px var(--mono); letter-spacing: -.5px; }
+.stat__label { font-size: 11.5px; color: var(--text-faint); }
+.stat__value { font: 500 13px var(--mono); }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--up); }
+.live .dot { animation: pulse 1.6s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
+.chart-grid { display: grid; grid-template-columns: 1fr 300px; gap: 14px; }
+.chart-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.chart-toolbar .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+.chart-wrap { position: relative; display: grid; grid-template-columns: 38px 1fr; }
+.draw-tools { display: flex; flex-direction: column; gap: 4px; padding: 8px 5px; border-right: 1px solid var(--border); }
+.draw-tools button { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--text-muted); }
+.draw-tools button.is-active { background: var(--accent-soft); color: var(--accent); }
+.legend { position: absolute; top: 10px; left: 50px; display: flex; gap: 14px; font: 11.5px var(--mono); z-index: 2; }
+.legend b { font-weight: 500; }
+.side-panel { display: flex; flex-direction: column; gap: 14px; }
+.indicator { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.indicator:last-child { border-bottom: 0; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; }
+.indicator__params { font: 11.5px var(--mono); color: var(--text-faint); }
+.signal { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+.signal:last-child { border-bottom: 0; }
+.signal__icon { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; }
+
+/* ───────────── 2. 策略腳本 ───────────── */
+.workbench { display: grid; grid-template-columns: 240px 1fr 280px; gap: 14px; height: 100%; }
+.list-item { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.list-item.is-active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.list-item__name { font-weight: 500; }
+.code { font: 12.5px/1.75 var(--mono); padding: 12px 0; background: var(--surface-sunken); counter-reset: line; overflow: hidden; }
+.code div { padding: 0 16px 0 0; white-space: pre; }
+.code div::before { counter-increment: line; content: counter(line); display: inline-block; width: 42px; padding-right: 14px; text-align: right; color: var(--text-faint); }
+.code .hl { background: rgba(139,123,255,.08); }
+.k { color: var(--code-keyword); } .f { color: var(--code-function); } .s { color: var(--code-string); } .n { color: var(--code-number); } .c { color: var(--code-comment); font-style: italic; } .t { color: var(--code-type); }
+.metrics { display: grid; grid-template-columns: repeat(6, 1fr); border-bottom: 1px solid var(--border); }
+.metric { padding: 12px 14px; border-right: 1px solid var(--border); }
+.metric:last-child { border-right: 0; }
+.metric__label { font-size: 11.5px; color: var(--text-faint); margin-bottom: 4px; }
+.metric__value { font: 600 17px var(--mono); }
+.metric__sub { font-size: 11.5px; color: var(--text-muted); }
+.param { display: grid; grid-template-columns: 1fr 96px; align-items: center; gap: 8px; padding: 8px 14px; }
+.param__name { font: 12px var(--mono); }
+.param__kind { font-size: 11px; color: var(--text-faint); }
+
+/* ───────────── 3. 交易策略（規則編輯器） ───────────── */
+.rule-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
+.rule-col { display: flex; flex-direction: column; align-items: stretch; max-width: 760px; margin: 0 auto; width: 100%; }
+.step { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.step.is-selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.step__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.step__badge { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; }
+.step__kicker { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--text-faint); }
+.step__title { font-weight: 600; }
+.step__body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.connector { width: 2px; height: 22px; background: var(--border-strong); margin: 0 auto; position: relative; }
+.connector span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border-strong); color: var(--text-muted); white-space: nowrap; }
+.clause { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-sunken); border: 1px solid var(--border); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 7px; background: var(--surface-raised); border: 1px solid var(--border-strong); font-weight: 500; }
+.chip--script { border-color: rgba(139,123,255,.45); background: var(--accent-soft); }
+.chip--op { font-family: var(--mono); color: var(--warning); }
+.chip--value { font-family: var(--mono); }
+.join { align-self: flex-start; margin-left: 12px; font: 600 11px var(--mono); color: var(--info); }
+.add-row { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 12.5px; padding: 6px 2px; }
+.plan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.plan > div { padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-sunken); border: 1px solid var(--border); }
+
+/* ───────────── 4. 策略機器人 ───────────── */
+.bots-grid { display: grid; grid-template-columns: 1fr 380px; gap: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+.kpi { padding: 14px; }
+.kpi__label { font-size: 12px; color: var(--text-muted); }
+.kpi__value { font: 600 22px var(--mono); margin-top: 4px; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.status .dot { width: 6px; height: 6px; box-shadow: none; }
+.timeline { display: flex; flex-direction: column; }
+.run { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 0 14px; }
+.run__rail { display: flex; flex-direction: column; align-items: center; }
+.run__rail i { width: 9px; height: 9px; border-radius: 50%; margin-top: 14px; }
+.run__rail b { flex: 1; width: 1px; background: var(--border); }
+.run__body { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.suggest { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--warning-soft); color: var(--warning); font-size: 12px; }
+
+/* ───────────── 5. 市集 ───────────── */
+.market-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.listing { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.listing__stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* ───────────── K 線資料 + 編輯表單 ───────────── */
+.candles-grid { display: grid; grid-template-columns: 1fr 360px; gap: 14px; }
+.query { display: grid; grid-template-columns: 180px 1fr 1fr auto; gap: 10px; align-items: end; padding: 14px; border-bottom: 1px solid var(--border); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.input.is-invalid { border-color: var(--down); box-shadow: 0 0 0 3px var(--down-soft); }
+.input.is-readonly { color: var(--text-muted); background: var(--surface-raised); }
+.field__error { font-size: 11.5px; color: var(--down); }
+.field__hint { font-size: 11.5px; color: var(--text-faint); }
+tr.is-selected td { background: var(--accent-soft); }
+tr.is-selected td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.pager { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px; }
+
+/* ───────────── 設定 ───────────── */
+.settings { display: grid; grid-template-columns: 200px minmax(0, 720px); gap: 24px; }
+.settings__nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; align-self: start; }
+.settings__nav a { padding: 8px 10px; border-radius: 6px; color: var(--text-muted); }
+.settings__nav a.is-active { background: var(--surface-raised); color: var(--text); }
+.setting-row { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 14px; border-bottom: 1px solid var(--border); align-items: start; }
+.setting-row:last-child { border-bottom: 0; }
+.setting-row__label { font-weight: 500; }
+.setting-row__hint { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+
+/* ───────────── AI 助手抽屜 ───────────── */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .22s ease; z-index: 40; }
+.drawer.is-open { transform: none; }
+.drawer__resize { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.thread { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.bubble { max-width: 86%; padding: 10px 12px; border-radius: 12px; }
+.bubble--me { align-self: flex-end; background: var(--accent-soft); border: 1px solid rgba(139,123,255,.35); }
+.bubble--ai { background: var(--surface-raised); border: 1px solid var(--border); }
+.bubble--ai p + p { margin-top: 6px; }
+.note { display: flex; gap: 8px; padding: 8px 10px; margin-top: 8px; border-radius: 8px; background: var(--surface-sunken); font-size: 12px; color: var(--text-muted); }
+.prompts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.prompts button { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-muted); font-size: 12px; }
+.composer { margin: 0 16px 16px; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-strong); background: var(--surface-sunken); }
+.composer textarea { width: 100%; resize: none; background: none; border: 0; color: var(--text); font: inherit; outline: none; height: 42px; }
+.typing { display: inline-flex; gap: 4px; }
+.typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: blink 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 50% { opacity: .25; } }
+
+.annot { padding: 10px 20px; background: var(--deck); border-bottom: 1px dashed var(--border-strong); color: var(--text-muted); font-size: 12.5px; }
+.annot b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav class="deck">
+  <div class="deck__title">Go Trading 重新設計<span>Web · 1440</span></div>
+  <button class="deck__tab is-active" data-screen="chart">行情圖表</button>
+  <button class="deck__tab" data-screen="candles">K 線資料</button>
+  <button class="deck__tab" data-screen="script">策略腳本 + 回測</button>
+  <button class="deck__tab" data-screen="strategy">交易策略</button>
+  <button class="deck__tab" data-screen="bots">策略機器人</button>
+  <button class="deck__tab" data-screen="market">市集</button>
+  <button class="deck__tab" data-screen="settings">設定</button>
+  <div class="deck__hint">頂列 toggle 切現貨／合約（兩組獨立頁面）· 右上切淺色／深色 · 數據皆為示意</div>
+</nav>
+<div class="annot" id="annot"></div>
+
+<div class="app">
+  <!-- ───────── 側欄導覽：現貨/合約不再各佔一格，改由頂列切換 ───────── -->
+  <aside class="side">
+    <div class="brand"><div class="brand__mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M3 17l6-6 4 4 8-8"/></svg></div>Go Trading</div>
+    <div class="side__group">市場</div>
+    <a class="side__link is-active" data-nav="chart"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M18 4v16M12 7v10"/><rect x="4" y="8" width="4" height="7" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="16" y="6" width="4" height="8" rx="1"/></svg>行情圖表</a>
+    <a class="side__link" data-nav="candles"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>K 線資料</a>
+    <div class="side__group">策略</div>
+    <a class="side__link" data-nav="script"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>策略腳本<span class="side__count">12</span></a>
+    <a class="side__link" data-nav="strategy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v6a3 3 0 003 3h6a3 3 0 013 3v6"/><circle cx="6" cy="3" r="1.5"/><circle cx="18" cy="21" r="1.5"/></svg>交易策略<span class="side__count">5</span></a>
+    <a class="side__link" data-nav="bots"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 14h.01M15 14h.01"/></svg>策略機器人<span class="side__count">3</span></a>
+    <a class="side__link" data-nav="market"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9l1.5-5h13L20 9M4 9v11h16V9M4 9h16M9 20v-6h6v6"/></svg>市集</a>
+    <div class="side__foot">
+      <a class="side__link" data-nav="settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>設定</a>
+      <div class="health"><span class="dot"></span>後端連線正常 · 42ms</div>
+      <div class="user"><div class="avatar">JH</div><div><div style="font-weight:500">James Hsueh</div><div class="faint" style="font-size:11.5px">UTC+08:00</div></div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>搜尋標的、腳本、策略…<span class="kbd">⌘K</span></div>
+      <div class="market-switch" id="marketSwitch" role="switch" aria-checked="false" tabindex="0" title="切換到另一個市場的同一頁">
+        <span class="market-switch__label" data-side="spot">現貨</span>
+        <span class="market-switch__track"><span class="market-switch__thumb"></span></span>
+        <span class="market-switch__label" data-side="contract">合約</span>
+      </div>
+      <span class="route" id="route">/k-candles/chart</span>
+      <div class="topbar__right">
+        <div class="theme-toggle" id="themeToggle" title="外觀">
+          <button data-theme-choice="light" title="淺色"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button data-theme-choice="system" title="跟隨系統"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></button>
+          <button data-theme-choice="dark" title="深色"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></button>
+        </div>
+        <button class="icon-btn" title="通知"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1112 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg></button>
+        <button class="assist-btn" id="openAssistant"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.5L12 16l-1.8-5.5L4.5 9l5.7-1.4z"/><path d="M19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z" opacity=".6"/></svg>AI 助手</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ═════════ 1. 行情圖表 ═════════ -->
+      <section class="screen is-active" data-screen="chart">
+        <div class="ticker">
+          <div class="symbol"><div class="coin">₿</div><div><div class="symbol__name">BTCUSDT <span class="tag only-spot" style="margin-left:4px">現貨</span><span class="tag tag--accent only-contract" style="margin-left:4px">永續合約</span></div><div class="symbol__meta">Bitcoin / TetherUS · 觀察清單 ★</div></div></div>
+          <div><div class="price up">64,218.40</div><div class="live"><span class="dot"></span>即時跟隨中</div></div>
+          <div><div class="stat__label">24h 漲跌</div><div class="stat__value up">+1,204.10 (+1.91%)</div></div>
+          <div class="only-spot"><div class="stat__label">24h 高</div><div class="stat__value">64,880.00</div></div>
+          <div class="only-spot"><div class="stat__label">24h 低</div><div class="stat__value">62,741.25</div></div>
+          <div class="only-contract"><div class="stat__label">標記價格</div><div class="stat__value">64,221.08</div></div>
+          <div class="only-contract"><div class="stat__label">資金費率 / 倒數</div><div class="stat__value"><span class="up">+0.0100%</span> <span class="muted">02:14:33</span></div></div>
+          <div class="only-contract"><div class="stat__label">多空持倉比</div><div class="stat__value">1.42</div></div>
+          <div><div class="stat__label">24h 成交量</div><div class="stat__value">18,442.7 BTC</div></div>
+          <div class="spacer"></div>
+          <button class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>同步歷史</button>
+        </div>
+
+        <div class="chart-grid">
+          <div class="card">
+            <div class="chart-toolbar">
+              <div class="tabs"><button>1m</button><button>5m</button><button class="is-active">15m</button><button>1h</button><button>4h</button><button>1D</button></div>
+              <div class="sep"></div>
+              <button class="btn btn--ghost btn--small"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l5-5 4 4 9-9"/></svg>指標</button>
+              <button class="btn btn--ghost btn--small"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/></svg>套用腳本</button>
+              <button class="btn btn--ghost btn--small">範圍：近 24 小時 ▾</button>
+              <div class="spacer"></div>
+              <span class="faint" style="font-size:12px">UTC · 96 根</span>
+              <button class="icon-btn" style="width:28px;height:28px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+            </div>
+            <div class="chart-wrap">
+              <div class="draw-tools">
+                <button class="is-active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></button>
+                <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L20 4"/></svg></button>
+                <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h18M3 16h18"/></svg></button>
+                <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 20h14M8 4h8M12 4v16"/></svg></button>
+                <button><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6"/></svg></button>
+              </div>
+              <div style="position:relative">
+                <div class="legend"><span class="muted">O <b class="up">64,102.3</b> H <b class="up">64,260.0</b> L <b class="up">64,080.1</b> C <b class="up">64,218.4</b></span><span style="color:var(--chart-ma-fast)">MA 7 <b>64,120.5</b></span><span style="color:var(--chart-ma-slow)">MA 25 <b>63,810.2</b></span></div>
+                <svg id="candles" width="100%" height="420"></svg>
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--border);font:11.5px var(--mono)"><span style="color:var(--chart-oscillator)">RSI 14</span><b>61.42</b><span class="faint">· 自訂腳本：momentum_rsi.go</span></div>
+                <svg id="rsi" width="100%" height="90"></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-panel">
+            <div class="card">
+              <div class="card__head"><span class="card__title">套用中的指標</span><span class="spacer"></span><button class="btn btn--small">+ 新增</button></div>
+              <div class="indicator"><span class="swatch" style="background:var(--chart-ma-fast)"></span><div><div>MA</div><div class="indicator__params">period=7</div></div><span class="spacer"></span><span class="tag">主圖</span></div>
+              <div class="indicator"><span class="swatch" style="background:var(--chart-ma-slow)"></span><div><div>MA</div><div class="indicator__params">period=25</div></div><span class="spacer"></span><span class="tag">主圖</span></div>
+              <div class="indicator"><span class="swatch" style="background:var(--chart-oscillator)"></span><div><div>momentum_rsi</div><div class="indicator__params">period=14 · 70 / 30</div></div><span class="spacer"></span><span class="tag tag--accent">腳本</span></div>
+            </div>
+            <div class="card">
+              <div class="card__head"><span class="card__title">訊號紀錄</span><span class="spacer"></span><span class="faint only-spot" style="font-size:12px">breakout_v3</span><span class="faint only-contract" style="font-size:12px">funding_skew</span></div>
+              <div class="signal"><div class="signal__icon" style="background:var(--up-soft);color:var(--up)">▲</div><div><div>進場訊號</div><div class="faint num" style="font-size:11.5px">09-24 08:45 · 63,904.0</div></div><span class="tag tag--up">買</span></div>
+              <div class="signal"><div class="signal__icon" style="background:var(--down-soft);color:var(--down)">▼</div><div><div>出場訊號</div><div class="faint num" style="font-size:11.5px">09-23 22:15 · 63,120.5</div></div><span class="tag tag--down">賣</span></div>
+              <div class="signal"><div class="signal__icon" style="background:var(--up-soft);color:var(--up)">▲</div><div><div>進場訊號</div><div class="faint num" style="font-size:11.5px">09-23 14:30 · 62,801.2</div></div><span class="tag tag--up">買</span></div>
+            </div>
+            <div class="card only-contract">
+              <div class="card__head"><span class="card__title">資金費率結算</span><span class="spacer"></span><span class="faint" style="font-size:12px">每 8 小時</span></div>
+              <table class="num"><tbody>
+                <tr><td>09-24 00:00</td><td class="t-right up">+0.0100%</td></tr>
+                <tr><td>09-23 16:00</td><td class="t-right up">+0.0082%</td></tr>
+                <tr><td>09-23 08:00</td><td class="t-right down">−0.0031%</td></tr>
+              </tbody></table>
+            </div>
+            <div class="card card__body" style="display:flex;flex-direction:column;gap:10px">
+              <div class="row"><span class="card__title">快速回測</span><span class="spacer"></span><span class="tag">近 24h</span></div>
+              <div class="muted" style="font-size:12px">把目前套用的腳本丟到這段行情上重演一次。</div>
+              <div class="row only-contract"><div class="field" style="flex:1"><label>槓桿</label><div class="input num">5×</div></div><div class="field" style="flex:1"><label>保證金</label><div class="input">逐倉 ▾</div></div></div>
+              <button class="btn btn--primary" style="justify-content:center">執行回測</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="underline-tabs"><button class="is-active">K 線資料</button><button>指標計算</button><button>同步紀錄</button><span class="spacer"></span><button class="muted" style="font-size:12px">+ 新增一根 K 線</button></div>
+          <table>
+            <thead><tr><th>起始時間 (UTC)</th><th class="t-right">開</th><th class="t-right">高</th><th class="t-right">低</th><th class="t-right">收</th><th class="t-right">成交量</th><th class="t-right">漲跌</th><th></th></tr></thead>
+            <tbody class="num">
+              <tr><td>2026-09-24 09:00</td><td class="t-right">64,102.30</td><td class="t-right">64,260.00</td><td class="t-right">64,080.10</td><td class="t-right">64,218.40</td><td class="t-right">212.44</td><td class="t-right up">+0.18%</td><td class="t-right faint">編輯</td></tr>
+              <tr><td>2026-09-24 08:45</td><td class="t-right">63,904.00</td><td class="t-right">64,150.80</td><td class="t-right">63,880.00</td><td class="t-right">64,102.30</td><td class="t-right">305.10</td><td class="t-right up">+0.31%</td><td class="t-right faint">編輯</td></tr>
+              <tr><td>2026-09-24 08:30</td><td class="t-right">63,990.10</td><td class="t-right">64,012.00</td><td class="t-right">63,850.40</td><td class="t-right">63,904.00</td><td class="t-right">188.72</td><td class="t-right down">−0.13%</td><td class="t-right faint">編輯</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═════════ 2. 策略腳本 + 回測 ═════════ -->
+      <section class="screen" data-screen="script" style="height:100%">
+        <div class="workbench">
+          <div class="card" style="overflow:hidden">
+            <div class="card__head"><span class="card__title">腳本庫</span><span class="spacer"></span><button class="btn btn--small">+ 新腳本</button></div>
+            <div style="padding:10px 14px;border-bottom:1px solid var(--border)"><div class="input"><span class="faint">篩選腳本…</span></div></div>
+            <div class="list-item is-active only-contract"><div class="row"><span class="list-item__name">funding_skew</span><span class="spacer"></span><span class="tag tag--up">已發佈</span></div><span class="faint" style="font-size:11.5px">合約訊號腳本 · 09-18</span></div>
+            <div class="list-item only-contract"><div class="row"><span class="list-item__name">basis_revert</span><span class="spacer"></span><span class="tag tag--warning">草稿</span></div><span class="faint" style="font-size:11.5px">合約訊號腳本 · 09-12</span></div>
+            <div class="list-item is-active only-spot"><div class="row"><span class="list-item__name">breakout_v3</span><span class="spacer"></span><span class="tag tag--up">已發佈</span></div><span class="faint" style="font-size:11.5px">訊號腳本 · 2 小時前</span></div>
+            <div class="list-item only-spot"><div class="row"><span class="list-item__name">momentum_rsi</span><span class="spacer"></span><span class="tag">指標</span></div><span class="faint" style="font-size:11.5px">指標腳本 · 昨天</span></div>
+            <div class="list-item only-spot"><div class="row"><span class="list-item__name">mean_revert_bb</span><span class="spacer"></span><span class="tag tag--warning">草稿</span></div><span class="faint" style="font-size:11.5px">訊號腳本 · 09-20</span></div>
+            <div class="list-item only-spot"><div class="row"><span class="list-item__name">vwap_cross</span><span class="spacer"></span><span class="tag tag--accent">市集取得</span></div><span class="faint" style="font-size:11.5px">訊號腳本 · 09-15</span></div>
+          </div>
+
+          <div class="stack" style="min-width:0">
+            <div class="card" style="overflow:hidden">
+              <div class="card__head">
+                <span class="card__title only-spot">breakout_v3.go</span><span class="card__title only-contract">funding_skew.go</span><span class="tag tag--up">已儲存</span>
+                <span class="spacer"></span>
+                <button class="btn btn--ghost btn--small">撰寫說明</button>
+                <button class="btn btn--small">發佈到市集</button>
+                <button class="btn btn--primary btn--small">▶ 執行回測</button>
+              </div>
+              <div class="code">
+<div><span class="c">// 前言：輸入與參數（可編輯）</span></div>
+<div><span class="k">package</span> strategy</div>
+<div></div>
+<div><span class="k">func</span> <span class="f">Signal</span>(candles []<span class="t">KCandle</span>, p <span class="t">Params</span>) <span class="t">Decision</span> {</div>
+<div>    lookback := p.<span class="f">Int</span>(<span class="s">"lookback"</span>, <span class="n">20</span>)</div>
+<div>    multiplier := p.<span class="f">Decimal</span>(<span class="s">"atrMultiplier"</span>, <span class="n">1.5</span>)</div>
+<div>    window := candles[<span class="f">len</span>(candles)-lookback:]</div>
+<div class="hl">    high := <span class="f">highestHigh</span>(window)</div>
+<div>    last := candles[<span class="f">len</span>(candles)-<span class="n">1</span>]</div>
+<div></div>
+<div>    <span class="k">if</span> last.Close.<span class="f">GreaterThan</span>(high) {</div>
+<div>        stop := last.Close.<span class="f">Sub</span>(<span class="f">atr</span>(candles).<span class="f">Mul</span>(multiplier))</div>
+<div>        <span class="k">return</span> <span class="f">Enter</span>(<span class="t">Long</span>).<span class="f">StopLoss</span>(stop)</div>
+<div>    }</div>
+<div>    <span class="k">return</span> <span class="f">Hold</span>()</div>
+<div>}</div>
+              </div>
+            </div>
+
+            <div class="card" style="overflow:hidden">
+              <div class="underline-tabs"><button class="is-active">回測結果</button><button>成交明細 <span class="faint">38</span></button><button>執行紀錄</button><span class="spacer"></span><span class="faint only-spot" style="font-size:12px;align-self:center">BTCUSDT · 15m · 09-01 → 09-24 · 現貨</span><span class="faint only-contract" style="font-size:12px;align-self:center">BTCUSDT 永續 · 1h · 5× 逐倉 · 09-01 → 09-24</span></div>
+              <div class="metrics">
+                <div class="metric"><div class="metric__label">總報酬率</div><div class="metric__value up">+18.42%</div><div class="metric__sub num">10,000 → 11,842</div></div>
+                <div class="metric"><div class="metric__label">勝率</div><div class="metric__value">57.9%</div><div class="metric__sub">22 勝 / 16 敗</div></div>
+                <div class="metric"><div class="metric__label">最大回撤</div><div class="metric__value down">−6.31%</div><div class="metric__sub">09-12 → 09-14</div></div>
+                <div class="metric"><div class="metric__label">交易次數</div><div class="metric__value">38</div><div class="metric__sub">持倉中 0</div></div>
+                <div class="metric"><div class="metric__label">止盈 / 止損</div><div class="metric__value">14 / 9</div><div class="metric__sub">其餘為訊號出場</div></div>
+                <div class="metric"><div class="metric__label">交易成本</div><div class="metric__value">84.20</div><div class="metric__sub">手續費 0.1%</div></div>
+              </div>
+              <div class="metrics only-contract" style="grid-template-columns:repeat(5,1fr)">
+                <div class="metric"><div class="metric__label">多單勝率</div><div class="metric__value">61.1%</div><div class="metric__sub">18 筆</div></div>
+                <div class="metric"><div class="metric__label">空單勝率</div><div class="metric__value">55.0%</div><div class="metric__sub">20 筆</div></div>
+                <div class="metric"><div class="metric__label">資金費用</div><div class="metric__value down">−21.40</div><div class="metric__sub">USDT</div></div>
+                <div class="metric"><div class="metric__label">強制平倉</div><div class="metric__value">0</div><div class="metric__sub">擋下開倉 2 次</div></div>
+                <div class="metric"><div class="metric__label">維持保證金依據</div><div class="metric__value" style="font-size:13px">Binance 階梯</div><div class="metric__sub">09-24 確認</div></div>
+              </div>
+              <svg id="equity" width="100%" height="170"></svg>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card__head"><span class="card__title">參數</span><span class="spacer"></span><button class="btn btn--ghost btn--small">+ 參數</button></div>
+              <div class="param"><div><div class="param__name">lookback</div><div class="param__kind">整數</div></div><div class="input num">20</div></div>
+              <div class="param"><div><div class="param__name">atrMultiplier</div><div class="param__kind">小數</div></div><div class="input num">1.5</div></div>
+              <div class="param" style="padding-bottom:14px"><div><div class="param__name">direction</div><div class="param__kind">選項</div></div><div class="input">long ▾</div></div>
+            </div>
+            <div class="card">
+              <div class="card__head"><span class="card__title">回測條件</span></div>
+              <div class="card__body stack">
+                <div class="field"><label>標的</label><div class="input">BTCUSDT<span class="suffix only-spot">現貨</span><span class="suffix only-contract">永續</span></div></div>
+                <div class="row only-contract"><div class="field" style="flex:1"><label>槓桿</label><div class="input num">5<span class="suffix">×</span></div></div><div class="field" style="flex:1"><label>交易模式</label><div class="input">逐倉 ▾</div></div></div>
+                <div class="field"><label>區間 (UTC)</label><div class="input num" style="font-size:12px">2026-09-01 → 2026-09-24</div></div>
+                <div class="row"><div class="field" style="flex:1"><label>初始資金</label><div class="input num">10,000<span class="suffix">USDT</span></div></div><div class="field" style="flex:1"><label>聚合</label><div class="input">15m ▾</div></div></div>
+                <div class="row"><div class="field" style="flex:1"><label>止盈</label><div class="input num">4<span class="suffix">%</span></div></div><div class="field" style="flex:1"><label>止損</label><div class="input num">2<span class="suffix">%</span></div></div></div>
+                <div class="field"><label>成交時機</label><div class="segmented" style="width:100%"><button class="is-active" style="flex:1">下一根開盤</button><button style="flex:1">本根收盤</button></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ 3. 交易策略（觸發 → 條件 → 動作） ═════════ -->
+      <section class="screen" data-screen="strategy">
+        <div class="row" style="margin-bottom:14px">
+          <div><div class="muted" style="font-size:12px">交易策略 / 編輯</div><div style="font-size:18px;font-weight:700">趨勢突破 + 動能確認</div></div>
+          <span class="tag tag--up" style="margin-left:8px">2 台機器人使用中</span>
+          <span class="spacer"></span>
+          <button class="btn">回測這個策略</button>
+          <button class="btn btn--primary">儲存</button>
+        </div>
+        <div class="rule-grid">
+          <div class="rule-col">
+            <div class="step">
+              <div class="step__head"><div class="step__badge" style="background:var(--accent-soft);color:var(--accent)">⚡</div><div><div class="step__kicker">訊號來源</div><div class="step__title">用哪些腳本讀盤</div></div><span class="spacer"></span><span class="tag">BTCUSDT · 15m · 現貨</span></div>
+              <div class="step__body">
+                <div class="clause"><span class="chip chip--script">breakout_v3</span><span class="faint">lookback=20 · atrMultiplier=1.5</span><span class="spacer"></span><span class="faint">⋯</span></div>
+                <div class="clause"><span class="chip chip--script">momentum_rsi</span><span class="faint">period=14</span><span class="spacer"></span><span class="faint">⋯</span></div>
+                <div class="add-row">＋ 加入訊號腳本</div>
+              </div>
+            </div>
+            <div class="connector"><span>然後</span></div>
+            <div class="step is-selected">
+              <div class="step__head"><div class="step__badge" style="background:rgba(79,163,255,.14);color:var(--info)">?</div><div><div class="step__kicker">進場條件</div><div class="step__title">全部成立才進場</div></div><span class="spacer"></span><div class="segmented"><button class="is-active">全部 AND</button><button>任一 OR</button></div></div>
+              <div class="step__body">
+                <div class="clause"><span class="chip chip--script">breakout_v3</span><span class="muted">發出</span><span class="chip">進場 · 做多</span></div>
+                <div class="join">AND</div>
+                <div class="clause"><span class="chip chip--script">momentum_rsi</span><span class="chip chip--op">&gt;</span><span class="chip chip--value">55</span></div>
+                <div class="add-row">＋ 加入條件</div>
+              </div>
+            </div>
+            <div class="connector"><span>則</span></div>
+            <div class="step">
+              <div class="step__head"><div class="step__badge" style="background:var(--up-soft);color:var(--up)">↗</div><div><div class="step__kicker">動作</div><div class="step__title">進場並依部位計畫下單</div></div></div>
+              <div class="step__body">
+                <div class="plan">
+                  <div><div class="faint" style="font-size:11.5px">部位大小</div><div class="num" style="font-weight:600">資金 25%</div></div>
+                  <div><div class="faint" style="font-size:11.5px">止盈</div><div class="num up" style="font-weight:600">+4.0%</div></div>
+                  <div><div class="faint" style="font-size:11.5px">止損</div><div class="num down" style="font-weight:600">−2.0%</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="connector"><span>出場</span></div>
+            <div class="step">
+              <div class="step__head"><div class="step__badge" style="background:var(--down-soft);color:var(--down)">↘</div><div><div class="step__kicker">出場條件</div><div class="step__title">任一成立就出場</div></div><span class="spacer"></span><div class="segmented"><button>全部 AND</button><button class="is-active">任一 OR</button></div></div>
+              <div class="step__body">
+                <div class="clause"><span class="chip chip--script">momentum_rsi</span><span class="chip chip--op">&lt;</span><span class="chip chip--value">45</span></div>
+                <div class="join">OR</div>
+                <div class="clause"><span class="chip">觸及止盈 / 止損</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="align-self:start">
+            <div class="card__head"><span class="card__title">條件設定</span><span class="spacer"></span><span class="faint" style="font-size:12px">進場條件 #2</span></div>
+            <div class="card__body stack">
+              <div class="muted" style="font-size:12.5px;padding:10px 12px;border-radius:8px;background:var(--surface-sunken)">當 <b style="color:var(--text)">momentum_rsi</b> 的數值 <b style="color:var(--warning)">大於</b> <b style="color:var(--text)">55</b> 時成立</div>
+              <div class="field"><label>訊號腳本</label><div class="input">momentum_rsi ▾</div></div>
+              <div class="field"><label>比較</label><div class="segmented" style="width:100%"><button style="flex:1">&lt;</button><button style="flex:1">≤</button><button class="is-active" style="flex:1">&gt;</button><button style="flex:1">≥</button><button style="flex:1">=</button></div></div>
+              <div class="field"><label>門檻值</label><div class="input num">55</div></div>
+              <div class="field"><label>腳本參數覆寫</label><div class="input num">period = 14</div></div>
+              <button class="btn btn--danger btn--ghost" style="justify-content:center">移除這個條件</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ 4. 策略機器人 ═════════ -->
+      <section class="screen" data-screen="bots">
+        <div class="row" style="margin-bottom:14px">
+          <div style="font-size:18px;font-weight:700"><span class="only-spot">現貨</span><span class="only-contract">合約</span>策略機器人</div>
+          <div class="segmented" style="margin-left:10px"><button class="is-active">全部 2</button><button>運行中</button><button>已停止</button></div>
+          <span class="spacer"></span>
+          <button class="btn btn--primary">+ 建立機器人</button>
+        </div>
+        <div class="kpis">
+          <div class="card kpi"><div class="kpi__label">運行中</div><div class="kpi__value">2 <span class="faint" style="font-size:13px">/ 3</span></div></div>
+          <div class="card kpi"><div class="kpi__label">今日執行輪次</div><div class="kpi__value">184</div></div>
+          <div class="card kpi"><div class="kpi__label">今日發出訊號</div><div class="kpi__value up">6</div></div>
+          <div class="card kpi"><div class="kpi__label">需要注意</div><div class="kpi__value" style="color:var(--warning)">1</div></div>
+        </div>
+        <div class="bots-grid">
+          <div class="card" style="overflow:hidden;align-self:start">
+            <table>
+              <thead><tr><th>名稱</th><th>標的</th><th>交易策略</th><th>觸發間隔</th><th>狀態</th><th>最近一輪</th><th class="t-right"></th></tr></thead>
+              <tbody>
+                <tr class="only-spot" style="background:var(--surface-raised)"><td style="font-weight:600">BTC 突破哨兵</td><td class="num">BTCUSDT <span class="tag">現貨</span></td><td>趨勢突破 + 動能確認</td><td class="num">15 分</td><td><span class="status up"><span class="dot"></span>運行中</span></td><td><span class="tag tag--up">進場訊號</span> <span class="faint num">3 分前</span></td><td class="t-right"><button class="btn btn--small">停止</button></td></tr>
+                <tr class="only-contract" style="background:var(--surface-raised)"><td style="font-weight:600">BTC 資金費率反轉</td><td class="num">BTCUSDT <span class="tag tag--accent">10×</span></td><td>資金費率偏斜</td><td class="num">60 分</td><td><span class="status up"><span class="dot"></span>運行中</span></td><td><span class="tag tag--down">做空訊號</span> <span class="faint num">12 分前</span></td><td class="t-right"><button class="btn btn--small">停止</button></td></tr>
+                <tr class="only-contract"><td style="font-weight:600">ETH 永續空頭</td><td class="num">ETHUSDT <span class="tag tag--accent">5×</span></td><td>資金費率偏斜</td><td class="num">60 分</td><td><span class="status up"><span class="dot"></span>運行中</span></td><td><span class="tag">無訊號</span> <span class="faint num">41 分前</span></td><td class="t-right"><button class="btn btn--small">停止</button></td></tr>
+                <tr class="only-spot"><td style="font-weight:600">SOL 均值回歸</td><td class="num">SOLUSDT <span class="tag">現貨</span></td><td>布林回歸</td><td class="num">5 分</td><td><span class="status" style="color:var(--warning)"><span class="dot" style="background:var(--warning)"></span>停擺</span></td><td><span class="tag tag--warning">腳本失敗</span> <span class="faint num">2 小時前</span></td><td class="t-right"><button class="btn btn--small">啟動</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card__head"><div><div class="card__title only-spot">BTC 突破哨兵</div><div class="card__title only-contract">BTC 資金費率反轉</div><div class="faint" style="font-size:11.5px"><span class="only-spot">每 15 分鐘</span><span class="only-contract">每 60 分鐘 · 10× 逐倉</span> · 通知送 Telegram</div></div><span class="spacer"></span><button class="btn btn--small">立即執行一輪</button></div>
+            <div class="card__body" style="border-bottom:1px solid var(--border)">
+              <div class="plan"><div><div class="faint" style="font-size:11.5px">部位</div><div class="num" style="font-weight:600">25%</div></div><div><div class="faint" style="font-size:11.5px">止盈</div><div class="num up" style="font-weight:600">+4%</div></div><div><div class="faint" style="font-size:11.5px">止損</div><div class="num down" style="font-weight:600">−2%</div></div></div>
+            </div>
+            <div style="padding:10px 14px 0;font-weight:600">執行紀錄</div>
+            <div class="timeline">
+              <div class="run"><div class="run__rail"><i style="background:var(--up)"></i><b></b></div><div class="run__body"><div class="row"><b>#184</b><span class="tag tag--up">進場訊號</span><span class="spacer"></span><span class="faint num" style="font-size:11.5px">09:00 UTC</span></div><div class="muted" style="font-size:12px;margin-top:3px">收盤 64,218.4 突破 20 根高點，RSI 61.4</div></div></div>
+              <div class="run"><div class="run__rail"><i style="background:var(--text-faint)"></i><b></b></div><div class="run__body"><div class="row"><b>#183</b><span class="tag">無訊號</span><span class="spacer"></span><span class="faint num" style="font-size:11.5px">08:45 UTC</span></div></div></div>
+              <div class="run"><div class="run__rail"><i style="background:var(--warning)"></i><b></b></div><div class="run__body"><div class="row"><b>#182</b><span class="tag tag--warning">行情不足</span><span class="spacer"></span><span class="faint num" style="font-size:11.5px">08:30 UTC</span></div><div class="suggest">建議：先同步 BTCUSDT 近 24 小時的 K 線歷史，再讓下一輪執行。</div></div></div>
+              <div class="run"><div class="run__rail"><i style="background:var(--text-faint)"></i><b></b></div><div class="run__body" style="border:0"><div class="row"><b>#181</b><span class="tag">無訊號</span><span class="spacer"></span><span class="faint num" style="font-size:11.5px">08:15 UTC</span></div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ 5. 市集 ═════════ -->
+      <section class="screen" data-screen="market">
+        <div class="row" style="margin-bottom:14px">
+          <div style="font-size:18px;font-weight:700">市集</div>
+          <div class="segmented" style="margin-left:10px"><button class="is-active">熱門</button><button>最新</button><button>我發佈的</button></div>
+          <span class="spacer"></span>
+          <div class="search" style="width:260px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>搜尋腳本</div>
+        </div>
+        <div class="market-grid">
+          <div class="card listing"><div class="row"><div class="avatar">VW</div><div><div style="font-weight:600">vwap_cross</div><div class="faint" style="font-size:11.5px">由 quantlab 發佈 · 訊號腳本</div></div><span class="spacer"></span><span class="tag tag--up">已取得</span></div><div class="muted" style="font-size:12.5px">價格上穿 VWAP 且量能放大時發出進場訊號，適合 15m 以下。</div><svg class="spark" width="100%" height="54" data-seed="3" data-trend="1"></svg><div class="listing__stats"><div><div class="faint" style="font-size:11px">取得次數</div><div class="num">1,284</div></div><div><div class="faint" style="font-size:11px">參數</div><div class="num">3</div></div><div><div class="faint" style="font-size:11px">更新</div><div class="num">09-21</div></div></div></div>
+          <div class="card listing"><div class="row"><div class="avatar">FR</div><div><div style="font-weight:600">funding_reversal</div><div class="faint" style="font-size:11.5px">由 perpdesk 發佈 · 合約</div></div><span class="spacer"></span><button class="btn btn--small btn--primary">取得</button></div><div class="muted" style="font-size:12.5px">資金費率極端時反向操作，需搭配合約行情。</div><svg class="spark" width="100%" height="54" data-seed="7" data-trend="1"></svg><div class="listing__stats"><div><div class="faint" style="font-size:11px">取得次數</div><div class="num">862</div></div><div><div class="faint" style="font-size:11px">參數</div><div class="num">4</div></div><div><div class="faint" style="font-size:11px">更新</div><div class="num">09-19</div></div></div></div>
+          <div class="card listing"><div class="row"><div class="avatar">JH</div><div><div style="font-weight:600">breakout_v3</div><div class="faint" style="font-size:11.5px">由你發佈 · 訊號腳本</div></div><span class="spacer"></span><button class="btn btn--small">撤回</button></div><div class="muted" style="font-size:12.5px">N 根高點突破 + ATR 動態止損。</div><svg class="spark" width="100%" height="54" data-seed="11" data-trend="1"></svg><div class="listing__stats"><div><div class="faint" style="font-size:11px">取得次數</div><div class="num">37</div></div><div><div class="faint" style="font-size:11px">參數</div><div class="num">3</div></div><div><div class="faint" style="font-size:11px">更新</div><div class="num">今天</div></div></div></div>
+        </div>
+      </section>
+
+      <!-- ═════════ K 線資料 + 編輯表單 ═════════ -->
+      <section class="screen" data-screen="candles">
+        <div class="row" style="margin-bottom:14px">
+          <div style="font-size:18px;font-weight:700"><span class="only-spot">現貨</span><span class="only-contract">合約</span> K 線資料</div>
+          <span class="tag">單次查詢上限 1000 根</span>
+          <span class="spacer"></span>
+          <button class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/></svg>同步歷史</button>
+          <button class="btn btn--primary">+ 新增一根 K 線</button>
+        </div>
+        <div class="candles-grid">
+          <div class="card" style="overflow:hidden;align-self:start">
+            <div class="query">
+              <div class="field"><label>交易標的</label><div class="input">BTCUSDT ▾</div></div>
+              <div class="field"><label>開始 (UTC)</label><div class="input num">2026-09-24 06:00</div></div>
+              <div class="field"><label>結束 (UTC)</label><div class="input num">2026-09-24 09:00</div></div>
+              <button class="btn">查詢</button>
+            </div>
+            <table>
+              <thead><tr><th>起始時間 (UTC)</th><th class="t-right">開</th><th class="t-right">高</th><th class="t-right">低</th><th class="t-right">收</th><th class="t-right">成交量</th><th class="t-right">成交額</th><th class="t-right">漲跌</th></tr></thead>
+              <tbody class="num">
+                <tr><td>2026-09-24 09:00</td><td class="t-right">64,102.30</td><td class="t-right">64,260.00</td><td class="t-right">64,080.10</td><td class="t-right">64,218.40</td><td class="t-right">212.44</td><td class="t-right">13.63M</td><td class="t-right up">+0.18%</td></tr>
+                <tr class="is-selected"><td>2026-09-24 08:59</td><td class="t-right">64,090.00</td><td class="t-right">64,120.50</td><td class="t-right">64,112.00</td><td class="t-right">64,102.30</td><td class="t-right">18.72</td><td class="t-right">1.20M</td><td class="t-right up">+0.02%</td></tr>
+                <tr><td>2026-09-24 08:58</td><td class="t-right">64,071.20</td><td class="t-right">64,098.00</td><td class="t-right">64,060.00</td><td class="t-right">64,090.00</td><td class="t-right">15.05</td><td class="t-right">0.96M</td><td class="t-right up">+0.03%</td></tr>
+                <tr><td>2026-09-24 08:57</td><td class="t-right">64,088.40</td><td class="t-right">64,090.10</td><td class="t-right">64,050.30</td><td class="t-right">64,071.20</td><td class="t-right">21.90</td><td class="t-right">1.40M</td><td class="t-right down">−0.03%</td></tr>
+                <tr><td>2026-09-24 08:56</td><td class="t-right">64,120.00</td><td class="t-right">64,131.80</td><td class="t-right">64,080.00</td><td class="t-right">64,088.40</td><td class="t-right">19.33</td><td class="t-right">1.24M</td><td class="t-right down">−0.05%</td></tr>
+                <tr><td>2026-09-24 08:55</td><td class="t-right">64,098.60</td><td class="t-right">64,140.00</td><td class="t-right">64,090.00</td><td class="t-right">64,120.00</td><td class="t-right">24.18</td><td class="t-right">1.55M</td><td class="t-right up">+0.03%</td></tr>
+              </tbody>
+            </table>
+            <div class="pager"><span>第 1–6 根，共 181 根</span><span class="spacer"></span><button class="btn btn--small">‹</button><span class="num">1 / 31</span><button class="btn btn--small">›</button></div>
+          </div>
+
+          <div class="card" style="align-self:start">
+            <div class="card__head"><span class="card__title">編輯 K 線</span><span class="spacer"></span><button class="icon-btn" style="width:28px;height:28px">✕</button></div>
+            <div class="card__body stack">
+              <div class="form-grid">
+                <div class="field"><label>交易標的</label><div class="input is-readonly">BTCUSDT</div></div>
+                <div class="field"><label>起始時間 (UTC)</label><div class="input is-readonly num">09-24 08:59</div></div>
+              </div>
+              <div class="field__hint">標的與起始時間是這根 K 線的身分，不能改；要改請刪掉重建。</div>
+              <div class="form-grid">
+                <div class="field"><label>開</label><div class="input num">64,090.00</div></div>
+                <div class="field"><label>高</label><div class="input num">64,120.50</div></div>
+                <div class="field"><label>低</label><div class="input num is-invalid">64,112.00</div><span class="field__error">最低價不得高於開盤價 64,090.00</span></div>
+                <div class="field"><label>收</label><div class="input num">64,102.30</div></div>
+                <div class="field"><label>成交量</label><div class="input num">18.72<span class="suffix">BTC</span></div></div>
+                <div class="field"><label>成交額</label><div class="input num">1,200,184<span class="suffix">USDT</span></div></div>
+                <div class="field"><label>主動買入量</label><div class="input num">10.02<span class="suffix">BTC</span></div></div>
+                <div class="field"><label>主動買入額</label><div class="input num">642,305<span class="suffix">USDT</span></div></div>
+              </div>
+              <div class="row" style="margin-top:4px"><button class="btn btn--ghost btn--danger">刪除</button><span class="spacer"></span><button class="btn">取消</button><button class="btn btn--primary" disabled style="opacity:.5">儲存</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═════════ 設定 ═════════ -->
+      <section class="screen" data-screen="settings">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px">設定</div>
+        <div class="muted" style="margin-bottom:18px">帳號、密碼、通知去向，以及這個介面怎麼顯示。</div>
+        <div class="settings">
+          <nav class="settings__nav"><a class="is-active">帳號</a><a>密碼</a><a>Telegram 通知</a><a>時區與外觀</a></nav>
+          <div class="stack" style="gap:16px">
+            <div class="card">
+              <div class="card__head"><span class="card__title">帳號</span></div>
+              <div class="setting-row"><div><div class="setting-row__label">電子郵件</div></div><div class="row"><span>james@example.com</span><span class="tag tag--up">已開通</span></div></div>
+              <div class="setting-row"><div><div class="setting-row__label">登出</div><div class="setting-row__hint">這台裝置上的登入狀態會清掉</div></div><div><button class="btn">登出</button></div></div>
+            </div>
+            <div class="card">
+              <div class="card__head"><span class="card__title">變更密碼</span></div>
+              <div class="card__body stack" style="max-width:420px">
+                <div class="field"><label>目前密碼</label><div class="input">••••••••••</div></div>
+                <div class="field"><label>新密碼</label><div class="input is-invalid">•••••</div><span class="field__error">新密碼至少 8 個字元</span></div>
+                <div class="field"><label>再輸入一次新密碼</label><div class="input">•••••</div></div>
+                <div><button class="btn btn--primary">更新密碼</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card__head"><span class="card__title">Telegram 通知</span><span class="tag tag--up">已設定</span><span class="spacer"></span><span class="faint" style="font-size:12px">機器人的訊號會送到這裡</span></div>
+              <div class="setting-row"><div><div class="setting-row__label">Chat ID</div></div><div class="input num" style="max-width:320px">-1002184637720</div></div>
+              <div class="setting-row"><div><div class="setting-row__label">Bot Token</div><div class="setting-row__hint">只顯示末四碼</div></div><div class="input num" style="max-width:320px">••••••••••••••a9F2<span class="suffix">更換</span></div></div>
+              <div class="setting-row"><div></div><div class="row"><button class="btn">傳送測試訊息</button><span class="up" style="font-size:12px">✓ 09:02 已送達</span><span class="spacer"></span><button class="btn btn--ghost btn--danger">移除</button></div></div>
+            </div>
+            <div class="card">
+              <div class="card__head"><span class="card__title">時區與外觀</span></div>
+              <div class="setting-row"><div><div class="setting-row__label">顯示時區</div><div class="setting-row__hint">只影響畫面上的時間；送往後端一律是 UTC</div></div><div class="input" style="max-width:320px">台北 · UTC+08:00 ▾</div></div>
+              <div class="setting-row"><div><div class="setting-row__label">外觀</div><div class="setting-row__hint">預設跟隨系統</div></div><div class="segmented" id="settingsTheme"><button data-theme-choice="light">淺色</button><button data-theme-choice="system">跟隨系統</button><button data-theme-choice="dark">深色</button></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ───────── AI 助手抽屜（每個畫面都叫得出來，可拉寬） ───────── -->
+<aside class="drawer" id="drawer">
+  <div class="drawer__resize"></div>
+  <div class="card__head" style="padding:14px 16px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--accent)"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.5L12 16l-1.8-5.5L4.5 9l5.7-1.4z"/></svg>
+    <span class="card__title">AI 助手</span><span class="tag">讀得到你的行情</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" style="width:28px;height:28px" title="歷史對話">☰</button>
+    <button class="icon-btn" style="width:28px;height:28px" title="新對話">＋</button>
+    <button class="icon-btn" style="width:28px;height:28px" id="closeAssistant" title="關閉">✕</button>
+  </div>
+  <div class="thread">
+    <div class="bubble bubble--me">BTC 15 分線現在的突破訊號可信嗎？</div>
+    <div class="bubble bubble--ai">
+      <p>最近一根收在 <b class="num">64,218.4</b>，高於前 20 根高點 <b class="num">64,150.8</b>，RSI 61.4 仍在動能區間。</p>
+      <p>不過突破時的成交量只比平均高 <b>12%</b>，屬偏弱的突破；過去 30 天這種量能下的突破有 4 次在 2 根內跌回。</p>
+      <div class="note">📎 依據：BTCUSDT 15m · 09-23 09:00 → 09-24 09:00 · 96 根</div>
+    </div>
+    <div class="bubble bubble--me">幫我把 momentum_rsi 的門檻調到 58 回測看看</div>
+    <div class="bubble bubble--ai"><span class="typing"><i></i><i></i><i></i></span> <span class="muted" style="font-size:12px;margin-left:6px">正在重演 09-01 → 09-24…</span></div>
+  </div>
+  <div class="prompts"><button>這週最大的回撤發生在哪？</button><button>比較兩個策略的勝率</button><button>哪台機器人需要處理？</button></div>
+  <div class="composer"><textarea placeholder="問問你的行情、腳本或機器人…"></textarea><div class="row"><span class="faint" style="font-size:11.5px">Enter 送出 · Shift+Enter 換行</span><span class="spacer"></span><button class="btn btn--primary btn--small">送出</button></div></div>
+</aside>
+
+
+<script>
+/* ───── screen switcher ───── */
+const ROUTES = {
+  chart: ['/k-candles/chart', '/contract-k-candles/chart'],
+  candles: ['/k-candles', '/contract-k-candles'],
+  script: ['/strategy-scripts', '/contract-strategy-scripts'],
+  strategy: ['/trading-strategies', null],
+  bots: ['/strategy-bots', '/contract-strategy-bots'],
+  market: ['/marketplace', null],
+  settings: ['/settings', null],
+};
+let current = 'chart', market = 'spot';
+const notes = {
+  chart: '<b>行情圖表</b>：參考 OKX / Kraken Pro 的三欄交易版面——左側繪圖工具、主圖 + 副圖、右側「套用中的指標 / 訊號紀錄 / 快速回測」；K 線表格降為下方分頁，不再是獨立頁。',
+  script: '<b>策略腳本</b>：參考 Basedash「上程式碼、下結果、右變數」。腳本庫 / 編輯器 / 參數與回測條件三欄，按「執行回測」結果直接出現在編輯器下方，不必換頁。',
+  strategy: '<b>交易策略</b>：把原本的拖拉積木改成 Jira / Calendly 式「訊號來源 → 條件 → 動作 → 出場」步驟卡，選中一張卡右側出現設定面板，並用一句話讀出條件（Mercury 填空式）。手機上同樣可編。',
+  bots: '<b>策略機器人</b>：列表 + 右側詳情。狀態、最近一輪結果一眼可辨；執行紀錄改為時間軸，「需要注意」的輪次直接帶出建議。',
+  market: '<b>市集</b>：參考 Binance 跟單卡片，一張卡看完作者、說明、表現曲線與取得次數。',
+  candles: '<b>K 線資料</b>：查詢列 + 表格 + 右側編輯表單。身分欄位（標的、起始時間）唯讀；違反 K 線規則的欄位就地標紅，儲存鍵在修好前不能按。',
+  settings: '<b>設定</b>：左側段落導覽，右側一段一張卡：帳號、密碼、Telegram 通知、時區與外觀（淺色／深色／跟隨系統）。'
+};
+function applyMarket() {
+  const [spotRoute, contractRoute] = ROUTES[current];
+  const hasContract = contractRoute !== null;
+  if (!hasContract) market = 'spot';
+  const sw = document.getElementById('marketSwitch');
+  sw.setAttribute('aria-checked', String(market === 'contract'));
+  sw.setAttribute('aria-disabled', String(!hasContract));
+  sw.title = hasContract ? '切換到另一個市場的同一頁' : '這一頁沒有分現貨／合約';
+  document.body.dataset.market = market;
+  document.getElementById('route').textContent = market === 'contract' ? contractRoute : spotRoute;
+}
+document.getElementById('marketSwitch').addEventListener('click', () => {
+  if (ROUTES[current][1] === null) return;
+  market = market === 'spot' ? 'contract' : 'spot';
+  applyMarket(); draw();
+});
+function applyTheme(choice) {
+  const resolved = choice === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : choice;
+  document.documentElement.dataset.theme = resolved;
+  document.querySelectorAll('[data-theme-choice]').forEach(b => b.classList.toggle('is-active', b.dataset.themeChoice === choice));
+  try { localStorage.setItem('mockup-theme', choice); } catch (error) { /* 預覽環境可能沒有 storage */ }
+  draw();
+}
+document.querySelectorAll('[data-theme-choice]').forEach(b => b.addEventListener('click', () => applyTheme(b.dataset.themeChoice)));
+function show(name) {
+  current = name;
+  applyMarket();
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('is-active', s.dataset.screen === name));
+  document.querySelectorAll('.deck__tab').forEach(t => t.classList.toggle('is-active', t.dataset.screen === name));
+  document.querySelectorAll('.side__link[data-nav]').forEach(l => l.classList.toggle('is-active', l.dataset.nav === name));
+  document.getElementById('annot').innerHTML = notes[name];
+  draw();
+}
+document.querySelectorAll('[data-screen].deck__tab, .side__link[data-nav]').forEach(el => el.addEventListener('click', () => show(el.dataset.screen || el.dataset.nav)));
+document.getElementById('openAssistant').onclick = () => document.getElementById('drawer').classList.add('is-open');
+document.getElementById('closeAssistant').onclick = () => document.getElementById('drawer').classList.remove('is-open');
+
+/* ───── 示意資料：固定亂數，畫 K 線 / RSI / 權益曲線 ───── */
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+let UP, DOWN, GRID, FAINT, MA_FAST, MA_SLOW, OSC;
+function readPalette() {
+  const css = getComputedStyle(document.documentElement), v = name => css.getPropertyValue(name).trim();
+  UP = v('--up'); DOWN = v('--down'); GRID = v('--border'); FAINT = v('--text-faint');
+  MA_FAST = v('--chart-ma-fast'); MA_SLOW = v('--chart-ma-slow'); OSC = v('--chart-oscillator');
+}
+
+function drawCandles() {
+  const svg = document.getElementById('candles'); if (!svg.clientWidth) return;
+  svg.innerHTML = '';
+  const W = svg.clientWidth - 64, H = 420, volH = 70, r = rng(42), n = 72;
+  let price = 62800; const data = [];
+  for (let i = 0; i < n; i++) { const o = price; const c = o + (r() - .46) * 260; const h = Math.max(o, c) + r() * 120; const l = Math.min(o, c) - r() * 120; data.push({ o, c, h, l, v: 80 + r() * 260 }); price = c; }
+  const max = Math.max(...data.map(d => d.h)), min = Math.min(...data.map(d => d.l));
+  const y = p => 24 + (max - p) / (max - min) * (H - volH - 40);
+  for (let g = 0; g < 5; g++) { const gy = 24 + g * (H - volH - 40) / 4; svg.append(el('line', { x1: 0, x2: W, y1: gy, y2: gy, stroke: GRID, 'stroke-dasharray': '2 4' })); const t = el('text', { x: W + 8, y: gy + 4, fill: FAINT, 'font-size': 10.5, 'font-family': 'JetBrains Mono' }); t.textContent = Math.round(max - g * (max - min) / 4).toLocaleString(); svg.append(t); }
+  const step = W / n, bw = Math.max(3, step * .62), vmax = Math.max(...data.map(d => d.v));
+  const ma = (k) => data.map((_, i) => i < k - 1 ? null : data.slice(i - k + 1, i + 1).reduce((s, d) => s + d.c, 0) / k);
+  data.forEach((d, i) => {
+    const x = i * step + step / 2, col = d.c >= d.o ? UP : DOWN;
+    svg.append(el('rect', { x: x - bw / 2, y: H - (d.v / vmax) * volH, width: bw, height: (d.v / vmax) * volH, fill: col, opacity: .28 }));
+    svg.append(el('line', { x1: x, x2: x, y1: y(d.h), y2: y(d.l), stroke: col }));
+    svg.append(el('rect', { x: x - bw / 2, y: y(Math.max(d.o, d.c)), width: bw, height: Math.max(1, Math.abs(y(d.o) - y(d.c))), fill: col, rx: 1 }));
+  });
+  [[7, MA_FAST], [25, MA_SLOW]].forEach(([k, c]) => { const pts = ma(k).map((v, i) => v && `${i * step + step / 2},${y(v)}`).filter(Boolean).join(' '); svg.append(el('polyline', { points: pts, fill: 'none', stroke: c, 'stroke-width': 1.4 })); });
+  [[40, 'buy'], [55, 'sell'], [66, 'buy']].forEach(([i, k]) => { const x = i * step + step / 2, d = data[i]; const isBuy = k === 'buy'; svg.append(el('path', { d: isBuy ? `M${x} ${y(d.l) + 8} l5 9 h-10z` : `M${x} ${y(d.h) - 8} l5 -9 h-10z`, fill: isBuy ? UP : DOWN })); });
+  const last = data[n - 1], ly = y(last.c);
+  svg.append(el('line', { x1: 0, x2: W, y1: ly, y2: ly, stroke: UP, 'stroke-dasharray': '3 3', opacity: .7 }));
+  svg.append(el('rect', { x: W + 2, y: ly - 9, width: 60, height: 18, rx: 3, fill: UP }));
+  const lt = el('text', { x: W + 7, y: ly + 4, fill: '#04130d', 'font-size': 10.5, 'font-weight': 600, 'font-family': 'JetBrains Mono' }); lt.textContent = '64,218.4'; svg.append(lt);
+
+  const rs = document.getElementById('rsi'); rs.innerHTML = ''; const RH = 90, rr = rng(9); let v = 50; const pts = [];
+  for (let i = 0; i < n; i++) { v = Math.min(82, Math.max(22, v + (rr() - .5) * 12)); pts.push(`${i * step + step / 2},${8 + (100 - v) / 100 * (RH - 16)}`); }
+  [70, 30].forEach(l => rs.append(el('line', { x1: 0, x2: W, y1: 8 + (100 - l) / 100 * (RH - 16), y2: 8 + (100 - l) / 100 * (RH - 16), stroke: FAINT, 'stroke-dasharray': '3 4' })));
+  rs.append(el('polyline', { points: pts.join(' '), fill: 'none', stroke: OSC, 'stroke-width': 1.4 }));
+}
+function drawArea(svg, seed, trend, height, withAxis) {
+  if (!svg || !svg.clientWidth) return; svg.innerHTML = '';
+  const W = svg.clientWidth, H = height, r = rng(seed), n = 80; let v = 100; const vals = [];
+  for (let i = 0; i < n; i++) { v += (r() - .5 + trend * .09) * 3; vals.push(v); }
+  const max = Math.max(...vals), min = Math.min(...vals), pad = withAxis ? 16 : 4;
+  const pts = vals.map((val, i) => [i / (n - 1) * W, pad + (max - val) / (max - min) * (H - pad * 2)]);
+  const id = 'g' + seed + Math.random().toString(36).slice(2, 6);
+  const defs = el('defs', {}); const lg = el('linearGradient', { id, x1: 0, x2: 0, y1: 0, y2: 1 });
+  lg.append(el('stop', { offset: 0, 'stop-color': UP, 'stop-opacity': .28 }), el('stop', { offset: 1, 'stop-color': UP, 'stop-opacity': 0 })); defs.append(lg); svg.append(defs);
+  if (withAxis) for (let g = 0; g < 4; g++) svg.append(el('line', { x1: 0, x2: W, y1: pad + g * (H - pad * 2) / 3, y2: pad + g * (H - pad * 2) / 3, stroke: GRID, 'stroke-dasharray': '2 4' }));
+  svg.append(el('path', { d: `M0,${H} L${pts.map(p => p.join(',')).join(' L')} L${W},${H} Z`, fill: `url(#${id})` }));
+  svg.append(el('polyline', { points: pts.map(p => p.join(',')).join(' '), fill: 'none', stroke: UP, 'stroke-width': 1.6 }));
+}
+function draw() {
+  readPalette();
+  drawCandles();
+  drawArea(document.getElementById('equity'), 5, 1, 170, true);
+  document.querySelectorAll('.spark').forEach(s => drawArea(s, +s.dataset.seed, +s.dataset.trend, 54, false));
+}
+window.addEventListener('resize', draw);
+let savedTheme = 'system';
+try { savedTheme = localStorage.getItem('mockup-theme') || 'system'; } catch (error) { /* 同上 */ }
+document.documentElement.dataset.theme = 'dark';
+show('chart');
+applyTheme(savedTheme);
+</script>
+</body>
+</html>

@@ -51,8 +51,8 @@ const emit = defineEmits<{ retry: [] }>()
 
 <style scoped lang="scss">
 .assistant-rejection-notice {
-  // 這一塊住在對話串裡，所以它的角要跟泡泡一樣圓，而不是跟表單的警示一樣方。
-  border-radius: radius('2xl');
+  // 這一塊住在對話串裡、長在回答該出現的位置，所以它的角與泡泡同一個圓。
+  border-radius: radius('lg');
 
   &__message {
     margin: 0 0 spacing('xs');

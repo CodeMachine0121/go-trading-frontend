@@ -4,9 +4,9 @@ import type { LayoutDensity } from '~/domain/models/vo/layout-density-vo'
 /**
  * 疏密分界。
  *
- * 未滿它用寬鬆那一套，達到它用密集那一套。同一個數字也是**積木工作檯可否編輯**、
+ * 未滿它用寬鬆那一套，達到它用密集那一套。同一個數字也是
  * **K 線「看什麼」預設收不收**、**AI-Assistant蓋不蓋滿畫面**的分界——
- * 四件事共用一道界線，不各立一道。它們回答的是同一個問題：
+ * 三件事共用一道界線，不各立一道。它們回答的是同一個問題：
  * 「這是一隻手拿著的螢幕，還是一台坐著用的機器？」
  *
  * **樣式那一側有一份同名的副本**（`app/assets/styles/abstracts/_breakpoints.scss` 的 `md`），
@@ -29,7 +29,7 @@ const BOTTOM_NAVIGATION_BOUNDARY_PIXELS = 1024
  * Domain Model：一個寬度代表什麼。
  *
  * 這是全站唯一知道那兩個數字的地方。呼叫端從來不知道它們存在——
- * 它不問「我現在多寬」，它問「我編得動嗎」。
+ * 它不問「我現在多寬」，它問「導覽該貼在底部嗎」。
  *
  * 純視覺的鬆緊（間距、控制項高度）**不經過這裡**：那一套由樣式的 token
  * 在同一道分界上自己換，元件一行都不必改。會走到這裡的，
@@ -42,7 +42,6 @@ export class LayoutDensityDomain {
     return new LayoutDensityDto(
       this.density,
       this.usesBottomNavigation,
-      this.allowsBlockEditing,
       this.startsChartControlsCollapsed,
       this.assistantCoversScreen,
     )
@@ -58,14 +57,6 @@ export class LayoutDensityDomain {
 
   private get usesBottomNavigation(): boolean {
     return this.viewportWidthInPixels < BOTTOM_NAVIGATION_BOUNDARY_PIXELS
-  }
-
-  /**
-   * 手機上「查一眼我派出去的策略長什麼樣」是真實的用途，
-   * 「在手機上組一條策略」不是——所以窄螢幕減的是可編輯性，不是可讀性。
-   */
-  private get allowsBlockEditing(): boolean {
-    return !this.holdableInOneHand
   }
 
   private get startsChartControlsCollapsed(): boolean {

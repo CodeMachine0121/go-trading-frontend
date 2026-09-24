@@ -136,6 +136,49 @@ describe('KCandleTable', () => {
   })
 })
 
+describe('KCandleTable 挑一根來維護', () => {
+  const kCandleDtos = [
+    buildKCandleDto('2026-08-30T10:00:00.000Z', UP_TREND),
+    buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
+  ]
+
+  it('正在維護的那一根會被標出來，其餘不標', () => {
+    const wrapper = mount(KCandleTable, {
+      props: {
+        result: new KCandleSearchResultDto(kCandleDtos),
+        timeZone: buildTimeZone(),
+        selectable: true,
+        // 表格認的是「哪一分鐘」，不是同一個物件——重查回來的那一份是新的。
+        selectedKCandle: buildKCandleDto('2026-08-30T10:05:00.000Z', DOWN_TREND),
+      },
+    })
+
+    const rows = wrapper.findAll('[data-testid="k-candle-row"]')
+    expect(rows.map(row => row.attributes('aria-selected'))).toEqual(['false', 'true'])
+  })
+
+  it('點一整列就是挑那一根', async () => {
+    const wrapper = mount(KCandleTable, {
+      props: { result: new KCandleSearchResultDto(kCandleDtos), timeZone: buildTimeZone(), selectable: true },
+    })
+
+    await wrapper.findAll('[data-testid="k-candle-row"]')[1]?.trigger('click')
+
+    const selected = wrapper.emitted<[KCandleDto]>('select')?.at(-1)?.[0]
+    expect(selected?.openTime).toEqual(new Date('2026-08-30T10:05:00.000Z'))
+  })
+
+  it('不給挑的時候點列什麼都不發生', async () => {
+    const wrapper = mount(KCandleTable, {
+      props: { result: new KCandleSearchResultDto(kCandleDtos), timeZone: buildTimeZone() },
+    })
+
+    await wrapper.findAll('[data-testid="k-candle-row"]')[0]?.trigger('click')
+
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
+})
+
 describe('KCandleTable 對這個市場不報的數字', () => {
   function mountWith(kCandleDto: KCandleDto) {
     return mount(KCandleTable, {

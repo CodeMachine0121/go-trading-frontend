@@ -15,7 +15,7 @@ import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(() => ({
-    addSeries: vi.fn(() => ({ setData: vi.fn() })),
+    addSeries: vi.fn(() => ({ setData: vi.fn(), applyOptions: vi.fn() })),
     applyOptions: vi.fn(),
     timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
     remove: vi.fn(),
@@ -102,9 +102,9 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
       .querySelector('.cm-content')?.textContent).toContain(WHOLE_SCRIPT)
   })
 
-  it('工作區在左欄，去處在右欄——切換換掉的只有右邊那一欄', async () => {
+  it('去處在編輯器底下那一塊——切換換掉的只有那一塊，編輯器不在裡面', async () => {
     // 這是版面的那個決定本身：編輯器不在任何一個去處底下，所以切換碰不到它。
-    // 驗的是巢狀結構而不是樣式——寬度是 CSS 的事，「誰包著誰」才是這個設計。
+    // 驗的是巢狀結構而不是樣式——位置是 CSS 的事，「誰包著誰」才是這個設計。
     const wrapper = mountPanel()
     await settle()
 
@@ -112,9 +112,8 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
     const outcome = wrapper.get('.indicator-calculation-panel__outcome')
 
     expect(workbench.find('[data-testid="script"]').exists()).toBe(true)
-    expect(workbench.find('[data-testid="tab-backtest"]').exists()).toBe(false)
+    expect(workbench.find('[data-testid="calculate-button"]').exists()).toBe(false)
 
-    expect(outcome.find('[data-testid="tab-backtest"]').exists()).toBe(true)
     expect(outcome.find('[data-testid="calculate-button"]').exists()).toBe(true)
     expect(outcome.find('[data-testid="run-backtest-button"]').exists()).toBe(true)
     expect(outcome.find('[data-testid="script"]').exists()).toBe(false)
@@ -171,7 +170,6 @@ describe('IndicatorCalculationPanel 的兩個去處', () => {
     const wrapper = mountPanel()
     await settle()
 
-    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
 
     expect(backtestPane(wrapper).props('parameters')).toHaveLength(1)

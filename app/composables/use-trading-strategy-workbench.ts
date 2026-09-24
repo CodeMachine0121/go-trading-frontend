@@ -1,4 +1,5 @@
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
@@ -38,7 +39,7 @@ export function useTradingStrategyWorkbench(
    * 每一種行情各自挑得到哪幾支策略腳本。
    *
    * 兩種都先讀好，因為一份新拼的交易策略隨時會換行情種類——換了才去讀，
-   * 那一刻零件架會空一下，看起來像是那一種一支都沒有。
+   * 那一刻訊號來源卡會空一下，看起來像是那一種一支都沒有。
    */
   const strategyScriptOptionsByKind = ref<Record<MarketDataKind, { value: number, label: string }[]>>({
     kCandle: [], contractKCandle: [],
@@ -47,19 +48,19 @@ export function useTradingStrategyWorkbench(
   /**
    * 挑不得、但**確實存在**的那幾支策略腳本，以及它們挑不得的原因。
    *
-   * 沒有它的話，一塊指著這種腳本的零件，設定裡那個下拉選單會是**一片空白**——
+   * 沒有它的話，一個指著這種腳本的訊號來源，設定裡那個下拉選單會是**一片空白**——
    * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示。而空白看起來像「還沒選」，
-   * 於是使用者不知道自己正看著一塊已經壞掉的零件，也不知道它壞在哪裡。
+   * 於是使用者不知道自己正看著一個已經壞掉的訊號來源，也不知道它壞在哪裡。
    */
   const unusableStrategyScriptsByKind = ref<Record<MarketDataKind, Record<number, string>>>({
     kCandle: {}, contractKCandle: {},
   })
   /**
-   * 零件架挑不到任何策略腳本時，是哪一種挑不到。
+   * 訊號來源卡挑不到任何策略腳本時，是哪一種挑不到。
    *
    * 「一支都沒有」與「有，但沒有一支吐訊號」的下一步完全不同：前者是去建一支，
    * 後者是去把既有那幾支的指標值種類改掉。兩種說同一句話，等於把人推去建第五支
-   * 同樣用不了的腳本。`null` 是挑得到，架子不必說任何話。
+   * 同樣用不了的腳本。`null` 是挑得到，訊號來源卡不必說任何話。
    */
   const shortageByKind = ref<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>({
     kCandle: null, contractKCandle: null,
@@ -196,7 +197,7 @@ export function useTradingStrategyWorkbench(
     ]
 
     // 挑不得的那幾支也記下來，連同原因。它們不進選單——挑得到就等於讓人拼出一份
-    // 後端會拒絕的交易策略——但一塊**已經**指著它們的零件要說得出自己指著誰。
+    // 後端會拒絕的交易策略——但一個**已經**指著它們的訊號來源要說得出自己指著誰。
     const unusable = [
       ...available.mine
         .filter(strategyScript => strategyScript.content.resultType !== SIGNAL_RESULT_TYPE)
@@ -223,6 +224,10 @@ export function useTradingStrategyWorkbench(
   }
 
   function messageOf(error: unknown): string {
+    if (error instanceof BackendUnreachableError) {
+      return error.explanation
+    }
+
     return error instanceof Error ? error.message : '發生未知的錯誤'
   }
 

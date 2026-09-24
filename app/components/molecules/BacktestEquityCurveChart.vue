@@ -3,6 +3,7 @@ import type { IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-char
 import type { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+import { useThemeChange } from '~/composables/use-theme-change'
 
 /**
  * 分子：把一次回測的資金曲線畫成一條線。
@@ -61,22 +62,14 @@ onMounted(async () => {
   }
 
   const host = chartHost.value
-  const borderColor = readColor(host, '--color-border')
   const createdChart = createChart(host, {
     autoSize: true,
     layout: {
-      background: { color: readColor(host, '--color-surface') },
-      textColor: readColor(host, '--color-text-muted'),
       fontSize: readFontSize(host),
       // 圖上不擺繪圖函式庫的商標，理由與 K 線圖相同（見那裡的說明）。
       attributionLogo: false,
     },
-    grid: {
-      vertLines: { color: borderColor },
-      horzLines: { color: borderColor },
-    },
-    rightPriceScale: { borderColor },
-    timeScale: { borderColor, timeVisible: true, secondsVisible: false },
+    timeScale: { timeVisible: true, secondsVisible: false },
   })
 
   // 送進去的既然是當地時鐘讀數，標籤就照世界標準時間讀出來——那正是當地的說法。
@@ -89,14 +82,40 @@ onMounted(async () => {
 
   chartApi.value = createdChart
   seriesApi.value = createdChart.addSeries(LineSeries, {
-    color: readColor(host, '--color-primary'),
     lineWidth: 2,
     priceLineVisible: false,
     lastValueVisible: false,
   })
 
+  paintWithCurrentTheme()
   drawEquityCurve()
 })
+
+/**
+ * 顏色一律從 token 讀：一掛上去讀一次，外觀換了再讀一次。
+ * 畫布把顏色抄進去之後就不再讀 CSS 變數，所以換外觀時要重新抄。
+ */
+function paintWithCurrentTheme() {
+  const host = chartHost.value
+  if (host === null || chartApi.value === null) {
+    return
+  }
+
+  const gridColor = readColor(host, '--color-chart-grid')
+  const borderColor = readColor(host, '--color-border')
+  chartApi.value.applyOptions({
+    layout: {
+      background: { color: readColor(host, '--color-surface') },
+      textColor: readColor(host, '--color-text-muted'),
+    },
+    grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+    rightPriceScale: { borderColor },
+    timeScale: { borderColor },
+  })
+  seriesApi.value?.applyOptions({ color: readColor(host, '--color-success') })
+}
+
+useThemeChange(paintWithCurrentTheme)
 
 onBeforeUnmount(() => {
   chartApi.value?.remove()

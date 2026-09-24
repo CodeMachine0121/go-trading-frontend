@@ -133,10 +133,10 @@ function rawTextOf(block: AnswerBlockVo): string {
 .assistant-answer-blocks {
   display: flex;
   flex-direction: column;
-  gap: spacing('xs');
+  gap: spacing('2xs');
   color: color('text');
   font-size: font-size('sm');
-  line-height: line-height('relaxed');
+  line-height: line-height('normal');
 
   &__heading {
     margin: spacing('xs') 0 0;
@@ -165,7 +165,8 @@ function rawTextOf(block: AnswerBlockVo): string {
   // 程式碼那一塊自己是一整塊，所以圓角吃在外面這層，讓編輯器貼齊它的邊。
   &__code-block {
     position: relative;
-    border-radius: radius('xl');
+    border: 1px solid color('border');
+    border-radius: radius('md');
     background-color: color('surface-raised');
     overflow: hidden;
   }
@@ -201,7 +202,8 @@ function rawTextOf(block: AnswerBlockVo): string {
 
   &__preformatted {
     margin: 0;
-    border-radius: radius('xl');
+    border: 1px solid color('border');
+    border-radius: radius('md');
     background-color: color('surface-raised');
     padding: spacing('xs');
     overflow-x: auto;

@@ -73,6 +73,8 @@ export class LiveKCandleChartDomain {
       // 同一批。改寫它會讓下一次比對誤判成「使用者換了粗細」，於是每一則即時更新
       // 都重取一次。
       this.chart.aggregationIntervalChoice,
+      // 即時更新只帶成交價；合約的三條價格線照舊是取回那一批時最新那一根的。
+      this.chart.latestContractPrices,
     )
   }
 

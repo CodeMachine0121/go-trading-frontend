@@ -126,16 +126,13 @@ function submit(): void {
 .password-change-panel {
   display: flex;
   flex-direction: column;
-  gap: spacing('md');
+  gap: spacing('sm');
 
-  // 動作跟著欄位那一欄的右緣走，而不是跟著整頁的右緣。
-  // 貼在頁緣的話，填完最後一格的眼睛要橫著跑過整片空白才找得到它。
-  //
-  // 欄位本身不另訂寬度：整欄的上限由 SettingsSection 一次訂好，
-  // 四個段落因此切在同一條右緣上。
+  // 一個密碼框不需要一整張卡那麼寬：拉到卡片的全寬，眼睛要橫著跑過一片空白。
+  max-width: 26rem;
+
   &__actions {
     display: flex;
-    justify-content: flex-end;
   }
 }
 </style>

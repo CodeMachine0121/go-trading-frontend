@@ -122,11 +122,11 @@ const emit = defineEmits<{
 .assistant-conversation-list {
   display: flex;
   flex-direction: column;
-  gap: spacing('sm');
+  gap: spacing('xs');
   border: 1px solid color('border');
-  border-radius: radius('2xl');
+  border-radius: radius('md');
   background-color: color('surface');
-  padding: spacing('sm');
+  padding: spacing('xs');
   overflow-y: auto;
 
   &__head {
@@ -134,6 +134,7 @@ const emit = defineEmits<{
     justify-content: space-between;
     align-items: center;
     gap: spacing('xs');
+    padding: spacing('3xs') spacing('3xs') spacing('3xs') spacing('2xs');
   }
 
   &__title {
@@ -147,6 +148,7 @@ const emit = defineEmits<{
 
   &__empty {
     margin: 0;
+    padding: spacing('xs');
     color: color('text-faint');
     font-size: font-size('xs');
     line-height: line-height('relaxed');
@@ -155,25 +157,29 @@ const emit = defineEmits<{
   &__items {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: spacing('3xs');
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
+  // 一列一段：最後有動靜的時刻在上、幾則訊息在下。選著的那一段左緣一條強調色。
   &__item {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: spacing('3xs');
     transition: background-color duration('fast') ease;
-    border: 1px solid transparent;
-    border-radius: radius('xl');
+    border: 0;
+    border-radius: radius('sm');
+    box-shadow: none;
     background-color: transparent;
     cursor: pointer;
     padding: spacing('xs') spacing('sm');
     width: 100%;
     text-align: left;
+    color: inherit;
 
+    @include tap-target;
     @include focus-ring;
 
     &:hover {
@@ -181,7 +187,7 @@ const emit = defineEmits<{
     }
 
     &--active {
-      border-color: color('primary');
+      box-shadow: inset 2px 0 0 color('primary');
       background-color: color('primary-soft');
     }
   }

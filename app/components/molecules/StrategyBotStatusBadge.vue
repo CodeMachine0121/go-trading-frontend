@@ -30,6 +30,7 @@ defineProps<{ runState: StrategyBotRunStateDto }>()
       規則打架了
     </AppBadge>
 
+    <!-- 停擺原因是使用者要去處理的那一句，所以它跟著標籤走、不必點開才看得到。 -->
     <p
       v-if="runState.isHalted"
       class="strategy-bot-status__reason"
@@ -47,11 +48,16 @@ defineProps<{ runState: StrategyBotRunStateDto }>()
   flex-wrap: wrap;
   gap: spacing('2xs');
 
-  // 停擺原因是使用者要去處理的那一句，所以它跟著標籤走、不必點開才看得到。
+  // 自己佔一整行、墊一塊軟底：它是一句要人去做事的話，不是標籤旁邊的一個小註解。
   &__reason {
+    flex-basis: 100%;
     margin: 0;
+    border-radius: radius('sm');
+    background-color: color('danger-soft');
+    padding: spacing('2xs') spacing('xs');
     color: color('danger');
-    font-size: font-size('sm');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 }
 </style>

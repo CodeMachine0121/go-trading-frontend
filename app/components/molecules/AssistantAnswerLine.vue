@@ -40,11 +40,12 @@ const { segments } = defineProps<{
   }
 
   &__code {
-    border-radius: radius('pill');
+    border-radius: radius('xs');
     background-color: color('surface-raised');
-    padding: 0.05rem spacing('xs');
+    padding: 0 spacing('2xs');
+    font-size: font-size('xs');
 
-    @include code-typography;
+    @include numeric;
   }
 }
 </style>

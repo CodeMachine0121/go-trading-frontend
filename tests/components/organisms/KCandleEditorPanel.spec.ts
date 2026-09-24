@@ -56,6 +56,7 @@ async function mountPanel(
   editingKCandle: KCandleDto | null = null,
   defaultSymbol = 'BTCUSDT',
   timeZoneIdentifier = 'UTC',
+  asSheet = false,
 ) {
   const wrapper = mount(KCandleEditorPanel, {
     props: {
@@ -63,6 +64,7 @@ async function mountPanel(
       timeZone: buildTimeZone(timeZoneIdentifier),
       editingKCandle,
       defaultSymbol,
+      asSheet,
     },
   })
   await wrapper.vm.$nextTick()
@@ -159,6 +161,70 @@ describe('KCandleEditorPanel', () => {
 
       expect(wrapper.get('[data-testid="field-error"]').text()).toBe('最高價不得低於最低價')
     })
+
+    it('最高價低於最低價時不必按儲存就標在最高價旁，儲存按不下去', async () => {
+      const kCandleProxy = buildProxy()
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await fillFigures(wrapper)
+      await wrapper.get('[data-testid="form-high"]').setValue('90')
+      await wrapper.get('[data-testid="form-low"]').setValue('95')
+
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('最高價不得低於最低價')
+      expect(wrapper.get('[data-testid="form-high"]').attributes('aria-invalid')).toBe('true')
+      expect(wrapper.get('[data-testid="form-submit"]').attributes('disabled')).toBeDefined()
+
+      // 按 Enter 那一條路也送不出去。
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(kCandleProxy.saveKCandle).not.toHaveBeenCalled()
+
+      await wrapper.get('[data-testid="form-high"]').setValue('110')
+
+      expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="form-submit"]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('剛打開的空白草稿不先喊還沒填，但儲存照樣按不下去', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="form-submit"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('動過的那一格才說話', async () => {
+      const wrapper = await mountPanel(buildProxy())
+
+      await wrapper.get('[data-testid="form-open"]').setValue('一百')
+
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('開盤價必須是數字')
+    })
+
+    it('按過儲存之後，還沒動過的那一格也說出還差什麼', async () => {
+      const kCandleProxy = buildProxy()
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請填寫開盤價')
+      expect(kCandleProxy.saveKCandle).not.toHaveBeenCalled()
+    })
+
+    it('最高價等於最低價時照樣存得起來', async () => {
+      const kCandleProxy = buildProxy()
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await fillFigures(wrapper)
+      await wrapper.get('[data-testid="form-high"]').setValue('100')
+      await wrapper.get('[data-testid="form-low"]').setValue('100')
+      expect(wrapper.get('[data-testid="form-submit"]').attributes('disabled')).toBeUndefined()
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+      expect(kCandleProxy.saveKCandle).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('修改', () => {
@@ -172,6 +238,27 @@ describe('KCandleEditorPanel', () => {
       expect(wrapper.get('[data-testid="form-symbol"]').attributes('disabled')).toBeDefined()
       expect(wrapper.get('[data-testid="form-open-time"]').attributes('disabled')).toBeDefined()
       expect(wrapper.find('[data-testid="overwrite-notice"]').exists()).toBe(false)
+    })
+
+    it('帶進來的那一根一打開就照規則檢查，不必等人去動它', async () => {
+      const brokenKCandle = new KCandleDto(
+        'BTCUSDT', EDITING_OPEN_TIME,
+        new Decimal('100'), new Decimal('90'), new Decimal('95'), new Decimal('92'),
+        new Decimal('11'), null, null, null,
+        new KCandleTrendVo('down', '下跌', 'danger'),
+        new Decimal('-8'),
+        new Decimal('-8'),
+      )
+      const wrapper = await mountPanel(buildProxy(), brokenKCandle)
+
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('最高價不得低於最低價')
+      expect(wrapper.get('[data-testid="form-submit"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('說明身分為什麼改不了、要改該怎麼做', async () => {
+      const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto())
+
+      expect(wrapper.get('[data-testid="identity-readonly-hint"]').text()).toContain('要改請刪掉重建')
     })
 
     it('送出後更新成功並回饋', async () => {
@@ -364,6 +451,40 @@ describe('KCandleEditorPanel', () => {
     await wrapper.get('[data-testid="form-cancel"]').trigger('click')
 
     expect(wrapper.emitted('cancel')).toHaveLength(1)
+  })
+
+  describe('兩種外框', () => {
+    it('寬螢幕上是一塊面板，標題列上那顆關閉等同取消', async () => {
+      const wrapper = await mountPanel(buildProxy(), buildEditingKCandleDto())
+
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(wrapper.get('h2').text()).toBe('修改 K 線')
+
+      await wrapper.get('[data-testid="editor-dismiss"]').trigger('click')
+
+      expect(wrapper.emitted('cancel')).toHaveLength(1)
+    })
+
+    it('手機上從底部拉出一張紙，關掉它等同取消', async () => {
+      const wrapper = await mountPanel(buildProxy(), null, 'BTCUSDT', 'UTC', true)
+
+      expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('新增 K 線')
+
+      await wrapper.get('[aria-label="關閉"]').trigger('click')
+
+      expect(wrapper.emitted('cancel')).toHaveLength(1)
+    })
+
+    it('請求還在飛的時候關不掉——那次結果要有人接', async () => {
+      const kCandleProxy = buildProxy({ updateKCandle: vi.fn().mockReturnValue(new Promise(() => {})) })
+      const wrapper = await mountPanel(kCandleProxy, buildEditingKCandleDto(), 'BTCUSDT', 'UTC', true)
+
+      await wrapper.get('form').trigger('submit')
+      await wrapper.vm.$nextTick()
+      await wrapper.get('[aria-label="關閉"]').trigger('click')
+
+      expect(wrapper.emitted('cancel')).toBeUndefined()
+    })
   })
 
   describe('顯示時區', () => {

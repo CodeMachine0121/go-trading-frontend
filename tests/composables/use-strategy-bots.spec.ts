@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
@@ -83,6 +84,15 @@ describe('useStrategyBots 載入', () => {
     expect(bots.failureMessage.value).toBe('後端連不上')
     expect(bots.strategyBots.value).toEqual([])
     expect(bots.loading.value).toBe(false)
+  })
+
+  it('連不上後端時明說連不上，而不是一串內部的端點路徑', async () => {
+    strategyBotApplication.listStrategyBots.mockRejectedValue(new BackendUnreachableError('/strategy-bots'))
+
+    const bots = botsUnderTest()
+    await bots.load()
+
+    expect(bots.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
   })
 })
 

@@ -103,6 +103,13 @@ const isKnownUnwatched = computed(() => selectedContractTradingSymbol.value?.isW
 
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
+/**
+ * 行情摘要上的標記價格、指數價格與溢價指數：畫出來的那批裡最新那一根的三條線。
+ * 它跟著圖走，所以換合約的空窗期裡不會把上一個合約的數字掛在新名字底下。
+ * 現貨圖、空的一批時是 null——那三格畫成「—」。
+ */
+const contractPrices = computed(() => chart.value?.latestContractPrices ?? null)
+
 /** 圖的標題說的是**畫出來的那一個**合約；還沒取到任何東西時才退回選單上那一個。 */
 const chartTitle = computed(() => chart.value?.symbol ?? symbol.value)
 
@@ -274,41 +281,60 @@ onMounted(() => {
 
 <template>
   <section class="k-candle-contract-chart-panel">
-    <AppPanel
-      title="看什麼"
-      collapsible
-      :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
-    >
-      <KCandleChartToolbar
-        v-model:drawing="drawing"
-        :presets="presets"
-        :active-preset-label="activePresetLabel"
-        :aggregation-interval-choices="aggregationIntervalChoices"
-        :active-aggregation-interval-choice="aggregationIntervalChoice"
-        :loading="loading"
-        @select-preset="selectPreset"
-        @select-aggregation-interval-choice="selectAggregationIntervalChoice"
-      >
-        <template #symbol>
-          <ContractSymbolField
-            v-model="symbol"
-            :trading-symbol-application="tradingSymbolApplication"
-            @selected="selectContractTradingSymbol"
-          />
-        </template>
-      </KCandleChartToolbar>
-    </AppPanel>
-
     <!--
-      這一句說的是**這張圖是什麼**，所以住在面板外面、常駐著：收起「看什麼」的人
-      收的是控制項，而「這裡沒有即時更新」正是他對著一張不動的圖時要讀到的那一句。
+      行情摘要：成交價最大，旁邊是合約才有的那三條。它跟著畫出來的那批資料走，
+      不是選單上剛選的那一個。沒有記錄的那一條畫成「—」，與 0 一眼分得出來。
     -->
-    <AppAlert
-      tone="info"
-      data-testid="no-indicators-notice"
+    <KCandleQuote
+      v-if="chart?.latestKCandle"
+      :latest="chart.latestKCandle"
+      :symbol="chart.symbol"
+      :time-zone="timeZone"
     >
-      合約圖表沒有指標。
-    </AppAlert>
+      <template #tags>
+        <AppBadge variant="accent">
+          永續合約
+        </AppBadge>
+      </template>
+
+      <template #stats>
+        <div
+          class="k-candle-contract-chart-panel__stat"
+          data-testid="mark-price-stat"
+        >
+          <span class="k-candle-contract-chart-panel__stat-label">標記價格</span>
+          <span class="k-candle-contract-chart-panel__stat-value">
+            {{ contractPrices?.markPrice.toString() ?? '—' }}
+          </span>
+        </div>
+        <div
+          class="k-candle-contract-chart-panel__stat"
+          data-testid="index-price-stat"
+        >
+          <span class="k-candle-contract-chart-panel__stat-label">指數價格</span>
+          <span class="k-candle-contract-chart-panel__stat-value">
+            {{ contractPrices?.indexPrice?.toString() ?? '—' }}
+          </span>
+        </div>
+        <div
+          class="k-candle-contract-chart-panel__stat"
+          data-testid="premium-index-stat"
+        >
+          <span class="k-candle-contract-chart-panel__stat-label">溢價指數</span>
+          <span class="k-candle-contract-chart-panel__stat-value">
+            {{ contractPrices?.premiumIndex?.toString() ?? '—' }}
+          </span>
+        </div>
+        <!-- 那三條讀的是最新一根**記錄**，不是即時的那一根——說出它是幾點的，才不會被當成現價。 -->
+        <span
+          v-if="contractPrices"
+          class="k-candle-contract-chart-panel__stat-at"
+          data-testid="contract-prices-at"
+        >
+          記錄於 {{ timeZone.formatDateTime(contractPrices.recordedAt) }}
+        </span>
+      </template>
+    </KCandleQuote>
 
     <AppAlert
       v-if="liveUpdateNotice"
@@ -370,64 +396,100 @@ onMounted(() => {
       取行情中…
     </AppAlert>
 
-    <KCandleQuote
-      v-if="chart?.latestKCandle"
-      :latest="chart.latestKCandle"
-      :symbol="chart.symbol"
-      :time-zone="timeZone"
-    />
+    <div class="k-candle-contract-chart-panel__workspace">
+      <AppPanel
+        :title="chartTitle"
+        flush
+        class="k-candle-contract-chart-panel__chart"
+      >
+        <template #meta>
+          <span>每根涵蓋</span>
+          <AppBadge
+            variant="info"
+            data-testid="interval-label"
+          >
+            {{ intervalLabel }}
+          </AppBadge>
+        </template>
 
-    <AppPanel
-      :title="chartTitle"
-      flush
-      class="k-candle-contract-chart-panel__chart"
-    >
-      <template #meta>
-        <span>每根涵蓋</span>
-        <AppBadge
-          variant="info"
-          data-testid="interval-label"
+        <div class="k-candle-contract-chart-panel__stage">
+          <!-- 寬螢幕上在圖的上方，手機上移到圖的下方給拇指點。 -->
+          <KCandleChartToolbar
+            v-model:drawing="drawing"
+            class="k-candle-contract-chart-panel__toolbar"
+            :presets="presets"
+            :active-preset-label="activePresetLabel"
+            :aggregation-interval-choices="aggregationIntervalChoices"
+            :active-aggregation-interval-choice="aggregationIntervalChoice"
+            :loading="loading"
+            @select-preset="selectPreset"
+            @select-aggregation-interval-choice="selectAggregationIntervalChoice"
+          />
+
+          <p
+            v-if="chart && chart.isEmpty"
+            class="k-candle-contract-chart-panel__empty"
+            data-testid="empty-chart"
+          >
+            查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。
+          </p>
+
+          <KCandleChart
+            v-else-if="chart"
+            class="k-candle-contract-chart-panel__canvas"
+            :chart="chart"
+            :drawing="drawing"
+            :drawn-range="drawnRange"
+            :time-zone="timeZone"
+            @range-change="showRange"
+          />
+
+          <p
+            v-else
+            class="k-candle-contract-chart-panel__empty"
+            data-testid="idle-chart"
+          >
+            還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+          </p>
+        </div>
+
+        <template
+          v-if="chart && !chart.isEmpty"
+          #footer
         >
-          {{ intervalLabel }}
-        </AppBadge>
-      </template>
+          <span data-testid="covered-range">
+            手上這批共 {{ chart.count }} 根，涵蓋
+            {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
+            {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
+          </span>
+        </template>
+      </AppPanel>
 
-      <template
-        v-if="chart && !chart.isEmpty"
-        #footer
-      >
-        <span data-testid="covered-range">
-          手上這批共 {{ chart.count }} 根，涵蓋
-          {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
-          {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
-        </span>
-      </template>
+      <aside class="k-candle-contract-chart-panel__side">
+        <AppPanel
+          title="看什麼"
+          collapsible
+          :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
+        >
+          <ContractSymbolField
+            v-model="symbol"
+            :trading-symbol-application="tradingSymbolApplication"
+            @selected="selectContractTradingSymbol"
+          />
+        </AppPanel>
 
-      <p
-        v-if="chart && chart.isEmpty"
-        class="k-candle-contract-chart-panel__empty"
-        data-testid="empty-chart"
-      >
-        查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。
-      </p>
-
-      <KCandleChart
-        v-else-if="chart"
-        :chart="chart"
-        :drawing="drawing"
-        :drawn-range="drawnRange"
-        :time-zone="timeZone"
-        @range-change="showRange"
-      />
-
-      <p
-        v-else
-        class="k-candle-contract-chart-panel__empty"
-        data-testid="idle-chart"
-      >
-        還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
-      </p>
-    </AppPanel>
+        <!--
+          這一句說的是**這張圖是什麼**，所以住在「看什麼」外面、常駐著：收起「看什麼」的人
+          收的是控制項，而「這裡沒有指標」正是他找不到指標時要讀到的那一句。
+        -->
+        <AppAlert
+          tone="info"
+          data-testid="no-indicators-notice"
+        >
+          合約圖表沒有指標。
+        </AppAlert>
+      </aside>
+    </div>
   </section>
 </template>
 
@@ -439,13 +501,106 @@ onMounted(() => {
   gap: spacing('sm');
   min-height: 0;
 
+  // 手機上一欄由上往下：圖在前，看什麼在後。寬螢幕上圖在左、旁邊一欄固定寬。
+  &__workspace {
+    display: grid;
+    flex: 1;
+    gap: spacing('sm');
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    min-height: 0;
+
+    @include respond-to('lg') {
+      grid-template-columns: minmax(0, 1fr) 18.75rem;
+      align-items: stretch;
+    }
+  }
+
   // 圖吃掉工作區剩下的所有高度——這個畫面就是為了看圖而存在的。
   &__chart {
+    min-height: 24rem;
+
+    @include respond-to('lg') {
+      min-height: 32rem;
+    }
+  }
+
+  &__stage {
+    display: flex;
     flex: 1;
-    min-height: 20rem;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  &__toolbar {
+    order: 2;
+    border-top: 1px solid color('border');
+    padding: spacing('xs');
+
+    @include respond-to('md') {
+      order: 0;
+      border-top: 0;
+      border-bottom: 1px solid color('border');
+    }
+  }
+
+  &__canvas {
+    order: 1;
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    align-self: start;
+    min-width: 0;
+  }
+
+  // 手機上是一格一格的小方塊，寬螢幕上是一排沒有框的標籤＋數字。
+  &__stat {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    background-color: color('surface');
+    padding: spacing('xs');
+    min-width: 0;
+
+    @include respond-to('md') {
+      border: 0;
+      background: none;
+      padding: 0;
+    }
+  }
+
+  &__stat-label {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  &__stat-value {
+    overflow: hidden;
+    color: color('text-strong');
+    font-weight: font-weight('medium');
+    font-size: font-size('sm');
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @include numeric;
+  }
+
+  &__stat-at {
+    grid-column: 1 / -1;
+    align-self: end;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+
+    @include numeric;
   }
 
   &__empty {
+    order: 1;
     margin: auto;
     padding: spacing('2xl') spacing('md');
     color: color('text-faint');

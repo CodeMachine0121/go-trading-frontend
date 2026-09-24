@@ -33,9 +33,14 @@ const strategyScript = computed(() => row.strategyScript)
     :data-testid="`marketplace-strategy-script-${strategyScript.id}`"
   >
     <header class="marketplace-strategy-script-card__header">
-      <h3 class="marketplace-strategy-script-card__name">
-        {{ strategyScript.name }}
-      </h3>
+      <div class="marketplace-strategy-script-card__identity">
+        <h3 class="marketplace-strategy-script-card__name">
+          {{ strategyScript.name }}
+        </h3>
+        <p class="marketplace-strategy-script-card__byline">
+          由 {{ strategyScript.publisherEmail }} 分享
+        </p>
+      </div>
 
       <AppBadge
         v-if="row.mine"
@@ -61,22 +66,18 @@ const strategyScript = computed(() => row.strategyScript)
     </p>
 
     <dl class="marketplace-strategy-script-card__facts">
-      <div>
-        <dt>分享者</dt>
-        <dd>{{ strategyScript.publisherEmail }}</dd>
-      </div>
-      <div>
+      <div class="marketplace-strategy-script-card__fact">
         <dt>算出來的是</dt>
         <dd>{{ strategyScript.resultTypeLabel }}</dd>
       </div>
       <!-- 吃哪一種行情決定它能在哪一頁跑：加入之後，它只出現在那一種的策略腳本畫面上。 -->
-      <div>
+      <div class="marketplace-strategy-script-card__fact">
         <dt>吃的行情</dt>
         <dd data-testid="marketplace-market-data-kind">
           {{ strategyScript.marketDataKindLabel }}
         </dd>
       </div>
-      <div>
+      <div class="marketplace-strategy-script-card__fact marketplace-strategy-script-card__fact--wide">
         <dt>可調的旋鈕</dt>
         <dd>
           {{ strategyScript.parameters.length === 0
@@ -111,7 +112,7 @@ const strategyScript = computed(() => row.strategyScript)
 
       <AppButton
         v-else-if="!row.mine"
-        variant="danger"
+        variant="danger-ghost"
         size="small"
         :disabled="busy"
         :data-testid="`marketplace-abandon-${strategyScript.id}`"
@@ -135,58 +136,96 @@ const strategyScript = computed(() => row.strategyScript)
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
-  padding: spacing('md');
+  transition: border-color duration('fast') ease;
   border: 1px solid color('border');
   border-radius: radius('md');
   background: color('surface');
+  padding: spacing('md');
+
+  &:hover {
+    border-color: color('border-strong');
+  }
 
   &__header {
     display: flex;
-    flex-wrap: wrap;
-    gap: spacing('xs') spacing('sm');
-    align-items: center;
+    gap: spacing('xs');
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  &__identity {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    min-width: 0;
   }
 
   // 卡片的名字是它的身分，要比卡片裡其他字大一階、亮一階——
   // 與說明同一個字級的話，整張卡片讀起來是一段文字而不是一個東西。
   &__name {
     margin: 0;
+    overflow-wrap: anywhere;
     color: color('text-strong');
+    font-weight: font-weight('semibold');
     font-size: font-size('md');
   }
 
+  &__byline {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  // 說明撐開卡片中段，讓一整排卡片的底邊（動作列）對齊。
   &__description {
+    flex: 1;
     margin: 0;
     color: color('text-muted');
     font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 
   &__facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: spacing('sm') spacing('md');
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: spacing('xs');
     margin: 0;
+  }
+
+  &__fact {
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    background-color: color('surface-raised');
+    padding: spacing('2xs') spacing('xs');
 
     dt {
-      color: color('text-faint');
-      font-size: font-size('2xs');
+      @include dense-label;
     }
 
     dd {
-      margin: 0;
+      margin: spacing('3xs') 0 0;
+      overflow-wrap: anywhere;
+      color: color('text');
       font-size: font-size('xs');
+    }
+
+    &--wide {
+      grid-column: 1 / -1;
     }
   }
 
   &__caveat {
     margin: 0;
-    color: color('text-faint');
+    color: color('warning');
     font-size: font-size('2xs');
   }
 
   &__actions {
     display: flex;
     justify-content: flex-end;
+    border-top: 1px solid color('border');
+    padding-top: spacing('sm');
   }
 
   &__own {

@@ -43,23 +43,7 @@ async function typeScriptBody(wrapper: ReturnType<typeof mountPanel>, body: stri
   await wrapper.vm.$nextTick()
 }
 
-/**
- * 打開宣告旋鈕的那一份。
- *
- * 宣告旋鈕是偶爾做一次的事，所以它在一顆按鈕後面而不是攤在編輯區旁邊——
- * 使用者要先說「我要改參數」，這裡也照著走那條路。
- */
-async function openParameters(wrapper: ReturnType<typeof mountPanel>) {
-  await wrapper.get('[data-testid="parameters-button"]').trigger('click')
-  await flushPromises()
-
-  return wrapper
-}
-
 async function addParameter(wrapper: ReturnType<typeof mountPanel>, name: string, value: string) {
-  if (!wrapper.find('[data-testid="add-parameter-button"]').exists()) {
-    await openParameters(wrapper)
-  }
   await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
   const rows = wrapper.findAll('[data-testid="parameter-row"]')
   const row = rows[rows.length - 1]
@@ -68,31 +52,20 @@ async function addParameter(wrapper: ReturnType<typeof mountPanel>, name: string
 }
 
 describe('策略腳本畫面上的參數', () => {
-  it('沒打開的時候不佔編輯區的版面，按鈕上寫著有幾個', async () => {
-    // 宣告旋鈕是偶爾做一次的事——常駐在編輯區旁邊，等於讓它一直佔著寫程式的地方。
+  it('參數常駐在參數那一欄，一個都沒有時明說，並寫著有幾個', async () => {
+    // 旋鈕與回測條件擺在同一欄：調一個、跑一次、看結果，不必先打開什麼。
     const wrapper = mountPanel(buildProxy())
     await flushPromises()
-
-    expect(wrapper.findAll('[data-testid="parameter-row"]')).toHaveLength(0)
-    expect(wrapper.find('[data-testid="parameters-empty"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="parameters-button"]').text()).toContain('0')
-  })
-
-  it('打開之後，一個都沒有時明說', async () => {
-    const wrapper = mountPanel(buildProxy())
-    await flushPromises()
-
-    await openParameters(wrapper)
 
     expect(wrapper.findAll('[data-testid="parameter-row"]')).toHaveLength(0)
     expect(wrapper.find('[data-testid="parameters-empty"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="parameters-count"]').text()).toBe('0')
+    expect(wrapper.get('[data-testid="tab-parameters"]').text()).toBe('參數 0')
   })
 
   it('新增出來的那一列名稱是空的、種類是回看根數、值是 20', async () => {
     const wrapper = mountPanel(buildProxy())
     await flushPromises()
-    await openParameters(wrapper)
-
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
 
     const row = wrapper.get('[data-testid="parameter-row"]')
@@ -140,7 +113,6 @@ describe('策略腳本畫面上的參數', () => {
     const wrapper = mountPanel(buildProxy(calculateIndicator))
     await flushPromises()
     await typeScriptBody(wrapper, SCRIPT_BODY)
-    await openParameters(wrapper)
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
 
     await wrapper.get('form').trigger('submit')
@@ -209,23 +181,20 @@ describe('策略腳本畫面上的參數', () => {
     }))
   })
 
-  it('對話框關著時算不出來，按鈕自己會說它有問題', async () => {
-    // 說明在對話框裡，而按下執行的當下對話框是關的——使用者要有辦法知道
-    // 該回頭去改哪裡，否則畫面只是安靜地什麼都沒發生。
+  it('參數有問題時算不出來，參數那一欄就地說明、數字標成有問題', async () => {
+    // 按下執行的人眼睛在結果那一塊——參數那一欄自己要說它有問題，
+    // 否則畫面只是安靜地什麼都沒發生。
     const calculateIndicator = vi.fn()
     const wrapper = mountPanel(buildProxy(calculateIndicator))
     await flushPromises()
     await typeScriptBody(wrapper, SCRIPT_BODY)
     await addParameter(wrapper, '期數', '0')
-    await wrapper.get('[data-testid="close-parameters-button"]').trigger('click')
-    await flushPromises()
 
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
     expect(calculateIndicator).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="parameters-button"]').classes())
-      .toContain('app-button--danger')
+    expect(wrapper.find('[data-testid="parameters-alert"]').exists()).toBe(true)
   })
 
   it('挑成「是非」時那一格變成選單，挑 True 送出去的是一', async () => {

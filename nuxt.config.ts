@@ -71,7 +71,7 @@ export default defineNuxtConfig({
         '@codemirror/language',
         '@codemirror/autocomplete',
         '@codemirror/lang-go',
-        '@codemirror/theme-one-dark',
+        '@lezer/highlight',
       ],
     },
     css: {

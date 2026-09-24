@@ -30,8 +30,6 @@ describe('AppButton', () => {
   })
 
   it.each([
-    ['圓角方塊', 'squircle'],
-    ['圓', 'circle'],
     ['籌碼', 'pill'],
   ] as const)('%s也是一種外形，不是一個新元件', (_name, shape) => {
     // 需要新長相時是在這裡多一個 shape，不是新增一個 XxxButton。

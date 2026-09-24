@@ -9,7 +9,18 @@ type TabOption = {
   label: string
 }
 
-const { options } = defineProps<{ options: readonly TabOption[] }>()
+/**
+ * 兩種長相：`underline` 是一整排分頁（換到另一塊內容），
+ * `segmented` 是一枚分段選擇（同一塊內容換一種看法，或兩三個互斥的選項）。
+ */
+type TabsVariant = 'underline' | 'segmented'
+
+const { options, variant = 'underline', block = false } = defineProps<{
+  options: readonly TabOption[]
+  variant?: TabsVariant
+  /** 分段選擇撐滿整寬、每一段等寬。 */
+  block?: boolean
+}>()
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -17,6 +28,7 @@ const modelValue = defineModel<string>({ required: true })
 <template>
   <div
     class="app-tabs"
+    :class="[`app-tabs--${variant}`, { 'app-tabs--block': block }]"
     role="tablist"
   >
     <button
@@ -76,6 +88,40 @@ const modelValue = defineModel<string>({ required: true })
       border-bottom-color: color('primary');
       color: color('text-strong');
     }
+  }
+
+  &--underline {
+    border-bottom: 1px solid color('border');
+  }
+
+  &--segmented {
+    display: inline-flex;
+    gap: 0;
+    border: 1px solid color('border');
+    border-radius: radius('sm');
+    background-color: color('surface');
+    padding: spacing('3xs');
+  }
+
+  &--segmented &__tab {
+    margin-bottom: 0;
+    border-bottom: none;
+    border-radius: radius('xs');
+    padding: spacing('3xs') spacing('sm');
+
+    &--selected {
+      box-shadow: inset 0 0 0 1px color('border-strong');
+      background-color: color('surface-muted');
+    }
+  }
+
+  &--block {
+    display: flex;
+    width: 100%;
+  }
+
+  &--block &__tab {
+    flex: 1;
   }
 }
 </style>

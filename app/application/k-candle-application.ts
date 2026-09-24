@@ -1,4 +1,5 @@
 import type { KCandleService } from '~/domain/service/k-candle-service'
+import type { KCandleDraftIssueDto } from '~/domain/models/dto/k-candle-draft-issue-dto'
 import type { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import type { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
@@ -41,5 +42,9 @@ export class KCandleApplication {
 
   buildNewKCandleDraft(symbol: string): KCandleWriteDto {
     return this.kCandleService.buildNewKCandleDraft(symbol)
+  }
+
+  inspectKCandleDraft(kCandleWriteDto: KCandleWriteDto): KCandleDraftIssueDto | null {
+    return this.kCandleService.inspectKCandleDraft(kCandleWriteDto)
   }
 }

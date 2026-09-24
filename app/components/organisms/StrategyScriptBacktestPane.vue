@@ -26,6 +26,10 @@ import { useBacktestRun } from '~/composables/use-backtest-run'
 // 它持有的是**只屬於回測的那幾件事**：時間區間、本金、押注方式，以及最近那一次的結果。
 // 工作區的每一樣東西（算式、參數、市場、彙總刻度）都是以 props 進來的——
 // 那些是兩個去處共用的，這裡只是借來用，不能擁有。
+//
+// 版面是兩塊：左邊（手機上是下面）是這一次說了什麼——提示與成績單、資金曲線、交易明細；
+// 右邊（手機上是上面）是回測條件。右邊那一欄與工作台上參數那一欄同寬、上下對齊，
+// 旋鈕與條件因此落在同一條直線上：調一個、跑一次、看左邊，是同一個動作的三拍。
 const {
   backtestApplication,
   tradingSymbolApplication,
@@ -122,6 +126,23 @@ const fillTimingOptions = backtestApplication.listFillTimingOptions()
 const fillTiming = ref<string>(fillTimingOptions[0]?.value ?? 'close')
 const validationStartTime = ref('')
 
+/**
+ * 這一次還什麼都沒說：沒跑過、沒在跑、也沒有任何一則提示。
+ * 那時結果那一塊不留白，而是說一句「按下去之後這裡會出現什麼」。
+ */
+const quiet = computed(() => backtestRun.result.value === null
+  && !backtestRun.running.value
+  && !backtestRun.backendUnreachable.value
+  && backtestRun.parameterNotDeclaredMessage.value === null
+  && backtestRun.scriptFailedMessage.value === null
+  && backtestRun.requestRejectedMessage.value === null
+  && backtestRun.timeAllowanceSpentMessage.value === null
+  && backtestRun.serverErrorMessage.value === null)
+
+// 工作台手機上釘在底下的那顆「執行回測」送出的是這一張表單；它要知道這一次是不是還在跑，
+// 才能與這裡自己那顆一起停用——兩顆鍵，同一條規矩。
+defineExpose({ running: backtestRun.running })
+
 // 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
 
@@ -173,7 +194,10 @@ function buildRequest(): BacktestRequestDto {
     class="strategy-script-backtest-pane"
     @submit.prevent="runBacktest"
   >
-    <AppPanel title="回測條件">
+    <AppPanel
+      title="回測條件"
+      class="strategy-script-backtest-pane__conditions"
+    >
       <template #meta>
         <AppBadge variant="info">
           只影響這一次
@@ -242,86 +266,96 @@ function buildRequest(): BacktestRequestDto {
       </p>
     </AppPanel>
 
-    <!--
-      這幾則說明的語氣與措辭刻意與指標預覽一字不差：同一頁上的兩個去處，
-      同一份算式壞掉時不該講出兩種故事。
-    -->
-    <AppAlert
-      v-if="backtestRun.parameterNotDeclaredMessage.value"
-      tone="danger"
-      data-testid="backtest-parameter-not-declared-alert"
-    >
-      參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
-    </AppAlert>
+    <div class="strategy-script-backtest-pane__outcome">
+      <p
+        v-if="quiet"
+        class="strategy-script-backtest-pane__placeholder"
+        data-testid="backtest-placeholder"
+      >
+        按「執行回測」，成績單、資金曲線與交易明細會出現在這裡。
+      </p>
 
-    <AppAlert
-      v-if="backtestRun.scriptFailedMessage.value"
-      tone="danger"
-      data-testid="backtest-script-failed-alert"
-    >
-      算式的問題（要改的是算式）：{{ backtestRun.scriptFailedMessage.value }}
-    </AppAlert>
+      <!--
+        這幾則說明的語氣與措辭刻意與指標預覽一字不差：同一頁上的兩個去處，
+        同一份算式壞掉時不該講出兩種故事。
+      -->
+      <AppAlert
+        v-if="backtestRun.parameterNotDeclaredMessage.value"
+        tone="danger"
+        data-testid="backtest-parameter-not-declared-alert"
+      >
+        參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
+      </AppAlert>
 
-    <AppAlert
-      v-else-if="backtestRun.requestRejectedMessage.value"
-      tone="warning"
-      data-testid="backtest-request-rejected-alert"
-    >
-      請求的問題：{{ backtestRun.requestRejectedMessage.value }}
-    </AppAlert>
+      <AppAlert
+        v-if="backtestRun.scriptFailedMessage.value"
+        tone="danger"
+        data-testid="backtest-script-failed-alert"
+      >
+        算式的問題（要改的是算式）：{{ backtestRun.scriptFailedMessage.value }}
+      </AppAlert>
 
-    <!--
-      沒在允許時間內跑完不是算式的錯，也不是後端壞了：是這一段太長或刻度太細。
-      說成前兩者，都會讓人去改一個沒有問題的東西。
-    -->
-    <AppAlert
-      v-else-if="backtestRun.timeAllowanceSpentMessage.value"
-      tone="warning"
-      data-testid="backtest-time-allowance-spent-alert"
-    >
-      這一次重演沒在允許時間內跑完，所以沒有成績單。請縮短期間，或改用粗一點的彙總刻度再試：{{ backtestRun.timeAllowanceSpentMessage.value }}
-    </AppAlert>
+      <AppAlert
+        v-else-if="backtestRun.requestRejectedMessage.value"
+        tone="warning"
+        data-testid="backtest-request-rejected-alert"
+      >
+        請求的問題：{{ backtestRun.requestRejectedMessage.value }}
+      </AppAlert>
 
-    <AppAlert
-      v-else-if="backtestRun.serverErrorMessage.value"
-      tone="danger"
-      data-testid="backtest-server-error-alert"
-    >
-      後端出錯了（不是你的請求有問題），請稍後重試：{{ backtestRun.serverErrorMessage.value }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="backtestRun.running.value"
-          @click="runBacktest"
-        >
-          重試
-        </AppButton>
-      </template>
-    </AppAlert>
+      <!--
+        沒在允許時間內跑完不是算式的錯，也不是後端壞了：是這一段太長或刻度太細。
+        說成前兩者，都會讓人去改一個沒有問題的東西。
+      -->
+      <AppAlert
+        v-else-if="backtestRun.timeAllowanceSpentMessage.value"
+        tone="warning"
+        data-testid="backtest-time-allowance-spent-alert"
+      >
+        這一次重演沒在允許時間內跑完，所以沒有成績單。請縮短期間，或改用粗一點的彙總刻度再試：{{ backtestRun.timeAllowanceSpentMessage.value }}
+      </AppAlert>
 
-    <AppAlert
-      v-else-if="backtestRun.backendUnreachable.value"
-      tone="danger"
-      data-testid="backtest-unreachable-alert"
-    >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
-    </AppAlert>
+      <AppAlert
+        v-else-if="backtestRun.serverErrorMessage.value"
+        tone="danger"
+        data-testid="backtest-server-error-alert"
+      >
+        後端出錯了（不是你的請求有問題），請稍後重試：{{ backtestRun.serverErrorMessage.value }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="backtestRun.running.value"
+            @click="runBacktest"
+          >
+            重試
+          </AppButton>
+        </template>
+      </AppAlert>
 
-    <AppAlert
-      v-else-if="backtestRun.running.value"
-      tone="info"
-      data-testid="backtest-running-alert"
-    >
-      回測中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。
-    </AppAlert>
+      <AppAlert
+        v-else-if="backtestRun.backendUnreachable.value"
+        tone="danger"
+        data-testid="backtest-unreachable-alert"
+      >
+        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      </AppAlert>
 
-    <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->
-    <BacktestResultSections
-      v-if="backtestRun.result.value"
-      :result="backtestRun.result.value"
-      :time-zone="timeZone"
-    />
+      <AppAlert
+        v-else-if="backtestRun.running.value"
+        tone="info"
+        data-testid="backtest-running-alert"
+      >
+        回測中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。
+      </AppAlert>
+
+      <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->
+      <BacktestResultSections
+        v-if="backtestRun.result.value"
+        :result="backtestRun.result.value"
+        :time-zone="timeZone"
+      />
+    </div>
 
     <BacktestRuleGuideDialog
       :open="ruleGuideOpen"
@@ -333,10 +367,45 @@ function buildRequest(): BacktestRequestDto {
 </template>
 
 <style scoped lang="scss">
+// 右邊那一欄的寬度。它與 IndicatorCalculationPanel 參數那一欄是同一個數字——
+// 兩欄上下疊著，差一點就對不齊。
+$side-column-width: 17rem;
+
 .strategy-script-backtest-pane {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: spacing('sm');
+  grid-template-areas:
+    'conditions'
+    'outcome';
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+
+  @include respond-to('lg') {
+    grid-template-areas: 'outcome conditions';
+    grid-template-columns: minmax(0, 1fr) $side-column-width;
+  }
+
+  &__conditions {
+    grid-area: conditions;
+  }
+
+  &__outcome {
+    display: flex;
+    grid-area: outcome;
+    flex-direction: column;
+    gap: spacing('sm');
+    min-width: 0;
+  }
+
+  &__placeholder {
+    margin: 0;
+    border: 1px dashed color('border-strong');
+    border-radius: radius('md');
+    padding: spacing('xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('sm');
+    text-align: center;
+  }
 
   &__script-error {
     margin: spacing('2xs') 0 0;

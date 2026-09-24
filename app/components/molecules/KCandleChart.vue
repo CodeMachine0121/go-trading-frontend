@@ -5,6 +5,7 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+import { useThemeChange } from '~/composables/use-theme-change'
 
 /**
  * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
@@ -31,6 +32,9 @@ const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
   danger: '--color-danger',
   neutral: '--color-text-muted',
 }
+
+/** 畫成一條線時那條線的顏色。 */
+const LINE_DRAWING_COLOR_TOKEN = '--color-primary'
 
 /**
  * 使用者拉遠拉近時，區間會連續變動好幾十次。等他停下來再說一次就好——
@@ -284,27 +288,21 @@ onMounted(async () => {
   }
 
   const host = chartHost.value
-  const borderColor = readColor(host, '--color-border')
   const createdChart = createChart(host, {
     autoSize: true,
     layout: {
-      background: { color: readColor(host, '--color-surface') },
-      textColor: readColor(host, '--color-text-muted'),
       fontSize: readFontSize(host),
       // 圖上不擺繪圖函式庫的商標。它的授權要求的是保留 NOTICE 與一個連結，
       // 而這個操作台只在本機跑、沒有對外的頁面可以放那個連結；
       // 函式庫本身也為此留了這個開關（預設為開）。
       attributionLogo: false,
     },
-    grid: {
-      vertLines: { color: borderColor },
-      horzLines: { color: borderColor },
-    },
-    rightPriceScale: { borderColor },
-    timeScale: { borderColor, timeVisible: true, secondsVisible: false },
+    timeScale: { timeVisible: true, secondsVisible: false },
   })
 
   chartApi.value = createdChart
+  // 底色、格線、軸上的字：全部照目前的外觀讀一次。外觀換了之後再讀一次（見 paintWithCurrentTheme）。
+  paintChartFrame()
 
   // 時間的說法與其他選項分開套用：它會跟著使用者換時區再套一次，
   // 而 applyOptions 是合併的，因此這裡只講時間怎麼寫，不必重覆其他設定。
@@ -331,7 +329,7 @@ onMounted(async () => {
     }
 
     seriesApi.value = nextDrawing === 'line'
-      ? createdChart.addSeries(LineSeries, { color: readColor(host, '--color-primary'), lineWidth: 2 })
+      ? createdChart.addSeries(LineSeries, { color: readColor(host, LINE_DRAWING_COLOR_TOKEN), lineWidth: 2 })
       : createdChart.addSeries(CandlestickSeries)
   }
 
@@ -403,6 +401,50 @@ watch(() => drawing, (nextDrawing) => {
   drawKCandles()
 })
 
+/**
+ * 圖框本身的顏色：底色、格線、軸線、軸上的字。
+ *
+ * 它們與 K 線分開上色，因為 K 線的顏色每畫一批就重讀一次（見 drawKCandles），
+ * 圖框卻只在建立時與外觀換掉時才需要讀。
+ */
+function paintChartFrame() {
+  const host = chartHost.value
+  if (host === null || chartApi.value === null) {
+    return
+  }
+
+  const gridColor = readColor(host, '--color-chart-grid')
+  const borderColor = readColor(host, '--color-border')
+  chartApi.value.applyOptions({
+    layout: {
+      background: { color: readColor(host, '--color-surface') },
+      textColor: readColor(host, '--color-text-muted'),
+    },
+    grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+    rightPriceScale: { borderColor },
+    timeScale: { borderColor },
+  })
+}
+
+/**
+ * 外觀換了：畫布上抄進去的每一個顏色都是舊的那一組，全部重讀一次。
+ *
+ * K 線與指標連資料一起重畫——它們的顏色是逐根、逐條交給函式庫的，
+ * 沒有一個「換色」的呼叫可以只換顏色。資料一根都沒變，所以不會回頭去取任何東西。
+ */
+function paintWithCurrentTheme() {
+  paintChartFrame()
+
+  const host = chartHost.value
+  if (host !== null && drawing === 'line') {
+    seriesApi.value?.applyOptions({ color: readColor(host, LINE_DRAWING_COLOR_TOKEN) })
+  }
+
+  drawKCandles()
+}
+
+useThemeChange(paintWithCurrentTheme)
+
 onBeforeUnmount(() => {
   if (rangeSettleTimer !== null) {
     clearTimeout(rangeSettleTimer)
@@ -437,7 +479,13 @@ onBeforeUnmount(() => {
   flex: 1;
   background-color: color('surface');
   width: 100%;
-  min-height: 20rem;
+
+  // 手機上要留一點高度給圖下方的工具列與清單；寬螢幕上圖是主角。
+  min-height: 18rem;
+
+  @include respond-to('md') {
+    min-height: 24rem;
+  }
 
   // 圖上刻度標籤的大小是從這裡讀出去的（見 readFontSize）——
   // 密集的軸標籤用小一級，才不會與價格數字爭。

@@ -1,50 +1,19 @@
 <script setup lang="ts">
-import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
-import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
-import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
-import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import StrategyScriptMarketplacePanel from '~/components/organisms/StrategyScriptMarketplacePanel.vue'
 
-// 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $strategyScriptMarketplaceApplication } = useNuxtApp()
+definePageMeta({
+  layout: 'console',
+  consoleTitle: 'Marketplace',
+  consoleSubtitle: '大家分享出來的策略腳本。看得到它算什麼、有哪些旋鈕，看不到它怎麼算；加入之後就出現在你挑策略腳本的地方。',
+})
 
-const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
-const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
-const { currentUser, signOut } = useUserSession()
+// 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
+// 時區、連線燈與帳號由 console 版型統一接線。
+const { $strategyScriptMarketplaceApplication } = useNuxtApp()
 </script>
 
 <template>
-  <ConsoleLayout
-    title="Marketplace"
-    subtitle="大家分享出來的策略腳本。看得到它算什麼、有哪些旋鈕，看不到它怎麼算；加入之後就出現在你挑策略腳本的地方。"
-  >
-    <template #timezone>
-      <TimeZoneField
-        :model-value="selectedTimeZone.identifier"
-        :selectable-time-zones="selectableTimeZones"
-        @update:model-value="selectTimeZone"
-      />
-    </template>
-
-    <template #status>
-      <BackendStatusIndicator
-        :health="health"
-        :checking="checking"
-        :error-message="errorMessage"
-        @recheck="checkBackendHealth"
-      />
-    </template>
-
-    <template #identity>
-      <SignedInUserBadge
-        v-if="currentUser"
-        :user="currentUser"
-        @sign-out="signOut"
-      />
-    </template>
-
-    <StrategyScriptMarketplacePanel
-      :strategy-script-marketplace-application="$strategyScriptMarketplaceApplication"
-    />
-  </ConsoleLayout>
+  <StrategyScriptMarketplacePanel
+    :strategy-script-marketplace-application="$strategyScriptMarketplaceApplication"
+  />
 </template>

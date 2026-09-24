@@ -111,11 +111,28 @@ describe('IndicatorCalculationPanel', () => {
     //
     // 多了回測那個去處之後，畫面上本來就會有兩顆送出鈕——一個去處一顆。
     // 所以這一條改成**逐個去處**數：同一個去處裡冒出第二顆，仍然會紅。
+    //
+    // 手機底下那一條的「執行」不在任何一個去處裡面：它送出的是看得見的那個去處的表單，
+    // 所以這裡只數表單裡面的。
     const wrapper = mountPanel(buildProxy())
 
     expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
     expect(wrapper.findAll('[data-testid="run-backtest-button"]')).toHaveLength(1)
-    expect(wrapper.findAll('button[type="submit"]')).toHaveLength(2)
+    expect(wrapper.findAll('form button[type="submit"]')).toHaveLength(2)
+  })
+
+  it.each([
+    { destination: 'indicatorPreview', label: '執行計算' },
+    { destination: 'backtest', label: '執行回測' },
+  ])('底下那一條的執行鍵送出的是看得見的那個去處（$destination）', async ({ destination, label }) => {
+    const wrapper = mountPanel(buildProxy())
+    await wrapper.get(`[data-testid="tab-${destination}"]`).trigger('click')
+
+    const run = wrapper.get('[data-testid="dock-run-button"]')
+    const visibleForm = wrapper.findAll('form').find(form => form.element.id === run.attributes('form'))
+
+    expect(run.text()).toBe(label)
+    expect(visibleForm?.attributes('style') ?? '').not.toContain('display: none')
   })
 
   it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {
@@ -538,6 +555,30 @@ describe('策略腳本畫面：算式裡可以用什麼', () => {
 
     expect(wrapper.findAll('[data-testid="k-candle-field"]')).toHaveLength(0)
     expect(wrapper.findAll('[data-testid="script-parameter-access"]')).toHaveLength(0)
+  })
+
+  it.each([
+    { section: 'guide', showsGuide: true },
+    { section: 'parameters', showsGuide: false },
+    { section: 'code', showsGuide: false },
+  ])('手機上編輯器那一格挑「$section」：說明攤出來 $showsGuide', async ({ section, showsGuide }) => {
+    // 手機上沒有地方擺第二個對話框的入口——說明是編輯器三段裡的一段。
+    const wrapper = await mountPanel(buildProxy())
+
+    await wrapper.get(`[data-testid="tab-${section}"]`).trigger('click')
+
+    expect(wrapper.find('[data-testid="k-candle-field"]').exists()).toBe(showsGuide)
+  })
+
+  it('手機上切到別段再切回程式碼，寫到一半的算式還在', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await typeScript(wrapper, WHOLE_SCRIPT)
+
+    await wrapper.get('[data-testid="tab-parameters"]').trigger('click')
+    await wrapper.get('[data-testid="tab-code"]').trigger('click')
+    await settle()
+
+    expect(scriptText(wrapper)).toContain('均價')
   })
 
   it('問了就列出算式收到的每一個欄位', async () => {

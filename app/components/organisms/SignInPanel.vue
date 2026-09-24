@@ -2,6 +2,7 @@
 import type { SignInMode } from '~/domain/models/vo/sign-in-mode'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 
@@ -12,7 +13,11 @@ import FormField from '~/components/molecules/FormField.vue'
 // 所以**切換時已填的內容留著**。
 //
 // 送出之前的規則不在這裡：規則住在 CredentialsDomain，這裡只把兩格與模式往上送，
-// 再把回來的每一格錯誤畫在該格底下。元件不寫業務規則。
+// 再把回來的每一格錯誤畫在該格底下。元件不寫業務規則——鎖定前還剩幾次、
+// 暫停到幾點，那幾句話都由 useUserSession 備好，這裡照原樣說出來。
+//
+// 單欄。窄螢幕上它佔滿整個畫面、主要那一顆沉到最底下，拇指搆得到；
+// 寬螢幕上它是一張置中的卡片。
 const {
   pending = false,
   errorMessage = null,
@@ -84,8 +89,10 @@ function submit(): void {
     @submit.prevent="submit"
   >
     <div class="sign-in-panel__brand">
-      <span class="sign-in-panel__brand-mark" />
-      <span class="sign-in-panel__brand-name">go-trading</span>
+      <span class="sign-in-panel__brand-mark">
+        <AppIcon name="candles" />
+      </span>
+      <span class="sign-in-panel__brand-name">Go Trading</span>
     </div>
 
     <div class="sign-in-panel__heading">
@@ -97,139 +104,163 @@ function submit(): void {
       </p>
     </div>
 
-    <FormField
-      label="電子郵件"
-      :error-message="emailError"
-    >
-      <AppInput
-        v-model="email"
-        type="email"
-        autocomplete="email"
-        autocapitalize="off"
-        spellcheck="false"
-        data-testid="email-input"
-        :invalid="emailError !== null"
-      />
-    </FormField>
+    <div class="sign-in-panel__fields">
+      <FormField
+        label="電子郵件"
+        :error-message="emailError"
+      >
+        <AppInput
+          v-model="email"
+          type="email"
+          autocomplete="email"
+          autocapitalize="off"
+          spellcheck="false"
+          data-testid="email-input"
+          :invalid="emailError !== null"
+        />
+      </FormField>
 
-    <FormField
-      label="密碼"
-      :error-message="passwordError"
-    >
-      <!--
-        自動填入的提示隨模式換：瀏覽器與密碼管理器靠它決定要提供既有的那一組，
-        還是提議產生一組新的。給錯了，建立帳號時它會一直塞舊密碼進來。
-      -->
-      <AppInput
-        v-model="password"
-        type="password"
-        :autocomplete="registering ? 'new-password' : 'current-password'"
-        data-testid="password-input"
-        :invalid="passwordError !== null"
-      />
-    </FormField>
+      <FormField
+        label="密碼"
+        :error-message="passwordError"
+      >
+        <!--
+          自動填入的提示隨模式換：瀏覽器與密碼管理器靠它決定要提供既有的那一組，
+          還是提議產生一組新的。給錯了，建立帳號時它會一直塞舊密碼進來。
+        -->
+        <AppInput
+          v-model="password"
+          type="password"
+          :autocomplete="registering ? 'new-password' : 'current-password'"
+          data-testid="password-input"
+          :invalid="passwordError !== null"
+        />
+      </FormField>
 
-    <AppAlert
-      v-if="notice"
-      tone="info"
-      data-testid="sign-in-notice"
-    >
-      {{ notice }}
-    </AppAlert>
+      <AppAlert
+        v-if="notice"
+        tone="info"
+        data-testid="sign-in-notice"
+      >
+        {{ notice }}
+      </AppAlert>
 
-    <AppAlert
-      v-if="errorMessage"
-      tone="danger"
-      data-testid="submission-error"
-    >
-      {{ errorMessage }}
-    </AppAlert>
+      <AppAlert
+        v-if="errorMessage"
+        tone="danger"
+        data-testid="submission-error"
+      >
+        {{ errorMessage }}
+      </AppAlert>
+    </div>
 
-    <AppButton
-      type="submit"
-      block
-      :disabled="pending"
-      data-testid="submit"
-    >
-      {{ submitLabel }}
-    </AppButton>
+    <div class="sign-in-panel__actions">
+      <AppButton
+        type="submit"
+        size="large"
+        block
+        :disabled="pending"
+        data-testid="submit"
+      >
+        {{ submitLabel }}
+      </AppButton>
 
-    <AppButton
-      variant="ghost"
-      size="small"
-      data-testid="switch-mode"
-      @click="switchMode"
-    >
-      {{ switchLabel }}
-    </AppButton>
+      <AppButton
+        variant="ghost"
+        size="small"
+        data-testid="switch-mode"
+        @click="switchMode"
+      >
+        {{ switchLabel }}
+      </AppButton>
+    </div>
   </form>
 </template>
 
 <style scoped lang="scss">
 .sign-in-panel {
   display: flex;
-  position: relative;
   flex-direction: column;
-  gap: spacing('md');
-  box-shadow: shadow('md');
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing('xl') spacing('lg');
+  gap: spacing('xl');
   width: 100%;
-  max-width: 22rem;
 
-  // 卡片後面一層極淡的光暈，讓它從近全黑的底浮起來，而不是貼在上面。
-  // 它是裝飾，所以不擋點擊，也不佔版面。
-  &::before {
-    position: absolute;
-    z-index: -1;
-    background: radial-gradient(circle, color('primary-soft'), transparent 70%);
-    content: '';
-    inset: -40%;
-    pointer-events: none;
+  // 窄螢幕上它被頁面撐滿整個畫面的高度，主要那一顆因此沉得到底。
+  max-width: 24rem;
+
+  @include respond-to('md') {
+    gap: spacing('lg');
+    box-shadow: shadow('md');
+    border: 1px solid color('border');
+    border-radius: radius('lg');
+    background-color: color('surface');
+    padding: spacing('2xl') spacing('xl');
   }
 
-  // 與側欄同一顆點加同一組字：一走進門就看得出這裡是哪裡。
   &__brand {
     display: flex;
     gap: spacing('xs');
     align-items: center;
-    justify-content: center;
   }
 
+  // 與側欄同一顆記號：一走進門就看得出這裡是哪裡。
   &__brand-mark {
+    display: grid;
     flex: none;
-    border-radius: radius('pill');
-    background-color: color('primary');
-    width: 0.5rem;
-    height: 0.5rem;
+    place-items: center;
+    border-radius: radius('md');
+    background-image: linear-gradient(135deg, color('primary'), color('primary-strong'));
+    width: 2.75rem;
+    height: 2.75rem;
+    color: color('text-inverse');
   }
 
   &__brand-name {
     color: color('text-strong');
     font-weight: font-weight('semibold');
     font-size: font-size('sm');
-    font-family: font-family('mono');
   }
 
   &__heading {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
-    text-align: center;
+    gap: spacing('2xs');
   }
 
   &__title {
     margin: 0;
-    font-size: font-size('xl');
+    color: color('text-strong');
+    font-weight: font-weight('bold');
+    font-size: font-size('2xl');
+    line-height: line-height('tight');
   }
 
   &__caption {
     margin: 0;
-    color: color('text-faint');
-    font-size: font-size('2xs');
+    color: color('text-muted');
+    font-size: font-size('sm');
     line-height: line-height('normal');
+  }
+
+  &__fields {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+  }
+
+  // 窄螢幕上把動作推到最底下；寬螢幕上它就接在欄位後面。
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('xs');
+    align-items: center;
+    margin-top: auto;
+
+    @include safe-area-bottom;
+
+    @include respond-to('md') {
+      margin-top: 0;
+      padding-bottom: 0;
+    }
   }
 }
 </style>

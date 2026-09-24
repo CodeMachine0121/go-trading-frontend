@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import AssistantDrawer from '~/components/organisms/AssistantDrawer.vue'
-import AssistantTriggerButton from '~/components/molecules/AssistantTriggerButton.vue'
 import AppProgressBar from '~/components/atoms/AppProgressBar.vue'
 
-// 應用程式的根，也是助手那兩塊的接線處。
+// 應用程式的根，也是助手抽屜的接線處。
 //
-// 它們掛在這裡而不是塞進 ConsoleLayout，理由有兩個：樣板**不得綁任何資料**，
-// 而這兩塊要顯示對話與記住的位置；而且「每一個畫面都叫得出來」的意思就是
-// 它得在 NuxtPage 之外。這也讓四個既有畫面一行都不必改。
+// 抽屜掛在這裡而不是塞進 ConsoleLayout，理由有兩個：樣板**不得綁任何資料**，
+// 而它要顯示對話與記住的寬度；而且「每一個畫面都叫得出來」的意思就是
+// 它得在 NuxtPage 之外。叫出它的是頂列的助手鍵（layouts/console），
+// 兩邊取用的是同一份 useAssistantDrawer 狀態。
 //
 // 這裡與 /chat 那一頁取用的是**同一份共用狀態**，所以在抽屜問完展開過去，
 // 剛才那一則還在。
-const { open, openDrawer, closeDrawer } = useAssistantDrawer()
+
+// 外觀在第一個畫面畫出來之前就要套上，否則選了淺色的人會先看到一瞬間的深色。
+// 整台操作台只在瀏覽器裡畫（ssr: false），所以這裡的 setup 就已經在瀏覽器裡。
+const { initializeAppearance } = useAppearance()
+initializeAppearance()
+
+const { open, closeDrawer } = useAssistantDrawer()
 
 // 助手要花錢，而且它讀得到行情——沒登入的人不該叫得出它，**還沒被放行的人也一樣**。
-// 那顆鍵與抽屜因此跟著「這個人能不能用這台操作台」出現與消失，而不是永遠掛在那裡。
-//
-// 後端會擋下他，所以這不是安全上的必要；它是為了不要在一個他唯一到得了的畫面上，
-// 擺一顆按下去只會失敗的鍵。
+// 抽屜因此跟著「這個人能不能用這台操作台」出現與消失，而不是永遠掛在那裡。
 const { currentUser, awaitingActivation } = useUserSession()
 
-/** 這個人進得了操作台。助手那兩塊只對他存在。 */
+/** 這個人進得了操作台。助手抽屜只對他存在。 */
 const mayUseConsole = computed(() => currentUser.value !== null && !awaitingActivation.value)
 
 const {
@@ -42,17 +45,6 @@ const {
 const { selectedTimeZone } = useSelectedTimeZone()
 
 const {
-  triggerSize,
-  position,
-  dragging,
-  loadTriggerPosition,
-  keepTriggerInView,
-  startDrag,
-  moveDrag,
-  endDrag,
-} = useAssistantTrigger()
-
-const {
   width: drawerWidth,
   resizing,
   loadDrawerWidth,
@@ -66,31 +58,8 @@ const {
 const { layoutDensity } = useLayoutDensity()
 
 /**
- * 拖曳中的 pointer 事件掛在 window 上，因為手一快就會離開那顆鍵——
- * 掛在鍵上的話，拖到一半游標跑出去，那顆鍵就黏在半路上不動了。
- *
- * 放下時才知道剛才那一下是按了一下還是拖曳，**只有按了一下才打開抽屜**。
- */
-function onDragStart(pointerX: number, pointerY: number): void {
-  startDrag(pointerX, pointerY)
-
-  const onMove = (event: PointerEvent): void => moveDrag(event.clientX, event.clientY)
-  const onUp = (): void => {
-    window.removeEventListener('pointermove', onMove)
-    window.removeEventListener('pointerup', onUp)
-
-    if (endDrag()) {
-      openDrawer()
-    }
-  }
-
-  window.addEventListener('pointermove', onMove)
-  window.addEventListener('pointerup', onUp)
-}
-
-/**
- * 拉動抽屜那條邊。與拖那顆鍵同一個做法：事件掛在 window 上，
- * 因為手一快就會離開那條細邊。
+ * 拉動抽屜那條邊。事件掛在 window 上，因為手一快就會離開那條細邊——
+ * 掛在邊上的話，拉到一半游標跑出去，寬度就停在半路上不動了。
  */
 function onResizeStart(pointerX: number): void {
   startResize(pointerX)
@@ -106,26 +75,16 @@ function onResizeStart(pointerX: number): void {
   window.addEventListener('pointerup', onUp)
 }
 
-/**
- * 頂端那條進度條：畫面正在等系統回話，或正在換頁。
- *
- * 它掛在這裡，因為「每一個畫面都看得到」的意思就是它得在 NuxtPage 之外——
- * 與助手那兩塊同一個理由。請求在發請求的那一層報到；換頁在這裡接上一次。
- */
+// 頂端那條進度條：畫面正在等系統回話，或正在換頁。
 const { visible: waiting, followNavigation } = useRequestActivity()
 followNavigation()
 
-/** 視窗變小時，那顆鍵與抽屜都要收回看得見、還能用的範圍。 */
-function keepAssistantUsable(): void {
-  keepTriggerInView()
-  keepDrawerWidthUsable()
-}
-
-// 這兩份都記在瀏覽器裡，所以只有到了瀏覽器才讀得到。
+// 抽屜寬度記在瀏覽器裡，所以只有到了瀏覽器才讀得到。
 onMounted(() => {
-  loadTriggerPosition()
   loadDrawerWidth()
-  window.addEventListener('resize', keepAssistantUsable)
+
+  // 視窗變小時，抽屜要收回看得見、還能用的寬度。
+  window.addEventListener('resize', keepDrawerWidthUsable)
 
   // 回到上次看的那一段。這一行是「重新整理之後還看得到助手在寫」發生的地方：
   // 跨畫面共用的那份狀態撐不過整頁重新載入，所以哪一段要靠瀏覽器記著。
@@ -136,27 +95,16 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', keepAssistantUsable)
+  window.removeEventListener('resize', keepDrawerWidthUsable)
 })
 </script>
 
 <template>
   <AppProgressBar :active="waiting" />
   <NuxtRouteAnnouncer />
-  <NuxtPage />
-
-  <!--
-    那一枚浮在畫面上、叫出 AI-Assistant 的晶片**只在寬螢幕上出現**。
-    窄螢幕的底部已經有一格「AI-Assistant」了，一枚浮在右下角的晶片不只是重複——
-    它就蓋在那一排分頁上，把「AI-Assistant」與「更多」兩格壓在底下按不到。
-  -->
-  <AssistantTriggerButton
-    v-if="mayUseConsole && !open && !layoutDensity.usesBottomNavigation"
-    :position="position"
-    :size="triggerSize"
-    :dragging="dragging"
-    @drag-start="onDragStart"
-  />
+  <NuxtLayout>
+    <NuxtPage />
+  </NuxtLayout>
 
   <AssistantDrawer
     v-if="mayUseConsole"

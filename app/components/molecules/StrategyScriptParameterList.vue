@@ -8,6 +8,8 @@ import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strate
 import { readNumberInput } from '~/utilities/number-input-reading'
 
 // 分子：一支算式的旋鈕這一整塊——宣告、值、新增與移除。
+// 它常駐在工作台的參數那一欄（手機上是「參數」那一段），不再收在對話框後面：
+// 旋鈕的值正是回測時一再回頭調的東西，而它們與回測條件擺在同一欄才對得上。
 //
 // 它是**一個** UI 概念，不是「一列」加「一塊」兩個：一列脫離了它所在的那一份
 // 就答不出「名稱有沒有重複」，而那正是這一塊要回答的事情之一。
@@ -58,16 +60,6 @@ function onValueInput(index: number, raw: string | number) {
     </p>
 
     <template v-else>
-      <div
-        class="strategy-script-parameter-list__row strategy-script-parameter-list__row--head"
-        aria-hidden="true"
-      >
-        <span>名稱</span>
-        <span>種類</span>
-        <span>預設值</span>
-        <span />
-      </div>
-
       <ul class="strategy-script-parameter-list__rows">
         <li
           v-for="(field, index) in fields"
@@ -79,6 +71,8 @@ function onValueInput(index: number, raw: string | number) {
             :model-value="field.parameter.name"
             type="text"
             placeholder="名稱"
+            aria-label="名稱"
+            class="strategy-script-parameter-list__name"
             :invalid="field.isInvalid"
             :disabled="readOnly"
             data-testid="parameter-name-input"
@@ -87,6 +81,8 @@ function onValueInput(index: number, raw: string | number) {
 
           <AppSelect
             :model-value="field.parameter.kind"
+            aria-label="種類"
+            class="strategy-script-parameter-list__kind"
             :disabled="readOnly"
             data-testid="parameter-kind-select"
             @update:model-value="emit('changeKind', index, $event as StrategyScriptParameterKind)"
@@ -104,6 +100,8 @@ function onValueInput(index: number, raw: string | number) {
           <AppSelect
             v-if="field.control === 'options'"
             :model-value="String(field.parameter.value)"
+            aria-label="預設值"
+            class="strategy-script-parameter-list__value"
             :disabled="readOnly"
             data-testid="parameter-value-input"
             @update:model-value="emit('changeValue', index, Number($event))"
@@ -120,6 +118,8 @@ function onValueInput(index: number, raw: string | number) {
             v-else
             :model-value="String(field.parameter.value)"
             type="number"
+            aria-label="預設值"
+            class="strategy-script-parameter-list__value"
             :inputmode="field.inputMode"
             :step="field.step"
             :invalid="field.isInvalid"
@@ -134,6 +134,7 @@ function onValueInput(index: number, raw: string | number) {
             variant="ghost"
             size="small"
             label="移除"
+            class="strategy-script-parameter-list__remove"
             :data-testid="`remove-parameter-${index}`"
             @click="emit('remove', index)"
           >
@@ -161,12 +162,11 @@ function onValueInput(index: number, raw: string | number) {
 .strategy-script-parameter-list {
   display: flex;
   flex-direction: column;
-  gap: spacing('2xs');
+  gap: spacing('xs');
 
   // 加一個是偶爾才做一次的事，不必是一顆橫跨整個寬度的按鈕。
   &__add {
     align-self: start;
-    margin-top: spacing('2xs');
   }
 
   &__empty {
@@ -179,28 +179,45 @@ function onValueInput(index: number, raw: string | number) {
   &__rows {
     display: flex;
     flex-direction: column;
-    gap: spacing('2xs');
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  // 一列一個旋鈕，四欄對齊：名稱、種類、預設值，加上移除。
+  // 一列一個旋鈕，兩行：名稱獨佔一行（它是算式取用它的那個字，要讀得完整），
+  // 種類與預設值並排在下面一行。
   //
-  // 它曾經是一格一個、會換行的小卡片。那在寬螢幕上還行，一擠窄就散成參差不齊的兩排——
-  // 而這幾樣東西天生就是一份清單：欄位一樣、每一列讀法相同，對齊才看得出哪裡不一樣。
+  // 這一塊住在工作台最右邊那一欄、也住在手機上「參數」那一段——兩處都只有
+  // 一支手機寬。四欄排成一行在那個寬度裡每一格都讀不出值；兩行則在哪裡都排得下。
   &__row {
     display: grid;
     gap: spacing('2xs');
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name name remove'
+      'kind value value';
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: center;
+    padding: spacing('xs') 0;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid color('border');
+    }
   }
 
-  // 標題那一列只是欄位名，不是資料——所以它不在清單裡，讀螢幕的人也不必聽到它。
-  &__row--head {
-    padding: 0 spacing('3xs');
-    color: color('text-faint');
-    font-size: font-size('2xs');
+  &__name {
+    grid-area: name;
+  }
+
+  &__kind {
+    grid-area: kind;
+  }
+
+  &__value {
+    grid-area: value;
+  }
+
+  &__remove {
+    grid-area: remove;
   }
 }
 </style>

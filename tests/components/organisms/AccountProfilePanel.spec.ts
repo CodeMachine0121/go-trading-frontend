@@ -30,4 +30,22 @@ describe('AccountProfilePanel', () => {
 
     expect(wrapper.get('[data-testid="account-email"]').text()).toBe('—')
   })
+
+  it.each([
+    { activated: true, shown: true },
+    { activated: false, shown: false },
+  ])('開通了才標「已開通」（activated=$activated）', ({ activated, shown }) => {
+    const wrapper = mount(AccountProfilePanel, { props: { email: 'james@example.com', activated } })
+
+    expect(wrapper.find('[data-testid="account-activated"]').exists()).toBe(shown)
+  })
+
+  it('按登出就往上說要登出', async () => {
+    // 窄螢幕上沒有側欄，這一顆是那裡唯一的登出。
+    const wrapper = mount(AccountProfilePanel, { props: { email: 'james@example.com' } })
+
+    await wrapper.get('[data-testid="account-sign-out"]').trigger('click')
+
+    expect(wrapper.emitted('signOut')).toHaveLength(1)
+  })
 })

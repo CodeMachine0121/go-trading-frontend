@@ -3,6 +3,7 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
+import FormField from '~/components/molecules/FormField.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
@@ -70,98 +71,107 @@ function onSave() {
 
 <template>
   <div class="bot-form">
-    <label class="bot-form__field">
-      <span class="bot-form__field-name">機器人名稱</span>
-      <AppInput
-        v-model="form.name.value"
-        type="text"
-        placeholder="早盤突破"
-        data-testid="bot-name-input"
-      />
-    </label>
+    <section class="bot-form__section">
+      <h3 class="bot-form__section-title">
+        這台機器人
+      </h3>
 
-    <!--
-      挑規則擺在名稱底下、市場上面，因為那是使用者心裡的順序：
-      這台叫什麼、照哪一套規則、盯哪裡、多久看一次。
-    -->
-    <label class="bot-form__field">
-      <span class="bot-form__field-name">用哪一份交易策略</span>
-      <AppSelect
-        v-if="tradingStrategyOptions.length > 0"
-        :model-value="String(form.tradingStrategyId.value)"
-        data-testid="bot-trading-strategy-select"
-        @update:model-value="form.tradingStrategyId.value = Number($event)"
-      >
-        <!-- 沒挑的那一格是一個選項，不是一個空白：一個看起來已經挑好的選單，
-             會讓人在被擋下來時不知道哪裡不對。 -->
-        <option value="0">
-          挑一份
-        </option>
-        <option
-          v-for="tradingStrategyOption in tradingStrategyOptions"
-          :key="tradingStrategyOption.value"
-          :value="String(tradingStrategyOption.value)"
-        >
-          {{ tradingStrategyOption.label }}
-        </option>
-      </AppSelect>
       <!--
-        一份都沒有時給的不是一個空選單。在一個挑不到東西的選單前面發呆，
-        是最沒有用的那一種畫面——所以這裡直接給出下一步在哪裡。
+        由上往下是使用者心裡的順序：這台叫什麼、照哪一套規則、盯哪裡、多久看一次。
+        寬螢幕上兩兩並排，順序不變。
       -->
-      <AppAlert
-        v-else
-        tone="info"
-        data-testid="bot-no-trading-strategies"
-      >
-        還沒有任何{{ page.tradingStrategyLabel }}。
-        <NuxtLink to="/trading-strategies/new">
-          先去拼一份
-        </NuxtLink>
-        {{ page.tradingStrategyCreateHint }}，機器人才知道要照什麼判斷。
-      </AppAlert>
-    </label>
+      <div class="bot-form__grid">
+        <FormField label="機器人名稱">
+          <AppInput
+            v-model="form.name.value"
+            type="text"
+            placeholder="早盤突破"
+            data-testid="bot-name-input"
+          />
+        </FormField>
 
-    <!--
-      合約機器人從合約標的清單挑，而且只列合約追蹤名單上的：同一個名字在兩條線上是兩個商品，
-      而交易服務只讓合約機器人盯正在追蹤的合約。
-    -->
-    <ContractSymbolField
-      v-if="page.picksContractTradingSymbol"
-      v-model="form.symbol.value"
-      :trading-symbol-application="tradingSymbolApplication"
-      watched-only
-      :keeps-selection="editing !== null"
-    />
-    <label
-      v-else
-      class="bot-form__field"
-    >
-      <span class="bot-form__field-name">盯哪一個交易標的</span>
-      <SymbolField
-        v-model="form.symbol.value"
-        :trading-symbol-application="tradingSymbolApplication"
-      />
-    </label>
+        <FormField label="用哪一份交易策略">
+          <AppSelect
+            v-if="tradingStrategyOptions.length > 0"
+            :model-value="String(form.tradingStrategyId.value)"
+            data-testid="bot-trading-strategy-select"
+            @update:model-value="form.tradingStrategyId.value = Number($event)"
+          >
+            <!-- 沒挑的那一格是一個選項，不是一個空白：一個看起來已經挑好的選單，
+                 會讓人在被擋下來時不知道哪裡不對。 -->
+            <option value="0">
+              挑一份
+            </option>
+            <option
+              v-for="tradingStrategyOption in tradingStrategyOptions"
+              :key="tradingStrategyOption.value"
+              :value="String(tradingStrategyOption.value)"
+            >
+              {{ tradingStrategyOption.label }}
+            </option>
+          </AppSelect>
+          <!--
+            一份都沒有時給的不是一個空選單。在一個挑不到東西的選單前面發呆，
+            是最沒有用的那一種畫面——所以這裡直接給出下一步在哪裡。
+          -->
+          <AppAlert
+            v-else
+            tone="info"
+            data-testid="bot-no-trading-strategies"
+          >
+            還沒有任何{{ page.tradingStrategyLabel }}。
+            <NuxtLink to="/trading-strategies/new">
+              先去拼一份
+            </NuxtLink>
+            {{ page.tradingStrategyCreateHint }}，機器人才知道要照什麼判斷。
+          </AppAlert>
+        </FormField>
 
-    <label class="bot-form__field">
-      <span class="bot-form__field-name">每隔幾分鐘</span>
-      <AppInput
-        v-model="form.triggerIntervalText.value"
-        type="number"
-        inputmode="numeric"
-        placeholder="5"
-        data-testid="bot-interval-input"
-      />
-    </label>
+        <!--
+          合約機器人從合約標的清單挑，而且只列合約追蹤名單上的：同一個名字在兩條線上是兩個商品，
+          而交易服務只讓合約機器人盯正在追蹤的合約。
+        -->
+        <ContractSymbolField
+          v-if="page.picksContractTradingSymbol"
+          v-model="form.symbol.value"
+          :trading-symbol-application="tradingSymbolApplication"
+          watched-only
+          :keeps-selection="editing !== null"
+        />
+        <FormField
+          v-else
+          label="盯哪一個交易標的"
+        >
+          <SymbolField
+            v-model="form.symbol.value"
+            :trading-symbol-application="tradingSymbolApplication"
+          />
+        </FormField>
+
+        <FormField label="每隔幾分鐘">
+          <AppInput
+            v-model="form.triggerIntervalText.value"
+            type="number"
+            inputmode="numeric"
+            placeholder="5"
+            data-testid="bot-interval-input"
+          />
+        </FormField>
+      </div>
+    </section>
 
     <!--
       一個問句而不是一個標題：使用者要決定的是「要不要」，不是「填什麼」。
+      收著就是不建議部位——使用者看得到的就是他要送的。
     -->
-    <div class="bot-form__plan">
+    <section
+      class="bot-form__section bot-form__plan"
+      :class="{ 'bot-form__plan--open': form.suggestsPosition.value }"
+    >
       <label class="bot-form__plan-toggle">
         <input
           v-model="form.suggestsPosition.value"
+          class="bot-form__plan-checkbox"
           type="checkbox"
           data-testid="bot-position-plan-toggle"
         >
@@ -170,15 +180,14 @@ function onSave() {
 
       <div
         v-if="form.suggestsPosition.value"
-        class="bot-form__plan-fields"
+        class="bot-form__grid bot-form__grid--dense"
         data-testid="bot-position-plan-fields"
       >
         <!-- 只有合約機器人有：現貨沒有人借錢給你。 -->
-        <label
+        <FormField
           v-if="form.takesLeverage"
-          class="bot-form__field"
+          label="槓桿倍數（留空就是一倍）"
         >
-          <span class="bot-form__field-name">槓桿倍數（留空就是一倍）</span>
           <AppInput
             v-model="form.leverageText.value"
             type="number"
@@ -186,10 +195,9 @@ function onSave() {
             placeholder="1"
             data-testid="bot-position-leverage-input"
           />
-        </label>
+        </FormField>
 
-        <label class="bot-form__field">
-          <span class="bot-form__field-name">部位資金</span>
+        <FormField label="部位資金">
           <AppInput
             v-model="form.capitalText.value"
             type="number"
@@ -197,10 +205,9 @@ function onSave() {
             placeholder="50000"
             data-testid="bot-position-capital-input"
           />
-        </label>
+        </FormField>
 
-        <label class="bot-form__field">
-          <span class="bot-form__field-name">每次開倉押多少</span>
+        <FormField label="每次開倉押多少">
           <AppSelect
             v-model="form.sizingMode.value"
             data-testid="bot-position-sizing-mode-select"
@@ -213,24 +220,22 @@ function onSave() {
               {{ modeOption.label }}
             </option>
           </AppSelect>
-        </label>
+        </FormField>
 
         <!-- 只有全押不必填，而那件事是既有那個模型答的，不是這裡記的。 -->
-        <label
+        <FormField
           v-if="form.sizingRequiresValue.value"
-          class="bot-form__field"
+          label="押多少的數字"
         >
-          <span class="bot-form__field-name">押多少的數字</span>
           <AppInput
             v-model="form.sizingValueText.value"
             type="number"
             inputmode="decimal"
             data-testid="bot-position-sizing-value-input"
           />
-        </label>
+        </FormField>
 
-        <label class="bot-form__field">
-          <span class="bot-form__field-name">停損距離（百分點，留空就不設）</span>
+        <FormField label="停損距離（百分點，留空就不設）">
           <AppInput
             v-model="form.stopLossText.value"
             type="number"
@@ -238,10 +243,9 @@ function onSave() {
             placeholder="3"
             data-testid="bot-position-stop-loss-input"
           />
-        </label>
+        </FormField>
 
-        <label class="bot-form__field">
-          <span class="bot-form__field-name">停利距離（百分點，留空就不設）</span>
+        <FormField label="停利距離（百分點，留空就不設）">
           <AppInput
             v-model="form.takeProfitText.value"
             type="number"
@@ -249,9 +253,9 @@ function onSave() {
             placeholder="5"
             data-testid="bot-position-take-profit-input"
           />
-        </label>
+        </FormField>
       </div>
-    </div>
+    </section>
 
     <AppAlert
       v-if="form.rejection.value !== null"
@@ -269,10 +273,11 @@ function onSave() {
       {{ failureMessage }}
     </AppAlert>
 
+    <!-- 手機上兩顆鍵各佔一半、貼在拇指區；寬螢幕上靠右。 -->
     <div class="bot-form__actions">
       <AppButton
         type="button"
-        variant="ghost"
+        variant="secondary"
         @click="emit('cancel')"
       >
         取消
@@ -294,53 +299,76 @@ function onSave() {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
-  border: 1px solid color('border');
-  border-radius: radius('md');
-  background-color: color('surface');
-  padding: spacing('sm');
 
-  &__field {
+  &__section {
     display: flex;
     flex-direction: column;
-    gap: spacing('3xs');
-    min-width: 0;
+    gap: spacing('sm');
+    border: 1px solid color('border');
+    border-radius: radius('md');
+    background-color: color('surface');
+    padding: spacing('md');
   }
 
-  &__field-name {
-    color: color('text-faint');
-    font-size: font-size('2xs');
+  &__section-title {
+    margin: 0;
+
+    @include dense-label;
   }
 
+  &__grid {
+    display: grid;
+    gap: spacing('sm');
+
+    @include respond-to('md') {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    // 部位那幾格是短數字，寬螢幕上排三欄還讀得清楚；窄的時候自己折行。
+    &--dense {
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    }
+  }
+
+  // 收著的時候它只是一句問句，不該長得跟上面那塊必答的一樣重。
   &__plan {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('2xs');
+    border-style: dashed;
+    background-color: transparent;
 
-    // 與四格之間畫一條線：上面那四格是必答的，這一段是選答的。
-    border-top: 1px solid color('border');
-    padding-top: spacing('sm');
+    &--open {
+      border-style: solid;
+      background-color: color('surface');
+    }
   }
 
   &__plan-toggle {
     display: flex;
     align-items: center;
-    gap: spacing('3xs');
-    color: color('text-muted');
-    font-size: font-size('2xs');
+    gap: spacing('xs');
     cursor: pointer;
+    color: color('text');
+    font-size: font-size('sm');
+
+    @include tap-target;
   }
 
-  &__plan-fields {
-    // 窄的時候自己折行，而不是把五格擠成一條。
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: spacing('2xs');
+  &__plan-checkbox {
+    flex-shrink: 0;
+    margin: 0;
+    accent-color: color('primary');
+    width: spacing('md');
+    height: spacing('md');
   }
 
   &__actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: spacing('2xs');
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: spacing('xs');
+
+    @include respond-to('md') {
+      display: flex;
+      justify-content: flex-end;
+    }
   }
 }
 </style>

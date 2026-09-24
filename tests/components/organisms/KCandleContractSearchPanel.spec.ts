@@ -233,10 +233,11 @@ describe('KCandleContractSearchPanel', () => {
     expect(wrapper.get('[data-testid="rejected-alert"]').text()).toBe('查詢時發生未預期的錯誤。')
   })
 
-  it('版面：「查詢條件」與「查詢結果」兩塊', async () => {
+  it('版面：查詢列就畫在「查詢結果」那張卡的頂端', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy())
 
-    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['查詢條件', '查詢結果'])
+    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['查詢結果'])
+    expect(wrapper.get('.k-candle-contract-table').find('form').exists()).toBe(true)
   })
 
   it('表格的欄位：成交價那一組之後是成交筆數與三條線的收盤', async () => {

@@ -60,6 +60,23 @@
 
 // 到了這個寬度就換成收緊的那一套。只重新宣告有兩套值的那幾個，
 // 其餘的 token（顏色、圓角、層級……）與寬度無關，一個字都不必重複。
+// 淺色主題：同一組 custom property、換一組值。<html data-theme> 由外觀（useAppearance）寫上。
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  @each $name, $value in $colors-light {
+    --color-#{$name}: #{$value};
+  }
+
+  @each $name, $value in $shadows-light {
+    --shadow-#{$name}: #{$value};
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 @include respond-to('md') {
   :root {
     @each $name, $value in $spacings-compact {

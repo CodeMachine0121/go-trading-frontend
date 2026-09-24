@@ -32,7 +32,7 @@ import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-
 // 替身擋在第三方繪圖套件的邊界上，與回測那一塊自己的測試同一個做法。
 const chartLibrary = vi.hoisted(() => ({
   createChart: vi.fn(() => ({
-    addSeries: vi.fn(() => ({ setData: vi.fn() })),
+    addSeries: vi.fn(() => ({ setData: vi.fn(), applyOptions: vi.fn() })),
     applyOptions: vi.fn(),
     timeScale: vi.fn(() => ({ fitContent: vi.fn() })),
     remove: vi.fn(),
@@ -609,13 +609,51 @@ describe('策略腳本畫面上的策略腳本：清單與刪除', () => {
 
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
     await settle()
-    expect(wrapper.findAll('[data-testid="strategy-script-library-row"]')).toHaveLength(2)
+    expect(libraryDialog(wrapper).findAll('[data-testid="strategy-script-library-row"]')).toHaveLength(2)
 
-    await wrapper.get('[data-testid="strategy-script-library-load-7"]').trigger('click')
+    await libraryDialog(wrapper).get('[data-testid="strategy-script-library-load-7"]').trigger('click')
     await settle()
 
-    expect(wrapper.find('[data-testid="strategy-script-library-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-dialog"]').exists()).toBe(false)
     expect(scriptText(wrapper)).toContain('sum := 123.0')
+  })
+
+  it('寬螢幕常駐的腳本庫不必打開：點一列就載入，並標出使用中的那一支', async () => {
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [
+        buildStoredStrategyScript(7, '二十根均線', { script: 'sum := 123.0' }),
+        buildStoredStrategyScript(8, '六十根均線'),
+      ], adopted: [] }),
+    })
+    await settle()
+
+    await standingLibrary(wrapper).get('[data-testid="strategy-script-library-load-7"]').trigger('click')
+    await settle()
+
+    expect(scriptText(wrapper)).toContain('sum := 123.0')
+    const rows = standingLibrary(wrapper).findAll('[data-testid="strategy-script-library-row"]')
+    expect(rows[0]?.text()).toContain('使用中')
+    expect(rows[1]?.text()).not.toContain('使用中')
+  })
+
+  it('常駐的腳本庫上挑一支加入的，工作區換成它而且是唯讀的', async () => {
+    const wrapper = await mountPanelWithAdopted()
+
+    await standingLibrary(wrapper).get('[data-testid="strategy-script-library-adopted-load-9"]').trigger('click')
+    await settle()
+
+    expect(wrapper.find('[data-testid="adopted-read-only-notice"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="script-concealed"]').exists()).toBe(true)
+  })
+
+  it('常駐的腳本庫上按「新腳本」與編輯器那一顆是同一件事', async () => {
+    const wrapper = mountPanel()
+    await settle()
+
+    await wrapper.get('[data-testid="library-new-strategy-script-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('新的空白策略腳本')
   })
 
   it('刪除前先問過；取消就不刪', async () => {
@@ -659,7 +697,7 @@ describe('策略腳本畫面上的策略腳本：清單與刪除', () => {
 
     await confirmDelete(wrapper)
 
-    const rows = wrapper.findAll('[data-testid="strategy-script-library-row"]')
+    const rows = standingLibrary(wrapper).findAll('[data-testid="strategy-script-library-row"]')
     expect(rows).toHaveLength(1)
     expect(rows[0]?.text()).toContain('六十根均線')
   })
@@ -702,7 +740,7 @@ describe('策略腳本畫面上的策略腳本：清單與刪除', () => {
 
     await confirmDelete(wrapper)
 
-    expect(wrapper.findAll('[data-testid="strategy-script-library-row"]')).toHaveLength(1)
+    expect(standingLibrary(wrapper).findAll('[data-testid="strategy-script-library-row"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="strategy-script-error"]').text()).toContain('連不上後端')
   })
 
@@ -959,18 +997,9 @@ describe('策略腳本畫面上的策略腳本：參數是策略腳本內容', (
   // 用哪種粗細都一樣，它是這支算法的一部分。交易標的、彙總刻度、要看多長則不是——
   // 那些描述的是「這一次」，所以載入策略腳本時它們不被覆蓋。
 
-  /** 旋鈕在一顆按鈕後面——它是偶爾做一次的事，不常駐在編輯區旁邊。 */
-  async function openParameters(wrapper: ReturnType<typeof mountPanel>) {
-    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
-    await settle()
-  }
-
   async function addParameter(
     wrapper: ReturnType<typeof mountPanel>, name: string, value: string,
   ) {
-    if (!wrapper.find('[data-testid="add-parameter-button"]').exists()) {
-      await openParameters(wrapper)
-    }
     await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
     const row = wrapper.findAll('[data-testid="parameter-row"]').at(-1)!
     await row.get('[data-testid="parameter-name-input"]').setValue(name)
@@ -989,7 +1018,6 @@ describe('策略腳本畫面上的策略腳本：參數是策略腳本內容', (
     await settle()
 
     await pickStrategyScript(wrapper, 7)
-    await openParameters(wrapper)
 
     const row = wrapper.get('[data-testid="parameter-row"]')
     expect(row.get<HTMLInputElement>('[data-testid="parameter-name-input"]').element.value)
@@ -1071,10 +1099,10 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     const resultType = wrapper.get<HTMLSelectElement>('[data-testid="result-type-select"]')
     expect(resultType.element.value).toBe('floatList')
     expect(resultType.attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[data-testid="parameters-button"]').text()).toContain('參數 1')
+    expect(wrapper.get('[data-testid="parameters-count"]').text()).toBe('1')
   })
 
-  it('唯讀時打開參數，看得到但沒有新增、也改不動', async () => {
+  it('唯讀時參數看得到，但沒有新增、也改不動', async () => {
     const wrapper = await mountPanelWithAdopted({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({
         mine: [buildStoredStrategyScript(7, '我的')],
@@ -1084,9 +1112,6 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
       }),
     })
     await pickStrategyScript(wrapper, 9)
-
-    await wrapper.get('[data-testid="parameters-button"]').trigger('click')
-    await settle()
 
     expect(wrapper.find('[data-testid="add-parameter-button"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="parameter-name-input"]').attributes('disabled')).toBeDefined()
@@ -1273,7 +1298,7 @@ describe('策略腳本畫面上的策略腳本：分享與收回', () => {
     await wrapper.get('[data-testid="share-strategy-script-button"]').trigger('click')
     await settle()
 
-    expect(wrapper.find('[data-testid="strategy-script-library-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-dialog"]').exists()).toBe(false)
   })
 
   it('沒有使用中的那一支時按不下去——與「重新命名」同一條規則', async () => {
@@ -1360,6 +1385,16 @@ describe('策略腳本畫面上的策略腳本：分享與收回', () => {
     expect(wrapper.find('[data-testid="withdraw-strategy-script-button"]').exists()).toBe(true)
   })
 })
+
+/** 窄螢幕上收在一顆鍵後面的那一份策略腳本清單。 */
+function libraryDialog(wrapper: ReturnType<typeof mountPanel>) {
+  return wrapper.get('[data-testid="strategy-script-library-dialog"]')
+}
+
+/** 寬螢幕上常駐在工作台左邊的那一份。 */
+function standingLibrary(wrapper: ReturnType<typeof mountPanel>) {
+  return wrapper.get('.indicator-calculation-panel__library')
+}
 
 /**
  * 按下確認框裡那一顆。確認框與清單上的按鈕同時在畫面上，所以靠**字**分辨——

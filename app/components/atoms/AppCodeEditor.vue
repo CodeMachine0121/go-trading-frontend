@@ -54,15 +54,15 @@ const editorView = shallowRef<import('@codemirror/view').EditorView | null>(null
 onMounted(async () => {
   const [{ EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection },
     { EditorState }, { indentWithTab, defaultKeymap, history, historyKeymap },
-    { indentUnit, bracketMatching, indentOnInput }, { autocompletion, completionKeymap, snippetCompletion },
-    { go, goLanguage }, { oneDark }] = await Promise.all([
+    { indentUnit, bracketMatching, indentOnInput, syntaxHighlighting, HighlightStyle }, { autocompletion, completionKeymap, snippetCompletion },
+    { go, goLanguage }, { tags }] = await Promise.all([
     import('@codemirror/view'),
     import('@codemirror/state'),
     import('@codemirror/commands'),
     import('@codemirror/language'),
     import('@codemirror/autocomplete'),
     import('@codemirror/lang-go'),
-    import('@codemirror/theme-one-dark'),
+    import('@lezer/highlight'),
   ])
 
   if (editorHost.value === null) {
@@ -94,7 +94,15 @@ onMounted(async () => {
       doc: modelValue.value,
       extensions: [
         go(),
-        oneDark,
+        // 上色讀的是 CSS 變數，所以淺色與深色兩種外觀自動成立，換外觀時編輯器不必重建。
+        syntaxHighlighting(HighlightStyle.define([
+          { tag: [tags.keyword, tags.controlKeyword, tags.moduleKeyword, tags.operatorKeyword], color: 'var(--color-code-keyword)' },
+          { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--color-code-function)' },
+          { tag: [tags.string, tags.special(tags.string)], color: 'var(--color-code-string)' },
+          { tag: [tags.number, tags.bool, tags.null], color: 'var(--color-code-number)' },
+          { tag: [tags.comment, tags.lineComment, tags.blockComment], color: 'var(--color-code-comment)', fontStyle: 'italic' },
+          { tag: [tags.typeName, tags.standard(tags.typeName)], color: 'var(--color-code-type)' },
+        ])),
         lineNumbers(),
         EditorView.lineWrapping,
         ...writingExtensions,
@@ -227,7 +235,34 @@ onBeforeUnmount(() => {
 
   :deep(.cm-activeLineGutter),
   :deep(.cm-activeLine) {
-    background-color: color('surface-muted');
+    background-color: color('code-active-line');
+  }
+
+  :deep(.cm-content) {
+    caret-color: color('caret');
+    color: color('text');
+  }
+
+  :deep(.cm-selectionBackground),
+  :deep(.cm-focused .cm-selectionBackground) {
+    background-color: color('code-selection');
+  }
+
+  :deep(.cm-tooltip) {
+    border: 1px solid color('border-strong');
+    border-radius: radius('sm');
+    background-color: color('surface-overlay');
+    color: color('text');
+  }
+
+  :deep(.cm-tooltip-autocomplete ul li[aria-selected]) {
+    background-color: color('primary-soft');
+    color: color('text-strong');
+  }
+
+  :deep(.cm-matchingBracket) {
+    outline: 1px solid color('border-strong');
+    background-color: transparent;
   }
 
   // 游標是一個中等粗細的白色方塊，不是一條細線——
