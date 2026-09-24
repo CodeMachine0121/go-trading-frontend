@@ -6,7 +6,7 @@ import KCandleContractChartPanel from '~/components/organisms/KCandleContractCha
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-const { $kCandleChartApplication, $tradingSymbolApplication } = useNuxtApp()
+const { $kCandleChartApplication, $tradingSymbolApplication, $liveKCandleContractApplication } = useNuxtApp()
 
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
@@ -56,6 +56,7 @@ const { layoutDensity } = useLayoutDensity()
     <KCandleContractChartPanel
       :k-candle-chart-application="$kCandleChartApplication"
       :trading-symbol-application="$tradingSymbolApplication"
+      :live-k-candle-contract-application="$liveKCandleContractApplication"
       :time-zone="selectedTimeZone"
       :layout-density="layoutDensity"
     />
