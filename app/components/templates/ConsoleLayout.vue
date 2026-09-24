@@ -139,6 +139,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
             <AppIcon
               :name="destination.icon"
               size="small"
+              class="console-layout__link-icon"
             />
             <span class="console-layout__link-label">{{ destination.label }}</span>
           </NuxtLink>
@@ -157,6 +158,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           <AppIcon
             :name="SETTINGS_DESTINATION.icon"
             size="small"
+            class="console-layout__link-icon"
           />
           <span class="console-layout__link-label">{{ SETTINGS_DESTINATION.label }}</span>
         </NuxtLink>
@@ -218,7 +220,10 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
         :aria-current="isCurrent(destination) ? 'page' : undefined"
         :data-testid="`tab-${destination.to}`"
       >
-        <AppIcon :name="destination.icon" />
+        <AppIcon
+          :name="destination.icon"
+          class="console-layout__tab-icon"
+        />
         <span class="console-layout__tab-label">{{ destination.label }}</span>
       </NuxtLink>
 
@@ -230,7 +235,10 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
         data-testid="tab-more"
         @click="moreOpen = true"
       >
-        <AppIcon name="menu" />
+        <AppIcon
+          name="menu"
+          class="console-layout__tab-icon"
+        />
         <span class="console-layout__tab-label">更多</span>
       </button>
     </nav>
@@ -415,11 +423,11 @@ $bottom-navigation-height: 3.75rem;
     &--current {
       background-color: color('primary-soft');
       color: color('text-strong');
-
-      :deep(svg) {
-        color: color('primary');
-      }
     }
+  }
+
+  &__link--current &__link-icon {
+    color: color('primary');
   }
 
   &__rail-foot {
@@ -552,11 +560,11 @@ $bottom-navigation-height: 3.75rem;
 
     &--current {
       color: color('text-strong');
-
-      :deep(svg) {
-        color: color('primary');
-      }
     }
+  }
+
+  &__tab--current &__tab-icon {
+    color: color('primary');
   }
 
   &__more-list {
