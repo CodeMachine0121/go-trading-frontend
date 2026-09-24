@@ -11,8 +11,9 @@ import { useLayoutDensity } from '~/composables/use-layout-density'
  * 它只出骨架與位置：連線燈、帳號、時區、現貨／合約開關、外觀切換與助手鍵
  * 全部由使用它的那一層用 slot 填進來，樣板不認識任何資料。
  *
- * **每個去處只指向一個畫面，但認得兩邊的路**：行情圖表指向現貨那一頁，
- * 人在合約 K 線圖表上時它照樣亮著——現貨與合約之間靠頂列的開關移動，不在導覽上各佔一格。
+ * **每個去處在導覽上只佔一格，但認得兩邊的路**：它實際要去哪一邊由 `destinationPaths` 說
+ * （使用者最後停留的那一邊），人在合約 K 線圖表上時「行情圖表」照樣亮著——
+ * 現貨與合約之間靠頂列的開關移動，不在導覽上各佔一格。
  */
 const DESTINATIONS = [
   { to: '/k-candles/chart', label: '行情圖表', icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
