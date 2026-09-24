@@ -40,7 +40,9 @@ const DESTINATIONS = [
   { to: '/contract-strategy-scripts', label: '合約策略腳本', icon: 'contract-formula', primary: false },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', primary: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'merge', primary: false },
-  { to: '/strategy-bots', label: '策略機器人', icon: 'standing-bot', primary: true },
+  { to: '/strategy-bots', label: '現貨策略機器人', icon: 'standing-bot', primary: true },
+  // 合約策略機器人緊跟在現貨那一台後面，理由與合約策略腳本相同：同一件事的另一條行情，收進「更多」。
+  { to: '/contract-strategy-bots', label: '合約策略機器人', icon: 'contract-bot', primary: false },
   { to: '/chat', label: 'AI-Assistant', icon: 'sparkle', primary: true },
   { to: '/settings', label: '設定', icon: 'settings', primary: false },
 ] as const
