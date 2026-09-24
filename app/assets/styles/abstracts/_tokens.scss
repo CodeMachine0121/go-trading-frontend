@@ -18,55 +18,94 @@
 // 程式碼區塊仍然是編輯器的 One Dark 底色——它要看起來就是一份檔案，不是介面的一部分。
 
 $colors: (
-  // 表面色階：由深到淺。深色介面的層次靠「越上層越亮」表達，不靠陰影，
-  // 直接把淺色主題反過來會得到一片糊掉的灰，這條色階就是為了避免那件事。
-  'background': #0b0d10,      // 頁面底——接近全黑，面板因此不必畫陰影就浮得起來
-  'surface': #12151a,         // 面板
-  'surface-muted': #171b21,   // 表頭、唯讀區、內凹的區塊
-  'surface-overlay': #1b1f26, // 疊在面板之上的東西（對話框、選單）
-  'surface-raised': #282c34,  // 程式碼區——與 One Dark 編輯器同色
-  'border': #23282f,          // 髮絲線：分隔用，不搶戲
-  'border-strong': #333a44,   // 需要被看見的邊（虛線的空狀態、focus 之外的強調）
-  'text': #c8cdd6,
-  'text-strong': #f2f5f9,     // 標題與需要跳出來的數字
-  'text-muted': #8a929e,
-  // 欄位標籤、行號、次要說明——在那裡但不請你讀。
-  //
-  // 它一度更暗（#5c6472），但那是錯的：dense-label 之後，**每一個欄位標籤與表頭**
-  // 都是這個顏色，而它們是畫面上唯一在說「底下那格是什麼」的東西。
-  // 那個值在面板底色上只有 2.9:1，低於 AA 的 4.5:1——最需要讀得懂的字反而最難讀。
-  // 現值在三層表面上分別是 5.2 / 4.9 / 4.6:1，仍然明顯比 text-muted 暗一階。
-  'text-faint': #7c8492,
-  'text-inverse': #0b0d10,    // 壓在實心色塊上的字
-  'primary': #6cb6ff,
-  'primary-strong': #9acbff,  // 深色介面的 hover 是「更亮」，不是更深
-  'primary-soft': #14202e,
-  // 漲跌是這個介面最常出現的一對顏色，所以它們比其餘語氣更飽和一些——
-  // 一整欄數字裡要能在不讀數值的情況下先看出方向。
-  'success': #3ecf8e,
-  'success-soft': #0e2419,
-  'danger': #f2555f,
-  'danger-soft': #2a1418,
-  'warning': #e3a052,
-  'warning-soft': #2a1f12,
-  'info': #4fc3d7,
-  'info-soft': #0f242a,
+  'background': #0a0c10,      // 頁面底——接近全黑，面板因此不必畫陰影就浮得起來
+  'surface': #11141a,         // 面板、卡片
+  'surface-muted': #171b22,   // 表頭、唯讀區、hover、分段選擇的底
+  'surface-overlay': #1b2029, // 疊在面板之上的東西（對話框、選單、底部拉出的那一張）
+  'surface-raised': #0d1015,  // 程式碼區與輸入框的內凹底——比面板更深一階
+  'border': #222833,          // 髮絲線：分隔用，不搶戲
+  'border-strong': #2e3542,   // 控制項的邊、需要被看見的邊
+  'text': #d5dae3,
+  'text-strong': #f1f3f7,     // 標題與需要跳出來的數字
+  'text-muted': #8b94a3,
+  'text-faint': #6b7483,
+  'text-inverse': #0b0a1a,    // 壓在實心強調色上的字
+  'primary': #8b7bff,         // 唯一的強調色：主要動作、選中、焦點
+  'primary-strong': #a99dff,  // 深色介面的 hover 是「更亮」，不是更深
+  'primary-soft': rgb(139 123 255 / 14%),
+  'success': #2fbf8a,         // 上漲、成功、運行中
+  'success-soft': rgb(47 191 138 / 13%),
+  'danger': #f2556a,          // 下跌、失敗、刪除
+  'danger-soft': rgb(242 85 106 / 13%),
+  'warning': #f0b44c,         // 停擺、需要處理
+  'warning-soft': rgb(240 180 76 / 13%),
+  'info': #4fa3ff,
+  'info-soft': rgb(79 163 255 / 13%),
   'disabled': #2b313a,
-  // 游標刻意是純白而不是文字色：它要在一片程式碼裡一眼找得到
   'caret': #fff,
-  // 對話框把注意力收在一件事上，靠的就是把它後面的東西壓暗。
   'backdrop': rgb(4 6 9 / 72%),
-  // 指標線。它們的工作與其餘顏色不同：不是表達語氣，是**彼此分得開**——
-  // 好幾條疊在同一片 K 線上時，要能一眼看出哪條是哪條。
-  // 因此色相繞著色環走一圈，而不是同一個色系的深淺；明度則壓在
-  // 「亮到能從蠟燭上讀出來、又不會亮過收盤價數字」那一段。
-  // 順序就是沒挑過顏色時依序取用的順序，前幾個彼此差最遠。
-  'chart-line-1': #ffb454,
-  'chart-line-2': #7ee787,
-  'chart-line-3': #d2a8ff,
-  'chart-line-4': #79c0ff,
+  'chart-grid': #1c212a,
+  'chart-line-1': #f0b44c,
+  'chart-line-2': #4fa3ff,
+  'chart-line-3': #c792ea,
+  'chart-line-4': #2fbf8a,
   'chart-line-5': #ff7b9c,
   'chart-line-6': #56d4dd,
+  'code-keyword': #c792ea,
+  'code-function': #82aaff,
+  'code-string': #c3e88d,
+  'code-number': #f78c6c,
+  'code-comment': #5b6473,
+  'code-type': #ffcb6b,
+  'code-selection': rgb(139 123 255 / 22%),
+  'code-active-line': rgb(139 123 255 / 7%),
+);
+
+// 淺色主題：與 $colors **同一組鍵**、換一組值。base/_tokens.scss 把它展開在
+// :root[data-theme='light'] 之下，所以元件永遠只寫 color('surface')，不必知道現在是哪一種主題。
+// 新增一個顏色 token 時兩張表都要加——少了一張，那個顏色在另一種主題下就會停在錯的那一種。
+$colors-light: (
+  'background': #f5f6f8,
+  'surface': #fff,
+  'surface-muted': #f0f2f5,
+  'surface-overlay': #fff,
+  'surface-raised': #f7f8fa,
+  'border': #e2e5ea,
+  'border-strong': #d0d5dd,
+  'text': #2a303b,
+  'text-strong': #11151c,
+  'text-muted': #566072,
+  'text-faint': #7d8697,
+  'text-inverse': #fff,
+  'primary': #6a57ee,
+  'primary-strong': #5543d9,  // 淺色介面的 hover 是「更深」
+  'primary-soft': rgb(106 87 238 / 10%),
+  'success': #0e9b69,
+  'success-soft': rgb(14 155 105 / 10%),
+  'danger': #df3550,
+  'danger-soft': rgb(223 53 80 / 9%),
+  'warning': #b87512,
+  'warning-soft': rgb(184 117 18 / 11%),
+  'info': #2d7ad9,
+  'info-soft': rgb(45 122 217 / 10%),
+  'disabled': #e4e7ec,
+  'caret': #11151c,
+  'backdrop': rgb(17 21 28 / 40%),
+  'chart-grid': #eceef2,
+  'chart-line-1': #d48806,
+  'chart-line-2': #2d7ad9,
+  'chart-line-3': #8b5cf6,
+  'chart-line-4': #0e9b69,
+  'chart-line-5': #db2777,
+  'chart-line-6': #0891b2,
+  'code-keyword': #7c3aed,
+  'code-function': #2563eb,
+  'code-string': #15803d,
+  'code-number': #c2410c,
+  'code-comment': #9aa3b2,
+  'code-type': #a16207,
+  'code-selection': rgb(106 87 238 / 16%),
+  'code-active-line': rgb(106 87 238 / 5%),
 );
 
 // 整個介面的縮放，只有這一個數字。
@@ -219,6 +258,17 @@ $shadows: (
 // 要debug就得把整站的 z-index 讀過一遍。
 //
 // 操作台的外框不在這裡：側欄與頂欄是版面的格子，不與工作區重疊，所以它們不需要層級。
+// 淺色主題的陰影：同一組鍵。深色底上要重一點才看得出浮起來，淺色底上同樣的黑會髒。
+$shadows-light: (
+  'sm': 0 1px 2px rgb(17 21 28 / 6%),
+  'md': 0 8px 24px rgb(17 21 28 / 10%),
+  'lg': 0 24px 64px rgb(17 21 28 / 16%),
+  'piece-edge': inset 0 -2px 0 rgb(17 21 28 / 8%),
+  'socket-well': inset 0 2px 4px rgb(17 21 28 / 8%),
+  'glow': (0 0 0 1px rgba($glow-hue, 0.25), 0 6px 28px rgba($glow-hue, 0.18)),
+  'glow-strong': (0 0 0 1px rgba($glow-hue, 0.35), 0 10px 36px rgba($glow-hue, 0.28)),
+);
+
 $z-indices: (
   'modal': 100,
   // 貼在畫面邊緣、隨叫隨到的抽屜。在對話框之上：對話框開著時它不該被叫出來，
@@ -239,6 +289,6 @@ $durations: (
 );
 
 $font-families: (
-  'base': (system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif),
-  'mono': (ui-monospace, 'SF Mono', 'Cascadia Mono', monospace),
+  'base': ('Inter', system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', sans-serif),
+  'mono': ('JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', monospace),
 );
