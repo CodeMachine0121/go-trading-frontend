@@ -148,6 +148,20 @@ describe('合約圖表看著就跟', () => {
     expect(drawnCloses(wrapper)).toEqual(['64000', '64050', '64100'])
   })
 
+  it('即時更新只併進圖：不為了它重新取行情', async () => {
+    const feed = controllableFeed()
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(new KCandleContractSeriesVo(
+      [buildKCandleContract('BTCUSDT', '2026-09-23T11:45:00.000Z', '64000')], aggregationIntervalOf('15m')))
+    await mountPanel(feed, undefined, findKCandleContractSeries)
+    const loadsBefore = findKCandleContractSeries.mock.calls.length
+
+    feed.report('closed', '2026-09-23T12:00:00.000Z', '64050')
+    feed.report('forming', '2026-09-23T12:15:00.000Z', '64100')
+    await flushPromises()
+
+    expect(findKCandleContractSeries.mock.calls.length).toBe(loadsBefore)
+  })
+
   it('換合約標的就改跟新的那一個，之後才到的舊更新不改圖', async () => {
     const feed = controllableFeed()
     const wrapper = await mountPanel(feed)
