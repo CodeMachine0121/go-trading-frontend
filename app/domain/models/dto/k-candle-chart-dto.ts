@@ -1,6 +1,7 @@
 import type { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
+import type { KCandleContractPricesDto } from '~/domain/models/dto/k-candle-contract-prices-dto'
 
 /**
  * DTO：圖表這一次要畫的東西，也是畫面拿得到的唯一形狀。
@@ -27,6 +28,8 @@ export class KCandleChartDto {
     public readonly kCandles: KCandleDto[],
     /** 這一批當初以**哪個選擇**取回的。給下一次比對用的。 */
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
+    /** 只有合約圖表有：最新那一根的標記價格、指數價格與溢價指數。現貨圖表、或一根都沒有時為 null。 */
+    public readonly latestContractPrices: KCandleContractPricesDto | null = null,
   ) {}
 
   get count(): number {

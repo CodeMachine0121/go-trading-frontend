@@ -1,8 +1,9 @@
 import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import type { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
-import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-domain'
+import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import { KCandleContractPricesDto } from '~/domain/models/dto/k-candle-contract-prices-dto'
 
 /**
  * Domain Model：一段取回的彙總合約 K 線，以及它變成圖表要畫的東西的過程。
@@ -18,7 +19,7 @@ export class KCandleContractSeriesDomain {
   ) {}
 
   toDto(): KCandleChartDto {
-    return new KCandleSeriesDomain(
+    const chart = new KCandleSeriesDomain(
       new KCandleSeriesVo(
         this.kCandleContractSeriesVo.kCandleContracts.map(
           kCandleContract => kCandleContract.toKCandle()),
@@ -26,5 +27,26 @@ export class KCandleContractSeriesDomain {
       ),
       this.kCandleChartLoadPlanVo,
     ).toDto()
+
+    // 行情摘要要說的三條價格線，取自最新那一根：畫面因此不必為它另外再問一次。
+    const latestKCandleContract = this.kCandleContractSeriesVo.kCandleContracts.at(-1)
+    const latestContractPrices = latestKCandleContract === undefined
+      ? null
+      : new KCandleContractPricesDto(
+          latestKCandleContract.markPriceLine.close,
+          latestKCandleContract.indexPriceLine?.close ?? null,
+          latestKCandleContract.premiumIndexLine?.close ?? null,
+          latestKCandleContract.openTime,
+        )
+
+    return new KCandleChartDto(
+      chart.symbol,
+      chart.interval,
+      chart.coveredStartTime,
+      chart.coveredEndTime,
+      chart.kCandles,
+      chart.aggregationIntervalChoice,
+      latestContractPrices,
+    )
   }
 }

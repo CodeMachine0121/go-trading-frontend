@@ -1,3 +1,4 @@
+import { KCandleContractPricesDto } from '~/domain/models/dto/k-candle-contract-prices-dto'
 import Decimal from 'decimal.js'
 import { describe, expect, it } from 'vitest'
 import { LiveKCandleChartDomain } from '~/domain/models/domains/live-k-candle-chart-domain'
@@ -47,6 +48,21 @@ function formingAt(openTime: string, figures: Parameters<typeof kCandleOf>[1] = 
 }
 
 describe('把即時更新併進圖上那批 K 線', () => {
+  it('合約圖表的三條價格線不會因為一則即時更新而消失', () => {
+    const base = chartOf('5m', ['2026-09-03T10:00:00.000Z'])
+    const contractPrices = new KCandleContractPricesDto(
+      new Decimal('100'), new Decimal('99'), null, new Date('2026-09-03T10:00:00.000Z'))
+    const chart = new KCandleChartDto(
+      base.symbol, base.interval, base.coveredStartTime, base.coveredEndTime,
+      base.kCandles, base.aggregationIntervalChoice, contractPrices)
+
+    const merged = new LiveKCandleChartDomain(chart)
+      .applying(formingAt('2026-09-03T10:00:00.000Z', { close: '118' }))
+      .toChartDto()
+
+    expect(merged.latestContractPrices).toBe(contractPrices)
+  })
+
   it('併進來之後，這一批仍然是以同一個選擇取回的那一批', () => {
     const chart = chartOf('5m', ['2026-09-03T10:00:00.000Z'], aggregationIntervalChoiceOf('5m'))
 
