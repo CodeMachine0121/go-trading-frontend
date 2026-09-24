@@ -208,9 +208,14 @@ async function catchUp() {
       aggregationIntervalChoice.value))
   }
   catch (error: unknown) {
-    catchUpMessage.value = error instanceof Error
-      ? `補不回來：${error.message}`
-      : '補不回來。'
+    if (error instanceof BackendUnreachableError) {
+      catchUpMessage.value = `補不回來：${error.explanation}`
+    }
+    else {
+      catchUpMessage.value = error instanceof Error
+        ? `補不回來：${error.message}`
+        : '補不回來。'
+    }
   }
   finally {
     catchingUp.value = false
