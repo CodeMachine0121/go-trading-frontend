@@ -148,3 +148,19 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
     expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
   })
 })
+
+describe('useStrategyScriptLibrary 離開這一頁之前要不要先問', () => {
+  it.each([
+    { name: '剛打開、什麼都沒寫：不必問', edited: null, expected: false },
+    { name: '載入一支之後又改了它：要先問', edited: 'sum := 2.0', expected: true },
+    { name: '改了又改回原樣：不必問', edited: 'sum := 1.0', expected: false },
+  ])('$name', async ({ edited, expected }) => {
+    const { library, workspace } = await libraryUnderTest()
+    if (edited !== null) {
+      library.selectStrategyScript(1)
+      workspace.content = new StrategyScriptContentDto(edited, 'float', [])
+    }
+
+    expect(library.hasUnsavedDraft()).toBe(expected)
+  })
+})

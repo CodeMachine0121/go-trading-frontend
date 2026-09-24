@@ -308,6 +308,12 @@ async function calculateIndicator() {
     strategyScriptLibrary.namedStrategyScriptId.value,
     marketDataKind))
 }
+
+/**
+ * 頁面離開前要問的那一句由頁面決定（它才擁有路由），這裡只回答「編輯區裡有沒有還沒存的東西」。
+ * 按現貨／合約開關也是換一頁：寫到一半的算式不能因為切一下就靜靜不見。
+ */
+defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
 </script>
 
 <template>

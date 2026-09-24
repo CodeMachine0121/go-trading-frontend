@@ -202,8 +202,13 @@ export function useStrategyScriptLibrary(
    * 「載入另一支」與「開一份空白」共用它：兩者都會蓋掉編輯區，
    * 把關的條件與那個對話框因此只有一份。
    */
+  /** 編輯區裡有還沒存的東西。離開這一頁、蓋掉編輯區之前都要先問這一句。 */
+  function hasUnsavedDraft(): boolean {
+    return strategyScriptApplication.hasUnsavedChanges(loadedContent.value, readCurrentContent())
+  }
+
   function guardOverwritingDraft(action: () => void) {
-    if (strategyScriptApplication.hasUnsavedChanges(loadedContent.value, readCurrentContent())) {
+    if (hasUnsavedDraft()) {
       pendingDraftAction.value = action
       openDialog.value = 'discard'
       return
@@ -472,6 +477,7 @@ export function useStrategyScriptLibrary(
     selectStrategyScript,
     startBlankStrategyScript,
     confirmDiscard,
+    hasUnsavedDraft,
     saveStrategyScript,
     openNameDialog,
     openRenameDialog,
