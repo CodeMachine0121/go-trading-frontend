@@ -451,6 +451,37 @@ $bottom-navigation-height: 3.75rem;
     min-width: 0;
   }
 
+  // 窄螢幕：標題與開關一行，說明自己一整行、最多兩行——擠在開關旁邊那一欄裡的話，
+  // 一句四十個字的說明會被壓成一行六個字，高度吃掉半個畫面。
+  &--bottom-navigation &__strip {
+    display: grid;
+    grid-template-areas: 'title market' 'subtitle subtitle';
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: spacing('3xs');
+  }
+
+  &--bottom-navigation &__heading {
+    display: contents;
+  }
+
+  &--bottom-navigation &__title {
+    grid-area: title;
+    align-self: center;
+  }
+
+  &--bottom-navigation &__subtitle {
+    display: -webkit-box;
+    grid-area: subtitle;
+    -webkit-box-orient: vertical;
+    margin: 0;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+  }
+
+  &--bottom-navigation &__market {
+    grid-area: market;
+  }
+
   &__title {
     margin: 0;
     color: color('text-strong');
