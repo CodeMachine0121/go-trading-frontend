@@ -25,17 +25,18 @@ const { currentUser, activationInstruction, pending, recheckActivation, signOut 
 
 <style scoped lang="scss">
 .pending-approval-page {
+  // 與登入頁同一個版面：窄螢幕上卡片就是整個畫面，寬螢幕上置中。
   display: flex;
-  align-items: center;
   justify-content: center;
   background-color: color('background');
-  padding: spacing('lg');
-
-  // 卡片後面那層光暈是它自己的 ::before，畫在 z-index -1 上。
-  // 沒有這一行的話，那個負數會把它推到這一層的底色後面去——也就是看不見。
-  isolation: isolate;
+  padding: spacing('2xl') spacing('xl') spacing('lg');
 
   // 整片視窗都是這一頁：門後面的東西一點都不該露出來。
-  min-height: 100%;
+  min-height: 100dvh;
+
+  @include respond-to('md') {
+    align-items: center;
+    padding: spacing('lg');
+  }
 }
 </style>
