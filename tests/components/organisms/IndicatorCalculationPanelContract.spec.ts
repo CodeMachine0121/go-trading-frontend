@@ -166,6 +166,21 @@ describe('合約策略腳本的工作區', () => {
     expect(wrapper.get('[data-testid="script-value-type-note"]').text()).toBe('價量一律是 float64，直接算就好。')
   })
 
+  it.each([
+    ['現貨', mountPanel],
+    ['合約', mountContractPanel],
+  ])('%s那一頁的說明都講明不能用 goroutine 與 channel', async (_side, mount) => {
+    const wrapper = mount()
+    await settle()
+
+    await wrapper.get('[data-testid="script-guide-button"]').trigger('click')
+    await flushPromises()
+
+    const concurrencyNote = wrapper.get('[data-testid="script-concurrency-note"]').text()
+    expect(concurrencyNote).toContain('goroutine')
+    expect(concurrencyNote).toContain('channel')
+  })
+
   it('清單只列合約行情種類的，自己的與加入的都是', async () => {
     const wrapper = mountContractPanel({
       strategyScriptProxy: {
