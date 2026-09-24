@@ -13,17 +13,13 @@ const { counterpart } = defineProps<{ counterpart: MarketCounterpartDto }>()
 const emit = defineEmits<{ navigate: [path: string] }>()
 
 const onContract = computed({
-  get: () => counterpart.side === 'contract',
+  get: () => counterpart.onContract,
   set: () => {
     if (counterpart.counterpartPath !== null) {
       emit('navigate', counterpart.counterpartPath)
     }
   },
 })
-
-const label = computed(() => counterpart.switchable
-  ? '切換到另一個市場的同一個畫面'
-  : '這個畫面不分現貨與合約')
 </script>
 
 <template>
@@ -31,7 +27,7 @@ const label = computed(() => counterpart.switchable
     v-model="onContract"
     class="market-switch"
     :disabled="!counterpart.switchable"
-    :label="label"
+    :label="counterpart.switchLabel"
     data-testid="market-switch"
   >
     <template #off>

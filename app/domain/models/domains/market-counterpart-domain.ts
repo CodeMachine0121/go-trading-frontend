@@ -13,6 +13,9 @@ const COUNTERPART_PAIRS = [
   { spot: '/strategy-bots', contract: '/contract-strategy-bots' },
 ] as const
 
+const SWITCHABLE_LABEL = '切換到另一個市場的同一個畫面'
+const NOT_SWITCHABLE_LABEL = '這個畫面不分現貨與合約'
+
 /**
  * Domain Model：一條路徑在現貨／合約開關眼裡是什麼。
  *
@@ -34,12 +37,12 @@ export class MarketCounterpartDomain {
           && this.path.startsWith(`${destinationPath}/`)
 
         if (this.path === destinationPath || withinBotDestination) {
-          return new MarketCounterpartDto(side, pair[otherSide])
+          return new MarketCounterpartDto(side, pair[otherSide], SWITCHABLE_LABEL)
         }
       }
     }
 
-    return new MarketCounterpartDto(null, null)
+    return new MarketCounterpartDto(null, null, NOT_SWITCHABLE_LABEL)
   }
 
   /**

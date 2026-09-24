@@ -34,6 +34,7 @@ describe('MarketCounterpartApplication 有兩邊的畫面', () => {
     expect(counterpartDto.side).toBe(side)
     expect(counterpartDto.counterpartPath).toBe(counterpart)
     expect(counterpartDto.switchable).toBe(true)
+    expect(counterpartDto.switchLabel).toBe('切換到另一個市場的同一個畫面')
   })
 })
 
@@ -64,6 +65,7 @@ describe('MarketCounterpartApplication 不分現貨合約的畫面', () => {
     expect(counterpartDto.side).toBeNull()
     expect(counterpartDto.counterpartPath).toBeNull()
     expect(counterpartDto.switchable).toBe(false)
+    expect(counterpartDto.switchLabel).toBe('這個畫面不分現貨與合約')
   })
 })
 

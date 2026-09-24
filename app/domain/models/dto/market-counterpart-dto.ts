@@ -9,9 +9,15 @@ export class MarketCounterpartDto {
   constructor(
     public readonly side: MarketSideVo | null,
     public readonly counterpartPath: string | null,
+    /** 開關的名字與停留提示：可以切時說它做什麼，不能切時說為什麼。 */
+    public readonly switchLabel: string,
   ) {}
 
   get switchable(): boolean {
     return this.counterpartPath !== null
+  }
+
+  get onContract(): boolean {
+    return this.side === 'contract'
   }
 }
