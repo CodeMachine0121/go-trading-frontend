@@ -21,13 +21,12 @@ export class StrategyBotRunRecordDto {
      */
     public readonly needsAttention: boolean,
     /**
-     * 那一輪建議的開倉金額、止損價與止盈價，**已經算成畫面直接畫得出來的字**。
+     * 那一輪建議的部位，**已經寫成一整句**：現貨是「押 5000 · 停損 …」，
+     * 合約是「做空 5 倍 · 保證金 1000 · 名目 5000 · 停損 …」。
      *
-     * 三個各自可以是 `null`，而 `null` 就是那一格不畫。
-     * 沒有建議的那幾輪是常態——一排寫著「—」的欄位會讓那張表讀起來像壞掉的。
+     * `null` 就是那一段不畫。沒有建議的那幾輪是常態——一排寫著「—」的欄位
+     * 會讓那張表讀起來像壞掉的。怎麼寫是規則，所以句子在這裡就組好，元件不拼字。
      */
-    public readonly suggestedStakeText: string | null,
-    public readonly suggestedStopLossText: string | null,
-    public readonly suggestedTakeProfitText: string | null,
+    public readonly suggestionText: string | null,
   ) {}
 }
