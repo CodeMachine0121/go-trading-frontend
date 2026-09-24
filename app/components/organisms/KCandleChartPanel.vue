@@ -1,0 +1,763 @@
+<script setup lang="ts">
+import KCandleChart from '~/components/molecules/KCandleChart.vue'
+import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
+import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
+import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
+import KCandleQuote from '~/components/molecules/KCandleQuote.vue'
+import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
+import type { LiveUpdateNoticeValue } from '~/domain/models/vo/live-update-notice-vo'
+import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
+import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
+import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
+import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
+import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
+import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
+
+/** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
+const DEFAULT_SYMBOL = 'BTCUSDT'
+
+// 有機體：K 線圖表這一整塊。Application 由頁面注入——頁面只做接線，互動邏輯住在這裡。
+// 這裡不做任何業務判斷：每根多粗、要不要重新取、取哪一段，全部問 Application。
+const {
+  kCandleChartApplication,
+  tradingSymbolApplication,
+  chartIndicatorApplication,
+  liveKCandleApplication,
+  strategyScriptApplication,
+  timeZone,
+  layoutDensity,
+} = defineProps<{
+  kCandleChartApplication: KCandleChartApplication
+  tradingSymbolApplication: TradingSymbolApplication
+  chartIndicatorApplication: ChartIndicatorApplication
+  liveKCandleApplication: LiveKCandleApplication
+  strategyScriptApplication: StrategyScriptApplication
+  /** 時間軸與已取回區間用哪一個時區說。 */
+  timeZone: TimeZoneDto
+  /**
+   * 現在這個寬度代表什麼。這裡只用到其中一項：控制項一開始收不收。
+   *
+   * 它由頁面問來、往下傳，而不是這裡自己去問——這個有機體因此在任何地方
+   * 都掛得起來，包括一個沒有整個應用程式在跑的測試裡。
+   */
+  layoutDensity: LayoutDensityDto
+}>()
+
+const symbol = ref(DEFAULT_SYMBOL)
+const drawing = ref<'candlestick' | 'line'>('candlestick')
+
+const presets = ref<KCandleChartRangePresetDto[]>([])
+const activePresetLabel = ref<string | null>(null)
+
+/**
+ * 使用者要多細。它與「看哪一段」是兩個獨立的意圖，所以住在自己的 ref 裡：
+ * 換標的、按快捷區間、拉遠拉近都只讀它、不寫它，於是挑好的那一種會一直用著。
+ *
+ * 預設**問 application 要**，不在這裡寫死——「一進來由系統挑」是一個判斷，
+ * 判斷住在 domain。進畫面前先擺一個空清單與一個佔位，理由與快捷區間相同。
+ */
+const aggregationIntervalChoices = ref<AggregationIntervalChoiceDto[]>([])
+const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
+  kCandleChartApplication.defaultAggregationIntervalChoice())
+
+const chart = ref<KCandleChartDto | null>(null)
+
+/**
+ * 圖上**實際**要畫的那一段：從第幾根到第幾根。
+ *
+ * 它與上面那一對的差別就是**右側留白**——看得到最新那一根時，畫出來的那一段
+ * 會比他要求的那一段多出一成，而那一成落在最後一根之後，沒有時刻指得到它。
+ *
+ * **即時更新那條路刻意不動它。** 新的一根進來時畫面不重新擺位：留白就是給它長的地方。
+ * 每分鐘把讀圖的人的畫面推一下，比留白被慢慢吃掉難受得多，
+ * 而他下一次動圖表時留白就回來了。
+ */
+const drawnRange = ref<DrawnKCandleRangeVo | null>(null)
+
+/**
+ * 使用者最後**要求**看的那一段。與上面那一對不同：那一對是**畫出來**的那一段。
+ *
+ * 成功時兩者一樣，被拒絕時不一樣——而不一樣的那一次正是需要它的時候。
+ * 被拒絕之後使用者改一個條件再試（換粗細、換標的、補齊），要重試的是
+ * **他要求的那一段**；沿用畫出來的那一段，他會拿回上一次成功的範圍，
+ * 而畫面上還亮著他按的那一個快捷區間——按了一年卻拿到一天，且沒有任何一句話提到它。
+ */
+const requestedStartTime = ref(new Date())
+const requestedEndTime = ref(new Date())
+
+const loading = ref(false)
+const rejectedMessage = ref<string | null>(null)
+const serverErrorMessage = ref<string | null>(null)
+const backendUnreachable = ref(false)
+
+/**
+ * 使用者拉一下、還沒回來又拉一下時，先送出的那次可能後回來。
+ * 只採用最後一次的結果，否則畫面會被舊資料蓋回去。
+ */
+let latestRequestNumber = 0
+
+// 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
+const chartIndicators = useChartIndicators(chartIndicatorApplication)
+
+/** 可以挑來套用的策略腳本。取不到清單時是空的——那是一份清單，不是一個功能。 */
+const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
+
+const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
+
+/**
+ * 圖的標題：畫出來的那一檔，能說出名字就連名字一起說。
+ *
+ * 名字只在它確實屬於**畫出來的那一檔**時才接上去。換標的到取回來之間有一段空窗，
+ * 那段時間挑標的那邊已經換人了、圖上還是舊的——直接接上去會用新公司的名字
+ * 標著舊公司的線。
+ */
+const chartTitle = computed(() => {
+  const drawnSymbol = chart.value?.symbol ?? symbol.value
+  const selected = selectedTradingSymbol.value
+
+  return selected?.symbol === drawnSymbol ? selected.label : drawnSymbol
+})
+
+/** 最近一則即時更新說了什麼。還沒有任何一則時是 null。 */
+const latestLiveReport = ref<LiveKCandleReportDto | null>(null)
+/** 目前選著的那一檔完整的樣子，由挑標的那個欄位交過來。 */
+const selectedTradingSymbol = ref<TradingSymbolDto | null>(null)
+
+/**
+ * 圖表上該說的那一句話，至多一句。
+ *
+ * 該說哪一句是一條有優先序的業務規則，所以由 domain 判、這裡只問。
+ * 寫成三個 v-if 的話，加第四種說法就得回頭重讀所有排列。
+ */
+const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
+  selectedTradingSymbol.value, latestLiveReport.value))
+
+/**
+ * 每一種說法在畫面上是哪一句中文。
+ *
+ * 「沒有名額」與「停了」的措辭刻意不像：一句要人接受現況，一句要人稍等——
+ * 讀起來像同一件事的話，這兩句就等於只有一句。
+ */
+const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
+  marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
+  noLivePlace: '這一檔沒有即時更新，資料每分鐘更新一次。',
+  ended: '即時更新已中斷，不會自己重新連上。重新整理頁面再試一次；圖表顯示的是目前手上的資料。',
+  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
+}
+/**
+ * 這個市場會收盤，所以「等下一輪」不見得等得到東西——手動要求更新才有意義。
+ *
+ * 判準是**這個市場會不會收盤**，不是「現在有沒有開」：後者在收盤的每個夜裡都成立，
+ * 卻也在加密貨幣身上永遠不成立，於是按鈕會在錯的地方出現、又在錯的地方消失。
+ */
+const canCatchUp = computed(() => selectedTradingSymbol.value?.hasTradingSession === true)
+
+/** 正在補齊。補的時候不讓人再按一次——第二次要的是同一批東西。 */
+const catchingUp = ref(false)
+/** 上一次補齊的結果，補完才有話說。 */
+const catchUpMessage = ref<string | null>(null)
+
+/**
+ * 去把這一檔缺的補回來，補完重畫。
+ *
+ * 補完一定要重畫：補齊寫的是後端的資料，畫面手上那批是**補齊之前**取的，
+ * 不重取的話，剛補回來的那幾根一根都不會出現，看起來就像按了沒有用。
+ */
+async function catchUp() {
+  catchingUp.value = true
+  catchUpMessage.value = null
+
+  // 記下這一次補的是誰。等回來時使用者可能已經換了標的，那時候拿 symbol.value
+  // 會變成「補 A、重畫 B」。
+  const caughtUpSymbol = symbol.value
+
+  try {
+    const collected = await kCandleChartApplication.catchUpSymbol(caughtUpSymbol)
+    // 補到零根也是一個答案，而且是常見的那一個（手上已經是最新的）。
+    // 不說出來的話，看的人分不出「按了沒事」與「按了沒反應」。
+    catchUpMessage.value = collected === 0
+      ? '已經是最新的了，沒有可補的 K 線。'
+      : `補回 ${collected} 根 K 線。`
+
+    // 手上那批「還夠用」的判斷是拿涵蓋範圍算的，而補齊填的是**範圍之內**的洞——
+    // 照平常那條路重取，它會說不必取，於是剛補回來的那幾根一根都不會出現。
+    // 所以這裡明說：忘了手上那批，重新取一次。
+    // 換過標的就不必重畫了：那一檔的資料已經在換的時候取過，而這一次補的不是它。
+    if (caughtUpSymbol !== symbol.value) {
+      return
+    }
+
+    await showViewport(new KCandleChartViewportDto(
+      caughtUpSymbol, requestedStartTime.value, requestedEndTime.value, null,
+      aggregationIntervalChoice.value))
+  }
+  catch (error: unknown) {
+    catchUpMessage.value = error instanceof Error
+      ? `補不回來：${error.message}`
+      : '補不回來。'
+  }
+  finally {
+    catchingUp.value = false
+  }
+}
+
+/** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
+let stopFollowing: (() => void) | null = null
+/**
+ * 這是第幾次跟盤。回呼是個閉包，它可能比自己的訂閱活得更久——
+ * 只認自己那一次的號碼，就不必假設「停止」在每一種情況下都立刻生效。
+ * 圖表與指標各自也有同一套，理由一模一樣。
+ */
+let followGeneration = 0
+
+async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
+  // 正在看的那一段等領域回答再設：它可能與這裡問的不一樣（拉太遠會被收回上限），
+  // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
+  latestRequestNumber += 1
+  const requestNumber = latestRequestNumber
+
+  // 記下他要求的是哪一段。**在成功與失敗之前記**，因為它存在的理由就是這一次
+  // 可能不會成功——記在成功那一邊，被拒絕的那一段就永遠留不下來。
+  requestedStartTime.value = kCandleChartViewportDto.visibleStartTime
+  requestedEndTime.value = kCandleChartViewportDto.visibleEndTime
+
+  loading.value = true
+  rejectedMessage.value = null
+  serverErrorMessage.value = null
+  backendUnreachable.value = false
+
+  // 一檔都沒選著——這個市場目前沒有東西可挑。沒有東西可問，也沒有人做錯什麼，
+  // 所以這裡既不送出請求，也不標一句「請指定交易標的」：那是在怪使用者沒填，
+  // 但這個畫面只能從選單挑，他根本沒有「填」這個動作可做，真正的原因挑標的
+  // 那個欄位已經說了。
+  if (kCandleChartViewportDto.symbol.trim() === '') {
+    forgetTheChart()
+    loading.value = false
+
+    return
+  }
+
+  try {
+    const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
+
+    if (requestNumber === latestRequestNumber) {
+      // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
+      drawnRange.value = chartView.drawnRange
+
+      // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
+      if (chartView.reloadedChart !== null) {
+        chart.value = chartView.reloadedChart
+      }
+
+      // **指標算的是使用者正在看的那一段**，不是手上那一整批（後者兩側各多取了半段）。
+      // 因此重算掛在顯示區間上，而不是掛在「有沒有重新取資料」上：
+      // 拉遠拉近改變的是他看得見的那一段，一支「這段區間的最高價」本來就該跟著變。
+      // 「不重算」的條件因此收窄成「那一段真的沒變」，由顯示區間自己回答。
+      if (chart.value !== null) {
+        chartIndicators.recalculateForRange(
+          chart.value, chartView.visibleRange, chartView.reloadedChart !== null)
+      }
+
+      // 跟盤放在**告訴指標他在看哪一段之後**：跟盤一開始，更新隨時可能進來，
+      // 而處理一則更新的第一件事就是拿那一段去問「看得到最新那一根嗎」——
+      // 那一段還沒交出去的話，走完的第一根會被當成不在畫面上而漏算。
+      if (chartView.reloadedChart !== null) {
+        followTheMarket(chartView.reloadedChart)
+      }
+    }
+  }
+  catch (error: unknown) {
+    if (requestNumber !== latestRequestNumber) {
+      return
+    }
+
+    // 哨兵錯誤分流。這裡沒有「請使用者自己修正」的那一種：標的只能從選單挑，
+    // 而一檔都沒選著在上面就先攔下了——剩下的每一種都是後端那頭的事。
+    if (error instanceof BackendServerError) {
+      serverErrorMessage.value = error.message
+    }
+    else if (error instanceof BackendRequestRejectedError) {
+      rejectedMessage.value = error.message
+    }
+    else if (error instanceof BackendUnreachableError) {
+      backendUnreachable.value = true
+    }
+    else {
+      rejectedMessage.value = '取行情時發生未預期的錯誤。'
+    }
+
+    forgetTheChart()
+  }
+  finally {
+    if (requestNumber === latestRequestNumber) {
+      loading.value = false
+    }
+  }
+}
+
+/**
+ * 把手上這張圖整個放掉：圖、跟盤、最近那一則更新、算出來的線。
+ *
+ * 四件事必須一起放掉。留著跟盤，上一檔的下一則更新就會把圖「復活」，而畫面上
+ * 同時還說著取行情失敗，看到的人會以為那張圖是這一檔的；留著線，它們畫的是另一段
+ * 行情，還會在一張空圖上繼續撐著價格軸。已套用的清單留著，等圖回來自己會重算。
+ */
+function forgetTheChart() {
+  chart.value = null
+  stopFollowing?.()
+  stopFollowing = null
+  followGeneration += 1
+  latestLiveReport.value = null
+  chartIndicators.clearLines()
+}
+
+/**
+ * 開始跟這一檔的市場。換一批 K 線就換一次：跟盤是把即時的變動併進**手上這一批**，
+ * 舊的那一批已經不在圖上了。
+ */
+function followTheMarket(followedChart: KCandleChartDto) {
+  stopFollowing?.()
+  followGeneration += 1
+  const generation = followGeneration
+
+  stopFollowing = liveKCandleApplication.followKCandles(
+    followedChart.symbol, followedChart, (report) => {
+      // 已經不是這一次在跟了：這一則講的是上一檔的行情。
+      if (generation !== followGeneration) {
+        return
+      }
+
+      // 跟不動了、這一檔本來就沒有即時更新、或市場收盤了：三者都明說，
+      // 但圖照樣顯示手上有的——沒有的是「即時」，不是「圖表」。
+      latestLiveReport.value = report
+      if (!report.isTrading) {
+        return
+      }
+
+      chart.value = report.chart
+
+      // 一根**走完**時才重算——還在走的那一根怎麼動都不改變指標的答案（它本來就不算數）。
+      //
+      // 走完的是**來源那一根（一分鐘）**，不是圖上那一根。刻度恆為一分鐘時兩者相同；
+      // 現在刻度由系統挑，圖上一根可能是一天，於是每一分鐘都會走到這裡，
+      // 而指標只採用走完的刻度區間，所以那幾次算出來的是同一個答案。
+      // 多算幾次不會畫錯，只是白算——真正要的是「圖上那一根換了」，
+      // 而那要拿新來的那一根所屬的刻度區間跟畫面上最新那一根比，屬於另一次改動。
+      if (report.hasClosedAKCandle) {
+        void chartIndicators.recalculateAfterKCandleClosed(report.chart)
+      }
+    })
+}
+
+onBeforeUnmount(() => {
+  stopFollowing?.()
+  followGeneration += 1
+  chartIndicators.stopSettling()
+})
+
+function selectPreset(preset: KCandleChartRangePresetDto) {
+  activePresetLabel.value = preset.label
+
+  return showViewport(preset.toViewportDto(
+    symbol.value, chart.value, aggregationIntervalChoice.value))
+}
+
+function showRange(range: { startTime: Date, endTime: Date }) {
+  // 使用者自己拉出來的一段，就不再屬於任何一個快捷區間。
+  activePresetLabel.value = null
+
+  return showViewport(new KCandleChartViewportDto(
+    symbol.value, range.startTime, range.endTime, chart.value,
+    aggregationIntervalChoice.value))
+}
+
+function reload() {
+  return showViewport(new KCandleChartViewportDto(
+    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
+    aggregationIntervalChoice.value))
+}
+
+/**
+ * 換一種粗細。看的那一段一個字都不動——他說的是「我要多細」，不是「我要看多長」。
+ *
+ * 重取由領域決定，這裡不判斷：手上那批是以另一個選擇取的，涵蓋得再廣都不算數，
+ * 而那條規則已經寫在顯示區間那個 domain model 裡了。挑到同一個時
+ * `watch` 根本不會醒來，所以「挑同一個不重取」也不必在這裡寫第二次。
+ */
+function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
+  aggregationIntervalChoice.value = choice
+}
+
+watch(aggregationIntervalChoice, () => reload())
+
+// 換交易標的等於換一批資料，正在看的那一段不變。
+watch(symbol, () => {
+  // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
+  // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
+  catchUpMessage.value = null
+
+  return reload()
+})
+
+// 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
+onMounted(async () => {
+  presets.value = kCandleChartApplication.listRangePresets()
+  aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
+
+  // 問「預設是哪一個」，不是拿清單的第一個：那一排由短到長排，第一個是最短的一段。
+  void selectPreset(kCandleChartApplication.defaultRangePreset())
+
+  try {
+    // 兩段都能套到圖上：套用不需要算式，而加入來的那些正好沒有。
+    // 在這裡就轉成圖表要的形狀，圖表那一路因此完全不必知道有兩種來源。
+    const available = await strategyScriptApplication.listAvailableStrategyScripts()
+    strategyScripts.value = [
+      ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
+      ...available.adopted.map(published => published.toChartApplicable()),
+    ]
+
+    // 上次擺著的那幾支自己回來。**要等策略腳本清單到手**——那份清單是還原時唯一的真相：
+    // 留存的是「他要哪幾支」，而那幾支可能已經被刪、改了宣告，或者現在畫不成線。
+    // 取不到清單時就還原不了，那與「上次一支都沒擺」對使用者是同一件事：清單是空的。
+    await chartIndicators.restoreAppliedIndicators(strategyScripts.value)
+  }
+  catch {
+    // 取不到策略腳本清單只代表這一次沒有東西可挑，圖表本身照畫——
+    // 為此擋掉整張圖，等於讓一個附加功能決定主功能能不能用。
+    strategyScripts.value = []
+  }
+})
+</script>
+
+<template>
+  <section class="k-candle-chart-panel">
+    <!--
+      行情摘要：這一頁最大的那個數字，擺在最上面——**先說現在多少錢，再說它怎麼走的**。
+      它跟著畫出來的那批資料走（不是選單上剛選的那一檔），所以換標的的空窗期裡
+      它不會先跳成新的名字配舊的價。
+    -->
+    <KCandleQuote
+      v-if="chart?.latestKCandle"
+      :latest="chart.latestKCandle"
+      :symbol="chart.symbol"
+      :time-zone="timeZone"
+    >
+      <template #tags>
+        <AppBadge variant="neutral">
+          現貨
+        </AppBadge>
+      </template>
+    </KCandleQuote>
+
+    <!--
+      這幾則說的是**圖現在怎麼了**，不是控制項怎麼了，所以它們不住在「看什麼」裡：
+      收起「看什麼」的人收的是控制項，而一則「連不上後端」不該跟著被收走——
+      那正是他最需要看到它的時候。
+
+      即時這一層沒有東西動，不代表「圖表壞了」——所以它與那幾則錯誤各自獨立，
+      不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+      幾種原因共用這一個位置，一次只說一句，哪一句由 domain model 決定。
+    -->
+    <AppAlert
+      v-if="liveUpdateNotice"
+      :tone="liveUpdateNotice.tone"
+      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
+    >
+      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
+    </AppAlert>
+
+    <AppAlert
+      v-if="rejectedMessage"
+      tone="danger"
+      data-testid="rejected-alert"
+    >
+      {{ rejectedMessage }}
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="serverErrorMessage"
+      tone="danger"
+      data-testid="server-error-alert"
+    >
+      後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="loading"
+          @click="reload"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="backendUnreachable"
+      tone="danger"
+      data-testid="unreachable-alert"
+    >
+      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      <template #action>
+        <AppButton
+          variant="secondary"
+          size="small"
+          :disabled="loading"
+          @click="reload"
+        >
+          重試
+        </AppButton>
+      </template>
+    </AppAlert>
+
+    <AppAlert
+      v-else-if="loading"
+      tone="info"
+      data-testid="loading-alert"
+    >
+      取行情中…
+    </AppAlert>
+
+    <!-- 寬螢幕上兩欄：左邊是圖，右邊是看什麼與套用中的指標。手機上由上往下疊，圖在前。 -->
+    <div class="k-candle-chart-panel__workspace">
+      <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
+           換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
+           畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
+      <AppPanel
+        :title="chartTitle"
+        flush
+        class="k-candle-chart-panel__chart"
+      >
+        <!-- 每根涵蓋多久寫在圖的標題列上：它說的是圖上那批 K 線多粗，
+             所以它跟著圖，不跟著控制項。 -->
+        <template #meta>
+          <span>每根涵蓋</span>
+          <AppBadge
+            variant="info"
+            data-testid="interval-label"
+          >
+            {{ intervalLabel }}
+          </AppBadge>
+        </template>
+
+        <template #actions>
+          <span
+            v-if="catchUpMessage"
+            class="k-candle-chart-panel__catch-up-message"
+            data-testid="catch-up-message"
+          >
+            {{ catchUpMessage }}
+          </span>
+          <!--
+            只有會收盤的市場給這顆按鈕。永不收盤的市場永遠只差一輪就跟上了，
+            給它一顆「立刻更新」只是讓人多按一次去做本來就會發生的事。
+          -->
+          <AppButton
+            v-if="canCatchUp"
+            variant="secondary"
+            size="small"
+            :disabled="catchingUp || loading"
+            data-testid="catch-up-button"
+            @click="catchUp"
+          >
+            <AppIcon name="refresh" />
+            {{ catchingUp ? '補齊中…' : '立刻更新' }}
+          </AppButton>
+        </template>
+
+        <div class="k-candle-chart-panel__stage">
+          <!-- 看多長、看多細、怎麼畫：寬螢幕上在圖的上方，手機上移到圖的下方給拇指點。 -->
+          <KCandleChartToolbar
+            v-model:drawing="drawing"
+            class="k-candle-chart-panel__toolbar"
+            :presets="presets"
+            :active-preset-label="activePresetLabel"
+            :aggregation-interval-choices="aggregationIntervalChoices"
+            :active-aggregation-interval-choice="aggregationIntervalChoice"
+            :loading="loading"
+            @select-preset="selectPreset"
+            @select-aggregation-interval-choice="selectAggregationIntervalChoice"
+          />
+
+          <p
+            v-if="chart && chart.isEmpty"
+            class="k-candle-chart-panel__empty"
+            data-testid="empty-chart"
+          >
+            查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
+          </p>
+
+          <KCandleChart
+            v-else-if="chart"
+            class="k-candle-chart-panel__canvas"
+            :chart="chart"
+            :drawing="drawing"
+            :drawn-range="drawnRange"
+            :time-zone="timeZone"
+            :indicators="chartIndicators.visibleChartIndicators.value"
+            @range-change="showRange"
+          />
+
+          <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
+               而不是留一整片空白——那看起來像壞了。 -->
+          <p
+            v-else
+            class="k-candle-chart-panel__empty"
+            data-testid="idle-chart"
+          >
+            還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+          </p>
+        </div>
+
+        <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
+             它收在卡片底下那一條窄帶裡，需要對照的時候才會被看見。 -->
+        <template
+          v-if="chart && !chart.isEmpty"
+          #footer
+        >
+          <span data-testid="covered-range">
+            手上這批共 {{ chart.count }} 根，涵蓋
+            {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
+            {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
+          </span>
+        </template>
+      </AppPanel>
+
+      <aside class="k-candle-chart-panel__side">
+        <AppPanel
+          title="看什麼"
+          collapsible
+          :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
+        >
+          <div class="k-candle-chart-panel__controls">
+            <!-- 選著的是哪一檔由挑標的那個欄位說：圖表這一層才是需要知道
+                 「這一檔會不會收盤、有沒有即時更新」的人。 -->
+            <SymbolField
+              v-model="symbol"
+              :trading-symbol-application="tradingSymbolApplication"
+              @selected="selectedTradingSymbol = $event"
+            />
+
+            <ChartIndicatorPanel
+              :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
+              :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
+              :color-options="chartIndicators.colorOptions"
+              :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
+              :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
+              :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
+              @apply="chartIndicators.applyIndicator"
+              @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
+              @confirm-pending="chartIndicators.confirmPendingIndicator"
+              @cancel-pending="chartIndicators.cancelPendingIndicator"
+              @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
+              @toggle-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
+              @remove="chartIndicators.removeAppliedIndicator"
+              @change-line-color="chartIndicators.changeLineColor"
+            />
+          </div>
+        </AppPanel>
+      </aside>
+    </div>
+  </section>
+</template>
+
+<style scoped lang="scss">
+.k-candle-chart-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: spacing('sm');
+  min-height: 0;
+
+  // 手機上一欄由上往下：圖在前，看什麼在後。寬螢幕上圖在左、旁邊一欄固定寬。
+  &__workspace {
+    display: grid;
+    flex: 1;
+    gap: spacing('sm');
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    min-height: 0;
+
+    @include respond-to('lg') {
+      grid-template-columns: minmax(0, 1fr) 18.75rem;
+      align-items: stretch;
+    }
+  }
+
+  // 圖吃掉工作區剩下的所有高度——這個畫面就是為了看圖而存在的。
+  &__chart {
+    min-height: 24rem;
+
+    @include respond-to('lg') {
+      min-height: 32rem;
+    }
+  }
+
+  &__stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  // 手機上工具列排在圖的下方（拇指搆得到）；寬螢幕上回到圖的上方，與設計稿的交易版面一致。
+  &__toolbar {
+    order: 2;
+    border-top: 1px solid color('border');
+    padding: spacing('xs');
+
+    @include respond-to('md') {
+      order: 0;
+      border-top: 0;
+      border-bottom: 1px solid color('border');
+    }
+  }
+
+  &__canvas {
+    order: 1;
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('sm');
+    min-width: 0;
+  }
+
+  &__controls {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('md');
+  }
+
+  &__catch-up-message {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  &__empty {
+    order: 1;
+    margin: auto;
+    padding: spacing('2xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('xs');
+    text-align: center;
+  }
+}
+</style>
