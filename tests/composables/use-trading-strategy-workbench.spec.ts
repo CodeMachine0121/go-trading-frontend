@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
@@ -161,6 +162,15 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
 
     expect(workbench.missing.value).toBe(false)
     expect(workbench.failureMessage.value).toBe('後端連不上')
+  })
+
+  it('連不上後端時明說連不上', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockRejectedValue(new BackendUnreachableError('/strategy-scripts'))
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
   })
 })
 

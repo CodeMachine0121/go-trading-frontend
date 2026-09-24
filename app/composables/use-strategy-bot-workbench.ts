@@ -1,4 +1,5 @@
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -111,6 +112,10 @@ export function useStrategyBotWorkbench(
   }
 
   function messageOf(error: unknown): string {
+    if (error instanceof BackendUnreachableError) {
+      return error.explanation
+    }
+
     return error instanceof Error ? error.message : '發生未知的錯誤'
   }
 
