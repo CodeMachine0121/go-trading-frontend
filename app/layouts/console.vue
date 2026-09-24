@@ -29,6 +29,7 @@ const subtitle = computed(() => route.meta.consoleSubtitle)
   <ConsoleLayout
     :title="title"
     :subtitle="subtitle"
+    :fills-viewport="route.meta.consoleFillsViewport === true"
   >
     <template #market>
       <MarketSwitch

@@ -4,6 +4,8 @@ declare module '#app' {
   interface PageMeta {
     consoleTitle?: string
     consoleSubtitle?: string
+    /** 這一頁剛好撐滿視窗、自己在裡面捲（例如對話）。 */
+    consoleFillsViewport?: boolean
   }
 }
 

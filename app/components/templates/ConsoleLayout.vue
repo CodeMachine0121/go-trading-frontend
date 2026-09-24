@@ -41,6 +41,11 @@ const MORE_DESTINATIONS = [
 defineProps<{
   title: string
   subtitle?: string
+  /**
+   * 這一頁要剛好撐滿視窗、自己在裡面捲（對話串與它的輸入框），而不是讓整頁一起往下長。
+   * 版面因此固定成視窗的高度，工作區吃掉剩下的全部。
+   */
+  fillsViewport?: boolean
 }>()
 
 const { layoutDensity } = useLayoutDensity()
@@ -76,6 +81,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     :class="{
       'console-layout--stowed': railStowed,
       'console-layout--bottom-navigation': layoutDensity.usesBottomNavigation,
+      'console-layout--fills-viewport': fillsViewport,
     }"
   >
     <nav
@@ -267,6 +273,10 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
 $rail-width: 13.5rem;
 $rail-stowed-width: 4rem;
 
+// 底部那一排的高度。它也以 --console-bottom-navigation-height 交給工作區裡的頁面，
+// 讓頁面自己那一排釘在底部的動作鍵停在分頁列之上，而不是被它蓋住。
+$bottom-navigation-height: 3.75rem;
+
 .console-layout {
   display: grid;
   grid-template-columns: $rail-width minmax(0, 1fr);
@@ -279,8 +289,26 @@ $rail-stowed-width: 4rem;
   }
 
   &--bottom-navigation {
+    --console-bottom-navigation-height: calc(#{$bottom-navigation-height} + env(safe-area-inset-bottom, 0px));
+
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  &--fills-viewport {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  &--fills-viewport &__frame {
+    min-height: 0;
+  }
+
+  &--fills-viewport &__workspace {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
   }
 
   &__rail {
@@ -409,7 +437,7 @@ $rail-stowed-width: 4rem;
     display: flex;
     position: sticky;
     top: 0;
-    z-index: z-index('dock');
+    z-index: z-index('chrome');
     flex-wrap: wrap;
     gap: spacing('sm');
     align-items: center;
@@ -455,12 +483,14 @@ $rail-stowed-width: 4rem;
     position: sticky;
     bottom: 0;
     grid-template-columns: repeat(5, 1fr);
-    z-index: z-index('dock');
+    z-index: z-index('chrome');
+    align-content: center;
     border-top: 1px solid color('border');
     background-color: color('surface');
-    padding: spacing('2xs') spacing('2xs') 0;
+    padding: 0 spacing('2xs');
+    height: var(--console-bottom-navigation-height);
 
-    @include safe-area-bottom(spacing('xs'));
+    @include safe-area-bottom;
   }
 
   &__tab {
