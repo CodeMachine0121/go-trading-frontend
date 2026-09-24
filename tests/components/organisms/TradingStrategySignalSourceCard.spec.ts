@@ -9,9 +9,10 @@ function mountCard(sources: TradingStrategySignalSourceDto[]) {
     props: {
       sources,
       strategyScriptOptions: [{ value: 9, label: 'MACD' }],
-      unusableStrategyScripts: {},
+      strategyScriptLabels: sources.map(() => 'MACD'),
+      parameterSummaries: sources.map(() => ''),
+      parameterInputs: sources.map(() => ({})),
       intervalOptions: [{ value: '5m', label: '五分鐘' }],
-      parameterNamesByStrategyScriptId: {},
       canAdd: true,
       signalSourceLimit: 5,
       shortage: null,

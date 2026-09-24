@@ -11,7 +11,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 
 // 有機體：步驟卡一——這份交易策略用哪幾支策略腳本讀盤。
 //
-// 卡上一列就是一個訊號來源（也就是一塊零件）：代號、它用哪一支策略腳本、看多粗的 K 線、
+// 卡上一列就是一個訊號來源：代號、它用哪一支策略腳本、看多粗的 K 線、
 // 調過的參數。點一列，它的設定出現在卡旁邊（窄螢幕從下方拉出）——
 // 代號、策略腳本、刻度與參數都在那裡改，刪也在那裡刪。
 //
@@ -19,23 +19,25 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 const {
   sources,
   strategyScriptOptions,
-  unusableStrategyScripts,
+  strategyScriptLabels,
+  parameterInputs,
   intervalOptions,
-  parameterNamesByStrategyScriptId,
   usageWarnings,
 } = defineProps<{
   sources: readonly TradingStrategySignalSourceDto[]
-  strategyScriptOptions: readonly { value: number, label: string }[]
   /**
-   * 存在、但當不了訊號來源的那幾支，以及原因。
-   *
-   * 它們**不進選單**——挑得到就等於讓人拼出一份後端會拒絕的交易策略。但一個
-   * 已經指著它們的來源仍然要說得出自己指著誰，見下面 strayOption。
+   * 挑得到的那幾支。存在、但當不了訊號來源的那幾支**不進選單**——挑得到就等於讓人
+   * 拼出一份後端會拒絕的交易策略。但一個已經指著它們的來源仍然要說得出自己指著誰，
+   * 見下面 strayOption。
    */
-  unusableStrategyScripts: Readonly<Record<number, string>>
+  strategyScriptOptions: readonly { value: number, label: string }[]
+  /** 每一個來源用的那一支叫什麼（與 `sources` 同一個順序）；挑不得或認不得的那一句也在這裡。 */
+  strategyScriptLabels: readonly string[]
+  /** 每一個來源調過的參數讀成的那一行；沒調過的是空字串。 */
+  parameterSummaries: readonly string[]
+  /** 每一個來源的每一個參數欄該填著什麼；沒填過的是空白。 */
+  parameterInputs: readonly Readonly<Record<string, string>>[]
   intervalOptions: readonly { value: string, label: string }[]
-  /** 每一支策略腳本宣告了哪幾個旋鈕。挑了策略腳本才知道有哪幾格要填。 */
-  parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
   /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
   canAdd: boolean
   signalSourceLimit: number
@@ -75,49 +77,24 @@ const tuningIndex = ref<number | null>(null)
 const tuning = computed(
   () => (tuningIndex.value === null ? null : sources[tuningIndex.value] ?? null))
 
-const tuningParameterNames = computed(() => (tuning.value === null
-  ? []
-  : parameterNamesByStrategyScriptId[tuning.value.strategyScriptId] ?? []))
+/** 正在調的那一個來源的參數欄：參數名與它現在填著什麼。 */
+const tuningParameterInputs = computed(
+  () => (tuningIndex.value === null ? {} : parameterInputs[tuningIndex.value] ?? {}))
 
 /**
  * 這個來源指著一支**選單裡沒有**的策略腳本時，那一支長什麼樣子。
  *
  * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示——而一片空白看起來像「還沒選」。
  * 所以這種腳本補進選單裡，選著、但**按不下去**：它說得出是哪一支、為什麼用不了，
- * 又不會讓任何人真的挑它。認不得那個識別碼時（腳本被刪了、或那份採用被收回）也照樣說一句。
+ * 又不會讓任何人真的挑它。
  */
-function strayOptionOf(source: TradingStrategySignalSourceDto | null) {
-  if (source === null
-    || strategyScriptOptions.some(option => option.value === source.strategyScriptId)) {
-    return null
-  }
-
-  return {
-    value: source.strategyScriptId,
-    label: unusableStrategyScripts[source.strategyScriptId]
-      ?? `這支策略腳本（編號 ${source.strategyScriptId}）已經不在了`,
-  }
-}
-
-const strayOption = computed(() => strayOptionOf(tuning.value))
-
-function strategyScriptNameOf(source: TradingStrategySignalSourceDto): string {
-  return strategyScriptOptions.find(option => option.value === source.strategyScriptId)?.label
-    ?? strayOptionOf(source)?.label ?? ''
-}
+const strayOption = computed(() => (tuning.value === null || tuningIndex.value === null
+  || strategyScriptOptions.some(option => option.value === tuning.value?.strategyScriptId)
+  ? null
+  : { value: tuning.value.strategyScriptId, label: strategyScriptLabels[tuningIndex.value] ?? '' }))
 
 function intervalLabelOf(interval: string): string {
   return intervalOptions.find(option => option.value === interval)?.label ?? interval
-}
-
-/** 卡上那一行的參數：調過的才列，沒調的就是用那支策略腳本自己的預設值。 */
-function parameterSummaryOf(source: TradingStrategySignalSourceDto): string {
-  return source.parameterValues.map(parameter => `${parameter.name}=${parameter.value}`).join(' · ')
-}
-
-/** 沒填過的旋鈕顯示空白，而不是一個假的 0——0 是一個值，空白是還沒決定。 */
-function parameterValueOf(name: string): string {
-  return tuning.value?.parameterValues.find(candidate => candidate.name === name)?.value.toString() ?? ''
 }
 
 function tune(index: number) {
@@ -220,12 +197,12 @@ function onParameterInput(name: string, raw: string | number) {
             class="signal-source-card__meta"
             :data-testid="`signal-source-${source.label}`"
           >
-            {{ strategyScriptNameOf(source) }} · {{ intervalLabelOf(source.aggregationInterval) }}
+            {{ strategyScriptLabels[index] }} · {{ intervalLabelOf(source.aggregationInterval) }}
           </span>
           <span
-            v-if="parameterSummaryOf(source) !== ''"
+            v-if="parameterSummaries[index]"
             class="signal-source-card__parameters"
-          >{{ parameterSummaryOf(source) }}</span>
+          >{{ parameterSummaries[index] }}</span>
         </button>
 
         <AppButton
@@ -335,12 +312,12 @@ function onParameterInput(name: string, raw: string | number) {
           </FormField>
 
           <FormField
-            v-for="name in tuningParameterNames"
+            v-for="(parameterInput, name) in tuningParameterInputs"
             :key="name"
             :label="name"
           >
             <AppInput
-              :model-value="parameterValueOf(name)"
+              :model-value="parameterInput"
               type="number"
               inputmode="decimal"
               placeholder="用它的預設值"

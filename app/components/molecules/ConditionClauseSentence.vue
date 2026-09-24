@@ -36,7 +36,7 @@ const { item } = defineProps<{
         <span class="condition-clause-sentence__relation">{{ piece.relationWord }}</span>
         <span
           class="condition-clause-sentence__signal"
-          :class="{ 'condition-clause-sentence__signal--undecided': piece.acceptedSignals.length === 0 }"
+          :class="{ 'condition-clause-sentence__signal--undecided': piece.isUndecided }"
         >{{ piece.signalWords }}</span>
       </template>
     </span>

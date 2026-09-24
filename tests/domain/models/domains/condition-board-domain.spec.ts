@@ -247,9 +247,20 @@ describe('改一張表', () => {
     expect(readable(start().takeOff('MACD').value)).toEqual([])
   })
 
-  it('問得出一塊零件在不在這張墊子上', () => {
-    expect(start().holds('MACD')).toBe(true)
-    expect(start().holds('ATR')).toBe(false)
+  it.each([
+    { name: '還不在卡上的來源，排到最後面、只收挑的那一個', label: 'ATR', signal: 'sell', expected: ['MACD:buy', 'ATR:sell'] },
+    { name: '挑的就是買入時，也只收買入', label: 'ATR', signal: 'buy', expected: ['MACD:buy', 'ATR:buy'] },
+    { name: '已經在卡上的來源，是搬到最後面並改成只收這一個', label: 'MACD', signal: 'hold', expected: ['ATR:buy', 'MACD:hold'] },
+  ])('加一條條件：$name', ({ label, signal, expected }) => {
+    const twoClauses = start().placeAt('ATR', 1)
+
+    expect(readable(twoClauses.addClause(label, signal).value)).toEqual(expected)
+  })
+
+  it('訊號來源改名時，條件跟著改名，擺在哪裡、收什麼都不動', () => {
+    const twoClauses = start().placeAt('ATR', 1).toggleSignal('ATR', 'hold')
+
+    expect(readable(twoClauses.renamed('ATR', '動能').value)).toEqual(['MACD:buy', '動能:buy+hold'])
   })
 })
 
@@ -313,10 +324,129 @@ describe('把零件扣成一組，以及從一組裡拆出來', () => {
       .toEqual(['MACD:buy', 'ATR:buy', 'RSI:buy'])
   })
 
+  it.each([
+    {
+      name: '另一格是單獨一條時，把它拉過來——這一條留在原地、排在前面',
+      source: 'RSI',
+      targetKey: 'ATR',
+      expected: ['MACD:buy', '(or RSI:buy ATR:buy)'],
+    },
+    {
+      name: '另一格已經是一組時，把這一條加進那一組',
+      source: 'RSI',
+      targetKey: 'MACD+ATR',
+      expected: ['(or MACD:buy ATR:buy RSI:buy)'],
+    },
+    {
+      name: '認不得的那一格，什麼都不會發生',
+      source: 'RSI',
+      targetKey: 'EMA',
+      expected: ['(or MACD:buy ATR:buy)', 'RSI:buy'],
+    },
+  ])('和另一格扣成一組：$name', ({ source, targetKey, expected }) => {
+    const start = targetKey === 'ATR' ? threeApart() : threeApart().bundleOnto('ATR', 'MACD')
+
+    expect(readable(start.bundleWith(source, targetKey).value)).toEqual(expected)
+  })
+
+  it.each([
+    { name: '兩條的一組', bundled: () => threeApart().bundleOnto('ATR', 'MACD'), itemKey: 'MACD+ATR', expected: ['MACD:buy', 'ATR:buy', 'RSI:buy'] },
+    {
+      name: '三條的一組，拆完順序與組裡一樣',
+      bundled: () => threeApart().bundleOnto('ATR', 'MACD').bundleOnto('RSI', 'MACD'),
+      itemKey: 'MACD+ATR+RSI',
+      expected: ['MACD:buy', 'ATR:buy', 'RSI:buy'],
+    },
+    {
+      name: '一組排在別的格後面，拆開的那幾條留在原地',
+      bundled: () => threeApart().bundleOnto('RSI', 'ATR'),
+      itemKey: 'ATR+RSI',
+      expected: ['MACD:buy', 'ATR:buy', 'RSI:buy'],
+    },
+    { name: '單獨一條拆不拆都一樣', bundled: () => threeApart(), itemKey: 'RSI', expected: ['MACD:buy', 'ATR:buy', 'RSI:buy'] },
+  ])('把一整組拆開：$name', ({ bundled, itemKey, expected }) => {
+    const split = bundled().splitBundle(itemKey)
+
+    expect(readable(split.value)).toEqual(expected)
+    expect(split.value.items.every(item => !item.isBundle)).toBe(true)
+  })
+
   it('換掉一組裡面怎麼合併，哪幾塊擺在哪裡一格都不動', () => {
     const bundled = threeApart().bundleOnto('ATR', 'MACD')
 
     expect(readable(bundled.changeBundleOperator('MACD+ATR', 'and').value))
       .toEqual(['(and MACD:buy ATR:buy)', 'RSI:buy'])
+  })
+})
+
+describe('一張條件卡讀成畫面要的那幾個字', () => {
+  function piece(sourceLabel: string, ...acceptedSignals: string[]) {
+    return new ConditionBoardPieceDto(sourceLabel, acceptedSignals)
+  }
+
+  function worded(board: ConditionBoardDto) {
+    return new ConditionBoardDomain(board).toDto()
+  }
+
+  it.each([
+    { name: '收一個信號', accepted: ['buy'], sentence: '突破 等於 買入', plainWords: '', isUndecided: false },
+    { name: '收兩個信號時照「其中之一」讀，並翻成人話', accepted: ['buy', 'hold'], sentence: '突破 等於 買入或持有', plainWords: '也就是「不是賣出」', isUndecided: false },
+    { name: '三個都收', accepted: ['buy', 'sell', 'hold'], sentence: '突破 等於 買入或賣出或持有', plainWords: '也就是「不管它說什麼都算」', isUndecided: false },
+    { name: '一個都沒收時照實說還沒決定', accepted: [], sentence: '突破 等於 （還沒選信號）', plainWords: '', isUndecided: true },
+  ])('一條條件：$name', ({ accepted, sentence, plainWords, isUndecided }) => {
+    const readOut = worded(new ConditionBoardDto('and', [
+      new ConditionBoardItemDto(null, [piece('突破', ...accepted)]),
+    ], true)).items[0]!.pieces[0]!
+
+    expect(readOut.relationWord).toBe('等於')
+    expect(readOut.sentence).toBe(sentence)
+    expect(readOut.plainWords).toBe(plainWords)
+    expect(readOut.isUndecided).toBe(isUndecided)
+  })
+
+  it.each([
+    {
+      name: '把兩條扣成一組並選「或」',
+      board: new ConditionBoardDto('and', [
+        new ConditionBoardItemDto('or', [piece('突破', 'buy'), piece('動能', 'buy')]),
+      ], true),
+      sentence: '突破 等於 買入 或 動能 等於 買入',
+      readOut: '突破 等於 買入 或 動能 等於 買入',
+    },
+    {
+      name: '一組旁邊還有別的格時加上括號',
+      board: new ConditionBoardDto('and', [
+        new ConditionBoardItemDto(null, [piece('均線', 'buy')]),
+        new ConditionBoardItemDto('or', [piece('突破', 'buy'), piece('動能', 'hold')]),
+      ], true),
+      sentence: '均線 等於 買入 且 （突破 等於 買入 或 動能 等於 持有）',
+      readOut: '均線 等於 買入 且 （突破 等於 買入 或 動能 等於 持有）',
+    },
+    {
+      name: '空的一張不是一句話，讀出來那一行照實說還沒有',
+      board: new ConditionBoardDto('and', [], true),
+      sentence: '',
+      readOut: '還沒有任何條件。',
+    },
+  ])('整張：$name', ({ board, sentence, readOut }) => {
+    const dto = worded(board)
+
+    expect(dto.sentence).toBe(sentence)
+    expect(dto.readOut).toBe(readOut)
+    expect(dto.relationWord).toBe('等於')
+  })
+
+  it.each([
+    { operator: 'and' as const, boardJoiner: '且' },
+    { operator: 'or' as const, boardJoiner: '或' },
+  ])('格與格之間的連接詞跟著運算子走（$operator）', ({ operator, boardJoiner }) => {
+    const dto = worded(new ConditionBoardDto(operator, [
+      new ConditionBoardItemDto('and', [piece('突破', 'buy'), piece('動能', 'buy')]),
+      new ConditionBoardItemDto(null, [piece('均線', 'buy')]),
+    ], true))
+
+    expect(dto.joinerWord).toBe(boardJoiner)
+    expect(dto.items[0]!.joinerWord).toBe('且')
+    expect(dto.items[1]!.joinerWord).toBe('')
   })
 })

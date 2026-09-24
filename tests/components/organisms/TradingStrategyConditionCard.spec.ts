@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import TradingStrategyConditionCard from '~/components/organisms/TradingStrategyConditionCard.vue'
+import { ConditionBoardDomain } from '~/domain/models/domains/condition-board-domain'
 import {
   ConditionBoardDto,
   ConditionBoardItemDto,
@@ -12,12 +13,17 @@ function piece(sourceLabel: string) {
   return new ConditionBoardPieceDto(sourceLabel, ['buy'])
 }
 
+/** 卡收到的那一份：由 ConditionBoardDomain 讀好每一句話，與表單交給它的一樣。 */
+function worded(board: ConditionBoardDto) {
+  return new ConditionBoardDomain(board).toDto()
+}
+
 /** 一組（MACD、ATR）加上獨立的 RSI——最常見的形狀。 */
 function aBoardWithABundle(representable = true) {
-  return new ConditionBoardDto('and', [
+  return worded(new ConditionBoardDto('and', [
     new ConditionBoardItemDto('or', [piece('MACD'), piece('ATR')]),
     new ConditionBoardItemDto(null, [piece('RSI')]),
-  ], representable)
+  ], representable))
 }
 
 const SIGNAL_OPTIONS = [
@@ -31,6 +37,7 @@ function mountCard(board = aBoardWithABundle(), sourceLabels = ['MACD', 'ATR', '
     props: {
       side: 'buy' as const,
       heading: '什麼算買入',
+      tone: 'success' as const,
       board,
       sourceLabels,
       signalOptions: SIGNAL_OPTIONS,
@@ -87,13 +94,14 @@ describe('TradingStrategyConditionCard：扣在一起的那幾條', () => {
     expect(wrapper.emitted('unbundle')?.at(-1)).toEqual(['ATR'])
   })
 
-  it('整組拆開時從最後一條往前拆，第一條不必拆', async () => {
+  it('整組拆開是一個動作，報的是那一組', async () => {
     const wrapper = mountCard()
 
     await wrapper.get('[data-testid="item-buy-MACD+ATR"]').trigger('click')
     await wrapper.get('[data-testid="split-buy-MACD+ATR"]').trigger('click')
 
-    expect(wrapper.emitted('unbundle')).toEqual([['ATR']])
+    expect(wrapper.emitted('splitBundle')).toEqual([['MACD+ATR']])
+    expect(wrapper.emitted('unbundle')).toBeUndefined()
   })
 
   it('換掉一組的且／或，報的是那一組', async () => {
@@ -105,26 +113,24 @@ describe('TradingStrategyConditionCard：扣在一起的那幾條', () => {
     expect(wrapper.emitted('changeBundleOperator')?.at(-1)).toEqual(['MACD+ATR', 'and'])
   })
 
-  it('和一條單獨的扣成一組時，把它拉過來——這一條留在原地、排在前面', async () => {
-    const board = new ConditionBoardDto('and', [
-      new ConditionBoardItemDto(null, [piece('RSI')]),
-      new ConditionBoardItemDto(null, [piece('MACD')]),
-    ], true)
-    const wrapper = mountCard(board)
+  it.each([
+    {
+      name: '一條單獨的',
+      board: () => worded(new ConditionBoardDto('and', [
+        new ConditionBoardItemDto(null, [piece('RSI')]),
+        new ConditionBoardItemDto(null, [piece('MACD')]),
+      ], true)),
+      targetKey: 'MACD',
+    },
+    { name: '一組', board: () => aBoardWithABundle(), targetKey: 'MACD+ATR' },
+  ])('和$name扣成一組時，報的是這一條與那一格——往哪個方向扣不由卡決定', async ({ board, targetKey }) => {
+    const wrapper = mountCard(board())
 
     await wrapper.get('[data-testid="item-buy-RSI"]').trigger('click')
-    await wrapper.get('[data-testid="bundle-with-buy-RSI"]').setValue('MACD')
+    await wrapper.get('[data-testid="bundle-with-buy-RSI"]').setValue(targetKey)
 
-    expect(wrapper.emitted('bundleOnto')?.at(-1)).toEqual(['MACD', 'RSI'])
-  })
-
-  it('和一組扣在一起時，是把這一條加進那一組', async () => {
-    const wrapper = mountCard()
-
-    await wrapper.get('[data-testid="item-buy-RSI"]').trigger('click')
-    await wrapper.get('[data-testid="bundle-with-buy-RSI"]').setValue('MACD')
-
-    expect(wrapper.emitted('bundleOnto')?.at(-1)).toEqual(['RSI', 'MACD'])
+    expect(wrapper.emitted('bundleWith')?.at(-1)).toEqual(['RSI', targetKey])
+    expect(wrapper.emitted('bundleOnto')).toBeUndefined()
   })
 
   it('從一組那邊把另一條加進來', async () => {

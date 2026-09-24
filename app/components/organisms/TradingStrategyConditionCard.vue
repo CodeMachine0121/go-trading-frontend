@@ -29,6 +29,8 @@ const { side, heading, board, sourceLabels, signalOptions } = defineProps<{
   side: ConditionSideVo
   /** 這張卡的標題：「什麼算買入」或「什麼算賣出」。 */
   heading: string
+  /** 這張卡的顏色：買入是上漲的綠，賣出是下跌的紅。由表單那一層說。 */
+  tone: 'success' | 'danger'
   board: ConditionBoardDto
   /** 這一刻宣告了的來源代號——加一條時挑得到的就是這幾個。 */
   sourceLabels: readonly string[]
@@ -49,15 +51,11 @@ const emit = defineEmits<{
   toggleSignal: [sourceLabel: string, signal: string]
   takeOff: [sourceLabel: string]
   bundleOnto: [sourceLabel: string, targetLabel: string]
+  bundleWith: [sourceLabel: string, targetKey: string]
   unbundle: [sourceLabel: string]
+  splitBundle: [itemKey: string]
   placeAt: [sourceLabel: string, position: number]
 }>()
-
-/** 買入那一張用上漲的綠，賣出那一張用下跌的紅——與整站漲跌的顏色同一套。 */
-const SIDE_TONES: Readonly<Record<ConditionSideVo, 'success' | 'danger'>> = {
-  buy: 'success',
-  sell: 'danger',
-}
 
 const operatorOptions = CONDITION_OPERATORS.map(operator => ({
   value: operator,
@@ -135,37 +133,6 @@ function takeOff(sourceLabel: string) {
   }
 }
 
-/**
- * 把一組拆開，回到一條一條。
- *
- * 從最後一條往前拆：每拆出一條，它就落在那一組的正後面——由後往前拆，
- * 拆完的順序才與組裡原本的順序一樣。最前面那一條不必拆：只剩它一條的組自己會散開。
- */
-function splitBundle(labels: readonly string[]) {
-  [...labels.slice(1)].reverse().forEach(label => emit('unbundle', label))
-}
-
-/**
- * 把正在調的這一條和另一格扣成一組。
- *
- * 另一格是單獨一條時，是**把它拉過來**：這一條留在原地、排在前面，
- * 讀起來就是使用者心裡那一句（「突破 等於 買入 或 動能 等於 買入」）。
- * 另一格已經是一組時，是把這一條加進那一組——一組不能被拉進一條裡。
- */
-function onBundleWith(sourceLabel: string, targetLabel: string) {
-  const target = board.items.find(item => item.holdsLabels.includes(targetLabel))
-  if (target === undefined) {
-    return
-  }
-
-  if (target.isBundle) {
-    emit('bundleOnto', sourceLabel, targetLabel)
-  }
-  else {
-    emit('bundleOnto', targetLabel, sourceLabel)
-  }
-}
-
 function onBundleInto(targetLabel: string, joiningLabel: string) {
   if (joiningLabel !== '') {
     emit('bundleOnto', joiningLabel, targetLabel)
@@ -183,7 +150,7 @@ function close() {
     class="condition-card"
     kicker="條件"
     :title="heading"
-    :tone="SIDE_TONES[side]"
+    :tone="tone"
     :selected="selected"
     :beside="settingsPlacement === 'beside'"
     :data-testid="`step-${side}`"
@@ -281,7 +248,7 @@ function close() {
           class="condition-card__read-out"
           :data-testid="`board-sentence-${side}`"
         >
-          {{ board.isEmpty ? '還沒有任何條件。' : board.sentence }}
+          {{ board.readOut }}
         </p>
 
         <!-- 正在調的那一格：一條，或扣在一起的一組。 -->
@@ -404,7 +371,7 @@ function close() {
               <AppSelect
                 model-value=""
                 :data-testid="`bundle-with-${side}-${focusedItem.key}`"
-                @update:model-value="target => onBundleWith(focusedItem?.holdsLabels[0] ?? '', target)"
+                @update:model-value="targetKey => emit('bundleWith', focusedItem?.holdsLabels[0] ?? '', targetKey)"
               >
                 <option value="">
                   挑一格…
@@ -412,7 +379,7 @@ function close() {
                 <option
                   v-for="other in otherItems"
                   :key="other.key"
-                  :value="other.holdsLabels[0]"
+                  :value="other.key"
                 >
                   {{ other.sentence }}
                 </option>
@@ -449,7 +416,7 @@ function close() {
               variant="secondary"
               size="small"
               :data-testid="`split-${side}-${focusedItem.key}`"
-              @click="splitBundle(focusedItem.holdsLabels)"
+              @click="emit('splitBundle', focusedItem.key)"
             >
               拆開這一組
             </AppButton>
@@ -498,7 +465,7 @@ function close() {
               </AppSelect>
             </FormField>
 
-            <span class="condition-card__adder-relation">等於</span>
+            <span class="condition-card__adder-relation">{{ board.relationWord }}</span>
 
             <FormField label="信號">
               <AppSelect

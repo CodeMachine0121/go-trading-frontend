@@ -83,11 +83,12 @@ const emit = defineEmits<{
 const form = useTradingStrategyForm(
   () => editing,
   () => strategyScriptOptionsByKind[form.marketDataKind.value],
+  () => unusableStrategyScriptsByKind[form.marketDataKind.value],
+  () => parameterNamesByStrategyScriptId,
 )
 
-// 挑得到的策略腳本、挑不得的那幾支與「一支都挑不到」那一句，都跟著這一份吃的行情走。
+// 挑得到的策略腳本與「一支都挑不到」那一句，都跟著這一份吃的行情走。
 const strategyScriptOptions = computed(() => strategyScriptOptionsByKind[form.marketDataKind.value])
-const unusableStrategyScripts = computed(() => unusableStrategyScriptsByKind[form.marketDataKind.value])
 const shortage = computed(() => shortageByKind[form.marketDataKind.value])
 
 /** 已存的那一份寫出它是哪一種行情；它換不了，所以是一句話，不是選單。 */
@@ -117,47 +118,12 @@ watchEffect(() => {
     JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
 })
 
-/** 卡與卡之間那一小段線上寫的字：來源拿來判斷買入，而賣出與買入同時在看。 */
-const CONNECTOR_WORDS: Readonly<Record<ConditionSideVo, string>> = {
-  buy: '拿來判斷',
-  sell: '同時也看',
-}
-
 /** 現在被選著的那一張卡。一次只開一張的設定——兩張同時開，旁邊那一欄就說不清是誰的。 */
 const selectedStep = ref<'sources' | ConditionSideVo | null>(null)
 
 /** 寬螢幕上設定貼在卡旁邊；導覽貼到底部的寬度放不下第二欄，改從下方拉出。 */
 const settingsPlacement = computed(
   () => (layoutDensity.usesBottomNavigation ? 'sheet' as const : 'beside' as const))
-
-function sideOf(key: ConditionSideVo) {
-  return form.conditionSides.find(candidate => candidate.key === key)
-}
-
-/**
- * 加一條：把那個來源擺到這張卡的最後面，並讓它**只收**挑的那一個信號。
- *
- * 擺上去的那一刻它先收著預設的那一個（見 ConditionBoardDomain），
- * 所以這裡把每一個信號對齊到「是不是挑的那一個」——挑的就是買入時什麼都不必動。
- */
-function addClause(key: ConditionSideVo, sourceLabel: string, signal: string) {
-  const conditionSide = sideOf(key)
-  if (conditionSide === undefined) {
-    return
-  }
-
-  conditionSide.placeAt(sourceLabel, conditionSide.board.value.items.length)
-  const placed = conditionSide.board.value.items
-    .flatMap(item => item.pieces)
-    .find(piece => piece.sourceLabel === sourceLabel)
-
-  form.signalOptions.forEach((option) => {
-    const accepted = placed?.acceptedSignals.includes(option.value) ?? false
-    if (accepted !== (option.value === signal)) {
-      conditionSide.toggleSignal(sourceLabel, option.value)
-    }
-  })
-}
 
 function onSave() {
   const writeDto = form.toWriteDto()
@@ -291,9 +257,10 @@ function onSave() {
       <TradingStrategySignalSourceCard
         :sources="form.signalSources.value"
         :strategy-script-options="strategyScriptOptions"
-        :unusable-strategy-scripts="unusableStrategyScripts"
+        :strategy-script-labels="form.signalSourceStrategyScriptLabels.value"
+        :parameter-summaries="form.signalSourceParameterSummaries.value"
+        :parameter-inputs="form.signalSourceParameterInputs.value"
         :interval-options="form.intervalOptions"
-        :parameter-names-by-strategy-script-id="parameterNamesByStrategyScriptId"
         :can-add="form.canAddSignalSource.value"
         :signal-source-limit="form.signalSourceLimit"
         :shortage="shortage"
@@ -320,13 +287,14 @@ function onSave() {
           aria-hidden="true"
         >
           <span class="workbench__connector-label">
-            {{ CONNECTOR_WORDS[conditionSide.key] }}
+            {{ conditionSide.connectorWord }}
           </span>
         </div>
 
         <TradingStrategyConditionCard
           :side="conditionSide.key"
           :heading="conditionSide.heading"
+          :tone="conditionSide.tone"
           :board="conditionSide.board.value"
           :source-labels="form.sourceLabels.value"
           :signal-options="form.signalOptions"
@@ -336,11 +304,13 @@ function onSave() {
           @close="selectedStep = null"
           @change-operator="conditionSide.changeOperator"
           @change-bundle-operator="conditionSide.changeBundleOperator"
-          @add-clause="(sourceLabel, signal) => addClause(conditionSide.key, sourceLabel, signal)"
+          @add-clause="conditionSide.addClause"
           @toggle-signal="conditionSide.toggleSignal"
           @take-off="conditionSide.takeOff"
           @bundle-onto="conditionSide.bundleOnto"
+          @bundle-with="conditionSide.bundleWith"
           @unbundle="conditionSide.unbundle"
+          @split-bundle="conditionSide.splitBundle"
           @place-at="conditionSide.placeAt"
         />
       </template>
