@@ -26,5 +26,9 @@ export class StrategyBotPageDto {
     public readonly picksContractTradingSymbol: boolean,
     /** 建議部位多一格槓桿倍數。現貨機器人沒有——現貨沒有人借錢給你。 */
     public readonly takesLeverage: boolean,
+    /** 這一種機器人跟得了的交易策略叫什麼：「K 線交易策略」或「合約交易策略」。 */
+    public readonly tradingStrategyLabel: string,
+    /** 一份都沒有時，去拼一份要多交代的那一句；不必交代時是空字串。 */
+    public readonly tradingStrategyCreateHint: string,
   ) {}
 }

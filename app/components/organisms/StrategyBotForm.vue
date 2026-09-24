@@ -114,11 +114,11 @@ function onSave() {
         tone="info"
         data-testid="bot-no-trading-strategies"
       >
-        還沒有任何交易策略。
+        還沒有任何{{ page.tradingStrategyLabel }}。
         <NuxtLink to="/trading-strategies/new">
           先去拼一份
         </NuxtLink>
-        ，機器人才知道要照什麼判斷。
+        {{ page.tradingStrategyCreateHint }}，機器人才知道要照什麼判斷。
       </AppAlert>
     </label>
 

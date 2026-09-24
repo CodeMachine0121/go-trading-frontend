@@ -407,3 +407,29 @@ describe('StrategyBotForm 在合約那一頁', () => {
     expect(saved.triggerIntervalMinutes).toBe(15)
   })
 })
+
+describe('StrategyBotForm 一份交易策略都沒有時，說的是這一種', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const, says: 'K 線交易策略', hint: null },
+    { marketDataKind: 'contractKCandle' as const, says: '合約交易策略', hint: '行情種類選「合約行情」' },
+  ])('$marketDataKind 那一頁說「$says」', async ({ marketDataKind, says, hint }) => {
+    const wrapper = mountForm({
+      editing: null,
+      marketDataKind,
+      tradingStrategyOptions: [],
+      tradingSymbolApplication: marketDataKind === 'contractKCandle' ? contractSymbolApplication() : undefined,
+    })
+    await flushPromises()
+
+    const notice = wrapper.get('[data-testid="bot-no-trading-strategies"]')
+    expect(notice.text()).toContain('還沒有任何')
+    expect(notice.text()).toContain(says)
+    expect(notice.find('a').attributes('href')).toBe('/trading-strategies/new')
+    if (hint === null) {
+      expect(notice.text()).not.toContain('合約行情')
+    }
+    else {
+      expect(notice.text()).toContain(hint)
+    }
+  })
+})

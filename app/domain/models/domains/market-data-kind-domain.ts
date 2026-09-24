@@ -34,6 +34,8 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         emptyNotice: string
         symbolSuffix: string
         takesLeverage: boolean
+        tradingStrategyLabel: string
+        tradingStrategyCreateHint: string
       }
     }
   >
@@ -58,6 +60,9 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       emptyNotice: '還沒有任何現貨機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，在訊號變了的時候傳訊息給你。',
       symbolSuffix: '',
       takesLeverage: false,
+      tradingStrategyLabel: 'K 線交易策略',
+      // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
+      tradingStrategyCreateHint: '',
     },
   },
   contractKCandle: {
@@ -90,6 +95,9 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       emptyNotice: '還沒有任何合約機器人。拼一台之後，它會每隔幾分鐘自己看一次永續合約，在訊號變了的時候傳訊息給你。',
       symbolSuffix: ' 永續合約',
       takesLeverage: true,
+      tradingStrategyLabel: '合約交易策略',
+      // 新拼一份交易策略預設是 K 線，所以要說出那一格該選哪一個，否則拼好了這裡還是挑不到。
+      tradingStrategyCreateHint: '（行情種類選「合約行情」）',
     },
   },
 }
@@ -156,6 +164,8 @@ export class MarketDataKindDomain {
       page.emptyNotice,
       description.picksContractTradingSymbol,
       page.takesLeverage,
+      page.tradingStrategyLabel,
+      page.tradingStrategyCreateHint,
     )
   }
 
