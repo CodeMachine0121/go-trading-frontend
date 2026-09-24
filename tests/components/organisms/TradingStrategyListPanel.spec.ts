@@ -155,7 +155,7 @@ describe('TradingStrategyListPanel 標出每一份吃的行情', () => {
         new TradingStrategyDto(
           1, '黃金交叉', [], null, null, marketDataKind, label,
           tradingModeLabel === null ? null : 'longOnly', tradingModeLabel,
-          marketDataKind === 'contractKCandle', marketDataKind === 'kCandle'),
+          marketDataKind === 'contractKCandle'),
       ]),
     })
     await flushPromises()

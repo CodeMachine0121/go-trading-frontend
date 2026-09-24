@@ -26,7 +26,5 @@ export class TradingStrategyDto {
     public readonly tradingModeLabel: string | null = null,
     /** 重演它是在合約帳戶上重演。 */
     public readonly replaysOnContractAccount: boolean = false,
-    /** 策略機器人跟得了它——機器人目前只跑 K 線。 */
-    public readonly followableByStrategyBot: boolean = true,
   ) {}
 }

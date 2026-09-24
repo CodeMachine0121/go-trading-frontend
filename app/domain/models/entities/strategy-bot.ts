@@ -2,6 +2,7 @@ import { StrategyBotDomain } from '~/domain/models/domains/strategy-bot-domain'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * Entity：後端那一台機器人的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -36,6 +37,8 @@ export class StrategyBot {
      * 押的錢與能忍的幅度本來就不同，那是機器的事。
      */
     public readonly positionPlan: PositionPlanDto | null,
+    /** 現貨機器人（K 線）或合約機器人（合約行情）。舊版後端沒說的一律是現貨。 */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
   ) {}
 
   toDomain(): StrategyBotDomain {

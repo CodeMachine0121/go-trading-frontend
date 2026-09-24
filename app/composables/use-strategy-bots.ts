@@ -2,6 +2,7 @@ import type { StrategyBotApplication } from '~/application/strategy-bot-applicat
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 機器人清單這一整塊的狀態與動作。
@@ -9,7 +10,11 @@ import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configu
  * 它**只問機器人那一條線**。挑策略腳本、宣告來源、拼條件現在住在工作台那一頁，
  * 所以這裡不再去撈可用策略腳本——一份沒有人會看的清單，是在為一個已經搬走的畫面付錢。
  */
-export function useStrategyBots(strategyBotApplication: StrategyBotApplication) {
+export function useStrategyBots(
+  strategyBotApplication: StrategyBotApplication,
+  /** 這一頁列的是哪一種機器人：現貨的畫面看不到合約機器人，反之亦然。 */
+  marketDataKind: MarketDataKind,
+) {
   const strategyBots = ref<StrategyBotDto[]>([])
 
   const loading = ref(false)
@@ -45,7 +50,7 @@ export function useStrategyBots(strategyBotApplication: StrategyBotApplication) 
     failureMessage.value = ''
 
     try {
-      strategyBots.value = await strategyBotApplication.listStrategyBots()
+      strategyBots.value = await strategyBotApplication.listStrategyBots(marketDataKind)
     }
     catch (error: unknown) {
       failureMessage.value = messageOf(error)

@@ -6,6 +6,8 @@ import type { StrategyBotApplication } from '~/application/strategy-bot-applicat
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 function runningState() {
   return new StrategyBotRunStateDto(
@@ -31,7 +33,10 @@ function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   )
 }
 
-function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
+function mountPanel(
+  overrides: Partial<StrategyBotApplication> = {},
+  marketDataKind: MarketDataKind = 'kCandle',
+) {
   const strategyBotApplication = {
     listStrategyBots: vi.fn().mockResolvedValue([]),
     listRunRecords: vi.fn().mockResolvedValue([]),
@@ -47,6 +52,7 @@ function mountPanel(overrides: Partial<StrategyBotApplication> = {}) {
   const wrapper = mount(StrategyBotListPanel, {
     props: {
       strategyBotApplication: strategyBotApplication as unknown as StrategyBotApplication,
+      page: new MarketDataKindDomain(marketDataKind).toStrategyBotPageDto(),
       timeZoneIdentifier: 'Asia/Taipei',
     },
     // 連結要照樣渲染出 href：那正是這幾條測試在問的事。
@@ -61,7 +67,7 @@ describe('StrategyBotListPanel 的清單', () => {
     const { wrapper } = mountPanel()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="bot-list-empty"]').text()).toContain('還沒有任何機器人')
+    expect(wrapper.get('[data-testid="bot-list-empty"]').text()).toContain('還沒有任何現貨機器人')
     expect(wrapper.findAll('[data-testid="bot-row"]')).toHaveLength(0)
   })
 
@@ -335,5 +341,41 @@ describe('StrategyBotListPanel 上那一句「存好了」', () => {
 
     expect(headline.get('.strategy-bot-list__name').text()).toBe('早盤突破')
     expect(headline.text()).toContain('執行中')
+  })
+})
+
+describe('StrategyBotListPanel 在合約那一頁', () => {
+  function contractBot(leverageLabel: string | null) {
+    return new StrategyBotDto(
+      8, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉', stoppedState(), null,
+      'contractKCandle', 'BTCUSDT 永續合約', leverageLabel, '/contract-strategy-bots/8')
+  }
+
+  it('只向後端要合約機器人', async () => {
+    const { strategyBotApplication } = mountPanel({}, 'contractKCandle')
+    await flushPromises()
+
+    expect(strategyBotApplication.listStrategyBots).toHaveBeenCalledWith('contractKCandle')
+  })
+
+  it.each([
+    { leverageLabel: '5 倍', expected: 'BTCUSDT 永續合約 · 每 5 分鐘 · 5 倍' },
+    { leverageLabel: null, expected: 'BTCUSDT 永續合約 · 每 5 分鐘' },
+  ])('一列寫著「$expected」', async ({ leverageLabel, expected }) => {
+    const { wrapper } = mountPanel(
+      { listStrategyBots: vi.fn().mockResolvedValue([contractBot(leverageLabel)]) }, 'contractKCandle')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-row"]').text()).toContain(expected)
+    expect(wrapper.get('[data-testid="bot-edit"]').attributes('href')).toBe('/contract-strategy-bots/8')
+  })
+
+  it('一台都沒有時說還沒有合約機器人，拼一台的入口是合約那一條', async () => {
+    const { wrapper } = mountPanel({}, 'contractKCandle')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-list-empty"]').text()).toContain('還沒有任何合約機器人')
+    expect(wrapper.get('[data-testid="bot-create"]').attributes('href')).toBe('/contract-strategy-bots/new')
+    expect(wrapper.get('[data-testid="bot-create"]').text()).toContain('拼一台合約機器人')
   })
 })

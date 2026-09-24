@@ -14,5 +14,8 @@ const strategyBotId = computed(() => {
 </script>
 
 <template>
-  <StrategyBotWorkbenchPage :strategy-bot-id="strategyBotId" />
+  <StrategyBotWorkbenchPage
+    :strategy-bot-id="strategyBotId"
+    market-data-kind="kCandle"
+  />
 </template>

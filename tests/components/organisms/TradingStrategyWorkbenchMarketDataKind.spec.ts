@@ -20,7 +20,7 @@ function storedStrategy(marketDataKind: 'kCandle' | 'contractKCandle') {
     new TradingStrategyConditionDto('b', null, [], 'A', 'buy'),
     new TradingStrategyConditionDto('s', null, [], 'A', 'sell'),
     marketDataKind, contract ? '合約行情' : 'K 線',
-    contract ? 'shortOnly' : null, contract ? '只做空' : null, contract, !contract)
+    contract ? 'shortOnly' : null, contract ? '只做空' : null, contract)
 }
 
 function mountWorkbench(editing: TradingStrategyDto | null) {

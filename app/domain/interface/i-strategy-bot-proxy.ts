@@ -1,6 +1,7 @@
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 介面：取得與操作策略機器人的能力。
@@ -10,8 +11,8 @@ import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bo
  * 停止只有一種。一個共用的方法會讓呼叫端從一堆錯誤裡分辨哪幾種只對啟動有意義。
  */
 export interface IStrategyBotProxy {
-  /** 自己的每一台，順序照後端交出的樣子——這一側不重排。 */
-  listStrategyBots(): Promise<StrategyBot[]>
+  /** 自己的這一種（現貨或合約）的每一台，順序照後端交出的樣子——這一側不重排、也不再篩。 */
+  listStrategyBots(marketDataKind: MarketDataKind): Promise<StrategyBot[]>
 
   /** 指名一台。看不到時拋 StrategyBotNotFoundError。 */
   getStrategyBot(id: number): Promise<StrategyBot>

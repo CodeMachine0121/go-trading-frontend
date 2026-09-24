@@ -4,6 +4,9 @@ import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-error'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * Domain Service：策略機器人的編排。
@@ -12,11 +15,16 @@ import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-
 export class StrategyBotService {
   constructor(private readonly strategyBotProxy: IStrategyBotProxy) {}
 
-  /** 自己的每一台。一台都沒有是答案，不是錯誤。 */
-  async listStrategyBots(): Promise<StrategyBotDto[]> {
-    const bots = await this.strategyBotProxy.listStrategyBots()
+  /** 自己的這一種的每一台。一台都沒有是答案，不是錯誤。 */
+  async listStrategyBots(marketDataKind: MarketDataKind): Promise<StrategyBotDto[]> {
+    const bots = await this.strategyBotProxy.listStrategyBots(marketDataKind)
 
     return bots.map(bot => bot.toDomain().toDto())
+  }
+
+  /** 這一種機器人的畫面長什麼樣。 */
+  pageFor(marketDataKind: MarketDataKind): StrategyBotPageDto {
+    return new MarketDataKindDomain(marketDataKind).toStrategyBotPageDto()
   }
 
   async getStrategyBot(id: number): Promise<StrategyBotDto> {

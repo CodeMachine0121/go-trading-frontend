@@ -4,28 +4,37 @@ import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 const strategyBotApplication = {
   getStrategyBot: vi.fn(),
   saveStrategyBot: vi.fn(),
+  pageFor: vi.fn((marketDataKind: MarketDataKind) =>
+    new MarketDataKindDomain(marketDataKind).toStrategyBotPageDto()),
 }
 
-const tradingStrategyApplication = { listTradingStrategies: vi.fn() }
+const tradingStrategyApplication = { listTradingStrategiesFollowableBy: vi.fn() }
 
-function botDto(id: number) {
+function botDto(id: number, marketDataKind: MarketDataKind = 'kCandle') {
   return new StrategyBotDto(
     id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
       false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
     null,
+    marketDataKind,
+    'BTCUSDT',
+    null,
+    marketDataKind === 'kCandle' ? `/strategy-bots/${id}` : `/contract-strategy-bots/${id}`,
   )
 }
 
-function workbenchUnderTest(strategyBotId: number | null) {
+function workbenchUnderTest(strategyBotId: number | null, marketDataKind: MarketDataKind = 'kCandle') {
   return useStrategyBotWorkbench(
     strategyBotApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[0],
     tradingStrategyApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[1],
     strategyBotId,
+    marketDataKind,
   )
 }
 
@@ -37,7 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7))
   strategyBotApplication.saveStrategyBot.mockResolvedValue(botDto(7))
-  tradingStrategyApplication.listTradingStrategies.mockResolvedValue([
+  tradingStrategyApplication.listTradingStrategiesFollowableBy.mockResolvedValue([
     new TradingStrategyDto(9, '黃金交叉', [], null, null),
     new TradingStrategyDto(10, '死亡交叉', [], null, null),
   ])
@@ -66,12 +75,12 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     const workbench = workbenchUnderTest(7)
     await workbench.load()
 
-    expect(tradingStrategyApplication.listTradingStrategies).toHaveBeenCalledTimes(1)
+    expect(tradingStrategyApplication.listTradingStrategiesFollowableBy).toHaveBeenCalledTimes(1)
     expect(workbench.tradingStrategyOptions.value[0]).toEqual({ value: 9, label: '黃金交叉' })
   })
 
   it('一份交易策略都還沒有時是一份空的選項，不是一個錯誤', async () => {
-    tradingStrategyApplication.listTradingStrategies.mockResolvedValue([])
+    tradingStrategyApplication.listTradingStrategiesFollowableBy.mockResolvedValue([])
 
     const workbench = workbenchUnderTest(null)
     await workbench.load()
@@ -92,7 +101,7 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
   it('新拼一台時讀不到交易策略清單不算「那一台不見了」', async () => {
     // 找不到那一台的下一步是回清單，讀不到清單的下一步是再試一次。
     // 分不出來的話，使用者會被送回一張他根本沒有要離開的清單。
-    tradingStrategyApplication.listTradingStrategies.mockRejectedValue(new Error('連不上'))
+    tradingStrategyApplication.listTradingStrategiesFollowableBy.mockRejectedValue(new Error('連不上'))
 
     const workbench = workbenchUnderTest(null)
     await workbench.load()
@@ -133,17 +142,39 @@ describe('useStrategyBotWorkbench 存回去', () => {
   })
 })
 
-describe('useStrategyBotWorkbench 只列機器人跟得了的交易策略', () => {
-  it('一份合約交易策略不出現在選項裡——機器人目前只跑 K 線', async () => {
-    tradingStrategyApplication.listTradingStrategies.mockResolvedValue([
-      new TradingStrategyDto(9, '黃金交叉', [], null, null),
-      new TradingStrategyDto(
-        11, '費率反轉', [], null, null, 'contractKCandle', '合約行情', 'longShort', '多空反手', true, false),
-    ])
-
-    const workbench = workbenchUnderTest(null)
+describe('useStrategyBotWorkbench 只拼這一種機器人', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const },
+    { marketDataKind: 'contractKCandle' as const },
+  ])('$marketDataKind 那一頁只向交易策略要這一種機器人跟得了的', async ({ marketDataKind }) => {
+    const workbench = workbenchUnderTest(null, marketDataKind)
     await workbench.load()
 
-    expect(workbench.tradingStrategyOptions.value).toEqual([{ value: 9, label: '黃金交叉' }])
+    expect(tradingStrategyApplication.listTradingStrategiesFollowableBy).toHaveBeenCalledWith(marketDataKind)
+  })
+
+  it('從現貨那一頁打開一台合約機器人，被送到它自己的編輯頁、不在這一頁改它', async () => {
+    strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7, 'contractKCandle'))
+
+    const workbench = workbenchUnderTest(7, 'kCandle')
+    await workbench.load()
+
+    expect(workbench.redirectPath.value).toBe('/contract-strategy-bots/7')
+    expect(workbench.editing.value).toBeNull()
+  })
+
+  it('打開的是同一種機器人時不送走', async () => {
+    strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7, 'contractKCandle'))
+
+    const workbench = workbenchUnderTest(7, 'contractKCandle')
+    await workbench.load()
+
+    expect(workbench.redirectPath.value).toBeNull()
+    expect(workbench.editing.value?.id).toBe(7)
+  })
+
+  it('這一頁的樣子由那一種說：合約那一頁存好回到合約清單', () => {
+    expect(workbenchUnderTest(null, 'contractKCandle').page.listPath).toBe('/contract-strategy-bots')
+    expect(workbenchUnderTest(null, 'kCandle').page.listPath).toBe('/strategy-bots')
   })
 })

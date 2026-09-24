@@ -4,6 +4,8 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
+import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
+import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -23,9 +25,11 @@ import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
 // 而多數人在開一台機器人的那一刻還沒決定要押多少。
 // 那個區塊的開合不只是顯示——**收著就是不建議部位**，
 // 因為使用者看得到的就是他要送的。
-const { editing, tradingStrategyOptions, saving, failureMessage } = defineProps<{
+const { editing, page, tradingStrategyOptions, saving, failureMessage } = defineProps<{
   /** 有值就是改那一台，沒有就是新的一台。 */
   editing: StrategyBotDto | null
+  /** 這一頁拼的是哪一種機器人：標的從哪一份清單挑、收不收槓桿。 */
+  page: StrategyBotPageDto
   tradingSymbolApplication: TradingSymbolApplication
   /** 自己的每一份交易策略，依名稱排。**空的是一種狀態**，不是一個空選單。 */
   tradingStrategyOptions: readonly { value: number, label: string }[]
@@ -41,7 +45,7 @@ const emit = defineEmits<{
   dirtyChange: [dirty: boolean]
 }>()
 
-const form = useStrategyBotForm(() => editing)
+const form = useStrategyBotForm(() => editing, page)
 
 form.reset()
 
@@ -118,7 +122,20 @@ function onSave() {
       </AppAlert>
     </label>
 
-    <label class="bot-form__field">
+    <!--
+      合約機器人從合約標的清單挑，而且只列合約追蹤名單上的：同一個名字在兩條線上是兩個商品，
+      而交易服務只讓合約機器人盯正在追蹤的合約。
+    -->
+    <ContractSymbolField
+      v-if="page.picksContractTradingSymbol"
+      v-model="form.symbol.value"
+      :trading-symbol-application="tradingSymbolApplication"
+      watched-only
+    />
+    <label
+      v-else
+      class="bot-form__field"
+    >
       <span class="bot-form__field-name">盯哪一個交易標的</span>
       <SymbolField
         v-model="form.symbol.value"
@@ -155,6 +172,21 @@ function onSave() {
         class="bot-form__plan-fields"
         data-testid="bot-position-plan-fields"
       >
+        <!-- 只有合約機器人有：現貨沒有人借錢給你。 -->
+        <label
+          v-if="form.takesLeverage"
+          class="bot-form__field"
+        >
+          <span class="bot-form__field-name">槓桿倍數（留空就是一倍）</span>
+          <AppInput
+            v-model="form.leverageText.value"
+            type="number"
+            inputmode="decimal"
+            placeholder="1"
+            data-testid="bot-position-leverage-input"
+          />
+        </label>
+
         <label class="bot-form__field">
           <span class="bot-form__field-name">部位資金</span>
           <AppInput

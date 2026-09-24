@@ -15,6 +15,8 @@ import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-ha
 import Decimal from 'decimal.js'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 const STRATEGY_BOTS_ENDPOINT = '/strategy-bots'
 
@@ -50,13 +52,25 @@ type StrategyBotRunRecordWire = {
   suggestedTakeProfitPrice?: string | null
 }
 
-/** 後端回來的那一組部位規劃。整組可以沒有——那台機器人就是不建議部位。 */
+/**
+ * 後端回來的那一組部位規劃。整組可以沒有——那台機器人就是不建議部位。
+ *
+ * 首字大寫的那一組是舊版後端的拼法：它曾經把這一組以欄位原名交出來，
+ * 而這一側一直照小寫讀，於是讀到的永遠是空的。兩種都認，後端換成一致的拼法前後都讀得到。
+ */
 type PositionPlanWire = {
   capital?: string | null
   sizingMode?: string | null
   sizingValue?: string | null
   stopLossPercentage?: string | null
   takeProfitPercentage?: string | null
+  /** 只有合約機器人有。 */
+  leverage?: string | null
+  Capital?: string | null
+  SizingMode?: string | null
+  SizingValue?: string | null
+  StopLossPercentage?: string | null
+  TakeProfitPercentage?: string | null
 }
 
 type StrategyBotWire = {
@@ -71,6 +85,8 @@ type StrategyBotWire = {
   haltReason?: string
   conflicting?: boolean
   positionPlan?: PositionPlanWire | null
+  /** 舊版後端不回，那一台就是現貨機器人。 */
+  marketDataKind?: string
 }
 
 /**
@@ -81,8 +97,10 @@ type StrategyBotWire = {
  * 就沒有人知道該往哪走。
  */
 export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotProxy {
-  async listStrategyBots(): Promise<StrategyBot[]> {
-    const botsWire = await this.requestBackend<StrategyBotWire[]>(STRATEGY_BOTS_ENDPOINT)
+  async listStrategyBots(marketDataKind: MarketDataKind): Promise<StrategyBot[]> {
+    // 只請後端交出這一種：篩選是它的規則，這一側不再篩一次。
+    const botsWire = await this.requestBackend<StrategyBotWire[]>(
+      STRATEGY_BOTS_ENDPOINT, { query: { marketDataKind } })
 
     return (botsWire ?? []).map(botWire => this.toStrategyBot(botWire))
   }
@@ -219,6 +237,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       symbol: writeDto.symbol,
       tradingStrategyId: writeDto.tradingStrategyId,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
+      marketDataKind: writeDto.marketDataKind,
     }
 
     // 沒有部位規劃就**整個鍵都不放**，而不是放一組零。
@@ -232,6 +251,10 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         sizingValue: writeDto.positionPlan.sizingValue.toString(),
         stopLossPercentage: writeDto.positionPlan.stopLossPercentage.toString(),
         takeProfitPercentage: writeDto.positionPlan.takeProfitPercentage.toString(),
+        // 現貨機器人沒有這一格，整個鍵都不放：送一個 1 過去，讀的人會以為現貨也談得到槓桿。
+        ...(writeDto.positionPlan.leverage === null
+          ? {}
+          : { leverage: writeDto.positionPlan.leverage.toString() }),
       }
     }
 
@@ -245,8 +268,11 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
    * 這一側照它講而不是再定一條。一個還沒認得這個欄位的後端不回它，
    * 而那也讀作 `null`。
    */
-  private toPositionPlan(positionPlanWire?: PositionPlanWire | null): PositionPlanDto | null {
-    const capital = new Decimal(positionPlanWire?.capital ?? 0)
+  private toPositionPlan(
+    marketDataKind: MarketDataKindDomain,
+    positionPlanWire?: PositionPlanWire | null,
+  ): PositionPlanDto | null {
+    const capital = new Decimal(positionPlanWire?.capital ?? positionPlanWire?.Capital ?? 0)
     // 大於零，不是 `isPositive()`：decimal.js 的零是正的，
     // 而零正是後端表示「沒有部位規劃」的方式。
     if (!capital.greaterThan(0)) {
@@ -255,10 +281,14 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
 
     return new PositionPlanDto(
       capital,
-      (positionPlanWire?.sizingMode ?? 'allIn') as PositionSizingMode,
-      new Decimal(positionPlanWire?.sizingValue ?? 0),
-      new Decimal(positionPlanWire?.stopLossPercentage ?? 0),
-      new Decimal(positionPlanWire?.takeProfitPercentage ?? 0),
+      (positionPlanWire?.sizingMode || positionPlanWire?.SizingMode || 'allIn') as PositionSizingMode,
+      new Decimal(positionPlanWire?.sizingValue ?? positionPlanWire?.SizingValue ?? 0),
+      new Decimal(positionPlanWire?.stopLossPercentage ?? positionPlanWire?.StopLossPercentage ?? 0),
+      new Decimal(positionPlanWire?.takeProfitPercentage ?? positionPlanWire?.TakeProfitPercentage ?? 0),
+      // 合約機器人沒回槓桿就是一倍（後端的讀法）；現貨機器人一律沒有這一格。
+      marketDataKind.toStrategyBotPageDto().takesLeverage
+        ? new Decimal(positionPlanWire?.leverage ?? 1)
+        : null,
     )
   }
 
@@ -268,6 +298,8 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
   }
 
   private toStrategyBot(botWire: StrategyBotWire): StrategyBot {
+    const marketDataKind = new MarketDataKindDomain(botWire.marketDataKind ?? '')
+
     return new StrategyBot(
       botWire.id,
       botWire.name,
@@ -281,7 +313,8 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         ? null
         : botWire.haltReason as StrategyBotHaltReasonVo,
       botWire.conflicting ?? false,
-      this.toPositionPlan(botWire.positionPlan),
+      this.toPositionPlan(marketDataKind, botWire.positionPlan),
+      marketDataKind.value,
     )
   }
 }

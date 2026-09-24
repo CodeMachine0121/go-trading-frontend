@@ -1,6 +1,6 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
@@ -8,6 +8,11 @@ import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-app
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import Decimal from 'decimal.js'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
+import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 
 function aStoredBot(positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotDto(
@@ -21,11 +26,14 @@ function aStoredBot(positionPlan: PositionPlanDto | null = null) {
 function mountForm(overrides: {
   editing?: StrategyBotDto | null
   tradingStrategyOptions?: { value: number, label: string }[]
+  marketDataKind?: MarketDataKind
+  tradingSymbolApplication?: TradingSymbolApplication
 } = {}) {
   return mount(StrategyBotForm, {
     props: {
       editing: 'editing' in overrides ? overrides.editing! : aStoredBot(),
-      tradingSymbolApplication: buildTradingSymbolApplication(),
+      page: new MarketDataKindDomain(overrides.marketDataKind ?? 'kCandle').toStrategyBotPageDto(),
+      tradingSymbolApplication: overrides.tradingSymbolApplication ?? buildTradingSymbolApplication(),
       tradingStrategyOptions: overrides.tradingStrategyOptions
         ?? [{ value: 9, label: '黃金交叉' }, { value: 10, label: '死亡交叉' }],
       saving: false,
@@ -185,7 +193,7 @@ describe('StrategyBotForm 的建議部位', () => {
       '[data-testid="bot-position-stop-loss-input"]').element.value).toBe('3')
   })
 
-  it('展開之後也沒有槓桿那一格，四格送出去的就是那四格', async () => {
+  it('現貨機器人展開之後也沒有槓桿那一格，送出去的沒有槓桿', async () => {
     // 這一格拿掉時，讀它的那個案例是被**刪掉**的，不是被反轉的——而刪掉的
     // 斷言是沉默：任何人把輸入框放回來，這個檔案仍然全綠，而送出去的機器人
     // 會帶著一個後端只會拿來拒絕的數字。
@@ -204,7 +212,7 @@ describe('StrategyBotForm 的建議部位', () => {
     expect(positionPlan?.sizingValue.toString()).toBe('10')
     expect(positionPlan?.stopLossPercentage.toString()).toBe('3')
     expect(positionPlan?.takeProfitPercentage.toString()).toBe('5')
-    expect(Object.keys(positionPlan ?? {})).not.toContain('leverage')
+    expect(positionPlan?.leverage).toBeNull()
   })
 
   it('按一下就展開', async () => {
@@ -275,5 +283,93 @@ describe('StrategyBotForm 的建議部位', () => {
     await wrapper.get('[data-testid="bot-position-stop-loss-input"]').setValue('4')
 
     expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+  })
+})
+
+/** 合約標的清單：BTCUSDT 在合約追蹤名單上、DOGEUSDT 不在。 */
+function contractSymbolApplication() {
+  return new TradingSymbolApplication(new TradingSymbolService(
+    { findTradingSymbols: vi.fn().mockResolvedValue([]) },
+    buildContractTradingSymbolProxy([
+      buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('DOGEUSDT', false)])))
+}
+
+function aContractBot(positionPlan: PositionPlanDto | null) {
+  return new StrategyBotDto(
+    7, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉',
+    new StrategyBotRunStateDto(
+      false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+    positionPlan, 'contractKCandle', 'BTCUSDT 永續合約', null, '/contract-strategy-bots/7')
+}
+
+describe('StrategyBotForm 在合約那一頁', () => {
+  it('標的從合約清單挑，而且只列合約追蹤名單上的', async () => {
+    const wrapper = mountForm({
+      editing: null, marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await flushPromises()
+
+    const options = wrapper.get('[data-testid="contract-symbol-select"]').findAll('option')
+    expect(options.map(option => option.text())).toEqual(['BTCUSDT'])
+  })
+
+  it('建議部位多一格槓桿倍數；現貨那一頁沒有', async () => {
+    const contract = mountForm({ editing: null, marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await contract.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+    const spot = mountForm({ editing: null })
+    await spot.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+
+    expect(contract.find('[data-testid="bot-position-leverage-input"]').exists()).toBe(true)
+    expect(spot.find('[data-testid="bot-position-leverage-input"]').exists()).toBe(false)
+  })
+
+  it.each([
+    { typed: '5', sent: '5' },
+    { typed: '', sent: '1' },
+  ])('槓桿填「$typed」送出去的是一台 $sent 倍的合約機器人', async ({ typed, sent }) => {
+    const wrapper = mountForm({
+      editing: null, marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-name-input"]').setValue('費率反轉')
+    await wrapper.get('[data-testid="bot-trading-strategy-select"]').setValue('9')
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+    await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('1000')
+    await wrapper.get('[data-testid="bot-position-sizing-mode-select"]').setValue('allIn')
+    await wrapper.get('[data-testid="bot-position-leverage-input"]').setValue(typed)
+
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
+    expect(saved.marketDataKind).toBe('contractKCandle')
+    expect(saved.symbol).toBe('BTCUSDT')
+    expect(saved.positionPlan?.leverage?.toString()).toBe(sent)
+  })
+
+  it('槓桿小於一時儲存不給按，並說出理由', async () => {
+    const wrapper = mountForm({
+      editing: null, marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-name-input"]').setValue('費率反轉')
+    await wrapper.get('[data-testid="bot-trading-strategy-select"]').setValue('9')
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+    await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('1000')
+    await wrapper.get('[data-testid="bot-position-sizing-mode-select"]').setValue('allIn')
+    await wrapper.get('[data-testid="bot-position-leverage-input"]').setValue('0.5')
+
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toBe('槓桿倍數不得小於 1 倍')
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('打開一台 5 倍的合約機器人，建議部位展開、填著部位資金與槓桿', async () => {
+    const wrapper = mountForm({
+      editing: aContractBot(new PositionPlanDto(
+        new Decimal(1000), 'allIn', new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(5))),
+      marketDataKind: 'contractKCandle',
+      tradingSymbolApplication: contractSymbolApplication(),
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(true)
+    expect(wrapper.get<HTMLInputElement>('[data-testid="bot-position-capital-input"]').element.value).toBe('1000')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="bot-position-leverage-input"]').element.value).toBe('5')
   })
 })

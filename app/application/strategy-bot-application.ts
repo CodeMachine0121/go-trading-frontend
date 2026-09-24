@@ -2,13 +2,19 @@ import type { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /** Application：策略機器人的用例編排，全程只碰 DTO。 */
 export class StrategyBotApplication {
   constructor(private readonly strategyBotService: StrategyBotService) {}
 
-  async listStrategyBots(): Promise<StrategyBotDto[]> {
-    return this.strategyBotService.listStrategyBots()
+  async listStrategyBots(marketDataKind: MarketDataKind): Promise<StrategyBotDto[]> {
+    return this.strategyBotService.listStrategyBots(marketDataKind)
+  }
+
+  pageFor(marketDataKind: MarketDataKind): StrategyBotPageDto {
+    return this.strategyBotService.pageFor(marketDataKind)
   }
 
   async getStrategyBot(id: number): Promise<StrategyBotDto> {
