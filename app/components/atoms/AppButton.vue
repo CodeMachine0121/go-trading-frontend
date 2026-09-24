@@ -17,15 +17,11 @@ type ButtonSize = 'small' | 'medium' | 'large'
  * 這顆按鈕的外形。
  *
  * `default` 是這個操作台的角——圓得剛好看得出是圓的，不多。
- * `pill` 與 `circle` 是給**對話介面**用的：一句可以點的建議提問是一枚籌碼，
- * 而一顆只放一個圖示、不帶任何文字的小鍵是一個圓。
- * `squircle` 是給**浮在所有內容之上、自己站著的那一枚**用的：
- * 角收得很圓但仍然是方的，於是它與這個終端機介面的面板是同一種語言——
- * 一個正圓會像有人把一顆球忘在畫面上。
+ * `pill` 是一枚籌碼：一句可以點的建議提問、頂列的助手鍵。
  *
- * 它是互斥的外觀，所以是一組列舉而不是幾個布林——`pill` 與 `circle` 同時為真是無意義狀態。
+ * 它是互斥的外觀，所以是一組列舉而不是幾個布林。
  */
-type ButtonShape = 'default' | 'pill' | 'circle' | 'squircle'
+type ButtonShape = 'default' | 'pill'
 
 const { variant = 'primary', size = 'medium', shape = 'default', block = false, label, to } = defineProps<{
   variant?: ButtonVariant
@@ -133,17 +129,6 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
   // 前者給圓角、後者給等寬高，兩個都要。
   &--pill {
     border-radius: radius('pill');
-  }
-
-  &--circle {
-    aspect-ratio: 1;
-    border-radius: radius('pill');
-  }
-
-  // 大圓角的方塊。它不與 `--labelled` 相乘拿等寬高，因為用它的地方
-  // 自己說得出要多大（那個數字同時被別的規則讀著）。
-  &--squircle {
-    border-radius: radius('2xl');
   }
 
   // 整個畫面上最想被按的那一顆。
