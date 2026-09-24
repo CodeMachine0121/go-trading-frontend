@@ -132,10 +132,15 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     if (requestNumber === latestRequestNumber) {
       drawnRange.value = chartView.drawnRange
 
-      // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉，也不必重新跟。
+      // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         chart.value = chartView.reloadedChart
         followTheMarket(chartView.reloadedChart)
+      }
+      // 手上那批留著、卻沒有在跟：例如先換到一個不在名單上的合約標的（那一條被停掉了），
+      // 圖還沒取回就又換回來——領域說不必重取，但跟盤不能就此斷掉。
+      else if (stopFollowing === null && chart.value !== null) {
+        followTheMarket(chart.value)
       }
     }
   }

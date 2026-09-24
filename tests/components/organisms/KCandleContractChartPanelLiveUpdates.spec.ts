@@ -311,6 +311,37 @@ describe('不知道在不在名單上時照常跟', () => {
   })
 })
 
+describe('換走又換回來', () => {
+  it('換到不在名單上的、圖還沒回來就換回原本那一個：原本那一個接著跟', async () => {
+    const feed = controllableFeed()
+    const findKCandleContractSeries = vi.fn().mockImplementation(({ symbol }: { symbol: string }) => {
+      if (symbol === 'DOGEUSDT') {
+        return new Promise(() => {})
+      }
+
+      return Promise.resolve(new KCandleContractSeriesVo(
+        [buildKCandleContract(symbol, '2026-09-23T11:45:00.000Z', '64000')], aggregationIntervalOf('15m')))
+    })
+    const wrapper = await mountPanel(feed,
+      [buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('DOGEUSDT', false)],
+      findKCandleContractSeries)
+    expect(feed.followKCandles).toHaveBeenCalledTimes(1)
+
+    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('DOGEUSDT')
+    await flushPromises()
+    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('BTCUSDT')
+    await flushPromises()
+
+    expect(feed.followKCandles).toHaveBeenCalledTimes(2)
+    expect(feed.follows.at(-1)!.symbol).toBe('BTCUSDT')
+
+    feed.report('forming', '2026-09-23T12:00:00.000Z', '64050')
+    await flushPromises()
+
+    expect(drawnCloses(wrapper).at(-1)).toBe('64050')
+  })
+})
+
 describe('跟不動時明說', () => {
   it('斷了就說已停止，圖照樣顯示；重新跟上後那一句消失', async () => {
     const feed = controllableFeed()
