@@ -36,4 +36,12 @@ describe('StrategyBotRunSuggestionDomain', () => {
     expect(suggestion.toText())
       .toBe('做空 5 倍 · 保證金 1000.000000000000000001 · 名目 5000.123456789012345678')
   })
+
+  it.each(['sideways', 'constructor', 'toString'])('認不得的方向 %s 不寫，也不把沿著原型找到的東西當方向', (direction) => {
+    const suggestion = new StrategyBotRunRecord(
+      1, new Date('2026-09-24T05:05:00Z'), 'buy',
+      new Decimal(1000), null, null, direction, new Decimal(5), new Decimal(5000)).toSuggestionDomain()
+
+    expect(suggestion.toText()).toBe('5 倍 · 保證金 1000 · 名目 5000')
+  })
 })

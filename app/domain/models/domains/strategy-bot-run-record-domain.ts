@@ -1,6 +1,5 @@
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
-import { StrategyBotRunSuggestionDomain } from '~/domain/models/domains/strategy-bot-run-suggestion-domain'
 
 /**
  * Domain Model：一輪跑過的紀錄對畫面的樣子。
@@ -26,7 +25,7 @@ export class StrategyBotRunRecordDomain {
       this.resultLabel,
       this.resultTone,
       this.runRecord.result === 'conflict',
-      new StrategyBotRunSuggestionDomain(this.runRecord).toText(),
+      this.runRecord.toSuggestionDomain().toText(),
     )
   }
 

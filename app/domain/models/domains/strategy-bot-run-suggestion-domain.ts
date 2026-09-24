@@ -45,8 +45,14 @@ export class StrategyBotRunSuggestionDomain {
         .join(' · ')
     }
 
+    // 只認這張表自己的鍵：沿著原型找到的 `constructor`、`toString` 不是方向。
+    const direction = this.runRecord.suggestedDirection
+    const directionWords = direction !== null && Object.hasOwn(DIRECTION_WORDS, direction)
+      ? DIRECTION_WORDS[direction]
+      : null
+
     const directionAndLeverage = [
-      DIRECTION_WORDS[this.runRecord.suggestedDirection ?? ''] ?? null,
+      directionWords,
       this.runRecord.suggestedLeverage === null
         ? null
         : `${this.runRecord.suggestedLeverage.toString()} 倍`,

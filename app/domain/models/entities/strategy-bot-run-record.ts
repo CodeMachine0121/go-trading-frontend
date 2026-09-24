@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import { StrategyBotRunRecordDomain } from '~/domain/models/domains/strategy-bot-run-record-domain'
+import { StrategyBotRunSuggestionDomain } from '~/domain/models/domains/strategy-bot-run-suggestion-domain'
 
 /**
  * Entity：後端那一輪的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -35,5 +36,9 @@ export class StrategyBotRunRecord {
 
   toDomain(): StrategyBotRunRecordDomain {
     return new StrategyBotRunRecordDomain(this)
+  }
+
+  toSuggestionDomain(): StrategyBotRunSuggestionDomain {
+    return new StrategyBotRunSuggestionDomain(this)
   }
 }
