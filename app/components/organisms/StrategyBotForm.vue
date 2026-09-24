@@ -131,6 +131,7 @@ function onSave() {
       v-model="form.symbol.value"
       :trading-symbol-application="tradingSymbolApplication"
       watched-only
+      :keeps-selection="editing !== null"
     />
     <label
       v-else

@@ -385,4 +385,25 @@ describe('StrategyBotForm 在合約那一頁', () => {
 
     expect((wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto).marketDataKind).toBe('contractKCandle')
   })
+  it('改一台盯著已移出追蹤名單的合約的機器人，只改間隔，送出去的標的不變', async () => {
+    const bot = new StrategyBotDto(
+      7, '費率反轉', 'DOGEUSDT', 5, 11, '費率反轉',
+      new StrategyBotRunStateDto(
+        false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+      null, 'contractKCandle', 'DOGEUSDT 永續合約', null, '/contract-strategy-bots/7')
+    const wrapper = mountForm({
+      editing: bot,
+      marketDataKind: 'contractKCandle',
+      tradingSymbolApplication: contractSymbolApplication(),
+      tradingStrategyOptions: [{ value: 11, label: '費率反轉' }],
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-interval-input"]').setValue('15')
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
+    expect(saved.symbol).toBe('DOGEUSDT')
+    expect(saved.triggerIntervalMinutes).toBe(15)
+  })
 })

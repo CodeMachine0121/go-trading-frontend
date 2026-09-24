@@ -99,3 +99,36 @@ describe('ContractSymbolField', () => {
     expect(optionTexts(wrapper)).toEqual(['（沒有可選的合約）'])
   })
 })
+
+describe('ContractSymbolField 只列追蹤中的、而且改一台已存的機器人時', () => {
+  async function mountWatchedOnly(keepsSelection: boolean, modelValue: string) {
+    const wrapper = mount(ContractSymbolField, {
+      props: {
+        'modelValue': modelValue,
+        'tradingSymbolApplication': buildApplication(buildContractTradingSymbolProxy([
+          buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('ETHUSDT', false),
+        ])),
+        'watchedOnly': true,
+        keepsSelection,
+        'onUpdate:modelValue': (value: string) => wrapper.setProps({ modelValue: value }),
+      },
+    })
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('它盯的合約已被移出追蹤名單：仍選著它、標出不在名單上，不悄悄換成別的合約', async () => {
+    const wrapper = await mountWatchedOnly(true, 'ETHUSDT')
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.get<HTMLSelectElement>('[data-testid="contract-symbol-select"]').element.value).toBe('ETHUSDT')
+    expect(optionTexts(wrapper)).toEqual(['ETHUSDT（不在合約追蹤名單上）', 'BTCUSDT'])
+  })
+
+  it('新拼一台時照舊改選第一個追蹤中的合約', async () => {
+    const wrapper = await mountWatchedOnly(false, 'ETHUSDT')
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['BTCUSDT'])
+  })
+})

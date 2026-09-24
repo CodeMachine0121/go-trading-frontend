@@ -15,11 +15,15 @@ import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trad
  * 使用端只要給 v-model 與 Application，不必各自處理一次。
  * 沒有市場鍵：合約都在同一個全天候的市場。
  */
-const { tradingSymbolApplication, errorMessage = null, watchedOnly = false } = defineProps<{
+const {
+  tradingSymbolApplication, errorMessage = null, watchedOnly = false, keepsSelection = false,
+} = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
   /** 只列合約追蹤名單上的——合約機器人只盯正在追蹤的合約。 */
   watchedOnly?: boolean
+  /** 目前這一個不在清單上也不改選——改一台已存的機器人時，它盯的合約不能被悄悄換掉。 */
+  keepsSelection?: boolean
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -29,7 +33,7 @@ const loading = ref(true)
 const unavailable = ref(false)
 
 const options = computed(() => tradingSymbolApplication.contractOptionsFor(
-  contractTradingSymbols.value, symbol.value, watchedOnly))
+  contractTradingSymbols.value, symbol.value, watchedOnly, keepsSelection))
 
 const hint = computed(() => {
   if (loading.value) {
@@ -83,7 +87,7 @@ onMounted(async () => {
         v-if="!options.options.some(contractTradingSymbol => contractTradingSymbol.symbol === symbol)"
         :value="symbol"
       >
-        {{ symbol === '' ? '（沒有可選的合約）' : symbol }}
+        {{ symbol === '' ? '（沒有可選的合約）' : `${symbol}${watchedOnly ? '（不在合約追蹤名單上）' : ''}` }}
       </option>
       <option
         v-for="contractTradingSymbol in options.options"

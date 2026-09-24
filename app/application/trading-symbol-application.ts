@@ -34,8 +34,9 @@ export class TradingSymbolApplication {
     contractTradingSymbols: readonly ContractTradingSymbolDto[],
     selectedSymbol: string,
     watchedOnly = false,
+    keepsSelection = false,
   ): ContractTradingSymbolOptionsDto {
     return this.tradingSymbolService.contractOptionsFor(
-      contractTradingSymbols, selectedSymbol, watchedOnly)
+      contractTradingSymbols, selectedSymbol, watchedOnly, keepsSelection)
   }
 }

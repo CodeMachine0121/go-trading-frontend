@@ -16,11 +16,15 @@ export class ContractTradingSymbolOptionsDomain {
   /**
    * @param watchedOnly 只列合約追蹤名單上的那幾個。合約機器人只盯正在追蹤的合約——
    *   列出沒在追蹤的，只會換來一個存下時被拒絕的選項。
+   * @param keepsSelection 目前這一個不在清單上也**不改選**。改一台已存的機器人時用：
+   *   它盯的合約後來被移出追蹤名單，替它改選第一個會讓只想改間隔的人把它搬去另一個合約；
+   *   留著它，存下時交易服務那一句拒絕自己說得出原因。
    */
   constructor(
     contractTradingSymbols: readonly ContractTradingSymbolDto[],
     private readonly selectedSymbol: string,
     watchedOnly = false,
+    private readonly keepsSelection = false,
   ) {
     this.contractTradingSymbols = watchedOnly
       ? contractTradingSymbols.filter(contractTradingSymbol => contractTradingSymbol.isWatched)
@@ -31,10 +35,12 @@ export class ContractTradingSymbolOptionsDomain {
     const isListed = this.contractTradingSymbols.some(
       contractTradingSymbol => contractTradingSymbol.symbol === this.selectedSymbol)
 
+    const keepsCurrent = isListed || (this.keepsSelection && this.selectedSymbol !== '')
+
     return new ContractTradingSymbolOptionsDto(
       this.contractTradingSymbols,
       this.contractTradingSymbols.length === 0,
-      isListed
+      keepsCurrent
         ? this.selectedSymbol
         : this.contractTradingSymbols[0]?.symbol ?? this.selectedSymbol,
     )
