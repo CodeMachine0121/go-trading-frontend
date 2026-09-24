@@ -22,6 +22,15 @@ export class StrategyBotRunRecord {
     public readonly suggestedStopLossPrice: Decimal | null,
     /** 那一輪建議的止盈價。沒有設止盈就是 `null`。 */
     public readonly suggestedTakeProfitPrice: Decimal | null,
+    /**
+     * 合約那一輪建議的方向，照後端的拼法（`long`／`short`）。
+     * 現貨、沒有建議、交易所不收的那一輪都是 `null`。
+     */
+    public readonly suggestedDirection: string | null = null,
+    /** 合約那一輪建議的槓桿倍數。只有合約那一輪有。 */
+    public readonly suggestedLeverage: Decimal | null = null,
+    /** 合約那一輪建議的名目（保證金 × 槓桿）。只有合約那一輪有。 */
+    public readonly suggestedNotional: Decimal | null = null,
   ) {}
 
   toDomain(): StrategyBotRunRecordDomain {
