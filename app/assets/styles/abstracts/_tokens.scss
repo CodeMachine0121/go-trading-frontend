@@ -28,7 +28,9 @@ $colors: (
   'text': #d5dae3,
   'text-strong': #f1f3f7,     // 標題與需要跳出來的數字
   'text-muted': #8b94a3,
-  'text-faint': #6b7483,
+  // 最淡的字仍是字：表頭、欄位標籤、註記都用它，而且常在最小的字級上。
+  // 在每一種會墊在它底下的面（surface／surface-muted／surface-overlay）上都要過 WCAG AA 的 4.5:1。
+  'text-faint': #808999,
   'text-inverse': #0b0a1a,    // 壓在實心強調色上的字
   'primary': #8b7bff,         // 唯一的強調色：主要動作、選中、焦點
   'primary-strong': #a99dff,  // 深色介面的 hover 是「更亮」，不是更深
@@ -75,7 +77,7 @@ $colors-light: (
   'text': #2a303b,
   'text-strong': #11151c,
   'text-muted': #566072,
-  'text-faint': #7d8697,
+  'text-faint': #646d7e,   // 同上：白底與淺灰底上都過 4.5:1
   'text-inverse': #fff,
   'primary': #6a57ee,
   'primary-strong': #5543d9,  // 淺色介面的 hover 是「更深」
