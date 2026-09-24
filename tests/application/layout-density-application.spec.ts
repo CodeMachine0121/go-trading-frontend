@@ -8,7 +8,6 @@ describe('LayoutDensityApplication', () => {
     expect(layoutDensityApplication.resolveLayoutDensity(390)).toEqual({
       density: 'roomy',
       usesBottomNavigation: true,
-      allowsBlockEditing: false,
       startsChartControlsCollapsed: true,
       assistantCoversScreen: true,
     })
@@ -18,7 +17,6 @@ describe('LayoutDensityApplication', () => {
     expect(layoutDensityApplication.resolveLayoutDensity(1024)).toEqual({
       density: 'compact',
       usesBottomNavigation: false,
-      allowsBlockEditing: true,
       startsChartControlsCollapsed: false,
       assistantCoversScreen: false,
     })

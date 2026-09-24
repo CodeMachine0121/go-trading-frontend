@@ -411,12 +411,6 @@ export function useTradingStrategyForm(
     signalSourceLimit: STRATEGY_BOT_LIMITS.signalSourceCount,
     signalSourceUsageWarnings,
     conditionSides,
-    /**
-     * 積木抽屜這一刻的樣子。
-     *
-     * 每次都由**這一刻已宣告的代號**與**現在選著的空位**重算，不留快取：
-     * 抽屜列的就是現在拼得出來的東西，而使用者隨時會在第二段加一個、刪一個、改一個代號。
-     */
     rejection,
     reset,
     toWriteDto,
