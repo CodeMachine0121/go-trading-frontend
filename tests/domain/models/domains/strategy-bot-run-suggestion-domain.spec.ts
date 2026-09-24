@@ -26,4 +26,14 @@ describe('StrategyBotRunSuggestionDomain', () => {
 
     expect(suggestion.toText()).toBeNull()
   })
+
+  it('金額照記下的數字原樣寫出，一位小數都不少', () => {
+    const suggestion = new StrategyBotRunSuggestionDomain(new StrategyBotRunRecord(
+      1, new Date('2026-09-24T05:05:00Z'), 'sell',
+      new Decimal('1000.000000000000000001'), null, null,
+      'short', new Decimal('5'), new Decimal('5000.123456789012345678')))
+
+    expect(suggestion.toText())
+      .toBe('做空 5 倍 · 保證金 1000.000000000000000001 · 名目 5000.123456789012345678')
+  })
 })
