@@ -7,7 +7,10 @@ import type { LiveKCandleUpdate } from '~/domain/models/entities/live-k-candle-u
  * 測試從外面看到的仍然是「送進什麼、往內傳出什麼」。
  */
 class FakeEventSource {
+  static readonly CLOSED = 2
   static opened: FakeEventSource[] = []
+  /** 瀏覽器在連線掉了時維持「連線中」並自己重試；通道一開始就被拒絕時把它設成關閉、不再重試。 */
+  readyState = 0
   onmessage: ((event: MessageEvent<string>) => void) | null = null
   onerror: (() => void) | null = null
   closed = false
@@ -25,6 +28,11 @@ class FakeEventSource {
   }
 
   fail() {
+    this.onerror?.()
+  }
+
+  refuse() {
+    this.readyState = FakeEventSource.CLOSED
     this.onerror?.()
   }
 }
@@ -51,7 +59,7 @@ function aWireUpdate(status: string, overrides: Record<string, string | null> = 
 
 function follow() {
   const received: LiveKCandleUpdate[] = []
-  const stop = new LiveKCandleProxy('http://backend.test')
+  const stop = new LiveKCandleProxy('http://backend.test', '/k-candles/live')
     .followKCandles('BTCUSDT', update => received.push(update))
   const source = FakeEventSource.opened[FakeEventSource.opened.length - 1]
   if (source === undefined) {
@@ -189,6 +197,48 @@ describe('即時通道對這個市場不報的數字', () => {
     source.send(aWireUpdate('marketClosed'))
 
     expect(received[0]?.status).toBe('marketClosed')
+    expect(received[0]?.kCandle).toBeNull()
+  })
+})
+
+describe('LiveKCandleProxy 跟的是它被交代的那一條', () => {
+  it('現貨與合約各開各的通道，同一個代號也不共用', () => {
+    new LiveKCandleProxy('http://backend.test', '/k-candles/live').followKCandles('BTCUSDT', () => {})
+    new LiveKCandleProxy('http://backend.test', '/contract-k-candles/live').followKCandles('BTCUSDT', () => {})
+
+    expect(FakeEventSource.opened.map(source => source.url)).toEqual([
+      'http://backend.test/k-candles/live?symbol=BTCUSDT',
+      'http://backend.test/contract-k-candles/live?symbol=BTCUSDT',
+    ])
+  })
+
+  it('合約那一條送來的更新照同一份形狀讀', () => {
+    const received: LiveKCandleUpdate[] = []
+    new LiveKCandleProxy('http://backend.test', '/contract-k-candles/live')
+      .followKCandles('BTCUSDT', update => received.push(update))
+
+    FakeEventSource.opened[0]!.send(aWireUpdate('forming'))
+
+    expect(received[0]?.status).toBe('forming')
+    expect(received[0]?.kCandle?.close.toString()).toBe('118.25')
+  })
+})
+
+describe('LiveKCandleProxy 分得出停了與結束了', () => {
+  it('連線掉了、瀏覽器還會自己重試時說停了', () => {
+    const { received, source } = follow()
+
+    source.fail()
+
+    expect(received.map(update => update.status)).toEqual(['stalled'])
+  })
+
+  it('通道一開始就被拒絕、瀏覽器不再重試時說結束了', () => {
+    const { received, source } = follow()
+
+    source.refuse()
+
+    expect(received.map(update => update.status)).toEqual(['ended'])
     expect(received[0]?.kCandle).toBeNull()
   })
 })

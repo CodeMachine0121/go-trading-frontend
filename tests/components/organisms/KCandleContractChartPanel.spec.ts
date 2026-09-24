@@ -20,6 +20,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
+import { buildLiveKCandleContractApplication } from '../../fixtures/live-k-candle-application'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
 } from '../../fixtures/contract-proxies'
@@ -64,6 +65,7 @@ async function mountPanel(kCandleContractProxy: IKCandleContractProxy, spotProxy
       tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService(
         { findTradingSymbols: vi.fn() },
         buildContractTradingSymbolProxy([buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('ETHUSDT')]))),
+      liveKCandleContractApplication: buildLiveKCandleContractApplication(),
       timeZone: buildTimeZone('UTC'),
       layoutDensity: onADesktop(),
     },
@@ -159,15 +161,14 @@ describe('KCandleContractChartPanel', () => {
     expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-22T12:00:00.000Z')
   })
 
-  it('常駐一句話說沒有即時跟盤與指標，資料由背景每分鐘同步', async () => {
+  it('常駐一句話只說還沒有的：合約圖表沒有指標', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
     }))
 
-    const notice = wrapper.get('[data-testid="no-live-follow-notice"]').text()
-    expect(notice).toContain('沒有即時跟盤')
-    expect(notice).toContain('沒有指標')
-    expect(notice).toContain('背景每分鐘同步')
+    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toBe('合約圖表沒有指標。')
+    // 即時跟盤已經有了，那一句不能再說它沒有。
+    expect(wrapper.text()).not.toContain('沒有即時跟盤')
   })
 
   it('沒有現貨才有的控制項：套用指標那一塊與立刻更新都不在', async () => {
@@ -353,7 +354,7 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['看什麼', 'BTCUSDT'])
   })
 
-  it('收起「看什麼」之後，沒有即時跟盤那一句照樣在', async () => {
+  it('收起「看什麼」之後，沒有指標那一句照樣在', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
     }))
@@ -361,7 +362,7 @@ describe('KCandleContractChartPanel', () => {
     await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
 
     expect(wrapper.get('[data-testid="toggle-panel"]').attributes('aria-expanded')).toBe('false')
-    expect(wrapper.get('[data-testid="no-live-follow-notice"]').text()).toContain('沒有即時跟盤')
+    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toContain('沒有指標')
   })
 
   it('取行情的時候說正在取', async () => {
@@ -380,6 +381,7 @@ describe('KCandleContractChartPanel', () => {
           new KCandleChartService(buildSpotProxy(), buildKCandleContractProxy({ findKCandleContractSeries }))),
         tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService(
           { findTradingSymbols: vi.fn() }, buildContractTradingSymbolProxy([buildContractTradingSymbol('ETHUSDT')]))),
+        liveKCandleContractApplication: buildLiveKCandleContractApplication(),
         timeZone: buildTimeZone('UTC'),
         layoutDensity: onAPhone(),
       },

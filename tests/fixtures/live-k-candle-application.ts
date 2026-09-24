@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import { LiveKCandleApplication } from '~/application/live-k-candle-application'
+import { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import type { ILiveKCandleProxy } from '~/domain/interface/i-live-k-candle-proxy'
 
@@ -13,6 +14,18 @@ export function buildLiveKCandleApplication(
   liveKCandleProxy: Partial<ILiveKCandleProxy> = {},
 ): LiveKCandleApplication {
   return new LiveKCandleApplication(new LiveKCandleService({
+    followKCandles: vi.fn().mockReturnValue(() => {}),
+    ...liveKCandleProxy,
+  }))
+}
+
+/**
+ * 合約圖表那一條：同樣只 mock 通道，其餘都是真的。預設同樣什麼都不送。
+ */
+export function buildLiveKCandleContractApplication(
+  liveKCandleProxy: Partial<ILiveKCandleProxy> = {},
+): LiveKCandleContractApplication {
+  return new LiveKCandleContractApplication(new LiveKCandleService({
     followKCandles: vi.fn().mockReturnValue(() => {}),
     ...liveKCandleProxy,
   }))

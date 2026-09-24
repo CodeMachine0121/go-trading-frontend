@@ -9,6 +9,10 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
+import type { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
+import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
+import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
+import type { LiveUpdateNoticeValue } from '~/domain/models/vo/live-update-notice-vo'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
@@ -26,11 +30,15 @@ const DEFAULT_SYMBOL = 'BTCUSDT'
 // 有機體：合約 K 線圖表這一整塊。
 //
 // 看多長、每根涵蓋、要不要重新取、取哪一段，與現貨圖表問的是同一個 Application、
-// 同一套判斷——這裡只換「取的是合約那一條」。
-// **沒有即時跟盤、指標與立刻更新**：那三樣沒有擺出來，而且畫面上明說。
-const { kCandleChartApplication, tradingSymbolApplication, timeZone, layoutDensity } = defineProps<{
+// 同一套判斷——這裡只換「取的是合約那一條」。即時跟盤也是現貨那一套，跟的是合約的通道。
+// **沒有指標與立刻更新**：那兩樣沒有擺出來，而且畫面上明說。
+const {
+  kCandleChartApplication, tradingSymbolApplication, liveKCandleContractApplication, timeZone, layoutDensity,
+} = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
+  /** 合約那一條即時通道；與現貨圖表的那一條各跟各的。 */
+  liveKCandleContractApplication: LiveKCandleContractApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
   /** 這裡只用到其中一項：控制項一開始收不收。 */
@@ -66,6 +74,33 @@ const backendUnreachable = ref(false)
 /** 先送出的那次可能後回來；只採用最後一次的結果。 */
 let latestRequestNumber = 0
 
+/** 目前選著的那一個合約標的的完整樣子，由挑合約那一格交過來。還不知道時是 null。 */
+const selectedContractTradingSymbol = ref<ContractTradingSymbolDto | null>(null)
+/** 最近一則即時更新說了什麼。還沒有任何一則時是 null。 */
+const latestLiveReport = ref<LiveKCandleReportDto | null>(null)
+/** 怎麼停掉現在這一條跟盤；沒在跟時是 null。 */
+let stopFollowing: (() => void) | null = null
+/** 每開一次或停一次就加一：之後才到的上一次的更新，一律不採用。 */
+let followGeneration = 0
+
+/** 圖上該說的那一句話，至多一句。優先序是業務規則，由 domain 判。 */
+const liveUpdateNotice = computed(() => liveKCandleContractApplication.liveUpdateNotice(
+  selectedContractTradingSymbol.value, latestLiveReport.value))
+
+/**
+ * 每一種說法在合約圖表上是哪一句中文。合約不收盤，所以收盤那一句不會出現；
+ * 「沒有即時更新」在合約這邊的原因只有一個——不在合約追蹤名單上——所以直接說出怎麼辦。
+ */
+const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
+  marketClosed: '這個市場目前收盤中。',
+  noLivePlace: '這個合約標的不在合約追蹤名單上，沒有即時更新——把它加進合約追蹤名單就會即時跟盤。',
+  ended: '即時更新已中斷，不會自己重新連上——確認這個合約標的還在合約追蹤名單上，再重新整理頁面。圖表顯示的是目前手上的資料。',
+  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
+}
+
+/** 選著的合約標的**確定**不在合約追蹤名單上。不知道時不算——那時照常跟。 */
+const isKnownUnwatched = computed(() => selectedContractTradingSymbol.value?.isWatched === false)
+
 const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
 
 /** 圖的標題說的是**畫出來的那一個**合約；還沒取到任何東西時才退回選單上那一個。 */
@@ -86,7 +121,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   // 一個都沒選著——合約那一邊目前沒有東西可挑。挑合約那一格已經說了原因，
   // 這裡不送出，也不怪使用者沒填。
   if (kCandleChartViewportDto.symbol.trim() === '') {
-    chart.value = null
+    forgetTheChart()
     loading.value = false
 
     return
@@ -101,6 +136,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         chart.value = chartView.reloadedChart
+        followTheMarket(chartView.reloadedChart)
+      }
+      // 手上那批留著、卻沒有在跟：例如先換到一個不在名單上的合約標的（那一條被停掉了），
+      // 圖還沒取回就又換回來——領域說不必重取，但跟盤不能就此斷掉。
+      else if (stopFollowing === null && chart.value !== null) {
+        followTheMarket(chart.value)
       }
     }
   }
@@ -122,7 +163,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       rejectedMessage.value = '取行情時發生未預期的錯誤。'
     }
 
-    chart.value = null
+    forgetTheChart()
   }
   finally {
     if (requestNumber === latestRequestNumber) {
@@ -130,6 +171,66 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
   }
 }
+
+/**
+ * 把手上這張圖整個放掉：圖、跟盤、最近那一則更新。三件事必須一起放掉——
+ * 留著跟盤，上一個合約標的的下一則更新會把圖「復活」，而畫面上同時還說著取行情失敗。
+ */
+function forgetTheChart() {
+  chart.value = null
+  stopTheFollow()
+}
+
+function stopTheFollow() {
+  stopFollowing?.()
+  stopFollowing = null
+  followGeneration += 1
+  latestLiveReport.value = null
+}
+
+/**
+ * 開始跟這一批 K 線所屬的合約標的。換一批就換一次：跟盤是把即時的變動併進**手上這一批**。
+ *
+ * 確定不在合約追蹤名單上的不跟——後端不會給，而瀏覽器分不出「被拒絕」與「斷了」，
+ * 跟下去只會讓畫面錯說「即時更新已停止」。那時該說的那一句由提示說。
+ */
+function followTheMarket(followedChart: KCandleChartDto) {
+  stopTheFollow()
+  if (isKnownUnwatched.value) {
+    return
+  }
+
+  const generation = followGeneration
+
+  stopFollowing = liveKCandleContractApplication.followKCandles(
+    followedChart.symbol, followedChart, (report) => {
+      // 已經不是這一次在跟了：這一則講的是上一批、或上一個合約標的的行情。
+      if (generation !== followGeneration) {
+        return
+      }
+
+      // 跟不動了就由提示明說；那一則帶回來的圖就是手上這一張，照樣顯示——
+      // 沒有的是「即時」，不是「圖表」。
+      latestLiveReport.value = report
+      chart.value = report.chart
+    })
+}
+
+/**
+ * 挑合約那一格說出這一個在不在名單上。圖可能先畫好、已經照「不知道」開始跟了，
+ * 所以確定不在名單上時停掉那一條；換一個合約標的一定會重新取圖、重新決定要不要跟，
+ * 所以這裡不必負責開。
+ */
+function selectContractTradingSymbol(contractTradingSymbol: ContractTradingSymbolDto | null) {
+  selectedContractTradingSymbol.value = contractTradingSymbol
+  if (isKnownUnwatched.value) {
+    stopTheFollow()
+  }
+}
+
+onBeforeUnmount(() => {
+  stopTheFollow()
+})
 
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePresetLabel.value = preset.label
@@ -192,6 +293,7 @@ onMounted(() => {
           <ContractSymbolField
             v-model="symbol"
             :trading-symbol-application="tradingSymbolApplication"
+            @selected="selectContractTradingSymbol"
           />
         </template>
       </KCandleChartToolbar>
@@ -203,9 +305,17 @@ onMounted(() => {
     -->
     <AppAlert
       tone="info"
-      data-testid="no-live-follow-notice"
+      data-testid="no-indicators-notice"
     >
-      合約圖表沒有即時跟盤，也沒有指標；資料由背景每分鐘同步進來，要看最新的一根就再動一下圖或重新整理。
+      合約圖表沒有指標。
+    </AppAlert>
+
+    <AppAlert
+      v-if="liveUpdateNotice"
+      :tone="liveUpdateNotice.tone"
+      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
+    >
+      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
     </AppAlert>
 
     <AppAlert

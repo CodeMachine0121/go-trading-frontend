@@ -30,6 +30,7 @@ import { KCandleChartApplication } from '~/application/k-candle-chart-applicatio
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import { LiveKCandleApplication } from '~/application/live-k-candle-application'
+import { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
 import { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import { LiveKCandleProxy } from '~/infrastructure/proxy/live-k-candle-proxy'
 import { StrategyScriptApplication } from '~/application/strategy-script-application'
@@ -193,7 +194,12 @@ export default defineNuxtPlugin(() => {
   // 跟盤是一條持續連著的通道，與其他那些一次問一次答的完全不同——
   // 所以它有自己的 proxy，而不是塞進取 K 線的那一個。
   const liveKCandleApplication = new LiveKCandleApplication(
-    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
+    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl, '/k-candles/live')),
+  )
+  // 合約那一條：同一種通道、同一套併法，跟的是合約的即時更新——與現貨各跟各的，
+  // 同一個代號在兩邊互不影響。
+  const liveKCandleContractApplication = new LiveKCandleContractApplication(
+    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl, '/contract-k-candles/live')),
   )
 
   // 助手是後端的一項能力，因此它只吃 base URL。
@@ -277,6 +283,7 @@ export default defineNuxtPlugin(() => {
       backtestApplication,
       chartIndicatorApplication,
       liveKCandleApplication,
+      liveKCandleContractApplication,
       timeZoneApplication,
       assistantConversationApplication,
       currentConversationPreferenceProxy,

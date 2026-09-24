@@ -23,7 +23,7 @@ export class LiveKCandleReportDto {
    * 這不是畫面自己推算的：後端只在真的跟得動的時候才送得出一根 K 線。
    */
   get isTrading(): boolean {
-    return !this.isStalled && !this.hasNoLivePlace && !this.isMarketClosed
+    return !this.isStalled && !this.hasNoLivePlace && !this.isMarketClosed && !this.hasEnded
   }
 
   constructor(
@@ -32,5 +32,7 @@ export class LiveKCandleReportDto {
     public readonly isStalled: boolean,
     public readonly hasNoLivePlace: boolean = false,
     public readonly isMarketClosed: boolean = false,
+    /** 這條通道已經結束、不會自己接回來——要重新整理（或先處理被拒絕的原因）才會再有即時更新。 */
+    public readonly hasEnded: boolean = false,
   ) {}
 }

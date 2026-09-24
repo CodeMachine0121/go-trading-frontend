@@ -1,14 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import { LiveUpdateNoticeDomain } from '~/domain/models/domains/live-update-notice-domain'
 
-/** 三件事實的順序與建構子一致：在不在交易時段、有沒有即時名額、是不是斷了。 */
+/** 四件事實的順序與建構子一致：在不在交易時段、有沒有即時名額、是不是斷了、是不是結束了。 */
 function noticeFor(
-  isWithinTradingSession: boolean, hasLiveUpdates: boolean, isStalled: boolean,
+  isWithinTradingSession: boolean, hasLiveUpdates: boolean, isStalled: boolean, hasEnded = false,
 ) {
-  return new LiveUpdateNoticeDomain(isWithinTradingSession, hasLiveUpdates, isStalled).notice()
+  return new LiveUpdateNoticeDomain(isWithinTradingSession, hasLiveUpdates, isStalled, hasEnded).notice()
 }
 
 describe('LiveUpdateNoticeDomain', () => {
+  it('通道結束時說結束了，而不是說正在重新連上', () => {
+    expect(noticeFor(true, true, false, true)?.value).toBe('ended')
+  })
+
+  it('結束了壓過停了', () => {
+    expect(noticeFor(true, true, true, true)?.value).toBe('ended')
+  })
+
+  it('沒有即時名額與收盤仍然壓過結束了', () => {
+    expect(noticeFor(true, false, false, true)?.value).toBe('noLivePlace')
+    expect(noticeFor(false, true, false, true)?.value).toBe('marketClosed')
+  })
+
   it('一切正常時什麼都不說', () => {
     expect(noticeFor(true, true, false)).toBeNull()
   })

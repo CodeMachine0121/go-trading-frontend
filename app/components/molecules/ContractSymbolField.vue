@@ -29,6 +29,19 @@ const {
 const symbol = defineModel<string>({ required: true })
 
 const contractTradingSymbols = ref<ContractTradingSymbolDto[]>([])
+
+/**
+ * 目前選著的那一個合約標的的完整樣子——含它在不在合約追蹤名單上。不在清單上時是 null。
+ *
+ * 它從這裡發出去，而不是讓使用端自己再取一次清單，與 SymbolField 同一個理由：
+ * 清單已經在這個元件手上了，取第二次是同一份資料的第二個版本。
+ */
+const emit = defineEmits<{ selected: [ContractTradingSymbolDto | null] }>()
+
+watch([symbol, contractTradingSymbols], () => {
+  emit('selected', contractTradingSymbols.value.find(
+    contractTradingSymbol => contractTradingSymbol.symbol === symbol.value) ?? null)
+})
 const loading = ref(true)
 const unavailable = ref(false)
 
