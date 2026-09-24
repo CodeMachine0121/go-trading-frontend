@@ -1,4 +1,5 @@
 import { MarketCounterpartDto } from '~/domain/models/dto/market-counterpart-dto'
+import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
 
 /**
  * 有兩邊的去處：現貨那一頁的路徑與合約那一頁的路徑。
@@ -39,5 +40,17 @@ export class MarketCounterpartDomain {
     }
 
     return new MarketCounterpartDto(null, null)
+  }
+
+  /**
+   * 這條路在某一邊的樣子：本來就在那一邊或根本不分兩邊時就是它自己，否則是它的對應畫面。
+   * 導覽上的每一格因此跟著使用者最後切到的那一邊走，不必每一頁再切一次。
+   */
+  toPathOnSide(side: MarketSideVo): string {
+    const counterpart = this.toDto()
+
+    return counterpart.side === null || counterpart.side === side || counterpart.counterpartPath === null
+      ? this.path
+      : counterpart.counterpartPath
   }
 }

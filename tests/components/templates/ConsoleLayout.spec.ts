@@ -20,10 +20,14 @@ const PHONE = 390
 
 const LINK_STUB = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 
-async function mountLayoutAt(width: number, slots: Record<string, string> = {}) {
+async function mountLayoutAt(
+  width: number,
+  slots: Record<string, string> = {},
+  destinationPaths: Record<string, string> = {},
+) {
   window.innerWidth = width
   const wrapper = mount(ConsoleLayout, {
-    props: { title: '現貨 K 線圖表' },
+    props: { title: '現貨 K 線圖表', destinationPaths },
     slots,
     global: { stubs: LINK_STUB },
   })
@@ -97,7 +101,26 @@ describe('ConsoleLayout', () => {
     }
   })
 
+  it('有兩邊的去處照給的對照指路，其餘去自己的那一頁', async () => {
+    const wrapper = await mountLayoutAt(DESKTOP, {}, { '/k-candles/chart': '/contract-k-candles/chart' })
+
+    expect(wrapper.get('[data-testid="destination-/k-candles/chart"]').attributes('href')).toBe('/contract-k-candles/chart')
+    expect(wrapper.get('[data-testid="destination-/trading-strategies"]').attributes('href')).toBe('/trading-strategies')
+  })
+
   describe('窄螢幕', () => {
+    it('底部分頁與更多也照給的對照指路', async () => {
+      const wrapper = await mountLayoutAt(PHONE, {}, {
+        '/strategy-bots': '/contract-strategy-bots',
+        '/k-candles': '/contract-k-candles',
+      })
+
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+      expect(wrapper.get('[data-testid="tab-/strategy-bots"]').attributes('href')).toBe('/contract-strategy-bots')
+      expect(wrapper.get('[data-testid="more-/k-candles"]').attributes('href')).toBe('/contract-k-candles')
+    })
+
     it('底部是行情、策略、機器人、助手，加一顆更多', async () => {
       const wrapper = await mountLayoutAt(PHONE)
 

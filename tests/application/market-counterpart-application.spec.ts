@@ -1,7 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { MarketCounterpartApplication } from '~/application/market-counterpart-application'
+import { MarketSideService } from '~/domain/service/market-side-service'
+import type { IMarketSidePreferenceProxy } from '~/domain/interface/i-market-side-preference-proxy'
 
-const marketCounterpartApplication = new MarketCounterpartApplication()
+function marketCounterpartApplicationRemembering(rememberedSide: string | null) {
+  const marketSidePreferenceProxy: IMarketSidePreferenceProxy = {
+    readMarketSide: vi.fn(() => rememberedSide),
+    writeMarketSide: vi.fn(),
+  }
+
+  return {
+    marketSidePreferenceProxy,
+    marketCounterpartApplication: new MarketCounterpartApplication(new MarketSideService(marketSidePreferenceProxy)),
+  }
+}
+
+const { marketCounterpartApplication } = marketCounterpartApplicationRemembering(null)
 
 describe('MarketCounterpartApplication 有兩邊的畫面', () => {
   it.each([
@@ -50,5 +64,41 @@ describe('MarketCounterpartApplication 不分現貨合約的畫面', () => {
     expect(counterpartDto.side).toBeNull()
     expect(counterpartDto.counterpartPath).toBeNull()
     expect(counterpartDto.switchable).toBe(false)
+  })
+})
+
+describe('MarketCounterpartApplication 記住使用者最後站在哪一邊', () => {
+  it.each([
+    { name: '從沒切過就是現貨', remembered: null, side: 'spot' },
+    { name: '記住的是合約就是合約', remembered: 'contract', side: 'contract' },
+    { name: '記住的是看不懂的值就是現貨', remembered: 'futures', side: 'spot' },
+  ])('$name', ({ remembered, side }) => {
+    const { marketCounterpartApplication: application } = marketCounterpartApplicationRemembering(remembered)
+
+    expect(application.restoreMarketSide()).toBe(side)
+  })
+
+  it.each([
+    { name: '記下合約', side: 'contract', remembered: 'contract' },
+    { name: '看不懂的值記成現貨', side: 'futures', remembered: 'spot' },
+  ])('$name', ({ side, remembered }) => {
+    const { marketCounterpartApplication: application, marketSidePreferenceProxy } = marketCounterpartApplicationRemembering(null)
+
+    expect(application.rememberMarketSide(side)).toBe(remembered)
+    expect(marketSidePreferenceProxy.writeMarketSide).toHaveBeenCalledWith(remembered)
+  })
+})
+
+describe('MarketCounterpartApplication 導覽上的一格在某一邊要去哪裡', () => {
+  it.each([
+    { name: '行情圖表在合約那一邊去合約 K 線圖表', path: '/k-candles/chart', side: 'contract' as const, expected: '/contract-k-candles/chart' },
+    { name: '行情圖表在現貨那一邊就是它自己', path: '/k-candles/chart', side: 'spot' as const, expected: '/k-candles/chart' },
+    { name: 'K 線資料在合約那一邊去合約 K 線瀏覽', path: '/k-candles', side: 'contract' as const, expected: '/contract-k-candles' },
+    { name: '策略腳本在合約那一邊去合約策略腳本', path: '/strategy-scripts', side: 'contract' as const, expected: '/contract-strategy-scripts' },
+    { name: '機器人在合約那一邊去合約策略機器人', path: '/strategy-bots', side: 'contract' as const, expected: '/contract-strategy-bots' },
+    { name: '不分兩邊的交易策略哪一邊都是它自己', path: '/trading-strategies', side: 'contract' as const, expected: '/trading-strategies' },
+    { name: '合約那一頁在現貨那一邊回到現貨', path: '/contract-k-candles', side: 'spot' as const, expected: '/k-candles' },
+  ])('$name', ({ path, side, expected }) => {
+    expect(marketCounterpartApplication.resolvePathOnSide(path, side)).toBe(expected)
   })
 })

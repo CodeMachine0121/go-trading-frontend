@@ -44,6 +44,8 @@ import { TimeZoneApplication } from '~/application/time-zone-application'
 import { AppearanceApplication } from '~/application/appearance-application'
 import { AppearanceService } from '~/domain/service/appearance-service'
 import { MarketCounterpartApplication } from '~/application/market-counterpart-application'
+import { MarketSideService } from '~/domain/service/market-side-service'
+import { MarketSidePreferenceProxy } from '~/infrastructure/proxy/market-side-preference-proxy'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
 import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
@@ -265,7 +267,10 @@ export default defineNuxtPlugin(() => {
   )
 
   // 現貨／合約開關：一條路徑在另一邊的對應畫面。
-  const marketCounterpartApplication = new MarketCounterpartApplication()
+  // 以及使用者最後切到哪一邊，記在這台瀏覽器，導覽跟著那一邊走。
+  const marketCounterpartApplication = new MarketCounterpartApplication(
+    new MarketSideService(new MarketSidePreferenceProxy()),
+  )
 
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(

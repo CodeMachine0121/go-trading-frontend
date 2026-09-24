@@ -21,6 +21,14 @@ const { appearance, selectAppearance } = useAppearance()
 const { openDrawer } = useAssistantDrawer()
 
 const counterpart = computed(() => $marketCounterpartApplication.describeCounterpart(route.path))
+
+// 到了哪一邊的頁面就記住哪一邊；導覽上有兩邊的那幾格跟著它指路，不必每一頁再切一次。
+const { followPath, pathOnMarketSide } = useMarketSide()
+watch(() => route.path, followPath, { immediate: true })
+
+const SIDE_AWARE_DESTINATIONS = ['/k-candles/chart', '/k-candles', '/strategy-scripts', '/strategy-bots']
+const destinationPaths = computed(
+  () => Object.fromEntries(SIDE_AWARE_DESTINATIONS.map(path => [path, pathOnMarketSide(path)])))
 const title = computed(() => route.meta.consoleTitle ?? '')
 const subtitle = computed(() => route.meta.consoleSubtitle)
 </script>
@@ -30,6 +38,7 @@ const subtitle = computed(() => route.meta.consoleSubtitle)
     :title="title"
     :subtitle="subtitle"
     :fills-viewport="route.meta.consoleFillsViewport === true"
+    :destination-paths="destinationPaths"
   >
     <template #market>
       <MarketSwitch

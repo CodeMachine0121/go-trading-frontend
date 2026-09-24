@@ -38,7 +38,7 @@ const MORE_DESTINATIONS = [
   DESTINATIONS[1], DESTINATIONS[3], DESTINATIONS[5], SETTINGS_DESTINATION,
 ] as const
 
-defineProps<{
+const { destinationPaths = {} } = defineProps<{
   title: string
   subtitle?: string
   /**
@@ -46,6 +46,11 @@ defineProps<{
    * 版面因此固定成視窗的高度，工作區吃掉剩下的全部。
    */
   fillsViewport?: boolean
+  /**
+   * 導覽上某一格此刻實際要去的路（例如使用者最後切到合約時，「行情圖表」去合約 K 線圖表）。
+   * 沒列在裡面的一格就去它自己的 `to`。樣板不判斷哪一邊，只照這份對照指路。
+   */
+  destinationPaths?: Readonly<Record<string, string>>
 }>()
 
 const { layoutDensity } = useLayoutDensity()
@@ -55,6 +60,10 @@ const route = useRoute()
 const railStowed = useState('console-rail-stowed', () => false)
 
 const moreOpen = ref(false)
+
+function pathOf(destination: { to: string }): string {
+  return destinationPaths[destination.to] ?? destination.to
+}
 
 function isCurrent(destination: { paths: readonly string[], nested: boolean }): boolean {
   return destination.paths.some(path => route.path === path
@@ -120,7 +129,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           :key="destination.to"
         >
           <NuxtLink
-            :to="destination.to"
+            :to="pathOf(destination)"
             class="console-layout__link"
             :class="{ 'console-layout__link--current': isCurrent(destination) }"
             :aria-current="isCurrent(destination) ? 'page' : undefined"
@@ -203,7 +212,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
       <NuxtLink
         v-for="destination in TAB_DESTINATIONS"
         :key="destination.to"
-        :to="destination.to"
+        :to="pathOf(destination)"
         class="console-layout__tab"
         :class="{ 'console-layout__tab--current': isCurrent(destination) }"
         :aria-current="isCurrent(destination) ? 'page' : undefined"
@@ -238,7 +247,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           :key="destination.to"
         >
           <NuxtLink
-            :to="destination.to"
+            :to="pathOf(destination)"
             class="console-layout__more-link"
             :data-testid="`more-${destination.to}`"
           >
