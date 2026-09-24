@@ -1,0 +1,196 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+import StrategyScriptLibraryDialog from '~/components/molecules/StrategyScriptLibraryDialog.vue'
+import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
+import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
+import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
+
+function strategyScriptOf(id: number, name: string): StrategyScriptDto {
+  return new StrategyScriptDto(
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, false)
+}
+
+function mountLibrary(props: Record<string, unknown> = {}) {
+  return mount(StrategyScriptLibraryDialog, {
+    props: { open: true, strategyScripts: [], adoptedStrategyScripts: [], ...props },
+  })
+}
+
+describe('StrategyScriptLibraryDialog', () => {
+  it('每一支一列，順序照給的來', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [strategyScriptOf(1, '二十根均線'), strategyScriptOf(2, '六十根均線'), strategyScriptOf(3, 'RSI14')],
+    })
+
+    const rows = wrapper.findAll('[data-testid="strategy-script-library-row"]')
+    expect(rows).toHaveLength(3)
+    expect(rows[0]?.text()).toContain('二十根均線')
+    expect(rows[2]?.text()).toContain('RSI14')
+  })
+
+  it('每一列都能載入也能刪除', () => {
+    const wrapper = mountLibrary({ strategyScripts: [strategyScriptOf(7, '二十根均線')] })
+
+    expect(wrapper.find('[data-testid="strategy-script-library-load-7"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-script-library-delete-7"]').exists()).toBe(true)
+  })
+
+  it('按載入時說出載入的是哪一支', async () => {
+    const wrapper = mountLibrary({ strategyScripts: [strategyScriptOf(7, '二十根均線')] })
+
+    await wrapper.get('[data-testid="strategy-script-library-load-7"]').trigger('click')
+
+    expect(wrapper.emitted('load')).toEqual([[7]])
+  })
+
+  it('按刪除時說出要刪的是哪一支，而且不當成載入', async () => {
+    const wrapper = mountLibrary({ strategyScripts: [strategyScriptOf(7, '二十根均線')] })
+
+    await wrapper.get('[data-testid="strategy-script-library-delete-7"]').trigger('click')
+
+    expect(wrapper.emitted('remove')).toEqual([[7]])
+    expect(wrapper.emitted('load')).toBeUndefined()
+  })
+
+  it('標出目前使用中的是哪一支', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [strategyScriptOf(1, '二十根均線'), strategyScriptOf(2, '六十根均線')],
+      activeStrategyScriptId: 2,
+    })
+
+    const rows = wrapper.findAll('[data-testid="strategy-script-library-row"]')
+    expect(rows[0]?.text()).not.toContain('使用中')
+    expect(rows[1]?.text()).toContain('使用中')
+  })
+
+  it('一支都沒有時明說沒有', () => {
+    const wrapper = mountLibrary({ strategyScripts: [] })
+
+    expect(wrapper.get('[data-testid="strategy-script-library-empty"]').text())
+      .toContain('還沒有任何策略腳本')
+    // 另一半同樣重要：一句「沒有」不告訴人下一步，而這一頁的下一步是去市集看看。
+    // 指路要叫得出那個去處在導覽上的名字，否則他讀完還得自己找。
+    expect(wrapper.get('[data-testid="strategy-script-library-empty"]').text())
+      .toContain('Marketplace')
+  })
+
+  it('連不上後端時說連不上，不呈現空清單的說法', () => {
+    // 把連線失敗顯示成空清單，會讓人以為自己什麼都沒存過。
+    const wrapper = mountLibrary({ strategyScripts: [], errorMessage: '連不上後端' })
+
+    expect(wrapper.get('[data-testid="strategy-script-library-error"]').text()).toBe('連不上後端')
+    expect(wrapper.find('[data-testid="strategy-script-library-empty"]').exists()).toBe(false)
+  })
+
+  it('關掉清單就是關掉', async () => {
+    const wrapper = mountLibrary()
+
+    await wrapper.get('.app-modal__close').trigger('click')
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+})
+
+/** 一支從市集加入來的策略腳本。**它沒有算式**——那不是漏了，是那一欄不存在。 */
+function adoptedStrategyScriptOf(id: number, name: string): PublishedStrategyScriptDto {
+  return new PublishedStrategyScriptDto(
+    id, name, '抓短線轉折', 'floatList', 'someone@example.com',
+    new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
+}
+
+describe('StrategyScriptLibraryDialog：兩段清單', () => {
+  it('自己的與加入的分成兩節，各有小標題', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [strategyScriptOf(1, '我的')],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    expect(wrapper.text()).toContain('我的策略腳本')
+    expect(wrapper.get('[data-testid="strategy-script-library-adopted-section"]').text())
+      .toContain('我加入的')
+  })
+
+  it('加入來的那一列只有「移除」，一個會改動它的動作都沒有', () => {
+    // 它沒有算式可以載，也不是我的東西——顯示那些按鈕，按下去只會撞牆。
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-script-library-abandon-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-script-library-load-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-delete-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-publish-9"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-withdraw-9"]').exists()).toBe(false)
+  })
+
+  it('加入來的那一列挑得起來（進工作區是唯讀的），說出挑的是哪一支', async () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    await wrapper.get('[data-testid="strategy-script-library-adopted-load-9"]').trigger('click')
+
+    expect(wrapper.emitted('load')).toEqual([[9]])
+  })
+
+  it('加入來的那一列標出是誰分享的', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    expect(wrapper.get('[data-testid="strategy-script-library-adopted-row-9"]').text())
+      .toContain('someone@example.com')
+  })
+
+  it('按移除時說出是哪一支', async () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    await wrapper.get('[data-testid="strategy-script-library-abandon-9"]').trigger('click')
+
+    expect(wrapper.emitted('abandon')).toEqual([[9]])
+  })
+
+  it('兩段都空才說「還沒有任何策略腳本」', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [],
+      adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-script-library-empty"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyScriptLibraryDialog：分享狀態', () => {
+  it('分享過的那一支標出「已分享」', () => {
+    // 分享與收回那兩顆搬到主畫面那一排去了（想分享的幾乎總是眼前那一支），
+    // 但「這一支在外面」仍然是這份清單該說的事：不說的話，要知道自己分享過哪幾支，
+    // 就只能一支一支載進來看那顆按鈕。
+    const wrapper = mountLibrary({
+      strategyScripts: [strategyScriptOf(1, '沒分享的'), publishedStrategyScriptOf(2, '分享過的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-script-library-shared-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-script-library-shared-1"]').exists()).toBe(false)
+  })
+
+  it('清單上沒有分享或收回那兩顆——它們在主畫面那一排', () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [strategyScriptOf(1, '沒分享的'), publishedStrategyScriptOf(2, '分享過的')],
+    })
+
+    expect(wrapper.find('[data-testid="strategy-script-library-publish-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="strategy-script-library-withdraw-2"]').exists()).toBe(false)
+  })
+})
+
+/** 自己的一支，已經分享到市集上。 */
+function publishedStrategyScriptOf(id: number, name: string): StrategyScriptDto {
+  return new StrategyScriptDto(
+    id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true)
+}

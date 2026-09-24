@@ -1,0 +1,808 @@
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
+import SymbolField from '~/components/molecules/SymbolField.vue'
+import { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
+import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
+import { buildStrategyScriptMarketplaceApplication, buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
+import { buildBacktestApplication } from '../../fixtures/backtest-application'
+import { buildTimeZone } from '../../fixtures/time-zone'
+import { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
+import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
+import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
+import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
+import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
+import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+
+// 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
+const WHOLE_SCRIPT = 'package main\n\nimport "indicator"\n\n'
+  + 'func Calculate(data []indicator.KCandle) map[string]float64 { return map[string]float64{"均價": 110} }'
+
+function buildProxy(overrides: Partial<IIndicatorCalculationProxy> = {}): IIndicatorCalculationProxy {
+  return {
+    calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    recalculateIndicator: vi.fn(),
+    ...overrides,
+  }
+}
+
+// 算式內容住在編輯區裡，而編輯區是掛載後才動態載入的，microtask 還輪不到它。
+async function settle() {
+  await new Promise(resolve => setTimeout(resolve, 20))
+  await flushPromises()
+}
+
+/** 從畫面上把整份算式換掉——走的是使用者真正會走的那條路。 */
+async function typeScript(wrapper: ReturnType<typeof mountPanel>, script: string) {
+  await settle()
+  const content = wrapper.get('[data-testid="script"]').element.querySelector('.cm-content')
+  if (content === null) {
+    throw new Error('編輯區還沒準備好')
+  }
+
+  content.textContent = script
+  content.dispatchEvent(new Event('input', { bubbles: true }))
+  await settle()
+}
+
+/** 讀編輯區「寫了什麼」——不含行號欄。 */
+function scriptText(wrapper: ReturnType<typeof mountPanel>): string {
+  return wrapper.get('[data-testid="script"]').element
+    .querySelector('.cm-content')?.textContent ?? ''
+}
+
+function mountPanel(
+  indicatorCalculationProxy: IIndicatorCalculationProxy,
+  strategyScriptProxy: Partial<IStrategyScriptProxy> = {},
+) {
+  return mount(IndicatorCalculationPanel, {
+    props: {
+      indicatorCalculationApplication: new IndicatorCalculationApplication(
+        new IndicatorCalculationService(indicatorCalculationProxy)),
+      strategyScriptMarketplaceApplication: buildStrategyScriptMarketplaceApplication(),
+      strategyScriptApplication: buildStrategyScriptApplication(strategyScriptProxy),
+      tradingSymbolApplication: buildTradingSymbolApplication(),
+      backtestApplication: buildBacktestApplication(),
+      timeZone: buildTimeZone(),
+    },
+  })
+}
+
+async function fillAndSubmit(
+  wrapper: ReturnType<typeof mountPanel>,
+  values: {
+    symbol?: string
+    spanAmount?: string
+    spanUnit?: string
+    script?: string
+    resultType?: string
+  } = {},
+) {
+  // 先讓交易標的清單到齊，否則欄位一取回清單就會把不在清單上的那一檔改掉。
+  await flushPromises()
+  // 選單挑不出空值，但欄位的契約仍然是「交出什麼，這裡就用什麼」——
+  // 直接讓欄位交出那個值，驗畫面確實照它處理。
+  wrapper.findComponent(SymbolField).vm.$emit('update:modelValue', values.symbol ?? 'BTCUSDT')
+  await wrapper.vm.$nextTick()
+  // 使用者說的是「多長」，不是「幾根」——格數由那一段除以彙總刻度得出。
+  if (values.spanAmount !== undefined) {
+    await wrapper.get('[data-testid="span-amount-input"]').setValue(values.spanAmount)
+  }
+  if (values.spanUnit !== undefined) {
+    await wrapper.get('[data-testid="span-unit-select"]').setValue(values.spanUnit)
+  }
+  if (values.resultType !== undefined) {
+    await wrapper.get('[data-testid="result-type-select"]').setValue(values.resultType)
+  }
+  await typeScript(wrapper, values.script ?? WHOLE_SCRIPT)
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+}
+
+describe('IndicatorCalculationPanel', () => {
+  it('每個去處只有一顆執行鍵', () => {
+    // 這一條是補的：把執行條件從側欄改成橫列時，欄位整組搬了過來——
+    // 而那一組裡本來就有一顆送出鈕，於是畫面上同時站著兩顆。
+    // 測試沒紅，因為兩顆共用同一個識別字，而取第一個相符的從來不會抱怨有第二個。
+    //
+    // 多了回測那個去處之後，畫面上本來就會有兩顆送出鈕——一個去處一顆。
+    // 所以這一條改成**逐個去處**數：同一個去處裡冒出第二顆，仍然會紅。
+    //
+    // 手機底下那一條的「執行」不在任何一個去處裡面：它送出的是看得見的那個去處的表單，
+    // 所以這裡只數表單裡面的。
+    const wrapper = mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="calculate-button"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-testid="run-backtest-button"]')).toHaveLength(1)
+    expect(wrapper.findAll('form button[type="submit"]')).toHaveLength(2)
+  })
+
+  it.each([
+    { destination: 'indicatorPreview', label: '執行計算' },
+    { destination: 'backtest', label: '執行回測' },
+  ])('底下那一條的執行鍵送出的是看得見的那個去處（$destination）', async ({ destination, label }) => {
+    const wrapper = mountPanel(buildProxy())
+    await wrapper.get(`[data-testid="tab-${destination}"]`).trigger('click')
+
+    const run = wrapper.get('[data-testid="dock-run-button"]')
+    const visibleForm = wrapper.findAll('form').find(form => form.element.id === run.attributes('form'))
+
+    expect(run.text()).toBe(label)
+    expect(visibleForm?.attributes('style') ?? '').not.toContain('display: none')
+  })
+
+  it('算完之後，在採用根數旁邊說明只採用走完的那幾格', async () => {
+    // 這句話曾經一進畫面就掛在執行條件底下。**改成跟著結果出現是刻意的**：
+    // 使用者會問「為什麼是這個數字」的時刻，正是他看到「實際採用 24 根」
+    // 卻要了 25 根的那一刻，不是他剛打開畫面、什麼都還沒算的時候。
+    const wrapper = mountPanel(buildProxy())
+    expect(wrapper.find('[data-testid="calculation-notice"]').exists()).toBe(false)
+
+    await fillAndSubmit(wrapper)
+
+    // 刻度變粗之後「排除最新一根」就講不清楚了：一小時的刻度下，
+    // 不採用的是一整個還沒走完的小時。畫面說的必須是實際的規則。
+    const notice = wrapper.get('[data-testid="calculation-notice"]')
+    expect(notice.text()).toContain('已經走完')
+    expect(notice.text()).not.toContain('排除最新一根')
+  })
+
+  it('算得出來時列出實際採用根數與依名稱排序的指標', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [
+        new IndicatorValueVo('最高', [120]),
+        new IndicatorValueVo('均價', [110]),
+      ])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 3 根')
+    const rows = wrapper.findAll('[data-testid="indicator-row"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.text()).toContain('均價')
+    expect(rows[0]?.text()).toContain('110')
+    expect(rows[1]?.text()).toContain('最高')
+  })
+
+  it('信號種類算出來時呈現一個結論，不是名稱-數值表', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'signal', [], [], 'buy')),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'signal' })
+
+    const verdict = wrapper.get('[data-testid="signal-verdict"]')
+    expect(verdict.text()).toBe('買入')
+    expect(verdict.classes()).toContain('indicator-calculation-panel__signal--positive')
+    expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+  })
+
+  it('一個指標都沒算出來時說明清楚，且不呈現為錯誤', async () => {
+    const wrapper = mountPanel(buildProxy())
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="empty-result"]').text()).toContain('沒有算出任何指標')
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+  })
+
+  it.each([
+    { description: '未指定交易標的', values: { symbol: '' }, expectedMessage: '請指定交易標的' },
+    // 「根數為零 / 為負 / 不是整數 / 留空」那四條在這裡消失了，因為**那一格已經不存在**：
+    // 使用者說的是「要看多長」，格數由那一段除以彙總刻度得出，天生就是大於零的整數。
+    // 這是刻意的行為變更，不是把驗證弄丟了。
+    { description: '算式內容留空', values: { script: '' }, expectedMessage: '請填寫算式內容' },
+  ])('$description 時標在欄位旁且完全不執行', async ({ values, expectedMessage }) => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, values)
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe(expectedMessage)
+    expect(indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
+  })
+
+  it('只看得下一格時照常執行', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    // 五分鐘一段、五分鐘一根 → 一格。
+    await fillAndSubmit(wrapper, { spanAmount: '5', spanUnit: 'minute' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
+  it('算式跑不起來時，明確說是算式的問題', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(
+        new IndicatorScriptFailedError('算式必須提供 Calculate 進入點')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="script-failed-alert"]')
+    expect(alert.text()).toContain('要改的是算式')
+    expect(alert.text()).toContain('算式必須提供 Calculate 進入點')
+    // 最常見的原因是沙箱裡沒有那個名字，而訊息說得出少了什麼、說不出有什麼。
+    await alert.get('[data-testid="script-failed-guide-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]').length)
+      .toBeGreaterThan(0)
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="indicator-row"]').exists()).toBe(false)
+  })
+
+  // 「超過單次上限」曾經也在這一排。它離開了，因為系統那一側現在會指名是哪一格，
+  // 於是它落在「要看多長」旁邊而不是這裡——見 IndicatorCalculationPanelParameters 那一條。
+  // 「湊不出最少可算根數」同樣離開了：它現在帶著兩個數字，也落在「要看多長」旁邊。
+  // 這一排剩下的是**指不出哪一格**的那些拒絕：它們只能如實轉達。
+  it.each([
+    { description: '交易標的認不得', message: '找不到這個交易標的' },
+    { description: '這一段沒有資料', message: '這一段時間內沒有任何 K 線' },
+  ])('$description 時，說是請求的問題而不是算式的問題', async ({ message }) => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new BackendRequestRejectedError(message)),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="request-rejected-alert"]')
+    expect(alert.text()).toContain('請求的問題')
+    expect(alert.text()).toContain(message)
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+  })
+
+  it('後端自己出錯時，說清楚不是使用者的請求有問題並提供重試', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new BackendServerError('讀取 K 線失敗')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="server-error-alert"]')
+    expect(alert.text()).toContain('不是你的請求有問題')
+    expect(alert.text()).toContain('讀取 K 線失敗')
+    expect(alert.text()).toContain('重試')
+    expect(wrapper.find('[data-testid="request-rejected-alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+  })
+
+  it('連不上後端時告知並提供重試', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new BackendUnreachableError('/indicator-calculations')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="unreachable-alert"]').text()).toContain('連不上後端')
+  })
+
+  it('未預期的錯誤也整塊告知', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new Error('boom')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="request-rejected-alert"]').text()).toContain('未預期的錯誤')
+  })
+
+  it('先前失敗的訊息在下一次成功計算後消失', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn()
+        .mockRejectedValueOnce(new IndicatorScriptFailedError('算式無法解讀'))
+        .mockResolvedValueOnce(new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [
+          new IndicatorValueVo('均價', [110]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper)
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(true)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="script-failed-alert"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+  })
+
+  it('計算進行中呈現狀態且執行按鈕不可再觸發', async () => {
+    const pendingCalculation = new Promise<IndicatorCalculation>(() => {})
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockReturnValue(pendingCalculation),
+    }))
+
+    await typeScript(wrapper, WHOLE_SCRIPT)
+    await wrapper.get('form').trigger('submit')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="calculating-alert"]').text()).toContain('計算中')
+    expect(wrapper.get('[data-testid="calculate-button"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('按下帶入範例內容會填入一整份可直接執行的算式', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+
+    const editorText = scriptText(wrapper)
+    expect(editorText).toContain('package main')
+    expect(editorText).toContain('import (')
+    expect(editorText).toContain('func Calculate(data []indicator.KCandle)')
+    expect(editorText).toContain('均價')
+  })
+
+  it('填入範例之後直接送得出去，送出的就是那一整份範例', async () => {
+    // 範例要「填了就能跑」，所以這一條走完整條路：按範例、按送出，看送出去的是什麼。
+    // 只驗填進去的內容長什麼樣，等於放過「填進去之後到送出之間有人動了它」這種壞法。
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+    await settle()
+
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const sent = vi.mocked(indicatorCalculationProxy.calculateIndicator).mock.calls[0]![0]
+    expect(sent.script.startsWith('package main')).toBe(true)
+    expect(sent.script).toContain('import (')
+    expect(sent.script).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+    expect(sent.script).toContain('均價')
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+
+  it('指標值種類就是領域給的那五種', async () => {
+    const wrapper = mountPanel(buildProxy())
+
+    const options = wrapper.get('[data-testid="result-type-select"]').findAll('option')
+    expect(options.map(option => option.text()))
+      .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
+  })
+
+  it('第一次進畫面時，編輯區已經有一整份預填好的算式', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    const script = scriptText(wrapper)
+    expect(script).toContain('package main')
+    expect(script).toContain('"indicator"')
+    expect(script).toContain('func Calculate(data []indicator.KCandle) map[string]float64 {')
+  })
+
+  it('改種類不動預填的開頭', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('signal')
+    await settle()
+
+    const script = scriptText(wrapper)
+    expect(script).toContain('package main')
+    expect(script).toContain('"math"')
+    expect(script).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
+  })
+
+  it.each([
+    { resultType: 'float', valueShape: 'map[string]float64' },
+    { resultType: 'floatList', valueShape: 'map[string][]float64' },
+    { resultType: 'bool', valueShape: 'map[string]bool' },
+    { resultType: 'boolList', valueShape: 'map[string][]bool' },
+    { resultType: 'signal', valueShape: 'indicator.Signal' },
+  ])('挑了 $resultType，編輯區的 Calculate 簽章跟著換成 $valueShape', async ({ resultType, valueShape }) => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue(resultType)
+    await settle()
+
+    expect(scriptText(wrapper))
+      .toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
+  })
+
+  it('改種類只換 Calculate 的簽章，函式主體與其他行不動', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await typeScript(
+      wrapper,
+      'package main\n\nimport "indicator"\n\n'
+      + 'func Calculate(data []indicator.KCandle) map[string]float64 { sum := 42; return nil }')
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
+    await settle()
+
+    const script = scriptText(wrapper)
+    expect(script).toContain('func Calculate(data []indicator.KCandle) map[string][]bool {')
+    expect(script).toContain('sum := 42')
+    expect(script).toContain('import "indicator"')
+  })
+
+  it('沒有特別挑時送出的是一個數字', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper)
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({ resultType: expect.objectContaining({ value: 'float' }) }))
+  })
+
+  it('挑了哪一種就送哪一種，送出的是編輯區裡那一整份', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+    const written = 'package main\n\nimport "indicator"\n\n'
+      + 'func Calculate(data []indicator.KCandle) map[string][]bool { return nil }'
+
+    await fillAndSubmit(wrapper, { resultType: 'boolList', script: written })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resultType: expect.objectContaining({ value: 'boolList' }),
+        script: written,
+      }))
+  })
+
+  it('開頭被刪掉了也照樣送出——寫得對不對由執行的那一方說', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, { script: 'func Calculate() {}' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({ script: 'func Calculate() {}' }))
+  })
+
+  it('帶入的範例內容跟著當下挑的種類走', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await settle()
+
+    await wrapper.get('[data-testid="result-type-select"]').setValue('boolList')
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+
+    expect(scriptText(wrapper)).toContain('map[string][]bool{')
+  })
+
+  it('一串數字的每個值都看得到，順序不變', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'floatList', [
+          new IndicatorValueVo('均線', [100, 105, 110]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'floatList' })
+
+    expect(wrapper.findAll('[data-testid="series-item"]').map(item => item.text()))
+      .toEqual(['100', '105', '110'])
+  })
+
+  it('是非顯示「是」與「否」', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'boolList', [
+          new IndicatorValueVo('逐根收紅', [true, false, true]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'boolList' })
+
+    expect(wrapper.findAll('[data-testid="series-item"]').map(item => item.text()))
+      .toEqual(['是', '否', '是'])
+  })
+
+  it('空的一串明說是空的，不是留一片空白', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'floatList', [
+          new IndicatorValueVo('均線', []),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'floatList' })
+
+    expect(wrapper.get('[data-testid="empty-series"]').text()).toBe('空的一串')
+    expect(wrapper.find('[data-testid="empty-result"]').exists()).toBe(false)
+  })
+
+  it('結果說明這次的指標值種類', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'bool', [
+          new IndicatorValueVo('黃金交叉', [true]),
+        ])),
+    }))
+
+    await fillAndSubmit(wrapper, { resultType: 'bool' })
+
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('一個是非')
+    expect(wrapper.get('[data-testid="indicator-row"]').text()).toContain('是')
+  })
+
+  it('算式內容寫得根本不成立時，畫面照樣送出——判定是後端的事', async () => {
+    const indicatorCalculationProxy = buildProxy()
+    const wrapper = mountPanel(indicatorCalculationProxy)
+
+    await fillAndSubmit(wrapper, { script: '這根本不是一段程式 {{{' })
+
+    expect(indicatorCalculationProxy.calculateIndicator).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="field-error"]').exists()).toBe(false)
+  })
+})
+
+describe('策略腳本畫面：算式裡可以用什麼', () => {
+  // 這兩份清單曾經常駐在編輯區旁邊。**改成問了才出現是刻意的**：
+  // 它們是「想不起來翻一下」，不是「一直看著」，而常駐要付的代價是
+  // 跟編輯區——這個畫面上唯一需要空間的東西——搶同一塊寬度。
+  async function openGuide(wrapper: Awaited<ReturnType<typeof mountPanel>>) {
+    await wrapper.get('[data-testid="script-guide-button"]').trigger('click')
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('沒問的時候不佔畫面', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    expect(wrapper.findAll('[data-testid="k-candle-field"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="script-parameter-access"]')).toHaveLength(0)
+  })
+
+  it.each([
+    { section: 'guide', showsGuide: true },
+    { section: 'parameters', showsGuide: false },
+    { section: 'code', showsGuide: false },
+  ])('手機上編輯器那一格挑「$section」：說明攤出來 $showsGuide', async ({ section, showsGuide }) => {
+    // 手機上沒有地方擺第二個對話框的入口——說明是編輯器三段裡的一段。
+    const wrapper = await mountPanel(buildProxy())
+
+    await wrapper.get(`[data-testid="tab-${section}"]`).trigger('click')
+
+    expect(wrapper.find('[data-testid="k-candle-field"]').exists()).toBe(showsGuide)
+  })
+
+  it('手機上切到別段再切回程式碼，寫到一半的算式還在', async () => {
+    const wrapper = mountPanel(buildProxy())
+    await typeScript(wrapper, WHOLE_SCRIPT)
+
+    await wrapper.get('[data-testid="tab-parameters"]').trigger('click')
+    await wrapper.get('[data-testid="tab-code"]').trigger('click')
+    await settle()
+
+    expect(scriptText(wrapper)).toContain('均價')
+  })
+
+  it('問了就列出算式收到的每一個欄位', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const fieldNames = wrapper.findAll('[data-testid="k-candle-field"]').map(field => field.text())
+
+    expect(fieldNames).toContain('Close')
+    expect(fieldNames).toContain('TakerBuyQuoteVolume')
+    expect(fieldNames).not.toContain('ID')
+  })
+
+  it('說出它是算式看得到的形狀，不是資料庫那張表', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    expect(wrapper.text()).toContain('不是資料庫那張表')
+    expect(wrapper.text()).toContain('data []indicator.KCandle')
+  })
+
+  it('也說出宣告好的參數在算式裡怎麼讀，每一種各一則', async () => {
+    // 讀法屬於沙箱契約，與 K 線欄位同一份——所以它們在同一個地方，
+    // 而且都不是畫面自己寫的字。
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const calls = wrapper.findAll('[data-testid="script-parameter-access"]')
+      .map(access => access.text())
+
+    expect(calls).toHaveLength(3)
+    expect(calls.some(call => call.includes('indicator.LookbackCount('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Number('))).toBe(true)
+    expect(calls.some(call => call.includes('indicator.Boolean('))).toBe(true)
+  })
+
+  it('說出參數要怎麼設，以及名字對不上時會發生什麼', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    expect(wrapper.text()).toContain('新增參數')
+    expect(wrapper.text()).toContain('同一個名字')
+    expect(wrapper.text()).toContain('失敗並指名')
+  })
+
+  it('也說出「一個信號」種類的算式能回傳哪三個值', async () => {
+    const wrapper = await openGuide(await mountPanel(buildProxy()))
+
+    const readings = wrapper.findAll('[data-testid="signal-reading-row"]').map(row => row.text())
+    expect(readings.some(text => text.includes('indicator.Buy') && text.includes('買入'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Sell') && text.includes('賣出'))).toBe(true)
+    expect(readings.some(text => text.includes('indicator.Hold') && text.includes('持有'))).toBe(true)
+    expect(wrapper.text()).not.toContain('看正負號')
+  })
+})
+
+describe('策略腳本畫面：這次用了多粗', () => {
+  it('挑好的彙總刻度真的被送出去', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '1h', 24, 'float', []))
+    const wrapper = mountPanel(buildProxy({ calculateIndicator }))
+    await settle()
+
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
+    await fillAndSubmit(wrapper)
+
+    expect(calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aggregationInterval: expect.objectContaining({ value: '1h' }),
+      }))
+  })
+
+  it('什麼都沒挑時送出的是一分鐘', async () => {
+    const calculateIndicator = vi.fn().mockResolvedValue(
+      new IndicatorCalculation('BTCUSDT', '1m', 3, 'float', []))
+    const wrapper = mountPanel(buildProxy({ calculateIndicator }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(calculateIndicator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aggregationInterval: expect.objectContaining({ value: '1m' }),
+      }))
+  })
+
+  it('結果寫出這次實際採用的彙總刻度，與根數並列', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '1h', 24, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('一小時')
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 24 根')
+  })
+
+  it('最細的那一種也照樣寫出來', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('五分鐘')
+  })
+
+  it('寫的是後端回報的刻度，不是送出時挑的那一個', async () => {
+    // 挑了一小時卻用五分鐘算出來的數字，長得跟對的一模一樣。
+    // 照回報的呈現，這種錯才看得見。
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+    }))
+    await settle()
+    await wrapper.get('[data-testid="aggregation-interval-select"]').setValue('1h')
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('五分鐘')
+  })
+
+  it('一個指標都沒算出來時照樣寫得出這次用的刻度', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(
+        new IndicatorCalculation('BTCUSDT', '4h', 10, 'float', [])),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.get('[data-testid="used-interval"]').text()).toContain('四小時')
+  })
+
+  it('計算失敗時完全不呈現結果，也就沒有刻度可說', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(
+        new IndicatorScriptFailedError('算式執行失敗')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="used-interval"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="used-candle-count"]').exists()).toBe(false)
+  })
+})
+
+describe('沒畫滿時，策略腳本畫面要明講', () => {
+  // 這裡與圖表刻意相反。圖表上那個根數是拉遠拉近推出來的，使用者從來沒說過它，
+  // 所以沉默才對；這裡的根數是他自己打的，他有權知道沒拿到他要的量。
+  // 「實際採用 50 根」單獨擺著看不出 50 是不是他要的——所以要把分母也說出來。
+
+  function panelAnswering(usedCandleCount: number, candleCount: number | null) {
+    return mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockResolvedValue(new IndicatorCalculation(
+        'BTCUSDT', '5m', usedCandleCount, 'float',
+        [new IndicatorValueVo('均價', [110])], [], null, candleCount)),
+    }))
+  }
+
+  it('沒畫滿時說出需要幾根與只湊得出幾根', async () => {
+    const wrapper = panelAnswering(50, 119)
+
+    await fillAndSubmit(wrapper)
+
+    const alert = wrapper.get('[data-testid="short-coverage-alert"]')
+    expect(alert.text()).toContain('119')
+    expect(alert.text()).toContain('50')
+  })
+
+  it('結果照樣顯示——沒畫滿不是失敗', async () => {
+    const wrapper = panelAnswering(50, 119)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="used-candle-count"]').text()).toContain('實際採用 50 根')
+  })
+
+  it('畫滿了就不出現那一句', async () => {
+    const wrapper = panelAnswering(119, 119)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="short-coverage-alert"]').exists()).toBe(false)
+  })
+
+  it('系統沒說填滿要幾根時不猜,那一句不出現', async () => {
+    const wrapper = panelAnswering(50, null)
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.find('[data-testid="short-coverage-alert"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(1)
+  })
+
+  it('連一個值都算不出來時整次拒絕,不顯示任何結果', async () => {
+    const wrapper = mountPanel(buildProxy({
+      calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError(
+        'span',
+        '這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。')),
+    }))
+
+    await fillAndSubmit(wrapper)
+
+    expect(wrapper.findAll('[data-testid="indicator-row"]')).toHaveLength(0)
+    expect(wrapper.text()).toContain('19')
+    expect(wrapper.text()).toContain('20')
+  })
+})
+
+describe('指標計算：按計算不等於存檔', () => {
+  it('算一段還沒存的算式，不會多出任何一支策略腳本', async () => {
+    // 這一條保住的是這一頁的核心流程：寫一段、直接算。少了它，遲早有人把「執行一律
+    // 指名策略腳本」讀成「每一次實驗都要先取名字」。
+    const createStrategyScript = vi.fn()
+    const updateStrategyScript = vi.fn()
+    const wrapper = mountPanel(
+      {
+        calculateIndicator: vi.fn().mockResolvedValue(
+          new IndicatorCalculation('BTCUSDT', '5m', 3, 'float', [])),
+        recalculateIndicator: vi.fn(),
+      },
+      { createStrategyScript, updateStrategyScript })
+    await flushPromises()
+    await fillAndSubmit(wrapper, {})
+
+    expect(createStrategyScript).not.toHaveBeenCalled()
+    expect(updateStrategyScript).not.toHaveBeenCalled()
+  })
+})
