@@ -15,9 +15,11 @@ import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trad
  * 使用端只要給 v-model 與 Application，不必各自處理一次。
  * 沒有市場鍵：合約都在同一個全天候的市場。
  */
-const { tradingSymbolApplication, errorMessage = null } = defineProps<{
+const { tradingSymbolApplication, errorMessage = null, watchedOnly = false } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
+  /** 只列合約追蹤名單上的——合約機器人只盯正在追蹤的合約。 */
+  watchedOnly?: boolean
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -27,7 +29,7 @@ const loading = ref(true)
 const unavailable = ref(false)
 
 const options = computed(() => tradingSymbolApplication.contractOptionsFor(
-  contractTradingSymbols.value, symbol.value))
+  contractTradingSymbols.value, symbol.value, watchedOnly))
 
 const hint = computed(() => {
   if (loading.value) {
@@ -40,7 +42,9 @@ const hint = computed(() => {
     return '目前沒有任何合約標的，先把合約加進合約追蹤名單'
   }
 
-  return '合約那一邊認得的每一個標的；沒在追蹤的也列著'
+  return watchedOnly
+    ? '只列合約追蹤名單上的合約'
+    : '合約那一邊認得的每一個標的；沒在追蹤的也列著'
 })
 
 onMounted(async () => {

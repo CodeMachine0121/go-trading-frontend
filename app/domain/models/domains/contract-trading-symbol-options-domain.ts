@@ -11,10 +11,21 @@ import { ContractTradingSymbolOptionsDto } from '~/domain/models/dto/contract-tr
  * 但真正的原因是合約那一邊還沒有任何標的，挑合約那一格自己會說出這一點。
  */
 export class ContractTradingSymbolOptionsDomain {
+  private readonly contractTradingSymbols: readonly ContractTradingSymbolDto[]
+
+  /**
+   * @param watchedOnly 只列合約追蹤名單上的那幾個。合約機器人只盯正在追蹤的合約——
+   *   列出沒在追蹤的，只會換來一個存下時被拒絕的選項。
+   */
   constructor(
-    private readonly contractTradingSymbols: readonly ContractTradingSymbolDto[],
+    contractTradingSymbols: readonly ContractTradingSymbolDto[],
     private readonly selectedSymbol: string,
-  ) {}
+    watchedOnly = false,
+  ) {
+    this.contractTradingSymbols = watchedOnly
+      ? contractTradingSymbols.filter(contractTradingSymbol => contractTradingSymbol.isWatched)
+      : contractTradingSymbols
+  }
 
   toDto(): ContractTradingSymbolOptionsDto {
     const isListed = this.contractTradingSymbols.some(

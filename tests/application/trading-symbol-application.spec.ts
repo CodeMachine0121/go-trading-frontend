@@ -93,5 +93,20 @@ describe('TradingSymbolApplication 把四件事一路帶到畫面', () => {
       expect(options.hasNone).toBe(hasNone)
       expect(options.options.map(contract => contract.symbol)).toEqual(listed)
     })
+
+    it.each([
+      { description: '只列追蹤中的：沒在追蹤的不出現', watched: [['BTCUSDT', true], ['DOGEUSDT', false]] as const, selected: 'DOGEUSDT', expectedOptions: ['BTCUSDT'], expected: 'BTCUSDT', hasNone: false },
+      { description: '只列追蹤中的：一個都沒在追蹤就說一個都沒有', watched: [['DOGEUSDT', false]] as const, selected: 'DOGEUSDT', expectedOptions: [], expected: 'DOGEUSDT', hasNone: true },
+    ])('$description', async ({ watched, selected, expectedOptions, expected, hasNone }) => {
+      const application = buildContractApplication(
+        watched.map(([symbol, isWatched]) => buildContractTradingSymbol(symbol, isWatched)))
+      const contractTradingSymbols = await application.listContractTradingSymbols()
+
+      const options = application.contractOptionsFor(contractTradingSymbols, selected, true)
+
+      expect(options.options.map(contract => contract.symbol)).toEqual(expectedOptions)
+      expect(options.selectedSymbol).toBe(expected)
+      expect(options.hasNone).toBe(hasNone)
+    })
   })
 })
