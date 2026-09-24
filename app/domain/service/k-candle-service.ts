@@ -2,6 +2,8 @@ import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
 import { KCandleQueryDomain } from '~/domain/models/domains/k-candle-query-domain'
 import { K_CANDLE_INTERVAL_MINUTES, KCandleWriteDomain } from '~/domain/models/domains/k-candle-write-domain'
+import { KCandleFieldError } from '~/domain/errors/k-candle-field-error'
+import { KCandleDraftIssueDto } from '~/domain/models/dto/k-candle-draft-issue-dto'
 import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
 import { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
@@ -115,5 +117,24 @@ export class KCandleService {
       currentTime.getUTCMinutes() - (currentTime.getUTCMinutes() % K_CANDLE_INTERVAL_MINUTES))
 
     return new KCandleWriteDto(symbol, alignedOpenTime, '', '', '', '', '', '', '', '')
+  }
+
+  /**
+   * 不送出，只看這份草稿現在違反哪一條寫入規則；都沒違反回 null。
+   * 規則與儲存時完全相同（同一個 KCandleWriteDomain），畫面因此能在按下儲存之前就指出那一格。
+   */
+  inspectKCandleDraft(kCandleWriteDto: KCandleWriteDto): KCandleDraftIssueDto | null {
+    try {
+      void new KCandleWriteDomain(kCandleWriteDto)
+
+      return null
+    }
+    catch (error: unknown) {
+      if (error instanceof KCandleFieldError) {
+        return new KCandleDraftIssueDto(error.field, error.message)
+      }
+
+      throw error
+    }
   }
 }

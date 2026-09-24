@@ -319,3 +319,32 @@ describe('KCandleApplication', () => {
     })
   })
 })
+
+describe('KCandleApplication 送出前檢查一份草稿', () => {
+  const PAST_MINUTE = new Date('2026-09-01T00:00:00Z')
+
+  function draft(open: string, high: string, low: string) {
+    return new KCandleWriteDto('BTCUSDT', PAST_MINUTE, open, high, low, '105', '1', '', '', '')
+  }
+
+  it.each([
+    { name: '合乎規則的草稿沒有問題', open: '100', high: '110', low: '95', issue: null },
+    { name: '最高價等於最低價也合乎規則', open: '100', high: '100', low: '100', issue: null },
+    { name: '最高價低於最低價落在最高價那一格', open: '100', high: '90', low: '95', issue: { field: 'high', message: '最高價不得低於最低價' } },
+    { name: '開盤價沒填落在開盤價那一格', open: '', high: '110', low: '95', issue: { field: 'open', message: '請填寫開盤價' } },
+  ])('$name', ({ open, high, low, issue }) => {
+    const kCandleApplication = buildApplication(buildProxy())
+
+    const inspected = kCandleApplication.inspectKCandleDraft(draft(open, high, low))
+
+    expect(inspected === null ? null : { field: inspected.field, message: inspected.message }).toEqual(issue)
+  })
+
+  it('檢查草稿不送出任何東西', () => {
+    const kCandleProxy = buildProxy()
+
+    buildApplication(kCandleProxy).inspectKCandleDraft(draft('100', '90', '95'))
+
+    expect(kCandleProxy.saveKCandle).not.toHaveBeenCalled()
+  })
+})
