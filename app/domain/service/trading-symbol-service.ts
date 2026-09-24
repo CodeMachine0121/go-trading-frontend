@@ -61,7 +61,10 @@ export class TradingSymbolService {
   contractOptionsFor(
     contractTradingSymbols: readonly ContractTradingSymbolDto[],
     selectedSymbol: string,
+    watchedOnly = false,
+    keepsSelection = false,
   ): ContractTradingSymbolOptionsDto {
-    return new ContractTradingSymbolOptionsDomain(contractTradingSymbols, selectedSymbol).toDto()
+    return new ContractTradingSymbolOptionsDomain(
+      contractTradingSymbols, selectedSymbol, watchedOnly, keepsSelection).toDto()
   }
 }

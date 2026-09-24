@@ -257,10 +257,9 @@ describe('TradingStrategyProxy 的行情種類與交易模式', () => {
     expect(tradingStrategyDto.tradingMode).toBe('shortOnly')
     expect(tradingStrategyDto.tradingModeLabel).toBe('只做空')
     expect(tradingStrategyDto.replaysOnContractAccount).toBe(true)
-    expect(tradingStrategyDto.followableByStrategyBot).toBe(false)
   })
 
-  it('舊版後端沒說行情種類時就是 K 線，機器人跟得了', async () => {
+  it('舊版後端沒說行情種類時就是 K 線', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(tradingStrategyWire({})))
 
     const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
@@ -268,6 +267,5 @@ describe('TradingStrategyProxy 的行情種類與交易模式', () => {
     expect(tradingStrategyDto.marketDataKind).toBe('kCandle')
     expect(tradingStrategyDto.marketDataKindLabel).toBe('K 線')
     expect(tradingStrategyDto.replaysOnContractAccount).toBe(false)
-    expect(tradingStrategyDto.followableByStrategyBot).toBe(true)
   })
 })

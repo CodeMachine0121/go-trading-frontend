@@ -7,7 +7,7 @@ import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 //
 // 它只在被展開時才有東西可畫，所以取資料是上面的事——一份清單裡十台機器人
 // 各自先把自己的歷史撈回來，等於為了一個多數時候沒人展開的區塊打十次後端。
-const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<{
+const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } = defineProps<{
   runRecords: readonly StrategyBotRunRecordDto[]
   loading: boolean
   failureMessage: string
@@ -18,6 +18,8 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
    * 各拿各的，同一頁上就會有兩份說法。
    */
   timeZoneIdentifier: string
+  /** 紀錄底下的一句註腳——合約機器人用它說出「一排持有也可能是行情停了」。 */
+  note?: string | null
 }>()
 </script>
 
@@ -102,6 +104,14 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier } = defineProps<
         </span>
       </li>
     </ul>
+
+    <p
+      v-if="note !== null && runRecords.length > 0"
+      class="strategy-bot-run-history__plan"
+      data-testid="run-history-note"
+    >
+      {{ note }}
+    </p>
   </div>
 </template>
 

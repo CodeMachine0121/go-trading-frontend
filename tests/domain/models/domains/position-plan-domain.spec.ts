@@ -11,6 +11,7 @@ function aPositionPlan(overrides: Partial<{
   sizingValue: string
   stopLossPercentage: string
   takeProfitPercentage: string
+  leverage: string | null
 }> = {}) {
   return new PositionPlanDomain(new PositionPlanDto(
     new Decimal(overrides.capital ?? '50000'),
@@ -18,6 +19,7 @@ function aPositionPlan(overrides: Partial<{
     new Decimal(overrides.sizingValue ?? '10'),
     new Decimal(overrides.stopLossPercentage ?? '3'),
     new Decimal(overrides.takeProfitPercentage ?? '5'),
+    overrides.leverage === undefined || overrides.leverage === null ? null : new Decimal(overrides.leverage),
   ))
 }
 
@@ -71,14 +73,25 @@ describe('PositionPlanDomain', () => {
     expect(rejection).not.toContain('停損')
   })
 
-  it('這一組裡沒有一格在問借多少', () => {
-    // 那一格拿掉時，讀它的案例是被刪掉的，不是被反轉的——而上面每一條
-    // 斷言都只會說「某個理由沒有出現」，所以把整個概念放回來，它們全都還是綠的。
+  it('現貨機器人的這一組不問借多少：沒說槓桿就是沒有這一格', () => {
+    // 只有合約機器人有槓桿；現貨那一組沒有給就是 null，而不是一個會被讀成「一倍」的數字。
     const positionPlan = new PositionPlanDto(
       new Decimal('50000'), 'percentage', new Decimal('10'),
       new Decimal('3'), new Decimal('5'))
 
-    expect(Object.keys(positionPlan)).not.toContain('leverage')
+    expect(positionPlan.leverage).toBeNull()
     expect(new PositionPlanDomain(positionPlan).rejection).toBeNull()
+  })
+})
+
+describe('PositionPlanDomain 的槓桿倍數', () => {
+  it.each([
+    { name: '現貨機器人沒有這一格，什麼都不問', leverage: null, expected: null },
+    { name: '一倍送得出去', leverage: '1', expected: null },
+    { name: '五倍送得出去', leverage: '5', expected: null },
+    { name: '小於一擋下', leverage: '0.5', expected: '槓桿倍數不得小於 1 倍' },
+    { name: '零也擋下', leverage: '0', expected: '槓桿倍數不得小於 1 倍' },
+  ])('$name', ({ leverage, expected }) => {
+    expect(aPositionPlan({ leverage }).rejection).toBe(expected)
   })
 })

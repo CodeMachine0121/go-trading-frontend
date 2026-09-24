@@ -27,5 +27,10 @@ export class PositionPlanDto {
     public readonly stopLossPercentage: Decimal,
     /** 止盈價離參考價幾個百分點。零就是不設止盈。 */
     public readonly takeProfitPercentage: Decimal,
+    /**
+     * 合約機器人的槓桿倍數；**現貨機器人是 `null`**——那一台根本沒有這一格，
+     * 而一個永遠是 1 的數字會讓讀的人以為現貨也能開槓桿。
+     */
+    public readonly leverage: Decimal | null = null,
   ) {}
 }

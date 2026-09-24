@@ -6,6 +6,7 @@ import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 
 /** 一台新機器人的預設觸發間隔。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
@@ -19,7 +20,11 @@ const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
  *
  * 規則本身一句都不在這裡：送不送得出去問 StrategyBotWriteDomain。
  */
-export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
+export function useStrategyBotForm(
+  editing: () => StrategyBotDto | null,
+  /** 這一頁拼的是哪一種機器人，以及它的表單多不多一格槓桿。 */
+  page: StrategyBotPageDto,
+) {
   const name = ref('')
   const symbol = ref('')
   const tradingStrategyId = ref(0)
@@ -40,6 +45,8 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
   const sizingValueText = ref('')
   const stopLossText = ref('')
   const takeProfitText = ref('')
+  /** 合約機器人的槓桿倍數。留空即一倍；現貨機器人的表單上沒有這一格。 */
+  const leverageText = ref('')
 
   /**
    * 押多少那一格旁邊要不要出現一格數字。問的是既有那個模型，不自己記——
@@ -83,6 +90,10 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
       // 兩個距離留空即不設那一個出場，與後端讀法一致；留空不是「填了個零」。
       decimalOfText(stopLossText.value),
       decimalOfText(takeProfitText.value),
+      // 留空即一倍，與交易服務的讀法一致；現貨機器人沒有這一格，一律 null。
+      page.takesLeverage
+        ? (String(leverageText.value).trim() === '' ? new Decimal(1) : decimalOfText(leverageText.value))
+        : null,
     )
   }
 
@@ -102,6 +113,8 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
       tradingStrategyId.value,
       triggerIntervalMinutes.value,
       buildPositionPlan(),
+      // 改一台時用它自己的種類——建立之後不得更換；新拼一台就是這一頁的那一種。
+      editing()?.marketDataKind ?? page.marketDataKind,
     )
   }
 
@@ -130,6 +143,7 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     sizingValueText.value = positionPlan?.sizingValue.toString() ?? ''
     stopLossText.value = positionPlan?.stopLossPercentage.toString() ?? ''
     takeProfitText.value = positionPlan?.takeProfitPercentage.toString() ?? ''
+    leverageText.value = positionPlan?.leverage?.toString() ?? ''
   }
 
   return {
@@ -145,6 +159,8 @@ export function useStrategyBotForm(editing: () => StrategyBotDto | null) {
     sizingModeOptions,
     stopLossText,
     takeProfitText,
+    leverageText,
+    takesLeverage: page.takesLeverage,
     rejection,
     reset,
     toWriteDto,

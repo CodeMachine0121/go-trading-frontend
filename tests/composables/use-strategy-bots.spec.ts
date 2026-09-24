@@ -33,9 +33,9 @@ function botDto(id: number, name: string, isRunning = false) {
   )
 }
 
-function botsUnderTest() {
+function botsUnderTest(marketDataKind: 'kCandle' | 'contractKCandle' = 'kCandle') {
   return useStrategyBots(
-    strategyBotApplication as unknown as Parameters<typeof useStrategyBots>[0])
+    strategyBotApplication as unknown as Parameters<typeof useStrategyBots>[0], marketDataKind)
 }
 
 beforeEach(() => {
@@ -48,6 +48,18 @@ beforeEach(() => {
       content: { resultType: 'signal', parameters: [{ name: '回看根數' }] },
     }],
     adopted: [{ id: 10, name: '別人的動能', resultType: 'signal', parameters: [{ name: '週期' }] }],
+  })
+})
+
+describe('useStrategyBots 只列這一頁那一種', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const },
+    { marketDataKind: 'contractKCandle' as const },
+  ])('$marketDataKind 那一頁只向後端要這一種', async ({ marketDataKind }) => {
+    const bots = botsUnderTest(marketDataKind)
+    await bots.load()
+
+    expect(strategyBotApplication.listStrategyBots).toHaveBeenCalledWith(marketDataKind)
   })
 })
 

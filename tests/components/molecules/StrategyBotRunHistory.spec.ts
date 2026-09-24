@@ -153,3 +153,20 @@ describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
     expect(plan).not.toContain('止盈')
   })
 })
+
+describe('StrategyBotRunHistory 的註腳', () => {
+  it.each([
+    { name: '有註腳、有紀錄時說出來', note: '一排持有也可能是行情停了', records: [runRecord(1, '持有', 'neutral')], shown: true },
+    { name: '沒有註腳（現貨機器人）時不說', note: null, records: [runRecord(1, '持有', 'neutral')], shown: false },
+    { name: '一輪都沒跑過時不說', note: '一排持有也可能是行情停了', records: [], shown: false },
+  ])('$name', ({ note, records, shown }) => {
+    const wrapper = mount(StrategyBotRunHistory, {
+      props: { runRecords: records, loading: false, failureMessage: '', timeZoneIdentifier: 'Asia/Taipei', note },
+    })
+
+    expect(wrapper.find('[data-testid="run-history-note"]').exists()).toBe(shown)
+    if (shown) {
+      expect(wrapper.get('[data-testid="run-history-note"]').text()).toBe(note)
+    }
+  })
+})

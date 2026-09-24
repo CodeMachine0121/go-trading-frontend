@@ -2,6 +2,7 @@ import type { StrategyBotApplication } from '~/application/strategy-bot-applicat
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 拼一台機器人那一頁自己的狀態：它在改哪一台、可以挑哪幾份交易策略、存得怎麼樣了。
@@ -10,12 +11,17 @@ import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write
  * 清單要的是每一台的執行狀態與歷史，這裡要的是一台的內容與可挑的交易策略。
  *
  * @param strategyBotId 有值就是改那一台，`null` 就是新拼一台。
+ * @param marketDataKind 這一頁拼的是哪一種機器人。
  */
 export function useStrategyBotWorkbench(
   strategyBotApplication: StrategyBotApplication,
   tradingStrategyApplication: TradingStrategyApplication,
   strategyBotId: number | null,
+  marketDataKind: MarketDataKind,
 ) {
+  /** 這一種機器人的畫面：標題、清單在哪、標的從哪挑、收不收槓桿。 */
+  const page = strategyBotApplication.pageFor(marketDataKind)
+
   // 存好了那一句要在**清單**上被看到，因為存完之後使用者已經被送回去了。
   const { announce } = useConsoleAnnouncement()
 
@@ -29,6 +35,13 @@ export function useStrategyBotWorkbench(
   /** 讀不到那一台。與 `failureMessage` 分開，因為它的下一步是回清單，不是重試。 */
   const missing = ref(false)
   const dirty = ref(false)
+  /**
+   * 讀到的那一台是**另一種**機器人時，它自己的編輯頁在哪；其餘時候 `null`。
+   *
+   * 不在錯的那一頁上改它：這一頁的交易策略選單與標的清單都是這一種的，
+   * 拿來改另一種機器人只會挑到一個存下時被拒絕的東西。
+   */
+  const redirectPath = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -39,14 +52,19 @@ export function useStrategyBotWorkbench(
         strategyBotId === null
           ? Promise.resolve(null)
           : strategyBotApplication.getStrategyBot(strategyBotId),
-        tradingStrategyApplication.listTradingStrategies(),
+        tradingStrategyApplication.listTradingStrategiesFollowableBy(marketDataKind),
       ])
+
+      if (bot !== null && bot.marketDataKind !== marketDataKind) {
+        redirectPath.value = bot.editPath
+
+        return
+      }
 
       editing.value = bot
       // 一次讀完，不為了顯示一個名字而每一列各問一次。
-      // 機器人每一輪讀的是現貨 K 線，所以只列它跟得了的那幾份——挑到一份合約交易策略只會被拒絕。
+      // 只列這一種機器人跟得了的那幾份——挑到另一種只會在存下時被拒絕。
       tradingStrategyOptions.value = tradingStrategies
-        .filter(tradingStrategy => tradingStrategy.followableByStrategyBot)
         .map(tradingStrategy => ({ value: tradingStrategy.id, label: tradingStrategy.name }))
     }
     catch (error: unknown) {
@@ -97,6 +115,8 @@ export function useStrategyBotWorkbench(
   }
 
   return {
+    page,
+    redirectPath,
     editing,
     tradingStrategyOptions,
     loading,

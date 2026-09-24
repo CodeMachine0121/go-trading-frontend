@@ -1,3 +1,4 @@
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { TradingStrategyService } from '~/domain/service/trading-strategy-service'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
@@ -10,6 +11,13 @@ export class TradingStrategyApplication {
 
   async listTradingStrategies(): Promise<TradingStrategyDto[]> {
     return this.tradingStrategyService.listTradingStrategies()
+  }
+
+  /** 這一種機器人跟得了的那幾份。 */
+  async listTradingStrategiesFollowableBy(
+    marketDataKind: MarketDataKind,
+  ): Promise<TradingStrategyDto[]> {
+    return this.tradingStrategyService.listTradingStrategiesFollowableBy(marketDataKind)
   }
 
   async getTradingStrategy(id: number): Promise<TradingStrategyDto> {

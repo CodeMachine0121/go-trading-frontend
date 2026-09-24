@@ -3,6 +3,9 @@ import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 
+/** 合約帳戶上最小的倍數：一倍也是一筆合約部位，再小就不是槓桿了。 */
+const MINIMUM_LEVERAGE = 1
+
 /**
  * Domain Model：一組部位規劃送不送得出去。
  *
@@ -40,10 +43,22 @@ export class PositionPlanDomain {
     // 兩個距離的規則也是**委派**出去的，與上面押多少那一段同一個理由：
     // 回測那一列現在也在問同樣兩個距離，而同一個 150 在兩張表單上
     // 必須得到同一句話。
-    return new ExitDistanceDomain(this.positionPlan.stopLossPercentage, '停損距離')
+    const exitRejection = new ExitDistanceDomain(this.positionPlan.stopLossPercentage, '停損距離')
       .validationMessage()
       ?? new ExitDistanceDomain(this.positionPlan.takeProfitPercentage, '停利距離')
         .validationMessage()
+    if (exitRejection !== null) {
+      return exitRejection
+    }
+
+    // 只有合約機器人有槓桿；現貨那一台是 null，什麼都不問。措辭與交易服務一字不差——
+    // 有人打 0.5 是有意思的，默默當成一倍等於把他要的放大一倍。
+    const leverage = this.positionPlan.leverage
+    if (leverage !== null && (leverage.isNaN() || leverage.lessThan(MINIMUM_LEVERAGE))) {
+      return '槓桿倍數不得小於 1 倍'
+    }
+
+    return null
   }
 
   get isSendable(): boolean {

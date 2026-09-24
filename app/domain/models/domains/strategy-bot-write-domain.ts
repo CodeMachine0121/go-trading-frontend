@@ -78,6 +78,7 @@ export class StrategyBotWriteDomain {
       this.writeDto.triggerIntervalMinutes,
       // 沒有要正規化的東西：那五格是數字，沒有前後空白可以去。
       this.writeDto.positionPlan,
+      this.writeDto.marketDataKind,
     )
   }
 }

@@ -46,8 +46,6 @@ export class TradingStrategyDomain {
       tradingMode?.value ?? null,
       tradingMode?.label() ?? null,
       replaysOnContractAccount,
-      // 機器人每一輪讀的是現貨 K 線，所以跟得了的只有不在合約帳戶上重演的那一種。
-      !replaysOnContractAccount,
     )
   }
 

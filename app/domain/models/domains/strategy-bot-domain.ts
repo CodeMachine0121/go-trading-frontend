@@ -1,6 +1,7 @@
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 /**
  * Domain Model：一台已存機器人對畫面的樣子。
@@ -16,6 +17,10 @@ export class StrategyBotDomain {
   constructor(private readonly strategyBot: StrategyBot) {}
 
   toDto(): StrategyBotDto {
+    const marketDataKind = new MarketDataKindDomain(this.strategyBot.marketDataKind)
+    const page = marketDataKind.toStrategyBotPageDto()
+    const leverage = this.strategyBot.positionPlan?.leverage ?? null
+
     return new StrategyBotDto(
       this.strategyBot.id,
       this.strategyBot.name,
@@ -26,6 +31,11 @@ export class StrategyBotDomain {
       new StrategyBotRunStateDomain(this.strategyBot).toDto(),
       // 原樣交出去：那五個數字是表單要填回去的值，不是這一層要判斷的東西。
       this.strategyBot.positionPlan,
+      marketDataKind.value,
+      marketDataKind.strategyBotSymbolLabel(this.strategyBot.symbol),
+      // 只有收槓桿的那一種、而且真的有建議部位時才說：沒有建議部位的那一台什麼都不押，說它幾倍是在講一個不存在的部位。
+      page.takesLeverage && leverage !== null ? `${leverage.toString()} 倍` : null,
+      `${page.listPath}/${this.strategyBot.id}`,
     )
   }
 }

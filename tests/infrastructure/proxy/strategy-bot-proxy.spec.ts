@@ -61,7 +61,7 @@ describe('StrategyBotProxy 讀回來的樣子', () => {
   it('把後端給的一台收成領域看得懂的形狀，連它照哪一份規則跑都帶著', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([botWire()]))
 
-    const bots = await proxy().listStrategyBots()
+    const bots = await proxy().listStrategyBots('kCandle')
 
     expect(bots).toHaveLength(1)
     expect(bots[0]?.name).toBe('早盤突破')
@@ -72,23 +72,24 @@ describe('StrategyBotProxy 讀回來的樣子', () => {
   it('一台都沒有是空陣列，不是錯誤', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
 
-    expect(await proxy().listStrategyBots()).toEqual([])
+    expect(await proxy().listStrategyBots('kCandle')).toEqual([])
   })
 
   it('打的是機器人端點', async () => {
     const fetchMock = vi.fn().mockResolvedValue([])
     vi.stubGlobal('$fetch', fetchMock)
 
-    await proxy().listStrategyBots()
+    await proxy().listStrategyBots('kCandle')
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8080/strategy-bots', { headers: SIGNED_IN_HEADERS })
+      'http://localhost:8080/strategy-bots',
+      { headers: SIGNED_IN_HEADERS, query: { marketDataKind: 'kCandle' } })
   })
 
   it('沒送過訊號與沒有停擺都讀成「沒有」', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([botWire()]))
 
-    const bots = await proxy().listStrategyBots()
+    const bots = await proxy().listStrategyBots('kCandle')
 
     expect(bots[0]?.lastSentSignal).toBe('')
     expect(bots[0]?.haltReason).toBeNull()
@@ -248,7 +249,7 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
     expect(positionPlan?.capital.toString()).toBe('50000')
     expect(positionPlan?.sizingMode).toBe('percentage')
     expect(positionPlan?.stopLossPercentage.toString()).toBe('3')
-    expect(Object.keys(positionPlan ?? {})).not.toContain('leverage')
+    expect(positionPlan?.leverage).toBeNull()
   })
 
   it.each([
@@ -321,5 +322,77 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
     const runRecords = await proxy().listRunRecords(3)
 
     expect(runRecords[0]?.suggestedStopLossPrice?.toString()).toBe('0')
+  })
+})
+
+describe('StrategyBotProxy 分得出現貨與合約機器人', () => {
+  it.each([
+    { marketDataKind: 'kCandle' as const },
+    { marketDataKind: 'contractKCandle' as const },
+  ])('清單只向後端要 $marketDataKind 那一種', async ({ marketDataKind }) => {
+    const fetchMock = vi.fn().mockResolvedValue([])
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().listStrategyBots(marketDataKind)
+
+    expect(fetchMock.mock.calls[0]?.[1]?.query).toEqual({ marketDataKind })
+  })
+
+  it.each([
+    { name: '後端說合約行情', wire: { marketDataKind: 'contractKCandle' }, expected: 'contractKCandle' },
+    { name: '舊版後端沒說即現貨', wire: {}, expected: 'kCandle' },
+  ])('$name', async ({ wire, expected }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire(wire)))
+
+    expect((await proxy().getStrategyBot(3)).marketDataKind).toBe(expected)
+  })
+
+  it.each([
+    {
+      name: '合約機器人的建議部位連槓桿一起讀回來',
+      wire: { marketDataKind: 'contractKCandle', positionPlan: { capital: '1000', sizingMode: 'allIn', sizingValue: '0', stopLossPercentage: '2', takeProfitPercentage: '4', leverage: '5' } },
+      capital: '1000', stopLoss: '2', leverage: '5',
+    },
+    {
+      name: '合約機器人沒回槓桿即一倍',
+      wire: { marketDataKind: 'contractKCandle', positionPlan: { capital: '1000' } },
+      capital: '1000', stopLoss: '0', leverage: '1',
+    },
+    {
+      name: '現貨機器人一律沒有槓桿',
+      wire: { positionPlan: { capital: '50000', sizingMode: 'percentage', sizingValue: '10', stopLossPercentage: '3', takeProfitPercentage: '5', leverage: '3' } },
+      capital: '50000', stopLoss: '3', leverage: null,
+    },
+    {
+      name: '舊版後端首字大寫的拼法也讀得到',
+      wire: { positionPlan: { Capital: '50000', SizingMode: 'percentage', SizingValue: '10', StopLossPercentage: '3', TakeProfitPercentage: '5' } },
+      capital: '50000', stopLoss: '3', leverage: null,
+    },
+  ])('$name', async ({ wire, capital, stopLoss, leverage }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire(wire)))
+
+    const positionPlan = (await proxy().getStrategyBot(3)).positionPlan
+
+    expect(positionPlan?.capital.toString()).toBe(capital)
+    expect(positionPlan?.stopLossPercentage.toString()).toBe(stopLoss)
+    expect(positionPlan?.leverage?.toString() ?? null).toBe(leverage)
+  })
+
+  it.each([
+    { name: '合約機器人送出種類與槓桿', marketDataKind: 'contractKCandle' as const, leverage: new Decimal(5), sentLeverage: '5' },
+    { name: '現貨機器人不送槓桿那一格', marketDataKind: 'kCandle' as const, leverage: null, sentLeverage: undefined },
+  ])('$name', async ({ marketDataKind, leverage, sentLeverage }) => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createStrategyBot(new StrategyBotWriteDomain(new StrategyBotWriteDto(
+      undefined, '費率反轉', 'BTCUSDT', 9, 5,
+      new PositionPlanDto(new Decimal(1000), 'allIn', new Decimal(0), new Decimal(2), new Decimal(4), leverage),
+      marketDataKind)))
+
+    const sentBody = fetchMock.mock.calls[0]?.[1]?.body
+    expect(sentBody.marketDataKind).toBe(marketDataKind)
+    expect(sentBody.positionPlan.leverage).toBe(sentLeverage)
+    expect('leverage' in sentBody.positionPlan).toBe(sentLeverage !== undefined)
   })
 })

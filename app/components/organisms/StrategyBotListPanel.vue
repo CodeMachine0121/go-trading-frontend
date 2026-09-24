@@ -9,18 +9,21 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppToast from '~/components/atoms/AppToast.vue'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
+import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 
 // 有機體：機器人清單這一整塊——四種狀態、三顆按鈕、空清單、錯誤與重試。
 //
 // 它是使用者**唯一**會發現機器人出事的地方：四種停擺原因裡有兩種正好是
 // 「通知他的那條路壞了」，所以沒有任何一條主動通知的路走得通。
-const { strategyBotApplication, timeZoneIdentifier } = defineProps<{
+const { strategyBotApplication, page, timeZoneIdentifier } = defineProps<{
   strategyBotApplication: StrategyBotApplication
+  /** 這一頁列的是哪一種機器人。 */
+  page: StrategyBotPageDto
   /** 歷史裡那些時間用哪一個時區說。整個操作台只有一個，所以由上面傳下來。 */
   timeZoneIdentifier: string
 }>()
 
-const bots = useStrategyBots(strategyBotApplication)
+const bots = useStrategyBots(strategyBotApplication, page.marketDataKind)
 
 onMounted(() => {
   void bots.load()
@@ -42,10 +45,10 @@ onMounted(() => {
         清單上的框裝得下，而一個功能兩個入口，兩邊都要維護、遲早不一致。
       -->
       <AppButton
-        to="/strategy-bots/new"
+        :to="page.newPath"
         data-testid="bot-create"
       >
-        ＋ 拼一台機器人
+        {{ page.createLabel }}
       </AppButton>
     </template>
 
@@ -99,8 +102,7 @@ onMounted(() => {
       class="strategy-bot-list__notice"
       data-testid="bot-list-empty"
     >
-      還沒有任何機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，
-      在訊號變了的時候傳訊息給你。
+      {{ page.emptyNotice }}
     </p>
 
     <ul
@@ -125,7 +127,7 @@ onMounted(() => {
 
         <div class="strategy-bot-list__identity">
           <span class="strategy-bot-list__meta">
-            {{ strategyBot.symbol }} · 每 {{ strategyBot.triggerIntervalMinutes }} 分鐘
+            {{ strategyBot.symbolLabel }} · 每 {{ strategyBot.triggerIntervalMinutes }} 分鐘<template v-if="strategyBot.leverageLabel !== null"> · {{ strategyBot.leverageLabel }}</template>
           </span>
           <!--
             它照哪一套規則跑。做成連結而不是一行字：一個看得到卻點不進去的名字，
@@ -211,7 +213,7 @@ onMounted(() => {
           -->
             <AppButton
               v-if="strategyBot.runState.canEdit"
-              :to="`/strategy-bots/${strategyBot.id}`"
+              :to="strategyBot.editPath"
               variant="ghost"
               data-testid="bot-edit"
             >
@@ -246,6 +248,7 @@ onMounted(() => {
           :loading="bots.runRecordsLoading.value"
           :failure-message="bots.runRecordsFailureMessage.value"
           :time-zone-identifier="timeZoneIdentifier"
+          :note="page.runHistoryNote"
         />
       </li>
     </ul>

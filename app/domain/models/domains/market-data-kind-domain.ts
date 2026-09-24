@@ -5,6 +5,7 @@ import { CONTRACT_K_CANDLE_FIELDS, K_CANDLE_FIELDS } from '~/domain/models/vo/k-
 import { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
 import { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-workbench-dto'
 import { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
+import { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 
 /**
  * 每一種行情的全部差異，就這幾欄。多一種行情是在這張表加一列，
@@ -23,6 +24,20 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       offersBacktest: boolean
       picksContractTradingSymbol: boolean
       replaysOnContractAccount: boolean
+      strategyBotPage: {
+        listPath: string
+        listTitle: string
+        listSubtitle: string
+        createTitle: string
+        editTitle: string
+        createLabel: string
+        emptyNotice: string
+        symbolSuffix: string
+        takesLeverage: boolean
+        tradingStrategyLabel: string
+        tradingStrategyCreateHint: string
+        runHistoryNote: string | null
+      }
     }
   >
 > = {
@@ -36,6 +51,21 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     offersBacktest: true,
     picksContractTradingSymbol: false,
     replaysOnContractAccount: false,
+    strategyBotPage: {
+      listPath: '/strategy-bots',
+      listTitle: '現貨策略機器人',
+      listSubtitle: '挑一份 K 線交易策略、盯一個現貨標的。按下啟動之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。',
+      createTitle: '拼一台現貨機器人',
+      editTitle: '改一改這台現貨機器人',
+      createLabel: '＋ 拼一台現貨機器人',
+      emptyNotice: '還沒有任何現貨機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，在訊號變了的時候傳訊息給你。',
+      symbolSuffix: '',
+      takesLeverage: false,
+      tradingStrategyLabel: 'K 線交易策略',
+      // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
+      tradingStrategyCreateHint: '',
+      runHistoryNote: null,
+    },
   },
   contractKCandle: {
     label: '合約行情',
@@ -56,6 +86,24 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     offersBacktest: true,
     picksContractTradingSymbol: true,
     replaysOnContractAccount: true,
+    // 合約機器人只盯合約追蹤名單上的永續合約，訊息說做多／做空／平多／平空，建議部位多一個槓桿倍數。
+    strategyBotPage: {
+      listPath: '/contract-strategy-bots',
+      listTitle: '合約策略機器人',
+      listSubtitle: '挑一份合約交易策略、盯一個合約追蹤名單上的永續合約。它照交易策略的交易模式告訴你該做多、做空還是平倉，並依你的槓桿建議保證金與止損止盈。',
+      createTitle: '拼一台合約機器人',
+      editTitle: '改一改這台合約機器人',
+      createLabel: '＋ 拼一台合約機器人',
+      emptyNotice: '還沒有任何合約機器人。拼一台之後，它會每隔幾分鐘自己看一次永續合約，在訊號變了的時候傳訊息給你。',
+      symbolSuffix: ' 永續合約',
+      takesLeverage: true,
+      tradingStrategyLabel: '合約交易策略',
+      // 新拼一份交易策略預設是 K 線，所以要說出那一格該選哪一個，否則拼好了這裡還是挑不到。
+      tradingStrategyCreateHint: '（行情種類選「合約行情」）',
+      // 交易服務在這個合約最新的一分鐘合約 K 線太舊或沒有時跳過那一輪：不送訊息，紀錄上是持有。
+      // 一整排持有因此可能不是市場沒動靜，而是行情停了——那件事只有在這裡說得出來。
+      runHistoryNote: '連續好幾輪都是持有，也可能是這個合約的一分鐘合約 K 線超過 5 分鐘沒有進來——那幾輪會被跳過、不送訊息。可以到合約 K 線瀏覽看看最新一根的時間。',
+    },
   },
 }
 
@@ -98,6 +146,38 @@ export class MarketDataKindDomain {
 
     return new StrategyScriptWorkbenchDto(
       description.offersBacktest, description.picksContractTradingSymbol, description.replaysOnContractAccount)
+  }
+
+  /**
+   * 這一種行情的機器人畫面長什麼樣：清單在哪、標題怎麼寫、標的從哪一份清單挑、收不收槓桿。
+   *
+   * 現貨與合約機器人的畫面只差在這幾件事，所以元件只讀這一份，不自己比對行情種類。
+   */
+  toStrategyBotPageDto(): StrategyBotPageDto {
+    const description = MARKET_DATA_KIND_DESCRIPTIONS[this.value]
+    const page = description.strategyBotPage
+
+    return new StrategyBotPageDto(
+      this.value,
+      page.listPath,
+      `${page.listPath}/new`,
+      page.listTitle,
+      page.listSubtitle,
+      page.createTitle,
+      page.editTitle,
+      page.createLabel,
+      page.emptyNotice,
+      description.picksContractTradingSymbol,
+      page.takesLeverage,
+      page.tradingStrategyLabel,
+      page.tradingStrategyCreateHint,
+      page.runHistoryNote,
+    )
+  }
+
+  /** 一台這一種機器人的標的在畫面上怎麼說：合約的在後面標出永續合約。 */
+  strategyBotSymbolLabel(symbol: string): string {
+    return `${symbol}${MARKET_DATA_KIND_DESCRIPTIONS[this.value].strategyBotPage.symbolSuffix}`
   }
 
   /** 選單上的一個選項。 */

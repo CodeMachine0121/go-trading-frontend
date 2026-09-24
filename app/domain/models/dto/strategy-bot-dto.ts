@@ -1,5 +1,6 @@
 import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：一台機器人交給畫面的樣子。
@@ -30,5 +31,13 @@ export class StrategyBotDto {
      * 而藏起來的值會在某天變成一個他不記得填過的數字。
      */
     public readonly positionPlan: PositionPlanDto | null,
+    /** 現貨機器人或合約機器人。 */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
+    /** 標的在清單上怎麼說：合約機器人的後面標出「永續合約」。 */
+    public readonly symbolLabel: string = symbol,
+    /** 合約機器人有建議部位時的「N 倍」；其餘一律 `null`，那一列就不提槓桿。 */
+    public readonly leverageLabel: string | null = null,
+    /** 這一台的編輯頁——在它自己那一種的畫面底下。 */
+    public readonly editPath: string = `/strategy-bots/${id}`,
   ) {}
 }

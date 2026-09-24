@@ -6,6 +6,7 @@ import { TradingStrategyRejectedError } from '~/domain/errors/trading-strategy-r
 import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { MARKET_DATA_KINDS } from '~/domain/models/vo/market-data-kind-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
@@ -22,6 +23,23 @@ export class TradingStrategyService {
     const tradingStrategies = await this.tradingStrategyProxy.listTradingStrategies()
 
     return tradingStrategies.map(one => one.toDomain().toDto())
+  }
+
+  /**
+   * 這一種機器人跟得了的那幾份：行情種類與它相同的。
+   *
+   * 現貨機器人只跟 K 線交易策略、合約機器人只跟合約交易策略——挑到另一種只會在存下時被交易服務拒絕，
+   * 所以選單上根本不列。
+   */
+  async listTradingStrategiesFollowableBy(
+    marketDataKind: MarketDataKind,
+  ): Promise<TradingStrategyDto[]> {
+    const botKind = new MarketDataKindDomain(marketDataKind)
+    const tradingStrategies = await this.tradingStrategyProxy.listTradingStrategies()
+
+    return tradingStrategies
+      .map(one => one.toDomain().toDto())
+      .filter(one => botKind.isSameAs(new MarketDataKindDomain(one.marketDataKind)))
   }
 
   async getTradingStrategy(id: number): Promise<TradingStrategyDto> {

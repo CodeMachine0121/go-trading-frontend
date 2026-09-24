@@ -16,7 +16,7 @@ function aStoredContractStrategy() {
     [new TradingStrategySignalSourceDto('費率', 21, '1h', [])],
     new TradingStrategyConditionDto('b', null, [], '費率', 'buy'),
     new TradingStrategyConditionDto('s', null, [], '費率', 'sell'),
-    'contractKCandle', '合約行情', 'shortOnly', '只做空', true, false)
+    'contractKCandle', '合約行情', 'shortOnly', '只做空', true)
 }
 
 describe('useTradingStrategyForm 的行情種類與交易模式', () => {

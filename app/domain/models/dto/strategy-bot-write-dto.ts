@@ -1,4 +1,5 @@
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：表單交出來要存的那一台，還沒有被任何規則看過。
@@ -27,5 +28,10 @@ export class StrategyBotWriteDto {
      * 「使用者看得到的就是他要送的」寫在型別上：一份看不到的值沒有地方放。
      */
     public readonly positionPlan: PositionPlanDto | null,
+    /**
+     * 這一台是現貨機器人還是合約機器人。由它是在哪一個畫面拼的決定，
+     * 改一台時沿用它自己的——建立之後不得更換，所以表單上沒有換的選項。
+     */
+    public readonly marketDataKind: MarketDataKind = 'kCandle',
   ) {}
 }
