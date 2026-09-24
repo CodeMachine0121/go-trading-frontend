@@ -7,7 +7,10 @@ import type { LiveKCandleUpdate } from '~/domain/models/entities/live-k-candle-u
  * 測試從外面看到的仍然是「送進什麼、往內傳出什麼」。
  */
 class FakeEventSource {
+  static readonly CLOSED = 2
   static opened: FakeEventSource[] = []
+  /** 瀏覽器在連線掉了時維持「連線中」並自己重試；通道一開始就被拒絕時把它設成關閉、不再重試。 */
+  readyState = 0
   onmessage: ((event: MessageEvent<string>) => void) | null = null
   onerror: (() => void) | null = null
   closed = false
@@ -25,6 +28,11 @@ class FakeEventSource {
   }
 
   fail() {
+    this.onerror?.()
+  }
+
+  refuse() {
+    this.readyState = FakeEventSource.CLOSED
     this.onerror?.()
   }
 }
@@ -213,5 +221,24 @@ describe('LiveKCandleProxy 跟的是它被交代的那一條', () => {
 
     expect(received[0]?.status).toBe('forming')
     expect(received[0]?.kCandle?.close.toString()).toBe('118.25')
+  })
+})
+
+describe('LiveKCandleProxy 分得出停了與結束了', () => {
+  it('連線掉了、瀏覽器還會自己重試時說停了', () => {
+    const { received, source } = follow()
+
+    source.fail()
+
+    expect(received.map(update => update.status)).toEqual(['stalled'])
+  })
+
+  it('通道一開始就被拒絕、瀏覽器不再重試時說結束了', () => {
+    const { received, source } = follow()
+
+    source.refuse()
+
+    expect(received.map(update => update.status)).toEqual(['ended'])
+    expect(received[0]?.kCandle).toBeNull()
   })
 })

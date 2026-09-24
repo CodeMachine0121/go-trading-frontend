@@ -1,5 +1,5 @@
 /** 圖表上那一句話的身分。至多一種，所以是封閉的值域而不是自由字串。 */
-export type LiveUpdateNoticeValue = 'marketClosed' | 'noLivePlace' | 'stalled'
+export type LiveUpdateNoticeValue = 'marketClosed' | 'noLivePlace' | 'ended' | 'stalled'
 
 /**
  * VO：圖表上那一句話。不可變、無行為。
@@ -27,5 +27,7 @@ export class LiveUpdateNoticeVo {
 export const LIVE_UPDATE_NOTICES: LiveUpdateNoticeVo[] = [
   new LiveUpdateNoticeVo('marketClosed', 'info'),
   new LiveUpdateNoticeVo('noLivePlace', 'info'),
+  // 結束了排在停了之前：通道被拒絕時瀏覽器不會再試，說「正在重新連上」就是說錯了。
+  new LiveUpdateNoticeVo('ended', 'warning'),
   new LiveUpdateNoticeVo('stalled', 'warning'),
 ]

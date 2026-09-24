@@ -40,4 +40,20 @@ describe('合約圖表上該說哪一句', () => {
 
     expect(notice).toBeNull()
   })
+
+  it('通道結束了不算跟得動：不在名單上的仍說不在名單上', () => {
+    const notice = application.liveUpdateNotice(
+      new ContractTradingSymbolDto('DOGEUSDT', false),
+      new LiveKCandleReportDto(aChart, false, false, false, false, true))
+
+    expect(notice?.value).toBe('noLivePlace')
+  })
+
+  it('名單上的、通道結束了就說結束了', () => {
+    const notice = application.liveUpdateNotice(
+      new ContractTradingSymbolDto('BTCUSDT', true),
+      new LiveKCandleReportDto(aChart, false, false, false, false, true))
+
+    expect(notice?.value).toBe('ended')
+  })
 })

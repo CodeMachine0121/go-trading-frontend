@@ -400,3 +400,18 @@ describe('圖表上那一句話：三種原因共用一個位置，一次只說�
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 })
+
+describe('通道結束了', () => {
+  it('說不會自己重新連上、要重新整理，不說正在重新連上；圖照樣顯示', async () => {
+    const feed = controllableFeed()
+    const { wrapper } = await mountPanel(feed)
+
+    feed.report('ended')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="live-update-ended-alert"]').text()).toBe(
+      '即時更新已中斷，不會自己重新連上。重新整理頁面再試一次；圖表顯示的是目前手上的資料。')
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
+  })
+})

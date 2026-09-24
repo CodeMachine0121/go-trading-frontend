@@ -39,6 +39,7 @@ export class LiveKCandleService {
         update.status === 'stalled',
         update.status === 'unavailable',
         update.status === 'marketClosed',
+        update.status === 'ended',
       ))
     })
   }
@@ -73,6 +74,7 @@ export class LiveKCandleService {
       isTrading || ((tradingSymbol?.hasLiveUpdates ?? true)
         && !(report?.hasNoLivePlace ?? false)),
       report?.isStalled ?? false,
+      report?.hasEnded ?? false,
     ).notice()
   }
 
@@ -94,6 +96,7 @@ export class LiveKCandleService {
       true,
       (report?.isTrading ?? false) || (contractTradingSymbol?.isWatched ?? true),
       report?.isStalled ?? false,
+      report?.hasEnded ?? false,
     ).notice()
   }
 }

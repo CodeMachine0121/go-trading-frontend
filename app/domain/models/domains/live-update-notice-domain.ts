@@ -7,7 +7,7 @@ import {
 /**
  * Domain Model：圖表上該說哪一句話。
  *
- * 它收下三件事實——市場在不在交易時段內、這一檔有沒有即時名額、即時是不是斷了——
+ * 它收下四件事實——市場在不在交易時段內、這一檔有沒有即時名額、即時是不是斷了、通道是不是已經結束——
  * 交出**至多一句**。
  *
  * 為什麼這是一個 domain model 而不是模板裡的一串 `v-if`：它有優先序、有理由，
@@ -19,6 +19,8 @@ export class LiveUpdateNoticeDomain {
     private readonly isWithinTradingSession: boolean,
     private readonly hasLiveUpdates: boolean,
     private readonly isStalled: boolean,
+    /** 通道已經結束、不會自己接回來。 */
+    private readonly hasEnded: boolean = false,
   ) {}
 
   /**
@@ -31,6 +33,7 @@ export class LiveUpdateNoticeDomain {
     const holds: Record<LiveUpdateNoticeValue, boolean> = {
       marketClosed: !this.isWithinTradingSession,
       noLivePlace: !this.hasLiveUpdates,
+      ended: this.hasEnded,
       stalled: this.isStalled,
     }
 

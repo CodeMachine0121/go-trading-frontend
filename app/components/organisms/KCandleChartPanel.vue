@@ -156,6 +156,7 @@ const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
 const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
   marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
   noLivePlace: '這一檔沒有即時更新，資料每分鐘更新一次。',
+  ended: '即時更新已中斷，不會自己重新連上。重新整理頁面再試一次；圖表顯示的是目前手上的資料。',
   stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
 }
 /**
@@ -344,7 +345,7 @@ function followTheMarket(followedChart: KCandleChartDto) {
       // 跟不動了、這一檔本來就沒有即時更新、或市場收盤了：三者都明說，
       // 但圖照樣顯示手上有的——沒有的是「即時」，不是「圖表」。
       latestLiveReport.value = report
-      if (report.isStalled || report.hasNoLivePlace || report.isMarketClosed) {
+      if (!report.isTrading) {
         return
       }
 

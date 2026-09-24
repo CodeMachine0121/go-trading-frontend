@@ -94,6 +94,7 @@ const liveUpdateNotice = computed(() => liveKCandleContractApplication.liveUpdat
 const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
   marketClosed: '這個市場目前收盤中。',
   noLivePlace: '這個合約標的不在合約追蹤名單上，沒有即時更新——把它加進合約追蹤名單就會即時跟盤。',
+  ended: '即時更新已中斷，不會自己重新連上——確認這個合約標的還在合約追蹤名單上，再重新整理頁面。圖表顯示的是目前手上的資料。',
   stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
 }
 

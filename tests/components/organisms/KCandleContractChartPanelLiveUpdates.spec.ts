@@ -361,6 +361,19 @@ describe('跟不動時明說', () => {
     expect(drawnCloses(wrapper).at(-1)).toBe('64050')
   })
 
+  it('通道結束了：說不會自己重新連上、要確認合約追蹤名單再重新整理，圖照樣顯示', async () => {
+    const feed = controllableFeed()
+    const wrapper = await mountPanel(feed)
+
+    feed.report('ended')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="live-update-ended-alert"]').text()).toBe(
+      '即時更新已中斷，不會自己重新連上——確認這個合約標的還在合約追蹤名單上，再重新整理頁面。圖表顯示的是目前手上的資料。')
+    expect(wrapper.find('[data-testid="live-update-stalled-alert"]').exists()).toBe(false)
+    expect(drawnCloses(wrapper)).toEqual(['64000'])
+  })
+
   it('合約從不說收盤中', async () => {
     const feed = controllableFeed()
     const wrapper = await mountPanel(feed)

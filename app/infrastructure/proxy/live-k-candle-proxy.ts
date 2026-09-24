@@ -61,8 +61,11 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
       }
     }
 
+    // 連線掉了時瀏覽器會自己重新接上，那是「停了」；通道一開始就被拒絕時（被擋下、找不到、
+    // 不在追蹤名單上、正在關機）瀏覽器就此關掉它、不再重試，那是「結束了」——兩者要人做的事不同。
     source.onerror = () => {
-      onUpdate(new LiveKCandleUpdate(symbol, 'stalled', null))
+      onUpdate(new LiveKCandleUpdate(
+        symbol, source.readyState === EventSource.CLOSED ? 'ended' : 'stalled', null))
     }
 
     return () => source.close()
