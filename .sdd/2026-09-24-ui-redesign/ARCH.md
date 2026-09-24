@@ -28,7 +28,7 @@
 | `app/spa-loading-template.html` | **Modify** | 門口載入畫面換新色票；以 `prefers-color-scheme` 兩套配色（它在 Vue 之前出現，讀不到使用者選擇） |
 | `app/components/atoms/*` | **Add（重建）** | 舊 14 個原子依原 API 重建外觀；新增 `AppSwitch`（開關） |
 | `app/components/molecules|organisms/*` | **Add（重建）** | 依舊元件的行為契約移植 script，template／樣式照設計稿重寫 |
-| `app/components/templates/ConsoleLayout.vue` | **Add（重建）** | 側欄七個去處＋頂列（搜尋、現貨／合約開關、外觀切換、助手鍵）＋窄螢幕底部五格 |
+| `app/components/templates/ConsoleLayout.vue` | **Add（重建）** | 側欄七個去處＋頂列（現貨／合約開關、顯示時區、外觀切換、助手鍵）＋窄螢幕底部五格 |
 | `app/pages/**` | **Add（重建）** | 路由與舊版一致（`/k-candles`、`/contract-k-candles/chart`…），每頁只做接線 |
 | 交易策略工作檯 | **Replace** | 拖拉墊子（`TradingStrategyCanvas` / `ConditionMat` / `PieceShelf`）改為步驟卡；拖拉專用的 `use-piece-drag*`、`utilities/piece-drag-markup.ts`、`interactjs` 在無人使用後移除 |
 | 助手晶片 | **Remove** | 浮動晶片改為頂列助手鍵；`AssistantTriggerApplication` 一整串（service / proxy / composable / tests）在無人使用後移除 |
@@ -108,7 +108,7 @@ flowchart TD
 - **Patterns applied & why:** token 雙值（主題切換的唯一接點）；Domain Model 正規化外部輸入（記住的選擇可能是舊值或亂碼）。
 - **Do not hardcode:** 任何色碼只准在 `abstracts/_tokens.scss` 與 `spa-loading-template.html`（後者由 `lint:tokens` 對齊）；
   圖表與編輯器一律讀 CSS 變數。
-- **Known debt / deferred:** 自訂版面拖拉、存多組版面不做；桌面側欄仍只指向現貨那一邊（合約靠開關）。
+- **Known debt / deferred:** 自訂版面拖拉、存多組版面不做；導覽上有兩邊的去處跟著使用者最後停留的那一邊（`useMarketSide`），不另外各佔一格。
 - **測試成本：** 開發中只跑受影響的 spec（限 worker）；全套只在收尾跑一次。
 
 ---
