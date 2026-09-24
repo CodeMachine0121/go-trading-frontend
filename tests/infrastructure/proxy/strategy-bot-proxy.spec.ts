@@ -308,6 +308,36 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
     expect(runRecords[0]?.suggestedTakeProfitPrice).toBeNull()
   })
 
+  it('合約那一輪讀得出方向、槓桿與名目，而且是精確小數', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 1,
+      ranAt: '2026-09-24T05:05:00Z',
+      result: 'sell',
+      suggestedStake: '1000',
+      suggestedDirection: 'short',
+      suggestedLeverage: '5',
+      suggestedNotional: '5000.123456789012345678',
+    }]))
+
+    const runRecords = await proxy().listRunRecords(3)
+
+    expect(runRecords[0]?.suggestedDirection).toBe('short')
+    expect(runRecords[0]?.suggestedLeverage?.toString()).toBe('5')
+    expect(runRecords[0]?.suggestedNotional?.toString()).toBe('5000.123456789012345678')
+  })
+
+  it('現貨那一輪沒有方向、槓桿與名目', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 1, ranAt: '2026-09-16T05:05:00Z', result: 'buy', suggestedStake: '5000',
+    }]))
+
+    const runRecords = await proxy().listRunRecords(3)
+
+    expect(runRecords[0]?.suggestedDirection).toBeNull()
+    expect(runRecords[0]?.suggestedLeverage).toBeNull()
+    expect(runRecords[0]?.suggestedNotional).toBeNull()
+  })
+
   it('建議過一個零的止損價時讀得出零,而不是讀作沒有', async () => {
     // 距離整個價格那麼遠的止損價正好是零——荒謬但合法，
     // 而把它讀作「沒有」會讓那一輪的歷史少講一件它真的講過的事。

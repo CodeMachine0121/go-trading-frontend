@@ -78,17 +78,11 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
           會讓這張表讀起來像壞掉的。
         -->
         <span
-          v-if="runRecord.suggestedStakeText !== null"
+          v-if="runRecord.suggestionText !== null"
           class="strategy-bot-run-history__plan"
           data-testid="run-history-plan"
         >
-          押 {{ runRecord.suggestedStakeText }}
-          <template v-if="runRecord.suggestedStopLossText !== null">
-            · 停損 {{ runRecord.suggestedStopLossText }}
-          </template>
-          <template v-if="runRecord.suggestedTakeProfitText !== null">
-            · 停利 {{ runRecord.suggestedTakeProfitText }}
-          </template>
+          {{ runRecord.suggestionText }}
         </span>
 
         <!--

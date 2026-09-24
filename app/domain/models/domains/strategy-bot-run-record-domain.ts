@@ -12,8 +12,8 @@ import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-re
  * 但它的兩個條件同時成立，所以在有人去改掉其中一個之前它一句話都不會說。
  * 持有是在等市場，衝突是在等人——所以它不能跟持有共用同一個字、同一個語氣。
  *
- * 那一輪建議過的三個數字也在這裡變成字：**有沒有**那一格是業務決定
- * （沒有建議是常態），而**不是**元件該去判斷一個 `null` 要畫成什麼。
+ * 那一輪建議過的部位怎麼寫成一句話，交給 StrategyBotRunSuggestionDomain——
+ * 現貨與合約有兩種寫法，那是它自己的一套規則。
  */
 export class StrategyBotRunRecordDomain {
   constructor(private readonly runRecord: StrategyBotRunRecord) {}
@@ -25,9 +25,7 @@ export class StrategyBotRunRecordDomain {
       this.resultLabel,
       this.resultTone,
       this.runRecord.result === 'conflict',
-      this.runRecord.suggestedStake?.toString() ?? null,
-      this.runRecord.suggestedStopLossPrice?.toString() ?? null,
-      this.runRecord.suggestedTakeProfitPrice?.toString() ?? null,
+      this.runRecord.toSuggestionDomain().toText(),
     )
   }
 

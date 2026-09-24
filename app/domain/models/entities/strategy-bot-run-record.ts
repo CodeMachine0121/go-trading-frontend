@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import { StrategyBotRunRecordDomain } from '~/domain/models/domains/strategy-bot-run-record-domain'
+import { StrategyBotRunSuggestionDomain } from '~/domain/models/domains/strategy-bot-run-suggestion-domain'
 
 /**
  * Entity：後端那一輪的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -22,9 +23,22 @@ export class StrategyBotRunRecord {
     public readonly suggestedStopLossPrice: Decimal | null,
     /** 那一輪建議的止盈價。沒有設止盈就是 `null`。 */
     public readonly suggestedTakeProfitPrice: Decimal | null,
+    /**
+     * 合約那一輪建議的方向，照後端的拼法（`long`／`short`）。
+     * 現貨、沒有建議、交易所不收的那一輪都是 `null`。
+     */
+    public readonly suggestedDirection: string | null = null,
+    /** 合約那一輪建議的槓桿倍數。只有合約那一輪有。 */
+    public readonly suggestedLeverage: Decimal | null = null,
+    /** 合約那一輪建議的名目（保證金 × 槓桿）。只有合約那一輪有。 */
+    public readonly suggestedNotional: Decimal | null = null,
   ) {}
 
   toDomain(): StrategyBotRunRecordDomain {
     return new StrategyBotRunRecordDomain(this)
+  }
+
+  toSuggestionDomain(): StrategyBotRunSuggestionDomain {
+    return new StrategyBotRunSuggestionDomain(this)
   }
 }

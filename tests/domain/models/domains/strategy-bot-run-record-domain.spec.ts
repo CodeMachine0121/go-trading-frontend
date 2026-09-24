@@ -67,36 +67,109 @@ describe('StrategyBotRunRecordDomain', () => {
   })
 })
 
-// 「有沒有那一格」是業務決定（沒有建議是常態），而不是元件該去判斷一個 null
-// 要畫成什麼——所以它在這裡變成字。
-describe('StrategyBotRunRecordDomain 那一輪建議過什麼', () => {
-  it('建議過的三個數字算成字交出去', () => {
+// 那一輪建議過的部位寫成一整句：怎麼寫是業務規則，不是元件該判斷的事。
+describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () => {
+  it('建議過的開倉金額、停損與停利寫成一句', () => {
     const runRecord = new StrategyBotRunRecord(
       1, new Date('2026-09-16T05:05:00Z'), 'sell',
       new Decimal(5000), new Decimal('66105.915'), new Decimal('60971.475'),
     ).toDomain().toDto()
 
-    expect(runRecord.suggestedStakeText).toBe('5000')
-    expect(runRecord.suggestedStopLossText).toBe('66105.915')
-    expect(runRecord.suggestedTakeProfitText).toBe('60971.475')
+    expect(runRecord.suggestionText).toBe('押 5000 · 停損 66105.915 · 停利 60971.475')
   })
 
-  it('沒有建議的那一輪三個都是 null', () => {
-    const runRecord = recordOf('hold')
+  it('只建議過停損的那一輪就只寫金額與停損——與今天一字不差', () => {
+    const runRecord = new StrategyBotRunRecord(
+      1, new Date('2026-09-16T05:05:00Z'), 'buy',
+      new Decimal(5000), new Decimal('62255.085'), null,
+    ).toDomain().toDto()
 
-    expect(runRecord.suggestedStakeText).toBeNull()
-    expect(runRecord.suggestedStopLossText).toBeNull()
-    expect(runRecord.suggestedTakeProfitText).toBeNull()
+    expect(runRecord.suggestionText).toBe('押 5000 · 停損 62255.085')
   })
 
-  it('一個零的止損價算成「0」，不算成 null', () => {
+  it('沒有建議的那一輪整段不寫', () => {
+    expect(recordOf('hold').suggestionText).toBeNull()
+  })
+
+  it('一個零的止損價寫成「0」，不當成沒有', () => {
     // 距離整個價格那麼遠的止損價正好是零——荒謬但合法，
-    // 而把它算成 null 會讓那一輪少講一件它真的講過的事。
+    // 而把它當成沒有會讓那一輪少講一件它真的講過的事。
     const runRecord = new StrategyBotRunRecord(
       1, new Date('2026-09-16T05:05:00Z'), 'buy',
       new Decimal(5000), new Decimal(0), null,
     ).toDomain().toDto()
 
-    expect(runRecord.suggestedStopLossText).toBe('0')
+    expect(runRecord.suggestionText).toBe('押 5000 · 停損 0')
+  })
+
+  it('那兩個數字叫「停損」與「停利」，不叫「止損」與「止盈」', () => {
+    // 這兩組詞在後端是兩件不同的事：這裡的距離從**最新價**量起，
+    // 而回測那邊的從**進場價**量起。混用等於把兩件事說成一件。
+    const text = new StrategyBotRunRecord(
+      1, new Date('2026-09-16T05:05:00Z'), 'sell',
+      new Decimal(5000), new Decimal(1), new Decimal(2),
+    ).toDomain().toDto().suggestionText
+
+    expect(text).not.toContain('止損')
+    expect(text).not.toContain('止盈')
+  })
+})
+
+// 合約那一輪要對得上當時那則訊息：方向、幾倍、保證金、名目，缺一不可。
+describe('StrategyBotRunRecordDomain 那一輪建議過什麼（合約）', () => {
+  function contractRecord(
+    direction: string | null,
+    leverage: string | null,
+    notional: string | null,
+    stopLoss: string | null,
+    takeProfit: string | null,
+  ) {
+    return new StrategyBotRunRecord(
+      1, new Date('2026-09-24T05:05:00Z'), 'sell',
+      new Decimal(1000),
+      stopLoss === null ? null : new Decimal(stopLoss),
+      takeProfit === null ? null : new Decimal(takeProfit),
+      direction,
+      leverage === null ? null : new Decimal(leverage),
+      notional === null ? null : new Decimal(notional),
+    ).toDomain().toDto()
+  }
+
+  it.each([
+    {
+      name: '做空、5 倍、帶出場價',
+      record: () => contractRecord('short', '5', '5000', '102', '96'),
+      expected: '做空 5 倍 · 保證金 1000 · 名目 5000 · 停損 102 · 停利 96',
+    },
+    {
+      name: '做多、1 倍、沒設出場價',
+      record: () => contractRecord('long', '1', '1000', null, null),
+      expected: '做多 1 倍 · 保證金 1000 · 名目 1000',
+    },
+    {
+      name: '認不得的方向不猜，其餘照寫',
+      record: () => contractRecord('sideways', '5', '5000', null, null),
+      expected: '5 倍 · 保證金 1000 · 名目 5000',
+    },
+    {
+      name: '方向與倍數都說不出時，從保證金開始寫',
+      record: () => contractRecord(null, null, '5000', null, null),
+      expected: '保證金 1000 · 名目 5000',
+    },
+    {
+      name: '只記得方向時仍是合約的寫法',
+      record: () => contractRecord('long', null, null, null, null),
+      expected: '做多 · 保證金 1000',
+    },
+  ])('$name', ({ record, expected }) => {
+    expect(record().suggestionText).toBe(expected)
+  })
+
+  it('交易所不收的那一輪沒有任何數字，整段不寫', () => {
+    const runRecord = new StrategyBotRunRecord(
+      1, new Date('2026-09-24T05:05:00Z'), 'buy', null, null, null, null, null, null,
+    ).toDomain().toDto()
+
+    expect(runRecord.suggestionText).toBeNull()
   })
 })

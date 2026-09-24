@@ -50,6 +50,10 @@ type StrategyBotRunRecordWire = {
   suggestedStake?: string | null
   suggestedStopLossPrice?: string | null
   suggestedTakeProfitPrice?: string | null
+  /** 合約那一輪有建議時才有：方向（`long`／`short`）、槓桿倍數與名目。現貨整個不回。 */
+  suggestedDirection?: string | null
+  suggestedLeverage?: string | null
+  suggestedNotional?: string | null
 }
 
 /**
@@ -165,6 +169,9 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         this.toSuggestedFigure(runRecordWire.suggestedStake),
         this.toSuggestedFigure(runRecordWire.suggestedStopLossPrice),
         this.toSuggestedFigure(runRecordWire.suggestedTakeProfitPrice),
+        runRecordWire.suggestedDirection ?? null,
+        this.toSuggestedFigure(runRecordWire.suggestedLeverage),
+        this.toSuggestedFigure(runRecordWire.suggestedNotional),
       ))
     }
     catch (error: unknown) {

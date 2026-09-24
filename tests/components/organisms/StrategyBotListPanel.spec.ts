@@ -386,7 +386,7 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     const { wrapper } = mountPanel({
       listStrategyBots: vi.fn().mockResolvedValue([contractBot(null)]),
       listRunRecords: vi.fn().mockResolvedValue([
-        new StrategyBotRunRecordDto(1, new Date('2026-09-24T05:00:00Z'), '持有', 'neutral', false, null, null, null)]),
+        new StrategyBotRunRecordDto(1, new Date('2026-09-24T05:00:00Z'), '持有', 'neutral', false, null)]),
     }, marketDataKind)
     await flushPromises()
 

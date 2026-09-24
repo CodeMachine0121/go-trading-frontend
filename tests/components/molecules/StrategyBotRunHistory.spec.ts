@@ -23,15 +23,11 @@ function runRecord(
   resultLabel: string,
   resultTone: 'success' | 'danger' | 'neutral' | 'warning',
   needsAttention = false,
-  suggested: {
-    stake?: string | null
-    stopLoss?: string | null
-    takeProfit?: string | null
-  } = {},
+  suggestionText: string | null = null,
 ) {
   return new StrategyBotRunRecordDto(
     runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone, needsAttention,
-    suggested.stake ?? null, suggested.stopLoss ?? null, suggested.takeProfit ?? null)
+    suggestionText)
 }
 
 describe('StrategyBotRunHistory', () => {
@@ -103,17 +99,15 @@ describe('StrategyBotRunHistory', () => {
 // 那一輪建議過的數字是它的來歷：使用者手機上收到一則訊息、照著做了，
 // 三天後想確認當時是什麼數字——而他那期間可能已經改過停損距離了。
 describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
-  it('建議過的那一輪三個數字都看得到', () => {
+  it('建議過的那一輪把那一句照畫出來', () => {
+    // 怎麼寫那一句是 domain 的事；元件只負責畫，不拼字。
     const wrapper = mountHistory({
-      runRecords: [runRecord(1, '賣出', 'danger', false, {
-        stake: '5000', stopLoss: '66105.915', takeProfit: '60971.475',
-      })],
+      runRecords: [runRecord(1, '賣出', 'danger', false,
+        '做空 5 倍 · 保證金 1000 · 名目 5000 · 停損 102 · 停利 96')],
     })
 
-    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
-    expect(plan).toContain('5000')
-    expect(plan).toContain('66105.915')
-    expect(plan).toContain('60971.475')
+    expect(wrapper.get('[data-testid="run-history-plan"]').text())
+      .toBe('做空 5 倍 · 保證金 1000 · 名目 5000 · 停損 102 · 停利 96')
   })
 
   it('沒有建議的那一輪一個字都不加', () => {
@@ -122,35 +116,6 @@ describe('StrategyBotRunHistory 那一輪建議過什麼', () => {
     const wrapper = mountHistory({ runRecords: [runRecord(1, '持有', 'neutral')] })
 
     expect(wrapper.find('[data-testid="run-history-plan"]').exists()).toBe(false)
-  })
-
-  it('只建議過停損的那一輪就只多出金額與停損', () => {
-    const wrapper = mountHistory({
-      runRecords: [runRecord(1, '買入', 'success', false, {
-        stake: '5000', stopLoss: '62255.085',
-      })],
-    })
-
-    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
-    expect(plan).toContain('5000')
-    expect(plan).toContain('62255.085')
-    expect(plan).not.toContain('停利')
-  })
-
-  it('那兩個數字叫「停損」與「停利」，不叫「止損」與「止盈」', () => {
-    // 這兩組詞在後端是兩件不同的事：這裡的距離從**最新價**量起，
-    // 而回測那邊的從**進場價**量起。混用等於把兩件事說成一件。
-    const wrapper = mountHistory({
-      runRecords: [runRecord(1, '賣出', 'danger', false, {
-        stake: '5000', stopLoss: '66105.915', takeProfit: '60971.475',
-      })],
-    })
-
-    const plan = wrapper.get('[data-testid="run-history-plan"]').text()
-    expect(plan).toContain('停損')
-    expect(plan).toContain('停利')
-    expect(plan).not.toContain('止損')
-    expect(plan).not.toContain('止盈')
   })
 })
 
