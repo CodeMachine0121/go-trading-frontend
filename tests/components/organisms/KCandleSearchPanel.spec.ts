@@ -351,6 +351,46 @@ describe('KCandleSearchPanel', () => {
       expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledTimes(2)
     })
 
+    it('改好一根存下後，表格上那一根換成新的數字', async () => {
+      const openTime = '2026-08-30T10:00:00.000Z'
+      const updatedKCandle = new KCandle(
+        'BTCUSDT',
+        new Date(openTime),
+        new Decimal('100'),
+        new Decimal('110'),
+        new Decimal('95'),
+        new Decimal('105'),
+        new Decimal('11'),
+        new Decimal('1200'),
+        new Decimal('5'),
+        new Decimal('600'),
+      )
+      const kCandleProxy = buildProxy({
+        findKCandlesInRange: vi.fn()
+          .mockResolvedValueOnce([buildKCandle(openTime)])
+          .mockResolvedValue([updatedKCandle]),
+        updateKCandle: vi.fn().mockResolvedValue(updatedKCandle),
+      })
+      const wrapper = await mountPanel(kCandleProxy)
+
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      await wrapper.get('[data-testid="edit-button"]').trigger('click')
+      await flushPromises()
+      for (const [field, value] of Object.entries({ open: '100', high: '110', low: '95', close: '105' })) {
+        await wrapper.get(`[data-testid="form-${field}"]`).setValue(value)
+      }
+      // 畫面上有兩張表單：查詢在前、維護在後。
+      await wrapper.findAll('form')[1]?.trigger('submit')
+      await flushPromises()
+
+      expect(kCandleProxy.updateKCandle).toHaveBeenCalledTimes(1)
+      const rows = wrapper.findAll('[data-testid="k-candle-row"]')
+      expect(rows).toHaveLength(1)
+      // 開盤、最高、最低、收盤依序是第三到第六格。
+      expect(rows[0]?.findAll('td').slice(2, 6).map(cell => cell.text())).toEqual(['100', '110', '95', '105'])
+    })
+
     it('點一整列也能挑那一根來改，而且那一列會被標出來', async () => {
       const wrapper = await mountPanel(buildProxy({
         findKCandlesInRange: vi.fn().mockResolvedValue([

@@ -75,8 +75,9 @@ describe('StrategyBotRunHistory', () => {
       runRecords: [runRecord(7, '衝突', 'warning', true)],
     })
 
+    // 原因（兩邊同時成立）與下一步（改掉其中一邊它才會再說話）要一起說完。
     expect(wrapper.get('[data-testid="run-history-attention"]').text())
-      .toContain('同時成立')
+      .toBe('買入與賣出同時成立，在改掉其中一邊之前它不會說話')
   })
 
   it('其餘的那幾輪不說那句話——一排紀錄裡每一列都在講話等於沒有一列在講話', () => {

@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import TradingStrategyListPage from '~/pages/trading-strategies/index.vue'
 import TradingStrategyPage from '~/pages/trading-strategies/[id].vue'
@@ -13,6 +13,8 @@ const pageState = vi.hoisted(() => ({
   declaredMeta: [] as { layout?: string, consoleTitle?: string }[],
   routeId: 'new',
   getTradingStrategy: vi.fn(),
+  // 這一頁向路由登記的離開守衛。記下來，才問得到「要離開時它說了什麼」。
+  leaveGuards: [] as (() => boolean)[],
 }))
 
 mockNuxtImport('definePageMeta', () => (meta: { layout?: string, consoleTitle?: string }) => {
@@ -33,12 +35,17 @@ mockNuxtImport('useNuxtApp', () => () => ({
 }))
 mockNuxtImport('useSelectedTimeZone', () => () => ({ selectedTimeZone: buildTimeZone('UTC') }))
 mockNuxtImport('useLayoutDensity', () => () => ({ layoutDensity: ref(onADesktop()) }))
-mockNuxtImport('onBeforeRouteLeave', () => () => {})
+mockNuxtImport('onBeforeRouteLeave', () => (guard: () => boolean) => {
+  pageState.leaveGuards.push(guard)
+})
 mockNuxtImport('useConsoleAnnouncement', () => () => ({ announcement: ref(''), announce: () => {} }))
 
 const STUBS = {
   TradingStrategyListPanel: { template: '<p data-testid="list" />' },
-  TradingStrategyWorkbench: { template: '<p data-testid="workbench" />' },
+  TradingStrategyWorkbench: {
+    emits: ['dirty-change'],
+    template: '<p data-testid="workbench"><button data-testid="workbench-edit" @click="$emit(\'dirty-change\', true)" /></p>',
+  },
   TradingStrategyBacktestPane: {
     props: ['tradingStrategyId'],
     template: '<p data-testid="backtest-id">{{ tradingStrategyId === null ? "none" : tradingStrategyId }}</p>',
@@ -78,5 +85,37 @@ describe('交易策略的兩個畫面', () => {
 
     expect(wrapper.get('[data-testid="workbench"]').attributes('style') ?? '').not.toContain('display: none')
     expect(wrapper.get('[data-testid="backtest-id"]').attributes('style')).toContain('display: none')
+  })
+})
+
+// 巢狀條件是花時間拼出來的，靜靜丟掉太貴；但什麼都沒改時每次都攔人，第三次之後就沒人讀那句話了。
+describe('交易策略那一頁有沒存的改動時離開先問過', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    { name: '沒改過就直接放行，一句都不問', edited: false, answer: true, asks: false, letsThrough: true },
+    { name: '改過、使用者說要離開就放行', edited: true, answer: true, asks: true, letsThrough: true },
+    { name: '改過、使用者說不要就留在這一頁', edited: true, answer: false, asks: true, letsThrough: false },
+  ])('$name', async ({ edited, answer, asks, letsThrough }) => {
+    // 「先問過」問的是瀏覽器自己的確認框：它是這裡的最外層邊界。
+    const confirm = vi.fn().mockReturnValue(answer)
+    vi.stubGlobal('confirm', confirm)
+    pageState.routeId = 'new'
+    pageState.leaveGuards.length = 0
+    const wrapper = mount(TradingStrategyPage, { global: { stubs: STUBS } })
+    await flushPromises()
+    if (edited) {
+      await wrapper.get('[data-testid="workbench-edit"]').trigger('click')
+    }
+
+    const leaveGuard = pageState.leaveGuards.at(-1)
+
+    expect(leaveGuard?.()).toBe(letsThrough)
+    expect(confirm).toHaveBeenCalledTimes(asks ? 1 : 0)
+    if (asks) {
+      expect(confirm).toHaveBeenCalledWith('這一頁改過的東西還沒存，確定要離開嗎？')
+    }
   })
 })

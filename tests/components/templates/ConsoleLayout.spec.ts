@@ -130,6 +130,15 @@ describe('ConsoleLayout', () => {
       expect(wrapper.find('[data-testid^="destination-"]').exists()).toBe(false)
     })
 
+    it('按底部的「助手」去整頁的助手', async () => {
+      const wrapper = await mountLayoutAt(PHONE)
+
+      const assistantTab = wrapper.get('[data-testid="tab-/chat"]')
+
+      expect(assistantTab.text()).toBe('助手')
+      expect(assistantTab.attributes('href')).toBe('/chat')
+    })
+
     it('更多裡是 K 線資料、交易策略、Marketplace、設定', async () => {
       const wrapper = await mountLayoutAt(PHONE)
 

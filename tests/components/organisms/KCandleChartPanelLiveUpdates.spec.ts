@@ -109,15 +109,18 @@ afterEach(() => {
 })
 
 describe('圖跟著市場走', () => {
-  it('市場動了，圖上就多出正在走的那一根', async () => {
+  it('市場動了，圖上就多出正在走的那一根，最上面的行情摘要也跟著報新價', async () => {
     const feed = controllableFeed()
     const { wrapper } = await mountPanel(feed)
+    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('110')
+    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).not.toContain('118')
 
     feed.report('forming', '118')
     await flushPromises()
 
     const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
     expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
+    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('118')
   })
 
   it('新的一根進來時畫面不重新擺位——它長進右邊那段留白裡', async () => {

@@ -162,6 +162,32 @@ describe('useAssistantConversation 問一句', () => {
   })
 })
 
+// 寬螢幕的抽屜與手機上的整頁助手各自叫一次 composable，但接的必須是同一段對話：
+// 在抽屜裡問過的，轉成直立走到整頁助手時要還在那裡。
+describe('useAssistantConversation 抽屜與整頁是同一段對話', () => {
+  it('在一處問過的一句，另一處看得到同一段、同一串', async () => {
+    applicationMock.ask.mockResolvedValue(startedOf(42))
+    applicationMock.getConversation.mockResolvedValue(answeredConversation(42))
+    const inTheDrawer = conversationUnderTest()
+    const onTheChatPage = conversationUnderTest()
+
+    await inTheDrawer.ask('問一句')
+
+    expect(onTheChatPage.conversationId.value).toBe(42)
+    expect(onTheChatPage.messages.value.map(message => [message.role, message.content]))
+      .toEqual([['ask', '問一句'], ['answer', '在盤整。']])
+  })
+
+  it('一處還沒送出的草稿，另一處也接得下去', () => {
+    const inTheDrawer = conversationUnderTest()
+    const onTheChatPage = conversationUnderTest()
+
+    inTheDrawer.draft.value = '寫到一半'
+
+    expect(onTheChatPage.draft.value).toBe('寫到一半')
+  })
+})
+
 describe('useAssistantConversation 等待狀態', () => {
   it('等待是後端說的：最後一則還在寫就是在等', async () => {
     // 它以前是一個我們自己記著的旗標，整頁重新載入就沒了——
