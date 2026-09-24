@@ -964,7 +964,6 @@ async function calculateIndicator() {
         ref="backtestPane"
         v-model:symbol="symbol"
         v-model:aggregation-interval="aggregationInterval"
-        class="indicator-calculation-panel__destination"
         :backtest-application="backtestApplication"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
