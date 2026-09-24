@@ -248,6 +248,7 @@ onMounted(() => {
           :loading="bots.runRecordsLoading.value"
           :failure-message="bots.runRecordsFailureMessage.value"
           :time-zone-identifier="timeZoneIdentifier"
+          :note="page.runHistoryNote"
         />
       </li>
     </ul>

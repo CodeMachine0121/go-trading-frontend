@@ -206,6 +206,9 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
     expect(page.listTitle).toBe(listTitle)
     expect(page.picksContractTradingSymbol).toBe(picksContract)
     expect(page.takesLeverage).toBe(takesLeverage)
+    // 只有合約機器人的執行紀錄要提醒：交易服務在合約 K 線停了的時候跳過那一輪，紀錄上看起來是持有。
+    expect(page.runHistoryNote !== null).toBe(takesLeverage)
+    expect(page.runHistoryNote ?? '').toContain(takesLeverage ? '超過 5 分鐘沒有進來' : '')
   })
 
   it('清單只向後端要那一種', async () => {

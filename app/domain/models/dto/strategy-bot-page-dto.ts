@@ -30,5 +30,7 @@ export class StrategyBotPageDto {
     public readonly tradingStrategyLabel: string,
     /** 一份都沒有時，去拼一份要多交代的那一句；不必交代時是空字串。 */
     public readonly tradingStrategyCreateHint: string,
+    /** 執行紀錄底下那一句註腳；這一種不需要時是 `null`。 */
+    public readonly runHistoryNote: string | null,
   ) {}
 }

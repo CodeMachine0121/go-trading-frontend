@@ -36,6 +36,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         takesLeverage: boolean
         tradingStrategyLabel: string
         tradingStrategyCreateHint: string
+        runHistoryNote: string | null
       }
     }
   >
@@ -63,6 +64,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       tradingStrategyLabel: 'K 線交易策略',
       // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
       tradingStrategyCreateHint: '',
+      runHistoryNote: null,
     },
   },
   contractKCandle: {
@@ -98,6 +100,9 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       tradingStrategyLabel: '合約交易策略',
       // 新拼一份交易策略預設是 K 線，所以要說出那一格該選哪一個，否則拼好了這裡還是挑不到。
       tradingStrategyCreateHint: '（行情種類選「合約行情」）',
+      // 交易服務在這個合約最新的一分鐘合約 K 線太舊或沒有時跳過那一輪：不送訊息，紀錄上是持有。
+      // 一整排持有因此可能不是市場沒動靜，而是行情停了——那件事只有在這裡說得出來。
+      runHistoryNote: '連續好幾輪都是持有，也可能是這個合約的一分鐘合約 K 線超過 5 分鐘沒有進來——那幾輪會被跳過、不送訊息。可以到合約 K 線瀏覽看看最新一根的時間。',
     },
   },
 }
@@ -166,6 +171,7 @@ export class MarketDataKindDomain {
       page.takesLeverage,
       page.tradingStrategyLabel,
       page.tradingStrategyCreateHint,
+      page.runHistoryNote,
     )
   }
 

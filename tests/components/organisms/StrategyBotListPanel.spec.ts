@@ -7,6 +7,7 @@ import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 function runningState() {
@@ -377,5 +378,21 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     expect(wrapper.get('[data-testid="bot-list-empty"]').text()).toContain('還沒有任何合約機器人')
     expect(wrapper.get('[data-testid="bot-create"]').attributes('href')).toBe('/contract-strategy-bots/new')
     expect(wrapper.get('[data-testid="bot-create"]').text()).toContain('拼一台合約機器人')
+  })
+  it.each([
+    { marketDataKind: 'contractKCandle' as const, shown: true },
+    { marketDataKind: 'kCandle' as const, shown: false },
+  ])('$marketDataKind 那一頁展開紀錄時，註腳出現：$shown', async ({ marketDataKind, shown }) => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([contractBot(null)]),
+      listRunRecords: vi.fn().mockResolvedValue([
+        new StrategyBotRunRecordDto(1, new Date('2026-09-24T05:00:00Z'), '持有', 'neutral', false, null, null, null)]),
+    }, marketDataKind)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="run-history-note"]').exists()).toBe(shown)
   })
 })
