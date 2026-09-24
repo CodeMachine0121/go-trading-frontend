@@ -112,6 +112,16 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
 })
 
 describe('useStrategyBotWorkbench 存回去', () => {
+  it('存好了就說一聲——分得出是拼了一台新的還是改了一台', async () => {
+    const { announcement } = useConsoleAnnouncement()
+
+    await workbenchUnderTest(null, 'contractKCandle').save(aWriteDto(undefined))
+    expect(announcement.value).toBe('機器人建好了')
+
+    await workbenchUnderTest(7, 'contractKCandle').save(aWriteDto(7))
+    expect(announcement.value).toBe('更改成功')
+  })
+
   it('存好了就說一聲——而且分得出剛剛是改一台還是拼了一台新的', async () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()

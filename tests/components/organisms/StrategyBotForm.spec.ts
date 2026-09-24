@@ -372,4 +372,17 @@ describe('StrategyBotForm 在合約那一頁', () => {
     expect(wrapper.get<HTMLInputElement>('[data-testid="bot-position-capital-input"]').element.value).toBe('1000')
     expect(wrapper.get<HTMLInputElement>('[data-testid="bot-position-leverage-input"]').element.value).toBe('5')
   })
+  it('改一台已存的機器人，送出去的是它自己的種類，不是這張表單所在那一頁的', async () => {
+    // 表單放在哪一頁不改變一台已存機器人是哪一種——種類建立後不得更換。
+    const wrapper = mountForm({
+      editing: aContractBot(null),
+      marketDataKind: 'kCandle',
+      tradingStrategyOptions: [{ value: 11, label: '費率反轉' }],
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    expect((wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto).marketDataKind).toBe('contractKCandle')
+  })
 })
