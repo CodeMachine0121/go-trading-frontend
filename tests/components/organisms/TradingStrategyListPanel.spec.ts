@@ -76,6 +76,18 @@ describe('TradingStrategyListPanel 的清單', () => {
       .toBe('/trading-strategies/7')
   })
 
+  it('兩種機器人各有一條路，不把合約機器人藏在現貨那一頁後面', async () => {
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    const spotLink = wrapper.find('[data-testid="trading-strategy-bots-link"]')
+    const contractLink = wrapper.find('[data-testid="trading-strategy-contract-bots-link"]')
+    expect(spotLink.attributes('href')).toBe('/strategy-bots')
+    expect(spotLink.text()).toBe('現貨機器人')
+    expect(contractLink.attributes('href')).toBe('/contract-strategy-bots')
+    expect(contractLink.text()).toBe('合約機器人')
+  })
+
   it('讀不到時說得出原因並給得出重試的路，而不是一張空表', async () => {
     // 一張空表會讓人以為自己什麼都沒有。
     const { wrapper } = mountPanel({

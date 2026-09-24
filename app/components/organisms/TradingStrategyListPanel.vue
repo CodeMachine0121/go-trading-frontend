@@ -33,13 +33,21 @@ onMounted(() => {
 <template>
   <AppPanel title="我的交易策略">
     <template #actions>
-      <!-- 拼好一份之後下一步是派一台機器人出去，所以那條路就擺在這裡。 -->
+      <!-- 拼好一份之後下一步是派一台機器人出去，所以那條路就擺在這裡。
+           清單裡兩種交易策略都有，而現貨與合約機器人各住一頁，所以兩條路都擺。 -->
       <AppButton
         to="/strategy-bots"
         variant="ghost"
         data-testid="trading-strategy-bots-link"
       >
-        我的機器人
+        現貨機器人
+      </AppButton>
+      <AppButton
+        to="/contract-strategy-bots"
+        variant="ghost"
+        data-testid="trading-strategy-contract-bots-link"
+      >
+        合約機器人
       </AppButton>
       <AppButton
         v-if="layoutDensity.allowsBlockEditing"
