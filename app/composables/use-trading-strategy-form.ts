@@ -138,7 +138,7 @@ export function useTradingStrategyForm(
     const warnings: Record<number, string> = {}
     signalSources.value.forEach((signalSource, index) => {
       if (usedLabels.has(signalSource.label)) {
-        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉之後那幾句要改或拿掉`
+        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉它會一併拿掉那幾句條件`
       }
     })
 

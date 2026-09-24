@@ -112,10 +112,10 @@ const pristine = ref(JSON.stringify(form.toWriteDto() ?? form.rejection.value))
 watch(() => savedGeneration, () => {
   pristine.value = JSON.stringify(form.toWriteDto() ?? form.rejection.value)
 })
+const dirty = computed(
+  () => JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
 watchEffect(() => {
-  emit(
-    'dirtyChange',
-    JSON.stringify(form.toWriteDto() ?? form.rejection.value) !== pristine.value)
+  emit('dirtyChange', dirty.value)
 })
 
 /** 現在被選著的那一張卡。一次只開一張的設定——兩張同時開，旁邊那一欄就說不清是誰的。 */
@@ -206,6 +206,12 @@ function onSave() {
         只有一顆鍵。儲存不離開這一頁，所以一顆叫「取消」的按鈕放在旁邊讀起來像在問取消什麼——
         而回清單那顆按鈕就在這一頁頂端，說得出自己要去哪。
       -->
+      <!-- 改過還沒存時說一聲：離開時才被攔下來問，他在那之前不會知道這一頁還沒存。 -->
+      <span
+        v-if="dirty"
+        class="workbench__unsaved"
+        data-testid="trading-strategy-unsaved"
+      >還沒存的改動</span>
       <AppButton
         type="button"
         class="workbench__save"
@@ -338,6 +344,13 @@ function onSave() {
     > * {
       flex: 1 1 10rem;
     }
+  }
+
+  &__unsaved {
+    align-self: center;
+    color: color('warning');
+    font-size: font-size('xs');
+    white-space: nowrap;
   }
 
   &__name {

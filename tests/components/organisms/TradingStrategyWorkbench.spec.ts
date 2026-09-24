@@ -248,6 +248,7 @@ describe('TradingStrategyWorkbench：手機上可以編', () => {
     expect(wrapper.findAll('[data-testid^="item-sell-"]').map(item => item.attributes('data-testid')))
       .toEqual(['item-sell-突破'])
     expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(true)
+    expect(wrapper.get('[data-testid="trading-strategy-unsaved"]').text()).toBe('還沒存的改動')
   })
 
   it('手機上設定從下方拉出，每一樣改得動的都在', async () => {
@@ -419,7 +420,8 @@ describe('TradingStrategyWorkbench：引用的訊號來源被刪掉', () => {
 
     await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="strategy-script-usage-warning"]').text()).toContain('MACD')
+    expect(wrapper.get('[data-testid="strategy-script-usage-warning"]').text())
+      .toBe('條件裡還在用「MACD」，刪掉它會一併拿掉那幾句條件')
   })
 })
 
@@ -760,6 +762,7 @@ describe('TradingStrategyWorkbench：存好之後', () => {
     await flushPromises()
 
     expect(wrapper.emitted('dirtyChange')?.at(-1)?.[0]).toBe(false)
+    expect(wrapper.find('[data-testid="trading-strategy-unsaved"]').exists()).toBe(false)
   })
 
   it('存好之後又改了一點東西，就又算改過了', async () => {
