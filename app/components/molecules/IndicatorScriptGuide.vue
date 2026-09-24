@@ -74,6 +74,9 @@ defineProps<{
           </li>
           <li>只開放 <code>math</code> 與 <code>sort</code>，開新的空白算式時已經先幫你匯入。</li>
           <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
+          <li data-testid="script-concurrency-note">
+            不能用 <code>go</code> 開 goroutine，也不能用 channel；寫了的算式會直接被拒絕。
+          </li>
           <li
             v-for="note in guide.notes"
             :key="note"
