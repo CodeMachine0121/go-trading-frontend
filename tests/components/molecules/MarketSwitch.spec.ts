@@ -36,5 +36,12 @@ describe('MarketSwitch', () => {
     expect(wrapper.emitted('navigate')).toBeUndefined()
     expect(wrapper.get('[role="switch"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.get('[role="switch"]').attributes('title')).toBe('這個畫面不分現貨與合約')
+    expect(wrapper.get('[data-testid="market-switch-reason"]').text()).toBe('這個畫面不分現貨與合約')
+  })
+
+  it('切得動的時候不多說一句', () => {
+    const wrapper = mountSwitch(new MarketCounterpartDto('spot', '/contract-k-candles', '切換到另一個市場的同一個畫面'))
+
+    expect(wrapper.find('[data-testid="market-switch-reason"]').exists()).toBe(false)
   })
 })

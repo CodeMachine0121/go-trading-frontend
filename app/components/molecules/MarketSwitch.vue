@@ -23,18 +23,41 @@ const onContract = computed({
 </script>
 
 <template>
-  <AppSwitch
-    v-model="onContract"
-    class="market-switch"
-    :disabled="!counterpart.switchable"
-    :label="counterpart.switchLabel"
-    data-testid="market-switch"
-  >
-    <template #off>
-      現貨
-    </template>
-    <template #on>
-      合約
-    </template>
-  </AppSwitch>
+  <div class="market-switch">
+    <AppSwitch
+      v-model="onContract"
+      :disabled="!counterpart.switchable"
+      :label="counterpart.switchLabel"
+      data-testid="market-switch"
+    >
+      <template #off>
+        現貨
+      </template>
+      <template #on>
+        合約
+      </template>
+    </AppSwitch>
+
+    <!-- 按不動時照樣說出為什麼：停留提示在手機上看不到。 -->
+    <span
+      v-if="!counterpart.switchable"
+      class="market-switch__reason"
+      data-testid="market-switch-reason"
+    >{{ counterpart.switchLabel }}</span>
+  </div>
 </template>
+
+<style scoped lang="scss">
+.market-switch {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('3xs');
+  align-items: flex-end;
+
+  &__reason {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+    white-space: nowrap;
+  }
+}
+</style>
