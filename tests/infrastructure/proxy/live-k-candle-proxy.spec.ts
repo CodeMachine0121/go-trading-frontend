@@ -51,7 +51,7 @@ function aWireUpdate(status: string, overrides: Record<string, string | null> = 
 
 function follow() {
   const received: LiveKCandleUpdate[] = []
-  const stop = new LiveKCandleProxy('http://backend.test')
+  const stop = new LiveKCandleProxy('http://backend.test', '/k-candles/live')
     .followKCandles('BTCUSDT', update => received.push(update))
   const source = FakeEventSource.opened[FakeEventSource.opened.length - 1]
   if (source === undefined) {
@@ -190,5 +190,28 @@ describe('即時通道對這個市場不報的數字', () => {
 
     expect(received[0]?.status).toBe('marketClosed')
     expect(received[0]?.kCandle).toBeNull()
+  })
+})
+
+describe('LiveKCandleProxy 跟的是它被交代的那一條', () => {
+  it('現貨與合約各開各的通道，同一個代號也不共用', () => {
+    new LiveKCandleProxy('http://backend.test', '/k-candles/live').followKCandles('BTCUSDT', () => {})
+    new LiveKCandleProxy('http://backend.test', '/contract-k-candles/live').followKCandles('BTCUSDT', () => {})
+
+    expect(FakeEventSource.opened.map(source => source.url)).toEqual([
+      'http://backend.test/k-candles/live?symbol=BTCUSDT',
+      'http://backend.test/contract-k-candles/live?symbol=BTCUSDT',
+    ])
+  })
+
+  it('合約那一條送來的更新照同一份形狀讀', () => {
+    const received: LiveKCandleUpdate[] = []
+    new LiveKCandleProxy('http://backend.test', '/contract-k-candles/live')
+      .followKCandles('BTCUSDT', update => received.push(update))
+
+    FakeEventSource.opened[0]!.send(aWireUpdate('forming'))
+
+    expect(received[0]?.status).toBe('forming')
+    expect(received[0]?.kCandle?.close.toString()).toBe('118.25')
   })
 })

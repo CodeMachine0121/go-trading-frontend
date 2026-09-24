@@ -3,6 +3,7 @@ import { LiveKCandleChartDomain } from '~/domain/models/domains/live-k-candle-ch
 import { LiveUpdateNoticeDomain } from '~/domain/models/domains/live-update-notice-domain'
 import type { LiveUpdateNoticeVo } from '~/domain/models/vo/live-update-notice-vo'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
+import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
 
@@ -71,6 +72,27 @@ export class LiveKCandleService {
         && !(report?.isMarketClosed ?? false)),
       isTrading || ((tradingSymbol?.hasLiveUpdates ?? true)
         && !(report?.hasNoLivePlace ?? false)),
+      report?.isStalled ?? false,
+    ).notice()
+  }
+
+  /**
+   * 合約圖表上該說哪一句話，至多一句。
+   *
+   * 規則是現貨那一份，只換兩個事實：合約市場**不收盤**，所以沒有「收盤中」；
+   * 有沒有即時更新說的是**在不在合約追蹤名單上**——系統只跟名單上的合約標的。
+   *
+   * 不知道在不在名單上時（還沒挑、或清單取不到）當作在：先說一句只是在猜，
+   * 真的跟不動時通道自己會說「已停止」。一則帶著 K 線的更新進來就是跟得動，
+   * 那比清單上那一份答案新。
+   */
+  contractLiveUpdateNotice(
+    contractTradingSymbol: ContractTradingSymbolDto | null,
+    report: LiveKCandleReportDto | null,
+  ): LiveUpdateNoticeVo | null {
+    return new LiveUpdateNoticeDomain(
+      true,
+      (report?.isTrading ?? false) || (contractTradingSymbol?.isWatched ?? true),
       report?.isStalled ?? false,
     ).notice()
   }

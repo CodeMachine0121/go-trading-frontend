@@ -37,15 +37,22 @@ const CANDLELESS_STATUSES: LiveKCandleStatus[] = ['stalled', 'unavailable', 'mar
  *
  * 通道本身斷掉時也送出一則「即時已停止」，讓上層只需要認識一種說法：
  * 無論是後端說它跟不動了、還是這條連線自己掉了，對看盤的人都是同一件事。
+ *
+ * 現貨與合約各有一條通道，送來的形狀一字不差，所以是同一個 proxy 的兩個實例、
+ * 只差**跟哪一條**——那由組裝根決定，這裡不問自己跟的是現貨還是合約。
  */
 export class LiveKCandleProxy implements ILiveKCandleProxy {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    /** 跟盤通道的路由，例如 `/k-candles/live` 或 `/contract-k-candles/live`。 */
+    private readonly followRoute: string,
+  ) {}
 
   followKCandles(
     symbol: string, onUpdate: (update: LiveKCandleUpdate) => void,
   ): () => void {
     const source = new EventSource(
-      `${this.baseUrl}/k-candles/live?symbol=${encodeURIComponent(symbol)}`)
+      `${this.baseUrl}${this.followRoute}?symbol=${encodeURIComponent(symbol)}`)
 
     source.onmessage = (event: MessageEvent<string>) => {
       const update = this.toUpdate(event.data)

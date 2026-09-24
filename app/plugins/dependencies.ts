@@ -193,7 +193,7 @@ export default defineNuxtPlugin(() => {
   // 跟盤是一條持續連著的通道，與其他那些一次問一次答的完全不同——
   // 所以它有自己的 proxy，而不是塞進取 K 線的那一個。
   const liveKCandleApplication = new LiveKCandleApplication(
-    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl)),
+    new LiveKCandleService(new LiveKCandleProxy(backendBaseUrl, '/k-candles/live')),
   )
 
   // 助手是後端的一項能力，因此它只吃 base URL。
