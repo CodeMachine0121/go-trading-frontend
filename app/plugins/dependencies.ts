@@ -11,6 +11,7 @@ import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
+import { AppearancePreferenceProxy } from '~/infrastructure/proxy/appearance-preference-proxy'
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyScriptParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-script-parameter-value-preference-proxy'
 import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
@@ -40,6 +41,9 @@ import { StrategyScriptMarketplaceProxy } from '~/infrastructure/proxy/strategy-
 import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
 import { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
+import { AppearanceApplication } from '~/application/appearance-application'
+import { AppearanceService } from '~/domain/service/appearance-service'
+import { MarketCounterpartApplication } from '~/application/market-counterpart-application'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
 import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
@@ -264,6 +268,14 @@ export default defineNuxtPlugin(() => {
   // 所以既沒有 proxy 也沒有 domain service，只有一個把寬度翻成答案的 model。
   const layoutDensityApplication = new LayoutDensityApplication()
 
+  // 外觀：淺色／深色／跟隨系統，記在這台瀏覽器。
+  const appearanceApplication = new AppearanceApplication(
+    new AppearanceService(new AppearancePreferenceProxy()),
+  )
+
+  // 現貨／合約開關：一條路徑在另一邊的對應畫面。
+  const marketCounterpartApplication = new MarketCounterpartApplication()
+
   // 時區是這台瀏覽器看資料的說法，不必問後端，因此它是唯一不吃 base URL 的那一條。
   const timeZoneApplication = new TimeZoneApplication(
     new TimeZoneService(new TimeZonePreferenceProxy()),
@@ -294,6 +306,8 @@ export default defineNuxtPlugin(() => {
       passwordChangeApplication,
       telegramDeliveryApplication,
       layoutDensityApplication,
+      appearanceApplication,
+      marketCounterpartApplication,
     },
   }
 })
