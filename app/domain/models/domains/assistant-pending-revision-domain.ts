@@ -28,6 +28,7 @@ export class AssistantPendingRevisionDomain {
       revision.content,
       STATUS_LABELS[revision.status],
       revision.status === 'pending',
+      revision.status === 'pending' ? 'warning' : 'neutral',
       revision.proposedAt,
     )
   }

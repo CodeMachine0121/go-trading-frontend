@@ -671,7 +671,7 @@ function conversationWithRevision(statusLabel: string) {
     buildMessage('ask', '改一下'),
     new ConversationMessageDto(answer.role, answer.content, answer.blocks, answer.createdAt, answer.status,
       answer.note, answer.failureReason,
-      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', statusLabel, statusLabel === '等你確認', MOMENT)]),
+      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', statusLabel, statusLabel === '等你確認', statusLabel === '等你確認' ? 'warning' : 'neutral', MOMENT)]),
   ])
 }
 
@@ -760,7 +760,7 @@ describe('useAssistantConversation 一筆被擋下時留下的那一句', () => 
     expect(conversation.pendingRevisionErrors.value).toEqual({})
   })
 
-  it('回頭詢問讀回來之後也清掉', async () => {
+  it('回頭詢問讀回來不清掉，免得那一句還沒讀完就不見了', async () => {
     applicationMock.ask.mockResolvedValue(startedOf())
     applicationMock.getConversation.mockResolvedValue(runningConversation())
     const conversation = conversationUnderTest()
@@ -771,6 +771,7 @@ describe('useAssistantConversation 一筆被擋下時留下的那一句', () => 
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
 
-    expect(conversation.pendingRevisionErrors.value).toEqual({})
+    expect(applicationMock.refreshConversation).toHaveBeenCalled()
+    expect(conversation.pendingRevisionErrors.value[70]).toBe('這筆修改已經處理過了')
   })
 })

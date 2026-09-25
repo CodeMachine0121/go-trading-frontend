@@ -190,7 +190,9 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
       revisionWire.id,
       revisionWire.subjectKind,
       revisionWire.subjectName,
-      JSON.stringify(revisionWire.content, null, 2),
+      typeof revisionWire.content === 'string'
+        ? revisionWire.content
+        : JSON.stringify(revisionWire.content ?? null, null, 2),
       assistantPendingRevisionStatusOf(revisionWire.status),
       new Date(revisionWire.proposedAt),
     )

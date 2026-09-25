@@ -23,6 +23,7 @@ describe('AssistantPendingRevisionDomain', () => {
     expect(revisionDto.title).toBe(title)
     expect(revisionDto.statusLabel).toBe(statusLabel)
     expect(revisionDto.canResolve).toBe(canResolve)
+    expect(revisionDto.tone).toBe(canResolve ? 'warning' : 'neutral')
     expect(revisionDto.content).toBe('{}')
     expect(revisionDto.proposedAt).toEqual(PROPOSED_AT)
   })

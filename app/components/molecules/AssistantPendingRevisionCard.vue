@@ -15,15 +15,29 @@ const emit = defineEmits<{
   confirm: [id: number]
   reject: [id: number]
 }>()
+
+const card = useTemplateRef<HTMLElement>('card')
+const titleId = computed(() => `assistant-pending-revision-title-${revision.id}`)
+
+// 處理完那兩顆鍵就不在了；焦點跟著它們消失的話，鍵盤使用者會被丟回頁首。
+watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
+  if (couldResolveBefore && !canResolveNow) {
+    card.value?.focus()
+  }
+})
 </script>
 
 <template>
   <section
+    ref="card"
     class="assistant-pending-revision-card"
+    tabindex="-1"
+    :aria-labelledby="titleId"
     data-testid="assistant-pending-revision"
   >
     <header class="assistant-pending-revision-card__header">
       <span
+        :id="titleId"
         class="assistant-pending-revision-card__title"
         data-testid="assistant-pending-revision-title"
       >
@@ -31,7 +45,8 @@ const emit = defineEmits<{
       </span>
 
       <AppBadge
-        :variant="revision.canResolve ? 'warning' : 'neutral'"
+        :variant="revision.tone"
+        role="status"
         data-testid="assistant-pending-revision-status"
       >
         {{ revision.statusLabel }}
@@ -53,6 +68,7 @@ const emit = defineEmits<{
       <AppButton
         size="small"
         :disabled="busy"
+        :aria-describedby="titleId"
         data-testid="assistant-pending-revision-confirm"
         @click="emit('confirm', revision.id)"
       >
@@ -63,6 +79,7 @@ const emit = defineEmits<{
         variant="ghost"
         size="small"
         :disabled="busy"
+        :aria-describedby="titleId"
         data-testid="assistant-pending-revision-reject"
         @click="emit('reject', revision.id)"
       >

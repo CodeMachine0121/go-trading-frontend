@@ -300,6 +300,21 @@ describe('AssistantConversationProxy 讀回待確認修改', () => {
     expect(revision.proposedAt).toEqual(new Date('2026-09-26T08:00:00Z'))
   })
 
+  it.each([
+    { name: '內容本身是文字時照原樣', content: '改成六十根', expected: '改成六十根' },
+    { name: '沒有內容時說 null 而不是空白', content: undefined, expected: 'null' },
+  ])('$name', async ({ content, expected }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7,
+      lastActiveAt: '2026-09-26T08:00:00Z',
+      messages: [{ role: 'answer', content: '已提出', createdAt: '2026-09-26T08:00:00Z', status: 'answered', pendingRevisions: [{ ...REVISION_WIRE, content }] }],
+    }))
+
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
+
+    expect(conversation.messages[0]!.pendingRevisions[0]!.content).toBe(expected)
+  })
+
   it('沒帶這一項的訊息一筆都沒有', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       id: 7,

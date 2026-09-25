@@ -6,7 +6,7 @@ import { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pendi
 function revisionDtoOf(canResolve: boolean, statusLabel = canResolve ? '等你確認' : '已確認') {
   return new AssistantPendingRevisionDto(
     70, '策略腳本「二十根均線」', '{\n  "name": "六十根均線"\n}', statusLabel, canResolve,
-    new Date('2026-09-26T08:00:00Z'))
+    canResolve ? 'warning' : 'neutral', new Date('2026-09-26T08:00:00Z'))
 }
 
 describe('AssistantPendingRevisionCard', () => {
@@ -56,5 +56,26 @@ describe('AssistantPendingRevisionCard', () => {
     expect(blocked.get('[data-testid="assistant-pending-revision-error"]').text())
       .toBe('這幾台機器人正在用它跑：早盤突破，請先停止它們')
     expect(clear.find('[data-testid="assistant-pending-revision-error"]').exists()).toBe(false)
+  })
+  it('每一顆鍵都說得出是哪一筆的，狀態改變會被讀出來', () => {
+    const wrapper = mount(AssistantPendingRevisionCard, { props: { revision: revisionDtoOf(true) } })
+    const titleId = wrapper.get('[data-testid="assistant-pending-revision-title"]').attributes('id')
+
+    expect(titleId).toBeTruthy()
+    expect(wrapper.get('[data-testid="assistant-pending-revision"]').attributes('aria-labelledby')).toBe(titleId)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-confirm"]').attributes('aria-describedby')).toBe(titleId)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-reject"]').attributes('aria-describedby')).toBe(titleId)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-status"]').attributes('role')).toBe('status')
+  })
+
+  it('處理完、鍵消失時焦點落在這一筆上', async () => {
+    const wrapper = mount(AssistantPendingRevisionCard, {
+      props: { revision: revisionDtoOf(true) }, attachTo: document.body,
+    })
+
+    await wrapper.setProps({ revision: revisionDtoOf(false) })
+
+    expect(document.activeElement).toBe(wrapper.get('[data-testid="assistant-pending-revision"]').element)
+    wrapper.unmount()
   })
 })

@@ -352,8 +352,10 @@ export function useAssistantConversation(
       }
 
       messages.value = [...conversation.messages]
-      // 讀回來的就是後端現在的說法，一筆被擋下時留下的那一句到此為止。
-      pendingRevisionErrors.value = {}
+      // 回頭詢問每兩秒一次，清掉的話被擋下的那一句還沒讀完就不見了。
+      if (!polling) {
+        pendingRevisionErrors.value = {}
+      }
     }
     catch {
       // **讀不回來不吵他。** 答案還在後端那邊寫著，這一次沒讀到不代表它不見了；

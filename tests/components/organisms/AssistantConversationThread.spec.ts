@@ -185,7 +185,7 @@ describe('AssistantConversationThread 的待確認修改', () => {
 
     return new ConversationMessageDto(
       answer.role, answer.content, answer.blocks, answer.createdAt, answer.status, answer.note, answer.failureReason,
-      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', '等你確認', true, answer.createdAt)])
+      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', '等你確認', true, 'warning', answer.createdAt)])
   }
 
   it('每一筆接在它所屬的那一則下面，按下的那一筆往上交', async () => {
@@ -235,7 +235,7 @@ describe('AssistantConversationThread 沒寫完的問答', () => {
         messages: [new ConversationMessageDto(
           failedAsk.role, failedAsk.content, failedAsk.blocks, failedAsk.createdAt, failedAsk.status,
           failedAsk.note, failedAsk.failureReason,
-          [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '<img src=x onerror=alert(1)>', '等你確認', true, failedAsk.createdAt)])],
+          [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '<img src=x onerror=alert(1)>', '等你確認', true, 'warning', failedAsk.createdAt)])],
         pending: false,
         rejectionMessage: null,
         suggestedPrompts: SUGGESTED_PROMPTS,

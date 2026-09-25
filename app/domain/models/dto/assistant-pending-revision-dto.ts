@@ -8,6 +8,8 @@ export class AssistantPendingRevisionDto {
     public readonly statusLabel: string,
     /** 只有等你確認的那一筆能確認或拒絕。 */
     public readonly canResolve: boolean,
+    /** 等使用者決定的那一筆要醒目，其餘安靜。 */
+    public readonly tone: 'warning' | 'neutral',
     public readonly proposedAt: Date,
   ) {}
 }
