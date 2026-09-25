@@ -84,6 +84,12 @@ export function useAssistantConversation(
    */
   const latestReadTicket = useState('assistant-read-ticket', () => 0)
 
+  /** 正在確認或拒絕的那一筆；一次只處理一筆，回來之前不再送出。 */
+  const resolvingPendingRevisionId = useState<number | null>('assistant-resolving-pending-revision', () => null)
+
+  /** 每一筆被擋下時後端說的那一句，只留在那一筆底下。 */
+  const pendingRevisionErrors = useState<Record<number, string>>('assistant-pending-revision-errors', () => ({}))
+
   function takeReadTicket(): number {
     latestReadTicket.value += 1
 
@@ -158,6 +164,7 @@ export function useAssistantConversation(
     sendRejectionMessage.value = null
     lastQuestion.value = ''
     draft.value = ''
+    pendingRevisionErrors.value = {}
     currentConversationPreferenceProxy.forgetCurrentConversationId()
   }
 
@@ -181,6 +188,7 @@ export function useAssistantConversation(
 
       conversationId.value = conversation.id
       messages.value = [...conversation.messages]
+      pendingRevisionErrors.value = {}
       currentConversationPreferenceProxy.writeCurrentConversationId(conversation.id)
 
       // 再試一次要送的是**這一段最後那一句壞掉的提問**，而它現在就寫在畫面上。
@@ -344,6 +352,10 @@ export function useAssistantConversation(
       }
 
       messages.value = [...conversation.messages]
+      // 回頭詢問每兩秒一次，清掉的話被擋下的那一句還沒讀完就不見了。
+      if (!polling) {
+        pendingRevisionErrors.value = {}
+      }
     }
     catch {
       // **讀不回來不吵他。** 答案還在後端那邊寫著，這一次沒讀到不代表它不見了；
@@ -352,6 +364,40 @@ export function useAssistantConversation(
       // 跳一塊紅色警示比什麼都不說更糟：它上面那顆再試一次會**再送一次同一句**，
       // 也就是再花一次錢，去修一件根本沒壞的事。而等待本身已經誠實地說了
       // 「還不知道」。
+    }
+  }
+
+  async function confirmPendingRevision(id: number): Promise<void> {
+    await resolvePendingRevision(id, pendingRevisionId =>
+      assistantConversationApplication.confirmPendingRevision(pendingRevisionId))
+  }
+
+  async function rejectPendingRevision(id: number): Promise<void> {
+    await resolvePendingRevision(id, pendingRevisionId =>
+      assistantConversationApplication.rejectPendingRevision(pendingRevisionId))
+  }
+
+  /** 狀態只信後端：成功之後重讀整段對話，而不是在這裡自己改那一筆。 */
+  async function resolvePendingRevision(
+    id: number, resolution: (pendingRevisionId: number) => Promise<unknown>,
+  ): Promise<void> {
+    if (resolvingPendingRevisionId.value !== null) {
+      return
+    }
+
+    resolvingPendingRevisionId.value = id
+    const { [id]: _clearedError, ...otherErrors } = pendingRevisionErrors.value
+    pendingRevisionErrors.value = otherErrors
+
+    try {
+      await resolution(id)
+      await refreshCurrentConversation()
+    }
+    catch (error: unknown) {
+      pendingRevisionErrors.value = { ...pendingRevisionErrors.value, [id]: readableMessageOf(error) }
+    }
+    finally {
+      resolvingPendingRevisionId.value = null
     }
   }
 
@@ -482,6 +528,10 @@ export function useAssistantConversation(
     conversations,
     conversationsErrorMessage,
     isEmpty,
+    resolvingPendingRevisionId,
+    pendingRevisionErrors,
+    confirmPendingRevision,
+    rejectPendingRevision,
     ask,
     retry,
     startNewConversation,

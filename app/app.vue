@@ -41,6 +41,10 @@ const {
   selectConversation,
   loadConversations,
   resumeCurrentConversation,
+  resolvingPendingRevisionId,
+  pendingRevisionErrors,
+  confirmPendingRevision,
+  rejectPendingRevision,
 } = useAssistantConversation()
 const { selectedTimeZone } = useSelectedTimeZone()
 
@@ -121,6 +125,8 @@ onBeforeUnmount(() => {
     :width="drawerWidth"
     :resizing="resizing"
     :covers-screen="layoutDensity.assistantCoversScreen"
+    :resolving-pending-revision-id="resolvingPendingRevisionId"
+    :pending-revision-errors="pendingRevisionErrors"
     @close-drawer="closeDrawer()"
     @send="question => ask(question)"
     @retry="retry()"
@@ -128,5 +134,7 @@ onBeforeUnmount(() => {
     @select-conversation="id => selectConversation(id)"
     @open-history="loadConversations()"
     @resize-start="onResizeStart"
+    @confirm-pending-revision="id => confirmPendingRevision(id)"
+    @reject-pending-revision="id => rejectPendingRevision(id)"
   />
 </template>

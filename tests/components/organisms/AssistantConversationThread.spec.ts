@@ -3,7 +3,8 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import AssistantConversationThread from '~/components/organisms/AssistantConversationThread.vue'
-import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
+import { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
+import { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import { SUGGESTED_PROMPTS, buildMessage, buildNote } from '../../fixtures/assistant-conversation'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -175,5 +176,76 @@ describe('AssistantConversationThread 一次問答沒有走完的時候', () => 
 
     expect(wrapper.find('[data-testid="assistant-pending"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="assistant-rejection"]').exists()).toBe(false)
+  })
+})
+
+describe('AssistantConversationThread 的待確認修改', () => {
+  function messageWithRevision(): ConversationMessageDto {
+    const answer = buildMessage('answer', '已提出，等你確認。')
+
+    return new ConversationMessageDto(
+      answer.role, answer.content, answer.blocks, answer.createdAt, answer.status, answer.note, answer.failureReason,
+      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', '等你確認', true, 'warning', answer.createdAt)])
+  }
+
+  it('每一筆接在它所屬的那一則下面，按下的那一筆往上交', async () => {
+    const wrapper = mount(AssistantConversationThread, {
+      props: {
+        messages: [buildMessage('ask', '改一下'), messageWithRevision()],
+        pending: false,
+        rejectionMessage: null,
+        suggestedPrompts: SUGGESTED_PROMPTS,
+        timeZone: buildTimeZone(),
+        pendingRevisionErrors: { 70: '這幾台機器人正在用它跑：早盤突破，請先停止它們' },
+      },
+    })
+
+    expect(wrapper.findAll('[data-testid="assistant-pending-revision"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-error"]').text())
+      .toBe('這幾台機器人正在用它跑：早盤突破，請先停止它們')
+
+    await wrapper.get('[data-testid="assistant-pending-revision-confirm"]').trigger('click')
+    await wrapper.get('[data-testid="assistant-pending-revision-reject"]').trigger('click')
+
+    expect(wrapper.emitted('confirmPendingRevision')).toEqual([[70]])
+    expect(wrapper.emitted('rejectPendingRevision')).toEqual([[70]])
+  })
+
+  it('有一筆正在處理時，每一筆的鍵都不給按', () => {
+    const wrapper = mount(AssistantConversationThread, {
+      props: {
+        messages: [messageWithRevision()],
+        pending: false,
+        rejectionMessage: null,
+        suggestedPrompts: SUGGESTED_PROMPTS,
+        timeZone: buildTimeZone(),
+        resolvingPendingRevisionId: 70,
+      },
+    })
+
+    expect(wrapper.get('[data-testid="assistant-pending-revision-confirm"]').attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('AssistantConversationThread 沒寫完的問答', () => {
+  it('那一筆掛在失敗的提問下面，內容照原樣當文字', () => {
+    const failedAsk = buildMessage('ask', '改一下', null, 'failed', '助手目前沒有回應')
+    const wrapper = mount(AssistantConversationThread, {
+      props: {
+        messages: [new ConversationMessageDto(
+          failedAsk.role, failedAsk.content, failedAsk.blocks, failedAsk.createdAt, failedAsk.status,
+          failedAsk.note, failedAsk.failureReason,
+          [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '<img src=x onerror=alert(1)>', '等你確認', true, 'warning', failedAsk.createdAt)])],
+        pending: false,
+        rejectionMessage: null,
+        suggestedPrompts: SUGGESTED_PROMPTS,
+        timeZone: buildTimeZone(),
+      },
+    })
+
+    expect(wrapper.findAll('[data-testid="assistant-pending-revision"]')).toHaveLength(1)
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-content"]').text())
+      .toBe('<img src=x onerror=alert(1)>')
   })
 })

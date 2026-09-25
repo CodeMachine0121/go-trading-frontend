@@ -28,6 +28,10 @@ const {
   startNewConversation,
   selectConversation,
   loadConversations,
+  resolvingPendingRevisionId,
+  pendingRevisionErrors,
+  confirmPendingRevision,
+  rejectPendingRevision,
 } = useAssistantConversation()
 
 // 清單只在瀏覽器端讀：它是一份會變的東西，伺服器端算出來的那一份到畫面上就過期了。
@@ -55,11 +59,15 @@ const { layoutDensity } = useLayoutDensity()
       :suggested-prompts="suggestedPrompts"
       :time-zone="selectedTimeZone"
       :layout-density="layoutDensity"
+      :resolving-pending-revision-id="resolvingPendingRevisionId"
+      :pending-revision-errors="pendingRevisionErrors"
       @send="question => ask(question)"
       @retry="retry()"
       @start-new="startNewConversation()"
       @select-conversation="id => selectConversation(id)"
       @reload="loadConversations()"
+      @confirm-pending-revision="id => confirmPendingRevision(id)"
+      @reject-pending-revision="id => rejectPendingRevision(id)"
     />
   </div>
 </template>

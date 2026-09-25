@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { AssistantPendingRevision } from '~/domain/models/entities/assistant-pending-revision'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
@@ -114,5 +115,21 @@ describe('ConversationSummaryDomain.toDto', () => {
     expect(summaryDto.id).toBe(7)
     expect(summaryDto.lastActiveAt).toBe(LAST_ACTIVE_AT)
     expect(summaryDto.messageCountLabel).toBe('6 則訊息')
+  })
+})
+
+describe('ConversationDomain.toDto 帶著每一則的待確認修改', () => {
+  it('那一則帶著的每一筆都轉成畫面讀得懂的樣子，其餘的一筆都沒有', () => {
+    const revision = new AssistantPendingRevision(
+      70, 'strategyScript', '二十根均線', '{}', 'pending', new Date('2026-09-26T08:00:00Z'))
+
+    const conversationDto = new Conversation(7, LAST_ACTIVE_AT, [
+      new ConversationMessage('ask', '改一下', new Date('2026-09-26T08:00:00Z'), 'answered'),
+      new ConversationMessage('answer', '已提出', new Date('2026-09-26T08:00:00Z'), 'answered', '', 1, false, 10, [revision]),
+    ]).toDomain().toDto()
+
+    expect(conversationDto.messages[0]!.pendingRevisions).toEqual([])
+    expect(conversationDto.messages[1]!.pendingRevisions.map(revisionDto => revisionDto.title))
+      .toEqual(['策略腳本「二十根均線」'])
   })
 })

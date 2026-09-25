@@ -1,5 +1,6 @@
 import type { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import type { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
+import type { AssistantPendingRevision } from '~/domain/models/entities/assistant-pending-revision'
 import type { Conversation } from '~/domain/models/entities/conversation'
 import type { ConversationSummary } from '~/domain/models/entities/conversation-summary'
 
@@ -32,4 +33,10 @@ export interface IAssistantConversationProxy {
 
   /** 回頭詢問：與 `getConversation` 同一段對話，但它是作答中定期的重讀，不是使用者挑了這一段。 */
   refreshConversation(id: number): Promise<Conversation>
+
+  /** 確認一筆待確認修改；找不到或不是這個人的以 AssistantPendingRevisionNotFoundError 拒絕，其餘拒絕帶著後端那一句。 */
+  confirmPendingRevision(id: number): Promise<AssistantPendingRevision>
+
+  /** 拒絕一筆待確認修改，拒絕方式同上。 */
+  rejectPendingRevision(id: number): Promise<AssistantPendingRevision>
 }

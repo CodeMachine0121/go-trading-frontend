@@ -1,3 +1,4 @@
+import type { AssistantPendingRevision } from '~/domain/models/entities/assistant-pending-revision'
 import type { AssistantTurnStatus } from '~/domain/models/entities/assistant-turn-status'
 
 /** 一則訊息是誰說的：使用者的提問，或助手的回答。 */
@@ -25,5 +26,7 @@ export class ConversationMessage {
     public readonly queryCount: number = 0,
     public readonly stoppedAtQueryLimit: boolean = false,
     public readonly usage: number = 0,
+    /** 助手在這一次問答裡提出的修改，只掛在那一次問答的最後一則上。 */
+    public readonly pendingRevisions: readonly AssistantPendingRevision[] = [],
   ) {}
 }

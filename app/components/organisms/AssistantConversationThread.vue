@@ -2,6 +2,7 @@
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantMessage from '~/components/molecules/AssistantMessage.vue'
 import AssistantPendingNotice from '~/components/molecules/AssistantPendingNotice.vue'
+import AssistantPendingRevisionCard from '~/components/molecules/AssistantPendingRevisionCard.vue'
 import AssistantRejectionNotice from '~/components/molecules/AssistantRejectionNotice.vue'
 import AssistantSuggestedPrompts from '~/components/molecules/AssistantSuggestedPrompts.vue'
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
@@ -14,17 +15,24 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 // 新東西出現時捲到底，因為新東西就是使用者在等的東西。
 //
 // 對話還是空的時候，建議提問排在串的最底下——緊貼著輸入框，看到就能點。
-const { messages, pending, rejectionMessage, suggestedPrompts, timeZone } = defineProps<{
+const {
+  messages, pending, rejectionMessage, suggestedPrompts, timeZone,
+  resolvingPendingRevisionId = null, pendingRevisionErrors = {},
+} = defineProps<{
   messages: readonly ConversationMessageDto[]
   pending: boolean
   rejectionMessage: string | null
   suggestedPrompts: readonly string[]
   timeZone: TimeZoneDto
+  resolvingPendingRevisionId?: number | null
+  pendingRevisionErrors?: Readonly<Record<number, string>>
 }>()
 
 const emit = defineEmits<{
   retry: []
   selectPrompt: [prompt: string]
+  confirmPendingRevision: [id: number]
+  rejectPendingRevision: [id: number]
 }>()
 
 const scroller = useTemplateRef<HTMLElement>('scroller')
@@ -74,12 +82,25 @@ onMounted(scrollToBottom)
     </div>
 
     <template v-else>
-      <AssistantMessage
+      <template
         v-for="(message, messageIndex) in messages"
         :key="messageIndex"
-        :message="message"
-        :time-zone="timeZone"
-      />
+      >
+        <AssistantMessage
+          :message="message"
+          :time-zone="timeZone"
+        />
+
+        <AssistantPendingRevisionCard
+          v-for="revision in message.pendingRevisions"
+          :key="`revision-${revision.id}`"
+          :revision="revision"
+          :busy="resolvingPendingRevisionId !== null"
+          :error-message="pendingRevisionErrors[revision.id] ?? null"
+          @confirm="id => emit('confirmPendingRevision', id)"
+          @reject="id => emit('rejectPendingRevision', id)"
+        />
+      </template>
     </template>
 
     <AssistantPendingNotice v-if="pending" />
