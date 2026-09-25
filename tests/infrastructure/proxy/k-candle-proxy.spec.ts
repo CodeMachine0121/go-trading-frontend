@@ -11,6 +11,8 @@ import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-p
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { SignedOutError } from '~/domain/errors/signed-out-error'
+import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
@@ -386,6 +388,67 @@ describe('KCandleProxy', () => {
 
       await expect(new KCandleProxy(BASE_URL, signedInSessionStorage()).deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)))
         .rejects.toThrow('找不到該根 K 線')
+    })
+
+    // 改動行情要已放行的身分；看行情不必。
+    const MAINTENANCE_ACTIONS: {
+      description: string
+      maintain: (kCandleProxy: KCandleProxy) => Promise<unknown>
+      response: unknown
+    }[] = [
+      { description: '新增一根', maintain: kCandleProxy => kCandleProxy.saveKCandle(buildWriteDomain()), response: K_CANDLE_WIRE },
+      { description: '修改一根', maintain: kCandleProxy => kCandleProxy.updateKCandle(buildWriteDomain()), response: K_CANDLE_WIRE },
+      {
+        description: '刪除一根',
+        maintain: kCandleProxy => kCandleProxy.deleteKCandle(new KCandleIdentityVo('BTCUSDT', OPEN_TIME)),
+        response: null,
+      },
+      { description: '立刻更新', maintain: kCandleProxy => kCandleProxy.catchUpSymbol('2330'), response: { symbolReports: [] } },
+    ]
+
+    it.each(MAINTENANCE_ACTIONS)('$description 帶著目前登入者的身分送出', async ({ maintain, response }) => {
+      const fetchMock = vi.fn().mockResolvedValue(response)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      await maintain(new KCandleProxy(BASE_URL, signedInSessionStorage()))
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String), expect.objectContaining({ headers: SIGNED_IN_HEADERS }))
+    })
+
+    it.each(MAINTENANCE_ACTIONS)('$description 遇到登入過期時先救回，再送一次就成功', async ({ maintain, response }) => {
+      const sessionStorageProxy = signedInSessionStorage()
+      const onSignedOut = vi.fn()
+      const recoverSession = vi.fn().mockResolvedValue(true)
+      const fetchMock = vi.fn()
+        .mockRejectedValueOnce(buildFetchError({ status: 401, message: '請重新登入' }))
+        .mockResolvedValueOnce(response)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      await maintain(new KCandleProxy(
+        BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut, recoverSession)))
+
+      expect(recoverSession).toHaveBeenCalledOnce()
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(onSignedOut).not.toHaveBeenCalled()
+      expect(sessionStorageProxy.clearSession).not.toHaveBeenCalled()
+    })
+
+    it.each(MAINTENANCE_ACTIONS)('$description 救不回來時不再重送，丟掉記著的登入並請人重新登入', async ({ maintain }) => {
+      const sessionStorageProxy = signedInSessionStorage()
+      const onSignedOut = vi.fn()
+      const fetchMock = vi.fn()
+        .mockRejectedValue(buildFetchError({ status: 401, message: '請重新登入' }))
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const failure = await maintain(new KCandleProxy(
+        BASE_URL, sessionStorageProxy, new BackendRequestHooks(onSignedOut, vi.fn().mockResolvedValue(false))))
+        .catch((error: unknown) => error)
+
+      expect(failure).toBeInstanceOf(SignedOutError)
+      expect(fetchMock).toHaveBeenCalledOnce()
+      expect(sessionStorageProxy.clearSession).toHaveBeenCalledOnce()
+      expect(onSignedOut).toHaveBeenCalledOnce()
     })
   })
 })
