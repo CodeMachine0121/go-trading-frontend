@@ -233,7 +233,7 @@ export abstract class BackendApiProxy {
 
   /**
    * 這一發要帶的身分。沒有記著任何一段登入時**什麼都不帶**——那與帶一個空的憑證不同：
-   * 開放的那幾條路（K 線、交易標的）照樣答得出來，而需要身分的那幾條會拒絕，
+   * 看行情的那幾條路（查 K 線、查交易標的）照樣答得出來，而需要身分的那幾條會拒絕，
    * 這正是我們要的。
    */
   private identityHeaders(): Record<string, string> {
