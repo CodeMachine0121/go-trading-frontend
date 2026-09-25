@@ -26,6 +26,8 @@ const { conversations, layoutDensity } = defineProps<{
   rejectionMessage: string | null
   suggestedPrompts: readonly string[]
   timeZone: TimeZoneDto
+  resolvingPendingRevisionId?: number | null
+  pendingRevisionErrors?: Readonly<Record<number, string>>
   /** 現在這個寬度代表什麼。這裡用到的是「助手是不是佔滿整個畫面」。 */
   layoutDensity: LayoutDensityDto
 }>()
@@ -33,6 +35,8 @@ const { conversations, layoutDensity } = defineProps<{
 const draft = defineModel<string>('draft', { required: true })
 
 const emit = defineEmits<{
+  confirmPendingRevision: [id: number]
+  rejectPendingRevision: [id: number]
   send: [question: string]
   retry: []
   startNew: []
@@ -98,8 +102,12 @@ function startNewConversation() {
         :rejection-message="rejectionMessage"
         :suggested-prompts="suggestedPrompts"
         :time-zone="timeZone"
+        :resolving-pending-revision-id="resolvingPendingRevisionId"
+        :pending-revision-errors="pendingRevisionErrors"
         @retry="emit('retry')"
         @select-prompt="prompt => emit('send', prompt)"
+        @confirm-pending-revision="id => emit('confirmPendingRevision', id)"
+        @reject-pending-revision="id => emit('rejectPendingRevision', id)"
       />
 
       <div class="assistant-console__composer">

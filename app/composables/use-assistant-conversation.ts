@@ -84,6 +84,12 @@ export function useAssistantConversation(
    */
   const latestReadTicket = useState('assistant-read-ticket', () => 0)
 
+  /** 正在確認或拒絕的那一筆；一次只處理一筆，回來之前不再送出。 */
+  const resolvingPendingRevisionId = useState<number | null>('assistant-resolving-pending-revision', () => null)
+
+  /** 每一筆被擋下時後端說的那一句，只留在那一筆底下。 */
+  const pendingRevisionErrors = useState<Record<number, string>>('assistant-pending-revision-errors', () => ({}))
+
   function takeReadTicket(): number {
     latestReadTicket.value += 1
 
@@ -355,6 +361,40 @@ export function useAssistantConversation(
     }
   }
 
+  async function confirmPendingRevision(id: number): Promise<void> {
+    await resolvePendingRevision(id, pendingRevisionId =>
+      assistantConversationApplication.confirmPendingRevision(pendingRevisionId))
+  }
+
+  async function rejectPendingRevision(id: number): Promise<void> {
+    await resolvePendingRevision(id, pendingRevisionId =>
+      assistantConversationApplication.rejectPendingRevision(pendingRevisionId))
+  }
+
+  /** 狀態只信後端：成功之後重讀整段對話，而不是在這裡自己改那一筆。 */
+  async function resolvePendingRevision(
+    id: number, resolution: (pendingRevisionId: number) => Promise<unknown>,
+  ): Promise<void> {
+    if (resolvingPendingRevisionId.value !== null) {
+      return
+    }
+
+    resolvingPendingRevisionId.value = id
+    const { [id]: _clearedError, ...otherErrors } = pendingRevisionErrors.value
+    pendingRevisionErrors.value = otherErrors
+
+    try {
+      await resolution(id)
+      await refreshCurrentConversation()
+    }
+    catch (error: unknown) {
+      pendingRevisionErrors.value = { ...pendingRevisionErrors.value, [id]: readableMessageOf(error) }
+    }
+    finally {
+      resolvingPendingRevisionId.value = null
+    }
+  }
+
   /**
    * 這一段裡「再試一次」該重送的那一句：最後那一則壞掉時，它自己的內容。
    * 其餘一律是空的——沒有壞掉就沒有什麼好重送的。
@@ -482,6 +522,10 @@ export function useAssistantConversation(
     conversations,
     conversationsErrorMessage,
     isEmpty,
+    resolvingPendingRevisionId,
+    pendingRevisionErrors,
+    confirmPendingRevision,
+    rejectPendingRevision,
     ask,
     retry,
     startNewConversation,

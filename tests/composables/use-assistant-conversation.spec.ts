@@ -18,6 +18,8 @@ const applicationMock = {
   listConversations: vi.fn(),
   getConversation: vi.fn(),
   refreshConversation: vi.fn(),
+  confirmPendingRevision: vi.fn(),
+  rejectPendingRevision: vi.fn(),
 }
 
 /**
@@ -656,5 +658,72 @@ describe('useAssistantConversation 對話清單', () => {
 
     expect(conversations.value).toEqual([])
     expect(conversationsErrorMessage.value).toContain('連不上後端')
+  })
+})
+
+describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => {
+  it.each([
+    { resolution: 'confirm' as const },
+    { resolution: 'reject' as const },
+  ])('$resolution 之後重讀這段對話，狀態由後端說了算', async ({ resolution }) => {
+    const conversation = conversationUnderTest()
+    await conversation.selectConversation(7)
+    applicationMock.getConversation.mockClear()
+
+    await (resolution === 'confirm'
+      ? conversation.confirmPendingRevision(70)
+      : conversation.rejectPendingRevision(70))
+
+    const called = resolution === 'confirm'
+      ? applicationMock.confirmPendingRevision
+      : applicationMock.rejectPendingRevision
+    expect(called).toHaveBeenCalledWith(70)
+    expect(applicationMock.getConversation).toHaveBeenCalledWith(7)
+    expect(conversation.resolvingPendingRevisionId.value).toBeNull()
+  })
+
+  it('結果回來之前不再送出任何一次', async () => {
+    let finishConfirmation: (value: unknown) => void = () => {}
+    applicationMock.confirmPendingRevision.mockReturnValue(new Promise((resolve) => {
+      finishConfirmation = resolve
+    }))
+    const conversation = conversationUnderTest()
+
+    const firstPress = conversation.confirmPendingRevision(70)
+    await conversation.confirmPendingRevision(70)
+    await conversation.rejectPendingRevision(70)
+
+    expect(conversation.resolvingPendingRevisionId.value).toBe(70)
+    expect(applicationMock.confirmPendingRevision).toHaveBeenCalledTimes(1)
+    expect(applicationMock.rejectPendingRevision).not.toHaveBeenCalled()
+
+    finishConfirmation(undefined)
+    await firstPress
+  })
+
+  it.each([
+    {
+      name: '被擋下時那一筆底下是後端那一句',
+      failure: new Error('這幾台機器人正在用它跑：早盤突破，請先停止它們'),
+      expectedMessage: '這幾台機器人正在用它跑：早盤突破，請先停止它們',
+    },
+    {
+      name: '連不上後端時說連不上',
+      failure: new BackendUnreachableError('fetch failed'),
+      expectedMessage: '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。',
+    },
+  ])('$name，而且可以再按', async ({ failure, expectedMessage }) => {
+    applicationMock.confirmPendingRevision.mockRejectedValueOnce(failure)
+    const conversation = conversationUnderTest()
+
+    await conversation.confirmPendingRevision(70)
+
+    expect(conversation.pendingRevisionErrors.value[70]).toBe(expectedMessage)
+    expect(conversation.resolvingPendingRevisionId.value).toBeNull()
+
+    await conversation.confirmPendingRevision(70)
+
+    expect(applicationMock.confirmPendingRevision).toHaveBeenCalledTimes(2)
+    expect(conversation.pendingRevisionErrors.value[70]).toBeUndefined()
   })
 })
