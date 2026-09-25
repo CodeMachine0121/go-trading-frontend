@@ -1,4 +1,5 @@
 import type { AssistantAnswerNoteDto } from '~/domain/models/dto/assistant-answer-note-dto'
+import type { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
 import type { AnswerBlockVo } from '~/domain/models/vo/answer-block-vo'
 import type { AssistantTurnStatus } from '~/domain/models/entities/assistant-turn-status'
 import type { ConversationMessageRole } from '~/domain/models/entities/conversation-message'
@@ -30,5 +31,6 @@ export class ConversationMessageDto {
     public readonly note: AssistantAnswerNoteDto | null = null,
     /** 那一次壞掉的原因，後端給的那一句。只有失敗的那一則有內容。 */
     public readonly failureReason: string = '',
+    public readonly pendingRevisions: readonly AssistantPendingRevisionDto[] = [],
   ) {}
 }

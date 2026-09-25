@@ -51,6 +51,7 @@ export class ConversationDomain {
       message.status,
       this.noteOf(message),
       message.failureReason,
+      message.pendingRevisions.map(pendingRevision => pendingRevision.toDomain().toDto()),
     )
   }
 

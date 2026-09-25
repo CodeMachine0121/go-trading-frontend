@@ -1,12 +1,15 @@
 import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant-conversation-proxy'
 import type { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
+import { AssistantPendingRevision } from '~/domain/models/entities/assistant-pending-revision'
+import { assistantPendingRevisionStatusOf } from '~/domain/models/entities/assistant-pending-revision-status'
 import { assistantTurnStatusOf } from '~/domain/models/entities/assistant-turn-status'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import type { ConversationMessageRole } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
 import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
+import { AssistantPendingRevisionNotFoundError } from '~/domain/errors/assistant-pending-revision-not-found-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
@@ -14,6 +17,7 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
 const CHAT_ENDPOINT = '/chat'
 const CONVERSATIONS_ENDPOINT = '/chat/conversations'
+const PENDING_REVISIONS_ENDPOINT = '/chat/pending-revisions'
 
 /**
  * 後端用這三個狀態碼分別表示「沒有那一段對話」、「今日額度用盡」與
@@ -39,6 +43,15 @@ type ConversationSummaryWire = {
   messageCount: number
 }
 
+type AssistantPendingRevisionWire = {
+  id: number
+  subjectKind: string
+  subjectName: string
+  content: unknown
+  status: string
+  proposedAt: string
+}
+
 type ConversationMessageWire = {
   role: string
   content: string
@@ -48,6 +61,7 @@ type ConversationMessageWire = {
   queryCount?: number
   stoppedAtQueryLimit?: boolean
   usage?: number
+  pendingRevisions?: AssistantPendingRevisionWire[]
 }
 
 type ConversationWire = {
@@ -135,12 +149,51 @@ export class AssistantConversationProxy extends BackendApiProxy implements IAssi
           messageWire.queryCount ?? 0,
           messageWire.stoppedAtQueryLimit ?? false,
           messageWire.usage ?? 0,
+          (messageWire.pendingRevisions ?? []).map(revisionWire => this.pendingRevisionOf(revisionWire)),
         )),
       )
     }
     catch (error: unknown) {
       throw this.assistantFailureOf(error)
     }
+  }
+
+  async confirmPendingRevision(id: number): Promise<AssistantPendingRevision> {
+    return this.resolvePendingRevision(id, 'confirm')
+  }
+
+  async rejectPendingRevision(id: number): Promise<AssistantPendingRevision> {
+    return this.resolvePendingRevision(id, 'reject')
+  }
+
+  private async resolvePendingRevision(
+    id: number, resolution: 'confirm' | 'reject',
+  ): Promise<AssistantPendingRevision> {
+    try {
+      const revisionWire = await this.requestBackend<AssistantPendingRevisionWire>(
+        `${PENDING_REVISIONS_ENDPOINT}/${id}/${resolution}`, { method: 'POST' })
+
+      return this.pendingRevisionOf(revisionWire)
+    }
+    catch (error: unknown) {
+      if (error instanceof BackendRequestRejectedError && error.status === NOT_FOUND_STATUS) {
+        throw new AssistantPendingRevisionNotFoundError(error.message, { cause: error })
+      }
+
+      throw error
+    }
+  }
+
+  /** 內容排版成縮排好的文字，因為使用者要逐欄讀過才確認得下去。 */
+  private pendingRevisionOf(revisionWire: AssistantPendingRevisionWire): AssistantPendingRevision {
+    return new AssistantPendingRevision(
+      revisionWire.id,
+      revisionWire.subjectKind,
+      revisionWire.subjectName,
+      JSON.stringify(revisionWire.content, null, 2),
+      assistantPendingRevisionStatusOf(revisionWire.status),
+      new Date(revisionWire.proposedAt),
+    )
   }
 
   /**

@@ -2,6 +2,7 @@ import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant
 import { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import type { AssistantAnswerStartedDto } from '~/domain/models/dto/assistant-answer-started-dto'
 import type { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
+import type { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
 import type { ConversationDto } from '~/domain/models/dto/conversation-dto'
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 
@@ -48,5 +49,17 @@ export class AssistantConversationService {
     const conversation = await this.assistantConversationProxy.refreshConversation(id)
 
     return conversation.toDomain().toDto()
+  }
+
+  async confirmPendingRevision(id: number): Promise<AssistantPendingRevisionDto> {
+    const pendingRevision = await this.assistantConversationProxy.confirmPendingRevision(id)
+
+    return pendingRevision.toDomain().toDto()
+  }
+
+  async rejectPendingRevision(id: number): Promise<AssistantPendingRevisionDto> {
+    const pendingRevision = await this.assistantConversationProxy.rejectPendingRevision(id)
+
+    return pendingRevision.toDomain().toDto()
   }
 }

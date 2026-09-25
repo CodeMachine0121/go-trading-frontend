@@ -1,6 +1,7 @@
 import type { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
 import type { AssistantAnswerStartedDto } from '~/domain/models/dto/assistant-answer-started-dto'
 import type { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
+import type { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
 import type { ConversationDto } from '~/domain/models/dto/conversation-dto'
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 
@@ -26,5 +27,13 @@ export class AssistantConversationApplication {
   /** 回頭詢問：作答中每隔一段時間重讀同一段對話。 */
   async refreshConversation(id: number): Promise<ConversationDto> {
     return this.assistantConversationService.refreshConversation(id)
+  }
+
+  async confirmPendingRevision(id: number): Promise<AssistantPendingRevisionDto> {
+    return this.assistantConversationService.confirmPendingRevision(id)
+  }
+
+  async rejectPendingRevision(id: number): Promise<AssistantPendingRevisionDto> {
+    return this.assistantConversationService.rejectPendingRevision(id)
   }
 }

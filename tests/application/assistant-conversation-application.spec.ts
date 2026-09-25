@@ -3,6 +3,7 @@ import { AssistantConversationApplication } from '~/application/assistant-conver
 import type { IAssistantConversationProxy } from '~/domain/interface/i-assistant-conversation-proxy'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
 import { AssistantAnswerStarted } from '~/domain/models/entities/assistant-answer-started'
+import { AssistantPendingRevision } from '~/domain/models/entities/assistant-pending-revision'
 import { Conversation } from '~/domain/models/entities/conversation'
 import { ConversationMessage } from '~/domain/models/entities/conversation-message'
 import { ConversationSummary } from '~/domain/models/entities/conversation-summary'
@@ -23,6 +24,8 @@ function buildApplicationUnderTest(overrides: Partial<IAssistantConversationProx
       new ConversationMessage('answer', '答 1', MOMENT, 'answered', '', 2, false, 3184),
     ])),
     refreshConversation: vi.fn(),
+    confirmPendingRevision: vi.fn(),
+    rejectPendingRevision: vi.fn(),
     ...overrides,
   }
 
@@ -87,5 +90,28 @@ describe('AssistantConversationApplication.refreshConversation', () => {
     expect(proxy.refreshConversation).toHaveBeenCalledWith(5)
     expect(proxy.getConversation).not.toHaveBeenCalled()
     expect(refreshed).toEqual(await application.getConversation(5))
+  })
+})
+
+describe('AssistantConversationApplication 確認與拒絕一筆待確認修改', () => {
+  it.each([
+    { resolution: 'confirm' as const, status: 'confirmed' as const, statusLabel: '已確認' },
+    { resolution: 'reject' as const, status: 'rejected' as const, statusLabel: '已拒絕' },
+  ])('$resolution 交回那一筆的新樣子', async ({ resolution, status, statusLabel }) => {
+    const resolved = new AssistantPendingRevision(70, 'tradingStrategy', '動能追蹤', '{}', status, MOMENT)
+    const { application, proxy } = buildApplicationUnderTest({
+      confirmPendingRevision: vi.fn().mockResolvedValue(resolved),
+      rejectPendingRevision: vi.fn().mockResolvedValue(resolved),
+    })
+
+    const revisionDto = resolution === 'confirm'
+      ? await application.confirmPendingRevision(70)
+      : await application.rejectPendingRevision(70)
+
+    expect(resolution === 'confirm' ? proxy.confirmPendingRevision : proxy.rejectPendingRevision)
+      .toHaveBeenCalledWith(70)
+    expect(revisionDto.title).toBe('交易策略「動能追蹤」')
+    expect(revisionDto.statusLabel).toBe(statusLabel)
+    expect(revisionDto.canResolve).toBe(false)
   })
 })

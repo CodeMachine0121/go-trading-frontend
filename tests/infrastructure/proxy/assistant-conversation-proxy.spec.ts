@@ -5,6 +5,7 @@ import { signedInSessionStorage } from '../../fixtures/session-storage'
 import { AssistantAskDomain } from '~/domain/models/domains/assistant-ask-domain'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
 import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
+import { AssistantPendingRevisionNotFoundError } from '~/domain/errors/assistant-pending-revision-not-found-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -264,5 +265,88 @@ describe('AssistantConversationProxy.refreshConversation', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(fetchMock.mock.calls[1]?.[0])
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8080/chat/conversations/5')
     expect(refreshed).toEqual(read)
+  })
+})
+
+const REVISION_WIRE = {
+  id: 70,
+  subjectKind: 'strategyScript',
+  subjectId: 1,
+  subjectName: '二十根均線',
+  content: { strategyScriptId: 1, name: '六十根均線' },
+  status: 'pending',
+  proposedAt: '2026-09-26T08:00:00Z',
+}
+
+describe('AssistantConversationProxy 讀回待確認修改', () => {
+  it.each([
+    { name: '帶著的每一筆都收成 entity，內容排版成縮排好的文字', wire: REVISION_WIRE, expectedStatus: 'pending' },
+    { name: '認不出來的狀態不當成等你確認', wire: { ...REVISION_WIRE, status: 'something-new' }, expectedStatus: 'unknown' },
+  ])('$name', async ({ wire, expectedStatus }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7,
+      lastActiveAt: '2026-09-26T08:00:00Z',
+      messages: [{ role: 'answer', content: '已提出', createdAt: '2026-09-26T08:00:00Z', status: 'answered', pendingRevisions: [wire] }],
+    }))
+
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
+
+    const revision = conversation.messages[0]!.pendingRevisions[0]!
+    expect(revision.id).toBe(70)
+    expect(revision.subjectKind).toBe('strategyScript')
+    expect(revision.subjectName).toBe('二十根均線')
+    expect(revision.content).toBe('{\n  "strategyScriptId": 1,\n  "name": "六十根均線"\n}')
+    expect(revision.status).toBe(expectedStatus)
+    expect(revision.proposedAt).toEqual(new Date('2026-09-26T08:00:00Z'))
+  })
+
+  it('沒帶這一項的訊息一筆都沒有', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 7,
+      lastActiveAt: '2026-09-26T08:00:00Z',
+      messages: [{ role: 'ask', content: '問', createdAt: '2026-09-26T08:00:00Z', status: 'answered' }],
+    }))
+
+    const conversation = await new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).getConversation(7)
+
+    expect(conversation.messages[0]!.pendingRevisions).toEqual([])
+  })
+})
+
+describe('AssistantConversationProxy 確認與拒絕一筆待確認修改', () => {
+  it.each([
+    { resolution: 'confirm' as const, expectedPath: '/chat/pending-revisions/70/confirm', status: 'confirmed' },
+    { resolution: 'reject' as const, expectedPath: '/chat/pending-revisions/70/reject', status: 'rejected' },
+  ])('$resolution 送到那一筆自己的路徑，交回新的狀態', async ({ resolution, expectedPath, status }) => {
+    const fetchMock = vi.fn().mockResolvedValue({ ...REVISION_WIRE, status })
+    vi.stubGlobal('$fetch', fetchMock)
+    const proxy = new AssistantConversationProxy(BASE_URL, signedInSessionStorage())
+
+    const revision = resolution === 'confirm'
+      ? await proxy.confirmPendingRevision(70)
+      : await proxy.rejectPendingRevision(70)
+
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL}${expectedPath}`, expect.objectContaining({ method: 'POST' }))
+    expect(revision.status).toBe(status)
+  })
+
+  it('找不到那一筆以自己的錯誤拒絕', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 404, message: '找不到識別碼為 70 的待確認修改' })))
+
+    await expect(new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).confirmPendingRevision(70))
+      .rejects.toThrow(AssistantPendingRevisionNotFoundError)
+  })
+
+  it('被擋下時帶著後端那一句', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildFetchError({ status: 409, message: '這幾台機器人正在用它跑：早盤突破，請先停止它們' })))
+
+    const confirmation = new AssistantConversationProxy(BASE_URL, signedInSessionStorage()).confirmPendingRevision(70)
+
+    await expect(confirmation).rejects.toBeInstanceOf(BackendRequestRejectedError)
+    await expect(confirmation).rejects.toMatchObject({
+      message: '這幾台機器人正在用它跑：早盤突破，請先停止它們', status: 409,
+    })
   })
 })
