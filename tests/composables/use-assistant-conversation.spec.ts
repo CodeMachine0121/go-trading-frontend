@@ -1,6 +1,8 @@
 // @vitest-environment nuxt
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AssistantAnswerStartedDto } from '~/domain/models/dto/assistant-answer-started-dto'
+import { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
+import { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -661,6 +663,18 @@ describe('useAssistantConversation 對話清單', () => {
   })
 })
 
+/** 最後一則回答帶著一筆、狀態如其所述的待確認修改。 */
+function conversationWithRevision(statusLabel: string) {
+  const answer = buildMessage('answer', '已提出。')
+
+  return buildConversation(7, [
+    buildMessage('ask', '改一下'),
+    new ConversationMessageDto(answer.role, answer.content, answer.blocks, answer.createdAt, answer.status,
+      answer.note, answer.failureReason,
+      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', statusLabel, statusLabel === '等你確認', MOMENT)]),
+  ])
+}
+
 describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => {
   it.each([
     { resolution: 'confirm' as const },
@@ -669,6 +683,7 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
     const conversation = conversationUnderTest()
     await conversation.selectConversation(7)
     applicationMock.getConversation.mockClear()
+    applicationMock.getConversation.mockResolvedValue(conversationWithRevision(resolution === 'confirm' ? '已確認' : '已拒絕'))
 
     await (resolution === 'confirm'
       ? conversation.confirmPendingRevision(70)
@@ -680,6 +695,8 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
     expect(called).toHaveBeenCalledWith(70)
     expect(applicationMock.getConversation).toHaveBeenCalledWith(7)
     expect(conversation.resolvingPendingRevisionId.value).toBeNull()
+    expect(conversation.messages.value.at(-1)?.pendingRevisions[0]?.statusLabel)
+      .toBe(resolution === 'confirm' ? '已確認' : '已拒絕')
   })
 
   it('結果回來之前不再送出任何一次', async () => {
@@ -725,5 +742,35 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
 
     expect(applicationMock.confirmPendingRevision).toHaveBeenCalledTimes(2)
     expect(conversation.pendingRevisionErrors.value[70]).toBeUndefined()
+  })
+})
+
+describe('useAssistantConversation 一筆被擋下時留下的那一句', () => {
+  it.each([
+    { name: '重讀這段對話成功之後清掉', act: (conversation: ReturnType<typeof conversationUnderTest>) => conversation.selectConversation(7) },
+    { name: '開一段新對話時清掉', act: async (conversation: ReturnType<typeof conversationUnderTest>) => conversation.startNewConversation() },
+  ])('$name', async ({ act }) => {
+    applicationMock.confirmPendingRevision.mockRejectedValueOnce(new Error('這筆修改已經處理過了'))
+    const conversation = conversationUnderTest()
+    await conversation.confirmPendingRevision(70)
+    expect(conversation.pendingRevisionErrors.value[70]).toBe('這筆修改已經處理過了')
+
+    await act(conversation)
+
+    expect(conversation.pendingRevisionErrors.value).toEqual({})
+  })
+
+  it('回頭詢問讀回來之後也清掉', async () => {
+    applicationMock.ask.mockResolvedValue(startedOf())
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const conversation = conversationUnderTest()
+    await conversation.ask('問一句')
+    applicationMock.confirmPendingRevision.mockRejectedValueOnce(new Error('這筆修改已經處理過了'))
+    await conversation.confirmPendingRevision(70)
+    applicationMock.getConversation.mockResolvedValue(answeredConversation())
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(conversation.pendingRevisionErrors.value).toEqual({})
   })
 })

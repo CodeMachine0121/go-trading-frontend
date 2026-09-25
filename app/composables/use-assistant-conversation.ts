@@ -164,6 +164,7 @@ export function useAssistantConversation(
     sendRejectionMessage.value = null
     lastQuestion.value = ''
     draft.value = ''
+    pendingRevisionErrors.value = {}
     currentConversationPreferenceProxy.forgetCurrentConversationId()
   }
 
@@ -187,6 +188,7 @@ export function useAssistantConversation(
 
       conversationId.value = conversation.id
       messages.value = [...conversation.messages]
+      pendingRevisionErrors.value = {}
       currentConversationPreferenceProxy.writeCurrentConversationId(conversation.id)
 
       // 再試一次要送的是**這一段最後那一句壞掉的提問**，而它現在就寫在畫面上。
@@ -350,6 +352,8 @@ export function useAssistantConversation(
       }
 
       messages.value = [...conversation.messages]
+      // 讀回來的就是後端現在的說法，一筆被擋下時留下的那一句到此為止。
+      pendingRevisionErrors.value = {}
     }
     catch {
       // **讀不回來不吵他。** 答案還在後端那邊寫著，這一次沒讀到不代表它不見了；

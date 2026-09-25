@@ -226,3 +226,26 @@ describe('AssistantConversationThread 的待確認修改', () => {
     expect(wrapper.get('[data-testid="assistant-pending-revision-confirm"]').attributes('disabled')).toBeDefined()
   })
 })
+
+describe('AssistantConversationThread 沒寫完的問答', () => {
+  it('那一筆掛在失敗的提問下面，內容照原樣當文字', () => {
+    const failedAsk = buildMessage('ask', '改一下', null, 'failed', '助手目前沒有回應')
+    const wrapper = mount(AssistantConversationThread, {
+      props: {
+        messages: [new ConversationMessageDto(
+          failedAsk.role, failedAsk.content, failedAsk.blocks, failedAsk.createdAt, failedAsk.status,
+          failedAsk.note, failedAsk.failureReason,
+          [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '<img src=x onerror=alert(1)>', '等你確認', true, failedAsk.createdAt)])],
+        pending: false,
+        rejectionMessage: null,
+        suggestedPrompts: SUGGESTED_PROMPTS,
+        timeZone: buildTimeZone(),
+      },
+    })
+
+    expect(wrapper.findAll('[data-testid="assistant-pending-revision"]')).toHaveLength(1)
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="assistant-pending-revision-content"]').text())
+      .toBe('<img src=x onerror=alert(1)>')
+  })
+})
