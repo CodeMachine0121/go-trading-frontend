@@ -65,7 +65,7 @@ describe('StrategyScriptProxy.listStrategyScripts', () => {
     expect(strategyScripts[1]?.name).toBe('六十根均線')
   })
 
-  it('從市集加入的那一段是副本：用它自己的識別碼、沒有算式、不說是誰分享的', async () => {
+  it('從市集加入的那一段是副本：用它自己的識別碼、沒有算式、不說是誰、何時分享的', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       mine: [],
       adopted: [{
@@ -83,8 +83,8 @@ describe('StrategyScriptProxy.listStrategyScripts', () => {
     expect(adopted).toHaveLength(1)
     expect(adopted[0]?.id).toBe(20)
     expect(adopted[0]?.name).toBe('動能')
-    expect(adopted[0]?.publisherEmail).toBe('')
-    expect(adopted[0]?.publishedAt).toEqual(new Date('2026-09-26T08:00:00Z'))
+    expect(adopted[0]?.publisherEmail).toBeNull()
+    expect(adopted[0]?.publishedAt).toBeNull()
     expect(adopted[0]?.parameters.map(parameter => parameter.name)).toEqual(['期數'])
     expect(adopted[0]).not.toHaveProperty('script')
   })

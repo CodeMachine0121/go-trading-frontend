@@ -51,15 +51,11 @@ type PublishedStrategyScriptWire = {
   marketDataKind?: string
 }
 
-/** 從市集加入的副本：與自己的策略腳本同形，但算式永遠是空的，而且帶著它被加入的時刻。 */
-type AdoptedStrategyScriptWire = StrategyScriptWire & {
-  createdAt: string
-}
-
 /** 日常那一份送來的兩段。 */
 type AvailableStrategyScriptsWire = {
   mine?: StrategyScriptWire[] | null
-  adopted?: AdoptedStrategyScriptWire[] | null
+  /** 從市集加入的副本：與自己的策略腳本同形，但算式永遠是空的。 */
+  adopted?: StrategyScriptWire[] | null
 }
 
 /** Proxy：打策略腳本端點，並把「名稱被佔用」與「找不到那一支」從一般的拒絕裡分出來。 */
@@ -69,17 +65,17 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
 
     return {
       mine: (availableWire.mine ?? []).map(strategyScriptWire => this.toStrategyScript(strategyScriptWire)),
-      // 副本不記得是誰分享的，所以分享者留空；它屬於清單的那一刻就是它被加入的那一刻。
-      adopted: (availableWire.adopted ?? []).map(adoptedWire => this.toPublishedStrategyScript({
-        id: adoptedWire.id,
-        name: adoptedWire.name,
-        description: adoptedWire.description,
-        resultType: adoptedWire.resultType,
-        publisherEmail: '',
-        publishedAt: adoptedWire.createdAt,
-        parameters: adoptedWire.parameters,
-        marketDataKind: adoptedWire.marketDataKind,
-      })),
+      // 副本不記得是誰分享、何時分享的，就照實留成沒有，不拿別的時刻頂替。
+      adopted: (availableWire.adopted ?? []).map(adoptedWire => new PublishedStrategyScript(
+        adoptedWire.id,
+        adoptedWire.name,
+        adoptedWire.description ?? '',
+        adoptedWire.resultType,
+        null,
+        null,
+        this.toParameterDtos(adoptedWire.parameters),
+        adoptedWire.marketDataKind ?? 'kCandle',
+      )),
     }
   }
 

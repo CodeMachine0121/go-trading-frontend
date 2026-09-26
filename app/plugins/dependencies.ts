@@ -169,7 +169,7 @@ export default defineNuxtPlugin(() => {
   const strategyScriptMarketplaceApplication = new StrategyScriptMarketplaceApplication(
     new StrategyScriptMarketplaceService(
       new StrategyScriptMarketplaceProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
-    // 它也要問「哪幾支是我的、哪幾支我收下過」，而那只有自己的清單答得出來。
+    // 它也要問「哪幾支是我的」，而那只有自己的清單答得出來。
     new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 

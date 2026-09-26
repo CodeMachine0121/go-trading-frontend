@@ -16,8 +16,9 @@ export class PublishedStrategyScriptDto {
     /** 分享者寫的說明。沒寫時是空字串，畫面自行決定要不要顯示一句預設的話。 */
     public readonly description: string,
     public readonly resultType: string,
-    public readonly publisherEmail: string,
-    public readonly publishedAt: Date,
+    /** 從市集加入的副本不記得是誰分享的，所以是 `null`。 */
+    public readonly publisherEmail: string | null,
+    public readonly publishedAt: Date | null,
     public readonly parameters: readonly StrategyScriptParameterDto[],
     /**
      * 這一支在圖表上畫不畫得成線。與自己的策略腳本同一條規則、同一個理由：

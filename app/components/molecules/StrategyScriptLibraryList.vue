@@ -24,7 +24,7 @@ const {
   strategyScripts: StrategyScriptDto[]
   /**
    * 從市集加入的那些。它們**沒有算式**：挑它進工作區是唯讀的，
-   * 這一列上也沒有任何會改動它的動作——只有「從我的清單移除」。
+   * 這一列上也沒有任何會改動它的動作——只有「刪掉這份副本」。
    */
   adoptedStrategyScripts: PublishedStrategyScriptDto[]
   errorMessage?: string | null
