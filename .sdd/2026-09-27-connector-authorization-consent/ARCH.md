@@ -24,7 +24,7 @@
 | :--- | :--- | :--- |
 | `app/domain/interface/` | **Add** | `IConnectorAuthorizationProxy`（交易服務的授權請求資源）、`IExternalNavigationProxy`（整頁離開操作台前往外部位址） |
 | `app/infrastructure/proxy/` | **Add** | `ConnectorAuthorizationProxy`（繼承 `BackendApiProxy`，沿用 bearer、401 救回、錯誤翻譯；404 → `ConnectorAuthorizationRequestExpiredError`）、`ExternalNavigationProxy`（`window.location.assign`） |
-| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStage` |
+| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStage`、vo `ConnectorAuthorizationDecision` |
 | `app/domain/errors/` | **Add** | `ConnectorAuthorizationRequestExpiredError`（過期、已決定、不存在、網址沒帶識別） |
 | `app/domain/service/` | **Add** | `ConnectorAuthorizationService` |
 | `app/application/` | **Add** | `ConnectorAuthorizationApplication` |
@@ -44,17 +44,18 @@
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
 | `IConnectorAuthorizationProxy` | Interface | 讀一張授權請求、允許它、拒絕它；後兩者回傳要前往的外掛位址（字串）。失效一律拋 `ConnectorAuthorizationRequestExpiredError` | — | US-02、US-03、US-04 |
-| `ConnectorAuthorizationProxy` | Proxy | 打端點 4/5/6；`expiresAt` 字串 → `Date`；`404` → 過期錯誤；其餘錯誤沿用 `BackendApiProxy` 翻譯（連不上 → `BackendUnreachableError`） | `BackendApiProxy` | 同上 |
+| `ConnectorAuthorizationProxy` | Proxy | 打端點 4/5/6；只取 `clientName`（缺則空字串；`expiresAt` 不進 domain——畫面不倒數，失效一律以交易服務的回答為準）；`404` → 過期錯誤；其餘錯誤沿用 `BackendApiProxy` 翻譯（連不上 → `BackendUnreachableError`） | `BackendApiProxy` | 同上 |
 | `IExternalNavigationProxy` / `ExternalNavigationProxy` | Interface / Proxy | `leaveFor(address)`：整頁離開操作台前往外部位址（外掛的本機回呼），不是路由器換頁 | `window.location` | 允許／拒絕之後交回外掛 |
-| `ConnectorAuthorizationRequest` | Entity | 授權請求的欄位：`clientName`、`expiresAt`；`toDomain()` | — | 同意頁說清楚外掛 |
+| `ConnectorAuthorizationRequest` | Entity | 授權請求的欄位：`clientName`；`toDomain()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDomain` | Domain Model | 建構子正規化外掛名稱（去空白；空白 → `未具名的外掛`，因註冊時名稱為選填）；`toDto()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDto` | DTO | 畫面看得到的形狀：`clientName` | — | 同上 |
-| `ConnectorAuthorizationStage` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`unreachable` | — | US-02、US-03、US-04 |
+| `ConnectorAuthorizationStage` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`loadFailed`（連不上或交易服務出錯，給再試一次） | — | US-02、US-03、US-04 |
+| `ConnectorAuthorizationDecision` | VO（字面量聯合） | `approve`／`deny`：哪一個決定送出中 | — | 決定送出後不能再按第二次 |
 | `ConnectorAuthorizationRequestExpiredError` | 哨兵錯誤 | 授權請求已失效（對使用者只有一句話） | — | US-04 |
 | `ConnectorAuthorizationService` | Domain Service | `readAuthorizationRequest(requestId)`：空白識別直接拋過期錯誤、不打後端；`approve(requestId)` / `deny(requestId)`：送出決定並 `leaveFor(redirectTo)` | 兩個 proxy | 全部 |
 | `ConnectorAuthorizationApplication` | Application | 三個用例的薄編排，只交 DTO | Service | 全部 |
-| `useConnectorAuthorization` | Composable | 持有階段與 `pendingDecision`（`approve`/`deny`/`null`）；送出中擋第二次；過期 → `expired`；讀取連不上 → `unreachable`；決定失敗（非過期）→ 留在 `awaitingDecision` 並顯示訊息、選擇恢復；成功 → `handedBack` | Application | 全部 |
-| `ConnectorAuthorizationPanel.vue` | Organism | 依階段畫出讀取中／同意內容（外掛名稱、帳號、全部功能、允許＋拒絕）／已交回／已失效／連不上＋再試一次；emit `approve`/`deny`/`retry` | `AppButton`、`AppAlert`、`AppIcon` | 全部 |
+| `useConnectorAuthorization` | Composable | 持有階段與 `pendingDecision`（`approve`/`deny`/`null`）；送出中擋第二次；過期 → `expired`；讀取失敗（連不上或其他）→ `loadFailed`，`retry()` 以同一個識別重新讀取；決定失敗（非過期）→ 留在 `awaitingDecision` 並顯示訊息、選擇恢復；成功 → `handedBack` | Application | 全部 |
+| `ConnectorAuthorizationPanel.vue` | Organism | 依階段畫出讀取中／同意內容（外掛名稱、帳號、全部功能、允許＋拒絕）／已交回／已失效／讀取失敗＋再試一次；emit `approve`/`deny`/`retry` | `AppButton`、`AppAlert`、`AppIcon` | 全部 |
 | `pages/connector-authorization.vue` | Page | 讀 `route.query.request`（取第一個字串，缺則空字串）、`onMounted` 載入、把 email 與狀態接到卡片；不套外框 | composable、`useUserSession` | 全部 |
 
 ---
@@ -115,7 +116,7 @@ flowchart TD
 | 過期或已被決定過的請求 | proxy 404 → `ConnectorAuthorizationRequestExpiredError` → `expired` |
 | 網址上沒有授權請求 | service 空白識別 → 過期錯誤（不打後端）→ `expired` |
 | 停在頁面上太久才按允許 | approval 404 → 過期錯誤，`leaveFor` 未被呼叫 → `expired` |
-| 打開頁面時連不上交易服務 | `BackendUnreachableError` → `unreachable` + 再試一次（`retry` → `load`） |
+| 打開頁面時連不上交易服務 | `BackendUnreachableError` → `loadFailed` + 再試一次（`retry` → 同一識別重新 `load`） |
 | 按下允許時連不上交易服務 | composable 留在 `awaitingDecision`、設定 `decisionErrorMessage`、`pendingDecision` 復原；`leaveFor` 未被呼叫 |
 
 ---
