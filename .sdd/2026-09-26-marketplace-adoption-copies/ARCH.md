@@ -14,7 +14,7 @@
 | `MarketplaceListingDomain` / `MarketplaceListingRowDto` | **Modify** | 不再算「已加入」 |
 | `MarketplaceStrategyScriptCard` / `StrategyScriptMarketplacePanel` | **Modify** | 拿掉已加入與取消加入；加入成功的說法 |
 | `useStrategyScriptLibrary.abandonStrategyScript` | **Modify** | 改走刪除策略腳本 |
-| `StrategyScriptLibraryList` / `StrategyScriptLibraryDialog` | **Modify** | 採用來的標示「從市集加入」；移除的確認文案 |
+| `StrategyScriptLibraryList` / `StrategyScriptLibraryDialog` | **Modify** | 採用來的標示「從市集加入」；「刪掉副本」取代「移除」 |
 
 ## 3. Traceability
 | Scenario | Fulfilled by |
