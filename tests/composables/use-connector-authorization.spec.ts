@@ -6,11 +6,13 @@ import { ConnectorAuthorizationApplication } from '~/application/connector-autho
 import { ConnectorAuthorizationService } from '~/domain/service/connector-authorization-service'
 import { ConnectorAuthorizationRequest } from '~/domain/models/entities/connector-authorization-request'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
+import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
+import { ConnectorReturnAddressVo } from '~/domain/models/vo/connector-return-address-vo'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 
-const CONNECTOR_ADDRESS = 'http://127.0.0.1:33418/callback?code=one-time&state=xyz'
-const DENIAL_ADDRESS = 'http://127.0.0.1:33418/callback?error=access_denied&state=xyz'
+const CONNECTOR_ADDRESS = new ConnectorReturnAddressVo('http://127.0.0.1:33418/callback?code=one-time&state=xyz')
+const DENIAL_ADDRESS = new ConnectorReturnAddressVo('http://127.0.0.1:33418/callback?error=access_denied&state=xyz')
 const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
 
 const connectorAuthorizationProxy = {
@@ -151,9 +153,9 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
   })
 
   it('送出中再按允許或拒絕都不會送出第二次', async () => {
-    let releaseApproval: (address: string) => void = () => {}
+    let releaseApproval: (address: ConnectorReturnAddressVo) => void = () => {}
     connectorAuthorizationProxy.approveAuthorizationRequest.mockReturnValue(
-      new Promise<string>((resolve) => {
+      new Promise<ConnectorReturnAddressVo>((resolve) => {
         releaseApproval = resolve
       }))
     const { approve, deny } = await loadedConsent()
@@ -196,6 +198,18 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
     await approve()
 
     expect(stage.value).toBe('expired')
+    expect(externalNavigationProxy.leaveFor).not.toHaveBeenCalled()
+  })
+
+  it.each(['approve', 'deny'] as const)('%s 後交易服務給的返回位址不在這台電腦上時說明拒絕，而且不送過去', async (decision) => {
+    connectorAuthorizationProxy[`${decision}AuthorizationRequest`]
+      .mockRejectedValue(new ConnectorReturnAddressRejectedError())
+    const consent = await loadedConsent()
+
+    await consent[decision]()
+
+    expect(consent.stage.value).toBe('returnAddressRejected')
+    expect(consent.decisionErrorMessage.value).toBeNull()
     expect(externalNavigationProxy.leaveFor).not.toHaveBeenCalled()
   })
 

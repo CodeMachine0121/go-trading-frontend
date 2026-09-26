@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConnectorAuthorizationProxy } from '~/infrastructure/proxy/connector-authorization-proxy'
 import { SIGNED_IN_HEADERS, signedInSessionStorage } from '../../fixtures/session-storage'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
+import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 
@@ -78,12 +79,22 @@ describe.each([
     const fetchStub = vi.fn().mockResolvedValue({ redirectTo: CONNECTOR_ADDRESS })
     vi.stubGlobal('$fetch', fetchStub)
 
-    const address = await proxy()[name]('abc')
+    const returnAddress = await proxy()[name]('abc')
 
-    expect(address).toBe(CONNECTOR_ADDRESS)
+    expect(returnAddress.address).toBe(CONNECTOR_ADDRESS)
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/oauth/authorization-requests/abc/${suffix}`,
       expect.objectContaining({ method: 'POST', headers: SIGNED_IN_HEADERS }))
+  })
+
+  it.each([
+    { reason: 'javascript: 位址', wire: { redirectTo: 'javascript:alert(1)' } },
+    { reason: '外部網站', wire: { redirectTo: 'https://evil.example/callback' } },
+    { reason: '沒給返回位址', wire: {} },
+  ])('返回位址是$reason時拒絕交出', async ({ wire }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
+
+    await expect(proxy()[name]('abc')).rejects.toBeInstanceOf(ConnectorReturnAddressRejectedError)
   })
 
   it('不存在、過期或已被決定過的請求一律是已失效', async () => {

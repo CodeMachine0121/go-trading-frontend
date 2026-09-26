@@ -2,6 +2,7 @@ import type { ConnectorAuthorizationRequestDto } from '~/domain/models/dto/conne
 import type { ConnectorAuthorizationStageVo } from '~/domain/models/vo/connector-authorization-stage-vo'
 import type { ConnectorAuthorizationDecisionVo } from '~/domain/models/vo/connector-authorization-decision-vo'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
+import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
@@ -59,6 +60,9 @@ export function useConnectorAuthorization(
     catch (error: unknown) {
       if (error instanceof ConnectorAuthorizationRequestExpiredError) {
         stage.value = 'expired'
+      }
+      else if (error instanceof ConnectorReturnAddressRejectedError) {
+        stage.value = 'returnAddressRejected'
       }
       else {
         decisionErrorMessage.value = error instanceof BackendUnreachableError

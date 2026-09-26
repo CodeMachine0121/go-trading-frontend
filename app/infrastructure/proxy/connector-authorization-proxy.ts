@@ -1,5 +1,6 @@
 import type { IConnectorAuthorizationProxy } from '~/domain/interface/i-connector-authorization-proxy'
 import { ConnectorAuthorizationRequest } from '~/domain/models/entities/connector-authorization-request'
+import { ConnectorReturnAddressVo } from '~/domain/models/vo/connector-return-address-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -13,7 +14,7 @@ type AuthorizationRequestWire = {
 }
 
 type AuthorizationDecisionWire = {
-  redirectTo: string
+  redirectTo?: string
 }
 
 export class ConnectorAuthorizationProxy extends BackendApiProxy implements IConnectorAuthorizationProxy {
@@ -24,18 +25,18 @@ export class ConnectorAuthorizationProxy extends BackendApiProxy implements ICon
     return new ConnectorAuthorizationRequest(wire.clientName ?? '')
   }
 
-  async approveAuthorizationRequest(requestId: string): Promise<string> {
+  async approveAuthorizationRequest(requestId: string): Promise<ConnectorReturnAddressVo> {
     const wire = await this.requestAuthorization<AuthorizationDecisionWire>(
       `${this.authorizationRequestPath(requestId)}/approval`, 'POST')
 
-    return wire.redirectTo
+    return new ConnectorReturnAddressVo(wire.redirectTo)
   }
 
-  async denyAuthorizationRequest(requestId: string): Promise<string> {
+  async denyAuthorizationRequest(requestId: string): Promise<ConnectorReturnAddressVo> {
     const wire = await this.requestAuthorization<AuthorizationDecisionWire>(
       `${this.authorizationRequestPath(requestId)}/denial`, 'POST')
 
-    return wire.redirectTo
+    return new ConnectorReturnAddressVo(wire.redirectTo)
   }
 
   private authorizationRequestPath(requestId: string): string {

@@ -4,3 +4,4 @@ export type ConnectorAuthorizationStageVo
     | 'handedBack'
     | 'expired'
     | 'loadFailed'
+    | 'returnAddressRejected'

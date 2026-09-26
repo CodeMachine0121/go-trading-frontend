@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ExternalNavigationProxy } from '~/infrastructure/proxy/external-navigation-proxy'
+import { ConnectorReturnAddressVo } from '~/domain/models/vo/connector-return-address-vo'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -10,7 +11,8 @@ describe('ExternalNavigationProxy.leaveFor', () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { assign })
 
-    new ExternalNavigationProxy().leaveFor('http://127.0.0.1:33418/callback?code=one-time')
+    new ExternalNavigationProxy().leaveFor(
+      new ConnectorReturnAddressVo('http://127.0.0.1:33418/callback?code=one-time'))
 
     expect(assign).toHaveBeenCalledWith('http://127.0.0.1:33418/callback?code=one-time')
   })

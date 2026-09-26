@@ -65,6 +65,7 @@ describe('ConnectorAuthorizationPanel：其他結局', () => {
   it.each([
     { stage: 'loading', testId: 'authorization-loading', text: '正在讀取授權請求…' },
     { stage: 'expired', testId: 'authorization-expired', text: '這一張授權請求已失效或已被使用，請回到 Claude Code 重新連線。' },
+    { stage: 'returnAddressRejected', testId: 'authorization-return-address-rejected', text: '為了安全沒有把你送過去' },
     { stage: 'handedBack', testId: 'authorization-handed-back', text: '可以關掉這個分頁，回到 Claude Code' },
   ] as const)('$stage 時說「$text」，而且沒有允許與拒絕', ({ stage, testId, text }) => {
     const wrapper = mountPanel({ stage })

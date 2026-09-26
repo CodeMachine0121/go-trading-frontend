@@ -1,3 +1,5 @@
+import type { ConnectorReturnAddressVo } from '~/domain/models/vo/connector-return-address-vo'
+
 export interface IExternalNavigationProxy {
-  leaveFor(address: string): void
+  leaveFor(returnAddress: ConnectorReturnAddressVo): void
 }

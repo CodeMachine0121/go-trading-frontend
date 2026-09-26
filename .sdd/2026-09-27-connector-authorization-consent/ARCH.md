@@ -10,7 +10,7 @@
 
 - **In one sentence:** 新增 `/connector-authorization?request=<id>` 頁面：讀取交易服務的授權請求（`GET /oauth/authorization-requests/:id`），
   讓已登入且已放行的使用者按「允許」（`POST .../approval`，帶 web bearer）或「拒絕」（`POST .../denial`），
-  然後以**整頁導覽**（`window.location.assign`）前往交易服務回覆的 `redirectTo`。
+  然後以**整頁導覽**（`window.location.assign`）前往交易服務回覆的 `redirectTo`——先經 `ConnectorReturnAddressVo` 確認是這台電腦上的 `http` 位址（`localhost`／`127.0.0.1`／`[::1]`），否則不導覽。
 - **Guiding principle:** 「決定並交回外掛」是**一個**業務動作，由 `ConnectorAuthorizationService` 一次做完
   （送出決定 → 整頁前往外掛位址）；畫面只呼叫 `approve` / `deny`，不自己排「先送出、再導覽」兩步。
   所有 wire 細節（路徑、404、`redirectTo` 欄位）只住在 `ConnectorAuthorizationProxy`；
@@ -24,8 +24,8 @@
 | :--- | :--- | :--- |
 | `app/domain/interface/` | **Add** | `IConnectorAuthorizationProxy`（交易服務的授權請求資源）、`IExternalNavigationProxy`（整頁離開操作台前往外部位址） |
 | `app/infrastructure/proxy/` | **Add** | `ConnectorAuthorizationProxy`（繼承 `BackendApiProxy`，沿用 bearer、401 救回、錯誤翻譯；404 → `ConnectorAuthorizationRequestExpiredError`）、`ExternalNavigationProxy`（`window.location.assign`） |
-| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStageVo`、vo `ConnectorAuthorizationDecisionVo` |
-| `app/domain/errors/` | **Add** | `ConnectorAuthorizationRequestExpiredError`（過期、已決定、不存在、網址沒帶識別） |
+| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStageVo`、vo `ConnectorAuthorizationDecisionVo`、vo `ConnectorReturnAddressVo` |
+| `app/domain/errors/` | **Add** | `ConnectorAuthorizationRequestExpiredError`（過期、已決定、不存在、網址沒帶識別）、`ConnectorReturnAddressRejectedError`（返回位址缺漏或不在這台電腦上） |
 | `app/domain/service/` | **Add** | `ConnectorAuthorizationService` |
 | `app/application/` | **Add** | `ConnectorAuthorizationApplication` |
 | `app/composables/` | **Add** | `useConnectorAuthorization`：同意頁的畫面狀態（階段、哪一個決定送出中、決定失敗訊息）與錯誤分流 |
@@ -43,16 +43,18 @@
 
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
-| `IConnectorAuthorizationProxy` | Interface | 讀一張授權請求、允許它、拒絕它；後兩者回傳要前往的外掛位址（字串）。失效一律拋 `ConnectorAuthorizationRequestExpiredError` | — | US-02、US-03、US-04 |
-| `ConnectorAuthorizationProxy` | Proxy | 打端點 4/5/6；只取 `clientName`（缺則空字串；`expiresAt` 不進 domain——畫面不倒數，失效一律以交易服務的回答為準）；`404` → 過期錯誤；其餘錯誤沿用 `BackendApiProxy` 翻譯（連不上 → `BackendUnreachableError`） | `BackendApiProxy` | 同上 |
-| `IExternalNavigationProxy` / `ExternalNavigationProxy` | Interface / Proxy | `leaveFor(address)`：整頁離開操作台前往外部位址（外掛的本機回呼），不是路由器換頁 | `window.location` | 允許／拒絕之後交回外掛 |
+| `IConnectorAuthorizationProxy` | Interface | 讀一張授權請求、允許它、拒絕它；後兩者回傳已檢查過的外掛位址（`ConnectorReturnAddressVo`）。失效一律拋 `ConnectorAuthorizationRequestExpiredError` | — | US-02、US-03、US-04 |
+| `ConnectorAuthorizationProxy` | Proxy | 打端點 4/5/6；只取 `clientName`（缺則空字串；`expiresAt` 不進 domain——畫面不倒數，失效一律以交易服務的回答為準）；`404` → 過期錯誤；`redirectTo` 包成 `ConnectorReturnAddressVo`（缺漏或非本機 → `ConnectorReturnAddressRejectedError`）；其餘錯誤沿用 `BackendApiProxy` 翻譯（連不上 → `BackendUnreachableError`） | `BackendApiProxy` | 同上 |
+| `IExternalNavigationProxy` / `ExternalNavigationProxy` | Interface / Proxy | `leaveFor(returnAddress)`：只收 `ConnectorReturnAddressVo`，整頁離開操作台前往外掛的本機回呼，不是路由器換頁 | `window.location` | 允許／拒絕之後交回外掛 |
 | `ConnectorAuthorizationRequest` | Entity | 授權請求的欄位：`clientName`；`toDomain()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDomain` | Domain Model | 建構子正規化外掛名稱（去空白；空白 → `未具名的外掛`，因註冊時名稱為選填）；`toDto()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDto` | DTO | 畫面看得到的形狀：`clientName` | — | 同上 |
-| `ConnectorAuthorizationStageVo` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`loadFailed`（連不上或交易服務出錯，給再試一次） | — | US-02、US-03、US-04 |
+| `ConnectorAuthorizationStageVo` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`loadFailed`（連不上或交易服務出錯，給再試一次）／`returnAddressRejected`（返回位址不在這台電腦上，不導覽） | — | US-02、US-03、US-04 |
 | `ConnectorAuthorizationDecisionVo` | VO（字面量聯合） | `approve`／`deny`：哪一個決定送出中 | — | 決定送出後不能再按第二次 |
+| `ConnectorReturnAddressVo` | VO | 建構子以 `new URL()` 解析，只接受 `http:` 且主機為 `localhost`／`127.0.0.1`／`[::1]`；否則（含缺漏）拋 `ConnectorReturnAddressRejectedError` | — | 允許／拒絕之後交回外掛 |
+| `ConnectorReturnAddressRejectedError` | 哨兵錯誤 | 交易服務給的返回位址不可信，同意頁顯示拒絕說明 | — | 允許／拒絕之後交回外掛 |
 | `ConnectorAuthorizationRequestExpiredError` | 哨兵錯誤 | 授權請求已失效（對使用者只有一句話） | — | US-04 |
-| `ConnectorAuthorizationService` | Domain Service | `readAuthorizationRequest(requestId)`：空白識別直接拋過期錯誤、不打後端；`approve(requestId)` / `deny(requestId)`：送出決定並 `leaveFor(redirectTo)` | 兩個 proxy | 全部 |
+| `ConnectorAuthorizationService` | Domain Service | `readAuthorizationRequest(requestId)`：空白識別直接拋過期錯誤、不打後端；`approve(requestId)` / `deny(requestId)`：送出決定並 `leaveFor(returnAddress)` | 兩個 proxy | 全部 |
 | `ConnectorAuthorizationApplication` | Application | 三個用例的薄編排，只交 DTO | Service | 全部 |
 | `useConnectorAuthorization` | Composable | 持有階段與 `pendingDecision`（`approve`/`deny`/`null`）；送出中擋第二次；過期 → `expired`；讀取失敗（連不上或其他）→ `loadFailed`，`retry()` 以同一個識別重新讀取；決定失敗（非過期）→ 留在 `awaitingDecision` 並顯示訊息、選擇恢復；成功 → `handedBack` | Application | 全部 |
 | `ConnectorAuthorizationPanel.vue` | Organism | 依階段畫出讀取中／同意內容（外掛名稱、帳號、全部功能、允許＋拒絕）／已交回／已失效／讀取失敗＋再試一次；emit `approve`/`deny`/`retry` | `AppButton`、`AppAlert`、`AppIcon` | 全部 |

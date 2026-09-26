@@ -81,6 +81,14 @@ const deciding = computed(() => pendingDecision !== null)
     </AppAlert>
 
     <AppAlert
+      v-else-if="stage === 'returnAddressRejected'"
+      tone="danger"
+      data-testid="authorization-return-address-rejected"
+    >
+      交易服務給的返回位址不是這台電腦上的外掛，為了安全沒有把你送過去。請回到 Claude Code 重新連線。
+    </AppAlert>
+
+    <AppAlert
       v-else-if="stage === 'handedBack'"
       tone="success"
       data-testid="authorization-handed-back"
