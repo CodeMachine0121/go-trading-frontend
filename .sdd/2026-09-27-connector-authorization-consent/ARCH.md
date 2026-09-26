@@ -33,7 +33,7 @@
 | `app/pages/` | **Add** | `connector-authorization.vue`：讀 `request` query、取目前登入者 email、接線 |
 | `app/plugins/dependencies.ts` | **Modify** | 組裝並 provide `connectorAuthorizationApplication` |
 | `app/middleware/signed-in.global.ts` | **Not touched（驗證）** | 已用 `to.fullPath` 記下目的地（含 query），`submitCredentials` 以該字串 `navigateTo`——**不需修正**；以測試釘住 query 保留 |
-| `useUserSession.signOutBecauseSessionExpired` | **Not touched** | 途中完全失效時照既有做法清掉目的地回登入（PRD Out of Scope）；改它會影響全站 |
+| `useUserSession.signOutBecauseSessionExpired` | **Modify** | 途中登入完全失效（續用也失敗）時記下當下的 `fullPath` 當目的地再回登入，重新登入後回到同一張授權請求；同意頁對 `SignedOutError` 不顯示決定失敗 |
 | 等待開通的規則 | **Not touched** | 全域中介層已把待開通者限制在 `/pending-approval`，同意頁不開例外 |
 | 環境變數 / `nuxt.config.ts` | **Not touched** | 沿用 `backendBaseUrl`；不新增任何設定 |
 
@@ -99,7 +99,7 @@ flowchart TD
 - **How to add it:** 新增方法／欄位，不改既有階段機；新的結局就是 `ConnectorAuthorizationStageVo` 多一個值、卡片多一個分支。
 - **Patterns applied & why:** Proxy（兩種外部資源：交易服務、瀏覽器位址列）；Domain Model 建構子正規化（不信任選填的外掛名稱）。
 - **Do not hardcode:** 交易服務位址（沿用 runtime config）；外掛回呼位址一律照交易服務給的 `redirectTo`，操作台不自己拼。
-- **Known debt / deferred:** 途中登入完全失效時不記住請求（見 PRD Out of Scope）；若使用者回報常發生，改 `signOutBecauseSessionExpired` 記下目前 `fullPath`。
+- **Known debt / deferred:** 無。途中登入完全失效時由 `signOutBecauseSessionExpired` 記下目前 `fullPath`，重新登入後回到同一張請求。
 
 ---
 

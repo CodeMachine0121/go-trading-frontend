@@ -4,6 +4,7 @@ import type { ConnectorAuthorizationDecisionVo } from '~/domain/models/vo/connec
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
 import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { SignedOutError } from '~/domain/errors/signed-out-error'
 
 const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
 
@@ -64,7 +65,7 @@ export function useConnectorAuthorization(
       else if (error instanceof ConnectorReturnAddressRejectedError) {
         stage.value = 'returnAddressRejected'
       }
-      else {
+      else if (!(error instanceof SignedOutError)) {
         decisionErrorMessage.value = error instanceof BackendUnreachableError
           ? UNREACHABLE_MESSAGE
           : '交易服務沒有接受這次決定，請再試一次。'

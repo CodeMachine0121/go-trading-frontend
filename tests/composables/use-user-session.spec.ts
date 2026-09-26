@@ -395,6 +395,20 @@ describe('useUserSession：這一次登入在操作到一半時不算數了', ()
     expect(userSessionApplication.signOut).not.toHaveBeenCalled()
   })
 
+  it('重新登入後回到過期當下那一頁，連同授權請求一起', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const session = sessionUnderTest()
+    useState<Promise<void> | null>('user-session-restoration', () => null).value = Promise.resolve()
+    useState<SignedInUserDto | null>('user-session', () => null).value = SIGNED_IN_USER
+    await useRouter().replace('/connector-authorization?request=abc')
+
+    await session.signOutBecauseSessionExpired()
+    navigateToSpy.mockClear()
+    await session.submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/connector-authorization?request=abc')
+  })
+
   it('已經在登入畫面上時什麼都不做，不多跳一次', async () => {
     const session = sessionUnderTest()
     await useRouter().replace('/login')

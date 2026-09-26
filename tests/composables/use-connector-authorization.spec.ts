@@ -10,6 +10,7 @@ import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-r
 import { ConnectorReturnAddressVo } from '~/domain/models/vo/connector-return-address-vo'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { SignedOutError } from '~/domain/errors/signed-out-error'
 
 const CONNECTOR_ADDRESS = new ConnectorReturnAddressVo('http://127.0.0.1:33418/callback?code=one-time&state=xyz')
 const DENIAL_ADDRESS = new ConnectorReturnAddressVo('http://127.0.0.1:33418/callback?error=access_denied&state=xyz')
@@ -210,6 +211,18 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
 
     expect(consent.stage.value).toBe('returnAddressRejected')
     expect(consent.decisionErrorMessage.value).toBeNull()
+    expect(externalNavigationProxy.leaveFor).not.toHaveBeenCalled()
+  })
+
+  it('按允許時登入已失效：不顯示決定失敗，也不送回外掛', async () => {
+    connectorAuthorizationProxy.approveAuthorizationRequest
+      .mockRejectedValue(new SignedOutError('請重新登入'))
+    const { stage, decisionErrorMessage, approve } = await loadedConsent()
+
+    await approve()
+
+    expect(stage.value).toBe('awaitingDecision')
+    expect(decisionErrorMessage.value).toBeNull()
     expect(externalNavigationProxy.leaveFor).not.toHaveBeenCalled()
   })
 
