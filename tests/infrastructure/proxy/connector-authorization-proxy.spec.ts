@@ -1,7 +1,7 @@
 import { createFetchError, type FetchContext } from 'ofetch'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConnectorAuthorizationProxy } from '~/infrastructure/proxy/connector-authorization-proxy'
-import { signedInSessionStorage } from '../../fixtures/session-storage'
+import { SIGNED_IN_HEADERS, signedInSessionStorage } from '../../fixtures/session-storage'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -83,7 +83,7 @@ describe.each([
     expect(address).toBe(CONNECTOR_ADDRESS)
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/oauth/authorization-requests/abc/${suffix}`,
-      expect.objectContaining({ method: 'POST' }))
+      expect.objectContaining({ method: 'POST', headers: SIGNED_IN_HEADERS }))
   })
 
   it('不存在、過期或已被決定過的請求一律是已失效', async () => {
