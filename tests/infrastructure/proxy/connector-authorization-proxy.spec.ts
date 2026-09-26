@@ -61,6 +61,13 @@ describe('ConnectorAuthorizationProxy.fetchAuthorizationRequest', () => {
     expect(fetchStub).toHaveBeenCalledWith(
       `${BASE_URL}/oauth/authorization-requests/a%2Fb%3Fc`, expect.anything())
   })
+
+  it('讀取時找不到就是已失效', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(404)))
+
+    await expect(proxy().fetchAuthorizationRequest('abc'))
+      .rejects.toBeInstanceOf(ConnectorAuthorizationRequestExpiredError)
+  })
 })
 
 describe.each([
@@ -96,14 +103,5 @@ describe.each([
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(500)))
 
     await expect(proxy()[name]('abc')).rejects.toBeInstanceOf(BackendServerError)
-  })
-})
-
-describe('ConnectorAuthorizationProxy.fetchAuthorizationRequest：已失效', () => {
-  it('讀取時找不到就是已失效', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError(404)))
-
-    await expect(proxy().fetchAuthorizationRequest('abc'))
-      .rejects.toBeInstanceOf(ConnectorAuthorizationRequestExpiredError)
   })
 })
