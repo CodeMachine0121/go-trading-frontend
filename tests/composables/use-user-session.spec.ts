@@ -298,6 +298,16 @@ describe('useUserSession：登入之後回到他本來要去的地方', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/k-candles')
   })
 
+  it('目的地帶著授權請求時原樣回到那裡，不只回到路徑', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { rememberRedirectTo, submitCredentials } = sessionUnderTest()
+    rememberRedirectTo('/connector-authorization?request=abc')
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/connector-authorization?request=abc')
+  })
+
   it('沒有被擋下來過就去第一站（K 線圖表）', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { submitCredentials } = sessionUnderTest()
@@ -383,6 +393,20 @@ describe('useUserSession：這一次登入在操作到一半時不算數了', ()
     await session.signOutBecauseSessionExpired()
 
     expect(userSessionApplication.signOut).not.toHaveBeenCalled()
+  })
+
+  it('重新登入後回到過期當下那一頁，連同授權請求一起', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const session = sessionUnderTest()
+    useState<Promise<void> | null>('user-session-restoration', () => null).value = Promise.resolve()
+    useState<SignedInUserDto | null>('user-session', () => null).value = SIGNED_IN_USER
+    await useRouter().replace('/connector-authorization?request=abc')
+
+    await session.signOutBecauseSessionExpired()
+    navigateToSpy.mockClear()
+    await session.submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/connector-authorization?request=abc')
   })
 
   it('已經在登入畫面上時什麼都不做，不多跳一次', async () => {

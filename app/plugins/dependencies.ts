@@ -68,6 +68,10 @@ import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
 import { LayoutDensityApplication } from '~/application/layout-density-application'
 import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
+import { ConnectorAuthorizationProxy } from '~/infrastructure/proxy/connector-authorization-proxy'
+import { ExternalNavigationProxy } from '~/infrastructure/proxy/external-navigation-proxy'
+import { ConnectorAuthorizationService } from '~/domain/service/connector-authorization-service'
+import { ConnectorAuthorizationApplication } from '~/application/connector-authorization-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -257,6 +261,12 @@ export default defineNuxtPlugin(() => {
       new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
+  const connectorAuthorizationApplication = new ConnectorAuthorizationApplication(
+    new ConnectorAuthorizationService(
+      new ConnectorAuthorizationProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new ExternalNavigationProxy()),
+  )
+
   // 現在這個寬度代表什麼。它連瀏覽器儲存都不碰——問的是視窗本身，
   // 所以既沒有 proxy 也沒有 domain service，只有一個把寬度翻成答案的 model。
   const layoutDensityApplication = new LayoutDensityApplication()
@@ -300,6 +310,7 @@ export default defineNuxtPlugin(() => {
       userSessionApplication,
       passwordChangeApplication,
       telegramDeliveryApplication,
+      connectorAuthorizationApplication,
       layoutDensityApplication,
       appearanceApplication,
       marketCounterpartApplication,

@@ -223,14 +223,16 @@ export function useUserSession(
    * 已經在登入畫面上時什麼都不做：那裡本來就是要去的地方，再導一次只會多一次跳動。
    */
   async function signOutBecauseSessionExpired(): Promise<void> {
+    const currentRoute = useRouter().currentRoute.value
     currentUser.value = null
-    redirectTo.value = null
     restoration.value = null
 
-    if (useRouter().currentRoute.value.path === LOGIN_PATH) {
+    if (currentRoute.path === LOGIN_PATH) {
+      redirectTo.value = null
       return
     }
 
+    redirectTo.value = currentRoute.fullPath
     await navigateTo(LOGIN_PATH)
   }
 
