@@ -23,7 +23,7 @@ export function useConnectorAuthorization(
 
     try {
       authorizationRequest.value
-        = await connectorAuthorizationApplication.loadAuthorizationRequest(targetRequestId)
+        = await connectorAuthorizationApplication.readAuthorizationRequest(targetRequestId)
       stage.value = 'awaitingDecision'
     }
     catch (error: unknown) {

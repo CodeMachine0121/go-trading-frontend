@@ -4,7 +4,7 @@ import type { ConnectorAuthorizationRequestDto } from '~/domain/models/dto/conne
 export class ConnectorAuthorizationApplication {
   constructor(private readonly connectorAuthorizationService: ConnectorAuthorizationService) {}
 
-  async loadAuthorizationRequest(requestId: string): Promise<ConnectorAuthorizationRequestDto> {
+  async readAuthorizationRequest(requestId: string): Promise<ConnectorAuthorizationRequestDto> {
     return this.connectorAuthorizationService.readAuthorizationRequest(requestId)
   }
 
