@@ -298,6 +298,16 @@ describe('useUserSession：登入之後回到他本來要去的地方', () => {
     expect(navigateToSpy).toHaveBeenCalledWith('/k-candles')
   })
 
+  it('目的地帶著授權請求時原樣回到那裡，不只回到路徑', async () => {
+    userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
+    const { rememberRedirectTo, submitCredentials } = sessionUnderTest()
+    rememberRedirectTo('/connector-authorization?request=abc')
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/connector-authorization?request=abc')
+  })
+
   it('沒有被擋下來過就去第一站（K 線圖表）', async () => {
     userSessionApplication.signIn.mockResolvedValue(SIGNED_IN_USER)
     const { submitCredentials } = sessionUnderTest()

@@ -30,7 +30,7 @@ mockNuxtImport('navigateTo', () => navigateToSpy)
  * 打進網址列的那串字——兩者會不一樣，而那正是這裡要守住的事。
  */
 function routeTo(path: string, matchedPath = path) {
-  return { path, fullPath: path, matched: [{ path: matchedPath }] } as never
+  return { path: path.split('?')[0], fullPath: path, matched: [{ path: matchedPath.split('?')[0] }] } as never
 }
 
 async function walkTo(path: string, signedInUser: SignedInUserDto | null, matchedPath = path) {
@@ -166,6 +166,29 @@ describe('把關：還沒被放行就只看得到等待開通那一頁', () => {
     await walkTo('/k-candles', SIGNED_IN_USER)
 
     expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('把關：外掛授權同意頁', () => {
+  const CONSENT_PAGE = '/connector-authorization?request=abc'
+
+  it('沒登入時記下含授權請求的完整目的地，登入後才回得到同一張請求', async () => {
+    await walkTo(CONSENT_PAGE, null)
+
+    expect(session.rememberRedirectTo).toHaveBeenCalledWith(CONSENT_PAGE)
+    expect(navigateToSpy).toHaveBeenCalledWith('/login')
+  })
+
+  it('已登入且已放行時直接走得到同意頁', async () => {
+    await walkTo(CONSENT_PAGE, SIGNED_IN_USER)
+
+    expect(navigateToSpy).not.toHaveBeenCalled()
+  })
+
+  it('待開通的人被帶到等待開通那一頁，看不到同意頁', async () => {
+    await walkTo(CONSENT_PAGE, AWAITING_ACTIVATION_USER)
+
+    expect(navigateToSpy).toHaveBeenCalledWith('/pending-approval')
   })
 })
 
