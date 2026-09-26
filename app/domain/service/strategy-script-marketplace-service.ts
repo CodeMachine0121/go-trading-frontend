@@ -25,9 +25,4 @@ export class StrategyScriptMarketplaceService {
   async adoptStrategyScript(id: number): Promise<void> {
     return this.strategyScriptMarketplaceProxy.adoptStrategyScript(id)
   }
-
-  /** 從自己的清單拿掉。只影響自己——它仍然在市集上。 */
-  async abandonStrategyScript(id: number): Promise<void> {
-    return this.strategyScriptMarketplaceProxy.abandonStrategyScript(id)
-  }
 }

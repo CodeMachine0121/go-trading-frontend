@@ -32,21 +32,10 @@ export class StrategyScriptMarketplaceProxy extends BackendApiProxy implements I
     return publishedWires.map(publishedWire => this.toPublishedStrategyScript(publishedWire))
   }
 
+  /** 加入＝後端複製一份給這個人；名稱已被使用時的拒絕照原樣往上交。 */
   async adoptStrategyScript(id: number): Promise<void> {
-    await this.changeAdoption(id, 'POST')
-  }
-
-  async abandonStrategyScript(id: number): Promise<void> {
-    await this.changeAdoption(id, 'DELETE')
-  }
-
-  /**
-   * 加入與拿掉打的是同一條路徑，只差在方法——它們是同一件事的兩個方向
-   * （「這一支在我的清單上」成立或不成立），所以失敗的翻譯也一定相同。
-   */
-  private async changeAdoption(id: number, method: 'POST' | 'DELETE'): Promise<void> {
     try {
-      await this.requestBackend<null>(`${MARKETPLACE_ENDPOINT}/${id}/adoption`, { method })
+      await this.requestBackend<null>(`${MARKETPLACE_ENDPOINT}/${id}/adoption`, { method: 'POST' })
     }
     catch (error: unknown) {
       throw this.marketplaceFailureOf(error)

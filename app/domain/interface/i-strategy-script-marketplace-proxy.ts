@@ -17,11 +17,8 @@ export interface IStrategyScriptMarketplaceProxy {
   browseMarketplace(): Promise<PublishedStrategyScript[]>
 
   /**
-   * 把市集上的那一支放進自己的清單。已經加入過的再加一次不算失敗。
-   * 市集上沒有那一支時以 StrategyScriptNotFoundError 拒絕。
+   * 替這個人複製一份市集上的那一支；副本屬於他，之後與原本那一支無關。
+   * 市集上沒有那一支時以 StrategyScriptNotFoundError 拒絕；名稱已被使用（包括再加入一次）時帶著後端那一句拒絕。
    */
   adoptStrategyScript(id: number): Promise<void>
-
-  /** 從自己的清單拿掉。本來就沒有加入過的再拿一次不算失敗；它仍然在市集上。 */
-  abandonStrategyScript(id: number): Promise<void>
 }

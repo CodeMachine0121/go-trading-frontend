@@ -90,7 +90,6 @@ export function buildStrategyScriptMarketplaceApplication(
     new StrategyScriptMarketplaceService({
       browseMarketplace: vi.fn().mockResolvedValue([]),
       adoptStrategyScript: vi.fn().mockResolvedValue(undefined),
-      abandonStrategyScript: vi.fn().mockResolvedValue(undefined),
       ...strategyScriptMarketplaceProxy,
     }),
     // 市集也要問「哪幾支是我的、哪幾支我收下過」，所以它同時吃自己清單那一條線。

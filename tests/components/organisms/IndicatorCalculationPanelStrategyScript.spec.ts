@@ -1064,7 +1064,7 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     await pickStrategyScript(wrapper, 9)
 
     expect(wrapper.get('[data-testid="adopted-read-only-notice"]').text())
-      .toBe('這支策略腳本是從市集加入的，不是你的——可以拿來試跑、回測，但不能修改。')
+      .toBe('這份是從市集加入的副本：算式是作者寫的，看不到也改不動——可以拿來試跑、回測與組交易策略。')
   })
 
   it('唯讀時儲存、另存、改名、分享、帶入範例都按不下去', async () => {
@@ -1232,17 +1232,17 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     expect(options).toContain('別人的')
   })
 
-  it('把加入來的那一支從清單移除', async () => {
-    const abandonStrategyScript = vi.fn().mockResolvedValue(undefined)
-    const wrapper = await mountPanelWithAdopted({}, { abandonStrategyScript })
+  it('刪掉從市集加入的那一份副本', async () => {
+    const deleteStrategyScript = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithAdopted({ deleteStrategyScript })
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
     await settle()
 
-    await wrapper.get('[data-testid="strategy-script-library-abandon-9"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-library-delete-adopted-9"]').trigger('click')
     await settle()
 
-    expect(abandonStrategyScript).toHaveBeenCalledWith(9)
-    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('還在市集上')
+    expect(deleteStrategyScript).toHaveBeenCalledWith(9)
+    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('原本那一支不受影響')
   })
 })
 

@@ -8,7 +8,7 @@ import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-l
  * Application：共用貨架的用例編排，全程只碰 DTO。
  *
  * 它吃兩個 domain service，而那不是巧合：市集回答「外面有什麼」，自己的清單回答
- * 「哪幾支是我的、哪幾支我收下過」。要畫出正確的按鈕，兩個答案都要。
+ * 「哪幾支是我的」。要畫出正確的按鈕，兩個答案都要。
  * 把兩個 service 排起來是這一層的工作——domain service 之間互不呼叫。
  */
 export class StrategyScriptMarketplaceApplication {
@@ -48,9 +48,5 @@ export class StrategyScriptMarketplaceApplication {
 
   async adoptStrategyScript(id: number): Promise<void> {
     return this.strategyScriptMarketplaceService.adoptStrategyScript(id)
-  }
-
-  async abandonStrategyScript(id: number): Promise<void> {
-    return this.strategyScriptMarketplaceService.abandonStrategyScript(id)
   }
 }

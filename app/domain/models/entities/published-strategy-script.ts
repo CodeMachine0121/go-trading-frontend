@@ -17,9 +17,10 @@ export class PublishedStrategyScript {
     /** 分享者用自己的話寫的一段。沒寫時是空字串——算式看不到的時候，這是唯一的介紹。 */
     public readonly description: string,
     public readonly resultType: string,
-    /** 是誰把它放上市集的。 */
-    public readonly publisherEmail: string,
-    public readonly publishedAt: Date,
+    /** 是誰把它放上市集的。從市集加入的副本不記得來源，所以是 `null`。 */
+    public readonly publisherEmail: string | null,
+    /** 何時放上市集的；副本同樣沒有這件事，是 `null`。 */
+    public readonly publishedAt: Date | null,
     /** 這支算式自己的旋鈕。宣告它們不會洩漏作法——一個旋鈕是一個名字與一個預設值，不是一個步驟。 */
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
     /** 它吃哪一種行情，原樣照後端說的；舊版後端不說時是 `kCandle`。 */

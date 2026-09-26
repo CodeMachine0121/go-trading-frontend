@@ -17,20 +17,20 @@ function ownStrategyScriptOf(id: number, name: string): StrategyScriptDto {
 }
 
 describe('MarketplaceListingDomain', () => {
-  it('每一列都說得出它對這個人是什麼', () => {
-    // 三種狀態各一列。畫面因此不必比對任何識別碼——比對每多一處，
-    // 就多一個會悄悄算錯的地方，而算錯的後果是一顆按不動的按鈕。
+  it('每一列都說得出是不是自己分享的，加入過的照樣可以再加入', () => {
+    // 加入是複製一份，副本有自己的識別碼（這裡是 20），與市集上那一支對不起來——
+    // 所以「我加入的」那一支仍然只是別人的，給的是「加入」。
     const listing = new MarketplaceListingDomain(
       [publishedOf(1, '我分享的'), publishedOf(2, '我加入的'), publishedOf(3, '還沒收的')],
-      new AvailableStrategyScriptsDto([ownStrategyScriptOf(1, '我分享的')], [publishedOf(2, '我加入的')]),
+      new AvailableStrategyScriptsDto([ownStrategyScriptOf(1, '我分享的')], [publishedOf(20, '我加入的')]),
     )
 
     const rows = listing.toRowDtos()
 
-    expect(rows.map(row => [row.strategyScript.id, row.mine, row.adopted])).toEqual([
-      [1, true, false],
-      [2, false, true],
-      [3, false, false],
+    expect(rows.map(row => [row.strategyScript.id, row.mine])).toEqual([
+      [1, true],
+      [2, false],
+      [3, false],
     ])
   })
 

@@ -1,6 +1,5 @@
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
-import type { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
@@ -23,14 +22,6 @@ type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete' 
  */
 export function useStrategyScriptLibrary(
   strategyScriptApplication: StrategyScriptApplication,
-  /**
-   * 市集那一條線。這裡只用它做一件事：把加入來的那一支從自己的清單拿掉。
-   *
-   * 那件事屬於這裡而不是市集頁，因為它改變的是**這一份清單**——使用者是在清單上看到
-   * 那一支、也是在清單上決定不要它的。市集頁上也有一顆做同一件事的按鈕，
-   * 兩邊走的是同一條路，只是入口不同。
-   */
-  strategyScriptMarketplaceApplication: StrategyScriptMarketplaceApplication,
   readCurrentContent: () => StrategyScriptContentDto,
   applyContent: (content: StrategyScriptContentDto) => void,
   /** 一份空白的策略腳本內容。「空白長什麼樣」由畫面定義，這裡只負責在對的時機套用它。 */
@@ -373,15 +364,15 @@ export function useStrategyScriptLibrary(
   }
 
   /**
-   * 把加入來的那一支從自己的清單拿掉。**不先問**：它是別人的東西，拿掉只影響自己的清單，
-   * 想要再加回來到市集按一下就有——與刪掉自己的策略腳本完全不同。
+   * 刪掉從市集加入的那一份副本。**不先問**：它是別人寫的東西的一份複製，刪掉只影響自己，
+   * 想要再拿一份到市集按一下就有——與刪掉自己寫的策略腳本完全不同。
    */
-  async function abandonStrategyScript(id: number) {
+  async function deleteAdoptedStrategyScript(id: number) {
     saving.value = true
     clearMessages()
 
     try {
-      await strategyScriptMarketplaceApplication.abandonStrategyScript(id)
+      await strategyScriptApplication.deleteStrategyScript(id)
 
       // 拿掉的正是工作區裡那一支：它已經不在我的清單上，工作區不能還裝著它——
       // 留著的話，畫面仍是它的唯讀樣子，而下一次試跑會指名一支已經不屬於我的策略腳本。
@@ -393,11 +384,11 @@ export function useStrategyScriptLibrary(
       }
 
       openDialog.value = 'library'
-      noticeMessage.value = '已經從你的清單移除。它還在市集上，隨時可以再加回來。'
+      noticeMessage.value = '已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。'
       await refreshStrategyScripts()
     }
     catch (error: unknown) {
-      errorMessage.value = messageOf(error, '從清單移除時發生未預期的錯誤。')
+      errorMessage.value = messageOf(error, '刪掉副本時發生未預期的錯誤。')
       openDialog.value = 'library'
     }
     finally {
@@ -488,6 +479,6 @@ export function useStrategyScriptLibrary(
     publishStrategyScript,
     askToWithdraw,
     confirmWithdraw,
-    abandonStrategyScript,
+    deleteAdoptedStrategyScript,
   }
 }

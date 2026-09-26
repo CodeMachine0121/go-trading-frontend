@@ -28,7 +28,7 @@ const {
 const emit = defineEmits<{
   load: [id: number]
   remove: [id: number]
-  abandon: [id: number]
+  deleteAdopted: [id: number]
   close: []
 }>()
 </script>
@@ -48,7 +48,7 @@ const emit = defineEmits<{
       :active-adopted-strategy-script-id="activeAdoptedStrategyScriptId"
       @load="id => emit('load', id)"
       @remove="id => emit('remove', id)"
-      @abandon="id => emit('abandon', id)"
+      @delete-adopted="id => emit('deleteAdopted', id)"
     />
   </AppModal>
 </template>

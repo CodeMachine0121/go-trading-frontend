@@ -24,7 +24,7 @@ const {
   strategyScripts: StrategyScriptDto[]
   /**
    * 從市集加入的那些。它們**沒有算式**：挑它進工作區是唯讀的，
-   * 這一列上也沒有任何會改動它的動作——只有「從我的清單移除」。
+   * 這一列上也沒有任何會改動它的動作——只有「刪掉這份副本」。
    */
   adoptedStrategyScripts: PublishedStrategyScriptDto[]
   errorMessage?: string | null
@@ -37,7 +37,7 @@ const emit = defineEmits<{
   /** 挑這一支來用。自己的與加入的走同一條路——換不換得動工作區由收下的地方決定。 */
   load: [id: number]
   remove: [id: number]
-  abandon: [id: number]
+  deleteAdopted: [id: number]
 }>()
 </script>
 
@@ -159,20 +159,20 @@ const emit = defineEmits<{
                 市集取得
               </AppBadge>
             </span>
-            <span class="strategy-script-library-list__detail">{{ adopted.publisherEmail }} 分享</span>
+            <span class="strategy-script-library-list__detail">從市集加入</span>
           </button>
 
           <!--
-            這一列**只有**「移除」。改名、刪除、分享一顆都不給——
-            它沒有算式可以改，也不是我的東西。
+            這一列**只有**「刪掉副本」。改名、分享一顆都不給——
+            算式是作者寫的，副本看不到也改不動。
           -->
           <AppButton
             variant="danger-ghost"
             size="small"
             class="strategy-script-library-list__action"
-            :label="`把「${adopted.name}」從我的清單移除`"
-            :data-testid="`strategy-script-library-abandon-${adopted.id}`"
-            @click="emit('abandon', adopted.id)"
+            :label="`刪掉「${adopted.name}」這份副本`"
+            :data-testid="`strategy-script-library-delete-adopted-${adopted.id}`"
+            @click="emit('deleteAdopted', adopted.id)"
           >
             移除
           </AppButton>

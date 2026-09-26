@@ -8,7 +8,6 @@ import {
   buildAdoptedStrategyScript,
   buildStoredStrategyScript,
   buildStrategyScriptApplication,
-  buildStrategyScriptMarketplaceApplication,
 } from '../fixtures/strategy-script-application'
 
 // 只 mock 最外層的 proxy：application、domain service 與 domain model 都是真的，
@@ -30,9 +29,14 @@ async function libraryUnderTest(adoptedLater: boolean = true) {
   const applyContent = vi.fn((content: StrategyScriptContentDto) => {
     workspace.content = content
   })
+  const deleteStrategyScript = vi.fn().mockImplementation(async () => {
+    listAvailableStrategyScripts.mockResolvedValue({
+      mine: [buildStoredStrategyScript(1, 'RSI 背離', { script: 'sum := 1.0', resultType: 'float' })],
+      adopted: [],
+    })
+  })
   const library = useStrategyScriptLibrary(
-    buildStrategyScriptApplication({ listAvailableStrategyScripts }),
-    buildStrategyScriptMarketplaceApplication(),
+    buildStrategyScriptApplication({ listAvailableStrategyScripts, deleteStrategyScript }),
     () => workspace.content,
     applyContent,
     BLANK)
@@ -45,7 +49,7 @@ async function libraryUnderTest(adoptedLater: boolean = true) {
     })
   }
 
-  return { library, workspace, applyContent }
+  return { library, workspace, applyContent, deleteStrategyScript }
 }
 
 describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
@@ -128,22 +132,26 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
     expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
   })
 
-  it('把工作區裡那一支從清單移除時，工作區換成一份空白、不再唯讀', async () => {
-    const { library, applyContent } = await libraryUnderTest()
+  it('刪掉工作區裡那一份副本時，工作區換成一份空白、不再唯讀', async () => {
+    const { library, applyContent, deleteStrategyScript } = await libraryUnderTest()
     library.selectStrategyScript(9)
 
-    await library.abandonStrategyScript(9)
+    await library.deleteAdoptedStrategyScript(9)
 
+    // 副本是自己的策略腳本，刪掉它走的就是刪除策略腳本那一條路；重讀之後它就不在清單上了。
+    expect(deleteStrategyScript).toHaveBeenCalledWith(9)
+    expect(library.adoptedStrategyScripts.value.map(adopted => adopted.id)).not.toContain(9)
+    expect(library.noticeMessage.value).toBe('已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。')
     expect(library.readOnly.value).toBe(false)
     expect(library.namedStrategyScriptId.value).toBeUndefined()
     expect(applyContent).toHaveBeenLastCalledWith(BLANK)
   })
 
-  it('移除的是另一支時，工作區裡那一支照舊', async () => {
+  it('刪掉的是另一份時，工作區裡那一支照舊', async () => {
     const { library } = await libraryUnderTest()
     library.selectStrategyScript(9)
 
-    await library.abandonStrategyScript(10)
+    await library.deleteAdoptedStrategyScript(10)
 
     expect(library.activeAdoptedStrategyScript.value?.name).toBe('均線交叉')
   })
