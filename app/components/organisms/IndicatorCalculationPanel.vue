@@ -20,7 +20,6 @@ import StrategyScriptLibraryList from '~/components/molecules/StrategyScriptLibr
 import StrategyScriptParameterList from '~/components/molecules/StrategyScriptParameterList.vue'
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
-import type { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
@@ -55,7 +54,6 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 const {
   indicatorCalculationApplication,
   strategyScriptApplication,
-  strategyScriptMarketplaceApplication,
   tradingSymbolApplication,
   backtestApplication,
   timeZone,
@@ -63,8 +61,6 @@ const {
 } = defineProps<{
   indicatorCalculationApplication: IndicatorCalculationApplication
   strategyScriptApplication: StrategyScriptApplication
-  /** 市集那一條線。這一頁只用它做一件事：把加入來的那一支從清單移除。 */
-  strategyScriptMarketplaceApplication: StrategyScriptMarketplaceApplication
   tradingSymbolApplication: TradingSymbolApplication
   backtestApplication: BacktestApplication
   /** 這一頁說時間的地方一律照它——回測的資金曲線與交易明細也不例外。 */
@@ -187,7 +183,6 @@ const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplicatio
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
 const strategyScriptLibrary = useStrategyScriptLibrary(
   strategyScriptApplication,
-  strategyScriptMarketplaceApplication,
   () => new StrategyScriptContentDto(
     script.value, resultType.value, strategyScriptParameters.parameters.value, marketDataKind),
   (content) => {
@@ -354,7 +349,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         :active-adopted-strategy-script-id="strategyScriptLibrary.activeAdoptedStrategyScript.value?.id ?? null"
         @load="strategyScriptLibrary.selectStrategyScript"
         @remove="strategyScriptLibrary.askToDelete"
-        @abandon="strategyScriptLibrary.abandonStrategyScript"
+        @delete-adopted="strategyScriptLibrary.deleteAdoptedStrategyScript"
       />
     </AppPanel>
 
@@ -1029,7 +1024,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       data-testid="strategy-script-library-dialog"
       @load="strategyScriptLibrary.selectStrategyScript"
       @remove="strategyScriptLibrary.askToDelete"
-      @abandon="strategyScriptLibrary.abandonStrategyScript"
+      @delete-adopted="strategyScriptLibrary.deleteAdoptedStrategyScript"
       @close="strategyScriptLibrary.closeDialog"
     />
 

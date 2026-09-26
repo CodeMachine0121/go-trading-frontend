@@ -49,8 +49,4 @@ export class StrategyScriptMarketplaceApplication {
   async adoptStrategyScript(id: number): Promise<void> {
     return this.strategyScriptMarketplaceService.adoptStrategyScript(id)
   }
-
-  async abandonStrategyScript(id: number): Promise<void> {
-    return this.strategyScriptMarketplaceService.abandonStrategyScript(id)
-  }
 }

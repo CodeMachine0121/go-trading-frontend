@@ -13,7 +13,6 @@ function rowOf(
       id, name, description, 'floatList', publisherEmail,
       new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字'),
     false,
-    false,
   )
 }
 

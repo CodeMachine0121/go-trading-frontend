@@ -85,20 +85,18 @@ describe('StrategyScriptMarketplacePanel', () => {
     const wrapper = await mountPanel()
 
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(false)
   })
 
-  it('收下過的那一支給的是「移除」', async () => {
+  it('加入過的那一支照樣只給「加入」——副本與它對不起來', async () => {
     const wrapper = await mountPanel({}, {
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({
         mine: [],
-        adopted: [buildAdoptedStrategyScript(9, '別人的')],
+        adopted: [buildAdoptedStrategyScript(20, '別人的')],
       }),
     })
 
-    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="marketplace-strategy-script-adopted-9"]').text()).toContain('已加入')
+    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="marketplace-strategy-script-adopted-9"]').exists()).toBe(false)
   })
 
   it('自己分享的那一支標明是自己的，而且一顆按鈕都不給', async () => {
@@ -112,7 +110,6 @@ describe('StrategyScriptMarketplacePanel', () => {
 
     expect(wrapper.get('[data-testid="marketplace-strategy-script-mine-9"]').text()).toContain('我分享的')
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(false)
   })
 
   it('加入一支之後說出來，並重新讀一次', async () => {
@@ -124,24 +121,20 @@ describe('StrategyScriptMarketplacePanel', () => {
     await flushPromises()
 
     expect(adoptStrategyScript).toHaveBeenCalledWith(9)
-    expect(wrapper.get('[data-testid="marketplace-notice"]').text()).toContain('加入')
+    expect(wrapper.get('[data-testid="marketplace-notice"]').text())
+      .toBe('已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。')
     expect(browseMarketplace.mock.calls.length).toBeGreaterThan(1)
   })
 
-  it('移除只影響自己——那一支還在市集上', async () => {
-    const abandonStrategyScript = vi.fn().mockResolvedValue(undefined)
-    const wrapper = await mountPanel({ abandonStrategyScript }, {
-      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
-        mine: [],
-        adopted: [buildAdoptedStrategyScript(9, '別人的')],
-      }),
-    })
+  it('加入被拒時說出後端那一句', async () => {
+    const adoptStrategyScript = vi.fn().mockRejectedValue(new Error('策略腳本名稱「別人的」已被使用'))
+    const browseMarketplace = vi.fn().mockResolvedValue([publishedStrategyScriptOf(9, '別人的')])
+    const wrapper = await mountPanel({ adoptStrategyScript, browseMarketplace })
 
-    await wrapper.get('[data-testid="marketplace-abandon-9"]').trigger('click')
+    await wrapper.get('[data-testid="marketplace-adopt-9"]').trigger('click')
     await flushPromises()
 
-    expect(abandonStrategyScript).toHaveBeenCalledWith(9)
-    expect(wrapper.find('[data-testid="marketplace-strategy-script-9"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('策略腳本名稱「別人的」已被使用')
   })
 
   it('那一支剛被收回時，說得出下一步是重新看一次', async () => {
@@ -326,9 +319,8 @@ describe('StrategyScriptMarketplacePanel 認得每一種行情的「我的」與
       }),
     })
 
-    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="marketplace-strategy-script-adopted-9"]').text()).toContain('已加入')
+    expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="marketplace-strategy-script-adopted-9"]').exists()).toBe(false)
   })
 
   it('自己分享的合約行情種類標明是自己的，一顆按鈕都不給', async () => {
@@ -345,6 +337,5 @@ describe('StrategyScriptMarketplacePanel 認得每一種行情的「我的」與
 
     expect(wrapper.get('[data-testid="marketplace-strategy-script-mine-9"]').text()).toContain('我分享的')
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="marketplace-abandon-9"]').exists()).toBe(false)
   })
 })

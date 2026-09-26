@@ -22,7 +22,7 @@ const { row, busy = false } = defineProps<{
   busy?: boolean
 }>()
 
-const emit = defineEmits<{ adopt: [id: number], abandon: [id: number] }>()
+const emit = defineEmits<{ adopt: [id: number] }>()
 
 const strategyScript = computed(() => row.strategyScript)
 </script>
@@ -48,13 +48,6 @@ const strategyScript = computed(() => row.strategyScript)
         :data-testid="`marketplace-strategy-script-mine-${strategyScript.id}`"
       >
         我分享的
-      </AppBadge>
-      <AppBadge
-        v-else-if="row.adopted"
-        variant="success"
-        :data-testid="`marketplace-strategy-script-adopted-${strategyScript.id}`"
-      >
-        已加入
       </AppBadge>
     </header>
 
@@ -100,7 +93,7 @@ const strategyScript = computed(() => row.strategyScript)
 
     <footer class="marketplace-strategy-script-card__actions">
       <AppButton
-        v-if="!row.mine && !row.adopted"
+        v-if="!row.mine"
         variant="primary"
         size="small"
         :disabled="busy"
@@ -108,17 +101,6 @@ const strategyScript = computed(() => row.strategyScript)
         @click="emit('adopt', strategyScript.id)"
       >
         加入
-      </AppButton>
-
-      <AppButton
-        v-else-if="!row.mine"
-        variant="danger-ghost"
-        size="small"
-        :disabled="busy"
-        :data-testid="`marketplace-abandon-${strategyScript.id}`"
-        @click="emit('abandon', strategyScript.id)"
-      >
-        移除
       </AppButton>
 
       <p

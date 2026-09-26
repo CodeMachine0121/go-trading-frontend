@@ -110,14 +110,14 @@ describe('StrategyScriptLibraryDialog：兩段清單', () => {
       .toContain('我加入的')
   })
 
-  it('加入來的那一列只有「移除」，一個會改動它的動作都沒有', () => {
+  it('加入來的那一列只有「刪掉副本」，一個會改動它的動作都沒有', () => {
     // 它沒有算式可以載，也不是我的東西——顯示那些按鈕，按下去只會撞牆。
     const wrapper = mountLibrary({
       strategyScripts: [],
       adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
     })
 
-    expect(wrapper.find('[data-testid="strategy-script-library-abandon-9"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="strategy-script-library-delete-adopted-9"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="strategy-script-library-load-9"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="strategy-script-library-delete-9"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="strategy-script-library-publish-9"]').exists()).toBe(false)
@@ -135,25 +135,25 @@ describe('StrategyScriptLibraryDialog：兩段清單', () => {
     expect(wrapper.emitted('load')).toEqual([[9]])
   })
 
-  it('加入來的那一列標出是誰分享的', () => {
+  it('加入來的那一列標明從市集加入', () => {
+    // 副本不記得是誰分享的，只說得出它是從市集來的。
     const wrapper = mountLibrary({
       strategyScripts: [],
       adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
     })
 
-    expect(wrapper.get('[data-testid="strategy-script-library-adopted-row-9"]').text())
-      .toContain('someone@example.com')
+    expect(wrapper.get('[data-testid="strategy-script-library-adopted-row-9"]').text()).toContain('從市集加入')
   })
 
-  it('按移除時說出是哪一支', async () => {
+  it('按刪掉副本時說出是哪一份', async () => {
     const wrapper = mountLibrary({
       strategyScripts: [],
       adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
     })
 
-    await wrapper.get('[data-testid="strategy-script-library-abandon-9"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-library-delete-adopted-9"]').trigger('click')
 
-    expect(wrapper.emitted('abandon')).toEqual([[9]])
+    expect(wrapper.emitted('deleteAdopted')).toEqual([[9]])
   })
 
   it('兩段都空才說「還沒有任何策略腳本」', () => {

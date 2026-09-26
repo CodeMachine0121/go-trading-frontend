@@ -1232,17 +1232,17 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     expect(options).toContain('別人的')
   })
 
-  it('把加入來的那一支從清單移除', async () => {
-    const abandonStrategyScript = vi.fn().mockResolvedValue(undefined)
-    const wrapper = await mountPanelWithAdopted({}, { abandonStrategyScript })
+  it('刪掉從市集加入的那一份副本', async () => {
+    const deleteStrategyScript = vi.fn().mockResolvedValue(undefined)
+    const wrapper = await mountPanelWithAdopted({ deleteStrategyScript })
     await wrapper.get('[data-testid="open-library-button"]').trigger('click')
     await settle()
 
-    await wrapper.get('[data-testid="strategy-script-library-abandon-9"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-library-delete-adopted-9"]').trigger('click')
     await settle()
 
-    expect(abandonStrategyScript).toHaveBeenCalledWith(9)
-    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('還在市集上')
+    expect(deleteStrategyScript).toHaveBeenCalledWith(9)
+    expect(wrapper.get('[data-testid="strategy-script-notice"]').text()).toContain('原本那一支不受影響')
   })
 })
 

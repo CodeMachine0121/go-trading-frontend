@@ -61,26 +61,15 @@ async function reload() {
   }
 }
 
+// 加入是複製一份：說清楚它之後與原本那一支無關，免得有人以為作者改了會跟著變。
 async function adopt(id: number) {
-  await changeAdoption(id, () => strategyScriptMarketplaceApplication.adoptStrategyScript(id), '已經加入你的策略腳本清單。')
-}
-
-async function abandon(id: number) {
-  await changeAdoption(id, () => strategyScriptMarketplaceApplication.abandonStrategyScript(id), '已經從你的策略腳本清單移除。')
-}
-
-/**
- * 加入與移除走同一條路：兩者是同一件事的兩個方向，所以「按下去要禁用哪一顆、
- * 成功要說什麼、失敗要說什麼、之後要重讀」也只寫一次。
- */
-async function changeAdoption(id: number, change: () => Promise<void>, successMessage: string) {
   changingStrategyScriptId.value = id
   failureMessage.value = null
   noticeMessage.value = null
 
   try {
-    await change()
-    noticeMessage.value = successMessage
+    await strategyScriptMarketplaceApplication.adoptStrategyScript(id)
+    noticeMessage.value = '已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。'
     await reload()
   }
   catch (error: unknown) {
@@ -210,7 +199,6 @@ onMounted(reload)
         :row="row"
         :busy="changingStrategyScriptId === row.strategyScript.id"
         @adopt="adopt"
-        @abandon="abandon"
       />
     </ul>
   </section>

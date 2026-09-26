@@ -12,7 +12,6 @@ definePageMeta({
 const {
   $indicatorCalculationApplication,
   $strategyScriptApplication,
-  $strategyScriptMarketplaceApplication,
   $tradingSymbolApplication,
   $backtestApplication,
 } = useNuxtApp()
@@ -33,7 +32,6 @@ onBeforeRouteLeave(() => panel.value?.hasUnsavedDraft() === true
     ref="panel"
     :indicator-calculation-application="$indicatorCalculationApplication"
     :strategy-script-application="$strategyScriptApplication"
-    :strategy-script-marketplace-application="$strategyScriptMarketplaceApplication"
     :trading-symbol-application="$tradingSymbolApplication"
     :backtest-application="$backtestApplication"
     :time-zone="selectedTimeZone"

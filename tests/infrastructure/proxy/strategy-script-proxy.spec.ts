@@ -65,6 +65,30 @@ describe('StrategyScriptProxy.listStrategyScripts', () => {
     expect(strategyScripts[1]?.name).toBe('六十根均線')
   })
 
+  it('從市集加入的那一段是副本：用它自己的識別碼、沒有算式、不說是誰分享的', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      mine: [],
+      adopted: [{
+        ...strategyScriptWireOf(20, '動能'),
+        script: '',
+        isAdoptedFromMarketplace: true,
+        createdAt: '2026-09-26T08:00:00Z',
+        parameters: [{ name: '期數', kind: 'lookbackCount', defaultValue: 20 }],
+      }],
+    }))
+
+    const { adopted } = await new StrategyScriptProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategyScripts()
+
+    expect(adopted).toHaveLength(1)
+    expect(adopted[0]?.id).toBe(20)
+    expect(adopted[0]?.name).toBe('動能')
+    expect(adopted[0]?.publisherEmail).toBe('')
+    expect(adopted[0]?.publishedAt).toEqual(new Date('2026-09-26T08:00:00Z'))
+    expect(adopted[0]?.parameters.map(parameter => parameter.name)).toEqual(['期數'])
+    expect(adopted[0]).not.toHaveProperty('script')
+  })
+
   it('一支都沒有是空陣列，不是錯誤', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [], adopted: [] }))
 

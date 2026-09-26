@@ -37,7 +37,7 @@ const emit = defineEmits<{
   /** 挑這一支來用。自己的與加入的走同一條路——換不換得動工作區由收下的地方決定。 */
   load: [id: number]
   remove: [id: number]
-  abandon: [id: number]
+  deleteAdopted: [id: number]
 }>()
 </script>
 
@@ -159,7 +159,7 @@ const emit = defineEmits<{
                 市集取得
               </AppBadge>
             </span>
-            <span class="strategy-script-library-list__detail">{{ adopted.publisherEmail }} 分享</span>
+            <span class="strategy-script-library-list__detail">從市集加入</span>
           </button>
 
           <!--
@@ -170,9 +170,9 @@ const emit = defineEmits<{
             variant="danger-ghost"
             size="small"
             class="strategy-script-library-list__action"
-            :label="`把「${adopted.name}」從我的清單移除`"
-            :data-testid="`strategy-script-library-abandon-${adopted.id}`"
-            @click="emit('abandon', adopted.id)"
+            :label="`刪掉「${adopted.name}」這份副本`"
+            :data-testid="`strategy-script-library-delete-adopted-${adopted.id}`"
+            @click="emit('deleteAdopted', adopted.id)"
           >
             移除
           </AppButton>
