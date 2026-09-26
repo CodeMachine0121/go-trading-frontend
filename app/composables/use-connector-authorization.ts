@@ -1,6 +1,6 @@
 import type { ConnectorAuthorizationRequestDto } from '~/domain/models/dto/connector-authorization-request-dto'
-import type { ConnectorAuthorizationStage } from '~/domain/models/vo/connector-authorization-stage'
-import type { ConnectorAuthorizationDecision } from '~/domain/models/vo/connector-authorization-decision'
+import type { ConnectorAuthorizationStageVo } from '~/domain/models/vo/connector-authorization-stage-vo'
+import type { ConnectorAuthorizationDecisionVo } from '~/domain/models/vo/connector-authorization-decision-vo'
 import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/connector-authorization-request-expired-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
@@ -9,9 +9,9 @@ const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確�
 export function useConnectorAuthorization(
   connectorAuthorizationApplication = useNuxtApp().$connectorAuthorizationApplication,
 ) {
-  const stage = ref<ConnectorAuthorizationStage>('loading')
+  const stage = ref<ConnectorAuthorizationStageVo>('loading')
   const authorizationRequest = ref<ConnectorAuthorizationRequestDto | null>(null)
-  const pendingDecision = ref<ConnectorAuthorizationDecision | null>(null)
+  const pendingDecision = ref<ConnectorAuthorizationDecisionVo | null>(null)
   const loadErrorMessage = ref<string | null>(null)
   const decisionErrorMessage = ref<string | null>(null)
   const requestId = ref('')
@@ -39,7 +39,7 @@ export function useConnectorAuthorization(
     }
   }
 
-  async function decide(decision: ConnectorAuthorizationDecision): Promise<void> {
+  async function decide(decision: ConnectorAuthorizationDecisionVo): Promise<void> {
     if (stage.value !== 'awaitingDecision' || pendingDecision.value !== null) {
       return
     }

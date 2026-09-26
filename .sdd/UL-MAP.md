@@ -174,7 +174,7 @@
 | 外掛授權 | `ConnectorAuthorizationApplication` | 授權外掛 | 讓外掛（例如 Claude Code）以使用者身分使用交易服務的做法：使用者在操作台自己的登入畫面登入，**親手按下允許**，外掛從此自己續用，**不再向任何人要密碼**。沿用後端同名詞彙 | Confirmed |
 | 授權請求 | `ConnectorAuthorizationRequest` / `ConnectorAuthorizationRequestDto` | 授權請求 | 外掛要身分時開出的一張單子，說得出**提出要求的外掛名稱**與**何時失效**。**只活十分鐘，只能被決定一次**（允許或拒絕）；過期、決定過、不存在，對使用者都是同一句話——已失效，回 Claude Code 重新連線。沿用後端同名詞彙 | Confirmed |
 | 外掛授權同意頁 | `pages/connector-authorization.vue`（`/connector-authorization?request=`） | 授權外掛 | 外掛把使用者送來做決定的那一頁。**要先登入且已放行**（由既有的門把關，不另開例外）；說清楚外掛名稱、目前帳號、**允許後能以他的身分使用交易服務的全部功能**；**絕不自動允許**。**不套用操作台外框**，與登入頁、等待開通頁同一類卡片 | Confirmed |
-| 已交回外掛 | `ConnectorAuthorizationStage` 的 `handedBack` | 可以關掉這個分頁，回到 Claude Code | 允許或拒絕送出之後，瀏覽器被整頁送回外掛給的位址；同意頁留下的那一句話。外掛那一側有時什麼都不顯示，使用者需要知道事情已經做完 | Confirmed |
+| 已交回外掛 | `ConnectorAuthorizationStageVo` 的 `handedBack` | 可以關掉這個分頁，回到 Claude Code | 允許或拒絕送出之後，瀏覽器被整頁送回外掛給的位址；同意頁留下的那一句話。外掛那一側有時什麼都不顯示，使用者需要知道事情已經做完 | Confirmed |
 | 欄位不合格訊息 | `CredentialsFieldErrorsDto` | — | 送出之前畫面自己擋下來的原因，寫在該格底下。**它是替使用者省一趟來回，不是規則的所在地**——規則在後端，兩邊說法不同時後端說了算 | Confirmed |
 
 | 回測 | `BacktestDomain` | 回測 | 策略腳本那一頁的**第二個去處**：拿一段歷史把畫面上這一份算式從頭重演一遍，交出成績單、資金曲線與交易明細。**只接受「一個信號」種類的算式**——種類不對送出前就擋下。**算完就在畫面上，重新整理就沒了**——後端不留存，前端也不假裝留得住 | Confirmed |

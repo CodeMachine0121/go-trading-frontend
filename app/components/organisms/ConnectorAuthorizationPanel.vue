@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ConnectorAuthorizationRequestDto } from '~/domain/models/dto/connector-authorization-request-dto'
-import type { ConnectorAuthorizationStage } from '~/domain/models/vo/connector-authorization-stage'
-import type { ConnectorAuthorizationDecision } from '~/domain/models/vo/connector-authorization-decision'
+import type { ConnectorAuthorizationStageVo } from '~/domain/models/vo/connector-authorization-stage-vo'
+import type { ConnectorAuthorizationDecisionVo } from '~/domain/models/vo/connector-authorization-decision-vo'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -14,10 +14,10 @@ const {
   loadErrorMessage = null,
   decisionErrorMessage = null,
 } = defineProps<{
-  stage: ConnectorAuthorizationStage
+  stage: ConnectorAuthorizationStageVo
   authorizationRequest?: ConnectorAuthorizationRequestDto | null
   email: string
-  pendingDecision?: ConnectorAuthorizationDecision | null
+  pendingDecision?: ConnectorAuthorizationDecisionVo | null
   loadErrorMessage?: string | null
   decisionErrorMessage?: string | null
 }>()

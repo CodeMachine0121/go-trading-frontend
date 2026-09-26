@@ -24,7 +24,7 @@
 | :--- | :--- | :--- |
 | `app/domain/interface/` | **Add** | `IConnectorAuthorizationProxy`（交易服務的授權請求資源）、`IExternalNavigationProxy`（整頁離開操作台前往外部位址） |
 | `app/infrastructure/proxy/` | **Add** | `ConnectorAuthorizationProxy`（繼承 `BackendApiProxy`，沿用 bearer、401 救回、錯誤翻譯；404 → `ConnectorAuthorizationRequestExpiredError`）、`ExternalNavigationProxy`（`window.location.assign`） |
-| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStage`、vo `ConnectorAuthorizationDecision` |
+| `app/domain/models/` | **Add** | entity `ConnectorAuthorizationRequest`、domain `ConnectorAuthorizationRequestDomain`、dto `ConnectorAuthorizationRequestDto`、vo `ConnectorAuthorizationStageVo`、vo `ConnectorAuthorizationDecisionVo` |
 | `app/domain/errors/` | **Add** | `ConnectorAuthorizationRequestExpiredError`（過期、已決定、不存在、網址沒帶識別） |
 | `app/domain/service/` | **Add** | `ConnectorAuthorizationService` |
 | `app/application/` | **Add** | `ConnectorAuthorizationApplication` |
@@ -49,8 +49,8 @@
 | `ConnectorAuthorizationRequest` | Entity | 授權請求的欄位：`clientName`；`toDomain()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDomain` | Domain Model | 建構子正規化外掛名稱（去空白；空白 → `未具名的外掛`，因註冊時名稱為選填）；`toDto()` | — | 同意頁說清楚外掛 |
 | `ConnectorAuthorizationRequestDto` | DTO | 畫面看得到的形狀：`clientName` | — | 同上 |
-| `ConnectorAuthorizationStage` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`loadFailed`（連不上或交易服務出錯，給再試一次） | — | US-02、US-03、US-04 |
-| `ConnectorAuthorizationDecision` | VO（字面量聯合） | `approve`／`deny`：哪一個決定送出中 | — | 決定送出後不能再按第二次 |
+| `ConnectorAuthorizationStageVo` | VO（字面量聯合） | `loading`／`awaitingDecision`／`handedBack`／`expired`／`loadFailed`（連不上或交易服務出錯，給再試一次） | — | US-02、US-03、US-04 |
+| `ConnectorAuthorizationDecisionVo` | VO（字面量聯合） | `approve`／`deny`：哪一個決定送出中 | — | 決定送出後不能再按第二次 |
 | `ConnectorAuthorizationRequestExpiredError` | 哨兵錯誤 | 授權請求已失效（對使用者只有一句話） | — | US-04 |
 | `ConnectorAuthorizationService` | Domain Service | `readAuthorizationRequest(requestId)`：空白識別直接拋過期錯誤、不打後端；`approve(requestId)` / `deny(requestId)`：送出決定並 `leaveFor(redirectTo)` | 兩個 proxy | 全部 |
 | `ConnectorAuthorizationApplication` | Application | 三個用例的薄編排，只交 DTO | Service | 全部 |
@@ -94,7 +94,7 @@ flowchart TD
 - **Most likely next requirement:** 列出／撤銷已授權的外掛；或授權範圍（scope）不再是「全部功能」而要在同意頁逐項列出。
 - **Where it lands:** 撤銷是同一個後端資源 → 加在 `IConnectorAuthorizationProxy` 與 `ConnectorAuthorizationService`（新用例），設定畫面加一張卡。
   範圍 → `ConnectorAuthorizationRequest` 加欄位，`ConnectorAuthorizationRequestDomain` 把它翻成可讀清單放進 DTO，卡片照畫；wire 變動只改 proxy。
-- **How to add it:** 新增方法／欄位，不改既有階段機；新的結局就是 `ConnectorAuthorizationStage` 多一個值、卡片多一個分支。
+- **How to add it:** 新增方法／欄位，不改既有階段機；新的結局就是 `ConnectorAuthorizationStageVo` 多一個值、卡片多一個分支。
 - **Patterns applied & why:** Proxy（兩種外部資源：交易服務、瀏覽器位址列）；Domain Model 建構子正規化（不信任選填的外掛名稱）。
 - **Do not hardcode:** 交易服務位址（沿用 runtime config）；外掛回呼位址一律照交易服務給的 `redirectTo`，操作台不自己拼。
 - **Known debt / deferred:** 途中登入完全失效時不記住請求（見 PRD Out of Scope）；若使用者回報常發生，改 `signOutBecauseSessionExpired` 記下目前 `fullPath`。

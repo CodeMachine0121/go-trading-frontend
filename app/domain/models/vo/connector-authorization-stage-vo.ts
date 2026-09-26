@@ -1,4 +1,4 @@
-export type ConnectorAuthorizationStage
+export type ConnectorAuthorizationStageVo
   = | 'loading'
     | 'awaitingDecision'
     | 'handedBack'
