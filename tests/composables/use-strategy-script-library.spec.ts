@@ -29,7 +29,12 @@ async function libraryUnderTest(adoptedLater: boolean = true) {
   const applyContent = vi.fn((content: StrategyScriptContentDto) => {
     workspace.content = content
   })
-  const deleteStrategyScript = vi.fn().mockResolvedValue(undefined)
+  const deleteStrategyScript = vi.fn().mockImplementation(async () => {
+    listAvailableStrategyScripts.mockResolvedValue({
+      mine: [buildStoredStrategyScript(1, 'RSI 背離', { script: 'sum := 1.0', resultType: 'float' })],
+      adopted: [],
+    })
+  })
   const library = useStrategyScriptLibrary(
     buildStrategyScriptApplication({ listAvailableStrategyScripts, deleteStrategyScript }),
     () => workspace.content,
@@ -133,8 +138,9 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
 
     await library.deleteAdoptedStrategyScript(9)
 
-    // 副本是自己的策略腳本，刪掉它走的就是刪除策略腳本那一條路。
+    // 副本是自己的策略腳本，刪掉它走的就是刪除策略腳本那一條路；重讀之後它就不在清單上了。
     expect(deleteStrategyScript).toHaveBeenCalledWith(9)
+    expect(library.adoptedStrategyScripts.value.map(adopted => adopted.id)).not.toContain(9)
     expect(library.noticeMessage.value).toBe('已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。')
     expect(library.readOnly.value).toBe(false)
     expect(library.namedStrategyScriptId.value).toBeUndefined()

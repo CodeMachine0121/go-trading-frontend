@@ -97,6 +97,9 @@ describe('StrategyScriptMarketplacePanel', () => {
 
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="marketplace-strategy-script-adopted-9"]').exists()).toBe(false)
+    // 那一張卡能按的只有「加入」——沒有第二顆會拿掉什麼的鍵。
+    expect(wrapper.get('[data-testid="marketplace-strategy-script-9"]').findAll('button').map(button => button.text()))
+      .toEqual(['加入'])
   })
 
   it('自己分享的那一支標明是自己的，而且一顆按鈕都不給', async () => {
@@ -115,7 +118,8 @@ describe('StrategyScriptMarketplacePanel', () => {
   it('加入一支之後說出來，並重新讀一次', async () => {
     const adoptStrategyScript = vi.fn().mockResolvedValue(undefined)
     const browseMarketplace = vi.fn().mockResolvedValue([publishedStrategyScriptOf(9, '別人的')])
-    const wrapper = await mountPanel({ adoptStrategyScript, browseMarketplace })
+    const listAvailableStrategyScripts = vi.fn().mockResolvedValue({ mine: [], adopted: [] })
+    const wrapper = await mountPanel({ adoptStrategyScript, browseMarketplace }, { listAvailableStrategyScripts })
 
     await wrapper.get('[data-testid="marketplace-adopt-9"]').trigger('click')
     await flushPromises()
@@ -124,6 +128,8 @@ describe('StrategyScriptMarketplacePanel', () => {
     expect(wrapper.get('[data-testid="marketplace-notice"]').text())
       .toBe('已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。')
     expect(browseMarketplace.mock.calls.length).toBeGreaterThan(1)
+    // 我的策略腳本也重讀一次，副本才會出現在清單上。
+    expect(listAvailableStrategyScripts.mock.calls.length).toBeGreaterThan(1)
   })
 
   it('加入被拒時說出後端那一句', async () => {
@@ -321,6 +327,9 @@ describe('StrategyScriptMarketplacePanel 認得每一種行情的「我的」與
 
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="marketplace-strategy-script-adopted-9"]').exists()).toBe(false)
+    // 那一張卡能按的只有「加入」——沒有第二顆會拿掉什麼的鍵。
+    expect(wrapper.get('[data-testid="marketplace-strategy-script-9"]').findAll('button').map(button => button.text()))
+      .toEqual(['加入'])
   })
 
   it('自己分享的合約行情種類標明是自己的，一顆按鈕都不給', async () => {

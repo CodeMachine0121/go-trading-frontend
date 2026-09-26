@@ -142,7 +142,9 @@ describe('StrategyScriptLibraryDialog：兩段清單', () => {
       adoptedStrategyScripts: [adoptedStrategyScriptOf(9, '別人的')],
     })
 
-    expect(wrapper.get('[data-testid="strategy-script-library-adopted-row-9"]').text()).toContain('從市集加入')
+    const row = wrapper.get('[data-testid="strategy-script-library-adopted-row-9"]').text()
+    expect(row).toContain('從市集加入')
+    expect(row).not.toContain('分享')
   })
 
   it('按刪掉副本時說出是哪一份', async () => {

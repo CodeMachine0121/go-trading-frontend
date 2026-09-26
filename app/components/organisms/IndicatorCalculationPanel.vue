@@ -386,7 +386,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         tone="info"
         data-testid="adopted-read-only-notice"
       >
-        這支策略腳本是從市集加入的，不是你的——可以拿來試跑、回測，但不能修改。
+        這份是從市集加入的副本：算式是作者寫的，看不到也改不動——可以拿來試跑、回測與組交易策略。
       </AppAlert>
 
       <p
