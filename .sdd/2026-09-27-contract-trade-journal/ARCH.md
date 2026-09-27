@@ -274,3 +274,16 @@ flowchart TD
 - **列表篩選每次重讀**交易服務（篩選規則仍在 `ContractTradeListDomain`）。
 - **同標的同方向衝突的交易編號**：優先讀交易服務回傳的 `openTradeId`，沒有時從訊息裡的 `#27` 讀出。
 - **回傳形狀以交易服務實作為準**：新增交易的計畫巢狀在 `plan`；交易回應的計畫在 `plan`、標籤分 `setupTags`／`mistakeTags`、均價與持倉在頂層；`outcome` 的資金費用、最大不利／最大有利、浮動損益、強平價各是一組帶 `available` 與原因的物件，由 `ContractTradeRecordProxy` 收成各自的數字與原因（列表的極值與強平價一律「暫時算不出」，只在詳情呈現）；統計、預填（進場價即那一輪的參考價）、實盤 vs 回測的欄位名同樣只在 proxy 內對映。
+
+---
+
+## Appendix — 畫面對齊規劃草稿
+
+四個畫面照規劃草稿（列表、記一筆、交易詳情、績效統計）的版面調整，元件層級因此多了幾個：
+
+- **Atoms**：`AppRating`（一排點點選 1–N，信心與執行評分共用）；`AppInput`／`AppSelect` 多一個 `highlighted` 開關（框線換成強調色，用來標出預填的欄位），取代先前以 class 覆寫框線的做法。
+- **Organisms**：原本的 `ContractTradePlanPanel` 拆成三塊，各自對應詳情頁上的一張卡——`ContractTradePlanPanel`（進場時的我：理由、計畫、信心、型態標籤，平倉後標示已鎖定）、`ContractTradeFillLedgerPanel`（成交，持倉中可修正與刪除）、`ContractTradeNotesPanel`（附註）。動作失敗的訊息改由頁面統一呈現。
+- **Domain**：`ContractTradeEntrySlippageDomain`（記一筆時的「比參考價高／低 x%（滑點）」）、`ContractTradeHoldingDurationDomain`（詳情頁的持倉時長）；結果改成三組（費用、風險、極值）交給結果卡分段呈現；價格路徑多一條「進場均價」線，圖下列出每一條價位線與價格。
+- **讀取欄位**：列表的來源欄在交易帶著來源快照時寫「機器人名 #第幾輪」，因此列表摘要多讀 `source`；統計多讀 `winCount` 以寫出「N 勝 M 敗」。
+
+草稿裡刻意沒做的：信號處置（照做／改了做／略過）與「存成計畫」、略過的信號與「若照做」、統計的四組處置比較——這些已移出範圍；實盤 vs 回測的平均 R 與每份策略的平均滑點、建議保證金、「提早出場留下多少 R」——交易服務沒有提供。
