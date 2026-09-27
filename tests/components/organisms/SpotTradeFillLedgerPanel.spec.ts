@@ -37,11 +37,16 @@ describe('SpotTradeFillLedgerPanel', () => {
     expect(wrapper.find('[data-testid="detail-fill-price"]').exists()).toBe(false)
   })
 
-  it('換了一批買賣就收起正在修改的那一筆', async () => {
+  it('頁面重新讀取但買賣沒變時保留修改中的輸入；買賣變了才收起', async () => {
     const wrapper = mountPanel({ status: 'open', closedAt: null })
     await wrapper.get('[data-testid="detail-fill-1"] [data-testid="detail-fill-edit"]').trigger('click')
+    await wrapper.get('[data-testid="detail-fill-price"]').setValue('1051')
 
     await wrapper.setProps({ fills: buildSpotRecord({ status: 'open', closedAt: null }).toDomain().toDto().fills })
+
+    expect((wrapper.get('[data-testid="detail-fill-price"]').element as HTMLInputElement).value).toBe('1051')
+
+    await wrapper.setProps({ fills: buildSpotRecord({ status: 'open', closedAt: null, fills: buildSpotRecord().fills.slice(0, 1) }).toDomain().toDto().fills })
 
     expect(wrapper.find('[data-testid="detail-fill-price"]').exists()).toBe(false)
   })

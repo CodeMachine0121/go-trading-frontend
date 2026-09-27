@@ -22,7 +22,7 @@ const fillPriceText = ref('')
 const fillQuantityText = ref('')
 const fillFeeText = ref('')
 
-watch(() => fills, () => {
+watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt, fill.priceText, fill.quantityText, fill.feeText])), () => {
   editingFillId.value = null
 })
 </script>

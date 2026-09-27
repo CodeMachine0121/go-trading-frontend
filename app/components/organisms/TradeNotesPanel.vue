@@ -15,7 +15,7 @@ const emit = defineEmits<{ addNote: [content: string] }>()
 
 const noteText = ref('')
 
-watch(() => notes, () => {
+watch(() => notes.map(note => note.id).join(','), () => {
   noteText.value = ''
 })
 </script>

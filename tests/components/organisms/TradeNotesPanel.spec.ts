@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import TradeNotesPanel from '~/components/organisms/TradeNotesPanel.vue'
+import { TradeNote } from '~/domain/models/entities/trade-note'
 import { buildRecord } from '../../fixtures/contract-trade-journal'
 
 function mountPanel(recordOverrides: Record<string, unknown> = {}) {
@@ -26,11 +27,16 @@ describe('TradeNotesPanel', () => {
     expect(wrapper.emitted('addNote')).toEqual([['止損其實是 96,300']])
   })
 
-  it('換上新的一筆後附註輸入清空', async () => {
+  it('頁面重新讀取但附註沒變時保留輸入；多了一則附註（剛存下）才清空', async () => {
     const wrapper = mountPanel()
     await wrapper.get('[data-testid="note-input"]').setValue('附註')
 
     await wrapper.setProps({ notes: buildRecord().toDomain().toDto().notes })
+
+    expect((wrapper.get('[data-testid="note-input"]').element as HTMLTextAreaElement).value).toBe('附註')
+
+    const notesWithNewOne = buildRecord().notes.concat(new TradeNote(3, '附註', new Date('2026-09-27T03:00:00Z')))
+    await wrapper.setProps({ notes: buildRecord({ notes: notesWithNewOne }).toDomain().toDto().notes })
 
     expect((wrapper.get('[data-testid="note-input"]').element as HTMLTextAreaElement).value).toBe('')
   })

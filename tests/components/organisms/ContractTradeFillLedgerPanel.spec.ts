@@ -31,11 +31,16 @@ describe('ContractTradeFillLedgerPanel', () => {
     expect(wrapper.find('[data-testid="detail-fill-price"]').exists()).toBe(false)
   })
 
-  it('換上新的一筆後收起修改中的成交', async () => {
+  it('頁面重新讀取但成交沒變時保留修改中的輸入；成交變了（剛存下修正）才收起', async () => {
     const wrapper = mountPanel({ status: 'open' })
     await wrapper.get('[data-testid="detail-fill-edit"]').trigger('click')
+    await wrapper.get('[data-testid="detail-fill-price"]').setValue('97906')
 
-    await wrapper.setProps({ record: buildRecord({ status: 'open' }).toDomain().toDto() })
+    await wrapper.setProps({ record: buildRecord({ status: 'open', notes: [] }).toDomain().toDto() })
+
+    expect((wrapper.get('[data-testid="detail-fill-price"]').element as HTMLInputElement).value).toBe('97906')
+
+    await wrapper.setProps({ record: buildRecord({ status: 'open', fills: buildRecord().fills.slice(0, 2) }).toDomain().toDto() })
 
     expect(wrapper.find('[data-testid="detail-fill-price"]').exists()).toBe(false)
   })
