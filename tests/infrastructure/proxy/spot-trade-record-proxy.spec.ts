@@ -236,7 +236,7 @@ describe('SpotTradeRecordProxy：寫入', () => {
   })
 
   it.each([
-    ['賣出超過持有', { message: '賣出超過持有 600' }, 'exitQuantity'],
+    ['賣出數量超過目前持有', { message: '賣出數量超過目前持有 600 股' }, 'exitQuantity'],
     ['整數股', { message: '台股數量以股計，必須是整數' }, 'fillQuantity'],
     ['止損放錯邊', { message: '止損必須低於買進價' }, 'plannedStopLossPrice'],
     ['交易服務指名欄位', { message: '不合法', field: 'fee' }, 'fillFee'],

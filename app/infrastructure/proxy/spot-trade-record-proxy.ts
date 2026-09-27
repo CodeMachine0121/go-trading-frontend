@@ -57,7 +57,7 @@ const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, TradeFormField>> = {
 }
 
 const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, TradeFormField])[] = [
-  ['超過持有', 'exitQuantity'],
+  ['超過目前持有', 'exitQuantity'],
   ['整數', 'fillQuantity'],
   ['止損', 'plannedStopLossPrice'],
   ['止盈', 'plannedTakeProfitPrice'],
