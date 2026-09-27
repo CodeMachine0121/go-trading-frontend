@@ -56,6 +56,12 @@ export class JournalNumberDomain {
     return rounded.isNegative() && !rounded.isZero() ? `${MINUS_SIGN}${digits}%` : `${digits}%`
   }
 
+  signedPercentage(fractionDigits: number): string {
+    const rounded = this.value.toDecimalPlaces(fractionDigits)
+
+    return rounded.greaterThan(0) ? `+${this.percentage(fractionDigits)}` : this.percentage(fractionDigits)
+  }
+
   tone(): TradeFigureTone {
     if (this.value.isZero()) {
       return 'neutral'

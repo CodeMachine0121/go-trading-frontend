@@ -6,6 +6,7 @@ export class TradeHoldingDurationDomain {
   constructor(
     private readonly openedAt: Date,
     private readonly closedAt: Date,
+    private readonly holdingWord: string = '持倉',
   ) {}
 
   get text(): string {
@@ -16,9 +17,9 @@ export class TradeHoldingDurationDomain {
     const minutes = totalMinutes % MINUTES_PER_HOUR
 
     if (days > 0) {
-      return `持倉 ${days} 天 ${hours} 小時`
+      return `${this.holdingWord} ${days} 天 ${hours} 小時`
     }
 
-    return totalHours > 0 ? `持倉 ${hours} 小時 ${minutes} 分` : `持倉 ${minutes} 分`
+    return totalHours > 0 ? `${this.holdingWord} ${hours} 小時 ${minutes} 分` : `${this.holdingWord} ${minutes} 分`
   }
 }

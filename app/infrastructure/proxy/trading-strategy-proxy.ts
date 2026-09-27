@@ -19,6 +19,10 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
 import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contract-trade-live-comparison-row'
 import { ContractTradePerformance } from '~/domain/models/entities/contract-trade-performance'
+import { SpotTradeLiveComparison } from '~/domain/models/entities/spot-trade-live-comparison'
+import { SpotTradeLiveComparisonRow } from '~/domain/models/entities/spot-trade-live-comparison-row'
+import { SpotTradePerformance } from '~/domain/models/entities/spot-trade-performance'
+import type { SpotTradeMarket } from '~/domain/models/vo/spot-trade-market-vo'
 
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -84,6 +88,27 @@ type ContractTradePerformanceWire = {
   shortWinRate?: number | null
   averageEntrySlippagePercentage?: number | null
   entrySlippageTradeCount?: number
+}
+
+type SpotTradePerformanceWire = {
+  closedTradeCount: number
+  winRate?: number | null
+  averageEntrySlippagePercentage?: number | null
+  entrySlippageTradeCount?: number
+}
+
+type SpotTradeLiveComparisonWire = {
+  tradingStrategyName?: string
+  tradingStrategyDeleted?: boolean
+  averageEntrySlippagePercentage?: number | null
+  entrySlippageTradeCount?: number
+  rows?: {
+    symbol: string
+    market: string
+    live: SpotTradePerformanceWire
+    backtest?: SpotTradePerformanceWire | null
+    backtestUnavailableReason?: string | null
+  }[] | null
 }
 
 type ContractTradeLiveComparisonWire = {
@@ -154,6 +179,36 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
           toPerformance(rowWire.live),
           rowWire.backtest === undefined || rowWire.backtest === null ? null : toPerformance(rowWire.backtest),
           rowWire.backtestUnavailableReason ?? null,
+        )),
+        this.slippageOf(comparisonWire.averageEntrySlippagePercentage),
+        comparisonWire.entrySlippageTradeCount ?? 0,
+      )
+    }
+    catch (error: unknown) {
+      throw this.tradingStrategyFailureOf(error)
+    }
+  }
+
+  async findSpotTradeComparison(tradingStrategyId: number): Promise<SpotTradeLiveComparison> {
+    try {
+      const comparisonWire = await this.requestBackend<SpotTradeLiveComparisonWire>(
+        `${TRADING_STRATEGIES_ENDPOINT}/${tradingStrategyId}/spot-trade-comparison`)
+      const toPerformance = (performanceWire: SpotTradePerformanceWire) => new SpotTradePerformance(
+        performanceWire.closedTradeCount,
+        performanceWire.winRate ?? null,
+        this.slippageOf(performanceWire.averageEntrySlippagePercentage),
+        performanceWire.entrySlippageTradeCount ?? 0,
+      )
+
+      return new SpotTradeLiveComparison(
+        comparisonWire.tradingStrategyName ?? '',
+        comparisonWire.tradingStrategyDeleted ?? false,
+        (comparisonWire.rows ?? []).map(rowWire => new SpotTradeLiveComparisonRow(
+          rowWire.symbol,
+          rowWire.market as SpotTradeMarket,
+          toPerformance(rowWire.live),
+          rowWire.backtest === undefined || rowWire.backtest === null ? null : toPerformance(rowWire.backtest),
+          rowWire.backtestUnavailableReason || null,
         )),
         this.slippageOf(comparisonWire.averageEntrySlippagePercentage),
         comparisonWire.entrySlippageTradeCount ?? 0,

@@ -259,6 +259,7 @@ export function tradingStrategyProxyMock(): { [Method in keyof ITradingStrategyP
     updateTradingStrategy: vi.fn(),
     deleteTradingStrategy: vi.fn(),
     findContractTradeComparison: vi.fn(),
+    findSpotTradeComparison: vi.fn(),
   }
 }
 

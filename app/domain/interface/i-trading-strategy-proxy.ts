@@ -1,6 +1,7 @@
 import type { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-strategy-write-domain'
 import type { TradingStrategy } from '~/domain/models/entities/trading-strategy'
 import type { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
+import type { SpotTradeLiveComparison } from '~/domain/models/entities/spot-trade-live-comparison'
 
 /**
  * 交易策略這一條路的對外契約。
@@ -15,4 +16,5 @@ export interface ITradingStrategyProxy {
   updateTradingStrategy(writeDomain: TradingStrategyWriteDomain): Promise<TradingStrategy>
   deleteTradingStrategy(id: number): Promise<void>
   findContractTradeComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparison>
+  findSpotTradeComparison(tradingStrategyId: number): Promise<SpotTradeLiveComparison>
 }
