@@ -49,6 +49,10 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.draftDiffers(draft, initialDraft, setting)
   }
 
+  submittedDraftFillPositions(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto, forNewTrade: boolean): number[] {
+    return this.contractTradeJournalService.submittedDraftFillPositions(draft, setting, forNewTrade)
+  }
+
   async recordDraft(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto): Promise<ContractTradeRecordDto> {
     return this.contractTradeJournalService.recordDraft(draft, setting)
   }

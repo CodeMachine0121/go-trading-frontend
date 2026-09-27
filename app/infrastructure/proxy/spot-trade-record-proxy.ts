@@ -363,6 +363,7 @@ export class SpotTradeRecordProxy extends BackendApiProxy implements ISpotTradeR
         error.message,
         formField === undefined ? null : new TradeFormFieldVo(formField),
         null,
+        0,
         { cause: error })
     }
 

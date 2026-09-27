@@ -206,11 +206,12 @@ export function useContractTradeDraft(
     conflictingTradeId.value = null
     recordedTradeId.value = null
 
+    const record = existingRecord()
+    const submittedDraft = toDraftDto()
     try {
-      const record = existingRecord()
       const saved = record === null
-        ? await contractTradeJournalApplication.recordDraft(toDraftDto(), setting.value)
-        : await contractTradeJournalApplication.addDraftFills(record.id, toDraftDto(), setting.value, record.fills)
+        ? await contractTradeJournalApplication.recordDraft(submittedDraft, setting.value)
+        : await contractTradeJournalApplication.addDraftFills(record.id, submittedDraft, setting.value, record.fills)
       initialDraft.value = toDraftDto()
 
       return saved
@@ -220,6 +221,10 @@ export function useContractTradeDraft(
       if (error instanceof TradeRejectedError) {
         rejectedField.value = error.formField?.field ?? null
         recordedTradeId.value = error.recordedTradeId
+        const savedPositions = contractTradeJournalApplication
+          .submittedDraftFillPositions(submittedDraft, setting.value, record === null)
+          .slice(0, error.savedFillCount)
+        fills.value = fills.value.filter((_, position) => !savedPositions.includes(position))
       }
       if (error instanceof TradeAlreadyOpenError) {
         conflictingTradeId.value = error.existingTradeId

@@ -69,6 +69,10 @@ export class SpotTradeJournalService {
     return new SpotTradeDraftDomain(draft).differsFrom(initialDraft)
   }
 
+  submittedDraftFillPositions(draft: SpotTradeDraftDto, forNewTrade: boolean): number[] {
+    return new SpotTradeDraftDomain(draft).submittedFillPositions(forNewTrade)
+  }
+
   async recordDraft(draft: SpotTradeDraftDto): Promise<SpotTradeRecordDto> {
     const submission = new SpotTradeDraftDomain(draft).toRecordSubmission()
     const recorded = await this.spotTradeRecordProxy.recordTrade(submission.record)
@@ -169,14 +173,15 @@ export class SpotTradeJournalService {
         appended.push((await this.spotTradeRecordProxy.addFill(id, fillWriteDto)).toDomain().toDto())
       }
       catch (error: unknown) {
-        if (recordedTradeId === null || !(error instanceof TradeRejectedError)) {
-          throw error
-        }
-
+        const savedFillCount = index + 1
+        const reason = new TradeFailureDomain(error).toDto().message
         throw new TradeRejectedError(
-          `已建立 #${recordedTradeId}，但第 ${index + 2} 筆沒有存成功：${error.message}`,
-          error.formField,
+          recordedTradeId === null
+            ? `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason}`
+            : `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason}`,
+          error instanceof TradeRejectedError ? error.formField : null,
           recordedTradeId,
+          savedFillCount,
           { cause: error },
         )
       }

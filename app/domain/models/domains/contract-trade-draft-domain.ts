@@ -116,6 +116,16 @@ export class ContractTradeDraftDomain {
     )
   }
 
+  submittedFillPositions(forNewTrade: boolean): number[] {
+    const pricedPositions = this.draft.fills.flatMap((fill, position) => this.toFillWriteDto(fill) === null ? [] : [position])
+    const firstOpeningPosition = pricedPositions.find(position => this.draft.fills[position]?.kind === 'entry')
+    if (!forNewTrade || firstOpeningPosition === undefined) {
+      return pricedPositions
+    }
+
+    return [firstOpeningPosition, ...pricedPositions.filter(position => position !== firstOpeningPosition)]
+  }
+
   toFillWriteDtos(): [ContractTradeFillWriteDto, ...ContractTradeFillWriteDto[]] {
     const missingFieldMessage = this.missingFieldMessage()
     if (missingFieldMessage !== null) {

@@ -182,11 +182,12 @@ export function useSpotTradeDraft(
     conflictingTradeId.value = null
     recordedTradeId.value = null
 
+    const record = existingRecord()
+    const submittedDraft = toDraftDto()
     try {
-      const record = existingRecord()
       const saved = record === null
-        ? await spotTradeJournalApplication.recordDraft(toDraftDto())
-        : await spotTradeJournalApplication.addDraftFills(record.id, toDraftDto(), record.fills)
+        ? await spotTradeJournalApplication.recordDraft(submittedDraft)
+        : await spotTradeJournalApplication.addDraftFills(record.id, submittedDraft, record.fills)
       initialDraft.value = toDraftDto()
 
       return saved
@@ -196,6 +197,10 @@ export function useSpotTradeDraft(
       if (error instanceof TradeRejectedError) {
         rejectedField.value = error.formField?.field ?? null
         recordedTradeId.value = error.recordedTradeId
+        const savedPositions = spotTradeJournalApplication
+          .submittedDraftFillPositions(submittedDraft, record === null)
+          .slice(0, error.savedFillCount)
+        fills.value = fills.value.filter((_, position) => !savedPositions.includes(position))
       }
       if (error instanceof TradeAlreadyOpenError) {
         conflictingTradeId.value = error.existingTradeId

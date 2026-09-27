@@ -81,6 +81,10 @@ export class ContractTradeJournalService {
     return new ContractTradeDraftDomain(draft, setting).differsFrom(initialDraft)
   }
 
+  submittedDraftFillPositions(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto, forNewTrade: boolean): number[] {
+    return new ContractTradeDraftDomain(draft, setting).submittedFillPositions(forNewTrade)
+  }
+
   async recordDraft(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto): Promise<ContractTradeRecordDto> {
     const submission = new ContractTradeDraftDomain(draft, setting).toRecordSubmission()
     const recorded = await this.contractTradeRecordProxy.recordTrade(submission.record)
@@ -187,14 +191,15 @@ export class ContractTradeJournalService {
         appended.push((await this.contractTradeRecordProxy.addFill(id, fillWriteDto)).toDomain().toDto())
       }
       catch (error: unknown) {
-        if (recordedTradeId === null || !(error instanceof TradeRejectedError)) {
-          throw error
-        }
-
+        const savedFillCount = index + 1
+        const reason = new TradeFailureDomain(error).toDto().message
         throw new TradeRejectedError(
-          `已建立 #${recordedTradeId}，但第 ${index + 2} 筆沒有存成功：${error.message}`,
-          error.formField,
+          recordedTradeId === null
+            ? `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason}`
+            : `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason}`,
+          error instanceof TradeRejectedError ? error.formField : null,
           recordedTradeId,
+          savedFillCount,
           { cause: error },
         )
       }

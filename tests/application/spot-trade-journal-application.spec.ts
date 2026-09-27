@@ -362,6 +362,28 @@ describe('SpotTradeJournalApplication 記一筆', () => {
 
     expect((failure as TradeRejectedError).message).toBe('已建立 #5，但第 2 筆沒有存成功：賣出超過持有 1000')
     expect((failure as TradeRejectedError).recordedTradeId).toBe(5)
+    expect((failure as TradeRejectedError).savedFillCount).toBe(1)
+  })
+
+  it('對既有交易加第二筆失敗時說前幾筆已存下，連不上也一樣', async () => {
+    const { application, recordProxy } = setup()
+    recordProxy.addFill.mockResolvedValueOnce(buildSpotRecord({ status: 'open' }))
+    recordProxy.addFill.mockRejectedValueOnce(new Error('network'))
+    const submittedDraft = draft({ symbol: '', fills: [draftFill(), draftFill({ kind: 'sell', quantityText: '500' })] })
+
+    const failure = await application.addDraftFills(5, submittedDraft, []).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).message).toMatch(/^前 1 筆已存下，第 2 筆沒有存成功：/)
+    expect((failure as TradeRejectedError).savedFillCount).toBe(1)
+    expect(application.submittedDraftFillPositions(submittedDraft, false)).toEqual([0, 1])
+  })
+
+  it('新交易送出的順序：第一筆買進排最前面', () => {
+    const { application } = setup()
+
+    expect(application.submittedDraftFillPositions(
+      draft({ fills: [draftFill({ kind: 'sell', quantityText: '100' }), draftFill()] }), true)).toEqual([1, 0])
   })
 
   it('對既有交易加賣出時連同既有的買進一起算', async () => {
@@ -701,12 +723,15 @@ describe('SpotTradeJournalApplication 邊界', () => {
     expect(recordProxy.addFill).not.toHaveBeenCalled()
   })
 
-  it('後面的買賣遇到非規則的錯誤時原樣往上拋', async () => {
+  it('後面的買賣遇到非規則的錯誤時，仍說已建立哪一筆並帶出原因', async () => {
     const { application, recordProxy } = setup()
     recordProxy.recordTrade.mockResolvedValue(buildSpotRecord({ status: 'open' }))
     recordProxy.addFill.mockRejectedValue(new TradeRecordNotFoundError('找不到這筆交易'))
 
-    await expect(application.recordDraft(draft({ fills: [draftFill(), draftFill({ kind: 'sell' })] }))).rejects.toBeInstanceOf(TradeRecordNotFoundError)
+    const failure = await application.recordDraft(draft({ fills: [draftFill(), draftFill({ kind: 'sell' })] })).catch((error: unknown) => error)
+
+    expect((failure as TradeRejectedError).message).toBe('已建立 #5，但第 2 筆沒有存成功：找不到這筆交易')
+    expect((failure as TradeRejectedError).cause).toBeInstanceOf(TradeRecordNotFoundError)
   })
 
   it('價格路徑：沒有計畫止損時不畫那條線', async () => {

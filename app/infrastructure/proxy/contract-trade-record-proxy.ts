@@ -416,6 +416,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
         error.message,
         formField === undefined ? null : new TradeFormFieldVo(formField),
         null,
+        0,
         { cause: error })
     }
 

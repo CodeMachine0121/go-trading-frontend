@@ -5,6 +5,7 @@ export class TradeRejectedError extends Error {
     message: string,
     public readonly formField: TradeFormFieldVo | null,
     public readonly recordedTradeId: number | null = null,
+    public readonly savedFillCount = 0,
     options?: { cause?: unknown },
   ) {
     super(message, options)

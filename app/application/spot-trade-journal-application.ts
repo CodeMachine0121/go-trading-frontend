@@ -40,6 +40,10 @@ export class SpotTradeJournalApplication {
     return this.spotTradeJournalService.draftDiffers(draft, initialDraft)
   }
 
+  submittedDraftFillPositions(draft: SpotTradeDraftDto, forNewTrade: boolean): number[] {
+    return this.spotTradeJournalService.submittedDraftFillPositions(draft, forNewTrade)
+  }
+
   async recordDraft(draft: SpotTradeDraftDto): Promise<SpotTradeRecordDto> {
     return this.spotTradeJournalService.recordDraft(draft)
   }

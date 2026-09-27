@@ -200,6 +200,25 @@ describe('useContractTradeDraft：記一筆', () => {
 
     expect(draft.recordedTradeId.value).toBe(27)
     expect(draft.fieldError('exitQuantity')).toContain('已建立 #27')
+    expect(draft.fills.value.map(fill => fill.kind)).toEqual(['exit'])
+  })
+
+  it('對既有交易加到一半失敗時，已存下的那幾筆從表單移掉，再存不會重送', async () => {
+    const existing = buildRecord({ status: 'open' }).toDomain().toDto()
+    recordProxy.addFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
+    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError('出場數量超過目前持倉', new TradeFormFieldVo('exitQuantity')))
+    const draft = draftUnderTest(existing)
+    draft.fills.value[0]!.priceText = '98000'
+    draft.fills.value[0]!.quantityText = '0.01'
+    draft.addFill('exit')
+    draft.fills.value[1]!.priceText = '99000'
+    draft.fills.value[1]!.quantityText = '5'
+
+    await draft.save()
+
+    expect(draft.fieldError('exitQuantity')).toContain('前 1 筆已存下')
+    expect(draft.fills.value).toHaveLength(1)
+    expect(draft.fills.value[0]).toMatchObject({ kind: 'exit', quantityText: '5' })
   })
 
   it('儲存中再按一次不會送兩次', async () => {

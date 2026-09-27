@@ -648,15 +648,31 @@ describe('ContractTradeJournalApplication.recordDraft', () => {
     expect(failure).toBeInstanceOf(TradeRejectedError)
     expect((failure as TradeRejectedError).message).toBe('已建立 #27，但第 2 筆沒有存成功：出場數量超過目前持倉 0.030')
     expect((failure as TradeRejectedError).recordedTradeId).toBe(27)
+    expect((failure as TradeRejectedError).savedFillCount).toBe(1)
   })
 
-  it('後面的成交連不上時原樣往上拋', async () => {
+  it('後面的成交因為別的原因失敗時，一樣說已建立哪一筆，不讓人以為什麼都沒存', async () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
     recordProxy.addFill.mockRejectedValue(new Error('network'))
 
-    await expect(application.recordDraft(draft({ fills: [draftFill(), draftFill()] }), takerFeeSetting()))
-      .rejects.toThrow('network')
+    const failure = await application.recordDraft(draft({ fills: [draftFill(), draftFill()] }), takerFeeSetting())
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).message).toMatch(/^已建立 #27，但第 2 筆沒有存成功：/)
+    expect((failure as TradeRejectedError).recordedTradeId).toBe(27)
+    expect((failure as TradeRejectedError).savedFillCount).toBe(1)
+  })
+
+  it('新交易送出的順序：第一筆開倉排最前面，其餘照原順序', () => {
+    const { application } = buildFixture()
+
+    const positions = application.submittedDraftFillPositions(draft({
+      fills: [draftFill({ kind: 'exit', quantityText: '0.01' }), draftFill(), draftFill({ kind: 'exit' })],
+    }), takerFeeSetting(), true)
+
+    expect(positions).toEqual([1, 0, 2])
   })
 })
 
@@ -672,6 +688,21 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
 
     expect(recordProxy.addFill).toHaveBeenCalledTimes(2)
     expect(record.statusLabel).toBe('已平倉')
+  })
+
+  it('第二筆失敗時說前幾筆已存下，讓表單不再重送已存下的那幾筆', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.addFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
+    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError('出場數量超過目前持倉 0.030', new TradeFormFieldVo('exitQuantity')))
+    const submittedDraft = draft({ symbol: '', fills: [draftFill(), draftFill({ kind: 'exit', quantityText: '0.05' })] })
+
+    const failure = await application.addDraftFills(27, submittedDraft, takerFeeSetting(), [])
+      .catch((error: unknown) => error)
+
+    expect((failure as TradeRejectedError).message).toBe('前 1 筆已存下，第 2 筆沒有存成功：出場數量超過目前持倉 0.030')
+    expect((failure as TradeRejectedError).savedFillCount).toBe(1)
+    expect((failure as TradeRejectedError).formField?.field).toBe('exitQuantity')
+    expect(application.submittedDraftFillPositions(submittedDraft, takerFeeSetting(), false).slice(0, 1)).toEqual([0])
   })
 
   it('出場超過持倉的拒絕原樣帶回', async () => {
