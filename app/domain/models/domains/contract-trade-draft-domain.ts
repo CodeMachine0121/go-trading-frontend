@@ -2,6 +2,8 @@ import Decimal from 'decimal.js'
 import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import type { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
+import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
+import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
@@ -118,6 +120,24 @@ export class ContractTradeDraftDomain {
     }
 
     return [firstWriteDto, ...otherWriteDtos]
+  }
+
+  prefilledFields(prefill: ContractTradePrefillDto): ContractTradeFormField[] {
+    const firstFill = this.draft.fills[0]
+    const stillMatching = (text: string, prefilledValue: Decimal | null) =>
+      prefilledValue !== null && text.trim() !== '' && text.trim() === prefilledValue.toString()
+    const candidates: [ContractTradeFormField, boolean][] = [
+      ['symbol', this.draft.symbol === prefill.symbol],
+      ['direction', this.draft.direction === prefill.direction],
+      ['leverage', stillMatching(this.draft.leverageText, prefill.leverage)],
+      ['plannedStopLossPrice', stillMatching(this.draft.plannedStopLossText, prefill.plannedStopLossPrice)],
+      ['plannedTakeProfitPrice', stillMatching(this.draft.plannedTakeProfitText, prefill.plannedTakeProfitPrice)],
+      ['tradingStrategy', prefill.tradingStrategyId !== null && this.draft.tradingStrategyId === prefill.tradingStrategyId],
+      ['fillPrice', stillMatching(firstFill?.priceText ?? '', prefill.entryPrice)],
+      ['fillQuantity', stillMatching(firstFill?.quantityText ?? '', prefill.quantity)],
+    ]
+
+    return candidates.filter(([, prefilled]) => prefilled).map(([field]) => field)
   }
 
   differsFrom(initialDraft: ContractTradeDraftDto): boolean {

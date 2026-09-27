@@ -32,6 +32,7 @@ import { ContractTradePricePathDomain } from '~/domain/models/domains/contract-t
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
 import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
 import { ContractTradeFailureDomain } from '~/domain/models/domains/contract-trade-failure-domain'
+import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
 
 const LIST_LIMIT = 200
 
@@ -61,6 +62,14 @@ export class ContractTradeJournalService {
     existingFills: readonly ContractTradeFillDto[] | null,
   ): ContractTradeDraftPreviewDto {
     return new ContractTradeDraftDomain(draft, setting, existingFills).toPreviewDto()
+  }
+
+  prefilledDraftFields(
+    draft: ContractTradeDraftDto,
+    setting: TradeJournalSettingDto,
+    prefill: ContractTradePrefillDto,
+  ): ContractTradeFormField[] {
+    return new ContractTradeDraftDomain(draft, setting).prefilledFields(prefill)
   }
 
   draftDiffers(draft: ContractTradeDraftDto, initialDraft: ContractTradeDraftDto, setting: TradeJournalSettingDto): boolean {

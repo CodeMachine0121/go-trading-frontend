@@ -16,6 +16,7 @@ import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-s
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
 import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
 import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
+import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
 
 export class ContractTradeJournalApplication {
   constructor(private readonly contractTradeJournalService: ContractTradeJournalService) {}
@@ -34,6 +35,14 @@ export class ContractTradeJournalApplication {
     existingFills: readonly ContractTradeFillDto[] | null = null,
   ): ContractTradeDraftPreviewDto {
     return this.contractTradeJournalService.previewDraft(draft, setting, existingFills)
+  }
+
+  prefilledDraftFields(
+    draft: ContractTradeDraftDto,
+    setting: TradeJournalSettingDto,
+    prefill: ContractTradePrefillDto,
+  ): ContractTradeFormField[] {
+    return this.contractTradeJournalService.prefilledDraftFields(draft, setting, prefill)
   }
 
   draftDiffers(draft: ContractTradeDraftDto, initialDraft: ContractTradeDraftDto, setting: TradeJournalSettingDto): boolean {
