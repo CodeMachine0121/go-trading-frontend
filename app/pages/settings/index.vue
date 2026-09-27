@@ -5,6 +5,7 @@ import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
 import AccountProfilePanel from '~/components/organisms/AccountProfilePanel.vue'
 import PasswordChangePanel from '~/components/organisms/PasswordChangePanel.vue'
 import TelegramDeliveryPanel from '~/components/organisms/TelegramDeliveryPanel.vue'
+import TradeJournalSettingsPanel from '~/components/organisms/TradeJournalSettingsPanel.vue'
 
 // 頁面只做接線：每一段各有各的 composable，互相不知道對方存在。
 //
@@ -18,6 +19,7 @@ definePageMeta({
 const { currentUser, signOut } = useUserSession()
 const passwordChange = usePasswordChange()
 const telegramDelivery = useTelegramDelivery()
+const tradeJournalSettings = useTradeJournalSettings()
 
 // 顯示那一段：時區與外觀。頂列上也有這兩個（窄螢幕上頂列收掉了它們），
 // 兩處取用的是同一份共用狀態，所以在頂列選了深色，這裡就是深色。
@@ -29,12 +31,14 @@ const SECTIONS = [
   { anchor: 'settings-account', label: '帳號' },
   { anchor: 'settings-password', label: '密碼' },
   { anchor: 'settings-telegram', label: 'Telegram 投遞' },
+  { anchor: 'settings-trade-journal', label: '交易日誌' },
   { anchor: 'settings-display', label: '顯示' },
 ] as const
 
 // 這一頁掛載之後才取得資料：身分記在這台瀏覽器裡，而這一份設定是屬於那個人的。
 onMounted(() => {
   void telegramDelivery.loadDeliverySetting()
+  void tradeJournalSettings.loadSettings()
 })
 </script>
 
@@ -101,6 +105,28 @@ onMounted(() => {
           @send-test-message="telegramDelivery.sendTestMessage"
         />
       </div>
+
+      <TradeJournalSettingsPanel
+        id="settings-trade-journal"
+        v-model:maker-rate-text="tradeJournalSettings.makerRateText.value"
+        v-model:taker-rate-text="tradeJournalSettings.takerRateText.value"
+        v-model:new-tag-kind="tradeJournalSettings.newTagKind.value"
+        v-model:new-tag-name="tradeJournalSettings.newTagName.value"
+        :setting="tradeJournalSettings.setting.value"
+        :loading="tradeJournalSettings.loading.value"
+        :load-error-message="tradeJournalSettings.loadErrorMessage.value"
+        :maker-rate-hint="tradeJournalSettings.makerRateHint.value"
+        :taker-rate-hint="tradeJournalSettings.takerRateHint.value"
+        :saving="tradeJournalSettings.saving.value"
+        :save-error-message="tradeJournalSettings.saveErrorMessage.value"
+        :tag-groups="tradeJournalSettings.tagGroups.value"
+        :tag-error-message="tradeJournalSettings.tagErrorMessage.value"
+        :tag-busy="tradeJournalSettings.tagBusy.value"
+        @save-fee-rates="tradeJournalSettings.saveFeeRates"
+        @create-tag="tradeJournalSettings.createTag"
+        @rename-tag="tradeJournalSettings.renameTag"
+        @delete-tag="tradeJournalSettings.deleteTag"
+      />
 
       <SettingsSection
         id="settings-display"
