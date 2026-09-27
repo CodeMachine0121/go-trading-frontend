@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
@@ -53,13 +54,20 @@ const sourceTab = computed({
 <template>
   <div class="contract-trade-list-panel">
     <header class="contract-trade-list-panel__toolbar">
+      <p
+        v-if="list"
+        class="contract-trade-list-panel__counts"
+        data-testid="trade-list-counts"
+      >
+        {{ list.periodLabel }}・{{ list.tradeCountsLabel }}
+      </p>
       <AppButton
         v-if="list && list.pendingReviewCount > 0"
         variant="secondary"
         data-testid="pending-review"
         @click="emit('showPendingReview')"
       >
-        待檢討 {{ list.pendingReviewCount }}
+        待檢討 <span class="contract-trade-list-panel__pending-count">{{ list.pendingReviewCount }}</span>
       </AppButton>
       <AppButton
         variant="secondary"
@@ -102,14 +110,11 @@ const sourceTab = computed({
     </AppAlert>
 
     <template v-else-if="list">
-      <section
+      <ContractTradeSummaryStrip
         v-if="list.summaryFigures.length > 0"
-        class="contract-trade-list-panel__summary"
+        :figures="list.summaryFigures"
         data-testid="trade-list-summary"
-      >
-        <span class="contract-trade-list-panel__period">{{ list.periodLabel }}</span>
-        <ContractTradeSummaryStrip :figures="list.summaryFigures" />
-      </section>
+      />
 
       <div class="contract-trade-list-panel__filters">
         <AppTabs
@@ -157,13 +162,14 @@ const sourceTab = computed({
           <table class="contract-trade-list-panel__table">
             <thead>
               <tr>
-                <th>交易</th>
+                <th>#</th>
+                <th>標的</th>
                 <th>方向</th>
                 <th>狀態</th>
                 <th>來源</th>
                 <th>進場均價</th>
                 <th>出場均價</th>
-                <th>損益</th>
+                <th>淨損益</th>
                 <th>R</th>
                 <th>標籤</th>
               </tr>
@@ -179,7 +185,15 @@ const sourceTab = computed({
                     :to="`/contract-trade-journal/${row.id}`"
                     class="contract-trade-list-panel__link"
                   >
-                    #{{ row.id }} {{ row.symbol }}
+                    {{ row.id }}
+                  </NuxtLink>
+                </td>
+                <td class="contract-trade-list-panel__text">
+                  <NuxtLink
+                    :to="`/contract-trade-journal/${row.id}`"
+                    class="contract-trade-list-panel__link"
+                  >
+                    {{ row.symbol }}
                   </NuxtLink>
                 </td>
                 <td>
@@ -209,7 +223,13 @@ const sourceTab = computed({
                 </td>
                 <td>{{ row.rMultipleText }}</td>
                 <td class="contract-trade-list-panel__text">
-                  {{ row.tagNames.join('、') }}
+                  <span class="contract-trade-list-panel__tags">
+                    <AppBadge
+                      v-for="tag in row.tags"
+                      :key="tag.name"
+                      :variant="tag.tone"
+                    >{{ tag.name }}</AppBadge>
+                  </span>
                 </td>
               </tr>
             </tbody>
@@ -231,6 +251,26 @@ const sourceTab = computed({
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: spacing('xs');
+    align-items: center;
+  }
+
+  &__counts {
+    margin: 0 auto 0 0;
+    color: color('text-faint');
+    font-size: font-size('xs');
+  }
+
+  &__pending-count {
+    color: color('warning');
+    font-weight: font-weight('bold');
+
+    @include numeric;
+  }
+
+  &__tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: spacing('3xs');
   }
 
   &__state,
@@ -240,17 +280,6 @@ const sourceTab = computed({
     color: color('text-faint');
     font-size: font-size('sm');
     line-height: line-height('normal');
-  }
-
-  &__summary {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('2xs');
-  }
-
-  &__period {
-    color: color('text-faint');
-    font-size: font-size('2xs');
   }
 
   &__filters {

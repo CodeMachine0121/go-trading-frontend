@@ -14,6 +14,7 @@ const NO_CLOSED_TRADES_MESSAGE = '這段期間沒有已平倉交易'
 const NO_LINKED_TRADES_TEXT = '沒有來自機器人連結的交易'
 const RATIO_FRACTION_DIGITS = 0
 const FACTOR_FRACTION_DIGITS = 2
+const PROFIT_FACTOR_NOTE = '總賺 ÷ 總賠'
 const SLIPPAGE_FRACTION_DIGITS = 2
 const PERCENT = 100
 
@@ -84,11 +85,16 @@ export class ContractTradeStatisticsDomain {
     return new ContractTradeFigureVo(
       '淨損益',
       new JournalNumberDomain(this.statistics.netProfit).signedAmount(),
-      new JournalNumberDomain(this.statistics.netProfit).tone())
+      new JournalNumberDomain(this.statistics.netProfit).tone(),
+      'USDT，已扣費用')
   }
 
   private winRateFigure(): ContractTradeFigureVo {
-    return new ContractTradeFigureVo('勝率', this.ratioText(this.statistics.winRate), 'neutral')
+    return new ContractTradeFigureVo(
+      '勝率',
+      this.ratioText(this.statistics.winRate),
+      'neutral',
+      `${this.statistics.winCount} 勝 ${this.statistics.closedTradeCount - this.statistics.winCount} 敗`)
   }
 
   private averageRMultipleFigure(): ContractTradeFigureVo {
@@ -97,19 +103,23 @@ export class ContractTradeStatisticsDomain {
     return averageRMultiple === null
       ? new ContractTradeFigureVo('平均 R', NOT_APPLICABLE_TEXT, 'muted')
       : new ContractTradeFigureVo(
-          '平均 R', new JournalNumberDomain(averageRMultiple).rMultiple(), new JournalNumberDomain(averageRMultiple).tone())
+          '平均 R',
+          new JournalNumberDomain(averageRMultiple).rMultiple(),
+          new JournalNumberDomain(averageRMultiple).tone(),
+          '每筆期望值')
   }
 
   private profitFactorFigure(): ContractTradeFigureVo {
     const profitFactor = this.statistics.profitFactor
 
     return profitFactor === null
-      ? new ContractTradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted')
-      : new ContractTradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral')
+      ? new ContractTradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
+      : new ContractTradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral', PROFIT_FACTOR_NOTE)
   }
 
   private feeShareFigure(): ContractTradeFigureVo {
-    return new ContractTradeFigureVo('費用佔毛利', this.ratioText(this.statistics.feeShareOfGrossProfit), 'neutral')
+    return new ContractTradeFigureVo(
+      '費用佔毛利', this.ratioText(this.statistics.feeShareOfGrossProfit), 'neutral', '手續費＋資金費')
   }
 
   private sourceComparisonRow(label: string, group: ContractTradeSourceGroup): ContractTradeSourceComparisonRowDto {

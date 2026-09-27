@@ -151,6 +151,7 @@ export function buildSummary(overrides: Partial<Record<keyof ContractTradeRecord
     tags: [new TradeTag(1, 'setup', '突破')],
     openedAt: new Date('2026-09-25T06:03:00Z'),
     closedAt: new Date('2026-09-26T08:40:00Z'),
+    source: null,
     ...overrides,
   } as Record<keyof ContractTradeRecordSummary, never>
 
@@ -171,6 +172,7 @@ export function buildSummary(overrides: Partial<Record<keyof ContractTradeRecord
     base.tags,
     base.openedAt,
     base.closedAt,
+    base.source,
   )
 }
 
@@ -178,6 +180,7 @@ export function buildStatistics(overrides: Partial<Record<keyof ContractTradeSta
   const base = {
     period: '30d',
     closedTradeCount: 30,
+    winCount: 14,
     netProfit: new Decimal('1284.60'),
     winRate: 14 / 30,
     averageRMultiple: new Decimal('0.38'),
@@ -197,6 +200,7 @@ export function buildStatistics(overrides: Partial<Record<keyof ContractTradeSta
   return new ContractTradeStatistics(
     base.period,
     base.closedTradeCount,
+    base.winCount,
     base.netProfit,
     base.winRate,
     base.averageRMultiple,

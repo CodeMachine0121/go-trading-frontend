@@ -1,6 +1,7 @@
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
 import type { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-figure-vo'
 import type { ContractTradeBadgeTone } from '~/domain/models/vo/contract-trade-badge-tone-vo'
+import type { ContractTradeTagChipVo } from '~/domain/models/vo/contract-trade-tag-chip-vo'
 
 export class ContractTradeRecordRowDto {
   constructor(
@@ -17,6 +18,6 @@ export class ContractTradeRecordRowDto {
     public readonly averageExitPriceText: string,
     public readonly profit: ContractTradeFigureVo,
     public readonly rMultipleText: string,
-    public readonly tagNames: readonly string[],
+    public readonly tags: readonly ContractTradeTagChipVo[],
   ) {}
 }

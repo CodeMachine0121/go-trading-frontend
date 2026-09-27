@@ -3,6 +3,7 @@ import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-d
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
 import type { ContractTradeMeasure } from '~/domain/models/entities/contract-trade-measure'
 import type { TradeTag } from '~/domain/models/entities/trade-tag'
+import type { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
 
 export class ContractTradeRecordSummary {
   constructor(
@@ -22,5 +23,6 @@ export class ContractTradeRecordSummary {
     public readonly tags: readonly TradeTag[],
     public readonly openedAt: Date,
     public readonly closedAt: Date | null,
+    public readonly source: ContractTradeSource | null,
   ) {}
 }

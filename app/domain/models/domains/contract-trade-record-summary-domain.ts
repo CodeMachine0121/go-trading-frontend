@@ -6,8 +6,9 @@ import { ContractTradeStatusDomain } from '~/domain/models/domains/contract-trad
 import { ContractTradeMeasureDomain } from '~/domain/models/domains/contract-trade-measure-domain'
 import { ContractTradeLinkedStrategyDomain } from '~/domain/models/domains/contract-trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { ContractTradeTagChipVo } from '~/domain/models/vo/contract-trade-tag-chip-vo'
 
-const FLOATING_NOTE = '浮動'
+const FLOATING_NOTE = '浮'
 const NOT_APPLICABLE_TEXT = '—'
 const PROFIT_LABEL = '損益'
 
@@ -28,10 +29,12 @@ export class ContractTradeRecordSummaryDomain {
       status.label,
       status.tone,
       status.awaitsReview,
-      new ContractTradeLinkedStrategyDomain(
-        this.summary.tradingStrategyId,
-        this.summary.tradingStrategyName,
-        this.summary.tradingStrategyDeleted).label,
+      this.summary.source === null
+        ? new ContractTradeLinkedStrategyDomain(
+          this.summary.tradingStrategyId,
+          this.summary.tradingStrategyName,
+          this.summary.tradingStrategyDeleted).label
+        : `${this.summary.source.strategyBotName} #${this.summary.source.runNumber}`,
       new JournalNumberDomain(this.summary.averageEntryPrice).price(),
       this.summary.averageExitPrice === null
         ? NOT_APPLICABLE_TEXT
@@ -46,7 +49,7 @@ export class ContractTradeRecordSummaryDomain {
             PROFIT_LABEL, new JournalNumberDomain(netProfit).signedAmount(), new JournalNumberDomain(netProfit).tone()),
       new ContractTradeMeasureDomain(this.summary.rMultiple).toFigure(
         'R', value => new JournalNumberDomain(value).rMultiple(), () => 'neutral').text,
-      this.summary.tags.map(tag => tag.name),
+      this.summary.tags.map(tag => new ContractTradeTagChipVo(tag.name, tag.kind === 'mistake' ? 'danger' : 'neutral')),
     )
   }
 }

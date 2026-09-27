@@ -345,6 +345,7 @@ describe('ContractTradeRecordProxy.listTrades', () => {
       trades: [
         withOutcome({ floatingProfit: { available: true, amount: '38.2' }, excursion: { available: false, unavailableReason: 'notComputed' } }, {
           id: 32, status: 'open', closedAt: null, averageExitPrice: null, tradingStrategyId: null, tradingStrategyName: null,
+          source: null,
         }),
         RECORD_WIRE,
       ],
@@ -363,6 +364,8 @@ describe('ContractTradeRecordProxy.listTrades', () => {
     expect(page.records[1]?.averageEntryPrice.toString()).toBe('97905')
     expect(page.records[1]?.rMultiple.value?.toString()).toBe('1.53')
     expect(page.records[1]?.tags.map(tag => tag.name)).toEqual(['突破', '提早出場'])
+    expect(page.records[0]?.source).toBeNull()
+    expect(page.records[1]?.source?.runNumber).toBe(412)
   })
 
   it('沒有篩選就不帶，後端回空也讀得懂', async () => {
@@ -395,6 +398,7 @@ describe('ContractTradeRecordProxy.findStatistics', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE_URL}/contract-trade-records/statistics`)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ query: { period: '30d' } })
+    expect(statistics.winCount).toBe(14)
     expect(statistics.feeShareOfGrossProfit).toBe(0.18)
     expect(statistics.slippageTradeCount).toBe(2)
     expect(statistics.excludedFromRMultipleCount).toBe(3)
@@ -412,7 +416,7 @@ describe('ContractTradeRecordProxy.findStatistics', () => {
     const statistics = await proxy().findStatistics('7d')
 
     expect(statistics).toMatchObject({
-      period: '7d', winRate: null, averageRMultiple: null, profitFactor: null, feeShareOfGrossProfit: null,
+      period: '7d', winCount: 0, winRate: null, averageRMultiple: null, profitFactor: null, feeShareOfGrossProfit: null,
       averageEntrySlippagePercentage: null, slippageTradeCount: 0, excludedFromRMultipleCount: 0,
     })
     expect(statistics.netProfit.toString()).toBe('0')

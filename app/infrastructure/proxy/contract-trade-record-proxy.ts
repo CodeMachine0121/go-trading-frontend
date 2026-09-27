@@ -157,6 +157,7 @@ type SourceGroupWire = { tradeCount: number, winRate?: number | null, averageRMu
 type ContractTradeStatisticsWire = {
   period: string
   closedTradeCount: number
+  winCount?: number
   netProfit: string
   winRate?: number | null
   averageRMultiple?: string | null
@@ -253,6 +254,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
           record.tags,
           record.openedAt,
           record.closedAt,
+          record.source,
         )
       }),
       pageWire.totalCount ?? 0,
@@ -321,6 +323,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     return new ContractTradeStatistics(
       (statisticsWire.period || period) as ContractTradeStatisticsPeriod,
       statisticsWire.closedTradeCount,
+      statisticsWire.winCount ?? 0,
       new Decimal(statisticsWire.netProfit ?? 0),
       statisticsWire.winRate ?? null,
       this.decimalOrNull(statisticsWire.averageRMultiple),

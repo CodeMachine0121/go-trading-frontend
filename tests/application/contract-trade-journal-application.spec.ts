@@ -18,6 +18,7 @@ import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contrac
 import { ContractTradePerformance } from '~/domain/models/entities/contract-trade-performance'
 import { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
+import { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
 import { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
 import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
 import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
@@ -105,6 +106,9 @@ describe('ContractTradeJournalApplication.listTrades', () => {
       ['獲利因子', '1.46'],
       ['費用佔毛利', '18%'],
     ])
+    expect(list.summaryFigures.map(figure => figure.note)).toEqual([
+      'USDT，已扣費用', '14 勝 16 敗', '每筆期望值', '總賺 ÷ 總賠', '手續費＋資金費',
+    ])
     expect(recordProxy.findStatistics).toHaveBeenCalledWith('30d')
   })
 
@@ -125,8 +129,8 @@ describe('ContractTradeJournalApplication.listTrades', () => {
       averageEntryPriceText: '97,927.6',
       averageExitPriceText: '100,420',
       rMultipleText: '+1.53R',
-      tagNames: ['突破'],
     })
+    expect(row?.tags.map(tag => [tag.name, tag.tone])).toEqual([['突破', 'neutral']])
     expect(row?.profit.text).toBe('+120.53')
     expect(row?.profit.tone).toBe('success')
   })
@@ -134,6 +138,9 @@ describe('ContractTradeJournalApplication.listTrades', () => {
   it.each([
     ['沒有關聯策略寫自行判斷', { tradingStrategyId: null, tradingStrategyName: null }, '自行判斷'],
     ['關聯策略已刪除', { tradingStrategyDeleted: true }, '關聯的交易策略已刪除'],
+    ['從機器人連結記的寫機器人與第幾輪', {
+      source: new ContractTradeSource('BTC 趨勢跟隨', 412, new Decimal('97850'), null, null),
+    }, 'BTC 趨勢跟隨 #412'],
   ])('%s', async (_, overrides, expectedSource) => {
     const { application, recordProxy } = buildFixture()
     recordProxy.listTrades.mockResolvedValue(buildPage([buildSummary(overrides)]))
@@ -155,7 +162,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
     const [row] = (await application.listTrades(new ContractTradeListFilterDto())).rows
 
     expect(row?.profit.text).toBe('+38.20')
-    expect(row?.profit.note).toBe('浮動')
+    expect(row?.profit.note).toBe('浮')
     expect(row?.averageExitPriceText).toBe('—')
     expect(row?.rMultipleText).toBe('未設止損，算不出')
   })

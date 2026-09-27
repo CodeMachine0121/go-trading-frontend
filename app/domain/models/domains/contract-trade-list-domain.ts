@@ -28,8 +28,11 @@ export class ContractTradeListDomain {
     const matchingMessage = rows.length === 0 ? NO_MATCHING_TRADES_MESSAGE : null
     const emptyMessage = this.summaries.length === 0 ? NO_TRADES_MESSAGE : matchingMessage
 
+    const openTradeCount = this.summaries.filter(summary => new ContractTradeStatusDomain(summary.status).isOpen).length
+
     return new ContractTradeListDto(
       statisticsDomain.periodLabel,
+      `已平倉 ${this.statistics.closedTradeCount} 筆・持倉中 ${openTradeCount} 筆`,
       this.statistics.closedTradeCount === 0 ? [] : statisticsDomain.summaryFigures(),
       rows,
       this.summaries.filter(summary => new ContractTradeStatusDomain(summary.status).awaitsReview).length,

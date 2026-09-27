@@ -4,6 +4,7 @@ import type { ContractTradeRecordRowDto } from '~/domain/models/dto/contract-tra
 export class ContractTradeListDto {
   constructor(
     public readonly periodLabel: string,
+    public readonly tradeCountsLabel: string,
     public readonly summaryFigures: readonly ContractTradeFigureVo[],
     public readonly rows: readonly ContractTradeRecordRowDto[],
     public readonly pendingReviewCount: number,

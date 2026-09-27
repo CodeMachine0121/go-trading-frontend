@@ -19,13 +19,14 @@ function mountPanel(props: Record<string, unknown> = {}) {
 }
 
 describe('ContractTradeListPanel', () => {
-  it('摘要標明最近 30 天，每一列連到那一筆', () => {
+  it('頂上說出期間與筆數，摘要五格，每一列連到那一筆', () => {
     const wrapper = mountPanel()
 
-    expect(wrapper.get('[data-testid="trade-list-summary"]').text()).toContain('最近 30 天')
+    expect(wrapper.get('[data-testid="trade-list-counts"]').text()).toBe('最近 30 天・已平倉 30 筆・持倉中 1 筆')
     expect(wrapper.get('[data-testid="trade-list-summary"]').text()).toContain('+1,284.60')
+    expect(wrapper.get('[data-testid="trade-list-summary"]').text()).toContain('14 勝 16 敗')
     expect(wrapper.get('[data-testid="trade-row-27"] a').attributes('href')).toBe('/contract-trade-journal/27')
-    expect(wrapper.get('[data-testid="trade-row-32"]').text()).toContain('浮動')
+    expect(wrapper.get('[data-testid="trade-row-32"]').text()).toContain('浮')
   })
 
   it('待檢討一眼看得到，點了只列出那幾筆', async () => {

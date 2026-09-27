@@ -9,6 +9,7 @@ export class ContractTradeStatistics {
   constructor(
     public readonly period: ContractTradeStatisticsPeriod,
     public readonly closedTradeCount: number,
+    public readonly winCount: number,
     public readonly netProfit: Decimal,
     public readonly winRate: number | null,
     public readonly averageRMultiple: Decimal | null,
