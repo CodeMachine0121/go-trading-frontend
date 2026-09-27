@@ -1,5 +1,5 @@
 import type Decimal from 'decimal.js'
-import type { ContractTradeFigureTone } from '~/domain/models/vo/contract-trade-figure-vo'
+import type { ContractTradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
 
 const AMOUNT_FRACTION_DIGITS = 2
 const MAXIMUM_PRICE_FRACTION_DIGITS = 8

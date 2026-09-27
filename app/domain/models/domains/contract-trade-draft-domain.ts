@@ -3,7 +3,7 @@ import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-d
 import type { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
-import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
@@ -11,7 +11,7 @@ import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fi
 import { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-record-write-dto'
 import { ContractTradeRecordSubmissionDto } from '~/domain/models/dto/contract-trade-record-submission-dto'
 import { ContractTradePricedQuantityVo } from '~/domain/models/vo/contract-trade-priced-quantity-vo'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { ContractTradeEntrySlippageDomain } from '~/domain/models/domains/contract-trade-entry-slippage-domain'
@@ -20,8 +20,8 @@ const PERCENT = 100
 const DISTANCE_FRACTION_DIGITS = 2
 const FEE_RATE_MISSING_NOTE = '尚未設定手續費率'
 const MISSING_SYMBOL_MESSAGE = '請填合約標的'
-const MISSING_ENTRY_MESSAGE = '至少要有一筆填好成交價與數量的進場成交'
-const MISSING_FILL_MESSAGE = '至少要有一筆填好成交價與數量的成交'
+const MISSING_ENTRY_MESSAGE = '至少要有一筆填好開倉價與數量的開倉'
+const MISSING_FILL_MESSAGE = '至少要有一筆填好價格與數量的開倉或平倉'
 
 export class ContractTradeDraftDomain {
   constructor(
@@ -95,7 +95,7 @@ export class ContractTradeDraftDomain {
     const firstEntryIndex = fillWriteDtos.findIndex(fill => fill.kind === 'entry')
     const firstEntryFill = fillWriteDtos[firstEntryIndex]
     if (firstEntryFill === undefined) {
-      throw new ContractTradeRejectedError(MISSING_ENTRY_MESSAGE, null)
+      throw new TradeRejectedError(MISSING_ENTRY_MESSAGE, null)
     }
 
     return new ContractTradeRecordSubmissionDto(
@@ -119,24 +119,24 @@ export class ContractTradeDraftDomain {
   toFillWriteDtos(): [ContractTradeFillWriteDto, ...ContractTradeFillWriteDto[]] {
     const missingFieldMessage = this.missingFieldMessage()
     if (missingFieldMessage !== null) {
-      throw new ContractTradeRejectedError(missingFieldMessage, null)
+      throw new TradeRejectedError(missingFieldMessage, null)
     }
 
     const [firstWriteDto, ...otherWriteDtos] = this.draft.fills
       .map(fill => this.toFillWriteDto(fill))
       .filter((writeDto): writeDto is ContractTradeFillWriteDto => writeDto !== null)
     if (firstWriteDto === undefined) {
-      throw new ContractTradeRejectedError(MISSING_FILL_MESSAGE, null)
+      throw new TradeRejectedError(MISSING_FILL_MESSAGE, null)
     }
 
     return [firstWriteDto, ...otherWriteDtos]
   }
 
-  prefilledFields(prefill: ContractTradePrefillDto): ContractTradeFormField[] {
+  prefilledFields(prefill: ContractTradePrefillDto): TradeFormField[] {
     const firstFill = this.draft.fills[0]
     const stillMatching = (text: string, prefilledValue: Decimal | null) =>
       prefilledValue !== null && text.trim() !== '' && text.trim() === prefilledValue.toString()
-    const candidates: [ContractTradeFormField, boolean][] = [
+    const candidates: [TradeFormField, boolean][] = [
       ['symbol', this.draft.symbol === prefill.symbol],
       ['direction', this.draft.direction === prefill.direction],
       ['leverage', stillMatching(this.draft.leverageText, prefill.leverage)],
@@ -161,7 +161,7 @@ export class ContractTradeDraftDomain {
 
     const unreadableIndex = this.draft.fills.findIndex(fill => this.toFillWriteDto(fill) === null)
     if (unreadableIndex !== -1) {
-      return `第 ${unreadableIndex + 1} 筆成交的成交價與數量要填大於零的數字`
+      return `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`
     }
 
     const hasEntry = (this.existingFills ?? []).some(fill => fill.kind === 'entry')

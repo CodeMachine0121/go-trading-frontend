@@ -15,11 +15,11 @@ import type { ITradeTagProxy } from '~/domain/interface/i-trade-tag-proxy'
 import { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { ContractTradePrefill } from '~/domain/models/entities/contract-trade-prefill'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
-import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-trade-open-position-exists-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
+import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { ContractTradeFormFieldVo } from '~/domain/models/vo/contract-trade-form-field-vo'
+import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../fixtures/contract-trade-journal'
 
@@ -141,8 +141,8 @@ describe('useContractTradeDraft：記一筆', () => {
   })
 
   it('止損放錯邊時原話寫在計畫止損旁，內容保留', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new ContractTradeRejectedError(
-      '做多的止損必須低於進場價', new ContractTradeFormFieldVo('plannedStopLossPrice')))
+    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError(
+      '做多的止損必須低於進場價', new TradeFormFieldVo('plannedStopLossPrice')))
     const draft = draftUnderTest()
     draft.symbol.value = 'BTCUSDT'
     draft.fills.value[0]!.priceText = '97905'
@@ -171,7 +171,7 @@ describe('useContractTradeDraft：記一筆', () => {
   })
 
   it('同標的同方向已有持倉中時帶出那一筆', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new ContractTradeOpenPositionExistsError(
+    recordProxy.recordTrade.mockRejectedValue(new TradeAlreadyOpenError(
       'BTCUSDT 做多已有持倉中的 #27，請在那一筆加成交', 27))
     const draft = draftUnderTest()
     draft.symbol.value = 'BTCUSDT'
@@ -187,7 +187,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
   it('後面的成交沒存成功時記得已建立的那一筆', async () => {
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new ContractTradeRejectedError('出場數量超過目前持倉', new ContractTradeFormFieldVo('exitQuantity')))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError('出場數量超過目前持倉', new TradeFormFieldVo('exitQuantity')))
     const draft = draftUnderTest()
     draft.symbol.value = 'BTCUSDT'
     draft.fills.value[0]!.priceText = '1'

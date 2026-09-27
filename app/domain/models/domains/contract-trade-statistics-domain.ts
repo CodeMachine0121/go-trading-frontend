@@ -2,12 +2,12 @@ import Decimal from 'decimal.js'
 import type { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
 import type { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trade-source-group'
 import { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
-import { ContractTradeChartPointDto } from '~/domain/models/dto/contract-trade-chart-point-dto'
-import { ContractTradeDistributionBarDto } from '~/domain/models/dto/contract-trade-distribution-bar-dto'
+import { TradeChartPointDto } from '~/domain/models/dto/trade-chart-point-dto'
+import { TradeDistributionBarDto } from '~/domain/models/dto/trade-distribution-bar-dto'
 import { ContractTradeMistakeCostRowDto } from '~/domain/models/dto/contract-trade-mistake-cost-row-dto'
 import { ContractTradeSourceComparisonRowDto } from '~/domain/models/dto/contract-trade-source-comparison-row-dto'
-import { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-figure-vo'
-import { ContractTradeStatisticsPeriodDomain } from '~/domain/models/domains/contract-trade-statistics-period-domain'
+import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
+import { TradeStatisticsPeriodDomain } from '~/domain/models/domains/trade-statistics-period-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 
 const NOT_APPLICABLE_TEXT = '不適用'
@@ -23,10 +23,10 @@ export class ContractTradeStatisticsDomain {
   constructor(private readonly statistics: ContractTradeStatistics) {}
 
   get periodLabel(): string {
-    return new ContractTradeStatisticsPeriodDomain(this.statistics.period).label
+    return new TradeStatisticsPeriodDomain(this.statistics.period).label
   }
 
-  summaryFigures(): ContractTradeFigureVo[] {
+  summaryFigures(): TradeFigureVo[] {
     return [
       this.netProfitFigure(),
       this.winRateFigure(),
@@ -54,8 +54,8 @@ export class ContractTradeStatisticsDomain {
         this.averageRMultipleFigure(),
         this.profitFactorFigure(),
         slippage === null || this.statistics.slippageTradeCount === 0
-          ? new ContractTradeFigureVo('平均進場滑點', NO_LINKED_TRADES_TEXT, 'muted')
-          : new ContractTradeFigureVo(
+          ? new TradeFigureVo('平均進場滑點', NO_LINKED_TRADES_TEXT, 'muted')
+          : new TradeFigureVo(
               '平均進場滑點',
               new JournalNumberDomain(slippage).percentage(SLIPPAGE_FRACTION_DIGITS),
               'neutral',
@@ -65,9 +65,9 @@ export class ContractTradeStatisticsDomain {
       this.statistics.excludedFromRMultipleCount === 0
         ? null
         : `${this.statistics.excludedFromRMultipleCount} 筆沒設止損，未計入 R`,
-      this.statistics.cumulativeRMultiples.map(point => new ContractTradeChartPointDto(
+      this.statistics.cumulativeRMultiples.map(point => new TradeChartPointDto(
         point.closedAt, point.cumulativeRMultiple.toNumber())),
-      this.statistics.rMultipleDistribution.map(bucket => new ContractTradeDistributionBarDto(
+      this.statistics.rMultipleDistribution.map(bucket => new TradeDistributionBarDto(
         bucket.label,
         bucket.count,
         bucket.profitable ? 'success' : 'danger',
@@ -87,51 +87,51 @@ export class ContractTradeStatisticsDomain {
       `已平倉 ${this.statistics.closedTradeCount} 筆`,
       lastCumulativePoint === undefined
         ? null
-        : new ContractTradeFigureVo(
+        : new TradeFigureVo(
             '累積 R',
             new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).rMultiple(),
             new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).tone()),
     )
   }
 
-  private netProfitFigure(): ContractTradeFigureVo {
-    return new ContractTradeFigureVo(
+  private netProfitFigure(): TradeFigureVo {
+    return new TradeFigureVo(
       '淨損益',
       new JournalNumberDomain(this.statistics.netProfit).signedAmount(),
       new JournalNumberDomain(this.statistics.netProfit).tone(),
       'USDT，已扣費用')
   }
 
-  private winRateFigure(): ContractTradeFigureVo {
-    return new ContractTradeFigureVo(
+  private winRateFigure(): TradeFigureVo {
+    return new TradeFigureVo(
       '勝率',
       this.ratioText(this.statistics.winRate),
       'neutral',
       `${this.statistics.winCount} 勝 ${this.statistics.closedTradeCount - this.statistics.winCount} 敗`)
   }
 
-  private averageRMultipleFigure(): ContractTradeFigureVo {
+  private averageRMultipleFigure(): TradeFigureVo {
     const averageRMultiple = this.statistics.averageRMultiple
 
     return averageRMultiple === null
-      ? new ContractTradeFigureVo('平均 R', NOT_APPLICABLE_TEXT, 'muted')
-      : new ContractTradeFigureVo(
+      ? new TradeFigureVo('平均 R', NOT_APPLICABLE_TEXT, 'muted')
+      : new TradeFigureVo(
           '平均 R',
           new JournalNumberDomain(averageRMultiple).rMultiple(),
           new JournalNumberDomain(averageRMultiple).tone(),
           '每筆期望值')
   }
 
-  private profitFactorFigure(): ContractTradeFigureVo {
+  private profitFactorFigure(): TradeFigureVo {
     const profitFactor = this.statistics.profitFactor
 
     return profitFactor === null
-      ? new ContractTradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
-      : new ContractTradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral', PROFIT_FACTOR_NOTE)
+      ? new TradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
+      : new TradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral', PROFIT_FACTOR_NOTE)
   }
 
-  private feeShareFigure(): ContractTradeFigureVo {
-    return new ContractTradeFigureVo(
+  private feeShareFigure(): TradeFigureVo {
+    return new TradeFigureVo(
       '費用佔毛利', this.ratioText(this.statistics.feeShareOfGrossProfit), 'neutral', '手續費＋資金費')
   }
 

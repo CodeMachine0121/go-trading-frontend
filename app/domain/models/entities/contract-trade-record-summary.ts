@@ -1,9 +1,9 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
-import type { ContractTradeMeasure } from '~/domain/models/entities/contract-trade-measure'
+import type { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import type { TradeTag } from '~/domain/models/entities/trade-tag'
-import type { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
+import type { TradeSource } from '~/domain/models/entities/trade-source'
 
 export class ContractTradeRecordSummary {
   constructor(
@@ -18,11 +18,11 @@ export class ContractTradeRecordSummary {
     public readonly averageEntryPrice: Decimal,
     public readonly averageExitPrice: Decimal | null,
     public readonly netProfit: Decimal | null,
-    public readonly floatingProfit: ContractTradeMeasure,
-    public readonly rMultiple: ContractTradeMeasure,
+    public readonly floatingProfit: TradeMeasure,
+    public readonly rMultiple: TradeMeasure,
     public readonly tags: readonly TradeTag[],
     public readonly openedAt: Date,
     public readonly closedAt: Date | null,
-    public readonly source: ContractTradeSource | null,
+    public readonly source: TradeSource | null,
   ) {}
 }

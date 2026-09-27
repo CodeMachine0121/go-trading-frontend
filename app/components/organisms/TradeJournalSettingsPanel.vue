@@ -60,7 +60,7 @@ function confirmRenaming(): void {
 <template>
   <SettingsSection
     title="交易日誌"
-    description="記一筆成交時自動帶出的手續費率，以及貼在交易上的失誤與型態標籤。"
+    description="合約日誌記開倉、平倉時自動帶出的手續費率（現貨日誌的手續費每筆自己填），以及兩本日誌共用的失誤與型態標籤。"
   >
     <p
       v-if="loading"

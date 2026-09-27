@@ -1,4 +1,4 @@
-import type { ContractTradeFigureTone } from '~/domain/models/vo/contract-trade-figure-vo'
+import type { ContractTradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
 
 export class ContractTradeMistakeCostRowDto {
   constructor(

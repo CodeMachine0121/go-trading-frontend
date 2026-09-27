@@ -1,23 +1,23 @@
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
-import type { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-figure-vo'
-import type { ContractTradeBadgeTone } from '~/domain/models/vo/contract-trade-badge-tone-vo'
-import type { ContractTradeTagChipVo } from '~/domain/models/vo/contract-trade-tag-chip-vo'
+import type { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
+import type { TradeTagChipVo } from '~/domain/models/vo/trade-tag-chip-vo'
 
 export class ContractTradeRecordRowDto {
   constructor(
     public readonly id: number,
     public readonly symbol: string,
     public readonly directionLabel: string,
-    public readonly directionTone: ContractTradeBadgeTone,
+    public readonly directionTone: TradeBadgeTone,
     public readonly status: ContractTradeStatus,
     public readonly statusLabel: string,
-    public readonly statusTone: ContractTradeBadgeTone,
+    public readonly statusTone: TradeBadgeTone,
     public readonly pendingReview: boolean,
     public readonly sourceLabel: string,
     public readonly averageEntryPriceText: string,
     public readonly averageExitPriceText: string,
-    public readonly profit: ContractTradeFigureVo,
+    public readonly profit: TradeFigureVo,
     public readonly rMultipleText: string,
-    public readonly tags: readonly ContractTradeTagChipVo[],
+    public readonly tags: readonly TradeTagChipVo[],
   ) {}
 }

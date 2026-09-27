@@ -18,13 +18,13 @@ import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contrac
 import { ContractTradePerformance } from '~/domain/models/entities/contract-trade-performance'
 import { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
-import { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
+import { TradeSource } from '~/domain/models/entities/trade-source'
 import { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
 import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
 import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
 import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
-import { ContractTradeFormFieldVo } from '~/domain/models/vo/contract-trade-form-field-vo'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
+import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import {
   buildPage,
   buildRecord,
@@ -139,7 +139,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
     ['沒有關聯策略寫自行判斷', { tradingStrategyId: null, tradingStrategyName: null }, '自行判斷'],
     ['關聯策略已刪除', { tradingStrategyDeleted: true }, '關聯的交易策略已刪除'],
     ['從機器人連結記的寫機器人與第幾輪', {
-      source: new ContractTradeSource('BTC 趨勢跟隨', 412, new Decimal('97850'), null, null),
+      source: new TradeSource('BTC 趨勢跟隨', 412, new Decimal('97850'), null, null),
     }, 'BTC 趨勢跟隨 #412'],
   ])('%s', async (_, overrides, expectedSource) => {
     const { application, recordProxy } = buildFixture()
@@ -434,7 +434,7 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     expect(record.canEditFills).toBe(false)
     expect(record.canWriteReview).toBe(true)
     expect(record.fills.map(fill => fill.id)).toEqual([1, 2, 3])
-    expect(record.fills[2]).toMatchObject({ kindLabel: '出場', liquidityLabel: '掛單', feeNote: '未設定費率' })
+    expect(record.fills[2]).toMatchObject({ kindLabel: '平倉', liquidityLabel: '掛單', feeNote: '未設定費率' })
     expect(record.notes.map(note => note.content)).toEqual(['第一則', '第二則'])
     expect(record.setupTags.map(tag => tag.name)).toEqual(['突破'])
     expect(record.mistakeTags.map(tag => tag.name)).toEqual(['提早出場'])
@@ -459,11 +459,11 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
   it('做空以做空色標示，已檢討帶出檢討內容', async () => {
     const { application, recordProxy } = buildFixture()
-    const { ContractTradeReview } = await import('~/domain/models/entities/contract-trade-review')
+    const { TradeReview } = await import('~/domain/models/entities/trade-review')
     recordProxy.findTrade.mockResolvedValue(buildRecord({
       direction: 'short',
       status: 'reviewed',
-      review: new ContractTradeReview('照計畫', '提早出場', '讓止盈成交', 4, new Date()),
+      review: new TradeReview('照計畫', '提早出場', '讓止盈成交', 4, new Date()),
       outcome: closedOutcome({ feeRateMissing: true, rMultiple: measured('-1.02') }),
     }))
 
@@ -557,10 +557,10 @@ describe('ContractTradeJournalApplication.previewDraft', () => {
 
   it.each([
     ['沒填合約標的', { symbol: '  ' }, '請填合約標的'],
-    ['成交價讀不懂', { fills: [draftFill({ priceText: 'abc' })] }, '第 1 筆成交的成交價與數量要填大於零的數字'],
-    ['數量為零', { fills: [draftFill({ quantityText: '0' })] }, '第 1 筆成交的成交價與數量要填大於零的數字'],
-    ['只有出場', { fills: [draftFill({ kind: 'exit' })] }, '至少要有一筆填好成交價與數量的進場成交'],
-    ['新增時沒有成交', { fills: [] }, '至少要有一筆填好成交價與數量的進場成交'],
+    ['成交價讀不懂', { fills: [draftFill({ priceText: 'abc' })] }, '第 1 筆的價格與數量要填大於零的數字'],
+    ['數量為零', { fills: [draftFill({ quantityText: '0' })] }, '第 1 筆的價格與數量要填大於零的數字'],
+    ['只有出場', { fills: [draftFill({ kind: 'exit' })] }, '至少要有一筆填好開倉價與數量的開倉'],
+    ['新增時沒有成交', { fills: [] }, '至少要有一筆填好開倉價與數量的開倉'],
   ])('%s時說出缺什麼', (_, overrides, expectedMessage) => {
     const { application } = buildFixture()
 
@@ -638,16 +638,16 @@ describe('ContractTradeJournalApplication.recordDraft', () => {
   it('後面的成交被拒時說已建立哪一筆、第幾筆沒存成功', async () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new ContractTradeRejectedError(
-      '出場數量超過目前持倉 0.030', new ContractTradeFormFieldVo('exitQuantity')))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError(
+      '出場數量超過目前持倉 0.030', new TradeFormFieldVo('exitQuantity')))
 
     const failure = await application.recordDraft(draft({
       fills: [draftFill(), draftFill({ kind: 'exit', quantityText: '0.05' })],
     }), takerFeeSetting()).catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(ContractTradeRejectedError)
-    expect((failure as ContractTradeRejectedError).message).toBe('已建立 #27，但第 2 筆成交沒有存成功：出場數量超過目前持倉 0.030')
-    expect((failure as ContractTradeRejectedError).recordedTradeId).toBe(27)
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).message).toBe('已建立 #27，但第 2 筆沒有存成功：出場數量超過目前持倉 0.030')
+    expect((failure as TradeRejectedError).recordedTradeId).toBe(27)
   })
 
   it('後面的成交連不上時原樣往上拋', async () => {
@@ -676,8 +676,8 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
 
   it('出場超過持倉的拒絕原樣帶回', async () => {
     const { application, recordProxy } = buildFixture()
-    const rejection = new ContractTradeRejectedError(
-      '出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易', new ContractTradeFormFieldVo('exitQuantity'))
+    const rejection = new TradeRejectedError(
+      '出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易', new TradeFormFieldVo('exitQuantity'))
     recordProxy.addFill.mockRejectedValue(rejection)
 
     await expect(application.addDraftFills(27, draft({ symbol: '', fills: [draftFill({ kind: 'exit', quantityText: '0.05' })] }), takerFeeSetting(), buildRecord().toDomain().toDto().fills))
@@ -688,7 +688,7 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
     const { application, recordProxy } = buildFixture()
 
     await expect(application.addDraftFills(27, draft({ fills: [draftFill({ priceText: '' })] }), takerFeeSetting(), []))
-      .rejects.toThrow('第 1 筆成交')
+      .rejects.toThrow('第 1 筆的價格與數量')
     expect(recordProxy.addFill).not.toHaveBeenCalled()
   })
 
@@ -744,8 +744,8 @@ describe('ContractTradeJournalApplication 其餘寫入', () => {
 
     const failure = await application.amendFill(27, new ContractTradeFillAmendmentDto(fill, 'abc', '0.03', '')).catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(ContractTradeRejectedError)
-    expect((failure as ContractTradeRejectedError).message).toBe('成交價與數量要填數字')
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).message).toBe('價格與數量要填數字')
     expect(recordProxy.amendFill).not.toHaveBeenCalled()
   })
 
@@ -996,9 +996,9 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
     expect(loadPlan.fetchStartTime.getTime()).toBeLessThan(record.openedAt.getTime())
     expect(loadPlan.fetchEndTime.getTime()).toBeGreaterThan(record.closedAt?.getTime() ?? 0)
     expect(pricePath.emptyMessage).toBeNull()
-    expect(pricePath.markers.map(marker => marker.text)).toEqual(['進場 97,905', '進場 97,960', '出場 100,420'])
+    expect(pricePath.markers.map(marker => marker.text)).toEqual(['開倉 97,905', '加倉 97,960', '平倉 100,420'])
     expect(pricePath.lines.map(line => `${line.label} ${line.priceText}`)).toEqual([
-      '進場均價 97,927.6', '計畫止損 96,380', '計畫止盈 100,785', '最大不利 97,110', '最大有利 100,960',
+      '開倉均價 97,927.6', '計畫止損 96,380', '計畫止盈 100,785', '最大不利 97,110', '最大有利 100,960',
     ])
     expect(pricePath.candles).toHaveLength(1)
   })
@@ -1016,7 +1016,7 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
       new KCandleContractSeriesVo([kCandleContract('2026-09-25T06:00:00Z')], { value: '1h' } as never))
     const record = await application.getTrade(27)
 
-    expect((await application.getPricePath(record)).lines.map(line => line.label)).toEqual(['進場均價'])
+    expect((await application.getPricePath(record)).lines.map(line => line.label)).toEqual(['開倉均價'])
   })
 
   it('持倉中的行情取到現在為止，沒有行情時寫同一句話', async () => {

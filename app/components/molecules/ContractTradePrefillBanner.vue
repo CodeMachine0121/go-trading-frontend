@@ -37,7 +37,7 @@ const { prefill, message = null, showJournalLink = false, timeZoneIdentifier } =
       v-if="prefill"
       class="contract-trade-prefill-banner__hint"
     >
-      紫框是從這一輪帶入的值；進場價與數量請改成實際成交。
+      紫框是從這一輪帶入的值；開倉價與數量請改成實際成交。
     </p>
     <AppAlert
       v-if="message"

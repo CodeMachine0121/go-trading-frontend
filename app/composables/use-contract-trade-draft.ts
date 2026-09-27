@@ -12,9 +12,9 @@ import { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-dr
 import { ContractTradeDraftFillInputDto } from '~/domain/models/dto/contract-trade-draft-fill-input-dto'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
-import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
-import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-trade-open-position-exists-error'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
+import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { formatMinuteInputInTimeZone, parseMinuteInputInTimeZone } from '~/utilities/time-zone-format'
 
@@ -57,7 +57,7 @@ export function useContractTradeDraft(
 
   const saving = ref(false)
   const rejectionMessage = ref<string | null>(null)
-  const rejectedField = ref<ContractTradeFormField | null>(null)
+  const rejectedField = ref<TradeFormField | null>(null)
   const conflictingTradeId = ref<number | null>(null)
   const recordedTradeId = ref<number | null>(null)
 
@@ -179,7 +179,7 @@ export function useContractTradeDraft(
     fills.value = fills.value.filter(fill => fill.key !== key)
   }
 
-  function fieldError(field: ContractTradeFormField): string | null {
+  function fieldError(field: TradeFormField): string | null {
     return rejectedField.value === field ? rejectionMessage.value : null
   }
 
@@ -217,11 +217,11 @@ export function useContractTradeDraft(
     }
     catch (error: unknown) {
       rejectionMessage.value = contractTradeJournalApplication.describeFailure(error).message
-      if (error instanceof ContractTradeRejectedError) {
+      if (error instanceof TradeRejectedError) {
         rejectedField.value = error.formField?.field ?? null
         recordedTradeId.value = error.recordedTradeId
       }
-      if (error instanceof ContractTradeOpenPositionExistsError) {
+      if (error instanceof TradeAlreadyOpenError) {
         conflictingTradeId.value = error.existingTradeId
       }
 

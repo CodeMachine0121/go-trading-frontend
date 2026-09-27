@@ -1,6 +1,6 @@
 import type { ContractTradePerformanceDto } from '~/domain/models/dto/contract-trade-performance-dto'
-import type { ContractTradeFigureTone } from '~/domain/models/vo/contract-trade-figure-vo'
-import type { ContractTradeBadgeTone } from '~/domain/models/vo/contract-trade-badge-tone-vo'
+import type { ContractTradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
 
 export class ContractTradeLiveComparisonRowDto {
   constructor(
@@ -11,6 +11,6 @@ export class ContractTradeLiveComparisonRowDto {
     public readonly liveWinRateTone: ContractTradeFigureTone,
     public readonly winRateGapText: string | null,
     public readonly verdictLabel: string,
-    public readonly verdictTone: ContractTradeBadgeTone,
+    public readonly verdictTone: TradeBadgeTone,
   ) {}
 }

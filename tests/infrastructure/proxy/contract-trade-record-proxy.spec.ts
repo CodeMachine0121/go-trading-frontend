@@ -7,10 +7,10 @@ import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fi
 import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
 import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
-import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
+import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
-import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-trade-open-position-exists-error'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
@@ -182,7 +182,7 @@ describe('ContractTradeRecordProxy.findTrade', () => {
   })
 
   it.each([
-    ['別人的或已刪除的交易', 404, { message: '找不到這筆交易' }, ContractTradeNotFoundError],
+    ['別人的或已刪除的交易', 404, { message: '找不到這筆交易' }, TradeRecordNotFoundError],
     ['後端自己壞了', 500, { message: 'boom' }, BackendServerError],
   ])('%s', async (_, status, data, expectedError) => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(status, data)))
@@ -246,8 +246,8 @@ describe('ContractTradeRecordProxy.recordTrade', () => {
     const failure = await proxy().recordTrade(new ContractTradeRecordWriteDto(
       'BTCUSDT', 'long', null, fill, null, null, '', null, null, [], null)).catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(ContractTradeOpenPositionExistsError)
-    expect((failure as ContractTradeOpenPositionExistsError).existingTradeId).toBe(27)
+    expect(failure).toBeInstanceOf(TradeAlreadyOpenError)
+    expect((failure as TradeAlreadyOpenError).existingTradeId).toBe(27)
   })
 
   it.each([
@@ -259,7 +259,7 @@ describe('ContractTradeRecordProxy.recordTrade', () => {
     const failure = await proxy().recordTrade(new ContractTradeRecordWriteDto(
       'BTCUSDT', 'long', null, fill, null, null, '', null, null, [], null)).catch((error: unknown) => error)
 
-    expect((failure as ContractTradeOpenPositionExistsError).existingTradeId).toBe(expectedId)
+    expect((failure as TradeAlreadyOpenError).existingTradeId).toBe(expectedId)
   })
 })
 
@@ -277,9 +277,9 @@ describe('ContractTradeRecordProxy 拒絕對到欄位', () => {
 
     const failure = await proxy().addFill(27, fill).catch((error: unknown) => error)
 
-    expect(failure).toBeInstanceOf(ContractTradeRejectedError)
-    expect((failure as ContractTradeRejectedError).message).toBe(data.message)
-    expect((failure as ContractTradeRejectedError).formField?.field ?? null).toBe(expectedField)
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).message).toBe(data.message)
+    expect((failure as TradeRejectedError).formField?.field ?? null).toBe(expectedField)
   })
 
   it('其他狀態碼的拒絕原樣帶回', async () => {
@@ -287,7 +287,7 @@ describe('ContractTradeRecordProxy 拒絕對到欄位', () => {
 
     const failure = await proxy().addFill(27, fill).catch((error: unknown) => error)
 
-    expect(failure).not.toBeInstanceOf(ContractTradeRejectedError)
+    expect(failure).not.toBeInstanceOf(TradeRejectedError)
     expect((failure as Error).message).toBe('太頻繁')
   })
 })
@@ -333,7 +333,7 @@ describe('ContractTradeRecordProxy 其餘路由', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     await proxy().deleteTrade(33)
-    await expect(proxy().deleteTrade(9)).rejects.toBeInstanceOf(ContractTradeNotFoundError)
+    await expect(proxy().deleteTrade(9)).rejects.toBeInstanceOf(TradeRecordNotFoundError)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'DELETE' })
   })
 })

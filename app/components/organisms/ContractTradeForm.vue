@@ -195,7 +195,7 @@ const tradingStrategyValue = computed({
 
     <section class="contract-trade-form__section">
       <h3 class="contract-trade-form__heading">
-        成交
+        開倉與平倉
       </h3>
       <ContractTradeFillEditor
         :fills="draft.fills.value"
@@ -288,7 +288,7 @@ const tradingStrategyValue = computed({
           data-testid="form-rejection-go"
         >
           前往 #{{ draft.conflictingTradeId.value ?? draft.recordedTradeId.value }}
-          {{ draft.conflictingTradeId.value !== null ? '加成交' : '' }}
+          {{ draft.conflictingTradeId.value !== null ? '加倉' : '' }}
         </AppButton>
       </template>
     </AppAlert>

@@ -3,7 +3,7 @@ import { ContractTradeDraftDomain } from '~/domain/models/domains/contract-trade
 import { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
 import { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import Decimal from 'decimal.js'
 import { buildRecord, takerFeeSetting } from '../../../fixtures/contract-trade-journal'
 
@@ -49,8 +49,8 @@ describe('ContractTradeDraftDomain', () => {
       takerFeeSetting(),
       existingFills)
 
-    expect(() => draftDomain.toRecordSubmission()).toThrow(ContractTradeRejectedError)
-    expect(() => draftDomain.toRecordSubmission()).toThrow('至少要有一筆填好成交價與數量的進場成交')
+    expect(() => draftDomain.toRecordSubmission()).toThrow(TradeRejectedError)
+    expect(() => draftDomain.toRecordSubmission()).toThrow('至少要有一筆填好開倉價與數量的開倉')
   })
 
   it('數量讀不懂時手續費先算零', () => {

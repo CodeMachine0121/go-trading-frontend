@@ -5,7 +5,7 @@ import ContractTradeForm from '~/components/organisms/ContractTradeForm.vue'
 definePageMeta({
   layout: 'console',
   consoleTitle: '記一筆合約交易',
-  consoleSubtitle: '填實際的成交；從機器人訊息的連結打開時，那一輪的建議已經預填好。',
+  consoleSubtitle: '填實際的開倉價與數量；從機器人訊息的連結打開時，那一輪的建議已經預填好。',
 })
 
 const route = useRoute()

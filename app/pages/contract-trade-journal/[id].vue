@@ -4,13 +4,13 @@ import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
-import ContractTradeStatusBadge from '~/components/molecules/ContractTradeStatusBadge.vue'
+import TradeStatusBadge from '~/components/molecules/TradeStatusBadge.vue'
 import ContractTradeFillLedgerPanel from '~/components/organisms/ContractTradeFillLedgerPanel.vue'
 import ContractTradeForm from '~/components/organisms/ContractTradeForm.vue'
-import ContractTradeNotesPanel from '~/components/organisms/ContractTradeNotesPanel.vue'
+import TradeNotesPanel from '~/components/organisms/TradeNotesPanel.vue'
 import ContractTradeOutcomePanel from '~/components/organisms/ContractTradeOutcomePanel.vue'
 import ContractTradePlanPanel from '~/components/organisms/ContractTradePlanPanel.vue'
-import ContractTradeReviewPanel from '~/components/organisms/ContractTradeReviewPanel.vue'
+import TradeReviewPanel from '~/components/organisms/TradeReviewPanel.vue'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 definePageMeta({
@@ -37,7 +37,7 @@ const addingFills = ref(route.query.addFill === 'entry')
 const addFillDirty = ref(false)
 const deleteConfirmationOpen = ref(false)
 const closedJustNow = ref(false)
-const reviewPanel = useTemplateRef<InstanceType<typeof ContractTradeReviewPanel>>('reviewPanel')
+const reviewPanel = useTemplateRef<InstanceType<typeof TradeReviewPanel>>('reviewPanel')
 const leaveConfirmation = useLeaveConfirmation(() => addingFills.value && addFillDirty.value)
 
 onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
@@ -90,7 +90,7 @@ onMounted(() => {
             </template>
           </p>
         </div>
-        <ContractTradeStatusBadge
+        <TradeStatusBadge
           :label="detail.record.value.statusLabel"
           :tone="detail.record.value.statusTone"
         />
@@ -106,7 +106,7 @@ onMounted(() => {
             variant="secondary"
             @click="addingFills = true"
           >
-            ＋ 加成交
+            ＋ 加倉／減倉
           </AppButton>
           <AppButton
             variant="danger-ghost"
@@ -135,7 +135,7 @@ onMounted(() => {
 
       <AppPanel
         v-if="addingFills && detail.record.value.canEditFills"
-        title="加一筆成交"
+        title="加倉或減倉"
       >
         <ContractTradeForm
           :existing-record="detail.record.value"
@@ -144,7 +144,7 @@ onMounted(() => {
           :contract-trade-journal-application="$contractTradeJournalApplication"
           :trade-journal-setting-application="$tradeJournalSettingApplication"
           :trading-strategy-application="$tradingStrategyApplication"
-          @saved="record => { detail.adoptSavedRecord(record); addingFills = false; addFillDirty = false; closedJustNow = record.status !== 'open'; announce(record.status === 'open' ? '已加上成交' : '這筆已平倉') }"
+          @saved="record => { detail.adoptSavedRecord(record); addingFills = false; addFillDirty = false; closedJustNow = record.status !== 'open'; announce(record.status === 'open' ? '已記下' : '這筆已平倉') }"
           @dirty-change="value => (addFillDirty = value)"
         />
       </AppPanel>
@@ -189,9 +189,12 @@ onMounted(() => {
           @assign-setup-tags="detail.assignSetupTags"
           @create-setup-tag="detail.createSetupTag"
         />
-        <ContractTradeReviewPanel
+        <TradeReviewPanel
           ref="reviewPanel"
-          :record="detail.record.value"
+          :review="detail.record.value.review"
+          :can-write-review="detail.record.value.canWriteReview"
+          :review-unavailable-message="detail.record.value.reviewUnavailableMessage"
+          :recorded-mistake-tags="detail.record.value.mistakeTags"
           :mistake-tags="detail.mistakeTags.value"
           :busy="detail.busy.value"
           @submit="detail.writeReview"
@@ -206,8 +209,8 @@ onMounted(() => {
           @amend-fill="detail.amendFill"
           @remove-fill="detail.removeFill"
         />
-        <ContractTradeNotesPanel
-          :record="detail.record.value"
+        <TradeNotesPanel
+          :notes="detail.record.value.notes"
           :busy="detail.busy.value"
           :time-zone-identifier="selectedTimeZone.identifier"
           @add-note="detail.addNote"
@@ -218,7 +221,7 @@ onMounted(() => {
     <ConfirmDialog
       :open="deleteConfirmationOpen"
       title="刪除這筆交易"
-      message="刪除後，這筆交易的成交、附註、檢討都會一併刪除，無法復原"
+      message="刪除後，這筆交易的開倉平倉紀錄、附註、檢討都會一併刪除，無法復原"
       confirm-label="刪除"
       variant="danger"
       @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(`已刪除 #${tradeId}`); leaveConfirmation.allowLeaving(); navigateTo('/contract-trade-journal') } })"

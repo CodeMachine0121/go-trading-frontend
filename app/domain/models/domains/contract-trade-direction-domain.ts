@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
-import type { ContractTradeBadgeTone } from '~/domain/models/vo/contract-trade-badge-tone-vo'
+import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
 
 const DIRECTION_WORDS: Readonly<Record<ContractTradeDirection, string>> = {
   long: '做多',
@@ -21,7 +21,7 @@ export class ContractTradeDirectionDomain {
     return `${this.word} ${this.leverage.toFixed()} 倍`
   }
 
-  get tone(): ContractTradeBadgeTone {
+  get tone(): TradeBadgeTone {
     return this.direction === 'long' ? 'success' : 'danger'
   }
 }

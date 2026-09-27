@@ -2,9 +2,9 @@ import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
 import type { ContractTradeFill } from '~/domain/models/entities/contract-trade-fill'
-import type { ContractTradeNote } from '~/domain/models/entities/contract-trade-note'
-import type { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
-import type { ContractTradeReview } from '~/domain/models/entities/contract-trade-review'
+import type { TradeNote } from '~/domain/models/entities/trade-note'
+import type { TradeSource } from '~/domain/models/entities/trade-source'
+import type { TradeReview } from '~/domain/models/entities/trade-review'
 import type { ContractTradeOutcome } from '~/domain/models/entities/contract-trade-outcome'
 import type { TradeTag } from '~/domain/models/entities/trade-tag'
 import { ContractTradeRecordDomain } from '~/domain/models/domains/contract-trade-record-domain'
@@ -26,10 +26,10 @@ export class ContractTradeRecord {
     public readonly openedAt: Date,
     public readonly closedAt: Date | null,
     public readonly fills: readonly ContractTradeFill[],
-    public readonly notes: readonly ContractTradeNote[],
+    public readonly notes: readonly TradeNote[],
     public readonly tags: readonly TradeTag[],
-    public readonly source: ContractTradeSource | null,
-    public readonly review: ContractTradeReview | null,
+    public readonly source: TradeSource | null,
+    public readonly review: TradeReview | null,
     public readonly outcome: ContractTradeOutcome,
   ) {}
 

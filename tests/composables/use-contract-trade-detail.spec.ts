@@ -12,8 +12,8 @@ import type { ITradeJournalSettingProxy } from '~/domain/interface/i-trade-journ
 import type { ITradeTagProxy } from '~/domain/interface/i-trade-tag-proxy'
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
-import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { TradeTagNameConflictError } from '~/domain/errors/trade-tag-name-conflict-error'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../fixtures/contract-trade-journal'
@@ -67,7 +67,7 @@ describe('useContractTradeDetail：讀取', () => {
   })
 
   it('別人的或已刪除的交易說找不到', async () => {
-    recordProxy.findTrade.mockRejectedValue(new ContractTradeNotFoundError('找不到這筆交易'))
+    recordProxy.findTrade.mockRejectedValue(new TradeRecordNotFoundError('找不到這筆交易'))
     const detail = detailUnderTest(9)
 
     await detail.loadTrade()
@@ -88,7 +88,7 @@ describe('useContractTradeDetail：寫入', () => {
   })
 
   it('平倉後修改計畫的拒絕原話呈現', async () => {
-    recordProxy.amendPlan.mockRejectedValue(new ContractTradeRejectedError('平倉後計畫已鎖定，可以加附註', null))
+    recordProxy.amendPlan.mockRejectedValue(new TradeRejectedError('平倉後計畫已鎖定，可以加附註', null))
     const detail = detailUnderTest()
 
     expect(await detail.savePlan('', '', '', null)).toBe(false)
@@ -153,13 +153,13 @@ describe('useContractTradeDetail：寫入', () => {
     const fill = detail.record.value!.fills[0]!
 
     expect(await detail.amendFill(fill, 'abc', '0.03', '')).toBe(false)
-    expect(detail.actionFailureMessage.value).toBe('成交價與數量要填數字')
+    expect(detail.actionFailureMessage.value).toBe('價格與數量要填數字')
     expect(await detail.amendFill(fill, '97906', '0.03', '1.2')).toBe(true)
   })
 
   it('刪除成交；刪到沒有進場成交時原話呈現', async () => {
     recordProxy.removeFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
-    recordProxy.removeFill.mockRejectedValueOnce(new ContractTradeRejectedError('一筆交易至少要有一筆進場成交；要整筆放棄請刪除交易', null))
+    recordProxy.removeFill.mockRejectedValueOnce(new TradeRejectedError('一筆交易至少要有一筆進場成交；要整筆放棄請刪除交易', null))
     const detail = detailUnderTest()
 
     expect(await detail.removeFill(3)).toBe(true)
@@ -179,7 +179,7 @@ describe('useContractTradeDetail：寫入', () => {
   })
 
   it('動作時發現交易已不在，標示找不到', async () => {
-    recordProxy.writeReview.mockRejectedValue(new ContractTradeNotFoundError('找不到這筆交易'))
+    recordProxy.writeReview.mockRejectedValue(new TradeRecordNotFoundError('找不到這筆交易'))
     const detail = detailUnderTest()
 
     await detail.writeReview('', '', '', 3, [])

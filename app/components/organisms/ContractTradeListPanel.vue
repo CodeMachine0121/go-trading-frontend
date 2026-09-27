@@ -5,8 +5,8 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
-import ContractTradeStatusBadge from '~/components/molecules/ContractTradeStatusBadge.vue'
-import ContractTradeSummaryStrip from '~/components/molecules/ContractTradeSummaryStrip.vue'
+import TradeStatusBadge from '~/components/molecules/TradeStatusBadge.vue'
+import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
 import type { ContractTradeListDto } from '~/domain/models/dto/contract-trade-list-dto'
 import type { ContractTradeStatusFilter } from '~/domain/models/vo/contract-trade-status-filter-vo'
 import type { ContractTradeSourceFilter } from '~/domain/models/vo/contract-trade-source-filter-vo'
@@ -110,7 +110,7 @@ const sourceTab = computed({
     </AppAlert>
 
     <template v-else-if="list">
-      <ContractTradeSummaryStrip
+      <TradeSummaryStrip
         v-if="list.summaryFigures.length > 0"
         :figures="list.summaryFigures"
         data-testid="trade-list-summary"
@@ -167,8 +167,8 @@ const sourceTab = computed({
                 <th>方向</th>
                 <th>狀態</th>
                 <th>來源</th>
-                <th>進場均價</th>
-                <th>出場均價</th>
+                <th>開倉均價</th>
+                <th>平倉均價</th>
                 <th>淨損益</th>
                 <th>R</th>
                 <th>標籤</th>
@@ -197,13 +197,13 @@ const sourceTab = computed({
                   </NuxtLink>
                 </td>
                 <td>
-                  <ContractTradeStatusBadge
+                  <TradeStatusBadge
                     :label="row.directionLabel"
                     :tone="row.directionTone"
                   />
                 </td>
                 <td>
-                  <ContractTradeStatusBadge
+                  <TradeStatusBadge
                     :label="row.statusLabel"
                     :tone="row.statusTone"
                   />

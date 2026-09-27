@@ -1,5 +1,5 @@
 import type Decimal from 'decimal.js'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 import type { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import type { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
 import type { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
@@ -7,7 +7,7 @@ import type { ContractTradeSourceGroup } from '~/domain/models/entities/contract
 
 export class ContractTradeStatistics {
   constructor(
-    public readonly period: ContractTradeStatisticsPeriod,
+    public readonly period: TradeStatisticsPeriod,
     public readonly closedTradeCount: number,
     public readonly winCount: number,
     public readonly netProfit: Decimal,

@@ -1,16 +1,16 @@
 import type { ContractTradeRecord } from '~/domain/models/entities/contract-trade-record'
 import { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
-import { ContractTradeNoteDto } from '~/domain/models/dto/contract-trade-note-dto'
+import { TradeNoteDto } from '~/domain/models/dto/trade-note-dto'
 import { ContractTradeSourceDto } from '~/domain/models/dto/contract-trade-source-dto'
-import { ContractTradeReviewDto } from '~/domain/models/dto/contract-trade-review-dto'
+import { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
 import { ContractTradeDirectionDomain } from '~/domain/models/domains/contract-trade-direction-domain'
 import { ContractTradeStatusDomain } from '~/domain/models/domains/contract-trade-status-domain'
 import { ContractTradeOutcomeDomain } from '~/domain/models/domains/contract-trade-outcome-domain'
-import { ContractTradeLinkedStrategyDomain } from '~/domain/models/domains/contract-trade-linked-strategy-domain'
+import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
-import { ContractTradeHoldingDurationDomain } from '~/domain/models/domains/contract-trade-holding-duration-domain'
-import type Decimal from 'decimal.js'
+import { TradeHoldingDurationDomain } from '~/domain/models/domains/trade-holding-duration-domain'
+import Decimal from 'decimal.js'
 
 const REVIEW_AFTER_CLOSE_MESSAGE = '平倉後才能檢討'
 const NOT_SET_TEXT = '未設定'
@@ -22,11 +22,20 @@ export class ContractTradeRecordDomain {
     const direction = new ContractTradeDirectionDomain(this.record.direction, this.record.leverage)
     const status = new ContractTradeStatusDomain(this.record.status)
     const source = this.record.source
-    const linkedStrategyLabel = new ContractTradeLinkedStrategyDomain(
+    const linkedStrategyLabel = new TradeLinkedStrategyDomain(
       this.record.tradingStrategyId,
       this.record.tradingStrategyName,
       this.record.tradingStrategyDeleted).label
     const sourceLabel = source === null ? null : `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`
+    const chronologicalFills = [...this.record.fills]
+      .sort((earlier, later) => earlier.filledAt.getTime() - later.filledAt.getTime())
+    const positionActionLabels = chronologicalFills.reduce<{ position: Decimal, labels: string[] }>((state, fill) => {
+      const position = fill.kind === 'entry' ? state.position.plus(fill.quantity) : state.position.minus(fill.quantity)
+      const entryLabel = state.position.isZero() ? '開倉' : '加倉'
+      const exitLabel = position.lessThanOrEqualTo(0) ? '平倉' : '減倉'
+
+      return { position, labels: [...state.labels, fill.kind === 'entry' ? entryLabel : exitLabel] }
+    }, { position: new Decimal(0), labels: [] }).labels
 
     return new ContractTradeRecordDto(
       this.record.id,
@@ -55,26 +64,24 @@ export class ContractTradeRecordDomain {
       this.record.closedAt,
       this.record.outcome.position,
       this.record.outcome.averageEntryPrice,
-      [...this.record.fills]
-        .sort((earlier, later) => earlier.filledAt.getTime() - later.filledAt.getTime())
-        .map(fill => new ContractTradeFillDto(
-          fill.id,
-          fill.kind,
-          fill.kind === 'entry' ? '進場' : '出場',
-          fill.filledAt,
-          fill.price,
-          new JournalNumberDomain(fill.price).price(),
-          fill.quantity,
-          new JournalNumberDomain(fill.quantity).quantity(),
-          fill.liquidity,
-          fill.liquidity === 'maker' ? '掛單' : '吃單',
-          fill.fee,
-          new JournalNumberDomain(fill.fee).amount(),
-          fill.feeRateMissing ? '未設定費率' : null,
-        )),
+      chronologicalFills.map((fill, index) => new ContractTradeFillDto(
+        fill.id,
+        fill.kind,
+        positionActionLabels[index] ?? '',
+        fill.filledAt,
+        fill.price,
+        new JournalNumberDomain(fill.price).price(),
+        fill.quantity,
+        new JournalNumberDomain(fill.quantity).quantity(),
+        fill.liquidity,
+        fill.liquidity === 'maker' ? '掛單' : '吃單',
+        fill.fee,
+        new JournalNumberDomain(fill.fee).amount(),
+        fill.feeRateMissing ? '未設定費率' : null,
+      )),
       [...this.record.notes]
         .sort((earlier, later) => earlier.createdAt.getTime() - later.createdAt.getTime())
-        .map(note => new ContractTradeNoteDto(note.id, note.content, note.createdAt)),
+        .map(note => new TradeNoteDto(note.id, note.content, note.createdAt)),
       this.record.tags.filter(tag => tag.kind === 'setup').map(tag => tag.toDto()),
       this.record.tags.filter(tag => tag.kind === 'mistake').map(tag => tag.toDto()),
       source === null
@@ -87,7 +94,7 @@ export class ContractTradeRecordDomain {
           ),
       this.record.review === null
         ? null
-        : new ContractTradeReviewDto(
+        : new TradeReviewDto(
             this.record.review.wentWell,
             this.record.review.wentWrong,
             this.record.review.nextTime,
@@ -98,7 +105,7 @@ export class ContractTradeRecordDomain {
       this.record.outcome.maximumFavorablePrice,
       this.record.closedAt === null
         ? null
-        : new ContractTradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt).text,
+        : new TradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt).text,
       sourceLabel ?? linkedStrategyLabel,
     )
   }

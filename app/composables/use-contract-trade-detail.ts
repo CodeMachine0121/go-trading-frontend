@@ -1,14 +1,14 @@
 import type { ContractTradeJournalApplication } from '~/application/contract-trade-journal-application'
 import type { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
-import type { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-price-path-dto'
+import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 import { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
 import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
 import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
-import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
+import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
 
 export function useContractTradeDetail(
   tradeId: () => number,
@@ -19,7 +19,7 @@ export function useContractTradeDetail(
   const loading = ref(false)
   const failureMessage = ref<string | null>(null)
   const notFound = ref(false)
-  const pricePath = ref<ContractTradePricePathDto | null>(null)
+  const pricePath = ref<TradePricePathDto | null>(null)
   const pricePathLoading = ref(false)
   const pricePathFailureMessage = ref<string | null>(null)
   const actionFailureMessage = ref<string | null>(null)
@@ -60,7 +60,7 @@ export function useContractTradeDetail(
     }
     catch (error: unknown) {
       record.value = null
-      notFound.value = error instanceof ContractTradeNotFoundError
+      notFound.value = error instanceof TradeRecordNotFoundError
       failureMessage.value = contractTradeJournalApplication.describeFailure(error).message
     }
     finally {
@@ -83,7 +83,7 @@ export function useContractTradeDetail(
     }
     catch (error: unknown) {
       actionFailureMessage.value = contractTradeJournalApplication.describeFailure(error).message
-      notFound.value = error instanceof ContractTradeNotFoundError
+      notFound.value = error instanceof TradeRecordNotFoundError
 
       return false
     }

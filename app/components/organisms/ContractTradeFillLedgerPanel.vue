@@ -28,7 +28,7 @@ watch(() => record, () => {
 </script>
 
 <template>
-  <AppPanel title="成交">
+  <AppPanel title="開倉與平倉紀錄">
     <ul class="contract-trade-fill-ledger-panel__fills">
       <li
         v-for="fill in record.fills"

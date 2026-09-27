@@ -5,20 +5,20 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ContractTradeDraftFillInputDto } from '~/domain/models/dto/contract-trade-draft-fill-input-dto'
 import type { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
-import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 
-const CONFIRM_ACTUAL_FILL_HINT = '請改成實際成交'
+const CONFIRM_ACTUAL_FILL_HINT = '請改成實際開倉的價格與數量'
 
 const {
   fees,
-  prefilledFields = new Set<ContractTradeFormField>(),
+  prefilledFields = new Set<TradeFormField>(),
   rejectedField = null,
   rejectionMessage = null,
   kinds = ['entry', 'exit'],
 } = defineProps<{
   fees: readonly ContractTradeDraftFeePreviewDto[]
-  prefilledFields?: ReadonlySet<ContractTradeFormField>
-  rejectedField?: ContractTradeFormField | null
+  prefilledFields?: ReadonlySet<TradeFormField>
+  rejectedField?: TradeFormField | null
   rejectionMessage?: string | null
   kinds?: readonly ContractTradeFillKind[]
 }>()
@@ -30,7 +30,7 @@ const emit = defineEmits<{
   remove: [key: number]
 }>()
 
-const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', readonly ContractTradeFormField[]>> = {
+const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', readonly TradeFormField[]>> = {
   price: ['fillPrice'],
   quantity: ['fillQuantity', 'exitQuantity'],
   time: ['fillTime'],
@@ -57,7 +57,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
             :key="kind"
             :value="kind"
           >
-            {{ kind === 'entry' ? '進場' : '出場' }}
+            {{ kind === 'entry' ? '開倉／加倉' : '減倉／平倉' }}
           </option>
         </AppSelect>
       </label>
@@ -73,7 +73,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       </label>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">成交價</span>
+        <span class="contract-trade-fill-editor__label">{{ fill.kind === 'entry' ? '開倉價' : '平倉價' }}</span>
         <AppInput
           v-model="fill.priceText"
           inputmode="decimal"
@@ -160,7 +160,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         :data-testid="`fill-add-${kind}`"
         @click="emit('add', kind)"
       >
-        ＋ 加一筆{{ kind === 'entry' ? '進場' : '出場' }}
+        ＋ {{ kind === 'entry' ? '加倉' : '減倉' }}
       </AppButton>
     </div>
   </div>

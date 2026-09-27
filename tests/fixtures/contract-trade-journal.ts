@@ -7,27 +7,27 @@ import { ContractTradeRecord } from '~/domain/models/entities/contract-trade-rec
 import { ContractTradeRecordSummary } from '~/domain/models/entities/contract-trade-record-summary'
 import { ContractTradeRecordPage } from '~/domain/models/entities/contract-trade-record-page'
 import { ContractTradeFill } from '~/domain/models/entities/contract-trade-fill'
-import { ContractTradeNote } from '~/domain/models/entities/contract-trade-note'
+import { TradeNote } from '~/domain/models/entities/trade-note'
 import { ContractTradeOutcome } from '~/domain/models/entities/contract-trade-outcome'
-import { ContractTradeMeasure } from '~/domain/models/entities/contract-trade-measure'
-import { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
+import { TradeMeasure } from '~/domain/models/entities/trade-measure'
+import { TradeSource } from '~/domain/models/entities/trade-source'
 import { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
 import { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trade-source-group'
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
-import type { ContractTradeUnavailableReason } from '~/domain/models/vo/contract-trade-unavailable-reason-vo'
+import type { TradeUnavailableReason } from '~/domain/models/vo/trade-unavailable-reason-vo'
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
 import type { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import type { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
 import type { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
 import { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 
-export function measured(value: string): ContractTradeMeasure {
-  return new ContractTradeMeasure(new Decimal(value), null)
+export function measured(value: string): TradeMeasure {
+  return new TradeMeasure(new Decimal(value), null)
 }
 
-export function unavailable(reason: ContractTradeUnavailableReason): ContractTradeMeasure {
-  return new ContractTradeMeasure(null, reason)
+export function unavailable(reason: TradeUnavailableReason): TradeMeasure {
+  return new TradeMeasure(null, reason)
 }
 
 export function closedOutcome(overrides: Partial<Record<keyof ContractTradeOutcome, unknown>> = {}): ContractTradeOutcome {
@@ -99,11 +99,11 @@ export function buildRecord(overrides: Partial<Record<keyof ContractTradeRecord,
       new ContractTradeFill(3, 'exit', new Date('2026-09-26T08:40:00Z'), new Decimal('100420'), new Decimal('0.051'), 'maker', new Decimal('2.56'), true),
     ],
     notes: [
-      new ContractTradeNote(2, '第二則', new Date('2026-09-27T02:00:00Z')),
-      new ContractTradeNote(1, '第一則', new Date('2026-09-26T09:00:00Z')),
+      new TradeNote(2, '第二則', new Date('2026-09-27T02:00:00Z')),
+      new TradeNote(1, '第一則', new Date('2026-09-26T09:00:00Z')),
     ],
     tags: [new TradeTag(1, 'setup', '突破'), new TradeTag(2, 'mistake', '提早出場')],
-    source: new ContractTradeSource('BTC 趨勢跟隨', 412, new Decimal('97850'), new Decimal('96380'), new Decimal('100785')),
+    source: new TradeSource('BTC 趨勢跟隨', 412, new Decimal('97850'), new Decimal('96380'), new Decimal('100785')),
     review: null,
     outcome: closedOutcome(),
     ...overrides,

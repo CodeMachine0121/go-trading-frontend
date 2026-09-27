@@ -2,12 +2,12 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
-import ContractTradeSummaryStrip from '~/components/molecules/ContractTradeSummaryStrip.vue'
-import ContractTradeRMultipleChart from '~/components/molecules/ContractTradeRMultipleChart.vue'
+import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
+import TradeCumulativeChart from '~/components/molecules/TradeCumulativeChart.vue'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 
 const { statistics = null, loading = false, failureMessage = null, periodOptions, timeZone } = defineProps<{
   statistics?: ContractTradeStatisticsDto | null
@@ -17,12 +17,12 @@ const { statistics = null, loading = false, failureMessage = null, periodOptions
   timeZone: TimeZoneDto
 }>()
 
-const period = defineModel<ContractTradeStatisticsPeriod>('period', { required: true })
+const period = defineModel<TradeStatisticsPeriod>('period', { required: true })
 
 const periodTab = computed({
   get: () => period.value,
   set: (value: string) => {
-    period.value = value as ContractTradeStatisticsPeriod
+    period.value = value as TradeStatisticsPeriod
   },
 })
 </script>
@@ -71,7 +71,7 @@ const periodTab = computed({
       </p>
 
       <template v-else>
-        <ContractTradeSummaryStrip :figures="statistics.figures" />
+        <TradeSummaryStrip :figures="statistics.figures" />
         <p
           v-if="statistics.exclusionNote"
           class="contract-trade-statistics-panel__note"
@@ -92,7 +92,7 @@ const periodTab = computed({
                 data-testid="statistics-total-r"
               >{{ statistics.totalRMultiple.text }}</span>
             </template>
-            <ContractTradeRMultipleChart
+            <TradeCumulativeChart
               :points="statistics.cumulativePoints"
               :time-zone="timeZone"
             />

@@ -3,17 +3,17 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import ContractTradeStatisticsPanel from '~/components/organisms/ContractTradeStatisticsPanel.vue'
 import { ContractTradeStatisticsDomain } from '~/domain/models/domains/contract-trade-statistics-domain'
-import { ContractTradeStatisticsPeriodDomain } from '~/domain/models/domains/contract-trade-statistics-period-domain'
+import { TradeStatisticsPeriodDomain } from '~/domain/models/domains/trade-statistics-period-domain'
 import { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
 import { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
-import { CONTRACT_TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import { TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/trade-statistics-period-vo'
 import { buildStatistics } from '../../fixtures/contract-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
-const PERIOD_OPTIONS = CONTRACT_TRADE_STATISTICS_PERIODS.map(period => new ContractTradeStatisticsPeriodDomain(period).toOptionDto())
+const PERIOD_OPTIONS = TRADE_STATISTICS_PERIODS.map(period => new TradeStatisticsPeriodDomain(period).toOptionDto())
 const TIME_ZONE = buildTimeZone('UTC')
-const STUBS = { ContractTradeRMultipleChart: true }
+const STUBS = { TradeCumulativeChart: true }
 
 function mountPanel(props: Record<string, unknown> = {}) {
   return mount(ContractTradeStatisticsPanel, {

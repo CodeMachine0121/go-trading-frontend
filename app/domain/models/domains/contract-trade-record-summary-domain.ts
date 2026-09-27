@@ -1,12 +1,12 @@
 import type { ContractTradeRecordSummary } from '~/domain/models/entities/contract-trade-record-summary'
 import { ContractTradeRecordRowDto } from '~/domain/models/dto/contract-trade-record-row-dto'
-import { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-figure-vo'
+import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import { ContractTradeDirectionDomain } from '~/domain/models/domains/contract-trade-direction-domain'
 import { ContractTradeStatusDomain } from '~/domain/models/domains/contract-trade-status-domain'
-import { ContractTradeMeasureDomain } from '~/domain/models/domains/contract-trade-measure-domain'
-import { ContractTradeLinkedStrategyDomain } from '~/domain/models/domains/contract-trade-linked-strategy-domain'
+import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain'
+import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
-import { ContractTradeTagChipVo } from '~/domain/models/vo/contract-trade-tag-chip-vo'
+import { TradeTagChipVo } from '~/domain/models/vo/trade-tag-chip-vo'
 
 const FLOATING_NOTE = '浮'
 const NOT_APPLICABLE_TEXT = '—'
@@ -30,7 +30,7 @@ export class ContractTradeRecordSummaryDomain {
       status.tone,
       status.awaitsReview,
       this.summary.source === null
-        ? new ContractTradeLinkedStrategyDomain(
+        ? new TradeLinkedStrategyDomain(
           this.summary.tradingStrategyId,
           this.summary.tradingStrategyName,
           this.summary.tradingStrategyDeleted).label
@@ -40,16 +40,16 @@ export class ContractTradeRecordSummaryDomain {
         ? NOT_APPLICABLE_TEXT
         : new JournalNumberDomain(this.summary.averageExitPrice).price(),
       status.isOpen || netProfit === null
-        ? new ContractTradeMeasureDomain(this.summary.floatingProfit).toFigure(
+        ? new TradeMeasureDomain(this.summary.floatingProfit).toFigure(
             PROFIT_LABEL,
             value => new JournalNumberDomain(value).signedAmount(),
             value => new JournalNumberDomain(value).tone(),
             FLOATING_NOTE)
-        : new ContractTradeFigureVo(
+        : new TradeFigureVo(
             PROFIT_LABEL, new JournalNumberDomain(netProfit).signedAmount(), new JournalNumberDomain(netProfit).tone()),
-      new ContractTradeMeasureDomain(this.summary.rMultiple).toFigure(
+      new TradeMeasureDomain(this.summary.rMultiple).toFigure(
         'R', value => new JournalNumberDomain(value).rMultiple(), () => 'neutral').text,
-      this.summary.tags.map(tag => new ContractTradeTagChipVo(tag.name, tag.kind === 'mistake' ? 'danger' : 'neutral')),
+      this.summary.tags.map(tag => new TradeTagChipVo(tag.name, tag.kind === 'mistake' ? 'danger' : 'neutral')),
     )
   }
 }

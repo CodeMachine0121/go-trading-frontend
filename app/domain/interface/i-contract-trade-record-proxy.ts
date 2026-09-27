@@ -7,7 +7,7 @@ import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-tra
 import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
 import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import type { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 
 export interface IContractTradeRecordProxy {
   recordTrade(writeDto: ContractTradeRecordWriteDto): Promise<ContractTradeRecord>
@@ -21,6 +21,6 @@ export interface IContractTradeRecordProxy {
   addNote(id: number, content: string): Promise<ContractTradeRecord>
   writeReview(id: number, reviewWriteDto: ContractTradeReviewWriteDto): Promise<ContractTradeRecord>
   assignSetupTags(id: number, setupTagIds: readonly number[]): Promise<ContractTradeRecord>
-  findStatistics(period: ContractTradeStatisticsPeriod): Promise<ContractTradeStatistics>
+  findStatistics(period: TradeStatisticsPeriod): Promise<ContractTradeStatistics>
   findJournalLink(identifier: string): Promise<ContractTradePrefill>
 }

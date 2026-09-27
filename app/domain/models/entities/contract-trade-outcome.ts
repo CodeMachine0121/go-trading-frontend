@@ -1,5 +1,5 @@
 import type Decimal from 'decimal.js'
-import type { ContractTradeMeasure } from '~/domain/models/entities/contract-trade-measure'
+import type { TradeMeasure } from '~/domain/models/entities/trade-measure'
 
 export class ContractTradeOutcome {
   constructor(
@@ -9,18 +9,18 @@ export class ContractTradeOutcome {
     public readonly grossProfit: Decimal,
     public readonly totalFee: Decimal,
     public readonly feeRateMissing: boolean,
-    public readonly fundingFee: ContractTradeMeasure,
+    public readonly fundingFee: TradeMeasure,
     public readonly netProfit: Decimal,
     public readonly netProfitExcludesFunding: boolean,
-    public readonly plannedRisk: ContractTradeMeasure,
-    public readonly rMultiple: ContractTradeMeasure,
-    public readonly maximumAdverseExcursion: ContractTradeMeasure,
-    public readonly maximumFavorableExcursion: ContractTradeMeasure,
+    public readonly plannedRisk: TradeMeasure,
+    public readonly rMultiple: TradeMeasure,
+    public readonly maximumAdverseExcursion: TradeMeasure,
+    public readonly maximumFavorableExcursion: TradeMeasure,
     public readonly maximumAdversePrice: Decimal | null,
     public readonly maximumFavorablePrice: Decimal | null,
-    public readonly profitCaptureRate: ContractTradeMeasure,
-    public readonly floatingProfit: ContractTradeMeasure,
-    public readonly estimatedLiquidationPrice: ContractTradeMeasure,
-    public readonly entrySlippagePercentage: ContractTradeMeasure,
+    public readonly profitCaptureRate: TradeMeasure,
+    public readonly floatingProfit: TradeMeasure,
+    public readonly estimatedLiquidationPrice: TradeMeasure,
+    public readonly entrySlippagePercentage: TradeMeasure,
   ) {}
 }

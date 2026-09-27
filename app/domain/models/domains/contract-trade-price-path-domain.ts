@@ -2,10 +2,10 @@ import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-
 import type { KCandleContract } from '~/domain/models/entities/k-candle-contract'
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-import { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-price-path-dto'
-import { ContractTradePricePathCandleDto } from '~/domain/models/dto/contract-trade-price-path-candle-dto'
-import { ContractTradePricePathMarkerDto } from '~/domain/models/dto/contract-trade-price-path-marker-dto'
-import { ContractTradePricePathLineDto } from '~/domain/models/dto/contract-trade-price-path-line-dto'
+import { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
+import { TradePricePathCandleDto } from '~/domain/models/dto/trade-price-path-candle-dto'
+import { TradePricePathMarkerDto } from '~/domain/models/dto/trade-price-path-marker-dto'
+import { TradePricePathLineDto } from '~/domain/models/dto/trade-price-path-line-dto'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 
 const MINIMUM_MARGIN_MILLISECONDS = 30 * 60 * 1000
@@ -38,32 +38,32 @@ export class ContractTradePricePathDomain {
     )
   }
 
-  toDto(kCandleContracts: readonly KCandleContract[]): ContractTradePricePathDto {
+  toDto(kCandleContracts: readonly KCandleContract[]): TradePricePathDto {
     if (kCandleContracts.length === 0) {
-      return new ContractTradePricePathDto([], [], [], NO_MARKET_DATA_MESSAGE)
+      return new TradePricePathDto([], [], [], NO_MARKET_DATA_MESSAGE)
     }
 
     const lineSources = [
-      { price: this.record.averageEntryPrice, label: '進場均價', tone: 'neutral' as const },
+      { price: this.record.averageEntryPrice, label: '開倉均價', tone: 'neutral' as const },
       { price: this.record.plannedStopLossPrice, label: '計畫止損', tone: 'danger' as const },
       { price: this.record.plannedTakeProfitPrice, label: '計畫止盈', tone: 'success' as const },
       { price: this.record.maximumAdversePrice, label: '最大不利', tone: 'muted' as const },
       { price: this.record.maximumFavorablePrice, label: '最大有利', tone: 'muted' as const },
     ]
 
-    return new ContractTradePricePathDto(
-      kCandleContracts.map(kCandleContract => new ContractTradePricePathCandleDto(
+    return new TradePricePathDto(
+      kCandleContracts.map(kCandleContract => new TradePricePathCandleDto(
         kCandleContract.openTime,
         kCandleContract.open,
         kCandleContract.high,
         kCandleContract.low,
         kCandleContract.close,
       )),
-      this.record.fills.map(fill => new ContractTradePricePathMarkerDto(
+      this.record.fills.map(fill => new TradePricePathMarkerDto(
         fill.filledAt, fill.kind, `${fill.kindLabel} ${fill.priceText}`)),
       lineSources.flatMap(lineSource => lineSource.price === null
         ? []
-        : [new ContractTradePricePathLineDto(
+        : [new TradePricePathLineDto(
             lineSource.price, lineSource.label, lineSource.tone, new JournalNumberDomain(lineSource.price).price())]),
       null,
     )

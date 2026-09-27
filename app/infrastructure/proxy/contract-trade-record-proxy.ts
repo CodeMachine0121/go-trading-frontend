@@ -4,11 +4,11 @@ import { ContractTradeRecord } from '~/domain/models/entities/contract-trade-rec
 import { ContractTradeRecordPage } from '~/domain/models/entities/contract-trade-record-page'
 import { ContractTradeRecordSummary } from '~/domain/models/entities/contract-trade-record-summary'
 import { ContractTradeFill } from '~/domain/models/entities/contract-trade-fill'
-import { ContractTradeNote } from '~/domain/models/entities/contract-trade-note'
-import { ContractTradeSource } from '~/domain/models/entities/contract-trade-source'
-import { ContractTradeReview } from '~/domain/models/entities/contract-trade-review'
+import { TradeNote } from '~/domain/models/entities/trade-note'
+import { TradeSource } from '~/domain/models/entities/trade-source'
+import { TradeReview } from '~/domain/models/entities/trade-review'
 import { ContractTradeOutcome } from '~/domain/models/entities/contract-trade-outcome'
-import { ContractTradeMeasure } from '~/domain/models/entities/contract-trade-measure'
+import { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
 import { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
@@ -21,21 +21,21 @@ import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-tra
 import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
 import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import type { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
 import type { TradeFillLiquidity } from '~/domain/models/vo/trade-fill-liquidity-vo'
 import type { TradeTagKind } from '~/domain/models/vo/trade-tag-kind-vo'
-import type { ContractTradeUnavailableReason } from '~/domain/models/vo/contract-trade-unavailable-reason-vo'
+import type { TradeUnavailableReason } from '~/domain/models/vo/trade-unavailable-reason-vo'
 import type { ContractTradePrefillMode } from '~/domain/models/vo/contract-trade-prefill-mode-vo'
-import { ContractTradeFormFieldVo } from '~/domain/models/vo/contract-trade-form-field-vo'
-import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
+import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
-import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
+import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
-import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-trade-open-position-exists-error'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import type { BackendRequestBody, BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 
@@ -44,7 +44,7 @@ const BAD_REQUEST_STATUS = 400
 const NOT_FOUND_STATUS = 404
 const CONFLICT_STATUS = 409
 
-const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, ContractTradeFormField>> = {
+const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, TradeFormField>> = {
   symbol: 'symbol',
   direction: 'direction',
   leverage: 'leverage',
@@ -59,13 +59,15 @@ const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, ContractTradeFormField>> =
   executionScore: 'executionScore',
 }
 
-const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, ContractTradeFormField])[] = [
+const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, TradeFormField])[] = [
   ['超過目前持倉', 'exitQuantity'],
   ['止損', 'plannedStopLossPrice'],
   ['止盈', 'plannedTakeProfitPrice'],
   ['槓桿', 'leverage'],
   ['合約標的', 'symbol'],
   ['成交時間', 'fillTime'],
+  ['開倉價', 'fillPrice'],
+  ['平倉價', 'fillPrice'],
   ['出場不能早於', 'fillTime'],
   ['成交價', 'fillPrice'],
   ['數量', 'fillQuantity'],
@@ -189,16 +191,16 @@ type ContractTradePrefillWire = {
   quantity?: string | null
 }
 
-const EXCURSION_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+const EXCURSION_REASONS: Readonly<Record<string, TradeUnavailableReason>> = {
   noMarketData: 'noMarketData',
 }
 
-const FLOATING_PROFIT_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+const FLOATING_PROFIT_REASONS: Readonly<Record<string, TradeUnavailableReason>> = {
   notOpen: 'notApplicable',
   noLatestPrice: 'noLatestPrice',
 }
 
-const LIQUIDATION_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+const LIQUIDATION_REASONS: Readonly<Record<string, TradeUnavailableReason>> = {
   notOpen: 'notApplicable',
   noTradingSpecification: 'noTradingSpecification',
 }
@@ -316,12 +318,12 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       `${CONTRACT_TRADE_RECORDS_ENDPOINT}/${id}/setup-tags`, 'PUT', { setupTagIds: [...setupTagIds] })
   }
 
-  async findStatistics(period: ContractTradeStatisticsPeriod): Promise<ContractTradeStatistics> {
+  async findStatistics(period: TradeStatisticsPeriod): Promise<ContractTradeStatistics> {
     const statisticsWire = await this.requestBackend<ContractTradeStatisticsWire>(
       `${CONTRACT_TRADE_RECORDS_ENDPOINT}/statistics`, { query: { period } })
 
     return new ContractTradeStatistics(
-      (statisticsWire.period || period) as ContractTradeStatisticsPeriod,
+      (statisticsWire.period || period) as TradeStatisticsPeriod,
       statisticsWire.closedTradeCount,
       statisticsWire.winCount ?? 0,
       new Decimal(statisticsWire.netProfit ?? 0),
@@ -394,14 +396,14 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     }
 
     if (error.status === NOT_FOUND_STATUS) {
-      return new ContractTradeNotFoundError(error.message, { cause: error })
+      return new TradeRecordNotFoundError(error.message, { cause: error })
     }
 
     if (error.status === CONFLICT_STATUS) {
       const mentionedTradeNumber = /#(\d+)/.exec(error.message)?.[1]
       const mentionedTradeId = mentionedTradeNumber === undefined ? null : Number(mentionedTradeNumber)
 
-      return new ContractTradeOpenPositionExistsError(
+      return new TradeAlreadyOpenError(
         error.message, error.openTradeId ?? mentionedTradeId, { cause: error })
     }
 
@@ -410,9 +412,9 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       const fieldFromMessage = FIELD_OF_MESSAGE_HINT.find(([hint]) => error.message.includes(hint))?.[1]
       const formField = fieldFromBackend ?? fieldFromMessage
 
-      return new ContractTradeRejectedError(
+      return new TradeRejectedError(
         error.message,
-        formField === undefined ? null : new ContractTradeFormFieldVo(formField),
+        formField === undefined ? null : new TradeFormFieldVo(formField),
         null,
         { cause: error })
     }
@@ -469,13 +471,13 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
         new Decimal(fillWire.fee),
         fillWire.feeRateMissing ?? false,
       )),
-      (recordWire.notes ?? []).map(noteWire => new ContractTradeNote(
+      (recordWire.notes ?? []).map(noteWire => new TradeNote(
         noteWire.id, noteWire.content, new Date(noteWire.createdAt))),
       [...(recordWire.setupTags ?? []), ...(recordWire.mistakeTags ?? [])].map(tagWire => new TradeTag(
         tagWire.id, tagWire.kind as TradeTagKind, tagWire.name)),
       sourceWire === null
         ? null
-        : new ContractTradeSource(
+        : new TradeSource(
             sourceWire.strategyBotName,
             sourceWire.runNumber,
             this.decimalOrNull(sourceWire.referencePrice),
@@ -484,7 +486,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
           ),
       reviewWire === null
         ? null
-        : new ContractTradeReview(
+        : new TradeReview(
             reviewWire.wentWell ?? '',
             reviewWire.wentWrong ?? '',
             reviewWire.nextTime ?? '',
@@ -529,10 +531,10 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     )
   }
 
-  private toMeasure(text: string | null | undefined, unavailableReason: ContractTradeUnavailableReason): ContractTradeMeasure {
+  private toMeasure(text: string | null | undefined, unavailableReason: TradeUnavailableReason): TradeMeasure {
     const value = this.decimalOrNull(text)
 
-    return new ContractTradeMeasure(value, value === null ? unavailableReason : null)
+    return new TradeMeasure(value, value === null ? unavailableReason : null)
   }
 
   private decimalOrNull(text: string | null | undefined): Decimal | null {

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import AppPanel from '~/components/atoms/AppPanel.vue'
-import ContractTradeSummaryStrip from '~/components/molecules/ContractTradeSummaryStrip.vue'
-import ContractTradePricePathChart from '~/components/molecules/ContractTradePricePathChart.vue'
+import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
+import TradePricePathChart from '~/components/molecules/TradePricePathChart.vue'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
-import type { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-price-path-dto'
+import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 const {
@@ -14,7 +14,7 @@ const {
   timeZone,
 } = defineProps<{
   record: ContractTradeRecordDto
-  pricePath?: ContractTradePricePathDto | null
+  pricePath?: TradePricePathDto | null
   pricePathLoading?: boolean
   pricePathFailureMessage?: string | null
   timeZone: TimeZoneDto
@@ -43,7 +43,7 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
       >
         讀取行情…
       </p>
-      <ContractTradePricePathChart
+      <TradePricePathChart
         v-else
         :price-path="pricePath"
         :time-zone="timeZone"
@@ -52,7 +52,7 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
 
     <AppPanel title="結果">
       <div class="contract-trade-outcome-panel__result">
-        <ContractTradeSummaryStrip
+        <TradeSummaryStrip
           v-for="(group, index) in record.outcome.figureGroups"
           :key="index"
           :figures="group"

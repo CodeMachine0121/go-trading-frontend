@@ -1,5 +1,5 @@
 import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
-import type { ContractTradeBadgeTone } from '~/domain/models/vo/contract-trade-badge-tone-vo'
+import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
 
 const STATUS_LABELS: Readonly<Record<ContractTradeStatus, string>> = {
   open: '持倉中',
@@ -7,7 +7,7 @@ const STATUS_LABELS: Readonly<Record<ContractTradeStatus, string>> = {
   reviewed: '已檢討',
 }
 
-const STATUS_TONES: Readonly<Record<ContractTradeStatus, ContractTradeBadgeTone>> = {
+const STATUS_TONES: Readonly<Record<ContractTradeStatus, TradeBadgeTone>> = {
   open: 'warning',
   closed: 'neutral',
   reviewed: 'success',
@@ -20,7 +20,7 @@ export class ContractTradeStatusDomain {
     return STATUS_LABELS[this.status]
   }
 
-  get tone(): ContractTradeBadgeTone {
+  get tone(): TradeBadgeTone {
     return STATUS_TONES[this.status]
   }
 

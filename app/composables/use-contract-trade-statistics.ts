@@ -3,15 +3,15 @@ import type { TradingStrategyApplication } from '~/application/trading-strategy-
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
-import { DEFAULT_CONTRACT_TRADE_STATISTICS_PERIOD } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
+import { DEFAULT_TRADE_STATISTICS_PERIOD } from '~/domain/models/vo/trade-statistics-period-vo'
 
 export function useContractTradeStatistics(
   contractTradeJournalApplication: ContractTradeJournalApplication = useNuxtApp().$contractTradeJournalApplication,
   tradingStrategyApplication: TradingStrategyApplication = useNuxtApp().$tradingStrategyApplication,
 ) {
   const periodOptions = contractTradeJournalApplication.listStatisticsPeriods()
-  const period = ref<ContractTradeStatisticsPeriod>(DEFAULT_CONTRACT_TRADE_STATISTICS_PERIOD)
+  const period = ref<TradeStatisticsPeriod>(DEFAULT_TRADE_STATISTICS_PERIOD)
   const statistics = ref<ContractTradeStatisticsDto | null>(null)
   const loading = ref(false)
   const failureMessage = ref<string | null>(null)

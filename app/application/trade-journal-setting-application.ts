@@ -3,12 +3,12 @@ import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-s
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 import type { TradeTagGroupDto } from '~/domain/models/dto/trade-tag-group-dto'
 import type { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
-import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
+import type { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
 
 export class TradeJournalSettingApplication {
   constructor(private readonly tradeJournalSettingService: TradeJournalSettingService) {}
 
-  describeFailure(error: unknown): ContractTradeFailureDto {
+  describeFailure(error: unknown): TradeFailureDto {
     return this.tradeJournalSettingService.describeFailure(error)
   }
 

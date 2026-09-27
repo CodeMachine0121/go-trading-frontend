@@ -11,12 +11,12 @@ import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-t
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
-import type { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-price-path-dto'
+import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
-import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
-import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
-import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
+import type { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 
 export class ContractTradeJournalApplication {
   constructor(private readonly contractTradeJournalService: ContractTradeJournalService) {}
@@ -41,7 +41,7 @@ export class ContractTradeJournalApplication {
     draft: ContractTradeDraftDto,
     setting: TradeJournalSettingDto,
     prefill: ContractTradePrefillDto,
-  ): ContractTradeFormField[] {
+  ): TradeFormField[] {
     return this.contractTradeJournalService.prefilledDraftFields(draft, setting, prefill)
   }
 
@@ -98,7 +98,7 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.listStatisticsPeriods()
   }
 
-  async getStatistics(period: ContractTradeStatisticsPeriod): Promise<ContractTradeStatisticsDto> {
+  async getStatistics(period: TradeStatisticsPeriod): Promise<ContractTradeStatisticsDto> {
     return this.contractTradeJournalService.getStatistics(period)
   }
 
@@ -106,11 +106,11 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.getLiveComparison(tradingStrategyId)
   }
 
-  describeFailure(error: unknown): ContractTradeFailureDto {
+  describeFailure(error: unknown): TradeFailureDto {
     return this.contractTradeJournalService.describeFailure(error)
   }
 
-  async getPricePath(record: ContractTradeRecordDto): Promise<ContractTradePricePathDto> {
+  async getPricePath(record: ContractTradeRecordDto): Promise<TradePricePathDto> {
     return this.contractTradeJournalService.getPricePath(record)
   }
 }

@@ -16,9 +16,9 @@ import type { ITradeTagProxy } from '~/domain/interface/i-trade-tag-proxy'
 import { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { ContractTradePrefill } from '~/domain/models/entities/contract-trade-prefill'
-import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
-import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-trade-open-position-exists-error'
-import { ContractTradeFormFieldVo } from '~/domain/models/vo/contract-trade-form-field-vo'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
+import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
+import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../../fixtures/contract-trade-journal'
 
 const recordProxy = contractTradeRecordProxyMock()
@@ -103,7 +103,7 @@ describe('ContractTradeForm：記一筆', () => {
   })
 
   it('止損放錯邊時原話寫在計畫止損旁', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new ContractTradeRejectedError('做多的止損必須低於進場價', new ContractTradeFormFieldVo('plannedStopLossPrice')))
+    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError('做多的止損必須低於進場價', new TradeFormFieldVo('plannedStopLossPrice')))
     const wrapper = mountForm()
     await flushPromises()
     await wrapper.get('[data-testid="trade-symbol"]').setValue('BTCUSDT')
@@ -120,7 +120,7 @@ describe('ContractTradeForm：記一筆', () => {
   })
 
   it('同標的同方向已有持倉中時表單上方寫原話並提供前往那一筆加成交', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new ContractTradeOpenPositionExistsError('BTCUSDT 做多已有持倉中的 #27，請在那一筆加成交', 27))
+    recordProxy.recordTrade.mockRejectedValue(new TradeAlreadyOpenError('BTCUSDT 做多已有持倉中的 #27，請在那一筆加成交', 27))
     const wrapper = mountForm()
     await flushPromises()
     await wrapper.get('[data-testid="trade-symbol"]').setValue('BTCUSDT')
@@ -132,7 +132,7 @@ describe('ContractTradeForm：記一筆', () => {
 
     expect(wrapper.get('[data-testid="form-rejection"]').text()).toContain('#27')
     expect(wrapper.get('[data-testid="form-rejection-go"]').attributes('href')).toBe('/contract-trade-journal/27')
-    expect(wrapper.get('[data-testid="form-rejection-go"]').text()).toContain('加成交')
+    expect(wrapper.get('[data-testid="form-rejection-go"]').text()).toContain('加倉')
   })
 
   it('就地新增型態標籤、貼既有標籤、挑關聯交易策略後一起送出', async () => {
@@ -166,7 +166,7 @@ describe('ContractTradeForm：記一筆', () => {
 
   it('後面的成交沒存成功時提供前往已建立的那一筆', async () => {
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new ContractTradeRejectedError('請求有誤', null))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError('請求有誤', null))
     const wrapper = mountForm()
     await flushPromises()
     await wrapper.get('[data-testid="trade-symbol"]').setValue('BTCUSDT')
@@ -193,7 +193,7 @@ describe('ContractTradeForm：從連結打開', () => {
     expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('來自 BTC 趨勢跟隨・第 412 輪')
     expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('2026-09-25 06:00 送出')
     expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('參考價 97,850')
-    expect(wrapper.get('[data-testid="fill-price-confirm"]').text()).toBe('請改成實際成交')
+    expect(wrapper.get('[data-testid="fill-price-confirm"]').text()).toBe('請改成實際開倉的價格與數量')
     expect((wrapper.get('[data-testid="trade-symbol"]').element as HTMLInputElement).value).toBe('BTCUSDT')
     expect(wrapper.text()).toContain('預填')
     expect(wrapper.emitted('redirect')).toBeUndefined()

@@ -18,8 +18,8 @@ describe('ContractTradeFillEditor', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="fill-price-confirm"]').text()).toBe('請改成實際成交')
-    expect(wrapper.get('[data-testid="fill-quantity-confirm"]').text()).toBe('請改成實際成交')
+    expect(wrapper.get('[data-testid="fill-price-confirm"]').text()).toBe('請改成實際開倉的價格與數量')
+    expect(wrapper.get('[data-testid="fill-quantity-confirm"]').text()).toBe('請改成實際開倉的價格與數量')
     expect(wrapper.get('[data-testid="fill-fee"]').attributes('placeholder')).toBe('2.45')
   })
 
