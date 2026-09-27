@@ -29,15 +29,16 @@ describe('ContractTradeDraftDomain', () => {
   })
 
   it.each([
-    { name: '從機器人連結帶入時說出和參考價差多少', referencePrice: new Decimal('97850'), expected: '比參考價高 0.08%（滑點）' },
-    { name: '不是從連結來就不說', referencePrice: null, expected: null },
-  ])('$name', ({ referencePrice, expected }) => {
+    { name: '從機器人連結帶入時說出和參考價差多少', referencePrice: new Decimal('97850'), existingFills: null, expected: '比參考價高 0.08%（滑點）' },
+    { name: '不是從連結來就不說', referencePrice: null, existingFills: null, expected: null },
+    { name: '對既有持倉加倉時不說（滑點只算在開倉那一筆交易上）', referencePrice: new Decimal('97850'), existingFills: buildRecord({ status: 'open' }).toDomain().toDto().fills, expected: null },
+  ])('$name', ({ referencePrice, existingFills, expected }) => {
     const preview = new ContractTradeDraftDomain(
       new ContractTradeDraftDto('BTCUSDT', 'long', '10', [
         new ContractTradeDraftFillDto('entry', null, '97905', '0.030', 'taker', ''),
         new ContractTradeDraftFillDto('entry', null, '97960', '0.021', 'taker', ''),
       ], '', '', '', null, null, [], 'link-1', referencePrice),
-      takerFeeSetting()).toPreviewDto()
+      takerFeeSetting(), existingFills).toPreviewDto()
 
     expect(preview.entrySlippageText).toBe(expected)
   })

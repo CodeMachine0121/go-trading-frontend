@@ -56,7 +56,7 @@ export class ContractTradeDraftDomain {
       : averageEntryPrice.minus(plannedStopLoss)
     const plannedTakeProfit = new DecimalInputDomain(this.draft.plannedTakeProfitText).value
     const referencePrice = this.draft.referencePrice
-    const entrySlippageText = averageEntryPrice === null || referencePrice === null || referencePrice.isZero()
+    const entrySlippageText = this.existingFills !== null || averageEntryPrice === null || referencePrice === null || referencePrice.isZero()
       ? null
       : new ContractTradeEntrySlippageDomain(this.draft.direction, averageEntryPrice, referencePrice).text
     const distanceText = (level: Decimal | null) => averageEntryPrice === null || level === null

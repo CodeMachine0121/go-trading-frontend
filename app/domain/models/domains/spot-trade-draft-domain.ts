@@ -66,7 +66,7 @@ export class SpotTradeDraftDomain {
         ? null
         : new JournalNumberDomain(averageBuyPrice.minus(plannedStopLoss).abs().times(boughtQuantity)).amount(),
       distanceText(plannedTakeProfit),
-      averageBuyPrice === null || referencePrice === null || referencePrice.isZero()
+      this.existingFills !== null || averageBuyPrice === null || referencePrice === null || referencePrice.isZero()
         ? null
         : `比參考價${averageBuyPrice.greaterThanOrEqualTo(referencePrice) ? '高' : '低'} ${new JournalNumberDomain(
           averageBuyPrice.minus(referencePrice).abs().dividedBy(referencePrice).times(PERCENT)).percentage(SLIPPAGE_FRACTION_DIGITS)}（滑點）`,

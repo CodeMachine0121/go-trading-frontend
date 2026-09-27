@@ -318,6 +318,7 @@ describe('SpotTradeJournalApplication 記一筆', () => {
 
     expect(application.previewDraft(draft({ referencePrice: new Decimal('1048') })).entrySlippageText).toBe('比參考價高 0.19%（滑點）')
     expect(application.previewDraft(draft({ referencePrice: new Decimal('1060') })).entrySlippageText).toBe('比參考價低 0.94%（滑點）')
+    expect(application.previewDraft(draft({ referencePrice: new Decimal('1048') }), buildSpotRecord({ status: 'open' }).toDomain().toDto().fills).entrySlippageText).toBeNull()
   })
 
   it.each([
