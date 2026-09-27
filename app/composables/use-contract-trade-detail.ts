@@ -68,7 +68,7 @@ export function useContractTradeDetail(
     }
   }
 
-  async function act(action: () => Promise<ContractTradeRecordDto>): Promise<boolean> {
+  async function act(action: () => Promise<ContractTradeRecordDto>, redrawsPricePath = false): Promise<boolean> {
     if (busy.value) {
       return false
     }
@@ -77,7 +77,11 @@ export function useContractTradeDetail(
     actionFailureMessage.value = null
 
     try {
-      record.value = await action()
+      const savedRecord = await action()
+      record.value = savedRecord
+      if (redrawsPricePath) {
+        void loadPricePath(savedRecord)
+      }
 
       return true
     }
@@ -99,7 +103,7 @@ export function useContractTradeDetail(
     confidence: number | null,
   ): Promise<boolean> {
     return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new TradePlanInputDto(
-      plannedStopLossText, plannedTakeProfitText, entryReason, confidence)))
+      plannedStopLossText, plannedTakeProfitText, entryReason, confidence)), true)
   }
 
   async function addNote(content: string): Promise<boolean> {
@@ -143,11 +147,11 @@ export function useContractTradeDetail(
     feeText: string,
   ): Promise<boolean> {
     return act(() => contractTradeJournalApplication.amendFill(
-      tradeId(), new ContractTradeFillAmendmentDto(fill, priceText, quantityText, feeText)))
+      tradeId(), new ContractTradeFillAmendmentDto(fill, priceText, quantityText, feeText)), true)
   }
 
   async function removeFill(fillId: number): Promise<boolean> {
-    return act(() => contractTradeJournalApplication.removeFill(tradeId(), fillId))
+    return act(() => contractTradeJournalApplication.removeFill(tradeId(), fillId), true)
   }
 
   async function deleteTrade(): Promise<boolean> {

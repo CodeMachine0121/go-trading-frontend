@@ -167,6 +167,22 @@ describe('useSpotTradeDetail：寫入', () => {
     expect(detail.actionFailureMessage.value).toContain('至少要有一筆進場成交')
   })
 
+  it('修正、刪除成交或改計畫後重讀價格路徑；加附註不重讀', async () => {
+    recordProxy.removeFill.mockResolvedValue(buildSpotRecord({ status: 'open' }))
+    recordProxy.amendPlan.mockResolvedValue(buildSpotRecord({ status: 'open' }))
+    recordProxy.addNote.mockResolvedValue(buildSpotRecord({ status: 'open' }))
+    const detail = detailUnderTest()
+
+    await detail.addNote('附註')
+    expect(kCandleProxy.findKCandleSeries).not.toHaveBeenCalled()
+
+    await detail.removeFill(3)
+    await vi.waitFor(() => expect(kCandleProxy.findKCandleSeries).toHaveBeenCalledTimes(1))
+
+    await detail.savePlan('990', '', '', null)
+    await vi.waitFor(() => expect(kCandleProxy.findKCandleSeries).toHaveBeenCalledTimes(2))
+  })
+
   it('動作進行中不接受下一個', async () => {
     recordProxy.removeFill.mockReturnValue(new Promise(() => {}))
     const detail = detailUnderTest()
