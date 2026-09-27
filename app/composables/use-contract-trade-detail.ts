@@ -28,30 +28,6 @@ export function useContractTradeDetail(
   const mistakeTags = ref<TradeTagDto[]>([])
   const setupTags = ref<TradeTagDto[]>([])
 
-  const planStopLossText = ref('')
-  const planTakeProfitText = ref('')
-  const planEntryReason = ref('')
-  const planConfidence = ref<number | null>(null)
-  const noteText = ref('')
-  const reviewWentWell = ref('')
-  const reviewWentWrong = ref('')
-  const reviewNextTime = ref('')
-  const reviewExecutionScore = ref(3)
-  const reviewMistakeTagIds = ref<number[]>([])
-
-  function adopt(loadedRecord: ContractTradeRecordDto): void {
-    record.value = loadedRecord
-    planStopLossText.value = loadedRecord.plannedStopLossPrice?.toString() ?? ''
-    planTakeProfitText.value = loadedRecord.plannedTakeProfitPrice?.toString() ?? ''
-    planEntryReason.value = loadedRecord.entryReason
-    planConfidence.value = loadedRecord.confidence
-    reviewWentWell.value = loadedRecord.review?.wentWell ?? ''
-    reviewWentWrong.value = loadedRecord.review?.wentWrong ?? ''
-    reviewNextTime.value = loadedRecord.review?.nextTime ?? ''
-    reviewExecutionScore.value = loadedRecord.review?.executionScore ?? 3
-    reviewMistakeTagIds.value = loadedRecord.mistakeTags.map(tag => tag.id)
-  }
-
   async function loadPricePath(loadedRecord: ContractTradeRecordDto): Promise<void> {
     pricePathLoading.value = true
     pricePathFailureMessage.value = null
@@ -78,7 +54,7 @@ export function useContractTradeDetail(
         contractTradeJournalApplication.getTrade(tradeId()),
         tradeJournalSettingApplication.listTagGroups(),
       ])
-      adopt(loadedRecord)
+      record.value = loadedRecord
       mistakeTags.value = tagGroups.filter(group => group.kind === 'mistake').flatMap(group => group.tags)
       setupTags.value = tagGroups.filter(group => group.kind === 'setup').flatMap(group => group.tags)
       void loadPricePath(loadedRecord)
@@ -102,7 +78,7 @@ export function useContractTradeDetail(
     actionFailureMessage.value = null
 
     try {
-      adopt(await action())
+      record.value = await action()
 
       return true
     }
@@ -123,31 +99,36 @@ export function useContractTradeDetail(
     return trimmed === '' || Number.isNaN(Number(trimmed)) ? null : new Decimal(trimmed)
   }
 
-  async function savePlan(): Promise<boolean> {
+  async function savePlan(
+    plannedStopLossText: string,
+    plannedTakeProfitText: string,
+    entryReason: string,
+    confidence: number | null,
+  ): Promise<boolean> {
     return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new ContractTradePlanWriteDto(
-      decimalOrNull(planStopLossText.value),
-      decimalOrNull(planTakeProfitText.value),
-      planEntryReason.value,
-      planConfidence.value)))
+      decimalOrNull(plannedStopLossText),
+      decimalOrNull(plannedTakeProfitText),
+      entryReason,
+      confidence)))
   }
 
-  async function addNote(): Promise<void> {
-    if (noteText.value.trim() === '') {
-      return
+  async function addNote(content: string): Promise<boolean> {
+    if (content.trim() === '') {
+      return false
     }
 
-    if (await act(() => contractTradeJournalApplication.addNote(tradeId(), noteText.value))) {
-      noteText.value = ''
-    }
+    return act(() => contractTradeJournalApplication.addNote(tradeId(), content))
   }
 
-  async function writeReview(): Promise<boolean> {
+  async function writeReview(
+    wentWell: string,
+    wentWrong: string,
+    nextTime: string,
+    executionScore: number,
+    mistakeTagIds: readonly number[],
+  ): Promise<boolean> {
     return act(() => contractTradeJournalApplication.writeReview(tradeId(), new ContractTradeReviewWriteDto(
-      reviewWentWell.value,
-      reviewWentWrong.value,
-      reviewNextTime.value,
-      reviewExecutionScore.value,
-      [...reviewMistakeTagIds.value])))
+      wentWell, wentWrong, nextTime, executionScore, [...mistakeTagIds])))
   }
 
   async function assignSetupTags(setupTagIds: readonly number[]): Promise<boolean> {
@@ -165,7 +146,12 @@ export function useContractTradeDetail(
     }
   }
 
-  async function amendFill(fill: ContractTradeFillDto, priceText: string, quantityText: string, feeText: string): Promise<boolean> {
+  async function amendFill(
+    fill: ContractTradeFillDto,
+    priceText: string,
+    quantityText: string,
+    feeText: string,
+  ): Promise<boolean> {
     const price = decimalOrNull(priceText)
     const quantity = decimalOrNull(quantityText)
     if (price === null || quantity === null) {
@@ -206,7 +192,7 @@ export function useContractTradeDetail(
   }
 
   function adoptSavedRecord(savedRecord: ContractTradeRecordDto): void {
-    adopt(savedRecord)
+    record.value = savedRecord
     void loadPricePath(savedRecord)
   }
 
@@ -222,16 +208,6 @@ export function useContractTradeDetail(
     busy,
     mistakeTags,
     setupTags,
-    planStopLossText,
-    planTakeProfitText,
-    planEntryReason,
-    planConfidence,
-    noteText,
-    reviewWentWell,
-    reviewWentWrong,
-    reviewNextTime,
-    reviewExecutionScore,
-    reviewMistakeTagIds,
     loadTrade,
     savePlan,
     addNote,

@@ -64,7 +64,10 @@ export class ContractTradeStatisticsDomain {
       this.statistics.cumulativeRMultiples.map(point => new ContractTradeChartPointDto(
         point.closedAt, point.cumulativeRMultiple.toNumber())),
       this.statistics.rMultipleDistribution.map(bucket => new ContractTradeDistributionBarDto(
-        bucket.label, bucket.count, bucket.profitable ? 'success' : 'danger')),
+        bucket.label,
+        bucket.count,
+        bucket.profitable ? 'success' : 'danger',
+        (bucket.count / Math.max(1, ...this.statistics.rMultipleDistribution.map(other => other.count))) * PERCENT)),
       this.statistics.mistakeCosts.map(mistakeCost => new ContractTradeMistakeCostRowDto(
         mistakeCost.tagName,
         `${mistakeCost.tradeCount} 筆`,

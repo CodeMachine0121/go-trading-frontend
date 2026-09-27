@@ -11,7 +11,6 @@ import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contra
 import type { ITradeJournalSettingProxy } from '~/domain/interface/i-trade-journal-setting-proxy'
 import type { ITradeTagProxy } from '~/domain/interface/i-trade-tag-proxy'
 import { TradeTag } from '~/domain/models/entities/trade-tag'
-import { ContractTradeReview } from '~/domain/models/entities/contract-trade-review'
 import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
 import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
@@ -46,32 +45,16 @@ beforeEach(() => {
 })
 
 describe('useContractTradeDetail：讀取', () => {
-  it('讀進這一筆、兩類標籤，計畫欄位填好，接著讀價格路徑', async () => {
+  it('讀進這一筆與兩類標籤，接著讀價格路徑', async () => {
     const detail = detailUnderTest()
 
     await detail.loadTrade()
 
     expect(detail.record.value?.id).toBe(27)
-    expect(detail.planStopLossText.value).toBe('96380')
-    expect(detail.planEntryReason.value).toBe('4H 收在前高之上')
     expect(detail.mistakeTags.value.map(tag => tag.name)).toEqual(['提早出場'])
     expect(detail.setupTags.value.map(tag => tag.name)).toEqual(['突破'])
-    expect(detail.reviewMistakeTagIds.value).toEqual([2])
+    expect(detail.loading.value).toBe(false)
     await vi.waitFor(() => expect(detail.pricePath.value?.emptyMessage).toBe('沒有行情資料，無法計算'))
-  })
-
-  it('已檢討的交易帶回檢討內容', async () => {
-    recordProxy.findTrade.mockResolvedValue(buildRecord({
-      status: 'reviewed', review: new ContractTradeReview('照計畫', '提早出場', '讓止盈成交', 4, new Date()),
-      plannedStopLossPrice: null, plannedTakeProfitPrice: null,
-    }))
-    const detail = detailUnderTest()
-
-    await detail.loadTrade()
-
-    expect(detail.reviewWentWrong.value).toBe('提早出場')
-    expect(detail.reviewExecutionScore.value).toBe(4)
-    expect(detail.planStopLossText.value).toBe('')
   })
 
   it('價格路徑讀不到只影響圖', async () => {
@@ -82,6 +65,7 @@ describe('useContractTradeDetail：讀取', () => {
 
     await vi.waitFor(() => expect(detail.pricePathFailureMessage.value).toContain('連不上'))
     expect(detail.record.value).not.toBeNull()
+    expect(detail.pricePath.value).toBeNull()
   })
 
   it('別人的或已刪除的交易說找不到', async () => {
@@ -100,57 +84,37 @@ describe('useContractTradeDetail：寫入', () => {
   it('修改計畫送出讀得懂的數字，讀不懂的當作沒有', async () => {
     recordProxy.amendPlan.mockResolvedValue(buildRecord({ status: 'open' }))
     const detail = detailUnderTest()
-    await detail.loadTrade()
-    detail.planStopLossText.value = '96300'
-    detail.planTakeProfitText.value = 'abc'
-    detail.planConfidence.value = 4
 
-    expect(await detail.savePlan()).toBe(true)
+    expect(await detail.savePlan('96300', 'abc', '理由', 4)).toBe(true)
 
     const [, planWriteDto] = recordProxy.amendPlan.mock.calls[0] as [number, ContractTradePlanWriteDto]
     expect(planWriteDto.plannedStopLossPrice?.toString()).toBe('96300')
     expect(planWriteDto.plannedTakeProfitPrice).toBeNull()
-    expect(planWriteDto.confidence).toBe(4)
+    expect(planWriteDto).toMatchObject({ entryReason: '理由', confidence: 4 })
   })
 
   it('平倉後修改計畫的拒絕原話呈現', async () => {
     recordProxy.amendPlan.mockRejectedValue(new ContractTradeRejectedError('平倉後計畫已鎖定，可以加附註', null))
     const detail = detailUnderTest()
 
-    expect(await detail.savePlan()).toBe(false)
+    expect(await detail.savePlan('', '', '', null)).toBe(false)
     expect(detail.actionFailureMessage.value).toBe('平倉後計畫已鎖定，可以加附註')
   })
 
-  it('加附註後清空輸入；空白不送', async () => {
+  it('加附註；空白不送', async () => {
     recordProxy.addNote.mockResolvedValue(buildRecord())
     const detail = detailUnderTest()
 
-    await detail.addNote()
-    detail.noteText.value = '止損其實是 96,300'
-    await detail.addNote()
-
+    expect(await detail.addNote('  ')).toBe(false)
+    expect(await detail.addNote('止損其實是 96,300')).toBe(true)
     expect(recordProxy.addNote).toHaveBeenCalledTimes(1)
-    expect(detail.noteText.value).toBe('')
-  })
-
-  it('加附註失敗時保留輸入', async () => {
-    recordProxy.addNote.mockRejectedValue(new BackendUnreachableError('http://x'))
-    const detail = detailUnderTest()
-    detail.noteText.value = '附註'
-
-    await detail.addNote()
-
-    expect(detail.noteText.value).toBe('附註')
   })
 
   it('寫檢討送出評分與失誤標籤', async () => {
     recordProxy.writeReview.mockResolvedValue(buildRecord({ status: 'reviewed' }))
     const detail = detailUnderTest()
-    detail.reviewWentWell.value = '照計畫'
-    detail.reviewExecutionScore.value = 4
-    detail.reviewMistakeTagIds.value = [2]
 
-    expect(await detail.writeReview()).toBe(true)
+    expect(await detail.writeReview('照計畫', '提早出場', '讓止盈成交', 4, [2])).toBe(true)
     expect(recordProxy.writeReview).toHaveBeenCalledWith(27, expect.objectContaining({ executionScore: 4, mistakeTagIds: [2] }))
     expect(detail.record.value?.statusLabel).toBe('已檢討')
   })
@@ -196,11 +160,11 @@ describe('useContractTradeDetail：寫入', () => {
 
     expect(await detail.amendFill(fill, 'abc', '0.03', '')).toBe(false)
     expect(detail.actionFailureMessage.value).toBe('成交價與數量要填數字')
-    expect(await detail.amendFill(fill, '97905', '0.03', '1.2')).toBe(true)
+    expect(await detail.amendFill(fill, '97906', '0.03', '1.2')).toBe(true)
 
     const [, fillId, fillWriteDto] = recordProxy.amendFill.mock.calls[0] as [number, number, ContractTradeFillWriteDto]
     expect(fillId).toBe(1)
-    expect(fillWriteDto.price.toString()).toBe('97905')
+    expect(fillWriteDto.price.toString()).toBe('97906')
     expect(fillWriteDto.fee?.toString()).toBe('1.2')
   })
 
@@ -220,7 +184,7 @@ describe('useContractTradeDetail：寫入', () => {
 
     void detail.removeFill(3)
 
-    expect(await detail.savePlan()).toBe(false)
+    expect(await detail.savePlan('', '', '', null)).toBe(false)
     expect(await detail.deleteTrade()).toBe(false)
     expect(recordProxy.amendPlan).not.toHaveBeenCalled()
   })
@@ -229,7 +193,7 @@ describe('useContractTradeDetail：寫入', () => {
     recordProxy.writeReview.mockRejectedValue(new ContractTradeNotFoundError('找不到這筆交易'))
     const detail = detailUnderTest()
 
-    await detail.writeReview()
+    await detail.writeReview('', '', '', 3, [])
 
     expect(detail.notFound.value).toBe(true)
   })
@@ -247,7 +211,7 @@ describe('useContractTradeDetail：寫入', () => {
   it('從加成交表單存好的那一筆直接換上，並重讀價格路徑', async () => {
     const detail = detailUnderTest()
 
-    detail.adoptSavedRecord(buildRecord({ status: 'closed', outcome: buildRecord().outcome, leverage: new Decimal(5) }).toDomain().toDto())
+    detail.adoptSavedRecord(buildRecord({ status: 'closed', leverage: new Decimal(5) }).toDomain().toDto())
 
     expect(detail.record.value?.statusLabel).toBe('已平倉')
     await vi.waitFor(() => expect(kCandleContractProxy.findKCandleContractSeries).toHaveBeenCalled())

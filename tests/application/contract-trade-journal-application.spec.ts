@@ -804,7 +804,7 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
     ])
     expect(statistics.exclusionNote).toBe('3 筆沒設止損，未計入 R')
     expect(statistics.cumulativePoints[0]?.value).toBe(1.5)
-    expect(statistics.distribution.map(bar => bar.tone)).toEqual(['danger', 'success'])
+    expect(statistics.distribution.map(bar => [bar.tone, bar.widthPercentage])).toEqual([['danger', 100], ['success', 50]])
     expect(statistics.mistakeCosts[0]).toMatchObject({ tagName: '移動止損', tradeCountText: '4 筆', rMultipleText: '−3.20R', tone: 'danger' })
     expect(statistics.sourceComparison).toEqual([
       expect.objectContaining({ label: '有關聯策略', tradeCountText: '22 筆', winRateText: '56%', averageRMultipleText: '+0.71R' }),

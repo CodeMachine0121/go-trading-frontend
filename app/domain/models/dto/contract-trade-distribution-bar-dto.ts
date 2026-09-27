@@ -5,5 +5,6 @@ export class ContractTradeDistributionBarDto {
     public readonly label: string,
     public readonly count: number,
     public readonly tone: ContractTradeFigureTone,
+    public readonly widthPercentage: number,
   ) {}
 }
