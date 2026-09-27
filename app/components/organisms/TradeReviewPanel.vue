@@ -37,7 +37,14 @@ const nextTime = ref('')
 const executionScore = ref<number | null>(DEFAULT_EXECUTION_SCORE)
 const mistakeTagIds = ref<number[]>([])
 
-watch([() => review, () => recordedMistakeTags], () => {
+// Keyed on the saved review so a refetch after a note or fill change keeps the text being typed.
+watch(() => JSON.stringify([
+  review?.wentWell,
+  review?.wentWrong,
+  review?.nextTime,
+  review?.executionScore,
+  recordedMistakeTags.map(tag => tag.id),
+]), () => {
   wentWell.value = review?.wentWell ?? ''
   wentWrong.value = review?.wentWrong ?? ''
   nextTime.value = review?.nextTime ?? ''

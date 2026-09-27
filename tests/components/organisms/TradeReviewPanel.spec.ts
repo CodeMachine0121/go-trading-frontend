@@ -60,4 +60,19 @@ describe('TradeReviewPanel', () => {
     expect(wrapper.get('[data-testid="tag-option-2"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('[data-testid="review-save"]').text()).toBe('更新檢討')
   })
+
+  it('頁面上別處的變動（例如加附註）不會清掉正在寫的檢討，存下的檢討變了才重帶', async () => {
+    const wrapper = mount(TradeReviewPanel, {
+      props: { ...reviewPropsOf(buildRecord({ tags: [] })), mistakeTags: MISTAKE_TAGS },
+    })
+
+    await wrapper.get('[data-testid="review-went-well"]').setValue('寫到一半')
+    await wrapper.setProps(reviewPropsOf(buildRecord({ tags: [], notes: [] })))
+
+    expect((wrapper.get('[data-testid="review-went-well"]').element as HTMLTextAreaElement).value).toBe('寫到一半')
+
+    await wrapper.setProps(reviewPropsOf(buildRecord({ status: 'reviewed', tags: [], review: new TradeReview('已存下', '', '', 4, new Date()) })))
+
+    expect((wrapper.get('[data-testid="review-went-well"]').element as HTMLTextAreaElement).value).toBe('已存下')
+  })
 })
