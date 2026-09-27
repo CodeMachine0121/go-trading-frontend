@@ -18,7 +18,7 @@ import { ContractTradeOpenPositionExistsError } from '~/domain/errors/contract-t
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { formatMinuteInputInTimeZone, parseMinuteInputInTimeZone } from '~/utilities/time-zone-format'
 
-const JOURNAL_LINK_NOT_FOUND_MESSAGE = '找不到這一輪的建議（可能已不在紀錄中），請手動填寫。'
+const JOURNAL_LINK_NOT_FOUND_MESSAGE = '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。'
 
 export function useContractTradeDraft(
   options: {
@@ -53,6 +53,7 @@ export function useContractTradeDraft(
   const prefillLoading = ref(false)
   const prefillMessage = ref<string | null>(null)
   const prefillFailed = ref(false)
+  const prefillNotFound = ref(false)
 
   const saving = ref(false)
   const rejectionMessage = ref<string | null>(null)
@@ -133,6 +134,7 @@ export function useContractTradeDraft(
     prefillLoading.value = true
     prefillMessage.value = null
     prefillFailed.value = false
+    prefillNotFound.value = false
 
     try {
       const loadedPrefill = await contractTradeJournalApplication.openJournalLink(identifier)
@@ -156,7 +158,8 @@ export function useContractTradeDraft(
     catch (error: unknown) {
       const failure = contractTradeJournalApplication.describeFailure(error)
       prefillFailed.value = failure.unreachable
-      prefillMessage.value = error instanceof JournalLinkNotFoundError
+      prefillNotFound.value = error instanceof JournalLinkNotFoundError
+      prefillMessage.value = prefillNotFound.value
         ? JOURNAL_LINK_NOT_FOUND_MESSAGE
         : failure.message
 
@@ -247,6 +250,7 @@ export function useContractTradeDraft(
     prefillLoading,
     prefillMessage,
     prefillFailed,
+    prefillNotFound,
     prefilledFields,
     preview,
     dirty,

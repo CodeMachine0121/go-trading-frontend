@@ -86,6 +86,7 @@ const confidenceValue = computed({
       v-if="draft.prefill.value || draft.prefillMessage.value"
       :prefill="draft.prefill.value"
       :message="draft.prefillMessage.value"
+      :show-journal-link="draft.prefillNotFound.value"
       :time-zone-identifier="timeZoneIdentifier"
     />
 

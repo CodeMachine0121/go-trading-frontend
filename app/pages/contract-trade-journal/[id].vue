@@ -32,6 +32,8 @@ const detail = useContractTradeDetail(() => tradeId.value)
 const addingFills = ref(route.query.addFill === 'entry')
 const addFillDirty = ref(false)
 const deleteConfirmationOpen = ref(false)
+const closedJustNow = ref(false)
+const reviewPanel = useTemplateRef<InstanceType<typeof ContractTradeReviewPanel>>('reviewPanel')
 const leaveConfirmation = useLeaveConfirmation(() => addingFills.value && addFillDirty.value)
 
 onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
@@ -119,10 +121,25 @@ onMounted(() => {
           :contract-trade-journal-application="$contractTradeJournalApplication"
           :trade-journal-setting-application="$tradeJournalSettingApplication"
           :trading-strategy-application="$tradingStrategyApplication"
-          @saved="record => { detail.adoptSavedRecord(record); addingFills = false; addFillDirty = false; announce(record.status === 'open' ? '已加上成交' : '這筆已平倉，可以寫檢討') }"
+          @saved="record => { detail.adoptSavedRecord(record); addingFills = false; addFillDirty = false; closedJustNow = record.status !== 'open'; announce(record.status === 'open' ? '已加上成交' : '這筆已平倉') }"
           @dirty-change="value => (addFillDirty = value)"
         />
       </AppPanel>
+
+      <AppAlert
+        v-if="closedJustNow"
+        tone="success"
+      >
+        這筆已平倉
+        <template #action>
+          <AppButton
+            variant="ghost"
+            @click="closedJustNow = false; reviewPanel?.$el?.scrollIntoView?.({ behavior: 'smooth' })"
+          >
+            去寫檢討
+          </AppButton>
+        </template>
+      </AppAlert>
 
       <ContractTradeOutcomePanel
         :record="detail.record.value"
@@ -147,6 +164,7 @@ onMounted(() => {
           @create-setup-tag="detail.createSetupTag"
         />
         <ContractTradeReviewPanel
+          ref="reviewPanel"
           :record="detail.record.value"
           :mistake-tags="detail.mistakeTags.value"
           :busy="detail.busy.value"

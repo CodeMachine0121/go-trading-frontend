@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
-const { prefill, message = null, timeZoneIdentifier } = defineProps<{
+const { prefill, message = null, showJournalLink = false, timeZoneIdentifier } = defineProps<{
   prefill: ContractTradePrefillDto | null
   message?: string | null
+  showJournalLink?: boolean
   timeZoneIdentifier: string
 }>()
 </script>
@@ -30,6 +32,18 @@ const { prefill, message = null, timeZoneIdentifier } = defineProps<{
       data-testid="prefill-message"
     >
       {{ message }}
+      <template
+        v-if="showJournalLink"
+        #action
+      >
+        <AppButton
+          variant="ghost"
+          to="/contract-trade-journal"
+          data-testid="prefill-go-journal"
+        >
+          前往交易日誌
+        </AppButton>
+      </template>
     </AppAlert>
   </div>
 </template>

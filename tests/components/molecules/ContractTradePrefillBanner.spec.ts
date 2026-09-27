@@ -21,13 +21,15 @@ describe('ContractTradePrefillBanner', () => {
     expect(wrapper.get('[data-testid="prefill-message"]').text()).toContain('沒有記下參考價')
   })
 
-  it('找不到那一輪時只有說明，沒有來源', () => {
+  it('找不到那一輪時只有說明與前往交易日誌，沒有來源', () => {
     const wrapper = mount(ContractTradePrefillBanner, {
-      props: { prefill: null, message: '找不到這一輪的建議（可能已不在紀錄中），請手動填寫。', timeZoneIdentifier: 'UTC' },
+      props: { prefill: null, message: '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。', showJournalLink: true, timeZoneIdentifier: 'UTC' },
+      global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
     })
 
     expect(wrapper.find('[data-testid="prefill-source"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="prefill-message"]').text()).toContain('找不到這一輪')
+    expect(wrapper.get('[data-testid="prefill-go-journal"]').attributes('href')).toBe('/contract-trade-journal')
   })
 
   it('有來源沒有說明時不出現說明', () => {

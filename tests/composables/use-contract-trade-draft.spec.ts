@@ -283,7 +283,9 @@ describe('useContractTradeDraft：從連結打開', () => {
 
     expect(loaded).toBeNull()
     expect(draft.symbol.value).toBe('')
-    expect(draft.prefillMessage.value).toBe('找不到這一輪的建議（可能已不在紀錄中），請手動填寫。')
+    expect(draft.prefillMessage.value).toContain('找不到這一輪')
+    expect(draft.prefillMessage.value).toContain('這一輪的建議已不在紀錄中，請手動填寫')
+    expect(draft.prefillNotFound.value).toBe(true)
     expect(draft.prefillFailed.value).toBe(false)
   })
 
@@ -294,6 +296,7 @@ describe('useContractTradeDraft：從連結打開', () => {
     await draft.applyJournalLink('link-412')
 
     expect(draft.prefillFailed.value).toBe(true)
+    expect(draft.prefillNotFound.value).toBe(false)
     expect(draft.prefillMessage.value).toContain('連不上交易服務')
   })
 

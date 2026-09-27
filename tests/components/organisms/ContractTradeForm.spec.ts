@@ -141,6 +141,7 @@ describe('ContractTradeForm：記一筆', () => {
     const { TradingStrategy } = await import('~/domain/models/entities/trading-strategy')
     tradingStrategyProxy.listTradingStrategies.mockResolvedValue([
       new TradingStrategy(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle', 'longShort'),
+      new TradingStrategy(7, 'ETH 均線', [], null, null, 'kCandle'),
     ])
     const wrapper = mountForm()
     await flushPromises()
@@ -149,6 +150,8 @@ describe('ContractTradeForm：記一筆', () => {
     await wrapper.get('[data-testid="tag-picker-create"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="tag-option-1"]').trigger('click')
+    expect(wrapper.get('[data-testid="trade-trading-strategy"]').findAll('option').map(option => option.text()))
+      .toEqual(['不關聯（自行判斷）', 'BTC 趨勢跟隨'])
     await wrapper.get('[data-testid="trade-trading-strategy"]').setValue('5')
     await wrapper.get('[data-testid="trade-trading-strategy"]').setValue('')
     await wrapper.get('[data-testid="trade-trading-strategy"]').setValue('5')
