@@ -260,3 +260,16 @@ flowchart TD
 - 新增交易的請求把第一筆成交放在巢狀的 `firstEntryFill`。
 - 成交時間可省略，省略時由交易服務以現在時刻記下並在回覆帶出；表單仍預設帶入現在時刻讓使用者看得到、改得動。
 - 列出交易預設 20 筆、最多 200，回覆附總筆數；列表頁需要更多時明確帶 `limit`。
+
+---
+
+## Appendix — 實作時的調整
+
+- **記一筆表單自己持有草稿狀態**：`ContractTradeForm` 在元件內呼叫 `useContractTradeDraft`，三個 Application 由頁面以 props 傳入（比照 `StrategyBotForm`）；表單交出 `saved`、`dirtyChange`、`redirect`（連結遇到已有持倉中時轉去 `[id]?addFill=entry&journalLink=`）。
+- **詳情的計畫、檢討、成交修正由面板持有編輯中的值**，以事件把值交給 `useContractTradeDetail`（它的方法改收參數），避免在子元件裡改寫上層的狀態。
+- **錯誤句子集中在 `ContractTradeFailureDomain`**（經兩個 Application 的 `describeFailure` 取得），畫面不再各自翻譯。
+- **R 分布改以 CSS 長條呈現**（寬度比例由 `ContractTradeStatisticsDomain` 算好），`ContractTradeRMultipleChart` 只畫累積 R。
+- **預填找不到時的說明合併**：交易服務對「那一輪已不在紀錄中」與「別人的機器人」都回找不到，畫面一律寫「找不到這一輪的建議（可能已不在紀錄中），請手動填寫。」並給空白表單。
+- **未儲存離開的確認**由 `useLeaveConfirmation` 管理，頁面以 `onBeforeRouteLeave` ＋ `ConfirmDialog` 呈現。
+- **列表篩選每次重讀**交易服務（篩選規則仍在 `ContractTradeListDomain`）。
+- **同標的同方向衝突的交易編號**：優先讀交易服務回傳的 `existingContractTradeRecordId`，沒有時從訊息裡的 `#27` 讀出。
