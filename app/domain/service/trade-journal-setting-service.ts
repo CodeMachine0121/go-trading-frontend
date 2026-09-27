@@ -7,12 +7,18 @@ import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import { TradeJournalSettingDomain } from '~/domain/models/domains/trade-journal-setting-domain'
 import { TradeTagDomain } from '~/domain/models/domains/trade-tag-domain'
+import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
+import { ContractTradeFailureDomain } from '~/domain/models/domains/contract-trade-failure-domain'
 
 export class TradeJournalSettingService {
   constructor(
     private readonly tradeJournalSettingProxy: ITradeJournalSettingProxy,
     private readonly tradeTagProxy: ITradeTagProxy,
   ) {}
+
+  describeFailure(error: unknown): ContractTradeFailureDto {
+    return new ContractTradeFailureDomain(error).toDto()
+  }
 
   async getSetting(): Promise<TradeJournalSettingDto> {
     return new TradeJournalSettingDomain(await this.tradeJournalSettingProxy.findSetting()).toDto()

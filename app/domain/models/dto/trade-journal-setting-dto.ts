@@ -7,4 +7,8 @@ export class TradeJournalSettingDto {
     public readonly configured: boolean,
     public readonly summary: string,
   ) {}
+
+  get summaryTone(): 'success' | 'neutral' {
+    return this.configured ? 'success' : 'neutral'
+  }
 }

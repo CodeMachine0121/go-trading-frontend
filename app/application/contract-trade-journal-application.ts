@@ -15,6 +15,7 @@ import type { ContractTradePricePathDto } from '~/domain/models/dto/contract-tra
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
 import type { ContractTradeStatisticsPeriod } from '~/domain/models/vo/contract-trade-statistics-period-vo'
+import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
 
 export class ContractTradeJournalApplication {
   constructor(private readonly contractTradeJournalService: ContractTradeJournalService) {}
@@ -94,6 +95,10 @@ export class ContractTradeJournalApplication {
 
   async getLiveComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparisonDto> {
     return this.contractTradeJournalService.getLiveComparison(tradingStrategyId)
+  }
+
+  describeFailure(error: unknown): ContractTradeFailureDto {
+    return this.contractTradeJournalService.describeFailure(error)
   }
 
   async getPricePath(record: ContractTradeRecordDto): Promise<ContractTradePricePathDto> {

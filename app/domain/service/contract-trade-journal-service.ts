@@ -30,6 +30,8 @@ import { ContractTradeLiveComparisonDomain } from '~/domain/models/domains/contr
 import { ContractTradePrefillDomain } from '~/domain/models/domains/contract-trade-prefill-domain'
 import { ContractTradePricePathDomain } from '~/domain/models/domains/contract-trade-price-path-domain'
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import type { ContractTradeFailureDto } from '~/domain/models/dto/contract-trade-failure-dto'
+import { ContractTradeFailureDomain } from '~/domain/models/domains/contract-trade-failure-domain'
 
 const LIST_LIMIT = 200
 
@@ -132,6 +134,10 @@ export class ContractTradeJournalService {
   async getLiveComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparisonDto> {
     return new ContractTradeLiveComparisonDomain(
       await this.tradingStrategyProxy.findContractTradeComparison(tradingStrategyId)).toDto()
+  }
+
+  describeFailure(error: unknown): ContractTradeFailureDto {
+    return new ContractTradeFailureDomain(error).toDto()
   }
 
   async getPricePath(record: ContractTradeRecordDto): Promise<ContractTradePricePathDto> {
