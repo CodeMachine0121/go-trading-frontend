@@ -104,3 +104,18 @@ describe('MarketCounterpartApplication 導覽上的一格在某一邊要去哪�
     expect(marketCounterpartApplication.resolvePathOnSide(path, side)).toBe(expected)
   })
 })
+
+describe('MarketCounterpartApplication 只有合約那一邊的交易日誌', () => {
+  it.each([
+    { name: '交易日誌列表', path: '/contract-trade-journal' },
+    { name: '一筆交易的詳情', path: '/contract-trade-journal/27' },
+    { name: '記一筆', path: '/contract-trade-journal/new' },
+  ])('$name：開關停在合約、按不動並說明', ({ path }) => {
+    const counterpartDto = marketCounterpartApplication.describeCounterpart(path)
+
+    expect(counterpartDto.side).toBe('contract')
+    expect(counterpartDto.onContract).toBe(true)
+    expect(counterpartDto.switchable).toBe(false)
+    expect(counterpartDto.switchLabel).toBe('交易日誌目前只有合約')
+  })
+})

@@ -13,6 +13,10 @@ const COUNTERPART_PAIRS = [
   { spot: '/strategy-bots', contract: '/contract-strategy-bots' },
 ] as const
 
+const SINGLE_SIDED_DESTINATIONS = [
+  { path: '/contract-trade-journal', side: 'contract', label: '交易日誌目前只有合約' },
+] as const
+
 const SWITCHABLE_LABEL = '切換到另一個市場的同一個畫面'
 const NOT_SWITCHABLE_LABEL = '這個畫面不分現貨與合約'
 
@@ -42,7 +46,12 @@ export class MarketCounterpartDomain {
       }
     }
 
-    return new MarketCounterpartDto(null, null, NOT_SWITCHABLE_LABEL)
+    const singleSided = SINGLE_SIDED_DESTINATIONS.find(
+      destination => this.path === destination.path || this.path.startsWith(`${destination.path}/`))
+
+    return singleSided === undefined
+      ? new MarketCounterpartDto(null, null, NOT_SWITCHABLE_LABEL)
+      : new MarketCounterpartDto(singleSided.side, null, singleSided.label)
   }
 
   /**

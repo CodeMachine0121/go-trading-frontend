@@ -54,6 +54,7 @@ type IconName
     | 'bot'
     | 'code'
     | 'flow'
+    | 'journal'
     | 'plus'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
@@ -288,6 +289,11 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   // 一條從上往下拐一次彎的路——交易策略（訊號來源 → 條件 → 動作）。
   'flow': [
     'M6 3v6a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v6',
+  ],
+  // 一本書，左邊一條書背——交易日誌。
+  'journal': [
+    'M5 4h14v16H5Z',
+    'M9 4v16M12 9h4M12 13h4',
   ],
   // 一個加號——新增一個。
   'plus': [
