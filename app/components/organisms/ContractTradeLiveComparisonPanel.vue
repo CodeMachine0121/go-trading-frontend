@@ -72,6 +72,13 @@ const selectedValue = computed({
         >
           {{ comparison.notice }}
         </p>
+        <p
+          v-if="comparison.strategyEntrySlippageText"
+          class="contract-trade-live-comparison-panel__state"
+          data-testid="comparison-strategy-slippage"
+        >
+          {{ comparison.strategyEntrySlippageText }}
+        </p>
         <div
           v-if="comparison.rows.length > 0"
           class="contract-trade-live-comparison-panel__scroller"
@@ -89,6 +96,7 @@ const selectedValue = computed({
                 <th>實盤筆數</th>
                 <th>回測 做多／做空</th>
                 <th>實盤 做多／做空</th>
+                <th>實盤平均滑點</th>
                 <th>判讀</th>
               </tr>
             </thead>
@@ -119,6 +127,10 @@ const selectedValue = computed({
                   <td>—</td>
                   <td>{{ row.live.longWinRateText }}／{{ row.live.shortWinRateText }}</td>
                 </template>
+                <td data-testid="comparison-slippage">
+                  {{ row.live.entrySlippageText }}
+                  <small v-if="row.live.entrySlippageNote">{{ row.live.entrySlippageNote }}</small>
+                </td>
                 <td>
                   <AppBadge
                     :variant="row.verdictTone"

@@ -275,10 +275,12 @@ describe('TradingStrategyProxy.findContractTradeComparison', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       tradingStrategyName: 'BTC 趨勢跟隨',
       tradingStrategyDeleted: false,
+      averageEntrySlippagePercentage: 0.07,
+      entrySlippageTradeCount: 5,
       rows: [
         {
           symbol: 'BTCUSDT',
-          live: { closedTradeCount: 12, winRate: 0.54, longWinRate: 0.54 },
+          live: { closedTradeCount: 12, winRate: 0.54, longWinRate: 0.54, averageEntrySlippagePercentage: 0.07, entrySlippageTradeCount: 5 },
           backtest: { closedTradeCount: 30, winRate: 0.52, longWinRate: 0.52, shortWinRate: null },
         },
         { symbol: 'ETHUSDT', live: { closedTradeCount: 3 }, backtest: null, backtestUnavailableReason: '合約行情不夠' },
@@ -296,6 +298,11 @@ describe('TradingStrategyProxy.findContractTradeComparison', () => {
     expect(comparison.rows[1]?.live.winRate).toBeNull()
     expect(comparison.rows[1]?.backtest).toBeNull()
     expect(comparison.rows[1]?.backtestFailureReason).toBe('合約行情不夠')
+    expect(comparison.averageEntrySlippagePercentage?.toString()).toBe('0.07')
+    expect(comparison.entrySlippageTradeCount).toBe(5)
+    expect(comparison.rows[0]?.live.averageEntrySlippagePercentage?.toString()).toBe('0.07')
+    expect(comparison.rows[0]?.live.entrySlippageTradeCount).toBe(5)
+    expect(comparison.rows[0]?.backtest?.averageEntrySlippagePercentage).toBeNull()
   })
 
   it('後端省略的欄位給預設；沒有回測欄也當作沒有回測', async () => {
@@ -306,6 +313,9 @@ describe('TradingStrategyProxy.findContractTradeComparison', () => {
     expect(comparison.tradingStrategyName).toBe('')
     expect(comparison.tradingStrategyDeleted).toBe(false)
     expect(comparison.rows[0]?.backtest).toBeNull()
+    expect(comparison.averageEntrySlippagePercentage).toBeNull()
+    expect(comparison.entrySlippageTradeCount).toBe(0)
+    expect(comparison.rows[0]?.live).toMatchObject({ averageEntrySlippagePercentage: null, entrySlippageTradeCount: 0 })
   })
 
   it('沒有列時是空清單；看不到的策略翻成找不到', async () => {

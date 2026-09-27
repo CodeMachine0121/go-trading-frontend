@@ -3,11 +3,14 @@ import type { ContractTradePerformance } from '~/domain/models/entities/contract
 import { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
 import { ContractTradeLiveComparisonRowDto } from '~/domain/models/dto/contract-trade-live-comparison-row-dto'
 import { ContractTradePerformanceDto } from '~/domain/models/dto/contract-trade-performance-dto'
+import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import type Decimal from 'decimal.js'
 
 const NOT_APPLICABLE_TEXT = '不適用'
 const TRADING_STRATEGY_DELETED_NOTICE = '交易策略已刪除，無法重演'
 const NO_CLOSED_TRADES_NOTICE = '還沒有已平倉的實單可以對照'
 const PERCENT = 100
+const SLIPPAGE_FRACTION_DIGITS = 2
 const NO_VERDICT_LABEL = '無法比較'
 const KEEPING_UP_LABEL = '不低於回測'
 
@@ -44,6 +47,11 @@ export class ContractTradeLiveComparisonDomain {
           verdictTone,
         )
       }),
+      this.comparison.rows.length === 0
+        ? null
+        : this.comparison.averageEntrySlippagePercentage === null
+          ? '整份策略平均進場滑點：不適用（沒有來自機器人連結的實單）'
+          : `整份策略平均進場滑點 ${this.slippageText(this.comparison.averageEntrySlippagePercentage)}，以 ${this.comparison.entrySlippageTradeCount} 筆計`,
     )
   }
 
@@ -53,7 +61,15 @@ export class ContractTradeLiveComparisonDomain {
       this.ratioText(performance.winRate),
       this.ratioText(performance.longWinRate),
       this.ratioText(performance.shortWinRate),
+      performance.averageEntrySlippagePercentage === null
+        ? NOT_APPLICABLE_TEXT
+        : this.slippageText(performance.averageEntrySlippagePercentage),
+      performance.entrySlippageTradeCount > 0 ? `以 ${performance.entrySlippageTradeCount} 筆計` : null,
     )
+  }
+
+  private slippageText(percentage: Decimal): string {
+    return new JournalNumberDomain(percentage).percentage(SLIPPAGE_FRACTION_DIGITS)
   }
 
   private ratioText(ratio: number | null): string {

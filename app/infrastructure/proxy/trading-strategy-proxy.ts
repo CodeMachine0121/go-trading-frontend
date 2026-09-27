@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
 import type { TradingStrategyWriteDomain } from '~/domain/models/domains/trading-strategy-write-domain'
 import type { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
@@ -81,11 +82,15 @@ type ContractTradePerformanceWire = {
   winRate?: number | null
   longWinRate?: number | null
   shortWinRate?: number | null
+  averageEntrySlippagePercentage?: number | null
+  entrySlippageTradeCount?: number
 }
 
 type ContractTradeLiveComparisonWire = {
   tradingStrategyName?: string
   tradingStrategyDeleted?: boolean
+  averageEntrySlippagePercentage?: number | null
+  entrySlippageTradeCount?: number
   rows?: {
     symbol: string
     live: ContractTradePerformanceWire
@@ -124,6 +129,10 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
     }
   }
 
+  private slippageOf(percentage: number | null | undefined): Decimal | null {
+    return percentage === undefined || percentage === null ? null : new Decimal(percentage)
+  }
+
   async findContractTradeComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparison> {
     try {
       const comparisonWire = await this.requestBackend<ContractTradeLiveComparisonWire>(
@@ -133,6 +142,8 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
         performanceWire.winRate ?? null,
         performanceWire.longWinRate ?? null,
         performanceWire.shortWinRate ?? null,
+        this.slippageOf(performanceWire.averageEntrySlippagePercentage),
+        performanceWire.entrySlippageTradeCount ?? 0,
       )
 
       return new ContractTradeLiveComparison(
@@ -144,6 +155,8 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
           rowWire.backtest === undefined || rowWire.backtest === null ? null : toPerformance(rowWire.backtest),
           rowWire.backtestUnavailableReason ?? null,
         )),
+        this.slippageOf(comparisonWire.averageEntrySlippagePercentage),
+        comparisonWire.entrySlippageTradeCount ?? 0,
       )
     }
     catch (error: unknown) {

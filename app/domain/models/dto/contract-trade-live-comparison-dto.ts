@@ -5,5 +5,6 @@ export class ContractTradeLiveComparisonDto {
     public readonly tradingStrategyName: string,
     public readonly notice: string | null,
     public readonly rows: readonly ContractTradeLiveComparisonRowDto[],
+    public readonly strategyEntrySlippageText: string | null,
   ) {}
 }
