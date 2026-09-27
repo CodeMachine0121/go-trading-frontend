@@ -78,6 +78,9 @@ import { TradeTagProxy } from '~/infrastructure/proxy/trade-tag-proxy'
 import { ContractTradeJournalService } from '~/domain/service/contract-trade-journal-service'
 import { TradeJournalSettingService } from '~/domain/service/trade-journal-setting-service'
 import { ContractTradeJournalApplication } from '~/application/contract-trade-journal-application'
+import { SpotTradeRecordProxy } from '~/infrastructure/proxy/spot-trade-record-proxy'
+import { SpotTradeJournalService } from '~/domain/service/spot-trade-journal-service'
+import { SpotTradeJournalApplication } from '~/application/spot-trade-journal-application'
 import { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
 
 /**
@@ -281,6 +284,13 @@ export default defineNuxtPlugin(() => {
       new KCandleContractProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
+  const spotTradeJournalApplication = new SpotTradeJournalApplication(
+    new SpotTradeJournalService(
+      new SpotTradeRecordProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
   const tradeJournalSettingApplication = new TradeJournalSettingApplication(
     new TradeJournalSettingService(
       new TradeJournalSettingProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
@@ -332,6 +342,7 @@ export default defineNuxtPlugin(() => {
       telegramDeliveryApplication,
       connectorAuthorizationApplication,
       contractTradeJournalApplication,
+      spotTradeJournalApplication,
       tradeJournalSettingApplication,
       layoutDensityApplication,
       appearanceApplication,

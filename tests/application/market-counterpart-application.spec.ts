@@ -105,17 +105,24 @@ describe('MarketCounterpartApplication 導覽上的一格在某一邊要去哪�
   })
 })
 
-describe('MarketCounterpartApplication 只有合約那一邊的交易日誌', () => {
+describe('MarketCounterpartApplication 交易日誌兩邊都有', () => {
   it.each([
-    { name: '交易日誌列表', path: '/contract-trade-journal' },
-    { name: '一筆交易的詳情', path: '/contract-trade-journal/27' },
-    { name: '記一筆', path: '/contract-trade-journal/new' },
-  ])('$name：開關停在合約、按不動並說明', ({ path }) => {
+    { name: '合約日誌列表切到現貨日誌列表', path: '/contract-trade-journal', side: 'contract', counterpart: '/spot-trade-journal' },
+    { name: '合約的一筆交易切到現貨日誌列表', path: '/contract-trade-journal/27', side: 'contract', counterpart: '/spot-trade-journal' },
+    { name: '合約的記一筆切到現貨日誌列表', path: '/contract-trade-journal/new', side: 'contract', counterpart: '/spot-trade-journal' },
+    { name: '現貨日誌列表切到合約日誌列表', path: '/spot-trade-journal', side: 'spot', counterpart: '/contract-trade-journal' },
+    { name: '現貨的統計切到合約日誌列表', path: '/spot-trade-journal/statistics', side: 'spot', counterpart: '/contract-trade-journal' },
+  ] as const)('$name', ({ path, side, counterpart }) => {
     const counterpartDto = marketCounterpartApplication.describeCounterpart(path)
 
-    expect(counterpartDto.side).toBe('contract')
-    expect(counterpartDto.onContract).toBe(true)
-    expect(counterpartDto.switchable).toBe(false)
-    expect(counterpartDto.switchLabel).toBe('交易日誌目前只有合約')
+    expect(counterpartDto.side).toBe(side)
+    expect(counterpartDto.switchable).toBe(true)
+    expect(counterpartDto.counterpartPath).toBe(counterpart)
+    expect(counterpartDto.switchLabel).not.toBe('交易日誌目前只有合約')
+  })
+
+  it('側欄的交易日誌跟著最後切到的那一邊', () => {
+    expect(marketCounterpartApplication.resolvePathOnSide('/spot-trade-journal', 'contract')).toBe('/contract-trade-journal')
+    expect(marketCounterpartApplication.resolvePathOnSide('/spot-trade-journal', 'spot')).toBe('/spot-trade-journal')
   })
 })

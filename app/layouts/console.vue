@@ -26,7 +26,7 @@ const counterpart = computed(() => $marketCounterpartApplication.describeCounter
 const { followPath, pathOnMarketSide } = useMarketSide()
 watch(() => route.path, followPath, { immediate: true })
 
-const SIDE_AWARE_DESTINATIONS = ['/k-candles/chart', '/k-candles', '/strategy-scripts', '/strategy-bots']
+const SIDE_AWARE_DESTINATIONS = ['/k-candles/chart', '/k-candles', '/strategy-scripts', '/strategy-bots', '/spot-trade-journal']
 const destinationPaths = computed(
   () => Object.fromEntries(SIDE_AWARE_DESTINATIONS.map(path => [path, pathOnMarketSide(path)])))
 const title = computed(() => route.meta.consoleTitle ?? '')

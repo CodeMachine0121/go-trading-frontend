@@ -68,7 +68,8 @@ describe('ConsoleLayout', () => {
     { name: '在合約 K 線瀏覽時 K 線資料亮著，行情圖表不亮', path: '/contract-k-candles', current: '/k-candles' },
     { name: '在編輯一台合約機器人時策略機器人亮著', path: '/contract-strategy-bots/7', current: '/strategy-bots' },
     { name: '在一份交易策略裡時交易策略亮著', path: '/trading-strategies/3', current: '/trading-strategies' },
-    { name: '在一筆交易的詳情時交易日誌亮著', path: '/contract-trade-journal/27', current: '/contract-trade-journal' },
+    { name: '在一筆合約交易的詳情時交易日誌亮著', path: '/contract-trade-journal/27', current: '/spot-trade-journal' },
+    { name: '在一筆現貨交易的詳情時交易日誌亮著', path: '/spot-trade-journal/5', current: '/spot-trade-journal' },
   ])('$name', async ({ path, current }) => {
     stopAt(path)
     const wrapper = await mountLayoutAt(DESKTOP)

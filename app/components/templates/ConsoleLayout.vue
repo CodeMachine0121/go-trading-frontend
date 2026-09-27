@@ -21,7 +21,7 @@ const DESTINATIONS = [
   { to: '/strategy-scripts', label: '策略腳本', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'flow', paths: ['/trading-strategies'], nested: true },
   { to: '/strategy-bots', label: '策略機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
-  { to: '/contract-trade-journal', label: '交易日誌', icon: 'journal', paths: ['/contract-trade-journal'], nested: true },
+  { to: '/spot-trade-journal', label: '交易日誌', icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
 ] as const
 
