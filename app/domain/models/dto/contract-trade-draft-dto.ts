@@ -1,3 +1,4 @@
+import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
 
@@ -14,5 +15,6 @@ export class ContractTradeDraftDto {
     public readonly tradingStrategyId: number | null,
     public readonly setupTagIds: readonly number[],
     public readonly journalLinkIdentifier: string | null,
+    public readonly referencePrice: Decimal | null = null,
   ) {}
 }

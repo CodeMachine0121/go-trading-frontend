@@ -90,8 +90,8 @@ describe('ContractTradeForm：記一筆', () => {
     await wrapper.get('[data-testid="fill-price"]').setValue('97905')
     await wrapper.get('[data-testid="fill-quantity"]').setValue('0.030')
     await wrapper.get('[data-testid="trade-leverage"]').setValue('10')
-    await wrapper.get('[data-testid="trade-confidence"]').setValue('3')
-    await wrapper.get('[data-testid="trade-confidence"]').setValue('')
+    await wrapper.get('[data-testid="app-rating-3"]').trigger('click')
+    await wrapper.get('[data-testid="app-rating-3"]').trigger('click')
     await wrapper.get('[data-testid="trade-entry-reason"]').setValue('突破')
     await wrapper.get('[data-testid="trade-planned-take-profit"]').setValue('100785')
     await wrapper.get('[data-testid="trade-direction"]').setValue('short')
@@ -189,12 +189,24 @@ describe('ContractTradeForm：從連結打開', () => {
     const wrapper = mountForm({ journalLinkIdentifier: 'link-412' })
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('來自 BTC 趨勢跟隨・第 412 輪・2026-09-25 06:00 送出')
+    expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('做多 10 倍')
+    expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('來自 BTC 趨勢跟隨・第 412 輪')
+    expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('2026-09-25 06:00 送出')
     expect(wrapper.get('[data-testid="prefill-source"]').text()).toContain('參考價 97,850')
     expect(wrapper.get('[data-testid="fill-price-confirm"]').text()).toBe('請改成實際成交')
     expect((wrapper.get('[data-testid="trade-symbol"]').element as HTMLInputElement).value).toBe('BTCUSDT')
     expect(wrapper.text()).toContain('預填')
     expect(wrapper.emitted('redirect')).toBeUndefined()
+  })
+
+  it('改成實際成交價後，說出和參考價差多少', async () => {
+    recordProxy.findJournalLink.mockResolvedValue(prefill())
+    const wrapper = mountForm({ journalLinkIdentifier: 'link-412' })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="fill-price"]').setValue('97905')
+
+    expect(wrapper.get('[data-testid="preview-entry-slippage"]').text()).toBe('比參考價高 0.06%（滑點）')
   })
 
   it('已有持倉中時交給上層轉去那一筆的加成交', async () => {

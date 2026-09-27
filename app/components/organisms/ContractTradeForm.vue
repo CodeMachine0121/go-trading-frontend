@@ -2,6 +2,7 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
+import AppRating from '~/components/atoms/AppRating.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
@@ -14,7 +15,6 @@ import type { TradeJournalSettingApplication } from '~/application/trade-journal
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 
-const CONFIDENCE_LEVELS = [1, 2, 3, 4, 5] as const
 const PREFILLED_HINT = '預填'
 
 const {
@@ -67,13 +67,6 @@ const tradingStrategyValue = computed({
     draft.tradingStrategyId.value = value === '' ? null : Number(value)
   },
 })
-
-const confidenceValue = computed({
-  get: () => draft.confidence.value === null ? '' : String(draft.confidence.value),
-  set: (value: string) => {
-    draft.confidence.value = value === '' ? null : Number(value)
-  },
-})
 </script>
 
 <template>
@@ -119,6 +112,7 @@ const confidenceValue = computed({
           v-model="draft.symbol.value"
           autocapitalize="characters"
           placeholder="BTCUSDT"
+          :highlighted="draft.prefilledFields.value.has('symbol')"
           :invalid="draft.fieldError('symbol') !== null"
           data-testid="trade-symbol"
         />
@@ -130,6 +124,7 @@ const confidenceValue = computed({
       >
         <AppSelect
           v-model="draft.direction.value"
+          :highlighted="draft.prefilledFields.value.has('direction')"
           data-testid="trade-direction"
         >
           <option value="long">
@@ -143,37 +138,58 @@ const confidenceValue = computed({
 
       <FormField
         label="槓桿倍數"
-        :hint="draft.prefilledFields.value.has('leverage') ? PREFILLED_HINT : '留白即一倍'"
+        :hint="draft.prefilledFields.value.has('leverage') ? PREFILLED_HINT : '留白即一倍，逐倉'"
         :error-message="draft.fieldError('leverage')"
       >
         <AppInput
           v-model="draft.leverageText.value"
           inputmode="decimal"
+          :highlighted="draft.prefilledFields.value.has('leverage')"
           :invalid="draft.fieldError('leverage') !== null"
           data-testid="trade-leverage"
         />
       </FormField>
 
       <FormField
-        label="關聯交易策略"
-        :hint="draft.prefilledFields.value.has('tradingStrategy') ? PREFILLED_HINT : undefined"
-        :error-message="draft.fieldError('tradingStrategy')"
+        label="計畫止損"
+        :hint="draft.preview.value.stopLossDistanceText
+          ? `${draft.preview.value.stopLossDistanceText}・計畫風險 ${draft.preview.value.plannedRiskText}`
+          : undefined"
+        :error-message="draft.fieldError('plannedStopLossPrice')"
       >
-        <AppSelect
-          v-model="tradingStrategyValue"
-          data-testid="trade-trading-strategy"
-        >
-          <option value="">
-            不關聯（自行判斷）
-          </option>
-          <option
-            v-for="tradingStrategy in draft.tradingStrategies.value"
-            :key="tradingStrategy.id"
-            :value="String(tradingStrategy.id)"
-          >
-            {{ tradingStrategy.name }}
-          </option>
-        </AppSelect>
+        <AppInput
+          v-model="draft.plannedStopLossText.value"
+          inputmode="decimal"
+          :highlighted="draft.prefilledFields.value.has('plannedStopLossPrice')"
+          :invalid="draft.fieldError('plannedStopLossPrice') !== null"
+          data-testid="trade-planned-stop-loss"
+        />
+      </FormField>
+
+      <FormField
+        label="計畫止盈"
+        :hint="draft.preview.value.takeProfitDistanceText ?? undefined"
+        :error-message="draft.fieldError('plannedTakeProfitPrice')"
+      >
+        <AppInput
+          v-model="draft.plannedTakeProfitText.value"
+          inputmode="decimal"
+          :highlighted="draft.prefilledFields.value.has('plannedTakeProfitPrice')"
+          :invalid="draft.fieldError('plannedTakeProfitPrice') !== null"
+          data-testid="trade-planned-take-profit"
+        />
+      </FormField>
+
+      <FormField
+        label="信心"
+        grouped
+        :error-message="draft.fieldError('confidence')"
+      >
+        <AppRating
+          v-model="draft.confidence.value"
+          label="信心"
+          data-testid="trade-confidence"
+        />
       </FormField>
     </div>
 
@@ -200,80 +216,44 @@ const confidenceValue = computed({
           前往設定
         </NuxtLink>
       </p>
-      <dl
+      <p
         class="contract-trade-form__preview"
         data-testid="draft-preview"
       >
-        <div>
-          <dt>持倉</dt>
-          <dd data-testid="preview-position">
-            {{ draft.preview.value.positionText }}
-          </dd>
-        </div>
-        <div>
-          <dt>進場均價</dt>
-          <dd data-testid="preview-average-entry">
-            {{ draft.preview.value.averageEntryPriceText ?? '—' }}
-          </dd>
-        </div>
-      </dl>
+        持倉 <span data-testid="preview-position">{{ draft.preview.value.positionText }}</span>・均價
+        <span data-testid="preview-average-entry">{{ draft.preview.value.averageEntryPriceText ?? '—' }}</span>
+        <template v-if="draft.preview.value.entrySlippageText">
+          ・<span data-testid="preview-entry-slippage">{{ draft.preview.value.entrySlippageText }}</span>
+        </template>
+      </p>
     </section>
 
     <section
       v-if="!addingToExistingTrade"
       class="contract-trade-form__section"
     >
-      <h3 class="contract-trade-form__heading">
-        進場計畫
-      </h3>
-      <div class="contract-trade-form__grid">
-        <FormField
-          label="計畫止損"
-          :hint="draft.preview.value.stopLossDistanceText
-            ? `${draft.preview.value.stopLossDistanceText}・計畫風險 ${draft.preview.value.plannedRiskText}`
-            : undefined"
-          :error-message="draft.fieldError('plannedStopLossPrice')"
+      <FormField
+        label="關聯交易策略"
+        :hint="draft.prefilledFields.value.has('tradingStrategy') ? PREFILLED_HINT : '不關聯即自行判斷'"
+        :error-message="draft.fieldError('tradingStrategy')"
+      >
+        <AppSelect
+          v-model="tradingStrategyValue"
+          :highlighted="draft.prefilledFields.value.has('tradingStrategy')"
+          data-testid="trade-trading-strategy"
         >
-          <AppInput
-            v-model="draft.plannedStopLossText.value"
-            inputmode="decimal"
-            :invalid="draft.fieldError('plannedStopLossPrice') !== null"
-            data-testid="trade-planned-stop-loss"
-          />
-        </FormField>
-        <FormField
-          label="計畫止盈"
-          :hint="draft.prefilledFields.value.has('plannedTakeProfitPrice') ? PREFILLED_HINT : undefined"
-          :error-message="draft.fieldError('plannedTakeProfitPrice')"
-        >
-          <AppInput
-            v-model="draft.plannedTakeProfitText.value"
-            inputmode="decimal"
-            :invalid="draft.fieldError('plannedTakeProfitPrice') !== null"
-            data-testid="trade-planned-take-profit"
-          />
-        </FormField>
-        <FormField
-          label="信心"
-          :error-message="draft.fieldError('confidence')"
-        >
-          <AppSelect
-            v-model="confidenceValue"
-            data-testid="trade-confidence"
+          <option value="">
+            不關聯（自行判斷）
+          </option>
+          <option
+            v-for="tradingStrategy in draft.tradingStrategies.value"
+            :key="tradingStrategy.id"
+            :value="String(tradingStrategy.id)"
           >
-            <option value="">
-              不填
-            </option>
-            <option
-              v-for="level in CONFIDENCE_LEVELS"
-              :key="level"
-              :value="String(level)"
-            >
-              {{ level }} / 5
-            </option>
-          </AppSelect>
-        </FormField>
-      </div>
+            {{ tradingStrategy.name }}
+          </option>
+        </AppSelect>
+      </FormField>
       <FormField label="進場理由（平倉後鎖定）">
         <AppTextarea
           v-model="draft.entryReason.value"
@@ -319,7 +299,7 @@ const confidenceValue = computed({
         :disabled="draft.saving.value || draft.prefillLoading.value"
         data-testid="trade-save"
       >
-        {{ draft.saving.value ? '儲存中…' : '儲存' }}
+        {{ draft.saving.value ? '儲存中…' : (addingToExistingTrade ? '儲存' : '儲存（持倉中）') }}
       </AppButton>
     </div>
   </form>
@@ -348,7 +328,7 @@ const confidenceValue = computed({
     }
 
     @include respond-to('lg') {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
@@ -366,23 +346,11 @@ const confidenceValue = computed({
   }
 
   &__preview {
-    display: flex;
-    flex-wrap: wrap;
-    gap: spacing('lg');
     margin: 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
 
-    dt {
-      color: color('text-faint');
-      font-size: font-size('2xs');
-    }
-
-    dd {
-      margin: 0;
-      color: color('text-strong');
-      font-size: font-size('md');
-
-      @include numeric;
-    }
+    @include numeric;
   }
 
   &__actions {

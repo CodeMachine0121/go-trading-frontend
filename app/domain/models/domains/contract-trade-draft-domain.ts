@@ -14,6 +14,7 @@ import { ContractTradePricedQuantityVo } from '~/domain/models/vo/contract-trade
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
 import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { ContractTradeEntrySlippageDomain } from '~/domain/models/domains/contract-trade-entry-slippage-domain'
 
 const PERCENT = 100
 const DISTANCE_FRACTION_DIGITS = 2
@@ -53,19 +54,27 @@ export class ContractTradeDraftDomain {
     const stopDistance = averageEntryPrice === null || plannedStopLoss === null
       ? null
       : averageEntryPrice.minus(plannedStopLoss)
+    const plannedTakeProfit = new DecimalInputDomain(this.draft.plannedTakeProfitText).value
+    const referencePrice = this.draft.referencePrice
+    const entrySlippageText = averageEntryPrice === null || referencePrice === null || referencePrice.isZero()
+      ? null
+      : new ContractTradeEntrySlippageDomain(this.draft.direction, averageEntryPrice, referencePrice).text
+    const distanceText = (level: Decimal | null) => averageEntryPrice === null || level === null
+      ? null
+      : `${level.greaterThanOrEqualTo(averageEntryPrice) ? '往上' : '往下'} ${new JournalNumberDomain(
+        level.minus(averageEntryPrice).abs().dividedBy(averageEntryPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)}`
 
     return new ContractTradeDraftPreviewDto(
       new JournalNumberDomain(enteredQuantity.minus(exitedQuantity)).quantity(),
       averageEntryPrice === null
         ? null
         : new JournalNumberDomain(averageEntryPrice).priceAt(displayedFractionDigits),
-      stopDistance === null || averageEntryPrice === null
-        ? null
-        : `${stopDistance.isNegative() ? '往上' : '往下'} ${new JournalNumberDomain(
-          stopDistance.abs().dividedBy(averageEntryPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)}`,
+      distanceText(plannedStopLoss),
       stopDistance === null
         ? null
         : new JournalNumberDomain(stopDistance.abs().times(enteredQuantity)).amount(),
+      distanceText(plannedTakeProfit),
+      entrySlippageText,
       this.draft.fills.map((fill) => {
         const rate = fill.liquidity === 'maker' ? this.setting.makerFeeRate : this.setting.takerFeeRate
         const price = new DecimalInputDomain(fill.priceText).value ?? new Decimal(0)

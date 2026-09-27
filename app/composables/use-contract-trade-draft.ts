@@ -97,6 +97,7 @@ export function useContractTradeDraft(
       tradingStrategyId.value,
       [...setupTagIds.value],
       journalLinkIdentifier.value,
+      prefill.value?.entryPrice ?? null,
     )
   }
 

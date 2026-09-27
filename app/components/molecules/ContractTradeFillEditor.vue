@@ -77,7 +77,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         <AppInput
           v-model="fill.priceText"
           inputmode="decimal"
-          :class="{ 'contract-trade-fill-editor__prefilled': index === 0 && prefilledFields.has('fillPrice') }"
+          :highlighted="index === 0 && prefilledFields.has('fillPrice')"
           :invalid="FIELD_OF_COLUMN.price.includes(rejectedField ?? 'symbol')"
           data-testid="fill-price"
         />
@@ -93,7 +93,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         <AppInput
           v-model="fill.quantityText"
           inputmode="decimal"
-          :class="{ 'contract-trade-fill-editor__prefilled': index === 0 && prefilledFields.has('fillQuantity') }"
+          :highlighted="index === 0 && prefilledFields.has('fillQuantity')"
           :invalid="FIELD_OF_COLUMN.quantity.includes(rejectedField ?? 'symbol')"
           data-testid="fill-quantity"
         />
@@ -199,8 +199,10 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
     font-size: font-size('2xs');
   }
 
-  &__prefilled {
-    border-color: color('primary');
+  &__card + &__card &__label {
+    @include respond-to('lg') {
+      @include visually-hidden;
+    }
   }
 
   &__confirm {

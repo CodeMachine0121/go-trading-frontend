@@ -12,7 +12,7 @@ export class ContractTradePrefillDomain {
   toDto(): ContractTradePrefillDto {
     const referencePrice = this.prefill.referencePrice
     const addsToExistingTrade = this.prefill.mode === 'addEntryFill' && this.prefill.targetTradeId !== null
-    const directionWord = new ContractTradeDirectionDomain(this.prefill.direction, this.prefill.leverage).word
+    const direction = new ContractTradeDirectionDomain(this.prefill.direction, this.prefill.leverage)
     const missingReferenceNotice = referencePrice === null ? MISSING_REFERENCE_NOTICE : null
 
     return new ContractTradePrefillDto(
@@ -24,7 +24,7 @@ export class ContractTradePrefillDomain {
       this.prefill.ranAt,
       referencePrice === null ? null : new JournalNumberDomain(referencePrice).price(),
       addsToExistingTrade
-        ? `${this.prefill.symbol} ${directionWord}已有持倉中的 #${this.prefill.targetTradeId}，這一輪記成加碼`
+        ? `${this.prefill.symbol} ${direction.word}已有持倉中的 #${this.prefill.targetTradeId}，這一輪記成加碼`
         : missingReferenceNotice,
       this.prefill.symbol,
       this.prefill.direction,
@@ -34,6 +34,8 @@ export class ContractTradePrefillDomain {
       this.prefill.tradingStrategyId,
       referencePrice,
       referencePrice === null ? null : this.prefill.suggestedQuantity,
+      direction.label,
+      direction.tone,
     )
   }
 }
