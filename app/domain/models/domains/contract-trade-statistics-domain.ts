@@ -1,0 +1,126 @@
+import type { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
+import type { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trade-source-group'
+import { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
+import { ContractTradeChartPointDto } from '~/domain/models/dto/contract-trade-chart-point-dto'
+import { ContractTradeDistributionBarDto } from '~/domain/models/dto/contract-trade-distribution-bar-dto'
+import { ContractTradeMistakeCostRowDto } from '~/domain/models/dto/contract-trade-mistake-cost-row-dto'
+import { ContractTradeSourceComparisonRowDto } from '~/domain/models/dto/contract-trade-source-comparison-row-dto'
+import { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-figure-vo'
+import { ContractTradeStatisticsPeriodDomain } from '~/domain/models/domains/contract-trade-statistics-period-domain'
+import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+
+const NOT_APPLICABLE_TEXT = '不適用'
+const NO_CLOSED_TRADES_MESSAGE = '這段期間沒有已平倉交易'
+const NO_LINKED_TRADES_TEXT = '沒有來自機器人連結的交易'
+const RATIO_FRACTION_DIGITS = 0
+const FACTOR_FRACTION_DIGITS = 2
+const SLIPPAGE_FRACTION_DIGITS = 2
+const PERCENT = 100
+
+export class ContractTradeStatisticsDomain {
+  constructor(private readonly statistics: ContractTradeStatistics) {}
+
+  get periodLabel(): string {
+    return new ContractTradeStatisticsPeriodDomain(this.statistics.period).label
+  }
+
+  summaryFigures(): ContractTradeFigureVo[] {
+    return [
+      this.netProfitFigure(),
+      this.winRateFigure(),
+      this.averageRMultipleFigure(),
+      this.profitFactorFigure(),
+      this.feeShareFigure(),
+    ]
+  }
+
+  toDto(): ContractTradeStatisticsDto {
+    if (this.statistics.closedTradeCount === 0) {
+      return new ContractTradeStatisticsDto(this.periodLabel, NO_CLOSED_TRADES_MESSAGE, [], null, [], [], [], [])
+    }
+
+    const slippage = this.statistics.averageEntrySlippagePercentage
+
+    return new ContractTradeStatisticsDto(
+      this.periodLabel,
+      null,
+      [
+        this.netProfitFigure(),
+        this.winRateFigure(),
+        this.averageRMultipleFigure(),
+        this.profitFactorFigure(),
+        slippage === null || this.statistics.slippageTradeCount === 0
+          ? new ContractTradeFigureVo('平均進場滑點', NO_LINKED_TRADES_TEXT, 'muted')
+          : new ContractTradeFigureVo(
+              '平均進場滑點',
+              new JournalNumberDomain(slippage).percentage(SLIPPAGE_FRACTION_DIGITS),
+              'neutral',
+              `${this.statistics.slippageTradeCount} 筆來自機器人連結`),
+        this.feeShareFigure(),
+      ],
+      this.statistics.excludedFromRMultipleCount === 0
+        ? null
+        : `${this.statistics.excludedFromRMultipleCount} 筆沒設止損，未計入 R`,
+      this.statistics.cumulativeRMultiples.map(point => new ContractTradeChartPointDto(
+        point.closedAt, point.cumulativeRMultiple.toNumber())),
+      this.statistics.rMultipleDistribution.map(bucket => new ContractTradeDistributionBarDto(
+        bucket.label, bucket.count, bucket.profitable ? 'success' : 'danger')),
+      this.statistics.mistakeCosts.map(mistakeCost => new ContractTradeMistakeCostRowDto(
+        mistakeCost.tagName,
+        `${mistakeCost.tradeCount} 筆`,
+        new JournalNumberDomain(mistakeCost.rMultipleTotal).rMultiple(),
+        new JournalNumberDomain(mistakeCost.rMultipleTotal).tone())),
+      [
+        this.sourceComparisonRow('有關聯策略', this.statistics.linkedGroup),
+        this.sourceComparisonRow('自行判斷', this.statistics.selfJudgedGroup),
+      ],
+    )
+  }
+
+  private netProfitFigure(): ContractTradeFigureVo {
+    return new ContractTradeFigureVo(
+      '淨損益',
+      new JournalNumberDomain(this.statistics.netProfit).signedAmount(),
+      new JournalNumberDomain(this.statistics.netProfit).tone())
+  }
+
+  private winRateFigure(): ContractTradeFigureVo {
+    return new ContractTradeFigureVo('勝率', this.ratioText(this.statistics.winRate), 'neutral')
+  }
+
+  private averageRMultipleFigure(): ContractTradeFigureVo {
+    const averageRMultiple = this.statistics.averageRMultiple
+
+    return averageRMultiple === null
+      ? new ContractTradeFigureVo('平均 R', NOT_APPLICABLE_TEXT, 'muted')
+      : new ContractTradeFigureVo(
+          '平均 R', new JournalNumberDomain(averageRMultiple).rMultiple(), new JournalNumberDomain(averageRMultiple).tone())
+  }
+
+  private profitFactorFigure(): ContractTradeFigureVo {
+    const profitFactor = this.statistics.profitFactor
+
+    return profitFactor === null
+      ? new ContractTradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted')
+      : new ContractTradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral')
+  }
+
+  private feeShareFigure(): ContractTradeFigureVo {
+    return new ContractTradeFigureVo('費用佔毛利', this.ratioText(this.statistics.feeShareOfGrossProfit), 'neutral')
+  }
+
+  private sourceComparisonRow(label: string, group: ContractTradeSourceGroup): ContractTradeSourceComparisonRowDto {
+    return new ContractTradeSourceComparisonRowDto(
+      label,
+      `${group.tradeCount} 筆`,
+      this.ratioText(group.winRate),
+      group.averageRMultiple === null
+        ? NOT_APPLICABLE_TEXT
+        : new JournalNumberDomain(group.averageRMultiple).rMultiple(),
+    )
+  }
+
+  private ratioText(ratio: number | null): string {
+    return ratio === null ? NOT_APPLICABLE_TEXT : `${(ratio * PERCENT).toFixed(RATIO_FRACTION_DIGITS)}%`
+  }
+}

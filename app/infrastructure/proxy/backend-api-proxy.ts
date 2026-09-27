@@ -21,6 +21,7 @@ type BackendFailure = {
     observationWindowHoldsNoTrading?: boolean
     lockedUntil?: string
     timeAllowanceSpent?: boolean
+    existingContractTradeRecordId?: number
   }
 }
 
@@ -222,6 +223,7 @@ export abstract class BackendApiProxy {
               // 一次重演沒在整次允許時間內跑完。與算式跑不動同一個狀態碼，
               // 所以要靠這個標記才分得開——下一步完全不同。
               timeAllowanceSpent: backendFailure.data?.timeAllowanceSpent ?? false,
+              existingContractTradeRecordId: backendFailure.data?.existingContractTradeRecordId,
             },
           )
         }

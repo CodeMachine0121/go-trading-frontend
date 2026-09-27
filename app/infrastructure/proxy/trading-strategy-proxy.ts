@@ -15,6 +15,9 @@ import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-n
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
+import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contract-trade-live-comparison-row'
+import { ContractTradePerformance } from '~/domain/models/entities/contract-trade-performance'
 
 const TRADING_STRATEGIES_ENDPOINT = '/trading-strategies'
 
@@ -73,6 +76,24 @@ type TradingStrategyWire = {
  * **去停一台機器人**、**去處理幾台機器人**。合成一句「請求被拒絕」，
  * 就沒有人知道該往哪走。
  */
+type ContractTradePerformanceWire = {
+  closedTradeCount: number
+  winRate?: number | null
+  longWinRate?: number | null
+  shortWinRate?: number | null
+}
+
+type ContractTradeLiveComparisonWire = {
+  tradingStrategyName?: string
+  tradingStrategyDeleted?: boolean
+  rows?: {
+    symbol: string
+    live: ContractTradePerformanceWire
+    backtest?: ContractTradePerformanceWire | null
+    backtestFailureReason?: string | null
+  }[]
+}
+
 export class TradingStrategyProxy extends BackendApiProxy implements ITradingStrategyProxy {
   async listTradingStrategies(): Promise<TradingStrategy[]> {
     const wire = await this.requestBackend<TradingStrategyWire[]>(TRADING_STRATEGIES_ENDPOINT)
@@ -97,6 +118,33 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
   async deleteTradingStrategy(id: number): Promise<void> {
     try {
       await this.requestBackend<null>(`${TRADING_STRATEGIES_ENDPOINT}/${id}`, { method: 'DELETE' })
+    }
+    catch (error: unknown) {
+      throw this.tradingStrategyFailureOf(error)
+    }
+  }
+
+  async findContractTradeComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparison> {
+    try {
+      const comparisonWire = await this.requestBackend<ContractTradeLiveComparisonWire>(
+        `${TRADING_STRATEGIES_ENDPOINT}/${tradingStrategyId}/contract-trade-comparison`)
+      const toPerformance = (performanceWire: ContractTradePerformanceWire) => new ContractTradePerformance(
+        performanceWire.closedTradeCount,
+        performanceWire.winRate ?? null,
+        performanceWire.longWinRate ?? null,
+        performanceWire.shortWinRate ?? null,
+      )
+
+      return new ContractTradeLiveComparison(
+        comparisonWire.tradingStrategyName ?? '',
+        comparisonWire.tradingStrategyDeleted ?? false,
+        (comparisonWire.rows ?? []).map(rowWire => new ContractTradeLiveComparisonRow(
+          rowWire.symbol,
+          toPerformance(rowWire.live),
+          rowWire.backtest === undefined || rowWire.backtest === null ? null : toPerformance(rowWire.backtest),
+          rowWire.backtestFailureReason ?? null,
+        )),
+      )
     }
     catch (error: unknown) {
       throw this.tradingStrategyFailureOf(error)
