@@ -33,6 +33,7 @@ const selectedValue = computed({
       >
         <AppSelect
           v-model="selectedValue"
+          :disabled="replaying"
           data-testid="comparison-strategy"
         >
           <option value="">

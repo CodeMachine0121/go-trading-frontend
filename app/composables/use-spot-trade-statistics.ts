@@ -59,11 +59,16 @@ export function useSpotTradeStatistics(
     comparisonFailureMessage.value = null
 
     try {
-      comparison.value = await spotTradeJournalApplication.getLiveComparison(tradingStrategyId)
+      const replayed = await spotTradeJournalApplication.getLiveComparison(tradingStrategyId)
+      if (selectedTradingStrategyId.value === tradingStrategyId) {
+        comparison.value = replayed
+      }
     }
     catch (error: unknown) {
-      comparison.value = null
-      comparisonFailureMessage.value = spotTradeJournalApplication.describeFailure(error).message
+      if (selectedTradingStrategyId.value === tradingStrategyId) {
+        comparison.value = null
+        comparisonFailureMessage.value = spotTradeJournalApplication.describeFailure(error).message
+      }
     }
     finally {
       replaying.value = false

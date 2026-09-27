@@ -79,6 +79,23 @@ describe('useSpotTradeStatistics', () => {
     expect(comparison.value?.notice).toBe('還沒有已平倉的實單可以對照')
   })
 
+  it('重演回來時已經改挑別份策略，就不拿舊結果蓋掉', async () => {
+    let finishReplay: (value: SpotTradeLiveComparison) => void = () => {}
+    tradingStrategyProxy.findSpotTradeComparison.mockReturnValue(new Promise((resolve) => {
+      finishReplay = resolve
+    }))
+    const { selectedTradingStrategyId, replaying, comparison } = statisticsUnderTest()
+
+    selectedTradingStrategyId.value = 5
+    await nextTick()
+    selectedTradingStrategyId.value = null
+    await nextTick()
+    finishReplay(new SpotTradeLiveComparison('台股均線', false, [], null, 0))
+    await vi.waitFor(() => expect(replaying.value).toBe(false))
+
+    expect(comparison.value).toBeNull()
+  })
+
   it('取消挑選就清掉對照；重演失敗時說原因', async () => {
     tradingStrategyProxy.findSpotTradeComparison.mockRejectedValue(new TradingStrategyNotFoundError('找不到識別碼為 9 的交易策略'))
     const { selectedTradingStrategyId, comparison, comparisonFailureMessage } = statisticsUnderTest()

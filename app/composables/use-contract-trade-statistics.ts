@@ -59,11 +59,16 @@ export function useContractTradeStatistics(
     comparisonFailureMessage.value = null
 
     try {
-      comparison.value = await contractTradeJournalApplication.getLiveComparison(tradingStrategyId)
+      const replayed = await contractTradeJournalApplication.getLiveComparison(tradingStrategyId)
+      if (selectedTradingStrategyId.value === tradingStrategyId) {
+        comparison.value = replayed
+      }
     }
     catch (error: unknown) {
-      comparison.value = null
-      comparisonFailureMessage.value = contractTradeJournalApplication.describeFailure(error).message
+      if (selectedTradingStrategyId.value === tradingStrategyId) {
+        comparison.value = null
+        comparisonFailureMessage.value = contractTradeJournalApplication.describeFailure(error).message
+      }
     }
     finally {
       replaying.value = false

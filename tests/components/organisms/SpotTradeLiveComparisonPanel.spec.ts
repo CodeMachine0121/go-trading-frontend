@@ -39,6 +39,7 @@ describe('SpotTradeLiveComparisonPanel', () => {
     await wrapper.get('[data-testid="comparison-strategy"]').setValue('')
 
     expect(wrapper.emitted('update:selectedTradingStrategyId')).toEqual([[7], [null]])
+    expect(mountPanel({ replaying: true }).get('[data-testid="comparison-strategy"]').attributes('disabled')).toBeDefined()
     expect(mountPanel({ replaying: true }).find('[data-testid="comparison-replaying"]').exists()).toBe(true)
     expect(mountPanel({ failureMessage: '找不到' }).get('[data-testid="comparison-failure"]').text()).toBe('找不到')
   })
