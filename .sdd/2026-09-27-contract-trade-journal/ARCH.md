@@ -272,4 +272,5 @@ flowchart TD
 - **預填找不到時的說明合併**：交易服務對「那一輪已不在紀錄中」與「別人的機器人」都回找不到，畫面一律寫「找不到這一輪的建議（可能已不在紀錄中），請手動填寫。」並給空白表單。
 - **未儲存離開的確認**由 `useLeaveConfirmation` 管理，頁面以 `onBeforeRouteLeave` ＋ `ConfirmDialog` 呈現。
 - **列表篩選每次重讀**交易服務（篩選規則仍在 `ContractTradeListDomain`）。
-- **同標的同方向衝突的交易編號**：優先讀交易服務回傳的 `existingContractTradeRecordId`，沒有時從訊息裡的 `#27` 讀出。
+- **同標的同方向衝突的交易編號**：優先讀交易服務回傳的 `openTradeId`，沒有時從訊息裡的 `#27` 讀出。
+- **回傳形狀以交易服務實作為準**：新增交易的計畫巢狀在 `plan`；交易回應的計畫在 `plan`、標籤分 `setupTags`／`mistakeTags`、均價與持倉在頂層；`outcome` 的資金費用、最大不利／最大有利、浮動損益、強平價各是一組帶 `available` 與原因的物件，由 `ContractTradeRecordProxy` 收成各自的數字與原因（列表的極值與強平價一律「暫時算不出」，只在詳情呈現）；統計、預填（進場價即那一輪的參考價）、實盤 vs 回測的欄位名同樣只在 proxy 內對映。
