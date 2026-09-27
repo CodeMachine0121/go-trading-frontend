@@ -263,6 +263,28 @@ describe('SpotTradeForm：從連結打開', () => {
     expect(wrapper.find('[data-testid="trade-save"]').exists()).toBe(true)
   })
 
+  it('讀取預填中不能儲存；儲存中也不能再按一次', async () => {
+    recordProxy.findJournalLink.mockReturnValue(new Promise(() => {}))
+    const loading = mountForm({ journalLinkIdentifier: 'link-88' })
+    await flushPromises()
+    expect(loading.find('[data-testid="prefill-loading"]').exists()).toBe(true)
+    expect(loading.get('[data-testid="trade-save"]').attributes('disabled')).toBeDefined()
+
+    recordProxy.recordTrade.mockReturnValue(new Promise(() => {}))
+    const saving = mountForm()
+    await flushPromises()
+    await saving.get('[data-testid="trade-symbol"]').setValue('2330')
+    await saving.get('[data-testid="fill-price"]').setValue('1050')
+    await saving.get('[data-testid="fill-quantity"]').setValue('1000')
+    await saving.get('[data-testid="spot-trade-form"]').trigger('submit')
+    await saving.get('[data-testid="spot-trade-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(saving.get('[data-testid="trade-save"]').text()).toBe('儲存中…')
+    expect(saving.get('[data-testid="trade-save"]').attributes('disabled')).toBeDefined()
+    expect(recordProxy.recordTrade).toHaveBeenCalledTimes(1)
+  })
+
   it('那一輪已不在紀錄中：說找不到並提供前往交易日誌', async () => {
     recordProxy.findJournalLink.mockRejectedValue(new JournalLinkNotFoundError('找不到這一輪'))
     const wrapper = mountForm({ journalLinkIdentifier: 'link-88' })
