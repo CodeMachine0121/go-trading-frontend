@@ -385,3 +385,88 @@ describe('TradingStrategyProxy.findSpotTradeComparison', () => {
     await expect(new TradingStrategyProxy(BASE_URL, signedInSessionStorage()).findSpotTradeComparison(7)).rejects.toThrow('找不到這份交易策略')
   })
 })
+
+describe('SpotTradeRecordProxy：欄位缺漏時的預設', () => {
+  it('缺的欄位給安全的預設值，不讓數字變成 NaN', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      id: 9,
+      symbol: 'ETHUSDT',
+      market: 'crypto',
+      status: 'open',
+      fills: [{ id: 1, kind: 'buy', filledAt: '2026-09-01T00:00:00Z', price: null, quantity: '', fee: undefined }],
+      review: { executionScore: 3, reviewedAt: '2026-09-02T00:00:00Z', wentWrong: '追價' },
+      tradingStrategyName: '',
+      openedAt: '2026-09-01T00:00:00Z',
+      closedAt: '',
+      averageBuyPrice: null,
+      holding: null,
+      outcome: { grossProfit: null, totalFee: null, netProfit: null, floatingProfit: { available: false, unavailableReason: 'somethingElse' } },
+    }))
+
+    const record = await proxy().findTrade(9)
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ id: 10, symbol: '2330', market: 'taiwanStock', status: 'open', openedAt: '2026-09-01T00:00:00Z', averageBuyPrice: '1', holding: '1', outcome: { grossProfit: '0', totalFee: '0', netProfit: '0' } }))
+    const withoutFills = await proxy().findTrade(10)
+
+    expect(withoutFills.fills).toEqual([])
+    expect(withoutFills.outcome.floatingProfit.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.review).toMatchObject({ wentWell: '', wentWrong: '追價', nextTime: '' })
+
+    expect(record).toMatchObject({ currency: '', tradingStrategyName: null, tradingStrategyDeleted: false, closedAt: null, notes: [], tags: [] })
+    expect(record.fills[0]?.price.toString()).toBe('0')
+    expect(record.fills[0]?.fee.toString()).toBe('0')
+    expect(record.outcome.holding.toString()).toBe('0')
+    expect(record.outcome.boughtQuantity.toString()).toBe('0')
+    expect(record.outcome.buyCost.toString()).toBe('0')
+    expect(record.outcome.floatingProfit.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.maximumAdverseExcursion.unavailableReason).toBe('temporarilyUnavailable')
+  })
+
+  it('統計缺期間時沿用要的期間，缺的數字給零或空', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ markets: [{ market: 'taiwanStock', cumulativeProfit: [{ closedAt: '2026-09-01T00:00:00Z', cumulativeNetProfit: null }], mistakeCosts: [{ name: '追價', tradeCount: 1, totalNetProfit: null }] }] }))
+
+    const statistics = await proxy().findStatistics('90d')
+
+    expect(statistics.period).toBe('90d')
+    expect(statistics.markets[0]?.cumulativeProfit[0]?.cumulativeNetProfit.toString()).toBe('0')
+    expect(statistics.markets[0]?.mistakeCosts[0]).toMatchObject({ averageReturnRate: null })
+    expect(statistics.markets[0]?.linkedGroup).toMatchObject({ tradeCount: 0, winRate: null, averageReturnRate: null })
+  })
+
+  it('沒有市場時是空的；連結缺的欄位給空', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({}))
+    expect((await proxy().findStatistics('7d')).markets).toEqual([])
+
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mode: 'newTrade', strategyBotName: '台積電趨勢', runNumber: 1, ranAt: '2026-09-27T00:00:00Z', signal: 'buy', symbol: '2330', market: 'taiwanStock' }))
+    expect(await proxy().findJournalLink('x')).toMatchObject({ targetTradeId: null, referencePrice: null, quantity: null, tradingStrategyId: null })
+  })
+
+  it('已有持有中但沒帶編號也沒寫 #：編號是空的；交易服務指名的欄位認不得時看訊息', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(409, { message: '已有持有中' })))
+    const conflict = await proxy().addNote(5, 'x').catch(error => error)
+    expect((conflict as TradeAlreadyOpenError).existingTradeId).toBeNull()
+
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(400, { message: '信心只能 1 到 5', field: 'somethingElse' })))
+    const rejected = await proxy().addNote(5, 'x').catch(error => error)
+    expect((rejected as TradeRejectedError).formField?.field).toBe('confidence')
+
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(400, { message: '看不懂' })))
+    const unknownField = await proxy().addNote(5, 'x').catch(error => error)
+    expect((unknownField as TradeRejectedError).formField).toBeNull()
+  })
+
+  it('其他被拒絕的狀態原樣帶回', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(403, { message: '沒有權限' })))
+
+    const failure = await proxy().addNote(5, 'x').catch(error => error)
+
+    expect(failure).not.toBeInstanceOf(TradeRejectedError)
+    expect((failure as Error).message).toBe('沒有權限')
+  })
+
+  it('不是交易服務拒絕的錯誤原樣帶回', async () => {
+    const networkFailure = new Error('offline')
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(networkFailure))
+
+    await expect(proxy().deleteTrade(5)).rejects.not.toBeInstanceOf(TradeRecordNotFoundError)
+  })
+})

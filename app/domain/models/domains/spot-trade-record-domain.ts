@@ -27,7 +27,14 @@ export class SpotTradeRecordDomain {
       this.record.tradingStrategyId,
       this.record.tradingStrategyName,
       this.record.tradingStrategyDeleted).label
-    const sourceLabel = source === null ? null : `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`
+    const sourceDto = source === null
+      ? null
+      : new TradeSourceDto(
+          `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`,
+          this.priceText(source.referencePrice),
+          this.priceText(source.suggestedStopLossPrice),
+          this.priceText(source.suggestedTakeProfitPrice),
+        )
 
     return new SpotTradeRecordDto(
       this.record.id,
@@ -75,14 +82,7 @@ export class SpotTradeRecordDomain {
         .map(note => new TradeNoteDto(note.id, note.content, note.createdAt)),
       this.record.tags.filter(tag => tag.kind === 'setup').map(tag => tag.toDto()),
       this.record.tags.filter(tag => tag.kind === 'mistake').map(tag => tag.toDto()),
-      source === null
-        ? null
-        : new TradeSourceDto(
-            sourceLabel ?? '',
-            this.priceText(source.referencePrice),
-            this.priceText(source.suggestedStopLossPrice),
-            this.priceText(source.suggestedTakeProfitPrice),
-          ),
+      sourceDto,
       this.record.review === null
         ? null
         : new TradeReviewDto(
@@ -97,7 +97,7 @@ export class SpotTradeRecordDomain {
       this.record.closedAt === null
         ? null
         : new TradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt, HOLDING_WORD).text,
-      sourceLabel ?? linkedStrategyLabel,
+      sourceDto?.label ?? linkedStrategyLabel,
     )
   }
 

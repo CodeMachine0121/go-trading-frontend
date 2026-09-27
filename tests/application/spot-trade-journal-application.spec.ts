@@ -14,6 +14,10 @@ import { SpotTradeCumulativePoint } from '~/domain/models/entities/spot-trade-cu
 import { SpotTradeDistributionBucket } from '~/domain/models/entities/spot-trade-distribution-bucket'
 import { SpotTradeMistakeCost } from '~/domain/models/entities/spot-trade-mistake-cost'
 import { SpotTradeFill } from '~/domain/models/entities/spot-trade-fill'
+import { SpotTradeSourceGroup } from '~/domain/models/entities/spot-trade-source-group'
+import { TradeNote } from '~/domain/models/entities/trade-note'
+import { TradeReview } from '~/domain/models/entities/trade-review'
+import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { SpotTradeListFilterDto } from '~/domain/models/dto/spot-trade-list-filter-dto'
@@ -609,5 +613,110 @@ describe('SpotTradeFill 排序', () => {
     }))
 
     expect((await application.getTrade(5)).fills.map(fill => fill.id)).toEqual([1, 3])
+  })
+})
+
+describe('SpotTradeJournalApplication 邊界', () => {
+  it('附註依時間排列；沒有極值價位時不附價位；滑點對交易有利時不是下跌色', async () => {
+    const { application, recordProxy } = setup()
+    recordProxy.findTrade.mockResolvedValue(buildSpotRecord({
+      source: linkedSource(),
+      notes: [new TradeNote(2, '後來', new Date('2026-09-05T00:00:00Z')), new TradeNote(1, '先', new Date('2026-09-04T00:00:00Z'))],
+      outcome: closedSpotOutcome({ maximumAdversePrice: null, entrySlippagePercentage: measured('-0.05') }),
+    }))
+
+    const record = await application.getTrade(5)
+
+    expect(record.notes.map(note => note.content)).toEqual(['先', '後來'])
+    expect(record.review).toBeNull()
+
+    recordProxy.findTrade.mockResolvedValue(buildSpotRecord({ status: 'reviewed', review: new TradeReview('照計畫', '', '', 4, new Date()) }))
+    expect((await application.getTrade(5)).review).toMatchObject({ wentWell: '照計畫', executionScore: 4 })
+    expect(record.outcome.figureLabelled('最大不利')?.note).toBeNull()
+    expect(record.outcome.figureLabelled('進場滑點')).toMatchObject({ text: '−0.05%', tone: 'neutral' })
+  })
+
+  it('列表：來自連結的列寫機器人與輪次；報酬率算不出時寫原因；認不得的市場照原樣寫', async () => {
+    const { application, recordProxy } = setup()
+    recordProxy.listTrades.mockResolvedValue(new SpotTradeRecordPage([
+      buildSpotRecord({ source: linkedSource(), outcome: closedSpotOutcome({ returnRate: unavailable('notApplicable') }) }),
+      buildSpotRecord({ id: 7, market: 'futures', tags: [new TradeTag(4, 'setup', '回踩')] }),
+    ], 2))
+    recordProxy.findStatistics.mockResolvedValue(spotStatistics())
+
+    const list = await application.listTrades(new SpotTradeListFilterDto())
+
+    expect(list.rows[0]).toMatchObject({ sourceLabel: '台積電趨勢 #88' })
+    expect(list.rows[0]?.returnRate.text).toBe('不適用')
+    expect(list.rows[1]?.marketLabel).toBe('futures')
+    expect(list.rows[1]?.tags[0]).toMatchObject({ name: '回踩', tone: 'neutral' })
+  })
+
+  it('統計：沒有虧損與沒有報酬率時不適用；失誤全是零時橫條不畫', async () => {
+    const { application, recordProxy } = setup()
+    recordProxy.findStatistics.mockResolvedValue(spotStatistics([spotMarketStatistics({
+      profitFactor: null,
+      averageReturnRate: null,
+      mistakeCosts: [new SpotTradeMistakeCost('報復性交易', 1, new Decimal('0'), null)],
+      linkedGroup: new SpotTradeSourceGroup(0, null, null),
+    })]))
+
+    const taiwanStock = (await application.getStatistics('30d')).markets[0]
+
+    expect(taiwanStock?.figures.find(figure => figure.label === '獲利因子')?.text).toBe('不適用')
+    expect(taiwanStock?.figures.find(figure => figure.label === '平均報酬率')?.text).toBe('不適用')
+    expect(taiwanStock?.figures.find(figure => figure.label === '平均進場滑點')?.text).toBe('沒有來自機器人連結的交易')
+    expect(taiwanStock?.mistakeCosts[0]).toMatchObject({ widthPercentage: 0, averageReturnRateText: '不適用' })
+    expect(taiwanStock?.sourceComparison[0]).toMatchObject({ winRateText: '不適用', averageReturnRateText: '不適用' })
+  })
+
+  it('對照：不低於回測、重演沒說原因、策略已刪除時每一列都說無法重演', async () => {
+    const { application, tradingStrategyProxy } = setup()
+    tradingStrategyProxy.findSpotTradeComparison.mockResolvedValue(new SpotTradeLiveComparison('台股均線', false, [
+      new SpotTradeLiveComparisonRow('2330', 'taiwanStock', new SpotTradePerformance(8, 0.7, null, 0), new SpotTradePerformance(12, 0.6, null, 0), null),
+      new SpotTradeLiveComparisonRow('2317', 'taiwanStock', new SpotTradePerformance(3, null, null, 0), null, null),
+    ], null, 0))
+
+    const comparison = await application.getLiveComparison(7)
+
+    expect(comparison.strategyEntrySlippageText).toBe('整份策略平均進場滑點：不適用（沒有來自機器人連結的實單）')
+    expect(comparison.rows[0]).toMatchObject({ verdictLabel: '不低於回測', verdictTone: 'success', liveWinRateTone: 'neutral' })
+    expect(comparison.rows[0]?.live).toMatchObject({ entrySlippageText: '不適用', entrySlippageNote: null })
+    expect(comparison.rows[1]).toMatchObject({ backtestUnavailableMessage: '重演沒有結果，無法重演' })
+    expect(comparison.rows[1]?.live.winRateText).toBe('不適用')
+
+    tradingStrategyProxy.findSpotTradeComparison.mockResolvedValue(new SpotTradeLiveComparison('', true, [
+      new SpotTradeLiveComparisonRow('2330', 'taiwanStock', new SpotTradePerformance(8, 0.5, null, 0), null, '策略不在了'),
+    ], null, 0))
+    expect((await application.getLiveComparison(7)).rows[0]?.backtestUnavailableMessage).toBe('交易策略已刪除，無法重演')
+  })
+
+  it('記一筆時沒有標的就不送出；加一筆時一筆都沒填說出缺什麼', async () => {
+    const { application, recordProxy } = setup()
+    const existing = buildSpotRecord({ status: 'open' }).toDomain().toDto()
+
+    await expect(application.recordDraft(draft({ symbol: '' }))).rejects.toThrow('請填標的')
+    await expect(application.addDraftFills(5, draft({ symbol: '', fills: [] }), existing.fills)).rejects.toThrow('至少要有一筆填好價格與數量的買進或賣出')
+    expect(recordProxy.recordTrade).not.toHaveBeenCalled()
+    expect(recordProxy.addFill).not.toHaveBeenCalled()
+  })
+
+  it('後面的買賣遇到非規則的錯誤時原樣往上拋', async () => {
+    const { application, recordProxy } = setup()
+    recordProxy.recordTrade.mockResolvedValue(buildSpotRecord({ status: 'open' }))
+    recordProxy.addFill.mockRejectedValue(new TradeRecordNotFoundError('找不到這筆交易'))
+
+    await expect(application.recordDraft(draft({ fills: [draftFill(), draftFill({ kind: 'sell' })] }))).rejects.toBeInstanceOf(TradeRecordNotFoundError)
+  })
+
+  it('價格路徑：沒有計畫止損時不畫那條線', async () => {
+    const { application, kCandleProxy } = setup()
+    kCandleProxy.findKCandleSeries.mockResolvedValue(new KCandleSeriesVo([
+      new KCandle('2330', new Date('2026-09-01T01:00:00Z'), new Decimal('1050'), new Decimal('1060'), new Decimal('1040'), new Decimal('1055'), new Decimal('10'), null, null, null),
+    ], null as never))
+
+    const pricePath = await application.getPricePath(buildSpotRecord({ plannedStopLossPrice: null }).toDomain().toDto())
+
+    expect(pricePath.lines.map(line => line.label)).toEqual(['買進均價', '最大不利', '最大有利'])
   })
 })
