@@ -13,20 +13,31 @@ export function useContractTradeJournal(
   const sourceFilter = ref<TradeSourceFilter>('all')
   const symbolFilter = ref('')
 
+  let latestRequestNumber = 0
+
   async function loadTrades(): Promise<void> {
+    latestRequestNumber += 1
+    const requestNumber = latestRequestNumber
     loading.value = true
     failureMessage.value = null
 
     try {
-      list.value = await contractTradeJournalApplication.listTrades(
+      const loaded = await contractTradeJournalApplication.listTrades(
         new ContractTradeListFilterDto(statusFilter.value, sourceFilter.value, symbolFilter.value))
+      if (requestNumber === latestRequestNumber) {
+        list.value = loaded
+      }
     }
     catch (error: unknown) {
-      list.value = null
-      failureMessage.value = contractTradeJournalApplication.describeFailure(error).message
+      if (requestNumber === latestRequestNumber) {
+        list.value = null
+        failureMessage.value = contractTradeJournalApplication.describeFailure(error).message
+      }
     }
     finally {
-      loading.value = false
+      if (requestNumber === latestRequestNumber) {
+        loading.value = false
+      }
     }
   }
 

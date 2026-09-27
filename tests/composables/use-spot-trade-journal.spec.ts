@@ -55,6 +55,22 @@ describe('useSpotTradeJournal', () => {
     expect(statusFilter.value).toBe('closed')
   })
 
+  it('先送出的讀取比較晚回來時，不蓋掉後來那一次的結果', async () => {
+    let finishFirst: (page: SpotTradeRecordPage) => void = () => {}
+    recordProxy.listTrades.mockReturnValueOnce(new Promise((resolve) => {
+      finishFirst = resolve
+    }))
+    const { list, loadTrades, statusFilter } = journalUnderTest()
+
+    const firstLoad = loadTrades()
+    statusFilter.value = 'open'
+    await vi.waitFor(() => expect(list.value?.rows.map(row => row.id)).toEqual([2]))
+    finishFirst(new SpotTradeRecordPage([buildSpotRecord({ id: 9 })], 1))
+    await firstLoad
+
+    expect(list.value?.rows.map(row => row.id)).toEqual([2])
+  })
+
   it('連不上時說原因，不呈現列表', async () => {
     recordProxy.listTrades.mockRejectedValue(new BackendUnreachableError('http://x'))
     const { list, loadTrades, failureMessage } = journalUnderTest()
