@@ -41,8 +41,8 @@ vi.mock('lightweight-charts', () => ({
 const FIRST_MOMENT = new Date('2026-09-25T06:00:00Z')
 
 function pricePath(lines = [
-  new ContractTradePricePathLineDto(new Decimal('96380'), '計畫止損', 'danger'),
-  new ContractTradePricePathLineDto(new Decimal('100785'), '計畫止盈', 'success'),
+  new ContractTradePricePathLineDto(new Decimal('96380'), '計畫止損', 'danger', '96,380'),
+  new ContractTradePricePathLineDto(new Decimal('100785'), '計畫止盈', 'success', '100,785'),
 ]) {
   return new ContractTradePricePathDto(
     [new ContractTradePricePathCandleDto(FIRST_MOMENT, new Decimal('97850'), new Decimal('98010'), new Decimal('97780'), new Decimal('97960'))],
@@ -82,10 +82,17 @@ describe('ContractTradePricePathChart', () => {
     ])
   })
 
+  it('圖下列出每一條價位線與它的價格', async () => {
+    const wrapper = await mountChart()
+
+    expect(wrapper.get('[data-testid="price-path-legend"]').text()).toContain('計畫止損 96,380')
+    expect(wrapper.get('[data-testid="price-path-legend"]').text()).toContain('計畫止盈 100,785')
+  })
+
   it('畫出計畫止損與止盈兩條線；換一份資料時換掉舊的線', async () => {
     const wrapper = await mountChart()
 
-    await wrapper.setProps({ pricePath: pricePath([new ContractTradePricePathLineDto(new Decimal('97110'), '最大不利', 'muted')]) })
+    await wrapper.setProps({ pricePath: pricePath([new ContractTradePricePathLineDto(new Decimal('97110'), '最大不利', 'muted', '97,110')]) })
 
     expect(chartLibrary.candlestickSeries.createPriceLine.mock.calls.map(call => (call as [{ title: string }])[0].title))
       .toEqual(['計畫止損', '計畫止盈', '最大不利'])

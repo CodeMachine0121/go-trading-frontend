@@ -273,6 +273,27 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     ])
     expect(record.outcome.figureLabelled('最大不利')?.note).toBe('97,110')
     expect(record.outcome.pricePathUnavailableMessage).toBeNull()
+    expect(record.outcome.figureGroups.map(group => group.map(figure => figure.label))).toEqual([
+      ['毛損益', '手續費', '資金費用'],
+      ['淨損益', '計畫風險', 'R 倍數'],
+      ['最大不利', '最大有利', '利潤捕捉率', '進場滑點'],
+    ])
+    expect(record.holdingDurationText).toBe('持倉 1 天 2 小時')
+    expect(record.originLabel).toBe('來自 BTC 趨勢跟隨・第 412 輪')
+  })
+
+  it.each([
+    ['持倉中沒有持倉時長', { status: 'open', closedAt: null, source: null }, null, 'BTC 趨勢跟隨'],
+    ['不是來自連結時寫關聯的策略', { source: null }, '持倉 1 天 2 小時', 'BTC 趨勢跟隨'],
+    ['不是來自連結也沒有關聯時寫自行判斷', { source: null, tradingStrategyId: null, tradingStrategyName: null }, '持倉 1 天 2 小時', '自行判斷'],
+  ])('%s', async (_, overrides, expectedDuration, expectedOrigin) => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord(overrides))
+
+    const record = await application.getTrade(27)
+
+    expect(record.holdingDurationText).toBe(expectedDuration)
+    expect(record.originLabel).toBe(expectedOrigin)
   })
 
   it('來自連結的交易列出當時的建議', async () => {
@@ -971,11 +992,13 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
     expect(loadPlan.fetchEndTime.getTime()).toBeGreaterThan(record.closedAt?.getTime() ?? 0)
     expect(pricePath.emptyMessage).toBeNull()
     expect(pricePath.markers.map(marker => marker.text)).toEqual(['進場 97,905', '進場 97,960', '出場 100,420'])
-    expect(pricePath.lines.map(line => line.label)).toEqual(['計畫止損', '計畫止盈', '最大不利', '最大有利'])
+    expect(pricePath.lines.map(line => `${line.label} ${line.priceText}`)).toEqual([
+      '進場均價 97,927.6', '計畫止損 96,380', '計畫止盈 100,785', '最大不利 97,110', '最大有利 100,960',
+    ])
     expect(pricePath.candles).toHaveLength(1)
   })
 
-  it('沒有計畫線也沒有極值時不畫任何水平線', async () => {
+  it('沒有計畫線也沒有極值時只畫進場均價', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-27T00:00:00Z'))
     const { application, recordProxy, kCandleContractProxy } = buildFixture()
@@ -988,7 +1011,7 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
       new KCandleContractSeriesVo([kCandleContract('2026-09-25T06:00:00Z')], { value: '1h' } as never))
     const record = await application.getTrade(27)
 
-    expect((await application.getPricePath(record)).lines).toEqual([])
+    expect((await application.getPricePath(record)).lines.map(line => line.label)).toEqual(['進場均價'])
   })
 
   it('持倉中的行情取到現在為止，沒有行情時寫同一句話', async () => {

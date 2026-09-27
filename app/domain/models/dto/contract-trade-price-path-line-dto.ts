@@ -6,5 +6,6 @@ export class ContractTradePricePathLineDto {
     public readonly price: Decimal,
     public readonly label: string,
     public readonly tone: ContractTradeFigureTone,
+    public readonly priceText: string,
   ) {}
 }

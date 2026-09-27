@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import ContractTradeStatusBadge from '~/components/molecules/ContractTradeStatusBadge.vue'
+import ContractTradeFillLedgerPanel from '~/components/organisms/ContractTradeFillLedgerPanel.vue'
 import ContractTradeForm from '~/components/organisms/ContractTradeForm.vue'
+import ContractTradeNotesPanel from '~/components/organisms/ContractTradeNotesPanel.vue'
 import ContractTradeOutcomePanel from '~/components/organisms/ContractTradeOutcomePanel.vue'
 import ContractTradePlanPanel from '~/components/organisms/ContractTradePlanPanel.vue'
 import ContractTradeReviewPanel from '~/components/organisms/ContractTradeReviewPanel.vue'
+import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 definePageMeta({
   layout: 'console',
@@ -69,14 +73,33 @@ onMounted(() => {
 
     <template v-else-if="detail.record.value">
       <header class="contract-trade-page__header">
-        <h2 class="contract-trade-page__title">
-          {{ detail.record.value.title }}
-        </h2>
+        <div class="contract-trade-page__heading">
+          <h2 class="contract-trade-page__title">
+            {{ detail.record.value.title }}
+          </h2>
+          <p
+            class="contract-trade-page__period"
+            data-testid="trade-period"
+          >
+            {{ formatDateTimeInTimeZone(detail.record.value.openedAt, selectedTimeZone.identifier) }}
+            <template v-if="detail.record.value.closedAt">
+              → {{ formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier) }}・{{ detail.record.value.holdingDurationText }}
+            </template>
+            <template v-else>
+              起・持倉中
+            </template>
+          </p>
+        </div>
         <ContractTradeStatusBadge
           :label="detail.record.value.statusLabel"
           :tone="detail.record.value.statusTone"
         />
-        <span class="contract-trade-page__source">{{ detail.record.value.sourceLabel }}</span>
+        <AppBadge
+          variant="accent"
+          data-testid="trade-origin"
+        >
+          {{ detail.record.value.originLabel }}
+        </AppBadge>
         <div class="contract-trade-page__actions">
           <AppButton
             v-if="detail.record.value.canEditFills && !addingFills"
@@ -149,17 +172,20 @@ onMounted(() => {
         :time-zone="selectedTimeZone"
       />
 
+      <AppAlert
+        v-if="detail.actionFailureMessage.value"
+        tone="danger"
+        data-testid="detail-action-failure"
+      >
+        {{ detail.actionFailureMessage.value }}
+      </AppAlert>
+
       <div class="contract-trade-page__columns">
         <ContractTradePlanPanel
           :record="detail.record.value"
           :setup-tags="detail.setupTags.value"
           :busy="detail.busy.value"
-          :failure-message="detail.actionFailureMessage.value"
-          :time-zone-identifier="selectedTimeZone.identifier"
           @save-plan="detail.savePlan"
-          @add-note="detail.addNote"
-          @amend-fill="detail.amendFill"
-          @remove-fill="detail.removeFill"
           @assign-setup-tags="detail.assignSetupTags"
           @create-setup-tag="detail.createSetupTag"
         />
@@ -169,6 +195,22 @@ onMounted(() => {
           :mistake-tags="detail.mistakeTags.value"
           :busy="detail.busy.value"
           @submit="detail.writeReview"
+        />
+      </div>
+
+      <div class="contract-trade-page__columns">
+        <ContractTradeFillLedgerPanel
+          :record="detail.record.value"
+          :busy="detail.busy.value"
+          :time-zone-identifier="selectedTimeZone.identifier"
+          @amend-fill="detail.amendFill"
+          @remove-fill="detail.removeFill"
+        />
+        <ContractTradeNotesPanel
+          :record="detail.record.value"
+          :busy="detail.busy.value"
+          :time-zone-identifier="selectedTimeZone.identifier"
+          @add-note="detail.addNote"
         />
       </div>
     </template>
@@ -211,17 +253,27 @@ onMounted(() => {
     align-items: center;
   }
 
+  &__heading {
+    display: flex;
+    flex-direction: column;
+    gap: spacing('3xs');
+    margin-right: spacing('xs');
+  }
+
+  &__period {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('xs');
+
+    @include numeric;
+  }
+
   &__title {
     margin: 0;
     color: color('text-strong');
     font-size: font-size('lg');
 
     @include numeric;
-  }
-
-  &__source {
-    color: color('text-muted');
-    font-size: font-size('xs');
   }
 
   &__actions {
@@ -236,7 +288,7 @@ onMounted(() => {
     gap: spacing('md');
 
     @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 }

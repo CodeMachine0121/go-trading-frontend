@@ -1,14 +1,14 @@
 <script setup lang="ts">
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
-import AppSelect from '~/components/atoms/AppSelect.vue'
+import AppRating from '~/components/atoms/AppRating.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 
-const EXECUTION_SCORES = [1, 2, 3, 4, 5] as const
 const DEFAULT_EXECUTION_SCORE = 3
 
 const { record, mistakeTags, busy = false } = defineProps<{
@@ -24,20 +24,31 @@ const emit = defineEmits<{
 const wentWell = ref('')
 const wentWrong = ref('')
 const nextTime = ref('')
-const executionScore = ref(String(DEFAULT_EXECUTION_SCORE))
+const executionScore = ref<number | null>(DEFAULT_EXECUTION_SCORE)
 const mistakeTagIds = ref<number[]>([])
 
 watch(() => record, () => {
   wentWell.value = record.review?.wentWell ?? ''
   wentWrong.value = record.review?.wentWrong ?? ''
   nextTime.value = record.review?.nextTime ?? ''
-  executionScore.value = String(record.review?.executionScore ?? DEFAULT_EXECUTION_SCORE)
+  executionScore.value = record.review?.executionScore ?? DEFAULT_EXECUTION_SCORE
   mistakeTagIds.value = record.mistakeTags.map(tag => tag.id)
 }, { immediate: true })
 </script>
 
 <template>
   <AppPanel title="檢討">
+    <template
+      v-if="record.canWriteReview && !record.review"
+      #actions
+    >
+      <AppBadge
+        variant="warning"
+        data-testid="review-pending"
+      >
+        尚未填寫
+      </AppBadge>
+    </template>
     <p
       v-if="!record.canWriteReview"
       class="contract-trade-review-panel__state"
@@ -50,7 +61,7 @@ watch(() => record, () => {
       v-else
       class="contract-trade-review-panel__form"
       data-testid="review-form"
-      @submit.prevent="emit('submit', wentWell, wentWrong, nextTime, Number(executionScore), mistakeTagIds)"
+      @submit.prevent="emit('submit', wentWell, wentWrong, nextTime, executionScore ?? DEFAULT_EXECUTION_SCORE, mistakeTagIds)"
     >
       <FormField label="哪裡做對">
         <AppTextarea
@@ -70,19 +81,16 @@ watch(() => record, () => {
           data-testid="review-next-time"
         />
       </FormField>
-      <FormField label="執行評分">
-        <AppSelect
+      <FormField
+        label="執行評分"
+        grouped
+      >
+        <AppRating
           v-model="executionScore"
+          label="執行評分"
+          :clearable="false"
           data-testid="review-execution-score"
-        >
-          <option
-            v-for="score in EXECUTION_SCORES"
-            :key="score"
-            :value="String(score)"
-          >
-            {{ score }} / 5
-          </option>
-        </AppSelect>
+        />
       </FormField>
       <FormField
         label="失誤標籤"

@@ -17,20 +17,20 @@ describe('ContractTradeReviewPanel', () => {
     expect(wrapper.find('[data-testid="review-form"]').exists()).toBe(false)
   })
 
-  it('平倉後填好送出，評分只能 1 到 5', async () => {
+  it('平倉後還沒寫時標示尚未填寫，填好送出，評分是 1 到 5 點', async () => {
     const wrapper = mount(ContractTradeReviewPanel, {
       props: { record: buildRecord({ tags: [] }).toDomain().toDto(), mistakeTags: MISTAKE_TAGS },
     })
 
-    const scoreOptions = wrapper.get('[data-testid="review-execution-score"]').findAll('option').map(option => option.text())
+    expect(wrapper.get('[data-testid="review-pending"]').text()).toBe('尚未填寫')
+    expect(wrapper.get('[data-testid="review-execution-score"]').findAll('[role="radio"]')).toHaveLength(5)
     await wrapper.get('[data-testid="review-went-well"]').setValue('照計畫')
     await wrapper.get('[data-testid="review-went-wrong"]').setValue('提早出場')
     await wrapper.get('[data-testid="review-next-time"]').setValue('讓止盈成交')
-    await wrapper.get('[data-testid="review-execution-score"]').setValue('4')
+    await wrapper.get('[data-testid="app-rating-4"]').trigger('click')
     await wrapper.get('[data-testid="tag-option-2"]').trigger('click')
     await wrapper.get('[data-testid="review-form"]').trigger('submit')
 
-    expect(scoreOptions).toEqual(['1 / 5', '2 / 5', '3 / 5', '4 / 5', '5 / 5'])
     expect(wrapper.emitted('submit')).toEqual([['照計畫', '提早出場', '讓止盈成交', 4, [2]]])
     expect(wrapper.get('[data-testid="review-save"]').text()).toBe('寫下檢討')
   })
@@ -44,7 +44,8 @@ describe('ContractTradeReviewPanel', () => {
     })
 
     expect((wrapper.get('[data-testid="review-went-well"]').element as HTMLTextAreaElement).value).toBe('照計畫')
-    expect((wrapper.get('[data-testid="review-execution-score"]').element as HTMLSelectElement).value).toBe('5')
+    expect(wrapper.get('[data-testid="app-rating-5"]').attributes('aria-checked')).toBe('true')
+    expect(wrapper.find('[data-testid="review-pending"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="tag-option-2"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('[data-testid="review-save"]').text()).toBe('更新檢討')
   })

@@ -6,6 +6,7 @@ import { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-pr
 import { ContractTradePricePathCandleDto } from '~/domain/models/dto/contract-trade-price-path-candle-dto'
 import { ContractTradePricePathMarkerDto } from '~/domain/models/dto/contract-trade-price-path-marker-dto'
 import { ContractTradePricePathLineDto } from '~/domain/models/dto/contract-trade-price-path-line-dto'
+import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 
 const MINIMUM_MARGIN_MILLISECONDS = 30 * 60 * 1000
 const MARGIN_RATIO = 0.1
@@ -43,6 +44,7 @@ export class ContractTradePricePathDomain {
     }
 
     const lineSources = [
+      { price: this.record.averageEntryPrice, label: '進場均價', tone: 'neutral' as const },
       { price: this.record.plannedStopLossPrice, label: '計畫止損', tone: 'danger' as const },
       { price: this.record.plannedTakeProfitPrice, label: '計畫止盈', tone: 'success' as const },
       { price: this.record.maximumAdversePrice, label: '最大不利', tone: 'muted' as const },
@@ -61,7 +63,8 @@ export class ContractTradePricePathDomain {
         fill.filledAt, fill.kind, `${fill.kindLabel} ${fill.priceText}`)),
       lineSources.flatMap(lineSource => lineSource.price === null
         ? []
-        : [new ContractTradePricePathLineDto(lineSource.price, lineSource.label, lineSource.tone)]),
+        : [new ContractTradePricePathLineDto(
+            lineSource.price, lineSource.label, lineSource.tone, new JournalNumberDomain(lineSource.price).price())]),
       null,
     )
   }

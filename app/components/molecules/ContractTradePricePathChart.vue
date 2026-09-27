@@ -122,15 +122,72 @@ watch(() => [pricePath, timeZone] as const, drawPricePath)
 </script>
 
 <template>
-  <div
-    ref="chartHost"
-    class="contract-trade-price-path-chart"
-    data-testid="price-path-chart"
-  />
+  <div class="contract-trade-price-path-chart">
+    <div
+      ref="chartHost"
+      class="contract-trade-price-path-chart__canvas"
+      data-testid="price-path-chart"
+    />
+    <ul
+      v-if="pricePath.lines.length > 0"
+      class="contract-trade-price-path-chart__legend"
+      data-testid="price-path-legend"
+    >
+      <li
+        v-for="line in pricePath.lines"
+        :key="line.label"
+        class="contract-trade-price-path-chart__legend-item"
+        :class="`contract-trade-price-path-chart__legend-item--${line.tone}`"
+      >
+        — {{ line.label }} {{ line.priceText }}
+      </li>
+    </ul>
+  </div>
 </template>
 
 <style scoped lang="scss">
 .contract-trade-price-path-chart {
-  height: 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+
+  &__canvas {
+    height: 18rem;
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('2xs');
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__legend-item {
+    border-radius: radius('xs');
+    background-color: color('surface-muted');
+    padding: 0 spacing('2xs');
+    font-size: font-size('2xs');
+    line-height: line-height('normal');
+
+    @include numeric;
+
+    &--success {
+      color: color('success');
+    }
+
+    &--danger {
+      color: color('danger');
+    }
+
+    &--neutral {
+      color: color('text');
+    }
+
+    &--muted {
+      color: color('text-muted');
+    }
+  }
 }
 </style>

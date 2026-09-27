@@ -46,5 +46,7 @@ export class ContractTradeRecordDto {
     public readonly outcome: ContractTradeOutcomeDto,
     public readonly maximumAdversePrice: Decimal | null,
     public readonly maximumFavorablePrice: Decimal | null,
+    public readonly holdingDurationText: string | null,
+    public readonly originLabel: string,
   ) {}
 }

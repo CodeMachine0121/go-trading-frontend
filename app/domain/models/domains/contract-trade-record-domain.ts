@@ -9,6 +9,7 @@ import { ContractTradeStatusDomain } from '~/domain/models/domains/contract-trad
 import { ContractTradeOutcomeDomain } from '~/domain/models/domains/contract-trade-outcome-domain'
 import { ContractTradeLinkedStrategyDomain } from '~/domain/models/domains/contract-trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { ContractTradeHoldingDurationDomain } from '~/domain/models/domains/contract-trade-holding-duration-domain'
 import type Decimal from 'decimal.js'
 
 const REVIEW_AFTER_CLOSE_MESSAGE = '平倉後才能檢討'
@@ -21,6 +22,11 @@ export class ContractTradeRecordDomain {
     const direction = new ContractTradeDirectionDomain(this.record.direction, this.record.leverage)
     const status = new ContractTradeStatusDomain(this.record.status)
     const source = this.record.source
+    const linkedStrategyLabel = new ContractTradeLinkedStrategyDomain(
+      this.record.tradingStrategyId,
+      this.record.tradingStrategyName,
+      this.record.tradingStrategyDeleted).label
+    const sourceLabel = source === null ? null : `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`
 
     return new ContractTradeRecordDto(
       this.record.id,
@@ -33,10 +39,7 @@ export class ContractTradeRecordDomain {
       this.record.status,
       status.label,
       status.tone,
-      new ContractTradeLinkedStrategyDomain(
-        this.record.tradingStrategyId,
-        this.record.tradingStrategyName,
-        this.record.tradingStrategyDeleted).label,
+      linkedStrategyLabel,
       !status.isOpen,
       status.isOpen,
       !status.isOpen,
@@ -77,7 +80,7 @@ export class ContractTradeRecordDomain {
       source === null
         ? null
         : new ContractTradeSourceDto(
-            `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`,
+            sourceLabel ?? '',
             this.priceText(source.referencePrice),
             this.priceText(source.suggestedStopLossPrice),
             this.priceText(source.suggestedTakeProfitPrice),
@@ -93,6 +96,10 @@ export class ContractTradeRecordDomain {
       new ContractTradeOutcomeDomain(this.record.outcome, status.isOpen, source !== null).toDto(),
       this.record.outcome.maximumAdversePrice,
       this.record.outcome.maximumFavorablePrice,
+      this.record.closedAt === null
+        ? null
+        : new ContractTradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt).text,
+      sourceLabel ?? linkedStrategyLabel,
     )
   }
 

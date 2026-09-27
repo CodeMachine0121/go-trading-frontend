@@ -53,8 +53,11 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
     <AppPanel title="結果">
       <div class="contract-trade-outcome-panel__result">
         <ContractTradeSummaryStrip
-          :figures="record.outcome.figures"
+          v-for="(group, index) in record.outcome.figureGroups"
+          :key="index"
+          :figures="group"
           layout="list"
+          :data-testid="`outcome-group-${index}`"
         />
         <dl
           v-if="record.source"
@@ -92,7 +95,7 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
   &__result {
     display: flex;
     flex-direction: column;
-    gap: spacing('sm');
+    gap: spacing('xs');
   }
 
   &__source {

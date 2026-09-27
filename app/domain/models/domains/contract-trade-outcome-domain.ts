@@ -20,7 +20,7 @@ export class ContractTradeOutcomeDomain {
   ) {}
 
   toDto(): ContractTradeOutcomeDto {
-    const figures = [
+    const costFigures = [
       this.signedFigure('毛損益', this.outcome.grossProfit),
       new ContractTradeFigureVo(
         '手續費',
@@ -38,6 +38,8 @@ export class ContractTradeOutcomeDomain {
           return value.isNegative() ? `付出 ${amount}` : `收到 ${amount}`
         },
         value => new JournalNumberDomain(value).tone()),
+    ]
+    const riskFigures = [
       this.signedFigure(
         this.open ? '已實現淨損益' : '淨損益',
         this.outcome.netProfit,
@@ -46,6 +48,8 @@ export class ContractTradeOutcomeDomain {
         '計畫風險', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
       new ContractTradeMeasureDomain(this.outcome.rMultiple).toFigure(
         'R 倍數', value => new JournalNumberDomain(value).rMultiple(), value => new JournalNumberDomain(value).tone()),
+    ]
+    const excursionFigures = [
       new ContractTradeMeasureDomain(this.outcome.maximumAdverseExcursion).toFigure(
         '最大不利',
         value => new JournalNumberDomain(value).rMultiple(),
@@ -88,7 +92,7 @@ export class ContractTradeOutcomeDomain {
     ]
 
     return new ContractTradeOutcomeDto(
-      figures,
+      [costFigures, riskFigures, excursionFigures],
       excursionReasons.includes('noMarketData') ? '沒有行情資料，無法計算' : null,
     )
   }

@@ -2,9 +2,13 @@ import type { ContractTradeFigureVo } from '~/domain/models/vo/contract-trade-fi
 
 export class ContractTradeOutcomeDto {
   constructor(
-    public readonly figures: readonly ContractTradeFigureVo[],
+    public readonly figureGroups: readonly (readonly ContractTradeFigureVo[])[],
     public readonly pricePathUnavailableMessage: string | null,
   ) {}
+
+  get figures(): readonly ContractTradeFigureVo[] {
+    return this.figureGroups.flat()
+  }
 
   figureLabelled(label: string): ContractTradeFigureVo | undefined {
     return this.figures.find(figure => figure.label === label)
