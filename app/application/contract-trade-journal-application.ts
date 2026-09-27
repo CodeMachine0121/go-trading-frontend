@@ -5,8 +5,8 @@ import type { ContractTradeListFilterDto } from '~/domain/models/dto/contract-tr
 import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import type { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
-import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
+import type { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
+import type { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
 import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
@@ -62,16 +62,16 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.addDraftFills(id, draft, setting, existingFills)
   }
 
-  async amendFill(id: number, fillId: number, fillWriteDto: ContractTradeFillWriteDto): Promise<ContractTradeRecordDto> {
-    return this.contractTradeJournalService.amendFill(id, fillId, fillWriteDto)
+  async amendFill(id: number, amendment: ContractTradeFillAmendmentDto): Promise<ContractTradeRecordDto> {
+    return this.contractTradeJournalService.amendFill(id, amendment)
   }
 
   async removeFill(id: number, fillId: number): Promise<ContractTradeRecordDto> {
     return this.contractTradeJournalService.removeFill(id, fillId)
   }
 
-  async amendPlan(id: number, planWriteDto: ContractTradePlanWriteDto): Promise<ContractTradeRecordDto> {
-    return this.contractTradeJournalService.amendPlan(id, planWriteDto)
+  async amendPlan(id: number, planInput: ContractTradePlanInputDto): Promise<ContractTradeRecordDto> {
+    return this.contractTradeJournalService.amendPlan(id, planInput)
   }
 
   async addNote(id: number, content: string): Promise<ContractTradeRecordDto> {

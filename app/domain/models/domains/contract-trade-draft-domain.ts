@@ -12,6 +12,7 @@ import { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-
 import { ContractTradeRecordSubmissionDto } from '~/domain/models/dto/contract-trade-record-submission-dto'
 import { ContractTradePricedQuantityVo } from '~/domain/models/vo/contract-trade-priced-quantity-vo'
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
+import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 
 const PERCENT = 100
@@ -32,8 +33,8 @@ export class ContractTradeDraftDomain {
     const pricedQuantities = [
       ...(this.existingFills ?? []).map(fill => new ContractTradePricedQuantityVo(fill.kind, fill.price, fill.quantity)),
       ...this.draft.fills.flatMap((fill) => {
-        const price = this.decimalOf(fill.priceText)
-        const quantity = this.decimalOf(fill.quantityText)
+        const price = new DecimalInputDomain(fill.priceText).value
+        const quantity = new DecimalInputDomain(fill.quantityText).value
 
         return price === null || quantity === null ? [] : [new ContractTradePricedQuantityVo(fill.kind, price, quantity)]
       }),
@@ -48,7 +49,7 @@ export class ContractTradeDraftDomain {
       : entries.reduce((total, entry) => total.plus(entry.price.times(entry.quantity)), new Decimal(0))
           .dividedBy(enteredQuantity)
     const displayedFractionDigits = Math.max(0, ...entries.map(entry => entry.price.decimalPlaces())) + 1
-    const plannedStopLoss = this.decimalOf(this.draft.plannedStopLossText)
+    const plannedStopLoss = new DecimalInputDomain(this.draft.plannedStopLossText).value
     const stopDistance = averageEntryPrice === null || plannedStopLoss === null
       ? null
       : averageEntryPrice.minus(plannedStopLoss)
@@ -67,8 +68,8 @@ export class ContractTradeDraftDomain {
         : new JournalNumberDomain(stopDistance.abs().times(enteredQuantity)).amount(),
       this.draft.fills.map((fill) => {
         const rate = fill.liquidity === 'maker' ? this.setting.makerFeeRate : this.setting.takerFeeRate
-        const price = this.decimalOf(fill.priceText) ?? new Decimal(0)
-        const quantity = this.decimalOf(fill.quantityText) ?? new Decimal(0)
+        const price = new DecimalInputDomain(fill.priceText).value ?? new Decimal(0)
+        const quantity = new DecimalInputDomain(fill.quantityText).value ?? new Decimal(0)
 
         return rate === null
           ? new ContractTradeDraftFeePreviewDto(new JournalNumberDomain(new Decimal(0)).amount(), FEE_RATE_MISSING_NOTE)
@@ -92,10 +93,10 @@ export class ContractTradeDraftDomain {
       new ContractTradeRecordWriteDto(
         this.draft.symbol.trim().toUpperCase(),
         this.draft.direction,
-        this.decimalOf(this.draft.leverageText),
+        new DecimalInputDomain(this.draft.leverageText).value,
         firstEntryFill,
-        this.decimalOf(this.draft.plannedStopLossText),
-        this.decimalOf(this.draft.plannedTakeProfitText),
+        new DecimalInputDomain(this.draft.plannedStopLossText).value,
+        new DecimalInputDomain(this.draft.plannedTakeProfitText).value,
         this.draft.entryReason.trim(),
         this.draft.confidence,
         this.draft.tradingStrategyId,
@@ -161,27 +162,13 @@ export class ContractTradeDraftDomain {
   }
 
   private toFillWriteDto(fill: ContractTradeDraftFillDto): ContractTradeFillWriteDto | null {
-    const price = this.decimalOf(fill.priceText)
-    const quantity = this.decimalOf(fill.quantityText)
+    const price = new DecimalInputDomain(fill.priceText).value
+    const quantity = new DecimalInputDomain(fill.quantityText).value
     if (price === null || quantity === null || !price.greaterThan(0) || !quantity.greaterThan(0)) {
       return null
     }
 
     return new ContractTradeFillWriteDto(
-      fill.kind, fill.filledAt, price, quantity, fill.liquidity, this.decimalOf(fill.feeText))
-  }
-
-  private decimalOf(text: string): Decimal | null {
-    const trimmed = text.trim().replaceAll(',', '')
-    if (trimmed === '') {
-      return null
-    }
-
-    try {
-      return new Decimal(trimmed)
-    }
-    catch {
-      return null
-    }
+      fill.kind, fill.filledAt, price, quantity, fill.liquidity, new DecimalInputDomain(fill.feeText).value)
   }
 }

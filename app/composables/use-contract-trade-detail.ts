@@ -1,13 +1,12 @@
-import Decimal from 'decimal.js'
 import type { ContractTradeJournalApplication } from '~/application/contract-trade-journal-application'
 import type { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import type { ContractTradePricePathDto } from '~/domain/models/dto/contract-trade-price-path-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
-import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
+import { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
 import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
-import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
+import { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
 import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-found-error'
 
@@ -93,23 +92,14 @@ export function useContractTradeDetail(
     }
   }
 
-  function decimalOrNull(text: string): Decimal | null {
-    const trimmed = text.trim()
-
-    return trimmed === '' || Number.isNaN(Number(trimmed)) ? null : new Decimal(trimmed)
-  }
-
   async function savePlan(
     plannedStopLossText: string,
     plannedTakeProfitText: string,
     entryReason: string,
     confidence: number | null,
   ): Promise<boolean> {
-    return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new ContractTradePlanWriteDto(
-      decimalOrNull(plannedStopLossText),
-      decimalOrNull(plannedTakeProfitText),
-      entryReason,
-      confidence)))
+    return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new ContractTradePlanInputDto(
+      plannedStopLossText, plannedTakeProfitText, entryReason, confidence)))
   }
 
   async function addNote(content: string): Promise<boolean> {
@@ -152,16 +142,8 @@ export function useContractTradeDetail(
     quantityText: string,
     feeText: string,
   ): Promise<boolean> {
-    const price = decimalOrNull(priceText)
-    const quantity = decimalOrNull(quantityText)
-    if (price === null || quantity === null) {
-      actionFailureMessage.value = '成交價與數量要填數字'
-
-      return false
-    }
-
-    return act(() => contractTradeJournalApplication.amendFill(tradeId(), fill.id, new ContractTradeFillWriteDto(
-      fill.kind, fill.filledAt, price, quantity, fill.liquidity, decimalOrNull(feeText))))
+    return act(() => contractTradeJournalApplication.amendFill(
+      tradeId(), new ContractTradeFillAmendmentDto(fill, priceText, quantityText, feeText)))
   }
 
   async function removeFill(fillId: number): Promise<boolean> {

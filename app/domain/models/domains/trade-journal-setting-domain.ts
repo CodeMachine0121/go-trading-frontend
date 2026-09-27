@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js'
+import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import type { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import { TradeFeeRatesWriteDto } from '~/domain/models/dto/trade-fee-rates-write-dto'
@@ -31,7 +31,7 @@ export class TradeJournalSettingDomain {
       return null
     }
 
-    const rate = this.rateOf(trimmed)
+    const rate = new DecimalInputDomain(trimmed).value
     if (rate === null) {
       return UNREADABLE_RATE_MESSAGE
     }
@@ -40,19 +40,6 @@ export class TradeJournalSettingDomain {
   }
 
   toFeeRatesWriteDto(makerRateText: string, takerRateText: string): TradeFeeRatesWriteDto {
-    return new TradeFeeRatesWriteDto(this.rateOf(makerRateText.trim()), this.rateOf(takerRateText.trim()))
-  }
-
-  private rateOf(trimmedText: string): Decimal | null {
-    if (trimmedText === '') {
-      return null
-    }
-
-    try {
-      return new Decimal(trimmedText)
-    }
-    catch {
-      return null
-    }
+    return new TradeFeeRatesWriteDto(new DecimalInputDomain(makerRateText).value, new DecimalInputDomain(takerRateText).value)
   }
 }

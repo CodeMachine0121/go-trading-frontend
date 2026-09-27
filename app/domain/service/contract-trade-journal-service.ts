@@ -7,8 +7,12 @@ import type { ContractTradeListFilterDto } from '~/domain/models/dto/contract-tr
 import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import type { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
-import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
+import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
+import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
+import type { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
+import type { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
+import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
+import { ContractTradeFormFieldVo } from '~/domain/models/vo/contract-trade-form-field-vo'
 import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
@@ -35,6 +39,7 @@ import { ContractTradeFailureDomain } from '~/domain/models/domains/contract-tra
 import type { ContractTradeFormField } from '~/domain/models/vo/contract-trade-form-field-vo'
 
 const LIST_LIMIT = 200
+const UNREADABLE_FILL_MESSAGE = '成交價與數量要填數字'
 
 export class ContractTradeJournalService {
   constructor(
@@ -97,16 +102,31 @@ export class ContractTradeJournalService {
     return (await this.appendFills(id, otherFillWriteDtos, null)) ?? afterFirstFill
   }
 
-  async amendFill(id: number, fillId: number, fillWriteDto: ContractTradeFillWriteDto): Promise<ContractTradeRecordDto> {
-    return (await this.contractTradeRecordProxy.amendFill(id, fillId, fillWriteDto)).toDomain().toDto()
+  async amendFill(id: number, amendment: ContractTradeFillAmendmentDto): Promise<ContractTradeRecordDto> {
+    const price = new DecimalInputDomain(amendment.priceText).value
+    const quantity = new DecimalInputDomain(amendment.quantityText).value
+    if (price === null || quantity === null) {
+      throw new ContractTradeRejectedError(UNREADABLE_FILL_MESSAGE, new ContractTradeFormFieldVo('fillPrice'))
+    }
+
+    const fill = amendment.fill
+
+    return (await this.contractTradeRecordProxy.amendFill(id, fill.id, new ContractTradeFillWriteDto(
+      fill.kind, fill.filledAt, price, quantity, fill.liquidity, new DecimalInputDomain(amendment.feeText).value)))
+      .toDomain().toDto()
   }
 
   async removeFill(id: number, fillId: number): Promise<ContractTradeRecordDto> {
     return (await this.contractTradeRecordProxy.removeFill(id, fillId)).toDomain().toDto()
   }
 
-  async amendPlan(id: number, planWriteDto: ContractTradePlanWriteDto): Promise<ContractTradeRecordDto> {
-    return (await this.contractTradeRecordProxy.amendPlan(id, planWriteDto)).toDomain().toDto()
+  async amendPlan(id: number, planInput: ContractTradePlanInputDto): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.amendPlan(id, new ContractTradePlanWriteDto(
+      new DecimalInputDomain(planInput.plannedStopLossText).value,
+      new DecimalInputDomain(planInput.plannedTakeProfitText).value,
+      planInput.entryReason,
+      planInput.confidence,
+    ))).toDomain().toDto()
   }
 
   async addNote(id: number, content: string): Promise<ContractTradeRecordDto> {

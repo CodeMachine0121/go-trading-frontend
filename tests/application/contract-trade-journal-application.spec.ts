@@ -8,8 +8,9 @@ import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contra
 import { ContractTradeListFilterDto } from '~/domain/models/dto/contract-trade-list-filter-dto'
 import { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
-import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
+import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
+import { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
+import { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
 import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
 import { ContractTradePrefill } from '~/domain/models/entities/contract-trade-prefill'
 import { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
@@ -683,9 +684,9 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
 
 describe('ContractTradeJournalApplication 其餘寫入', () => {
   it.each([
-    ['修正成交', (application: ContractTradeJournalApplication) => application.amendFill(27, 1, new ContractTradeFillWriteDto('entry', null, new Decimal(1), new Decimal(1), 'taker', null)), 'amendFill'],
+    ['修正成交', (application: ContractTradeJournalApplication) => application.amendFill(27, new ContractTradeFillAmendmentDto(buildRecord().toDomain().toDto().fills[0]!, '1', '1', '')), 'amendFill'],
     ['刪除成交', (application: ContractTradeJournalApplication) => application.removeFill(27, 1), 'removeFill'],
-    ['修改計畫', (application: ContractTradeJournalApplication) => application.amendPlan(27, new ContractTradePlanWriteDto(null, null, '', null)), 'amendPlan'],
+    ['修改計畫', (application: ContractTradeJournalApplication) => application.amendPlan(27, new ContractTradePlanInputDto('', '', '', null)), 'amendPlan'],
     ['寫檢討', (application: ContractTradeJournalApplication) => application.writeReview(27, new ContractTradeReviewWriteDto('a', 'b', 'c', 4, [2])), 'writeReview'],
     ['貼型態標籤', (application: ContractTradeJournalApplication) => application.assignSetupTags(27, [1]), 'assignSetupTags'],
   ] as const)('%s回傳更新後的這一筆', async (_, act, proxyMethod) => {
@@ -696,6 +697,41 @@ describe('ContractTradeJournalApplication 其餘寫入', () => {
 
     expect(record.statusLabel).toBe('已檢討')
     expect(recordProxy[proxyMethod]).toHaveBeenCalled()
+  })
+
+  it('修改計畫把輸入讀成數字，讀不懂的當作沒有', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.amendPlan.mockResolvedValue(buildRecord({ status: 'open' }))
+
+    await application.amendPlan(27, new ContractTradePlanInputDto('96,300', 'abc', '理由', 4))
+
+    const [, planWriteDto] = recordProxy.amendPlan.mock.calls[0] as [number, import('~/domain/models/dto/contract-trade-plan-write-dto').ContractTradePlanWriteDto]
+    expect(planWriteDto.plannedStopLossPrice?.toString()).toBe('96300')
+    expect(planWriteDto.plannedTakeProfitPrice).toBeNull()
+  })
+
+  it('修正成交時讀不懂的價量不送出，說出要填數字', async () => {
+    const { application, recordProxy } = buildFixture()
+    const fill = buildRecord().toDomain().toDto().fills[0]!
+
+    const failure = await application.amendFill(27, new ContractTradeFillAmendmentDto(fill, 'abc', '0.03', '')).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ContractTradeRejectedError)
+    expect((failure as ContractTradeRejectedError).message).toBe('成交價與數量要填數字')
+    expect(recordProxy.amendFill).not.toHaveBeenCalled()
+  })
+
+  it('修正成交送出新的價量與手續費', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.amendFill.mockResolvedValue(buildRecord({ status: 'open' }))
+    const fill = buildRecord().toDomain().toDto().fills[0]!
+
+    await application.amendFill(27, new ContractTradeFillAmendmentDto(fill, '97906', '0.03', '1.2'))
+
+    const [, fillId, fillWriteDto] = recordProxy.amendFill.mock.calls[0] as [number, number, ContractTradeFillWriteDto]
+    expect(fillId).toBe(1)
+    expect(fillWriteDto.price.toString()).toBe('97906')
+    expect(fillWriteDto.fee?.toString()).toBe('1.2')
   })
 
   it('附註去掉前後空白再送', async () => {

@@ -16,8 +16,6 @@ import { ContractTradeNotFoundError } from '~/domain/errors/contract-trade-not-f
 import { ContractTradeRejectedError } from '~/domain/errors/contract-trade-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { TradeTagNameConflictError } from '~/domain/errors/trade-tag-name-conflict-error'
-import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
-import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../fixtures/contract-trade-journal'
 
 const recordProxy = contractTradeRecordProxyMock()
@@ -81,16 +79,12 @@ describe('useContractTradeDetail：讀取', () => {
 })
 
 describe('useContractTradeDetail：寫入', () => {
-  it('修改計畫送出讀得懂的數字，讀不懂的當作沒有', async () => {
+  it('修改計畫把輸入交給交易服務', async () => {
     recordProxy.amendPlan.mockResolvedValue(buildRecord({ status: 'open' }))
     const detail = detailUnderTest()
 
-    expect(await detail.savePlan('96300', 'abc', '理由', 4)).toBe(true)
-
-    const [, planWriteDto] = recordProxy.amendPlan.mock.calls[0] as [number, ContractTradePlanWriteDto]
-    expect(planWriteDto.plannedStopLossPrice?.toString()).toBe('96300')
-    expect(planWriteDto.plannedTakeProfitPrice).toBeNull()
-    expect(planWriteDto).toMatchObject({ entryReason: '理由', confidence: 4 })
+    expect(await detail.savePlan('96300', '', '理由', 4)).toBe(true)
+    expect(recordProxy.amendPlan).toHaveBeenCalledWith(27, expect.objectContaining({ entryReason: '理由', confidence: 4 }))
   })
 
   it('平倉後修改計畫的拒絕原話呈現', async () => {
@@ -152,7 +146,7 @@ describe('useContractTradeDetail：寫入', () => {
     expect(recordProxy.assignSetupTags).toHaveBeenCalledWith(27, [6])
   })
 
-  it('修正成交送出新的數字；讀不懂時不送', async () => {
+  it('修正成交；讀不懂時說要填數字', async () => {
     recordProxy.amendFill.mockResolvedValue(buildRecord({ status: 'open' }))
     const detail = detailUnderTest()
     await detail.loadTrade()
@@ -161,11 +155,6 @@ describe('useContractTradeDetail：寫入', () => {
     expect(await detail.amendFill(fill, 'abc', '0.03', '')).toBe(false)
     expect(detail.actionFailureMessage.value).toBe('成交價與數量要填數字')
     expect(await detail.amendFill(fill, '97906', '0.03', '1.2')).toBe(true)
-
-    const [, fillId, fillWriteDto] = recordProxy.amendFill.mock.calls[0] as [number, number, ContractTradeFillWriteDto]
-    expect(fillId).toBe(1)
-    expect(fillWriteDto.price.toString()).toBe('97906')
-    expect(fillWriteDto.fee?.toString()).toBe('1.2')
   })
 
   it('刪除成交；刪到沒有進場成交時原話呈現', async () => {
