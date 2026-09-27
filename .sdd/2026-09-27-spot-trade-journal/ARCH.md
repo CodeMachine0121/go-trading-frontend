@@ -111,3 +111,15 @@ flowchart TD
 
 - 後端同時開發中；欄位以 `spot-api-contract` 為準，數字欄位同時接受字串與數字。
 - 改名範圍大，以型別檢查與既有測試保證沒漏。
+
+---
+
+## 9. Implementation Notes（實作與設計的差異）
+
+- **共用零件比原設計多兩個**：`TradePlanPanel`、`TradeOutcomePanel` 也改成吃各自欄位的共用零件（原本只列附註與檢討），因此現貨沒有另寫計畫與結果面板；`TradePlanWriteDto`／`TradePlanInputDto`／`TradeReviewWriteDto`／`TradeSourceDto`／`TradeOutcomeDto`／`TradeStatus`／`TradeStatusFilter`／`TradeSourceFilter` 一併改為市場中立名稱。
+- **價格路徑標記的種類**改用 `TradePricePathMarkerKind`（`entry`／`exit`），現貨把買進對到 `entry`、賣出對到 `exit`，圖表元件不必認識兩本日誌的名詞。
+- **持有時長**：`TradeHoldingDurationDomain` 多一個「持倉／持有」用字參數，現貨寫「持有 N 天」。
+- **報酬率帶正負號**：`JournalNumberDomain.signedPercentage` 讓正的報酬率寫成 `+6.47%`。
+- **只有一邊的去處機制移除**：交易日誌改成兩邊都有之後已沒有任何只有一邊的畫面，`MarketCounterpartDomain` 的那段判斷一併拿掉；「更深一層也算那一邊」的規則擴充到 `-journal` 結尾的去處。
+- **現貨實盤 vs 回測**沿用既有做法放在 `ITradingStrategyProxy.findSpotTradeComparison`（端點掛在交易策略底下）。
+- `SpotTradeDraftDomain.toRecordSubmission` 裡「找不到第一筆買進」的防呆在規則上已被缺欄位檢查先擋下，保留它只為了讓型別完整。
