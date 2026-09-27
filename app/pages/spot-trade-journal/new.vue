@@ -29,7 +29,7 @@ onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
       :spot-trade-journal-application="$spotTradeJournalApplication"
       :trade-journal-setting-application="$tradeJournalSettingApplication"
       :trading-strategy-application="$tradingStrategyApplication"
-      @saved="record => { leaveConfirmation.allowLeaving(); navigateTo(`/spot-trade-journal/${record.id}`) }"
+      @saved="record => { leaveConfirmation.allowLeaving(); navigateTo(`/spot-trade-journal/${record.id}`, { replace: true }) }"
       @dirty-change="value => (dirty = value)"
       @redirect="path => navigateTo(path, { replace: true })"
     />

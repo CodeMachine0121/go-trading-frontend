@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SpotTradeRecordDto } from '~/domain/models/dto/spot-trade-record-dto'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -28,9 +29,9 @@ const tradeId = computed(() => {
 
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
 })
-const journalLinkIdentifier = typeof route.query.journalLink === 'string' && route.query.journalLink !== ''
+const journalLinkIdentifier = ref(typeof route.query.journalLink === 'string' && route.query.journalLink !== ''
   ? route.query.journalLink
-  : null
+  : null)
 
 const detail = useSpotTradeDetail(() => tradeId.value)
 const addFillKind = route.query.addFill === 'sell' ? 'sell' : 'buy'
@@ -42,6 +43,17 @@ const reviewPanel = useTemplateRef<InstanceType<typeof TradeReviewPanel>>('revie
 const leaveConfirmation = useLeaveConfirmation(() => addingFills.value && addFillDirty.value)
 
 onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
+
+function adoptSavedFills(savedRecord: SpotTradeRecordDto): void {
+  detail.adoptSavedRecord(savedRecord)
+  addingFills.value = false
+  addFillDirty.value = false
+  closedJustNow.value = savedRecord.status !== 'open'
+  announce(savedRecord.status === 'open' ? '已記下' : '這筆已平倉')
+  // The bot-link round is used up once saved; leaving it in the address would prefill it again on reload.
+  journalLinkIdentifier.value = null
+  void navigateTo({ path: route.path }, { replace: true })
+}
 
 onMounted(() => {
   void detail.loadTrade()
@@ -146,7 +158,7 @@ onMounted(() => {
           :spot-trade-journal-application="$spotTradeJournalApplication"
           :trade-journal-setting-application="$tradeJournalSettingApplication"
           :trading-strategy-application="$tradingStrategyApplication"
-          @saved="record => { detail.adoptSavedRecord(record); addingFills = false; addFillDirty = false; closedJustNow = record.status !== 'open'; announce(record.status === 'open' ? '已記下' : '這筆已平倉') }"
+          @saved="adoptSavedFills"
           @dirty-change="value => (addFillDirty = value)"
         />
       </AppPanel>
