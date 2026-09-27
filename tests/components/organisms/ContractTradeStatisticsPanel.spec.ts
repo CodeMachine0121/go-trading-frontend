@@ -5,6 +5,7 @@ import ContractTradeStatisticsPanel from '~/components/organisms/ContractTradeSt
 import { ContractTradeStatisticsDomain } from '~/domain/models/domains/contract-trade-statistics-domain'
 import { ContractTradeStatisticsPeriodDomain } from '~/domain/models/domains/contract-trade-statistics-period-domain'
 import { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
+import { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
 import { CONTRACT_TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/contract-trade-statistics-period-vo'
 import { buildStatistics } from '../../fixtures/contract-trade-journal'
@@ -27,9 +28,12 @@ describe('ContractTradeStatisticsPanel', () => {
       excludedFromRMultipleCount: 3,
       rMultipleDistribution: [new ContractTradeDistributionBucket('≤−1R', 12, false), new ContractTradeDistributionBucket('1~2R', 6, true)],
       mistakeCosts: [new ContractTradeMistakeCost('移動止損', 4, new Decimal('-3.2'))],
+      cumulativeRMultiples: [new ContractTradeCumulativePoint(new Date('2026-09-26T00:00:00Z'), new Decimal('11.4'))],
     })).toDto()
     const wrapper = mountPanel({ statistics })
 
+    expect(wrapper.get('[data-testid="statistics-headline"]').text()).toContain('最近 30 天・已平倉 30 筆')
+    expect(wrapper.get('[data-testid="statistics-total-r"]').text()).toBe('+11.40R')
     expect(wrapper.text()).toContain('47%')
     expect(wrapper.get('[data-testid="statistics-exclusion"]').text()).toBe('3 筆沒設止損，未計入 R')
     expect(wrapper.get('[data-testid="r-distribution"]').text()).toContain('≤−1R')

@@ -29,12 +29,21 @@ const periodTab = computed({
 
 <template>
   <div class="contract-trade-statistics-panel">
-    <AppTabs
-      v-model="periodTab"
-      :options="periodOptions"
-      variant="segmented"
-      data-testid="statistics-period"
-    />
+    <header class="contract-trade-statistics-panel__header">
+      <p
+        v-if="statistics"
+        class="contract-trade-statistics-panel__headline"
+        data-testid="statistics-headline"
+      >
+        {{ statistics.periodLabel }}・{{ statistics.closedTradeCountText }}，以 R 計算，大小不同的單才能放一起比
+      </p>
+      <AppTabs
+        v-model="periodTab"
+        :options="periodOptions"
+        variant="segmented"
+        data-testid="statistics-period"
+      />
+    </header>
 
     <p
       v-if="loading && !statistics"
@@ -73,6 +82,16 @@ const periodTab = computed({
 
         <div class="contract-trade-statistics-panel__charts">
           <AppPanel title="累積 R">
+            <template
+              v-if="statistics.totalRMultiple"
+              #actions
+            >
+              <span
+                class="contract-trade-statistics-panel__total"
+                :class="`contract-trade-statistics-panel__total--${statistics.totalRMultiple.tone}`"
+                data-testid="statistics-total-r"
+              >{{ statistics.totalRMultiple.text }}</span>
+            </template>
             <ContractTradeRMultipleChart
               :points="statistics.cumulativePoints"
               :time-zone="timeZone"
@@ -80,54 +99,63 @@ const periodTab = computed({
           </AppPanel>
           <AppPanel title="R 分布">
             <ul
-              class="contract-trade-statistics-panel__bars"
+              class="contract-trade-statistics-panel__histogram"
               data-testid="r-distribution"
             >
               <li
                 v-for="bar in statistics.distribution"
                 :key="bar.label"
-                class="contract-trade-statistics-panel__bar-row"
+                class="contract-trade-statistics-panel__column"
               >
-                <span class="contract-trade-statistics-panel__bar-label">{{ bar.label }}</span>
-                <span class="contract-trade-statistics-panel__track">
+                <span class="contract-trade-statistics-panel__bar-count">{{ bar.count }}</span>
+                <span class="contract-trade-statistics-panel__column-track">
                   <span
-                    class="contract-trade-statistics-panel__bar"
+                    class="contract-trade-statistics-panel__column-bar"
                     :class="`contract-trade-statistics-panel__bar--${bar.tone}`"
-                    :style="{ width: `${bar.widthPercentage}%` }"
+                    :style="{ height: `${bar.widthPercentage}%` }"
                   />
                 </span>
-                <span class="contract-trade-statistics-panel__bar-count">{{ bar.count }}</span>
+                <span class="contract-trade-statistics-panel__bar-label">{{ bar.label }}</span>
               </li>
             </ul>
           </AppPanel>
         </div>
 
         <div class="contract-trade-statistics-panel__tables">
-          <AppPanel title="失誤花了多少">
+          <AppPanel title="失誤花了你多少">
+            <template #actions>
+              <span class="contract-trade-statistics-panel__caption">R 合計</span>
+            </template>
             <p
               v-if="statistics.mistakeCosts.length === 0"
               class="contract-trade-statistics-panel__state"
             >
               這段期間沒有貼失誤標籤的交易
             </p>
-            <table
+            <ul
               v-else
-              class="contract-trade-statistics-panel__table"
+              class="contract-trade-statistics-panel__bars"
               data-testid="mistake-costs"
             >
-              <tbody>
-                <tr
-                  v-for="mistakeCost in statistics.mistakeCosts"
-                  :key="mistakeCost.tagName"
-                >
-                  <td>{{ mistakeCost.tagName }}</td>
-                  <td>{{ mistakeCost.tradeCountText }}</td>
-                  <td :class="`contract-trade-statistics-panel__tone--${mistakeCost.tone}`">
-                    {{ mistakeCost.rMultipleText }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+              <li
+                v-for="mistakeCost in statistics.mistakeCosts"
+                :key="mistakeCost.tagName"
+                class="contract-trade-statistics-panel__bar-row"
+              >
+                <span class="contract-trade-statistics-panel__bar-label">{{ mistakeCost.tagName }}<small>{{ mistakeCost.tradeCountText }}</small></span>
+                <span class="contract-trade-statistics-panel__track">
+                  <span
+                    class="contract-trade-statistics-panel__bar"
+                    :class="`contract-trade-statistics-panel__bar--${mistakeCost.tone}`"
+                    :style="{ width: `${mistakeCost.widthPercentage}%` }"
+                  />
+                </span>
+                <span
+                  class="contract-trade-statistics-panel__bar-count"
+                  :class="`contract-trade-statistics-panel__tone--${mistakeCost.tone}`"
+                >{{ mistakeCost.rMultipleText }}</span>
+              </li>
+            </ul>
           </AppPanel>
           <AppPanel title="有關聯策略 vs 自行判斷">
             <table
@@ -174,6 +202,72 @@ const periodTab = computed({
     font-size: font-size('sm');
   }
 
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: spacing('xs');
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__headline {
+    margin: 0;
+    color: color('text-faint');
+    font-size: font-size('xs');
+  }
+
+  &__total {
+    font-weight: font-weight('semibold');
+    font-size: font-size('sm');
+
+    @include numeric;
+
+    &--success {
+      color: color('success');
+    }
+
+    &--danger {
+      color: color('danger');
+    }
+  }
+
+  &__caption {
+    color: color('text-faint');
+    font-size: font-size('2xs');
+  }
+
+  &__histogram {
+    display: flex;
+    gap: spacing('xs');
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    height: 11rem;
+    list-style: none;
+  }
+
+  &__column {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: spacing('3xs');
+    align-items: center;
+    font-size: font-size('2xs');
+  }
+
+  &__column-track {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-end;
+    width: 64%;
+  }
+
+  &__column-bar {
+    display: block;
+    border-radius: radius('xs') radius('xs') 0 0;
+    width: 100%;
+  }
+
   &__charts,
   &__tables {
     display: grid;
@@ -196,14 +290,21 @@ const periodTab = computed({
 
   &__bar-row {
     display: grid;
-    grid-template-columns: 4rem minmax(0, 1fr) 2rem;
+    grid-template-columns: 7rem minmax(0, 1fr) 3.5rem;
     gap: spacing('xs');
     align-items: center;
     font-size: font-size('xs');
   }
 
   &__bar-label {
+    display: flex;
+    gap: spacing('3xs');
+    align-items: baseline;
     color: color('text-muted');
+
+    small {
+      color: color('text-faint');
+    }
   }
 
   &__track {
@@ -224,12 +325,25 @@ const periodTab = computed({
     &--danger {
       background-color: color('danger');
     }
+
+    &--neutral,
+    &--muted {
+      background-color: color('text-faint');
+    }
   }
 
   &__bar-count {
     text-align: right;
 
     @include numeric;
+  }
+
+  &__tone--danger {
+    color: color('danger');
+  }
+
+  &__tone--success {
+    color: color('success');
   }
 
   &__table {

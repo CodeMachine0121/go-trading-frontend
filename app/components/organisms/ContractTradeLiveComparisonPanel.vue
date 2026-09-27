@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
@@ -82,12 +83,13 @@ const selectedValue = computed({
             <thead>
               <tr>
                 <th>標的</th>
-                <th>實盤筆數</th>
-                <th>實盤勝率</th>
-                <th>做多／做空</th>
-                <th>回測筆數</th>
                 <th>回測勝率</th>
-                <th>做多／做空</th>
+                <th>實盤勝率</th>
+                <th>回測筆數</th>
+                <th>實盤筆數</th>
+                <th>回測 做多／做空</th>
+                <th>實盤 做多／做空</th>
+                <th>判讀</th>
               </tr>
             </thead>
             <tbody>
@@ -97,23 +99,33 @@ const selectedValue = computed({
                 :data-testid="`comparison-row-${row.symbol}`"
               >
                 <td>{{ row.symbol }}</td>
-                <td>{{ row.live.closedTradeCountText }}</td>
-                <td :class="`contract-trade-live-comparison-panel__tone--${row.liveWinRateTone}`">
-                  {{ row.live.winRateText }}
-                  <small v-if="row.winRateGapText">{{ row.winRateGapText }}</small>
-                </td>
-                <td>{{ row.live.longWinRateText }}／{{ row.live.shortWinRateText }}</td>
                 <template v-if="row.backtest">
-                  <td>{{ row.backtest.closedTradeCountText }}</td>
                   <td>{{ row.backtest.winRateText }}</td>
+                  <td :class="`contract-trade-live-comparison-panel__tone--${row.liveWinRateTone}`">
+                    {{ row.live.winRateText }}
+                  </td>
+                  <td>{{ row.backtest.closedTradeCountText }}</td>
+                  <td>{{ row.live.closedTradeCountText }}</td>
                   <td>{{ row.backtest.longWinRateText }}／{{ row.backtest.shortWinRateText }}</td>
+                  <td>{{ row.live.longWinRateText }}／{{ row.live.shortWinRateText }}</td>
                 </template>
-                <td
-                  v-else
-                  colspan="3"
-                  class="contract-trade-live-comparison-panel__unavailable"
-                >
-                  {{ row.backtestUnavailableMessage }}
+                <template v-else>
+                  <td class="contract-trade-live-comparison-panel__unavailable">
+                    {{ row.backtestUnavailableMessage }}
+                  </td>
+                  <td>{{ row.live.winRateText }}</td>
+                  <td>—</td>
+                  <td>{{ row.live.closedTradeCountText }}</td>
+                  <td>—</td>
+                  <td>{{ row.live.longWinRateText }}／{{ row.live.shortWinRateText }}</td>
+                </template>
+                <td>
+                  <AppBadge
+                    :variant="row.verdictTone"
+                    :data-testid="`comparison-verdict-${row.symbol}`"
+                  >
+                    {{ row.verdictLabel }}
+                  </AppBadge>
                 </td>
               </tr>
             </tbody>

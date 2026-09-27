@@ -37,11 +37,14 @@ describe('ContractTradeLiveComparisonPanel', () => {
         comparison: comparisonOf([
           new ContractTradeLiveComparisonRow('ETHUSDT', new ContractTradePerformance(8, 0.38, 0.38, null), new ContractTradePerformance(20, 0.61, 0.61, null), null),
           new ContractTradeLiveComparisonRow('SOLUSDT', new ContractTradePerformance(2, 0.5, 0.5, null), null, '合約行情不夠'),
+          new ContractTradeLiveComparisonRow('BTCUSDT', new ContractTradePerformance(12, 0.54, 0.54, null), new ContractTradePerformance(30, 0.52, 0.52, null), null),
         ]),
       },
     })
 
-    expect(wrapper.get('[data-testid="comparison-row-ETHUSDT"]').text()).toContain('比回測低 23 個百分點')
+    expect(wrapper.get('[data-testid="comparison-verdict-ETHUSDT"]').text()).toBe('比回測低 23 個百分點')
+    expect(wrapper.get('[data-testid="comparison-verdict-BTCUSDT"]').text()).toBe('不低於回測')
+    expect(wrapper.get('[data-testid="comparison-verdict-SOLUSDT"]').text()).toBe('無法比較')
     expect(wrapper.get('[data-testid="comparison-row-SOLUSDT"]').text()).toContain('合約行情不夠，無法重演')
     expect(wrapper.get('[data-testid="comparison-row-SOLUSDT"]').text()).toContain('50%')
   })

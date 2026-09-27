@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import type { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
 import type { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trade-source-group'
 import { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
@@ -37,10 +38,12 @@ export class ContractTradeStatisticsDomain {
 
   toDto(): ContractTradeStatisticsDto {
     if (this.statistics.closedTradeCount === 0) {
-      return new ContractTradeStatisticsDto(this.periodLabel, NO_CLOSED_TRADES_MESSAGE, [], null, [], [], [], [])
+      return new ContractTradeStatisticsDto(this.periodLabel, NO_CLOSED_TRADES_MESSAGE, [], null, [], [], [], [], '已平倉 0 筆', null)
     }
 
     const slippage = this.statistics.averageEntrySlippagePercentage
+    const largestMistakeCost = Decimal.max(0, ...this.statistics.mistakeCosts.map(mistakeCost => mistakeCost.rMultipleTotal.abs()))
+    const lastCumulativePoint = this.statistics.cumulativeRMultiples.at(-1)
 
     return new ContractTradeStatisticsDto(
       this.periodLabel,
@@ -73,11 +76,21 @@ export class ContractTradeStatisticsDomain {
         mistakeCost.tagName,
         `${mistakeCost.tradeCount} 筆`,
         new JournalNumberDomain(mistakeCost.rMultipleTotal).rMultiple(),
-        new JournalNumberDomain(mistakeCost.rMultipleTotal).tone())),
+        new JournalNumberDomain(mistakeCost.rMultipleTotal).tone(),
+        largestMistakeCost.isZero()
+          ? 0
+          : mistakeCost.rMultipleTotal.abs().dividedBy(largestMistakeCost).times(PERCENT).toNumber())),
       [
         this.sourceComparisonRow('有關聯策略', this.statistics.linkedGroup),
         this.sourceComparisonRow('自行判斷', this.statistics.selfJudgedGroup),
       ],
+      `已平倉 ${this.statistics.closedTradeCount} 筆`,
+      lastCumulativePoint === undefined
+        ? null
+        : new ContractTradeFigureVo(
+            '累積 R',
+            new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).rMultiple(),
+            new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).tone()),
     )
   }
 

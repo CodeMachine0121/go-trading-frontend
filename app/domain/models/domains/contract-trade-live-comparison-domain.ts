@@ -8,6 +8,8 @@ const NOT_APPLICABLE_TEXT = '不適用'
 const TRADING_STRATEGY_DELETED_NOTICE = '交易策略已刪除，無法重演'
 const NO_CLOSED_TRADES_NOTICE = '還沒有已平倉的實單可以對照'
 const PERCENT = 100
+const NO_VERDICT_LABEL = '無法比較'
+const KEEPING_UP_LABEL = '不低於回測'
 
 export class ContractTradeLiveComparisonDomain {
   constructor(private readonly comparison: ContractTradeLiveComparison) {}
@@ -25,6 +27,8 @@ export class ContractTradeLiveComparisonDomain {
           ? null
           : Math.round((backtestWinRate - liveWinRate) * PERCENT)
         const lagging = gapPoints !== null && gapPoints > 0
+        const verdictLabel = gapPoints === null ? NO_VERDICT_LABEL : (lagging ? `比回測低 ${gapPoints} 個百分點` : KEEPING_UP_LABEL)
+        const verdictTone = gapPoints === null ? 'neutral' : (lagging ? 'danger' : 'success')
         const failureMessage = row.backtest === null
           ? `${row.backtestFailureReason ?? '重演沒有結果'}，無法重演`
           : null
@@ -36,6 +40,8 @@ export class ContractTradeLiveComparisonDomain {
           this.comparison.tradingStrategyDeleted ? TRADING_STRATEGY_DELETED_NOTICE : failureMessage,
           lagging ? 'danger' : 'neutral',
           lagging ? `比回測低 ${gapPoints} 個百分點` : null,
+          verdictLabel,
+          verdictTone,
         )
       }),
     )

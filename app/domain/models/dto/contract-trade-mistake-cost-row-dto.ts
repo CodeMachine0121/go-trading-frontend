@@ -6,5 +6,6 @@ export class ContractTradeMistakeCostRowDto {
     public readonly tradeCountText: string,
     public readonly rMultipleText: string,
     public readonly tone: ContractTradeFigureTone,
+    public readonly widthPercentage: number,
   ) {}
 }

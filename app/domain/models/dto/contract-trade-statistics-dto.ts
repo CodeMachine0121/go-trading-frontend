@@ -14,5 +14,7 @@ export class ContractTradeStatisticsDto {
     public readonly distribution: readonly ContractTradeDistributionBarDto[],
     public readonly mistakeCosts: readonly ContractTradeMistakeCostRowDto[],
     public readonly sourceComparison: readonly ContractTradeSourceComparisonRowDto[],
+    public readonly closedTradeCountText: string,
+    public readonly totalRMultiple: ContractTradeFigureVo | null,
   ) {}
 }

@@ -852,7 +852,10 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
         new ContractTradeDistributionBucket('≤−1R', 12, false),
         new ContractTradeDistributionBucket('1~2R', 6, true),
       ],
-      mistakeCosts: [new ContractTradeMistakeCost('移動止損', 4, new Decimal('-3.2'))],
+      mistakeCosts: [
+        new ContractTradeMistakeCost('移動止損', 4, new Decimal('-3.2')),
+        new ContractTradeMistakeCost('追價進場', 2, new Decimal('-1.6')),
+      ],
     }))
 
     const statistics = await application.getStatistics('30d')
@@ -870,6 +873,8 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
     expect(statistics.cumulativePoints[0]?.value).toBe(1.5)
     expect(statistics.distribution.map(bar => [bar.tone, bar.widthPercentage])).toEqual([['danger', 100], ['success', 50]])
     expect(statistics.mistakeCosts[0]).toMatchObject({ tagName: '移動止損', tradeCountText: '4 筆', rMultipleText: '−3.20R', tone: 'danger' })
+    expect(statistics.mistakeCosts.map(mistakeCost => mistakeCost.widthPercentage)).toEqual([100, 50])
+    expect(statistics.closedTradeCountText).toBe('已平倉 30 筆')
     expect(statistics.sourceComparison).toEqual([
       expect.objectContaining({ label: '有關聯策略', tradeCountText: '22 筆', winRateText: '56%', averageRMultipleText: '+0.71R' }),
       expect.objectContaining({ label: '自行判斷', tradeCountText: '8 筆', winRateText: '25%', averageRMultipleText: '−0.28R' }),
