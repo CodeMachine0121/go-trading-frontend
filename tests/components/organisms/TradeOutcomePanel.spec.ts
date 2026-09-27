@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import ContractTradeOutcomePanel from '~/components/organisms/ContractTradeOutcomePanel.vue'
+import TradeOutcomePanel from '~/components/organisms/TradeOutcomePanel.vue'
 import { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import { buildRecord, closedOutcome, unavailable } from '../../fixtures/contract-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -8,14 +8,14 @@ import { buildTimeZone } from '../../fixtures/time-zone'
 const TIME_ZONE = buildTimeZone('UTC')
 const STUBS = { TradePricePathChart: { template: '<div data-testid="price-path-chart-stub" />' } }
 
-function mountPanel(props: Record<string, unknown> = {}) {
-  return mount(ContractTradeOutcomePanel, {
-    props: { record: buildRecord().toDomain().toDto(), timeZone: TIME_ZONE, ...props },
+function mountPanel(props: Record<string, unknown> = {}, record = buildRecord().toDomain().toDto()) {
+  return mount(TradeOutcomePanel, {
+    props: { outcome: record.outcome, source: record.source, timeZone: TIME_ZONE, ...props },
     global: { stubs: STUBS },
   })
 }
 
-describe('ContractTradeOutcomePanel', () => {
+describe('TradeOutcomePanel', () => {
   it('結果逐項呈現，來自連結的交易列出當時的建議', () => {
     const wrapper = mountPanel({ pricePath: new TradePricePathDto([], [], [], null) })
 
@@ -26,7 +26,7 @@ describe('ContractTradeOutcomePanel', () => {
 
   it('沒有行情時圖的位置寫同一句話，不畫空圖', () => {
     const record = buildRecord({ outcome: closedOutcome({ maximumAdverseExcursion: unavailable('noMarketData') }) }).toDomain().toDto()
-    const wrapper = mountPanel({ record })
+    const wrapper = mountPanel({}, record)
 
     expect(wrapper.get('[data-testid="price-path-message"]').text()).toBe('沒有行情資料，無法計算')
     expect(wrapper.find('[data-testid="price-path-chart-stub"]').exists()).toBe(false)
@@ -40,6 +40,6 @@ describe('ContractTradeOutcomePanel', () => {
   })
 
   it('不是來自連結就沒有建議那一段', () => {
-    expect(mountPanel({ record: buildRecord({ source: null }).toDomain().toDto() }).find('[data-testid="trade-source"]').exists()).toBe(false)
+    expect(mountPanel({}, buildRecord({ source: null }).toDomain().toDto()).find('[data-testid="trade-source"]').exists()).toBe(false)
   })
 })

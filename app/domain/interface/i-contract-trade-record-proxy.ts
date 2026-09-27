@@ -4,8 +4,8 @@ import type { ContractTradeStatistics } from '~/domain/models/entities/contract-
 import type { ContractTradePrefill } from '~/domain/models/entities/contract-trade-prefill'
 import type { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-record-write-dto'
 import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
-import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import type { TradePlanWriteDto } from '~/domain/models/dto/trade-plan-write-dto'
+import type { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import type { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
 import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 
@@ -17,9 +17,9 @@ export interface IContractTradeRecordProxy {
   addFill(id: number, fillWriteDto: ContractTradeFillWriteDto): Promise<ContractTradeRecord>
   amendFill(id: number, fillId: number, fillWriteDto: ContractTradeFillWriteDto): Promise<ContractTradeRecord>
   removeFill(id: number, fillId: number): Promise<ContractTradeRecord>
-  amendPlan(id: number, planWriteDto: ContractTradePlanWriteDto): Promise<ContractTradeRecord>
+  amendPlan(id: number, planWriteDto: TradePlanWriteDto): Promise<ContractTradeRecord>
   addNote(id: number, content: string): Promise<ContractTradeRecord>
-  writeReview(id: number, reviewWriteDto: ContractTradeReviewWriteDto): Promise<ContractTradeRecord>
+  writeReview(id: number, reviewWriteDto: TradeReviewWriteDto): Promise<ContractTradeRecord>
   assignSetupTags(id: number, setupTagIds: readonly number[]): Promise<ContractTradeRecord>
   findStatistics(period: TradeStatisticsPeriod): Promise<ContractTradeStatistics>
   findJournalLink(identifier: string): Promise<ContractTradePrefill>

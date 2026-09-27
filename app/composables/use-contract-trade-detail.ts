@@ -4,8 +4,8 @@ import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-
 import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
-import { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
-import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import { TradePlanInputDto } from '~/domain/models/dto/trade-plan-input-dto'
+import { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
 import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
@@ -98,7 +98,7 @@ export function useContractTradeDetail(
     entryReason: string,
     confidence: number | null,
   ): Promise<boolean> {
-    return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new ContractTradePlanInputDto(
+    return act(() => contractTradeJournalApplication.amendPlan(tradeId(), new TradePlanInputDto(
       plannedStopLossText, plannedTakeProfitText, entryReason, confidence)))
   }
 
@@ -117,7 +117,7 @@ export function useContractTradeDetail(
     executionScore: number,
     mistakeTagIds: readonly number[],
   ): Promise<boolean> {
-    return act(() => contractTradeJournalApplication.writeReview(tradeId(), new ContractTradeReviewWriteDto(
+    return act(() => contractTradeJournalApplication.writeReview(tradeId(), new TradeReviewWriteDto(
       wentWell, wentWrong, nextTime, executionScore, [...mistakeTagIds])))
   }
 

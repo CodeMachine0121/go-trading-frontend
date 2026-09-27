@@ -1,4 +1,4 @@
-export class ContractTradeReviewWriteDto {
+export class TradeReviewWriteDto {
   constructor(
     public readonly wentWell: string,
     public readonly wentWrong: string,

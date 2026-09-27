@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
-import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
+import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { ContractTradeFill } from '~/domain/models/entities/contract-trade-fill'
 import type { TradeNote } from '~/domain/models/entities/trade-note'
 import type { TradeSource } from '~/domain/models/entities/trade-source'
@@ -15,7 +15,7 @@ export class ContractTradeRecord {
     public readonly symbol: string,
     public readonly direction: ContractTradeDirection,
     public readonly leverage: Decimal,
-    public readonly status: ContractTradeStatus,
+    public readonly status: TradeStatus,
     public readonly plannedStopLossPrice: Decimal | null,
     public readonly plannedTakeProfitPrice: Decimal | null,
     public readonly entryReason: string,

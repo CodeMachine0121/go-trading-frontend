@@ -8,8 +8,8 @@ import TradeStatusBadge from '~/components/molecules/TradeStatusBadge.vue'
 import ContractTradeFillLedgerPanel from '~/components/organisms/ContractTradeFillLedgerPanel.vue'
 import ContractTradeForm from '~/components/organisms/ContractTradeForm.vue'
 import TradeNotesPanel from '~/components/organisms/TradeNotesPanel.vue'
-import ContractTradeOutcomePanel from '~/components/organisms/ContractTradeOutcomePanel.vue'
-import ContractTradePlanPanel from '~/components/organisms/ContractTradePlanPanel.vue'
+import TradeOutcomePanel from '~/components/organisms/TradeOutcomePanel.vue'
+import TradePlanPanel from '~/components/organisms/TradePlanPanel.vue'
 import TradeReviewPanel from '~/components/organisms/TradeReviewPanel.vue'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
@@ -164,8 +164,9 @@ onMounted(() => {
         </template>
       </AppAlert>
 
-      <ContractTradeOutcomePanel
-        :record="detail.record.value"
+      <TradeOutcomePanel
+        :outcome="detail.record.value.outcome"
+        :source="detail.record.value.source"
         :price-path="detail.pricePath.value"
         :price-path-loading="detail.pricePathLoading.value"
         :price-path-failure-message="detail.pricePathFailureMessage.value"
@@ -181,8 +182,15 @@ onMounted(() => {
       </AppAlert>
 
       <div class="contract-trade-page__columns">
-        <ContractTradePlanPanel
-          :record="detail.record.value"
+        <TradePlanPanel
+          :plan-locked="detail.record.value.planLocked"
+          :entry-reason="detail.record.value.entryReason"
+          :planned-stop-loss-price="detail.record.value.plannedStopLossPrice"
+          :planned-take-profit-price="detail.record.value.plannedTakeProfitPrice"
+          :planned-stop-loss-text="detail.record.value.plannedStopLossText"
+          :planned-take-profit-text="detail.record.value.plannedTakeProfitText"
+          :confidence="detail.record.value.confidence"
+          :selected-setup-tags="detail.record.value.setupTags"
           :setup-tags="detail.setupTags.value"
           :busy="detail.busy.value"
           @save-plan="detail.savePlan"

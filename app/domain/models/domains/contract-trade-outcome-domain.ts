@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeOutcome } from '~/domain/models/entities/contract-trade-outcome'
-import { ContractTradeOutcomeDto } from '~/domain/models/dto/contract-trade-outcome-dto'
+import { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
@@ -19,7 +19,7 @@ export class ContractTradeOutcomeDomain {
     private readonly fromJournalLink: boolean,
   ) {}
 
-  toDto(): ContractTradeOutcomeDto {
+  toDto(): TradeOutcomeDto {
     const costFigures = [
       this.signedFigure('毛損益', this.outcome.grossProfit),
       new TradeFigureVo(
@@ -91,7 +91,7 @@ export class ContractTradeOutcomeDomain {
       new TradeMeasureDomain(this.outcome.maximumFavorableExcursion).unavailableReason,
     ]
 
-    return new ContractTradeOutcomeDto(
+    return new TradeOutcomeDto(
       [costFigures, riskFigures, excursionFigures],
       excursionReasons.includes('noMarketData') ? '沒有行情資料，無法計算' : null,
     )

@@ -2,7 +2,7 @@ import type { ContractTradeRecord } from '~/domain/models/entities/contract-trad
 import { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import { TradeNoteDto } from '~/domain/models/dto/trade-note-dto'
-import { ContractTradeSourceDto } from '~/domain/models/dto/contract-trade-source-dto'
+import { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
 import { ContractTradeDirectionDomain } from '~/domain/models/domains/contract-trade-direction-domain'
 import { ContractTradeStatusDomain } from '~/domain/models/domains/contract-trade-status-domain'
@@ -86,7 +86,7 @@ export class ContractTradeRecordDomain {
       this.record.tags.filter(tag => tag.kind === 'mistake').map(tag => tag.toDto()),
       source === null
         ? null
-        : new ContractTradeSourceDto(
+        : new TradeSourceDto(
             sourceLabel ?? '',
             this.priceText(source.referencePrice),
             this.priceText(source.suggestedStopLossPrice),

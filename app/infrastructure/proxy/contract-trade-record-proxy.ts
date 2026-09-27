@@ -18,12 +18,12 @@ import { ContractTradePrefill } from '~/domain/models/entities/contract-trade-pr
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import type { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-record-write-dto'
 import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import type { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
-import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import type { TradePlanWriteDto } from '~/domain/models/dto/trade-plan-write-dto'
+import type { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import type { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
 import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
-import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
+import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
 import type { TradeFillLiquidity } from '~/domain/models/vo/trade-fill-liquidity-vo'
 import type { TradeTagKind } from '~/domain/models/vo/trade-tag-kind-vo'
@@ -290,7 +290,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     return this.requestRecord(`${CONTRACT_TRADE_RECORDS_ENDPOINT}/${id}/fills/${fillId}`, 'DELETE')
   }
 
-  async amendPlan(id: number, planWriteDto: ContractTradePlanWriteDto): Promise<ContractTradeRecord> {
+  async amendPlan(id: number, planWriteDto: TradePlanWriteDto): Promise<ContractTradeRecord> {
     return this.requestRecord(`${CONTRACT_TRADE_RECORDS_ENDPOINT}/${id}/plan`, 'PUT', {
       plannedStopLossPrice: planWriteDto.plannedStopLossPrice?.toString() ?? null,
       plannedTakeProfitPrice: planWriteDto.plannedTakeProfitPrice?.toString() ?? null,
@@ -303,7 +303,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     return this.requestRecord(`${CONTRACT_TRADE_RECORDS_ENDPOINT}/${id}/notes`, 'POST', { content })
   }
 
-  async writeReview(id: number, reviewWriteDto: ContractTradeReviewWriteDto): Promise<ContractTradeRecord> {
+  async writeReview(id: number, reviewWriteDto: TradeReviewWriteDto): Promise<ContractTradeRecord> {
     return this.requestRecord(`${CONTRACT_TRADE_RECORDS_ENDPOINT}/${id}/review`, 'PUT', {
       wentWell: reviewWriteDto.wentWell,
       wentWrong: reviewWriteDto.wentWrong,
@@ -451,7 +451,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       recordWire.symbol,
       recordWire.direction as ContractTradeDirection,
       new Decimal(recordWire.leverage),
-      recordWire.status as ContractTradeStatus,
+      recordWire.status as TradeStatus,
       this.decimalOrNull(recordWire.plan?.plannedStopLossPrice),
       this.decimalOrNull(recordWire.plan?.plannedTakeProfitPrice),
       recordWire.plan?.entryReason ?? '',

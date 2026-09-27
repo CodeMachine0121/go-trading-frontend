@@ -1,4 +1,4 @@
-export class ContractTradePlanInputDto {
+export class TradePlanInputDto {
   constructor(
     public readonly plannedStopLossText: string,
     public readonly plannedTakeProfitText: string,

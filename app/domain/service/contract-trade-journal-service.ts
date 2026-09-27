@@ -8,12 +8,12 @@ import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-d
 import type { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
-import type { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
+import { TradePlanWriteDto } from '~/domain/models/dto/trade-plan-write-dto'
+import type { TradePlanInputDto } from '~/domain/models/dto/trade-plan-input-dto'
 import type { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
 import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
-import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import type { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
@@ -120,8 +120,8 @@ export class ContractTradeJournalService {
     return (await this.contractTradeRecordProxy.removeFill(id, fillId)).toDomain().toDto()
   }
 
-  async amendPlan(id: number, planInput: ContractTradePlanInputDto): Promise<ContractTradeRecordDto> {
-    return (await this.contractTradeRecordProxy.amendPlan(id, new ContractTradePlanWriteDto(
+  async amendPlan(id: number, planInput: TradePlanInputDto): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.amendPlan(id, new TradePlanWriteDto(
       new DecimalInputDomain(planInput.plannedStopLossText).value,
       new DecimalInputDomain(planInput.plannedTakeProfitText).value,
       planInput.entryReason,
@@ -133,7 +133,7 @@ export class ContractTradeJournalService {
     return (await this.contractTradeRecordProxy.addNote(id, content.trim())).toDomain().toDto()
   }
 
-  async writeReview(id: number, reviewWriteDto: ContractTradeReviewWriteDto): Promise<ContractTradeRecordDto> {
+  async writeReview(id: number, reviewWriteDto: TradeReviewWriteDto): Promise<ContractTradeRecordDto> {
     return (await this.contractTradeRecordProxy.writeReview(id, reviewWriteDto)).toDomain().toDto()
   }
 

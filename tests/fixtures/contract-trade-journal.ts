@@ -16,7 +16,7 @@ import { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trad
 import { TradeTag } from '~/domain/models/entities/trade-tag'
 import { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import type { TradeUnavailableReason } from '~/domain/models/vo/trade-unavailable-reason-vo'
-import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
+import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { ContractTradeCumulativePoint } from '~/domain/models/entities/contract-trade-cumulative-point'
 import type { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
 import type { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
@@ -139,7 +139,7 @@ export function buildSummary(overrides: Partial<Record<keyof ContractTradeRecord
     symbol: 'BTCUSDT',
     direction: 'long',
     leverage: new Decimal('10'),
-    status: 'closed' as ContractTradeStatus,
+    status: 'closed' as TradeStatus,
     tradingStrategyId: 5,
     tradingStrategyName: 'BTC 趨勢跟隨',
     tradingStrategyDeleted: false,

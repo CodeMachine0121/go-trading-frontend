@@ -2,7 +2,7 @@ import type Decimal from 'decimal.js'
 import type { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import type { TradeUnavailableReason } from '~/domain/models/vo/trade-unavailable-reason-vo'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
-import type { ContractTradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
 
 const UNAVAILABLE_SENTENCES: Readonly<Record<TradeUnavailableReason, string>> = {
   noStopLoss: '未設止損，算不出',
@@ -26,7 +26,7 @@ export class TradeMeasureDomain {
   toFigure(
     label: string,
     describe: (value: Decimal) => string,
-    toneOf: (value: Decimal) => ContractTradeFigureTone,
+    toneOf: (value: Decimal) => TradeFigureTone,
     note: string | null = null,
   ): TradeFigureVo {
     const value = this.measure.value

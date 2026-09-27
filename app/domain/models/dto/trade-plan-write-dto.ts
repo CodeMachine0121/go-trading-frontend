@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js'
 
-export class ContractTradePlanWriteDto {
+export class TradePlanWriteDto {
   constructor(
     public readonly plannedStopLossPrice: Decimal | null,
     public readonly plannedTakeProfitPrice: Decimal | null,

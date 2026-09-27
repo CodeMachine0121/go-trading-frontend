@@ -6,8 +6,8 @@ import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-d
 import type { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
-import type { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
-import type { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import type { TradePlanInputDto } from '~/domain/models/dto/trade-plan-input-dto'
+import type { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
@@ -70,7 +70,7 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.removeFill(id, fillId)
   }
 
-  async amendPlan(id: number, planInput: ContractTradePlanInputDto): Promise<ContractTradeRecordDto> {
+  async amendPlan(id: number, planInput: TradePlanInputDto): Promise<ContractTradeRecordDto> {
     return this.contractTradeJournalService.amendPlan(id, planInput)
   }
 
@@ -78,7 +78,7 @@ export class ContractTradeJournalApplication {
     return this.contractTradeJournalService.addNote(id, content)
   }
 
-  async writeReview(id: number, reviewWriteDto: ContractTradeReviewWriteDto): Promise<ContractTradeRecordDto> {
+  async writeReview(id: number, reviewWriteDto: TradeReviewWriteDto): Promise<ContractTradeRecordDto> {
     return this.contractTradeJournalService.writeReview(id, reviewWriteDto)
   }
 

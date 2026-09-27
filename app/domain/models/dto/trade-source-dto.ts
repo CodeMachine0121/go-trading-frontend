@@ -1,4 +1,4 @@
-export class ContractTradeSourceDto {
+export class TradeSourceDto {
   constructor(
     public readonly label: string,
     public readonly referencePriceText: string,

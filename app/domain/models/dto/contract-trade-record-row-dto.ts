@@ -1,4 +1,4 @@
-import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
+import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
 import type { TradeTagChipVo } from '~/domain/models/vo/trade-tag-chip-vo'
@@ -9,7 +9,7 @@ export class ContractTradeRecordRowDto {
     public readonly symbol: string,
     public readonly directionLabel: string,
     public readonly directionTone: TradeBadgeTone,
-    public readonly status: ContractTradeStatus,
+    public readonly status: TradeStatus,
     public readonly statusLabel: string,
     public readonly statusTone: TradeBadgeTone,
     public readonly pendingReview: boolean,

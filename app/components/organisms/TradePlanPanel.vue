@@ -7,11 +7,29 @@ import AppRating from '~/components/atoms/AppRating.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
-import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
+import type Decimal from 'decimal.js'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 
-const { record, setupTags, busy = false } = defineProps<{
-  record: ContractTradeRecordDto
+const {
+  planLocked,
+  entryReason,
+  plannedStopLossPrice,
+  plannedTakeProfitPrice,
+  plannedStopLossText,
+  plannedTakeProfitText,
+  confidence,
+  selectedSetupTags,
+  setupTags,
+  busy = false,
+} = defineProps<{
+  planLocked: boolean
+  entryReason: string
+  plannedStopLossPrice: Decimal | null
+  plannedTakeProfitPrice: Decimal | null
+  plannedStopLossText: string
+  plannedTakeProfitText: string
+  confidence: number | null
+  selectedSetupTags: readonly TradeTagDto[]
   setupTags: readonly TradeTagDto[]
   busy?: boolean
 }>()
@@ -28,12 +46,12 @@ const planTakeProfitText = ref('')
 const planEntryReason = ref('')
 const planConfidence = ref<number | null>(null)
 
-watch(() => record, () => {
+watch([() => planLocked, () => entryReason, () => plannedStopLossText, () => plannedTakeProfitText, () => confidence], () => {
   editingPlan.value = false
 })
 
 const setupTagIds = computed({
-  get: () => record.setupTags.map(tag => tag.id),
+  get: () => selectedSetupTags.map(tag => tag.id),
   set: (ids: number[]) => emit('assignSetupTags', ids),
 })
 </script>
@@ -42,17 +60,17 @@ const setupTagIds = computed({
   <AppPanel title="進場時的我">
     <template #actions>
       <AppBadge
-        v-if="record.planLocked"
+        v-if="planLocked"
         data-testid="plan-locked"
       >
         已鎖定
       </AppBadge>
     </template>
 
-    <div class="contract-trade-plan-panel">
+    <div class="trade-plan-panel">
       <div
-        v-if="editingPlan && !record.planLocked"
-        class="contract-trade-plan-panel__form"
+        v-if="editingPlan && !planLocked"
+        class="trade-plan-panel__form"
       >
         <FormField label="計畫止損">
           <AppInput
@@ -80,14 +98,14 @@ const setupTagIds = computed({
         </FormField>
         <FormField
           label="進場理由"
-          class="contract-trade-plan-panel__wide"
+          class="trade-plan-panel__wide"
         >
           <AppTextarea
             v-model="planEntryReason"
             data-testid="plan-entry-reason"
           />
         </FormField>
-        <div class="contract-trade-plan-panel__actions">
+        <div class="trade-plan-panel__actions">
           <AppButton
             :disabled="busy"
             data-testid="plan-save"
@@ -107,35 +125,35 @@ const setupTagIds = computed({
 
       <template v-else>
         <blockquote
-          class="contract-trade-plan-panel__reason"
+          class="trade-plan-panel__reason"
           data-testid="plan-reason"
         >
-          {{ record.entryReason || '沒有寫進場理由' }}
+          {{ entryReason || '沒有寫進場理由' }}
         </blockquote>
         <dl
-          class="contract-trade-plan-panel__plan"
+          class="trade-plan-panel__plan"
           data-testid="plan-summary"
         >
           <div>
             <dt>計畫止損</dt>
-            <dd>{{ record.plannedStopLossText }}</dd>
+            <dd>{{ plannedStopLossText }}</dd>
           </div>
           <div>
             <dt>計畫止盈</dt>
-            <dd>{{ record.plannedTakeProfitText }}</dd>
+            <dd>{{ plannedTakeProfitText }}</dd>
           </div>
           <div>
             <dt>信心</dt>
-            <dd>{{ record.confidence === null ? '未填' : `${record.confidence} / 5` }}</dd>
+            <dd>{{ confidence === null ? '未填' : `${confidence} / 5` }}</dd>
           </div>
         </dl>
         <AppButton
-          v-if="!record.planLocked"
+          v-if="!planLocked"
           variant="secondary"
           size="small"
-          class="contract-trade-plan-panel__edit"
+          class="trade-plan-panel__edit"
           data-testid="plan-edit"
-          @click="planStopLossText = record.plannedStopLossPrice?.toString() ?? ''; planTakeProfitText = record.plannedTakeProfitPrice?.toString() ?? ''; planEntryReason = record.entryReason; planConfidence = record.confidence; editingPlan = true"
+          @click="planStopLossText = plannedStopLossPrice?.toString() ?? ''; planTakeProfitText = plannedTakeProfitPrice?.toString() ?? ''; planEntryReason = entryReason; planConfidence = confidence; editingPlan = true"
         >
           修改計畫
         </AppButton>
@@ -157,7 +175,7 @@ const setupTagIds = computed({
 </template>
 
 <style scoped lang="scss">
-.contract-trade-plan-panel {
+.trade-plan-panel {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');

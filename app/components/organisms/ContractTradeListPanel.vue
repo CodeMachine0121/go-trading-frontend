@@ -8,8 +8,8 @@ import AppTabs from '~/components/atoms/AppTabs.vue'
 import TradeStatusBadge from '~/components/molecules/TradeStatusBadge.vue'
 import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
 import type { ContractTradeListDto } from '~/domain/models/dto/contract-trade-list-dto'
-import type { ContractTradeStatusFilter } from '~/domain/models/vo/contract-trade-status-filter-vo'
-import type { ContractTradeSourceFilter } from '~/domain/models/vo/contract-trade-source-filter-vo'
+import type { TradeStatusFilter } from '~/domain/models/vo/trade-status-filter-vo'
+import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: '全部' },
@@ -30,8 +30,8 @@ const { list = null, loading = false, failureMessage = null } = defineProps<{
   failureMessage?: string | null
 }>()
 
-const statusFilter = defineModel<ContractTradeStatusFilter>('statusFilter', { required: true })
-const sourceFilter = defineModel<ContractTradeSourceFilter>('sourceFilter', { required: true })
+const statusFilter = defineModel<TradeStatusFilter>('statusFilter', { required: true })
+const sourceFilter = defineModel<TradeSourceFilter>('sourceFilter', { required: true })
 const symbolFilter = defineModel<string>('symbolFilter', { required: true })
 
 const emit = defineEmits<{ retry: [], showPendingReview: [] }>()
@@ -39,14 +39,14 @@ const emit = defineEmits<{ retry: [], showPendingReview: [] }>()
 const statusTab = computed({
   get: () => statusFilter.value,
   set: (value: string) => {
-    statusFilter.value = value as ContractTradeStatusFilter
+    statusFilter.value = value as TradeStatusFilter
   },
 })
 
 const sourceTab = computed({
   get: () => sourceFilter.value,
   set: (value: string) => {
-    sourceFilter.value = value as ContractTradeSourceFilter
+    sourceFilter.value = value as TradeSourceFilter
   },
 })
 </script>

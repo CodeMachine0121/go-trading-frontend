@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ContractTradeRecordProxy } from '~/infrastructure/proxy/contract-trade-record-proxy'
 import { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-record-write-dto'
 import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import { ContractTradePlanWriteDto } from '~/domain/models/dto/contract-trade-plan-write-dto'
-import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import { TradePlanWriteDto } from '~/domain/models/dto/trade-plan-write-dto'
+import { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
 import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
@@ -297,10 +297,10 @@ describe('ContractTradeRecordProxy 其餘路由', () => {
     ['加成交', (subject: ContractTradeRecordProxy) => subject.addFill(27, new ContractTradeFillWriteDto('entry', null, new Decimal(1), new Decimal(2), 'taker', null)), '/contract-trade-records/27/fills', 'POST'],
     ['修正成交', (subject: ContractTradeRecordProxy) => subject.amendFill(27, 3, new ContractTradeFillWriteDto('entry', null, new Decimal(1), new Decimal(2), 'taker', null)), '/contract-trade-records/27/fills/3', 'PUT'],
     ['刪除成交', (subject: ContractTradeRecordProxy) => subject.removeFill(27, 3), '/contract-trade-records/27/fills/3', 'DELETE'],
-    ['改計畫', (subject: ContractTradeRecordProxy) => subject.amendPlan(27, new ContractTradePlanWriteDto(new Decimal(1), new Decimal(2), '理由', 4)), '/contract-trade-records/27/plan', 'PUT'],
-    ['改計畫清空止損止盈', (subject: ContractTradeRecordProxy) => subject.amendPlan(27, new ContractTradePlanWriteDto(null, null, '', null)), '/contract-trade-records/27/plan', 'PUT'],
+    ['改計畫', (subject: ContractTradeRecordProxy) => subject.amendPlan(27, new TradePlanWriteDto(new Decimal(1), new Decimal(2), '理由', 4)), '/contract-trade-records/27/plan', 'PUT'],
+    ['改計畫清空止損止盈', (subject: ContractTradeRecordProxy) => subject.amendPlan(27, new TradePlanWriteDto(null, null, '', null)), '/contract-trade-records/27/plan', 'PUT'],
     ['加附註', (subject: ContractTradeRecordProxy) => subject.addNote(27, '附註'), '/contract-trade-records/27/notes', 'POST'],
-    ['寫檢討', (subject: ContractTradeRecordProxy) => subject.writeReview(27, new ContractTradeReviewWriteDto('a', 'b', 'c', 4, [2])), '/contract-trade-records/27/review', 'PUT'],
+    ['寫檢討', (subject: ContractTradeRecordProxy) => subject.writeReview(27, new TradeReviewWriteDto('a', 'b', 'c', 4, [2])), '/contract-trade-records/27/review', 'PUT'],
     ['貼型態標籤', (subject: ContractTradeRecordProxy) => subject.assignSetupTags(27, [1, 2]), '/contract-trade-records/27/setup-tags', 'PUT'],
   ] as const)('%s', async (_, act, path, method) => {
     const fetchMock = vi.fn().mockResolvedValue(RECORD_WIRE)
@@ -317,8 +317,8 @@ describe('ContractTradeRecordProxy 其餘路由', () => {
     const fetchMock = vi.fn().mockResolvedValue(RECORD_WIRE)
     vi.stubGlobal('$fetch', fetchMock)
 
-    await proxy().writeReview(27, new ContractTradeReviewWriteDto('照計畫', '提早出場', '讓止盈成交', 4, [2]))
-    await proxy().amendPlan(27, new ContractTradePlanWriteDto(new Decimal('96300'), null, '理由', 3))
+    await proxy().writeReview(27, new TradeReviewWriteDto('照計畫', '提早出場', '讓止盈成交', 4, [2]))
+    await proxy().amendPlan(27, new TradePlanWriteDto(new Decimal('96300'), null, '理由', 3))
 
     expect(fetchMock.mock.calls[0]?.[1].body).toEqual({
       wentWell: '照計畫', wentWrong: '提早出場', nextTime: '讓止盈成交', executionScore: 4, mistakeTagIds: [2],

@@ -9,9 +9,9 @@ import { ContractTradeListFilterDto } from '~/domain/models/dto/contract-trade-l
 import { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
 import { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-draft-fill-dto'
 import type { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
-import { ContractTradePlanInputDto } from '~/domain/models/dto/contract-trade-plan-input-dto'
+import { TradePlanInputDto } from '~/domain/models/dto/trade-plan-input-dto'
 import { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
-import { ContractTradeReviewWriteDto } from '~/domain/models/dto/contract-trade-review-write-dto'
+import { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import { ContractTradePrefill } from '~/domain/models/entities/contract-trade-prefill'
 import { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
 import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contract-trade-live-comparison-row'
@@ -714,8 +714,8 @@ describe('ContractTradeJournalApplication 其餘寫入', () => {
   it.each([
     ['修正成交', (application: ContractTradeJournalApplication) => application.amendFill(27, new ContractTradeFillAmendmentDto(buildRecord().toDomain().toDto().fills[0]!, '1', '1', '')), 'amendFill'],
     ['刪除成交', (application: ContractTradeJournalApplication) => application.removeFill(27, 1), 'removeFill'],
-    ['修改計畫', (application: ContractTradeJournalApplication) => application.amendPlan(27, new ContractTradePlanInputDto('', '', '', null)), 'amendPlan'],
-    ['寫檢討', (application: ContractTradeJournalApplication) => application.writeReview(27, new ContractTradeReviewWriteDto('a', 'b', 'c', 4, [2])), 'writeReview'],
+    ['修改計畫', (application: ContractTradeJournalApplication) => application.amendPlan(27, new TradePlanInputDto('', '', '', null)), 'amendPlan'],
+    ['寫檢討', (application: ContractTradeJournalApplication) => application.writeReview(27, new TradeReviewWriteDto('a', 'b', 'c', 4, [2])), 'writeReview'],
     ['貼型態標籤', (application: ContractTradeJournalApplication) => application.assignSetupTags(27, [1]), 'assignSetupTags'],
   ] as const)('%s回傳更新後的這一筆', async (_, act, proxyMethod) => {
     const { application, recordProxy } = buildFixture()
@@ -731,9 +731,9 @@ describe('ContractTradeJournalApplication 其餘寫入', () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.amendPlan.mockResolvedValue(buildRecord({ status: 'open' }))
 
-    await application.amendPlan(27, new ContractTradePlanInputDto('96,300', 'abc', '理由', 4))
+    await application.amendPlan(27, new TradePlanInputDto('96,300', 'abc', '理由', 4))
 
-    const [, planWriteDto] = recordProxy.amendPlan.mock.calls[0] as [number, import('~/domain/models/dto/contract-trade-plan-write-dto').ContractTradePlanWriteDto]
+    const [, planWriteDto] = recordProxy.amendPlan.mock.calls[0] as [number, import('~/domain/models/dto/trade-plan-write-dto').TradePlanWriteDto]
     expect(planWriteDto.plannedStopLossPrice?.toString()).toBe('96300')
     expect(planWriteDto.plannedTakeProfitPrice).toBeNull()
   })

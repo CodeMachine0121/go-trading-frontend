@@ -1,18 +1,33 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import ContractTradePlanPanel from '~/components/organisms/ContractTradePlanPanel.vue'
+import TradePlanPanel from '~/components/organisms/TradePlanPanel.vue'
 import { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 import { buildRecord } from '../../fixtures/contract-trade-journal'
 
 const SETUP_TAGS = [new TradeTagDto(1, 'setup', '突破'), new TradeTagDto(4, 'setup', '回踩')]
 
+function planPropsOf(recordOverrides: Record<string, unknown> = {}) {
+  const record = buildRecord(recordOverrides).toDomain().toDto()
+
+  return {
+    planLocked: record.planLocked,
+    entryReason: record.entryReason,
+    plannedStopLossPrice: record.plannedStopLossPrice,
+    plannedTakeProfitPrice: record.plannedTakeProfitPrice,
+    plannedStopLossText: record.plannedStopLossText,
+    plannedTakeProfitText: record.plannedTakeProfitText,
+    confidence: record.confidence,
+    selectedSetupTags: record.setupTags,
+  }
+}
+
 function mountPanel(recordOverrides: Record<string, unknown> = {}) {
-  return mount(ContractTradePlanPanel, {
-    props: { record: buildRecord(recordOverrides).toDomain().toDto(), setupTags: SETUP_TAGS },
+  return mount(TradePlanPanel, {
+    props: { ...planPropsOf(recordOverrides), setupTags: SETUP_TAGS },
   })
 }
 
-describe('ContractTradePlanPanel：平倉後', () => {
+describe('TradePlanPanel：平倉後', () => {
   it('進場時的我標示已鎖定，沒有修改入口，理由與計畫照當時的寫', () => {
     const wrapper = mountPanel()
 
@@ -34,7 +49,7 @@ describe('ContractTradePlanPanel：平倉後', () => {
   })
 })
 
-describe('ContractTradePlanPanel：持倉中', () => {
+describe('TradePlanPanel：持倉中', () => {
   it('修改計畫：帶出現在的計畫、改完送出', async () => {
     const wrapper = mountPanel({ status: 'open', confidence: null })
 

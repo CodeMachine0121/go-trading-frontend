@@ -2,43 +2,46 @@
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
 import TradePricePathChart from '~/components/molecules/TradePricePathChart.vue'
-import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
+import type { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
+import type { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
 const {
-  record,
+  outcome,
+  source = null,
   pricePath = null,
   pricePathLoading = false,
   pricePathFailureMessage = null,
   timeZone,
 } = defineProps<{
-  record: ContractTradeRecordDto
+  outcome: TradeOutcomeDto
+  source?: TradeSourceDto | null
   pricePath?: TradePricePathDto | null
   pricePathLoading?: boolean
   pricePathFailureMessage?: string | null
   timeZone: TimeZoneDto
 }>()
 
-const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessage
+const pricePathMessage = computed(() => outcome.pricePathUnavailableMessage
   ?? pricePathFailureMessage
   ?? pricePath?.emptyMessage
   ?? null)
 </script>
 
 <template>
-  <div class="contract-trade-outcome-panel">
+  <div class="trade-outcome-panel">
     <AppPanel title="價格路徑">
       <p
         v-if="pricePathMessage"
-        class="contract-trade-outcome-panel__state"
+        class="trade-outcome-panel__state"
         data-testid="price-path-message"
       >
         {{ pricePathMessage }}
       </p>
       <p
         v-else-if="pricePathLoading || pricePath === null"
-        class="contract-trade-outcome-panel__state"
+        class="trade-outcome-panel__state"
         data-testid="price-path-loading"
       >
         讀取行情…
@@ -51,23 +54,23 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
     </AppPanel>
 
     <AppPanel title="結果">
-      <div class="contract-trade-outcome-panel__result">
+      <div class="trade-outcome-panel__result">
         <TradeSummaryStrip
-          v-for="(group, index) in record.outcome.figureGroups"
+          v-for="(group, index) in outcome.figureGroups"
           :key="index"
           :figures="group"
           layout="list"
           :data-testid="`outcome-group-${index}`"
         />
         <dl
-          v-if="record.source"
-          class="contract-trade-outcome-panel__source"
+          v-if="source"
+          class="trade-outcome-panel__source"
           data-testid="trade-source"
         >
-          <dt>{{ record.source.label }}</dt>
-          <dd>參考價 {{ record.source.referencePriceText }}</dd>
-          <dd>建議止損 {{ record.source.suggestedStopLossPriceText }}</dd>
-          <dd>建議止盈 {{ record.source.suggestedTakeProfitPriceText }}</dd>
+          <dt>{{ source.label }}</dt>
+          <dd>參考價 {{ source.referencePriceText }}</dd>
+          <dd>建議止損 {{ source.suggestedStopLossPriceText }}</dd>
+          <dd>建議止盈 {{ source.suggestedTakeProfitPriceText }}</dd>
         </dl>
       </div>
     </AppPanel>
@@ -75,7 +78,7 @@ const pricePathMessage = computed(() => record.outcome.pricePathUnavailableMessa
 </template>
 
 <style scoped lang="scss">
-.contract-trade-outcome-panel {
+.trade-outcome-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: spacing('md');

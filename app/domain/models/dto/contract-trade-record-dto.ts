@@ -1,12 +1,12 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
-import type { ContractTradeStatus } from '~/domain/models/vo/contract-trade-status-vo'
+import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
 import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
 import type { TradeNoteDto } from '~/domain/models/dto/trade-note-dto'
-import type { ContractTradeSourceDto } from '~/domain/models/dto/contract-trade-source-dto'
+import type { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import type { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
-import type { ContractTradeOutcomeDto } from '~/domain/models/dto/contract-trade-outcome-dto'
+import type { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 
 export class ContractTradeRecordDto {
@@ -18,7 +18,7 @@ export class ContractTradeRecordDto {
     public readonly directionLabel: string,
     public readonly directionTone: TradeBadgeTone,
     public readonly leverage: Decimal,
-    public readonly status: ContractTradeStatus,
+    public readonly status: TradeStatus,
     public readonly statusLabel: string,
     public readonly statusTone: TradeBadgeTone,
     public readonly sourceLabel: string,
@@ -41,9 +41,9 @@ export class ContractTradeRecordDto {
     public readonly notes: readonly TradeNoteDto[],
     public readonly setupTags: readonly TradeTagDto[],
     public readonly mistakeTags: readonly TradeTagDto[],
-    public readonly source: ContractTradeSourceDto | null,
+    public readonly source: TradeSourceDto | null,
     public readonly review: TradeReviewDto | null,
-    public readonly outcome: ContractTradeOutcomeDto,
+    public readonly outcome: TradeOutcomeDto,
     public readonly maximumAdversePrice: Decimal | null,
     public readonly maximumFavorablePrice: Decimal | null,
     public readonly holdingDurationText: string | null,
