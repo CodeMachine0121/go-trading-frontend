@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // 原子：全站唯一的下拉選單。選項以 slot 傳入（一律是原生的 <option>），
 // 原子因此不必認識任何領域資料，其餘原生屬性走 attribute fallthrough。
-const { invalid = false } = defineProps<{ invalid?: boolean }>()
+const { invalid = false, highlighted = false } = defineProps<{
+  invalid?: boolean
+  /** 框線換成強調色，讓這一格被注意到。 */
+  highlighted?: boolean
+}>()
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -10,7 +14,7 @@ const modelValue = defineModel<string>({ required: true })
   <select
     v-model="modelValue"
     class="app-select"
-    :class="{ 'app-select--invalid': invalid }"
+    :class="{ 'app-select--invalid': invalid, 'app-select--highlighted': highlighted && !invalid }"
     :aria-invalid="invalid"
   >
     <slot />
@@ -43,6 +47,10 @@ const modelValue = defineModel<string>({ required: true })
     border-color: color('border');
     background-color: color('surface-muted');
     color: color('text-faint');
+  }
+
+  &--highlighted {
+    border-color: color('primary');
   }
 
   &--invalid {

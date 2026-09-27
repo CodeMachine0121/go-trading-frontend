@@ -72,6 +72,16 @@ import { ConnectorAuthorizationProxy } from '~/infrastructure/proxy/connector-au
 import { ExternalNavigationProxy } from '~/infrastructure/proxy/external-navigation-proxy'
 import { ConnectorAuthorizationService } from '~/domain/service/connector-authorization-service'
 import { ConnectorAuthorizationApplication } from '~/application/connector-authorization-application'
+import { ContractTradeRecordProxy } from '~/infrastructure/proxy/contract-trade-record-proxy'
+import { TradeJournalSettingProxy } from '~/infrastructure/proxy/trade-journal-setting-proxy'
+import { TradeTagProxy } from '~/infrastructure/proxy/trade-tag-proxy'
+import { ContractTradeJournalService } from '~/domain/service/contract-trade-journal-service'
+import { TradeJournalSettingService } from '~/domain/service/trade-journal-setting-service'
+import { ContractTradeJournalApplication } from '~/application/contract-trade-journal-application'
+import { SpotTradeRecordProxy } from '~/infrastructure/proxy/spot-trade-record-proxy'
+import { SpotTradeJournalService } from '~/domain/service/spot-trade-journal-service'
+import { SpotTradeJournalApplication } from '~/application/spot-trade-journal-application'
+import { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -267,6 +277,26 @@ export default defineNuxtPlugin(() => {
       new ExternalNavigationProxy()),
   )
 
+  const contractTradeJournalApplication = new ContractTradeJournalApplication(
+    new ContractTradeJournalService(
+      new ContractTradeRecordProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new KCandleContractProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
+  const spotTradeJournalApplication = new SpotTradeJournalApplication(
+    new SpotTradeJournalService(
+      new SpotTradeRecordProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new TradingStrategyProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new KCandleProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
+  const tradeJournalSettingApplication = new TradeJournalSettingApplication(
+    new TradeJournalSettingService(
+      new TradeJournalSettingProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new TradeTagProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
   // 現在這個寬度代表什麼。它連瀏覽器儲存都不碰——問的是視窗本身，
   // 所以既沒有 proxy 也沒有 domain service，只有一個把寬度翻成答案的 model。
   const layoutDensityApplication = new LayoutDensityApplication()
@@ -311,6 +341,9 @@ export default defineNuxtPlugin(() => {
       passwordChangeApplication,
       telegramDeliveryApplication,
       connectorAuthorizationApplication,
+      contractTradeJournalApplication,
+      spotTradeJournalApplication,
+      tradeJournalSettingApplication,
       layoutDensityApplication,
       appearanceApplication,
       marketCounterpartApplication,

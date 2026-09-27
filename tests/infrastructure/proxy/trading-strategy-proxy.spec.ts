@@ -269,3 +269,67 @@ describe('TradingStrategyProxy 的行情種類與交易模式', () => {
     expect(tradingStrategyDto.replaysOnContractAccount).toBe(false)
   })
 })
+
+describe('TradingStrategyProxy.findContractTradeComparison', () => {
+  it('每個標的一列，重演失敗的那一列沒有回測數字但帶著原因', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      tradingStrategyName: 'BTC 趨勢跟隨',
+      tradingStrategyDeleted: false,
+      averageEntrySlippagePercentage: 0.07,
+      entrySlippageTradeCount: 5,
+      rows: [
+        {
+          symbol: 'BTCUSDT',
+          live: { closedTradeCount: 12, winRate: 0.54, longWinRate: 0.54, averageEntrySlippagePercentage: 0.07, entrySlippageTradeCount: 5 },
+          backtest: { closedTradeCount: 30, winRate: 0.52, longWinRate: 0.52, shortWinRate: null },
+        },
+        { symbol: 'ETHUSDT', live: { closedTradeCount: 3 }, backtest: null, backtestUnavailableReason: '合約行情不夠' },
+      ],
+    })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const comparison = await new TradingStrategyProxy(BASE_URL, signedInSessionStorage()).findContractTradeComparison(5)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE_URL}/trading-strategies/5/contract-trade-comparison`)
+    expect(comparison.tradingStrategyName).toBe('BTC 趨勢跟隨')
+    expect(comparison.rows[0]?.live).toMatchObject({ closedTradeCount: 12, winRate: 0.54, shortWinRate: null })
+    expect(comparison.rows[0]?.backtest?.winRate).toBe(0.52)
+    expect(comparison.rows[0]?.backtestFailureReason).toBeNull()
+    expect(comparison.rows[1]?.live.winRate).toBeNull()
+    expect(comparison.rows[1]?.backtest).toBeNull()
+    expect(comparison.rows[1]?.backtestFailureReason).toBe('合約行情不夠')
+    expect(comparison.averageEntrySlippagePercentage?.toString()).toBe('0.07')
+    expect(comparison.entrySlippageTradeCount).toBe(5)
+    expect(comparison.rows[0]?.live.averageEntrySlippagePercentage?.toString()).toBe('0.07')
+    expect(comparison.rows[0]?.live.entrySlippageTradeCount).toBe(5)
+    expect(comparison.rows[0]?.backtest?.averageEntrySlippagePercentage).toBeNull()
+  })
+
+  it('後端省略的欄位給預設；沒有回測欄也當作沒有回測', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ rows: [{ symbol: 'BTCUSDT', live: { closedTradeCount: 1 } }] }))
+
+    const comparison = await new TradingStrategyProxy(BASE_URL, signedInSessionStorage()).findContractTradeComparison(5)
+
+    expect(comparison.tradingStrategyName).toBe('')
+    expect(comparison.tradingStrategyDeleted).toBe(false)
+    expect(comparison.rows[0]?.backtest).toBeNull()
+    expect(comparison.averageEntrySlippagePercentage).toBeNull()
+    expect(comparison.entrySlippageTradeCount).toBe(0)
+    expect(comparison.rows[0]?.live).toMatchObject({ averageEntrySlippagePercentage: null, entrySlippageTradeCount: 0 })
+  })
+
+  it('沒有列時是空清單；看不到的策略翻成找不到', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ tradingStrategyName: 'x', tradingStrategyDeleted: true })
+      .mockRejectedValueOnce(createFetchError({
+        request: BASE_URL,
+        options: {},
+        response: { status: 404, statusText: 'rejected', _data: { message: '找不到識別碼為 9 的交易策略' } },
+      } as unknown as FetchContext))
+    vi.stubGlobal('$fetch', fetchMock)
+    const subject = new TradingStrategyProxy(BASE_URL, signedInSessionStorage())
+
+    expect((await subject.findContractTradeComparison(5)).rows).toEqual([])
+    await expect(subject.findContractTradeComparison(9)).rejects.toBeInstanceOf(TradingStrategyNotFoundError)
+  })
+})

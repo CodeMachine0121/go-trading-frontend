@@ -21,6 +21,7 @@ const DESTINATIONS = [
   { to: '/strategy-scripts', label: '策略腳本', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
   { to: '/trading-strategies', label: '交易策略', icon: 'flow', paths: ['/trading-strategies'], nested: true },
   { to: '/strategy-bots', label: '策略機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
+  { to: '/spot-trade-journal', label: '交易日誌', icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
 ] as const
 
@@ -36,7 +37,7 @@ const TAB_DESTINATIONS = [
 
 /** 收在「更多」裡的去處。 */
 const MORE_DESTINATIONS = [
-  DESTINATIONS[1], DESTINATIONS[3], DESTINATIONS[5], SETTINGS_DESTINATION,
+  DESTINATIONS[1], DESTINATIONS[3], DESTINATIONS[5], DESTINATIONS[6], SETTINGS_DESTINATION,
 ] as const
 
 const { destinationPaths = {} } = defineProps<{

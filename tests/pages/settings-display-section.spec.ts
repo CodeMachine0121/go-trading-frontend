@@ -33,10 +33,18 @@ mockNuxtImport('useTelegramDelivery', () => () => {
   })
 })
 
+mockNuxtImport('useTradeJournalSettings', () => () => {
+  const state = stateWithEveryFieldEmpty()
+  return new Proxy(state, {
+    get: (target, key) => key === 'loadSettings' ? vi.fn() : Reflect.get(target, key),
+  })
+})
+
 const STUBS = {
   AccountProfilePanel: true,
   PasswordChangePanel: true,
   TelegramDeliveryPanel: true,
+  TradeJournalSettingsPanel: true,
   TimeZoneField: {
     props: ['modelValue'],
     emits: ['update:modelValue'],

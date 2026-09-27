@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // 原子：全站唯一的文字輸入框。型別（text / datetime-local…）與其餘原生屬性
 // 一律走 attribute fallthrough，由使用端決定。
-const { invalid = false } = defineProps<{ invalid?: boolean }>()
+const { invalid = false, highlighted = false } = defineProps<{
+  invalid?: boolean
+  /** 框線換成強調色，讓這一格被注意到。 */
+  highlighted?: boolean
+}>()
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -10,7 +14,7 @@ const modelValue = defineModel<string>({ required: true })
   <input
     v-model="modelValue"
     class="app-input"
-    :class="{ 'app-input--invalid': invalid }"
+    :class="{ 'app-input--invalid': invalid, 'app-input--highlighted': highlighted && !invalid }"
     :aria-invalid="invalid"
   >
 </template>
@@ -41,6 +45,10 @@ const modelValue = defineModel<string>({ required: true })
     border-color: color('border');
     background-color: color('surface-muted');
     color: color('text-faint');
+  }
+
+  &--highlighted {
+    border-color: color('primary');
   }
 
   &--invalid {

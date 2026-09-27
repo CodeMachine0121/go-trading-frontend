@@ -1,0 +1,210 @@
+import type { IContractTradeRecordProxy } from '~/domain/interface/i-contract-trade-record-proxy'
+import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
+import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
+import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
+import type { ContractTradeListDto } from '~/domain/models/dto/contract-trade-list-dto'
+import type { ContractTradeListFilterDto } from '~/domain/models/dto/contract-trade-list-filter-dto'
+import type { ContractTradeDraftDto } from '~/domain/models/dto/contract-trade-draft-dto'
+import type { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
+import type { ContractTradeFillDto } from '~/domain/models/dto/contract-trade-fill-dto'
+import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
+import { TradePlanWriteDto } from '~/domain/models/dto/trade-plan-write-dto'
+import type { TradePlanInputDto } from '~/domain/models/dto/trade-plan-input-dto'
+import type { ContractTradeFillAmendmentDto } from '~/domain/models/dto/contract-trade-fill-amendment-dto'
+import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
+import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
+import type { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
+import type { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
+import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
+import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contract-trade-live-comparison-dto'
+import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
+import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
+import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
+import { ContractTradeListQueryDto } from '~/domain/models/dto/contract-trade-list-query-dto'
+import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
+import {
+  TRADE_STATISTICS_PERIODS,
+  DEFAULT_TRADE_STATISTICS_PERIOD,
+} from '~/domain/models/vo/trade-statistics-period-vo'
+import { ContractTradeDraftDomain } from '~/domain/models/domains/contract-trade-draft-domain'
+import { ContractTradeListDomain } from '~/domain/models/domains/contract-trade-list-domain'
+import { ContractTradeStatisticsDomain } from '~/domain/models/domains/contract-trade-statistics-domain'
+import { TradeStatisticsPeriodDomain } from '~/domain/models/domains/trade-statistics-period-domain'
+import { ContractTradeLiveComparisonDomain } from '~/domain/models/domains/contract-trade-live-comparison-domain'
+import { ContractTradePrefillDomain } from '~/domain/models/domains/contract-trade-prefill-domain'
+import { ContractTradePricePathDomain } from '~/domain/models/domains/contract-trade-price-path-domain'
+import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
+import type { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
+import { TradeFailureDomain } from '~/domain/models/domains/trade-failure-domain'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
+
+const LIST_LIMIT = 200
+const UNREADABLE_FILL_MESSAGE = '價格與數量要填數字'
+
+export class ContractTradeJournalService {
+  constructor(
+    private readonly contractTradeRecordProxy: IContractTradeRecordProxy,
+    private readonly tradingStrategyProxy: ITradingStrategyProxy,
+    private readonly kCandleContractProxy: IKCandleContractProxy,
+  ) {}
+
+  async listTrades(filter: ContractTradeListFilterDto): Promise<ContractTradeListDto> {
+    const [page, statistics] = await Promise.all([
+      this.contractTradeRecordProxy.listTrades(new ContractTradeListQueryDto(null, null, LIST_LIMIT)),
+      this.contractTradeRecordProxy.findStatistics(DEFAULT_TRADE_STATISTICS_PERIOD),
+    ])
+
+    return new ContractTradeListDomain(page.records, statistics, filter).toDto()
+  }
+
+  async getTrade(id: number): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.findTrade(id)).toDomain().toDto()
+  }
+
+  previewDraft(
+    draft: ContractTradeDraftDto,
+    setting: TradeJournalSettingDto,
+    existingFills: readonly ContractTradeFillDto[] | null,
+  ): ContractTradeDraftPreviewDto {
+    return new ContractTradeDraftDomain(draft, setting, existingFills).toPreviewDto()
+  }
+
+  prefilledDraftFields(
+    draft: ContractTradeDraftDto,
+    setting: TradeJournalSettingDto,
+    prefill: ContractTradePrefillDto,
+  ): TradeFormField[] {
+    return new ContractTradeDraftDomain(draft, setting).prefilledFields(prefill)
+  }
+
+  draftDiffers(draft: ContractTradeDraftDto, initialDraft: ContractTradeDraftDto, setting: TradeJournalSettingDto): boolean {
+    return new ContractTradeDraftDomain(draft, setting).differsFrom(initialDraft)
+  }
+
+  submittedDraftFillPositions(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto, forNewTrade: boolean): number[] {
+    return new ContractTradeDraftDomain(draft, setting).submittedFillPositions(forNewTrade)
+  }
+
+  async recordDraft(draft: ContractTradeDraftDto, setting: TradeJournalSettingDto): Promise<ContractTradeRecordDto> {
+    const submission = new ContractTradeDraftDomain(draft, setting).toRecordSubmission()
+    const recorded = await this.contractTradeRecordProxy.recordTrade(submission.record)
+
+    return (await this.appendFills(recorded.id, submission.additionalFills, recorded.id))
+      ?? recorded.toDomain().toDto()
+  }
+
+  async addDraftFills(
+    id: number,
+    draft: ContractTradeDraftDto,
+    setting: TradeJournalSettingDto,
+    existingFills: readonly ContractTradeFillDto[],
+  ): Promise<ContractTradeRecordDto> {
+    const [firstFillWriteDto, ...otherFillWriteDtos]
+      = new ContractTradeDraftDomain(draft, setting, existingFills).toFillWriteDtos()
+    const afterFirstFill = (await this.contractTradeRecordProxy.addFill(id, firstFillWriteDto)).toDomain().toDto()
+
+    return (await this.appendFills(id, otherFillWriteDtos, null)) ?? afterFirstFill
+  }
+
+  async amendFill(id: number, amendment: ContractTradeFillAmendmentDto): Promise<ContractTradeRecordDto> {
+    const price = new DecimalInputDomain(amendment.priceText).value
+    const quantity = new DecimalInputDomain(amendment.quantityText).value
+    if (price === null || quantity === null) {
+      throw new TradeRejectedError(UNREADABLE_FILL_MESSAGE, new TradeFormFieldVo('fillPrice'))
+    }
+
+    const fill = amendment.fill
+
+    return (await this.contractTradeRecordProxy.amendFill(id, fill.id, new ContractTradeFillWriteDto(
+      fill.kind, fill.filledAt, price, quantity, fill.liquidity, new DecimalInputDomain(amendment.feeText).value)))
+      .toDomain().toDto()
+  }
+
+  async removeFill(id: number, fillId: number): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.removeFill(id, fillId)).toDomain().toDto()
+  }
+
+  async amendPlan(id: number, planInput: TradePlanInputDto): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.amendPlan(id, new TradePlanWriteDto(
+      new DecimalInputDomain(planInput.plannedStopLossText).value,
+      new DecimalInputDomain(planInput.plannedTakeProfitText).value,
+      planInput.entryReason,
+      planInput.confidence,
+    ))).toDomain().toDto()
+  }
+
+  async addNote(id: number, content: string): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.addNote(id, content.trim())).toDomain().toDto()
+  }
+
+  async writeReview(id: number, reviewWriteDto: TradeReviewWriteDto): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.writeReview(id, reviewWriteDto)).toDomain().toDto()
+  }
+
+  async assignSetupTags(id: number, setupTagIds: readonly number[]): Promise<ContractTradeRecordDto> {
+    return (await this.contractTradeRecordProxy.assignSetupTags(id, setupTagIds)).toDomain().toDto()
+  }
+
+  async deleteTrade(id: number): Promise<void> {
+    await this.contractTradeRecordProxy.deleteTrade(id)
+  }
+
+  async openJournalLink(identifier: string): Promise<ContractTradePrefillDto> {
+    return new ContractTradePrefillDomain(
+      await this.contractTradeRecordProxy.findJournalLink(identifier)).toDto()
+  }
+
+  listStatisticsPeriods(): JournalOptionDto[] {
+    return TRADE_STATISTICS_PERIODS.map(
+      period => new TradeStatisticsPeriodDomain(period).toOptionDto())
+  }
+
+  async getStatistics(period: TradeStatisticsPeriod): Promise<ContractTradeStatisticsDto> {
+    return new ContractTradeStatisticsDomain(
+      await this.contractTradeRecordProxy.findStatistics(period)).toDto()
+  }
+
+  async getLiveComparison(tradingStrategyId: number): Promise<ContractTradeLiveComparisonDto> {
+    return new ContractTradeLiveComparisonDomain(
+      await this.tradingStrategyProxy.findContractTradeComparison(tradingStrategyId)).toDto()
+  }
+
+  describeFailure(error: unknown): TradeFailureDto {
+    return new TradeFailureDomain(error).toDto()
+  }
+
+  async getPricePath(record: ContractTradeRecordDto): Promise<TradePricePathDto> {
+    const pricePath = new ContractTradePricePathDomain(record, new Date())
+    const series = await this.kCandleContractProxy.findKCandleContractSeries(pricePath.toLoadPlan())
+
+    return pricePath.toDto(series.kCandleContracts)
+  }
+
+  private async appendFills(
+    id: number,
+    fillWriteDtos: readonly ContractTradeFillWriteDto[],
+    recordedTradeId: number | null,
+  ): Promise<ContractTradeRecordDto | null> {
+    const appended: ContractTradeRecordDto[] = []
+    for (const [index, fillWriteDto] of fillWriteDtos.entries()) {
+      try {
+        appended.push((await this.contractTradeRecordProxy.addFill(id, fillWriteDto)).toDomain().toDto())
+      }
+      catch (error: unknown) {
+        const savedFillCount = index + 1
+        const reason = new TradeFailureDomain(error).toDto().message
+        throw new TradeRejectedError(
+          recordedTradeId === null
+            ? `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason}`
+            : `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason}`,
+          error instanceof TradeRejectedError ? error.formField : null,
+          recordedTradeId,
+          savedFillCount,
+          { cause: error },
+        )
+      }
+    }
+
+    return appended.at(-1) ?? null
+  }
+}

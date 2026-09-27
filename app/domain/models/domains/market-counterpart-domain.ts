@@ -11,7 +11,10 @@ const COUNTERPART_PAIRS = [
   { spot: '/k-candles', contract: '/contract-k-candles' },
   { spot: '/strategy-scripts', contract: '/contract-strategy-scripts' },
   { spot: '/strategy-bots', contract: '/contract-strategy-bots' },
+  { spot: '/spot-trade-journal', contract: '/contract-trade-journal' },
 ] as const
+
+const DESTINATIONS_WITH_DEEPER_PAGES = ['-bots', '-journal']
 
 const SWITCHABLE_LABEL = '切換到另一個市場的同一個畫面'
 const NOT_SWITCHABLE_LABEL = '這個畫面不分現貨與合約'
@@ -33,10 +36,10 @@ export class MarketCounterpartDomain {
     for (const pair of COUNTERPART_PAIRS) {
       for (const [side, otherSide] of [['spot', 'contract'], ['contract', 'spot']] as const) {
         const destinationPath = pair[side]
-        const withinBotDestination = destinationPath.endsWith('-bots')
+        const withinDeeperPage = DESTINATIONS_WITH_DEEPER_PAGES.some(suffix => destinationPath.endsWith(suffix))
           && this.path.startsWith(`${destinationPath}/`)
 
-        if (this.path === destinationPath || withinBotDestination) {
+        if (this.path === destinationPath || withinDeeperPage) {
           return new MarketCounterpartDto(side, pair[otherSide], SWITCHABLE_LABEL)
         }
       }
