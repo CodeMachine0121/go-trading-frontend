@@ -90,7 +90,7 @@ type ContractTradeLiveComparisonWire = {
     symbol: string
     live: ContractTradePerformanceWire
     backtest?: ContractTradePerformanceWire | null
-    backtestFailureReason?: string | null
+    backtestUnavailableReason?: string | null
   }[]
 }
 
@@ -142,7 +142,7 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
           rowWire.symbol,
           toPerformance(rowWire.live),
           rowWire.backtest === undefined || rowWire.backtest === null ? null : toPerformance(rowWire.backtest),
-          rowWire.backtestFailureReason ?? null,
+          rowWire.backtestUnavailableReason ?? null,
         )),
       )
     }

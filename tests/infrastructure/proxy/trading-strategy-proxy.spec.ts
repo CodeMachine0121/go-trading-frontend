@@ -281,7 +281,7 @@ describe('TradingStrategyProxy.findContractTradeComparison', () => {
           live: { closedTradeCount: 12, winRate: 0.54, longWinRate: 0.54 },
           backtest: { closedTradeCount: 30, winRate: 0.52, longWinRate: 0.52, shortWinRate: null },
         },
-        { symbol: 'ETHUSDT', live: { closedTradeCount: 3 }, backtest: null, backtestFailureReason: '合約行情不夠' },
+        { symbol: 'ETHUSDT', live: { closedTradeCount: 3 }, backtest: null, backtestUnavailableReason: '合約行情不夠' },
       ],
     })
     vi.stubGlobal('$fetch', fetchMock)

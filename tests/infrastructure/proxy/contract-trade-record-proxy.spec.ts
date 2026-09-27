@@ -29,7 +29,23 @@ function proxy() {
   return new ContractTradeRecordProxy(BASE_URL, signedInSessionStorage())
 }
 
-const MEASURE = { value: '1.53' }
+const OUTCOME_WIRE = {
+  grossProfit: '75.45',
+  totalFee: '2.07',
+  feeRateMissing: true,
+  funding: { available: false, settlementCount: 0, unavailableReason: 'noSettlementData' },
+  netProfit: '73.38',
+  netProfitExcludesFunding: true,
+  plannedRisk: '46.5',
+  rMultiple: '1.53',
+  excursion: {
+    available: true, adversePrice: '97110', favorablePrice: '100960', adverseRMultiple: '-0.53', favorableRMultiple: '1.96',
+  },
+  profitCaptureRate: '0.82',
+  floatingProfit: { available: false, unavailableReason: 'notOpen' },
+  liquidationPrice: { available: false, unavailableReason: 'notOpen' },
+  entrySlippagePercentage: '0.06',
+}
 
 const RECORD_WIRE = {
   id: 27,
@@ -37,15 +53,7 @@ const RECORD_WIRE = {
   direction: 'long',
   leverage: '10',
   status: 'closed',
-  plannedStopLossPrice: '96380',
-  plannedTakeProfitPrice: null,
-  entryReason: '突破',
-  confidence: 3,
-  tradingStrategyId: 5,
-  tradingStrategyName: 'BTC 趨勢跟隨',
-  tradingStrategyDeleted: false,
-  openedAt: '2026-09-25T06:03:00Z',
-  closedAt: '2026-09-26T08:40:00Z',
+  plan: { plannedStopLossPrice: '96380', plannedTakeProfitPrice: null, entryReason: '突破', confidence: 3, locked: true },
   fills: [{
     id: 1, kind: 'entry', filledAt: '2026-09-25T06:03:00Z', price: '97905', quantity: '0.030',
     liquidity: 'taker', fee: '1.47', feeRateMissing: true,
@@ -54,32 +62,27 @@ const RECORD_WIRE = {
     liquidity: 'maker', fee: '0.6',
   }],
   notes: [{ id: 1, content: '附註', createdAt: '2026-09-26T09:00:00Z' }],
-  tags: [{ id: 1, kind: 'setup', name: '突破' }],
+  setupTags: [{ id: 1, kind: 'setup', name: '突破' }],
+  mistakeTags: [{ id: 2, kind: 'mistake', name: '提早出場' }],
+  tradingStrategyId: 5,
+  tradingStrategyName: 'BTC 趨勢跟隨',
+  tradingStrategyDeleted: false,
   source: {
-    strategyBotName: 'BTC 趨勢跟隨', runNumber: 412, referencePrice: '97850',
+    strategyBotId: 3, strategyBotName: 'BTC 趨勢跟隨', runNumber: 412, referencePrice: '97850',
     suggestedStopLossPrice: '96380', suggestedTakeProfitPrice: null,
   },
   review: { wentWell: '照計畫', executionScore: 4, reviewedAt: '2026-09-27T00:00:00Z' },
-  outcome: {
-    position: '0',
-    averageEntryPrice: '97905',
-    averageExitPrice: '100420',
-    grossProfit: '75.45',
-    totalFee: '2.07',
-    feeRateMissing: true,
-    fundingFee: { value: null, unavailableReason: 'noFundingSettlements' },
-    netProfit: '73.38',
-    netProfitExcludesFunding: true,
-    plannedRisk: MEASURE,
-    rMultiple: MEASURE,
-    maximumAdverseExcursion: MEASURE,
-    maximumFavorableExcursion: MEASURE,
-    maximumAdversePrice: '97110',
-    maximumFavorablePrice: null,
-    profitCaptureRate: { value: '' },
-    floatingProfit: null,
-    entrySlippagePercentage: MEASURE,
-  },
+  openedAt: '2026-09-25T06:03:00Z',
+  closedAt: '2026-09-26T08:40:00Z',
+  averageEntryPrice: '97905',
+  averageExitPrice: '100420',
+  enteredQuantity: '0.03',
+  position: '0',
+  outcome: OUTCOME_WIRE,
+}
+
+function withOutcome(outcome: Record<string, unknown>, overrides: Record<string, unknown> = {}) {
+  return { ...RECORD_WIRE, ...overrides, outcome: { ...OUTCOME_WIRE, ...outcome } }
 }
 
 afterEach(() => {
@@ -95,34 +98,67 @@ describe('ContractTradeRecordProxy.findTrade', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE_URL}/contract-trade-records/27`)
     expect(record.leverage.toString()).toBe('10')
+    expect(record.plannedStopLossPrice?.toString()).toBe('96380')
     expect(record.plannedTakeProfitPrice).toBeNull()
+    expect(record).toMatchObject({ entryReason: '突破', confidence: 3 })
     expect(record.fills[0]?.feeRateMissing).toBe(true)
     expect(record.fills[1]?.feeRateMissing).toBe(false)
-    expect(record.fills[0]?.filledAt.toISOString()).toBe('2026-09-25T06:03:00.000Z')
     expect(record.notes[0]?.content).toBe('附註')
-    expect(record.tags[0]?.name).toBe('突破')
+    expect(record.tags.map(tag => [tag.kind, tag.name])).toEqual([['setup', '突破'], ['mistake', '提早出場']])
     expect(record.source?.suggestedTakeProfitPrice).toBeNull()
     expect(record.review).toMatchObject({ wentWell: '照計畫', wentWrong: '', nextTime: '', executionScore: 4 })
+    expect(record.outcome.averageEntryPrice.toString()).toBe('97905')
+    expect(record.outcome.position.toString()).toBe('0')
     expect(record.outcome.fundingFee.unavailableReason).toBe('noFundingSettlements')
-    expect(record.outcome.profitCaptureRate.value).toBeNull()
-    expect(record.outcome.profitCaptureRate.unavailableReason).toBe('temporarilyUnavailable')
-    expect(record.outcome.floatingProfit.unavailableReason).toBe('temporarilyUnavailable')
-    expect(record.outcome.estimatedLiquidationPrice.value).toBeNull()
     expect(record.outcome.rMultiple.value?.toString()).toBe('1.53')
-    expect(record.outcome.maximumFavorablePrice).toBeNull()
+    expect(record.outcome.maximumAdverseExcursion.value?.toString()).toBe('-0.53')
+    expect(record.outcome.maximumFavorablePrice?.toString()).toBe('100960')
+    expect(record.outcome.profitCaptureRate.value?.toString()).toBe('0.82')
+    expect(record.outcome.floatingProfit.unavailableReason).toBe('notApplicable')
+    expect(record.outcome.estimatedLiquidationPrice.unavailableReason).toBe('notApplicable')
+    expect(record.outcome.entrySlippagePercentage.value?.toString()).toBe('0.06')
+  })
+
+  it.each([
+    ['資金費用算得出', { funding: { available: true, amount: '-1.52', settlementCount: 3 } }, 'fundingFee', '-1.52', null],
+    ['資金費用暫時算不出', { funding: { available: false, unavailableReason: 'somethingElse' } }, 'fundingFee', null, 'temporarilyUnavailable'],
+    ['沒有止損算不出 R', { plannedRisk: null, rMultiple: null, rMultipleUnavailableReason: 'noStopLoss' }, 'rMultiple', null, 'noStopLoss'],
+    ['沒有止損算不出計畫風險', { plannedRisk: null }, 'plannedRisk', null, 'noStopLoss'],
+    ['R 因其他原因算不出', { rMultiple: null }, 'rMultiple', null, 'temporarilyUnavailable'],
+    ['行情有但沒止損時最大不利算不出', { excursion: { available: true, adversePrice: '1', favorablePrice: '2' } }, 'maximumAdverseExcursion', null, 'noStopLoss'],
+    ['沒有行情', { excursion: { available: false, unavailableReason: 'noMarketData' }, profitCaptureRate: null }, 'maximumFavorableExcursion', null, 'noMarketData'],
+    ['沒有行情時捕捉率也算不出', { excursion: { available: false, unavailableReason: 'noMarketData' }, profitCaptureRate: null }, 'profitCaptureRate', null, 'noMarketData'],
+    ['列表不計算極值', { excursion: { available: false, unavailableReason: 'notComputed' } }, 'maximumAdverseExcursion', null, 'temporarilyUnavailable'],
+    ['有行情但捕捉率不適用', { profitCaptureRate: null }, 'profitCaptureRate', null, 'notApplicable'],
+    ['持倉中的浮動損益', { floatingProfit: { available: true, amount: '38.2', price: '98500' } }, 'floatingProfit', '38.2', null],
+    ['沒有最新價', { floatingProfit: { available: false, unavailableReason: 'noLatestPrice' } }, 'floatingProfit', null, 'noLatestPrice'],
+    ['浮動損益其他原因', { floatingProfit: { available: false } }, 'floatingProfit', null, 'temporarilyUnavailable'],
+    ['預估強平價', { liquidationPrice: { available: true, price: '88577.8' } }, 'estimatedLiquidationPrice', '88577.8', null],
+    ['不會被強平', { liquidationPrice: { available: false, cannotBeLiquidated: true } }, 'estimatedLiquidationPrice', null, 'notApplicable'],
+    ['沒有交易規格', { liquidationPrice: { available: false, unavailableReason: 'noTradingSpecification' } }, 'estimatedLiquidationPrice', null, 'noTradingSpecification'],
+    ['列表不計算強平價', { liquidationPrice: { available: false, unavailableReason: 'notComputed' } }, 'estimatedLiquidationPrice', null, 'temporarilyUnavailable'],
+    ['不是來自連結沒有滑點', { entrySlippagePercentage: null }, 'entrySlippagePercentage', null, 'notApplicable'],
+  ] as const)('結果：%s', async (_, outcome, measureName, expectedValue, expectedReason) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(withOutcome(outcome)))
+
+    const measure = (await proxy().findTrade(27)).outcome[measureName]
+
+    expect(measure.value?.toString() ?? null).toBe(expectedValue)
+    expect(measure.unavailableReason).toBe(expectedReason)
   })
 
   it('後端省略的欄位給安全的預設', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
       id: 31, symbol: 'SOLUSDT', direction: 'short', leverage: '8', status: 'open', openedAt: '2026-09-27T00:00:00Z',
+      averageEntryPrice: '186.42', position: '1',
       review: { wentWrong: '追價', nextTime: '等回踩', executionScore: 2, reviewedAt: '2026-09-27T00:00:00Z' },
-      outcome: { position: '1', averageEntryPrice: '186.42', grossProfit: '0', totalFee: '0', netProfit: '0' },
+      outcome: { grossProfit: '0', totalFee: '0', netProfit: '0' },
     }))
 
     const record = await proxy().findTrade(31)
 
     expect(record).toMatchObject({
-      entryReason: '', confidence: null, tradingStrategyId: null, tradingStrategyName: null,
+      entryReason: '', confidence: null, plannedStopLossPrice: null, tradingStrategyId: null, tradingStrategyName: null,
       tradingStrategyDeleted: false, closedAt: null, source: null,
     })
     expect(record.review).toMatchObject({ wentWell: '', wentWrong: '追價', nextTime: '等回踩' })
@@ -132,6 +168,10 @@ describe('ContractTradeRecordProxy.findTrade', () => {
     expect(record.outcome.averageExitPrice).toBeNull()
     expect(record.outcome.feeRateMissing).toBe(false)
     expect(record.outcome.netProfitExcludesFunding).toBe(false)
+    expect(record.outcome.fundingFee.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.maximumAdverseExcursion.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.floatingProfit.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.estimatedLiquidationPrice.unavailableReason).toBe('temporarilyUnavailable')
   })
 
   it('還沒檢討的交易沒有檢討', async () => {
@@ -155,7 +195,7 @@ describe('ContractTradeRecordProxy.recordTrade', () => {
   const fill = new ContractTradeFillWriteDto(
     'entry', new Date('2026-09-25T06:03:00Z'), new Decimal('97905'), new Decimal('0.030'), 'taker', null)
 
-  it('第一筆成交巢狀送出，手續費與時間省略時整個鍵不放', async () => {
+  it('第一筆成交與計畫巢狀送出，手續費與時間省略時整個鍵不放', async () => {
     const fetchMock = vi.fn().mockResolvedValue(RECORD_WIRE)
     vi.stubGlobal('$fetch', fetchMock)
 
@@ -172,10 +212,7 @@ describe('ContractTradeRecordProxy.recordTrade', () => {
         direction: 'long',
         leverage: '10',
         firstEntryFill: { kind: 'entry', price: '97905', quantity: '0.03', liquidity: 'taker' },
-        plannedStopLossPrice: '96380',
-        plannedTakeProfitPrice: null,
-        entryReason: '突破',
-        confidence: 3,
+        plan: { plannedStopLossPrice: '96380', plannedTakeProfitPrice: null, entryReason: '突破', confidence: 3 },
         tradingStrategyId: 5,
         setupTagIds: [1],
         journalLinkIdentifier: 'link-412',
@@ -203,7 +240,7 @@ describe('ContractTradeRecordProxy.recordTrade', () => {
 
   it('同標的同方向已有持倉中時帶出那一筆的編號', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejection(409, {
-      message: 'BTCUSDT 做多已有持倉中的 #27，請在那一筆加成交', existingContractTradeRecordId: 27,
+      message: 'BTCUSDT 做多已有持倉中的交易，請在那一筆加成交', openTradeId: 27,
     })))
 
     const failure = await proxy().recordTrade(new ContractTradeRecordWriteDto(
@@ -302,28 +339,30 @@ describe('ContractTradeRecordProxy 其餘路由', () => {
 })
 
 describe('ContractTradeRecordProxy.listTrades', () => {
-  it('帶著篩選與筆數上限，收成一頁摘要', async () => {
+  it('帶著篩選與筆數上限，把每一筆收成摘要', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
-      total: 1,
-      records: [{
-        id: 32, symbol: 'ETHUSDT', direction: 'short', leverage: '5', status: 'open',
-        averageEntryPrice: '3412.5', floatingProfit: { value: '38.2' }, rMultiple: { unavailableReason: 'noStopLoss' },
-        openedAt: '2026-09-27T00:00:00Z',
-      }],
+      totalCount: 2,
+      trades: [
+        withOutcome({ floatingProfit: { available: true, amount: '38.2' }, excursion: { available: false, unavailableReason: 'notComputed' } }, {
+          id: 32, status: 'open', closedAt: null, averageExitPrice: null, tradingStrategyId: null, tradingStrategyName: null,
+        }),
+        RECORD_WIRE,
+      ],
     })
     vi.stubGlobal('$fetch', fetchMock)
 
     const page = await proxy().listTrades(new ContractTradeListQueryDto('open', 'ETHUSDT', 200))
 
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ query: { status: 'open', symbol: 'ETHUSDT', limit: '200' } })
-    expect(page.total).toBe(1)
+    expect(page.total).toBe(2)
     expect(page.records[0]).toMatchObject({
-      id: 32, tradingStrategyId: null, tradingStrategyName: null, tradingStrategyDeleted: false,
-      averageExitPrice: null, netProfit: null, closedAt: null,
+      id: 32, tradingStrategyId: null, tradingStrategyName: null, averageExitPrice: null, netProfit: null, closedAt: null,
     })
     expect(page.records[0]?.floatingProfit.value?.toString()).toBe('38.2')
-    expect(page.records[0]?.rMultiple.unavailableReason).toBe('noStopLoss')
-    expect(page.records[0]?.tags).toEqual([])
+    expect(page.records[1]?.netProfit?.toString()).toBe('73.38')
+    expect(page.records[1]?.averageEntryPrice.toString()).toBe('97905')
+    expect(page.records[1]?.rMultiple.value?.toString()).toBe('1.53')
+    expect(page.records[1]?.tags.map(tag => tag.name)).toEqual(['突破', '提早出場'])
   })
 
   it('沒有篩選就不帶，後端回空也讀得懂', async () => {
@@ -336,38 +375,19 @@ describe('ContractTradeRecordProxy.listTrades', () => {
     expect(page.records).toEqual([])
     expect(page.total).toBe(0)
   })
-
-  it('已平倉的摘要帶著淨損益與標籤', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
-      total: 1,
-      records: [{
-        id: 27, symbol: 'BTCUSDT', direction: 'long', leverage: '10', status: 'closed', tradingStrategyId: 5,
-        tradingStrategyName: 'BTC 趨勢跟隨', tradingStrategyDeleted: true, averageEntryPrice: '97927.6',
-        averageExitPrice: '100420', netProfit: '120.53', rMultiple: { value: '1.53' },
-        tags: [{ id: 1, kind: 'setup', name: '突破' }], openedAt: '2026-09-25T06:03:00Z', closedAt: '2026-09-26T08:40:00Z',
-      }],
-    }))
-
-    const [summary] = (await proxy().listTrades(new ContractTradeListQueryDto())).records
-
-    expect(summary?.netProfit?.toString()).toBe('120.53')
-    expect(summary?.tradingStrategyDeleted).toBe(true)
-    expect(summary?.tags[0]?.name).toBe('突破')
-    expect(summary?.closedAt?.toISOString()).toBe('2026-09-26T08:40:00.000Z')
-  })
 })
 
 describe('ContractTradeRecordProxy.findStatistics', () => {
   it('收成統計 entity', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
-      period: '30d', closedTradeCount: 30, netProfit: '1284.6', winRate: 0.47, averageRMultiple: '0.38',
-      profitFactor: '1.46', feeShareOfGrossProfit: 0.18, averageEntrySlippagePercentage: '0.07',
-      slippageTradeCount: 2, excludedFromRMultipleCount: 3,
-      cumulativeRMultiples: [{ closedAt: '2026-09-01T00:00:00Z', cumulativeRMultiple: '1.5' }],
-      rMultipleDistribution: [{ label: '1~2R', count: 6, profitable: true }],
-      mistakeCosts: [{ tagName: '移動止損', tradeCount: 4, rMultipleTotal: '-3.2' }],
-      linkedGroup: { tradeCount: 22, winRate: 0.56, averageRMultiple: '0.71' },
-      selfJudgedGroup: { tradeCount: 8, winRate: null, averageRMultiple: null },
+      period: '30d', closedTradeCount: 30, winCount: 14, netProfit: '1284.6', winRate: 0.47, averageRMultiple: '0.38',
+      profitFactor: '1.46', feeToGrossProfitRatio: 0.18, averageEntrySlippagePercentage: '0.07',
+      entrySlippageTradeCount: 2, rExcludedCount: 3,
+      cumulativeR: [{ tradeId: 1, closedAt: '2026-09-01T00:00:00Z', rMultiple: '1.5', cumulativeRMultiple: '1.5' }],
+      rDistribution: [{ label: '≤−1R', count: 12 }, { label: '-1~0R', count: 4 }, { label: '0~1R', count: 5 }, { label: '1~2R', count: 6 }],
+      mistakeCosts: [{ tagId: 2, name: '移動止損', tradeCount: 4, totalRMultiple: '-3.2' }],
+      withTradingStrategy: { tradeCount: 22, winRate: 0.56, averageRMultiple: '0.71' },
+      selfJudged: { tradeCount: 8, winRate: null, averageRMultiple: null },
     })
     vi.stubGlobal('$fetch', fetchMock)
 
@@ -375,9 +395,12 @@ describe('ContractTradeRecordProxy.findStatistics', () => {
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE_URL}/contract-trade-records/statistics`)
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ query: { period: '30d' } })
+    expect(statistics.feeShareOfGrossProfit).toBe(0.18)
+    expect(statistics.slippageTradeCount).toBe(2)
     expect(statistics.excludedFromRMultipleCount).toBe(3)
     expect(statistics.cumulativeRMultiples[0]?.cumulativeRMultiple.toString()).toBe('1.5')
-    expect(statistics.rMultipleDistribution[0]?.profitable).toBe(true)
+    expect(statistics.rMultipleDistribution.map(bucket => bucket.profitable)).toEqual([false, false, true, true])
+    expect(statistics.mistakeCosts[0]).toMatchObject({ tagName: '移動止損', tradeCount: 4 })
     expect(statistics.mistakeCosts[0]?.rMultipleTotal.toString()).toBe('-3.2')
     expect(statistics.linkedGroup.averageRMultiple?.toString()).toBe('0.71')
     expect(statistics.selfJudgedGroup.winRate).toBeNull()
@@ -401,33 +424,33 @@ describe('ContractTradeRecordProxy.findStatistics', () => {
 })
 
 describe('ContractTradeRecordProxy.findJournalLink', () => {
-  it('收成預填內容', async () => {
+  it('收成預填內容，進場價就是那一輪的參考價', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
-      journalLinkIdentifier: 'link-412', mode: 'newTrade', strategyBotName: 'BTC 趨勢跟隨', runNumber: 412,
+      mode: 'newTrade', strategyBotId: 3, strategyBotName: 'BTC 趨勢跟隨', runNumber: 412,
       ranAt: '2026-09-25T06:00:00Z', symbol: 'BTCUSDT', direction: 'long', leverage: '10',
       plannedStopLossPrice: '96380', plannedTakeProfitPrice: '100785', tradingStrategyId: 5,
-      tradingStrategyName: 'BTC 趨勢跟隨', referencePrice: '97850', suggestedQuantity: '0.051',
+      entryPrice: '97850', quantity: '0.051', entryPriceNeedsConfirmation: true,
     })
     vi.stubGlobal('$fetch', fetchMock)
 
     const prefill = await proxy().findJournalLink('link/412')
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE_URL}/contract-trade-records/journal-links/link%2F412`)
-    expect(prefill).toMatchObject({ mode: 'newTrade', targetTradeId: null, runNumber: 412, tradingStrategyId: 5 })
+    expect(prefill).toMatchObject({ journalLinkIdentifier: 'link/412', mode: 'newTrade', targetTradeId: null, runNumber: 412, tradingStrategyId: 5 })
+    expect(prefill.referencePrice?.toString()).toBe('97850')
     expect(prefill.suggestedQuantity?.toString()).toBe('0.051')
   })
 
-  it('後端省略的欄位給預設，沒回識別碼就用送去的那一個', async () => {
+  it('舊的一輪沒有參考價時進場價與數量是空的', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
-      journalLinkIdentifier: '', mode: 'addEntryFill', targetTradeId: 27, strategyBotName: 'b', runNumber: 1,
-      ranAt: '2026-09-25T06:00:00Z', symbol: 'BTCUSDT', direction: 'long', leverage: '10',
+      mode: 'addEntryFill', targetTradeId: 27, strategyBotName: 'b', runNumber: 1, ranAt: '2026-09-25T06:00:00Z',
+      symbol: 'BTCUSDT', direction: 'long', leverage: '10', missingReferenceReason: 'roundPredatesReferencePrices',
     }))
 
     const prefill = await proxy().findJournalLink('link-412')
 
     expect(prefill).toMatchObject({
-      journalLinkIdentifier: 'link-412', targetTradeId: 27, tradingStrategyId: null, tradingStrategyName: null,
-      referencePrice: null, suggestedQuantity: null, plannedStopLossPrice: null,
+      targetTradeId: 27, tradingStrategyId: null, referencePrice: null, suggestedQuantity: null, plannedStopLossPrice: null,
     })
   })
 

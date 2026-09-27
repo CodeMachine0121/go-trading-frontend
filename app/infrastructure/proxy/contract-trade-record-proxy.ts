@@ -74,8 +74,6 @@ const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, ContractTradeFormField]
   ['交易策略', 'tradingStrategy'],
 ]
 
-type MeasureWire = { value?: string | null, unavailableReason?: string | null } | null | undefined
-
 type TradeTagWire = { id: number, kind: string, name: string }
 
 type ContractTradeFillWire = {
@@ -90,25 +88,27 @@ type ContractTradeFillWire = {
 }
 
 type ContractTradeOutcomeWire = {
-  position: string
-  averageEntryPrice: string
-  averageExitPrice?: string | null
   grossProfit: string
   totalFee: string
   feeRateMissing?: boolean
-  fundingFee?: MeasureWire
+  funding?: { available: boolean, amount?: string | null, settlementCount?: number, unavailableReason?: string | null }
   netProfit: string
   netProfitExcludesFunding?: boolean
-  plannedRisk?: MeasureWire
-  rMultiple?: MeasureWire
-  maximumAdverseExcursion?: MeasureWire
-  maximumFavorableExcursion?: MeasureWire
-  maximumAdversePrice?: string | null
-  maximumFavorablePrice?: string | null
-  profitCaptureRate?: MeasureWire
-  floatingProfit?: MeasureWire
-  estimatedLiquidationPrice?: MeasureWire
-  entrySlippagePercentage?: MeasureWire
+  plannedRisk?: string | null
+  rMultiple?: string | null
+  rMultipleUnavailableReason?: string | null
+  excursion?: {
+    available: boolean
+    adversePrice?: string | null
+    favorablePrice?: string | null
+    adverseRMultiple?: string | null
+    favorableRMultiple?: string | null
+    unavailableReason?: string | null
+  }
+  profitCaptureRate?: string | null
+  floatingProfit?: { available: boolean, amount?: string | null, unavailableReason?: string | null }
+  liquidationPrice?: { available: boolean, price?: string | null, cannotBeLiquidated?: boolean, unavailableReason?: string | null }
+  entrySlippagePercentage?: string | null
 }
 
 type ContractTradeRecordWire = {
@@ -117,18 +117,19 @@ type ContractTradeRecordWire = {
   direction: string
   leverage: string
   status: string
-  plannedStopLossPrice?: string | null
-  plannedTakeProfitPrice?: string | null
-  entryReason?: string
-  confidence?: number | null
+  plan?: {
+    plannedStopLossPrice?: string | null
+    plannedTakeProfitPrice?: string | null
+    entryReason?: string
+    confidence?: number | null
+  }
+  fills?: ContractTradeFillWire[]
+  notes?: { id: number, content: string, createdAt: string }[]
+  setupTags?: TradeTagWire[]
+  mistakeTags?: TradeTagWire[]
   tradingStrategyId?: number | null
   tradingStrategyName?: string | null
   tradingStrategyDeleted?: boolean
-  openedAt: string
-  closedAt?: string | null
-  fills?: ContractTradeFillWire[]
-  notes?: { id: number, content: string, createdAt: string }[]
-  tags?: TradeTagWire[]
   source?: {
     strategyBotName: string
     runNumber: number
@@ -143,26 +144,12 @@ type ContractTradeRecordWire = {
     executionScore: number
     reviewedAt: string
   } | null
-  outcome: ContractTradeOutcomeWire
-}
-
-type ContractTradeRecordSummaryWire = {
-  id: number
-  symbol: string
-  direction: string
-  leverage: string
-  status: string
-  tradingStrategyId?: number | null
-  tradingStrategyName?: string | null
-  tradingStrategyDeleted?: boolean
-  averageEntryPrice: string
-  averageExitPrice?: string | null
-  netProfit?: string | null
-  floatingProfit?: MeasureWire
-  rMultiple?: MeasureWire
-  tags?: TradeTagWire[]
   openedAt: string
   closedAt?: string | null
+  averageEntryPrice: string
+  averageExitPrice?: string | null
+  position: string
+  outcome: ContractTradeOutcomeWire
 }
 
 type SourceGroupWire = { tradeCount: number, winRate?: number | null, averageRMultiple?: string | null }
@@ -174,19 +161,18 @@ type ContractTradeStatisticsWire = {
   winRate?: number | null
   averageRMultiple?: string | null
   profitFactor?: string | null
-  feeShareOfGrossProfit?: number | null
+  feeToGrossProfitRatio?: number | null
   averageEntrySlippagePercentage?: string | null
-  slippageTradeCount?: number
-  excludedFromRMultipleCount?: number
-  cumulativeRMultiples?: { closedAt: string, cumulativeRMultiple: string }[]
-  rMultipleDistribution?: { label: string, count: number, profitable: boolean }[]
-  mistakeCosts?: { tagName: string, tradeCount: number, rMultipleTotal: string }[]
-  linkedGroup?: SourceGroupWire
-  selfJudgedGroup?: SourceGroupWire
+  entrySlippageTradeCount?: number
+  rExcludedCount?: number
+  cumulativeR?: { closedAt: string, cumulativeRMultiple: string }[]
+  rDistribution?: { label: string, count: number }[]
+  mistakeCosts?: { name: string, tradeCount: number, totalRMultiple: string }[]
+  withTradingStrategy?: SourceGroupWire
+  selfJudged?: SourceGroupWire
 }
 
 type ContractTradePrefillWire = {
-  journalLinkIdentifier: string
   mode: string
   targetTradeId?: number | null
   strategyBotName: string
@@ -198,9 +184,22 @@ type ContractTradePrefillWire = {
   plannedStopLossPrice?: string | null
   plannedTakeProfitPrice?: string | null
   tradingStrategyId?: number | null
-  tradingStrategyName?: string | null
-  referencePrice?: string | null
-  suggestedQuantity?: string | null
+  entryPrice?: string | null
+  quantity?: string | null
+}
+
+const EXCURSION_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+  noMarketData: 'noMarketData',
+}
+
+const FLOATING_PROFIT_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+  notOpen: 'notApplicable',
+  noLatestPrice: 'noLatestPrice',
+}
+
+const LIQUIDATION_REASONS: Readonly<Record<string, ContractTradeUnavailableReason>> = {
+  notOpen: 'notApplicable',
+  noTradingSpecification: 'noTradingSpecification',
 }
 
 export class ContractTradeRecordProxy extends BackendApiProxy implements IContractTradeRecordProxy {
@@ -210,10 +209,12 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       direction: writeDto.direction,
       ...(writeDto.leverage === null ? {} : { leverage: writeDto.leverage.toString() }),
       firstEntryFill: this.toFillBody(writeDto.firstEntryFill),
-      plannedStopLossPrice: writeDto.plannedStopLossPrice?.toString() ?? null,
-      plannedTakeProfitPrice: writeDto.plannedTakeProfitPrice?.toString() ?? null,
-      entryReason: writeDto.entryReason,
-      confidence: writeDto.confidence,
+      plan: {
+        plannedStopLossPrice: writeDto.plannedStopLossPrice?.toString() ?? null,
+        plannedTakeProfitPrice: writeDto.plannedTakeProfitPrice?.toString() ?? null,
+        entryReason: writeDto.entryReason,
+        confidence: writeDto.confidence,
+      },
       tradingStrategyId: writeDto.tradingStrategyId,
       setupTagIds: [...writeDto.setupTagIds],
       ...(writeDto.journalLinkIdentifier === null ? {} : { journalLinkIdentifier: writeDto.journalLinkIdentifier }),
@@ -228,29 +229,33 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       ...(queryDto.symbol === null ? {} : { symbol: queryDto.symbol }),
       ...(queryDto.limit === null ? {} : { limit: String(queryDto.limit) }),
     }
-    const pageWire = await this.requestBackend<{ total: number, records: ContractTradeRecordSummaryWire[] }>(
+    const pageWire = await this.requestBackend<{ totalCount?: number, trades?: ContractTradeRecordWire[] }>(
       CONTRACT_TRADE_RECORDS_ENDPOINT, { query })
 
     return new ContractTradeRecordPage(
-      (pageWire.records ?? []).map(summaryWire => new ContractTradeRecordSummary(
-        summaryWire.id,
-        summaryWire.symbol,
-        summaryWire.direction as ContractTradeDirection,
-        new Decimal(summaryWire.leverage),
-        summaryWire.status as ContractTradeStatus,
-        summaryWire.tradingStrategyId ?? null,
-        summaryWire.tradingStrategyName ?? null,
-        summaryWire.tradingStrategyDeleted ?? false,
-        new Decimal(summaryWire.averageEntryPrice),
-        this.decimalOrNull(summaryWire.averageExitPrice),
-        this.decimalOrNull(summaryWire.netProfit),
-        this.toMeasure(summaryWire.floatingProfit),
-        this.toMeasure(summaryWire.rMultiple),
-        (summaryWire.tags ?? []).map(tagWire => this.toTag(tagWire)),
-        new Date(summaryWire.openedAt),
-        this.dateOrNull(summaryWire.closedAt),
-      )),
-      pageWire.total ?? 0,
+      (pageWire.trades ?? []).map((tradeWire) => {
+        const record = this.toRecord(tradeWire)
+
+        return new ContractTradeRecordSummary(
+          record.id,
+          record.symbol,
+          record.direction,
+          record.leverage,
+          record.status,
+          record.tradingStrategyId,
+          record.tradingStrategyName,
+          record.tradingStrategyDeleted,
+          record.outcome.averageEntryPrice,
+          record.outcome.averageExitPrice,
+          record.status === 'open' ? null : record.outcome.netProfit,
+          record.outcome.floatingProfit,
+          record.outcome.rMultiple,
+          record.tags,
+          record.openedAt,
+          record.closedAt,
+        )
+      }),
+      pageWire.totalCount ?? 0,
     )
   }
 
@@ -320,18 +325,18 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       statisticsWire.winRate ?? null,
       this.decimalOrNull(statisticsWire.averageRMultiple),
       this.decimalOrNull(statisticsWire.profitFactor),
-      statisticsWire.feeShareOfGrossProfit ?? null,
+      statisticsWire.feeToGrossProfitRatio ?? null,
       this.decimalOrNull(statisticsWire.averageEntrySlippagePercentage),
-      statisticsWire.slippageTradeCount ?? 0,
-      statisticsWire.excludedFromRMultipleCount ?? 0,
-      (statisticsWire.cumulativeRMultiples ?? []).map(pointWire => new ContractTradeCumulativePoint(
+      statisticsWire.entrySlippageTradeCount ?? 0,
+      statisticsWire.rExcludedCount ?? 0,
+      (statisticsWire.cumulativeR ?? []).map(pointWire => new ContractTradeCumulativePoint(
         new Date(pointWire.closedAt), new Decimal(pointWire.cumulativeRMultiple))),
-      (statisticsWire.rMultipleDistribution ?? []).map(bucketWire => new ContractTradeDistributionBucket(
-        bucketWire.label, bucketWire.count, bucketWire.profitable)),
+      (statisticsWire.rDistribution ?? []).map(bucketWire => new ContractTradeDistributionBucket(
+        bucketWire.label, bucketWire.count, !/^\D*[-−]/.test(bucketWire.label))),
       (statisticsWire.mistakeCosts ?? []).map(mistakeCostWire => new ContractTradeMistakeCost(
-        mistakeCostWire.tagName, mistakeCostWire.tradeCount, new Decimal(mistakeCostWire.rMultipleTotal))),
-      this.toSourceGroup(statisticsWire.linkedGroup),
-      this.toSourceGroup(statisticsWire.selfJudgedGroup),
+        mistakeCostWire.name, mistakeCostWire.tradeCount, new Decimal(mistakeCostWire.totalRMultiple))),
+      this.toSourceGroup(statisticsWire.withTradingStrategy),
+      this.toSourceGroup(statisticsWire.selfJudged),
     )
   }
 
@@ -341,7 +346,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
         `${CONTRACT_TRADE_RECORDS_ENDPOINT}/journal-links/${encodeURIComponent(identifier)}`)
 
       return new ContractTradePrefill(
-        prefillWire.journalLinkIdentifier || identifier,
+        identifier,
         prefillWire.mode as ContractTradePrefillMode,
         prefillWire.targetTradeId ?? null,
         prefillWire.strategyBotName,
@@ -353,9 +358,9 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
         this.decimalOrNull(prefillWire.plannedStopLossPrice),
         this.decimalOrNull(prefillWire.plannedTakeProfitPrice),
         prefillWire.tradingStrategyId ?? null,
-        prefillWire.tradingStrategyName ?? null,
-        this.decimalOrNull(prefillWire.referencePrice),
-        this.decimalOrNull(prefillWire.suggestedQuantity),
+        null,
+        this.decimalOrNull(prefillWire.entryPrice),
+        this.decimalOrNull(prefillWire.quantity),
       )
     }
     catch (error: unknown) {
@@ -373,79 +378,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     body?: BackendRequestBody,
   ): Promise<ContractTradeRecord> {
     try {
-      const recordWire = await this.requestBackend<ContractTradeRecordWire>(path, { method, body })
-      const outcomeWire = recordWire.outcome
-      const sourceWire = recordWire.source ?? null
-      const reviewWire = recordWire.review ?? null
-
-      return new ContractTradeRecord(
-        recordWire.id,
-        recordWire.symbol,
-        recordWire.direction as ContractTradeDirection,
-        new Decimal(recordWire.leverage),
-        recordWire.status as ContractTradeStatus,
-        this.decimalOrNull(recordWire.plannedStopLossPrice),
-        this.decimalOrNull(recordWire.plannedTakeProfitPrice),
-        recordWire.entryReason ?? '',
-        recordWire.confidence ?? null,
-        recordWire.tradingStrategyId ?? null,
-        recordWire.tradingStrategyName ?? null,
-        recordWire.tradingStrategyDeleted ?? false,
-        new Date(recordWire.openedAt),
-        this.dateOrNull(recordWire.closedAt),
-        (recordWire.fills ?? []).map(fillWire => new ContractTradeFill(
-          fillWire.id,
-          fillWire.kind as ContractTradeFillKind,
-          new Date(fillWire.filledAt),
-          new Decimal(fillWire.price),
-          new Decimal(fillWire.quantity),
-          fillWire.liquidity as TradeFillLiquidity,
-          new Decimal(fillWire.fee),
-          fillWire.feeRateMissing ?? false,
-        )),
-        (recordWire.notes ?? []).map(noteWire => new ContractTradeNote(
-          noteWire.id, noteWire.content, new Date(noteWire.createdAt))),
-        (recordWire.tags ?? []).map(tagWire => this.toTag(tagWire)),
-        sourceWire === null
-          ? null
-          : new ContractTradeSource(
-              sourceWire.strategyBotName,
-              sourceWire.runNumber,
-              this.decimalOrNull(sourceWire.referencePrice),
-              this.decimalOrNull(sourceWire.suggestedStopLossPrice),
-              this.decimalOrNull(sourceWire.suggestedTakeProfitPrice),
-            ),
-        reviewWire === null
-          ? null
-          : new ContractTradeReview(
-              reviewWire.wentWell ?? '',
-              reviewWire.wentWrong ?? '',
-              reviewWire.nextTime ?? '',
-              reviewWire.executionScore,
-              new Date(reviewWire.reviewedAt),
-            ),
-        new ContractTradeOutcome(
-          new Decimal(outcomeWire.position),
-          new Decimal(outcomeWire.averageEntryPrice),
-          this.decimalOrNull(outcomeWire.averageExitPrice),
-          new Decimal(outcomeWire.grossProfit),
-          new Decimal(outcomeWire.totalFee),
-          outcomeWire.feeRateMissing ?? false,
-          this.toMeasure(outcomeWire.fundingFee),
-          new Decimal(outcomeWire.netProfit),
-          outcomeWire.netProfitExcludesFunding ?? false,
-          this.toMeasure(outcomeWire.plannedRisk),
-          this.toMeasure(outcomeWire.rMultiple),
-          this.toMeasure(outcomeWire.maximumAdverseExcursion),
-          this.toMeasure(outcomeWire.maximumFavorableExcursion),
-          this.decimalOrNull(outcomeWire.maximumAdversePrice),
-          this.decimalOrNull(outcomeWire.maximumFavorablePrice),
-          this.toMeasure(outcomeWire.profitCaptureRate),
-          this.toMeasure(outcomeWire.floatingProfit),
-          this.toMeasure(outcomeWire.estimatedLiquidationPrice),
-          this.toMeasure(outcomeWire.entrySlippagePercentage),
-        ),
-      )
+      return this.toRecord(await this.requestBackend<ContractTradeRecordWire>(path, { method, body }))
     }
     catch (error: unknown) {
       throw this.recordFailureOf(error)
@@ -466,7 +399,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       const mentionedTradeId = mentionedTradeNumber === undefined ? null : Number(mentionedTradeNumber)
 
       return new ContractTradeOpenPositionExistsError(
-        error.message, error.existingContractTradeRecordId ?? mentionedTradeId, { cause: error })
+        error.message, error.openTradeId ?? mentionedTradeId, { cause: error })
     }
 
     if (error.status === BAD_REQUEST_STATUS) {
@@ -495,6 +428,96 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     }
   }
 
+  private toRecord(recordWire: ContractTradeRecordWire): ContractTradeRecord {
+    const outcomeWire = recordWire.outcome
+    const sourceWire = recordWire.source ?? null
+    const reviewWire = recordWire.review ?? null
+    const excursion = outcomeWire.excursion ?? { available: false }
+    const excursionReason = EXCURSION_REASONS[excursion.unavailableReason ?? ''] ?? 'temporarilyUnavailable'
+    const floatingProfit = outcomeWire.floatingProfit ?? { available: false }
+    const liquidation = outcomeWire.liquidationPrice ?? { available: false }
+    const funding = outcomeWire.funding ?? { available: false }
+    const liquidationReason = liquidation.cannotBeLiquidated
+      ? 'notApplicable'
+      : LIQUIDATION_REASONS[liquidation.unavailableReason ?? ''] ?? 'temporarilyUnavailable'
+
+    return new ContractTradeRecord(
+      recordWire.id,
+      recordWire.symbol,
+      recordWire.direction as ContractTradeDirection,
+      new Decimal(recordWire.leverage),
+      recordWire.status as ContractTradeStatus,
+      this.decimalOrNull(recordWire.plan?.plannedStopLossPrice),
+      this.decimalOrNull(recordWire.plan?.plannedTakeProfitPrice),
+      recordWire.plan?.entryReason ?? '',
+      recordWire.plan?.confidence ?? null,
+      recordWire.tradingStrategyId ?? null,
+      recordWire.tradingStrategyName ?? null,
+      recordWire.tradingStrategyDeleted ?? false,
+      new Date(recordWire.openedAt),
+      this.dateOrNull(recordWire.closedAt),
+      (recordWire.fills ?? []).map(fillWire => new ContractTradeFill(
+        fillWire.id,
+        fillWire.kind as ContractTradeFillKind,
+        new Date(fillWire.filledAt),
+        new Decimal(fillWire.price),
+        new Decimal(fillWire.quantity),
+        fillWire.liquidity as TradeFillLiquidity,
+        new Decimal(fillWire.fee),
+        fillWire.feeRateMissing ?? false,
+      )),
+      (recordWire.notes ?? []).map(noteWire => new ContractTradeNote(
+        noteWire.id, noteWire.content, new Date(noteWire.createdAt))),
+      [...(recordWire.setupTags ?? []), ...(recordWire.mistakeTags ?? [])].map(tagWire => new TradeTag(
+        tagWire.id, tagWire.kind as TradeTagKind, tagWire.name)),
+      sourceWire === null
+        ? null
+        : new ContractTradeSource(
+            sourceWire.strategyBotName,
+            sourceWire.runNumber,
+            this.decimalOrNull(sourceWire.referencePrice),
+            this.decimalOrNull(sourceWire.suggestedStopLossPrice),
+            this.decimalOrNull(sourceWire.suggestedTakeProfitPrice),
+          ),
+      reviewWire === null
+        ? null
+        : new ContractTradeReview(
+            reviewWire.wentWell ?? '',
+            reviewWire.wentWrong ?? '',
+            reviewWire.nextTime ?? '',
+            reviewWire.executionScore,
+            new Date(reviewWire.reviewedAt),
+          ),
+      new ContractTradeOutcome(
+        new Decimal(recordWire.position),
+        new Decimal(recordWire.averageEntryPrice),
+        this.decimalOrNull(recordWire.averageExitPrice),
+        new Decimal(outcomeWire.grossProfit),
+        new Decimal(outcomeWire.totalFee),
+        outcomeWire.feeRateMissing ?? false,
+        this.toMeasure(
+          funding.available ? funding.amount : null,
+          funding.unavailableReason === 'noSettlementData' ? 'noFundingSettlements' : 'temporarilyUnavailable'),
+        new Decimal(outcomeWire.netProfit),
+        outcomeWire.netProfitExcludesFunding ?? false,
+        this.toMeasure(outcomeWire.plannedRisk, 'noStopLoss'),
+        this.toMeasure(
+          outcomeWire.rMultiple,
+          outcomeWire.rMultipleUnavailableReason === 'noStopLoss' ? 'noStopLoss' : 'temporarilyUnavailable'),
+        this.toMeasure(excursion.adverseRMultiple, excursion.available ? 'noStopLoss' : excursionReason),
+        this.toMeasure(excursion.favorableRMultiple, excursion.available ? 'noStopLoss' : excursionReason),
+        this.decimalOrNull(excursion.adversePrice),
+        this.decimalOrNull(excursion.favorablePrice),
+        this.toMeasure(outcomeWire.profitCaptureRate, excursion.available ? 'notApplicable' : excursionReason),
+        this.toMeasure(
+          floatingProfit.available ? floatingProfit.amount : null,
+          FLOATING_PROFIT_REASONS[floatingProfit.unavailableReason ?? ''] ?? 'temporarilyUnavailable'),
+        this.toMeasure(liquidation.available ? liquidation.price : null, liquidationReason),
+        this.toMeasure(outcomeWire.entrySlippagePercentage, 'notApplicable'),
+      ),
+    )
+  }
+
   private toSourceGroup(sourceGroupWire: SourceGroupWire | undefined): ContractTradeSourceGroup {
     return new ContractTradeSourceGroup(
       sourceGroupWire?.tradeCount ?? 0,
@@ -503,19 +526,10 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
     )
   }
 
-  private toTag(tagWire: TradeTagWire): TradeTag {
-    return new TradeTag(tagWire.id, tagWire.kind as TradeTagKind, tagWire.name)
-  }
+  private toMeasure(text: string | null | undefined, unavailableReason: ContractTradeUnavailableReason): ContractTradeMeasure {
+    const value = this.decimalOrNull(text)
 
-  private toMeasure(measureWire: MeasureWire): ContractTradeMeasure {
-    const value = this.decimalOrNull(measureWire?.value)
-
-    return new ContractTradeMeasure(
-      value,
-      value === null
-        ? (measureWire?.unavailableReason ?? 'temporarilyUnavailable') as ContractTradeUnavailableReason
-        : null,
-    )
+    return new ContractTradeMeasure(value, value === null ? unavailableReason : null)
   }
 
   private decimalOrNull(text: string | null | undefined): Decimal | null {

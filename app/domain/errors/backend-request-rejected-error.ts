@@ -62,7 +62,7 @@ export class BackendRequestRejectedError extends Error {
   /** 交易服務說一次重演沒在整次允許時間內跑完。 */
   readonly timeAllowanceSpent: boolean
 
-  readonly existingContractTradeRecordId: number | undefined
+  readonly openTradeId: number | undefined
 
   constructor(
     message: string,
@@ -75,7 +75,7 @@ export class BackendRequestRejectedError extends Error {
       marketClosedThroughout?: boolean
       retryableFrom?: string
       timeAllowanceSpent?: boolean
-      existingContractTradeRecordId?: number
+      openTradeId?: number
     },
   ) {
     super(message, { cause: options?.cause })
@@ -87,6 +87,6 @@ export class BackendRequestRejectedError extends Error {
     this.marketClosedThroughout = options?.marketClosedThroughout ?? false
     this.retryableFrom = options?.retryableFrom
     this.timeAllowanceSpent = options?.timeAllowanceSpent ?? false
-    this.existingContractTradeRecordId = options?.existingContractTradeRecordId
+    this.openTradeId = options?.openTradeId
   }
 }
