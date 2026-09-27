@@ -1034,3 +1034,22 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
     expect(pricePath.emptyMessage).toBe('沒有行情資料，無法計算')
   })
 })
+
+describe('ContractTradeJournalApplication 開倉、加倉、減倉、平倉', () => {
+  it('依時間順序與持倉標出每一筆', async () => {
+    const { ContractTradeFill } = await import('~/domain/models/entities/contract-trade-fill')
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({
+      fills: [
+        new ContractTradeFill(4, 'exit', new Date('2026-09-26T08:00:00Z'), new Decimal('100420'), new Decimal('0.031'), 'taker', new Decimal('1'), false),
+        new ContractTradeFill(1, 'entry', new Date('2026-09-25T06:03:00Z'), new Decimal('97905'), new Decimal('0.030'), 'taker', new Decimal('1'), false),
+        new ContractTradeFill(3, 'exit', new Date('2026-09-26T02:00:00Z'), new Decimal('99000'), new Decimal('0.020'), 'taker', new Decimal('1'), false),
+        new ContractTradeFill(2, 'entry', new Date('2026-09-25T06:11:00Z'), new Decimal('97960'), new Decimal('0.021'), 'taker', new Decimal('1'), false),
+      ],
+    }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.fills.map(fill => fill.kindLabel)).toEqual(['開倉', '加倉', '減倉', '平倉'])
+  })
+})
