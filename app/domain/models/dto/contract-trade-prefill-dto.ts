@@ -2,6 +2,7 @@ import type Decimal from 'decimal.js'
 import type { ContractTradeDirection } from '~/domain/models/vo/contract-trade-direction-vo'
 import type { ContractTradePrefillMode } from '~/domain/models/vo/contract-trade-prefill-mode-vo'
 import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
+import { TradePrefillSourceDto } from '~/domain/models/dto/trade-prefill-source-dto'
 
 export class ContractTradePrefillDto {
   constructor(
@@ -24,4 +25,9 @@ export class ContractTradePrefillDto {
     public readonly directionLabel: string,
     public readonly directionTone: TradeBadgeTone,
   ) {}
+
+  toSourceDto(): TradePrefillSourceDto {
+    return new TradePrefillSourceDto(
+      this.directionLabel, this.directionTone, this.sourceLabel, this.ranAt, this.referencePriceText, '紫框是從這一輪帶入的值；開倉價與數量請改成實際成交。')
+  }
 }

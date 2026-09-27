@@ -7,7 +7,7 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SpotTradeFillEditor from '~/components/molecules/SpotTradeFillEditor.vue'
-import SpotTradePrefillBanner from '~/components/molecules/SpotTradePrefillBanner.vue'
+import TradePrefillBanner from '~/components/molecules/TradePrefillBanner.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
 import { useSpotTradeDraft } from '~/composables/use-spot-trade-draft'
 import type { SpotTradeJournalApplication } from '~/application/spot-trade-journal-application'
@@ -82,9 +82,10 @@ const tradingStrategyValue = computed({
     data-testid="spot-trade-form"
     @submit.prevent="draft.save().then(saved => saved && emit('saved', saved))"
   >
-    <SpotTradePrefillBanner
+    <TradePrefillBanner
       v-if="draft.prefill.value || draft.prefillMessage.value"
-      :prefill="draft.prefill.value"
+      :source="draft.prefill.value?.toSourceDto() ?? null"
+      journal-path="/spot-trade-journal"
       :message="draft.prefillMessage.value"
       :show-journal-link="draft.prefillNotFound.value"
       :time-zone-identifier="timeZoneIdentifier"

@@ -2,42 +2,49 @@
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
-import type { SpotTradePrefillDto } from '~/domain/models/dto/spot-trade-prefill-dto'
+import type { TradePrefillSourceDto } from '~/domain/models/dto/trade-prefill-source-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
-const { prefill, message = null, showJournalLink = false, timeZoneIdentifier } = defineProps<{
-  prefill: SpotTradePrefillDto | null
+const {
+  source = null,
+  message = null,
+  showJournalLink = false,
+  journalPath,
+  timeZoneIdentifier,
+} = defineProps<{
+  source?: TradePrefillSourceDto | null
   message?: string | null
   showJournalLink?: boolean
+  journalPath: string
   timeZoneIdentifier: string
 }>()
 </script>
 
 <template>
   <div
-    class="spot-trade-prefill-banner"
+    class="trade-prefill-banner"
     data-testid="prefill-banner"
   >
     <p
-      v-if="prefill"
-      class="spot-trade-prefill-banner__source"
+      v-if="source"
+      class="trade-prefill-banner__source"
       data-testid="prefill-source"
     >
-      <AppBadge :variant="prefill.signalTone">
-        {{ prefill.signalLabel }}
+      <AppBadge :variant="source.badgeTone">
+        {{ source.badgeLabel }}
       </AppBadge>
-      <strong class="spot-trade-prefill-banner__round">{{ prefill.sourceLabel }}</strong>
-      <span class="spot-trade-prefill-banner__detail">
-        {{ formatDateTimeInTimeZone(prefill.ranAt, timeZoneIdentifier) }} 送出<template v-if="prefill.referencePriceText">
-          ・參考價 {{ prefill.referencePriceText }}
+      <strong class="trade-prefill-banner__round">{{ source.sourceLabel }}</strong>
+      <span class="trade-prefill-banner__detail">
+        {{ formatDateTimeInTimeZone(source.ranAt, timeZoneIdentifier) }} 送出<template v-if="source.referencePriceText">
+          ・參考價 {{ source.referencePriceText }}
         </template>
       </span>
     </p>
     <p
-      v-if="prefill"
-      class="spot-trade-prefill-banner__hint"
+      v-if="source"
+      class="trade-prefill-banner__hint"
     >
-      紫框是從這一輪帶入的值；價格與數量請改成實際成交。
+      {{ source.hint }}
     </p>
     <AppAlert
       v-if="message"
@@ -51,7 +58,7 @@ const { prefill, message = null, showJournalLink = false, timeZoneIdentifier } =
       >
         <AppButton
           variant="ghost"
-          to="/spot-trade-journal"
+          :to="journalPath"
           data-testid="prefill-go-journal"
         >
           前往交易日誌
@@ -62,7 +69,7 @@ const { prefill, message = null, showJournalLink = false, timeZoneIdentifier } =
 </template>
 
 <style scoped lang="scss">
-.spot-trade-prefill-banner {
+.trade-prefill-banner {
   display: flex;
   flex-direction: column;
   gap: spacing('xs');

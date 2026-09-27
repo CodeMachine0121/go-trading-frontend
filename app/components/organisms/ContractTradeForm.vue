@@ -7,7 +7,7 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import ContractTradeFillEditor from '~/components/molecules/ContractTradeFillEditor.vue'
-import ContractTradePrefillBanner from '~/components/molecules/ContractTradePrefillBanner.vue'
+import TradePrefillBanner from '~/components/molecules/TradePrefillBanner.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
 import { useContractTradeDraft } from '~/composables/use-contract-trade-draft'
 import type { ContractTradeJournalApplication } from '~/application/contract-trade-journal-application'
@@ -75,9 +75,10 @@ const tradingStrategyValue = computed({
     data-testid="contract-trade-form"
     @submit.prevent="draft.save().then(saved => saved && emit('saved', saved))"
   >
-    <ContractTradePrefillBanner
+    <TradePrefillBanner
       v-if="draft.prefill.value || draft.prefillMessage.value"
-      :prefill="draft.prefill.value"
+      :source="draft.prefill.value?.toSourceDto() ?? null"
+      journal-path="/contract-trade-journal"
       :message="draft.prefillMessage.value"
       :show-journal-link="draft.prefillNotFound.value"
       :time-zone-identifier="timeZoneIdentifier"
