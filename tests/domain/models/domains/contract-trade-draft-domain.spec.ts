@@ -36,4 +36,16 @@ describe('ContractTradeDraftDomain', () => {
 
     expect(preview.averageEntryPriceText).toBe('97,905')
   })
+
+  it('沒有成交列時成交價與數量不算預填', async () => {
+    const Decimal = (await import('decimal.js')).default
+    const { ContractTradePrefillDto } = await import('~/domain/models/dto/contract-trade-prefill-dto')
+    const prefill = new ContractTradePrefillDto(
+      'link-412', 'newTrade', null, null, '來自 x・第 1 輪', new Date(), '97,850', null, 'BTCUSDT', 'long',
+      new Decimal(10), null, null, null, new Decimal(97850), new Decimal('0.051'))
+
+    const fields = new ContractTradeDraftDomain(draftWithFills([]), takerFeeSetting()).prefilledFields(prefill)
+
+    expect(fields).toEqual(['symbol', 'direction', 'leverage'])
+  })
 })
