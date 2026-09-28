@@ -356,4 +356,18 @@ describe('useContractTradeDraft：對既有交易加成交', () => {
 
     expect(draft.preview.value.positionText).toBe('0.02')
   })
+
+  it('用保證金加倉時以那筆交易的槓桿換算，數量欄寫出它的單位', async () => {
+    const existing = buildRecord({ status: 'open', leverage: new Decimal('5') }).toDomain().toDto()
+    recordProxy.addFill.mockResolvedValue(buildRecord({ status: 'open' }))
+    const draft = draftUnderTest(existing)
+    draft.fills.value[0]!.priceText = '100'
+    draft.fills.value[0]!.quantityText = '20'
+    draft.fills.value[0]!.sizeMode = 'margin'
+
+    await draft.save()
+
+    expect(draft.preview.value.quantityLabel).toBe('數量（BTC）')
+    expect(recordProxy.addFill).toHaveBeenCalledWith(27, expect.objectContaining({ quantity: new Decimal('1') }))
+  })
 })

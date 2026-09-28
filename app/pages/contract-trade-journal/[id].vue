@@ -176,6 +176,14 @@ onMounted(() => {
         </template>
       </AppAlert>
 
+      <AppAlert
+        v-if="detail.record.value.feeWarningMessage"
+        tone="warning"
+        data-testid="detail-fee-warning"
+      >
+        {{ detail.record.value.feeWarningMessage }}
+      </AppAlert>
+
       <TradeOutcomePanel
         :outcome="detail.record.value.outcome"
         :source="detail.record.value.source"

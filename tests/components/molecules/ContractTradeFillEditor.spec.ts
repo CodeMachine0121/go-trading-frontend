@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import ContractTradeFillEditor from '~/components/molecules/ContractTradeFillEditor.vue'
 import { ContractTradeDraftFillInputDto } from '~/domain/models/dto/contract-trade-draft-fill-input-dto'
 import { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
+import { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/contract-trade-draft-fill-size-preview-dto'
 
 function fillInput(key: number, priceText = '97850', quantityText = '0.051') {
   return new ContractTradeDraftFillInputDto(key, 'entry', '2026-09-25T06:03', priceText, quantityText, 'taker', '')
@@ -72,5 +73,26 @@ describe('ContractTradeFillEditor', () => {
     expect(fills[1]).toMatchObject({
       priceText: '97960', quantityText: '0.021', kind: 'exit', liquidity: 'maker', feeText: '1.2', filledAtText: '2026-09-25T06:11',
     })
+  })
+
+  it('數量欄寫出單位；改用保證金輸入時標籤跟著換，預覽寫在小卡下方', async () => {
+    const fills = [fillInput(1, '84780.9', '1')]
+    const wrapper = mount(ContractTradeFillEditor, {
+      props: {
+        fills,
+        fees: [],
+        quantityLabel: '數量（BTC）',
+        fillSizes: [new ContractTradeDraftFillSizePreviewDto('名目 84,780.90・保證金 42,390.45', '手續費約佔名目 0.000059%')],
+      },
+    })
+
+    expect(wrapper.text()).toContain('數量（BTC）')
+    expect(wrapper.get('[data-testid="fill-size-preview"]').text()).toContain('名目 84,780.90・保證金 42,390.45')
+    expect(wrapper.get('[data-testid="fill-fee-share"]').text()).toBe('手續費約佔名目 0.000059%')
+
+    await wrapper.get('[data-testid="fill-size-mode"]').setValue('margin')
+
+    expect(fills[0]?.sizeMode).toBe('margin')
+    expect(wrapper.text()).toContain('保證金 USDT')
   })
 })

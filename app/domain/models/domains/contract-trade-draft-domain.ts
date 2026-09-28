@@ -7,6 +7,7 @@ import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import { ContractTradeDraftPreviewDto } from '~/domain/models/dto/contract-trade-draft-preview-dto'
 import { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
+import { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/contract-trade-draft-fill-size-preview-dto'
 import { ContractTradeFillWriteDto } from '~/domain/models/dto/contract-trade-fill-write-dto'
 import { ContractTradeRecordWriteDto } from '~/domain/models/dto/contract-trade-record-write-dto'
 import { ContractTradeRecordSubmissionDto } from '~/domain/models/dto/contract-trade-record-submission-dto'
@@ -15,9 +16,12 @@ import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { ContractTradeEntrySlippageDomain } from '~/domain/models/domains/contract-trade-entry-slippage-domain'
+import { ContractSymbolDomain } from '~/domain/models/domains/contract-symbol-domain'
 
 const PERCENT = 100
 const DISTANCE_FRACTION_DIGITS = 2
+const CONVERTED_QUANTITY_DECIMAL_PLACES = 8
+const FEE_SHARE_SIGNIFICANT_DIGITS = 2
 const FEE_RATE_MISSING_NOTE = '尚未設定手續費率'
 const MISSING_SYMBOL_MESSAGE = '請填合約標的'
 const MISSING_ENTRY_MESSAGE = '至少要有一筆填好開倉價與數量的開倉'
@@ -35,7 +39,7 @@ export class ContractTradeDraftDomain {
       ...(this.existingFills ?? []).map(fill => new ContractTradePricedQuantityVo(fill.kind, fill.price, fill.quantity)),
       ...this.draft.fills.flatMap((fill) => {
         const price = new DecimalInputDomain(fill.priceText).value
-        const quantity = new DecimalInputDomain(fill.quantityText).value
+        const quantity = this.resolvedQuantity(fill)
 
         return price === null || quantity === null ? [] : [new ContractTradePricedQuantityVo(fill.kind, price, quantity)]
       }),
@@ -49,6 +53,9 @@ export class ContractTradeDraftDomain {
       ? null
       : entries.reduce((total, entry) => total.plus(entry.price.times(entry.quantity)), new Decimal(0))
           .dividedBy(enteredQuantity)
+    const entryNotional = entries.reduce((total, entry) => total.plus(entry.price.times(entry.quantity)), new Decimal(0))
+    const leverage = this.leverage
+    const baseAsset = new ContractSymbolDomain(this.draft.symbol).baseAsset
     const displayedFractionDigits = Math.max(0, ...entries.map(entry => entry.price.decimalPlaces())) + 1
     const plannedStopLoss = new DecimalInputDomain(this.draft.plannedStopLossText).value
     const stopDistance = averageEntryPrice === null || plannedStopLoss === null
@@ -78,7 +85,7 @@ export class ContractTradeDraftDomain {
       this.draft.fills.map((fill) => {
         const rate = fill.liquidity === 'maker' ? this.setting.makerFeeRate : this.setting.takerFeeRate
         const price = new DecimalInputDomain(fill.priceText).value ?? new Decimal(0)
-        const quantity = new DecimalInputDomain(fill.quantityText).value ?? new Decimal(0)
+        const quantity = this.resolvedQuantity(fill) ?? new Decimal(0)
 
         return rate === null
           ? new ContractTradeDraftFeePreviewDto(new JournalNumberDomain(new Decimal(0)).amount(), FEE_RATE_MISSING_NOTE)
@@ -87,6 +94,29 @@ export class ContractTradeDraftDomain {
       }),
       this.setting.makerFeeRate === null || this.setting.takerFeeRate === null,
       this.missingFieldMessage(),
+      this.draft.fills.map((fill) => {
+        const price = new DecimalInputDomain(fill.priceText).value
+        const quantity = this.resolvedQuantity(fill)
+        if (price === null || quantity === null || !price.greaterThan(0) || !quantity.greaterThan(0)) {
+          return new ContractTradeDraftFillSizePreviewDto(null, null)
+        }
+
+        const notional = price.times(quantity)
+        const convertedQuantityText = fill.sizeMode === 'quantity'
+          ? ''
+          : `≈ ${new JournalNumberDomain(quantity).quantity()}${baseAsset === null ? '' : ` ${baseAsset}`}・`
+        const fee = new DecimalInputDomain(fill.feeText).value
+
+        return new ContractTradeDraftFillSizePreviewDto(
+          `${convertedQuantityText}名目 ${new JournalNumberDomain(notional).amount()}・保證金 ${new JournalNumberDomain(notional.dividedBy(leverage)).amount()}`,
+          fee === null || !fee.greaterThan(0)
+            ? null
+            : `手續費約佔名目 ${fee.dividedBy(notional).times(PERCENT).toSignificantDigits(FEE_SHARE_SIGNIFICANT_DIGITS).toFixed()}%`,
+        )
+      }),
+      enteredQuantity.isZero() ? null : new JournalNumberDomain(entryNotional).amount(),
+      enteredQuantity.isZero() ? null : new JournalNumberDomain(entryNotional.dividedBy(leverage)).amount(),
+      new ContractSymbolDomain(this.draft.symbol).quantityLabel,
     )
   }
 
@@ -180,9 +210,31 @@ export class ContractTradeDraftDomain {
     return hasEntry ? null : MISSING_ENTRY_MESSAGE
   }
 
+  private get leverage(): Decimal {
+    const leverage = new DecimalInputDomain(this.draft.leverageText).value
+
+    return leverage === null || !leverage.greaterThan(0) ? new Decimal(1) : leverage
+  }
+
+  private resolvedQuantity(fill: ContractTradeDraftFillDto): Decimal | null {
+    const size = new DecimalInputDomain(fill.quantityText).value
+    if (size === null || fill.sizeMode === 'quantity') {
+      return size
+    }
+
+    const price = new DecimalInputDomain(fill.priceText).value
+    if (price === null || !price.greaterThan(0)) {
+      return null
+    }
+
+    const notional = fill.sizeMode === 'margin' ? size.times(this.leverage) : size
+
+    return notional.dividedBy(price).toDecimalPlaces(CONVERTED_QUANTITY_DECIMAL_PLACES, Decimal.ROUND_DOWN)
+  }
+
   private toFillWriteDto(fill: ContractTradeDraftFillDto): ContractTradeFillWriteDto | null {
     const price = new DecimalInputDomain(fill.priceText).value
-    const quantity = new DecimalInputDomain(fill.quantityText).value
+    const quantity = this.resolvedQuantity(fill)
     if (price === null || quantity === null || !price.greaterThan(0) || !quantity.greaterThan(0)) {
       return null
     }

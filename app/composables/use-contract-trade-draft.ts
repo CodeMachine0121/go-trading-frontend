@@ -75,10 +75,12 @@ export function useContractTradeDraft(
   }
 
   function toDraftDto(): ContractTradeDraftDto {
+    const record = existingRecord()
+
     return new ContractTradeDraftDto(
-      symbol.value,
+      record?.symbol ?? symbol.value,
       direction.value,
-      leverageText.value,
+      record?.leverage.toString() ?? leverageText.value,
       fills.value.map((fill) => {
         const filledAt = parseMinuteInputInTimeZone(fill.filledAtText, options.timeZoneIdentifier())
 
@@ -88,7 +90,8 @@ export function useContractTradeDraft(
           fill.priceText,
           fill.quantityText,
           fill.liquidity,
-          fill.feeText)
+          fill.feeText,
+          fill.sizeMode)
       }),
       plannedStopLossText.value,
       plannedTakeProfitText.value,

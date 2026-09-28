@@ -4,6 +4,8 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ContractTradeDraftFillInputDto } from '~/domain/models/dto/contract-trade-draft-fill-input-dto'
 import type { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
+import type { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/contract-trade-draft-fill-size-preview-dto'
+import type { ContractTradeSizeMode } from '~/domain/models/vo/contract-trade-size-mode-vo'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
 import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 
@@ -11,12 +13,16 @@ const CONFIRM_ACTUAL_FILL_HINT = '請改成實際開倉的價格與數量'
 
 const {
   fees,
+  fillSizes = [],
+  quantityLabel = '數量',
   prefilledFields = new Set<TradeFormField>(),
   rejectedField = null,
   rejectionMessage = null,
   kinds = ['entry', 'exit'],
 } = defineProps<{
   fees: readonly ContractTradeDraftFeePreviewDto[]
+  fillSizes?: readonly ContractTradeDraftFillSizePreviewDto[]
+  quantityLabel?: string
   prefilledFields?: ReadonlySet<TradeFormField>
   rejectedField?: TradeFormField | null
   rejectionMessage?: string | null
@@ -29,6 +35,12 @@ const emit = defineEmits<{
   add: [kind: ContractTradeFillKind]
   remove: [key: number]
 }>()
+
+const SIZE_MODE_LABELS: Readonly<Record<ContractTradeSizeMode, string>> = {
+  quantity: '數量',
+  notional: '名目 USDT',
+  margin: '保證金 USDT',
+}
 
 const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', readonly TradeFormField[]>> = {
   price: ['fillPrice'],
@@ -89,14 +101,29 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       </label>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">數量</span>
-        <AppInput
-          v-model="fill.quantityText"
-          inputmode="decimal"
-          :highlighted="index === 0 && prefilledFields.has('fillQuantity')"
-          :invalid="FIELD_OF_COLUMN.quantity.includes(rejectedField ?? 'symbol')"
-          data-testid="fill-quantity"
-        />
+        <span class="contract-trade-fill-editor__label">{{ fill.sizeMode === 'quantity' ? quantityLabel : SIZE_MODE_LABELS[fill.sizeMode] }}</span>
+        <span class="contract-trade-fill-editor__size">
+          <AppSelect
+            v-model="fill.sizeMode"
+            aria-label="輸入方式"
+            data-testid="fill-size-mode"
+          >
+            <option
+              v-for="(label, sizeMode) in SIZE_MODE_LABELS"
+              :key="sizeMode"
+              :value="sizeMode"
+            >
+              {{ label }}
+            </option>
+          </AppSelect>
+          <AppInput
+            v-model="fill.quantityText"
+            inputmode="decimal"
+            :highlighted="index === 0 && prefilledFields.has('fillQuantity')"
+            :invalid="FIELD_OF_COLUMN.quantity.includes(rejectedField ?? 'symbol')"
+            data-testid="fill-quantity"
+          />
+        </span>
         <span
           v-if="index === 0 && prefilledFields.has('fillQuantity')"
           class="contract-trade-fill-editor__confirm"
@@ -130,6 +157,17 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           data-testid="fill-fee-note"
         >{{ fees[index]?.note }}</span>
       </label>
+
+      <p
+        v-if="fillSizes[index]?.sizeText"
+        class="contract-trade-fill-editor__size-preview"
+        data-testid="fill-size-preview"
+      >
+        {{ fillSizes[index]?.sizeText }}
+        <template v-if="fillSizes[index]?.feeShareText">
+          ・<span data-testid="fill-fee-share">{{ fillSizes[index]?.feeShareText }}</span>
+        </template>
+      </p>
 
       <AppButton
         variant="danger-ghost"
@@ -203,6 +241,22 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
     @include respond-to('lg') {
       @include visually-hidden;
     }
+  }
+
+  &__size {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: spacing('3xs');
+  }
+
+  &__size-preview {
+    grid-column: 1 / -1;
+    order: 1;
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('2xs');
+
+    @include numeric;
   }
 
   &__confirm {

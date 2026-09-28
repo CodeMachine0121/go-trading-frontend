@@ -60,10 +60,10 @@ function buildFixture() {
 function draftFill(overrides: Partial<Record<keyof ContractTradeDraftFillDto, unknown>> = {}): ContractTradeDraftFillDto {
   const fill = {
     kind: 'entry', filledAt: new Date('2026-09-25T06:03:00Z'), priceText: '97905', quantityText: '0.030',
-    liquidity: 'taker', feeText: '', ...overrides,
+    liquidity: 'taker', feeText: '', sizeMode: 'quantity', ...overrides,
   } as Record<keyof ContractTradeDraftFillDto, never>
 
-  return new ContractTradeDraftFillDto(fill.kind, fill.filledAt, fill.priceText, fill.quantityText, fill.liquidity, fill.feeText)
+  return new ContractTradeDraftFillDto(fill.kind, fill.filledAt, fill.priceText, fill.quantityText, fill.liquidity, fill.feeText, fill.sizeMode)
 }
 
 function draft(overrides: Partial<Record<keyof ContractTradeDraftDto, unknown>> = {}): ContractTradeDraftDto {
@@ -260,10 +260,13 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     const record = await application.getTrade(27)
 
     expect(record.outcome.figures.map(figure => [figure.label, figure.text])).toEqual([
+      ['名目', '4,994.31'],
+      ['保證金', '499.43'],
       ['毛損益', '+127.11'],
       ['手續費', '5.06'],
       ['資金費用', '付出 1.52'],
       ['淨損益', '+120.53'],
+      ['保證金報酬率', '+24.13%'],
       ['計畫風險', '78.93'],
       ['R 倍數', '+1.53R'],
       ['最大不利', '−0.53R'],
@@ -274,8 +277,8 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     expect(record.outcome.figureLabelled('最大不利')?.note).toBe('97,110')
     expect(record.outcome.pricePathUnavailableMessage).toBeNull()
     expect(record.outcome.figureGroups.map(group => group.map(figure => figure.label))).toEqual([
-      ['毛損益', '手續費', '資金費用'],
-      ['淨損益', '計畫風險', 'R 倍數'],
+      ['名目', '保證金', '毛損益', '手續費', '資金費用'],
+      ['淨損益', '保證金報酬率', '計畫風險', 'R 倍數'],
       ['最大不利', '最大有利', '利潤捕捉率', '進場滑點'],
     ])
     expect(record.holdingDurationText).toBe('持倉 1 天 2 小時')
@@ -1082,5 +1085,139 @@ describe('ContractTradeJournalApplication 開倉、加倉、減倉、平倉', ()
     const record = await application.getTrade(27)
 
     expect(record.fills.map(fill => fill.kindLabel)).toEqual(['開倉', '加倉', '減倉', '平倉'])
+  })
+})
+
+describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
+  it.each([
+    ['有基礎資產時寫出單位', 'btcusdt', '數量（BTC）'],
+    ['認不出基礎資產時只寫數量', '', '數量'],
+  ])('數量欄%s', (_, symbol, expectedLabel) => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({ symbol }), takerFeeSetting())
+
+    expect(preview.quantityLabel).toBe(expectedLabel)
+  })
+
+  it('小卡預覽說出這一筆的名目、保證金與手續費約佔名目', () => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({
+      leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '1', feeText: '0.05' })],
+    }), takerFeeSetting())
+
+    expect(preview.fillSizes[0]?.sizeText).toBe('名目 84,780.90・保證金 42,390.45')
+    expect(preview.fillSizes[0]?.feeShareText).toBe('手續費約佔名目 0.000059%')
+  })
+
+  it('底部預覽有整筆交易的名目與保證金，槓桿留白即一倍', () => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({
+      leverageText: '', fills: [draftFill({ priceText: '100', quantityText: '2' })],
+    }), takerFeeSetting())
+
+    expect(preview.entryNotionalText).toBe('200.00')
+    expect(preview.entryMarginText).toBe('200.00')
+    expect(preview.fillSizes[0]?.feeShareText).toBeNull()
+  })
+
+  it('用名目輸入時預覽先說出換算的數量', () => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({
+      leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '112.80', sizeMode: 'notional' })],
+    }), takerFeeSetting())
+
+    expect(preview.fillSizes[0]?.sizeText).toBe('≈ 0.00133048 BTC・名目 112.80・保證金 56.40')
+    expect(preview.positionText).toBe('0.00133048')
+  })
+
+  it('還沒有價格與數量時小卡沒有預覽', () => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({ fills: [draftFill({ priceText: '', sizeMode: 'margin' })] }), takerFeeSetting())
+
+    expect(preview.fillSizes[0]?.sizeText).toBeNull()
+    expect(preview.entryNotionalText).toBeNull()
+  })
+
+  it.each([
+    ['保證金乘上槓桿再換算', { leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '56.40', sizeMode: 'margin' })] }, '0.00133048'],
+    ['名目直接換算', { fills: [draftFill({ priceText: '84780.9', quantityText: '112.80', sizeMode: 'notional' })] }, '0.00133048'],
+    ['數量照填', { fills: [draftFill({ priceText: '84780.9', quantityText: '0.0013' })] }, '0.0013'],
+  ])('%s後送出數量', async (_, overrides, expectedQuantity) => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
+
+    await application.recordDraft(draft(overrides), takerFeeSetting())
+
+    const [writeDto] = recordProxy.recordTrade.mock.calls[0] as [import('~/domain/models/dto/contract-trade-record-write-dto').ContractTradeRecordWriteDto]
+    expect(writeDto.firstEntryFill.quantity.toString()).toBe(expectedQuantity)
+  })
+
+  it('用保證金輸入卻沒有價格時拒絕', async () => {
+    const { application, recordProxy } = buildFixture()
+
+    const failure = await application.recordDraft(draft({
+      fills: [draftFill({ priceText: '', quantityText: '56.40', sizeMode: 'margin' })],
+    }), takerFeeSetting()).catch((error: unknown) => error)
+
+    expect((failure as TradeRejectedError).message).toBe('第 1 筆的價格與數量要填大於零的數字')
+    expect(recordProxy.recordTrade).not.toHaveBeenCalled()
+  })
+
+  it('加倉到既有交易時用那筆交易的槓桿換算', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.addFill.mockResolvedValue(buildRecord({ status: 'open' }))
+
+    await application.addDraftFills(27, draft({
+      symbol: 'BTCUSDT', leverageText: '5', fills: [draftFill({ priceText: '100', quantityText: '20', sizeMode: 'margin' })],
+    }), takerFeeSetting(), [])
+
+    const [, fillWriteDto] = recordProxy.addFill.mock.calls[0] as [number, ContractTradeFillWriteDto]
+    expect(fillWriteDto.quantity.toString()).toBe('1')
+  })
+
+  it('交易服務指出手續費不合理的紀錄時，詳情說出是第幾筆與數量的單位', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({ outcome: closedOutcome({ implausibleFeeFillIds: [1, 2] }) }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.feeWarningMessage).toBe('第 1、2 筆的手續費與數量對不上，數量可能記錯了（數量的單位是 BTC）')
+    expect(record.fills.map(fill => fill.feeNote)).toEqual(['手續費與數量對不上', '手續費與數量對不上', '未設定費率'])
+    expect(record.quantityUnit).toBe('BTC')
+  })
+
+  it('沒有被指出時不警示', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord())
+
+    const record = await application.getTrade(27)
+
+    expect(record.feeWarningMessage).toBeNull()
+  })
+
+  it('持倉中的保證金報酬率說不適用', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({
+      status: 'open', closedAt: null, outcome: closedOutcome({ returnOnMarginPercentage: unavailable('notClosed') }),
+    }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('持倉中不適用')
+  })
+
+  it('虧損的保證金報酬率以虧損色呈現', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({ outcome: closedOutcome({ returnOnMarginPercentage: measured('-0.33') }) }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('−0.33%')
+    expect(record.outcome.figureLabelled('保證金報酬率')?.tone).toBe('danger')
   })
 })

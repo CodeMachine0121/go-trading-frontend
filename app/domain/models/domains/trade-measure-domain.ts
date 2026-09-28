@@ -11,6 +11,7 @@ const UNAVAILABLE_SENTENCES: Readonly<Record<TradeUnavailableReason, string>> = 
   noLatestPrice: '沒有最新價，無法估算',
   noTradingSpecification: '還沒有交易規格，估不出',
   notApplicable: '不適用',
+  notClosed: '持倉中不適用',
   temporarilyUnavailable: '暫時算不出，請稍後再看',
 }
 

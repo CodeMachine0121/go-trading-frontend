@@ -48,5 +48,7 @@ export class ContractTradeRecordDto {
     public readonly maximumFavorablePrice: Decimal | null,
     public readonly holdingDurationText: string | null,
     public readonly originLabel: string,
+    public readonly quantityUnit: string,
+    public readonly feeWarningMessage: string | null,
   ) {}
 }
