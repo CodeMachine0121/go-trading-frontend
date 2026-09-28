@@ -1168,6 +1168,31 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
     expect(recordProxy.recordTrade).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['讀不懂', '10x'],
+    ['為零', '0'],
+  ])('槓桿%s時不用保證金猜數量，說出要填槓桿', async (_, leverageText) => {
+    const { application, recordProxy } = buildFixture()
+    const submittedDraft = draft({ leverageText, fills: [draftFill({ priceText: '100', quantityText: '100', sizeMode: 'margin' })] })
+
+    const failure = await application.recordDraft(submittedDraft, takerFeeSetting()).catch((error: unknown) => error)
+
+    expect((failure as TradeRejectedError).message).toBe('槓桿倍數要填大於零的數字，才能用保證金換算數量')
+    expect(application.previewDraft(submittedDraft, takerFeeSetting()).fillSizes[0]?.sizeText).toBeNull()
+    expect(recordProxy.recordTrade).not.toHaveBeenCalled()
+  })
+
+  it('槓桿讀不懂時名目輸入照常換算，只是不說保證金', () => {
+    const { application } = buildFixture()
+
+    const preview = application.previewDraft(draft({
+      leverageText: '10x', fills: [draftFill({ priceText: '100', quantityText: '200', sizeMode: 'notional' })],
+    }), takerFeeSetting())
+
+    expect(preview.fillSizes[0]?.sizeText).toBe('≈ 2 BTC・名目 200.00')
+    expect(preview.entryMarginText).toBeNull()
+  })
+
   it('加倉到既有交易時用那筆交易的槓桿換算', async () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.addFill.mockResolvedValue(buildRecord({ status: 'open' }))
@@ -1209,6 +1234,29 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
     const record = await application.getTrade(27)
 
     expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('持倉中不適用')
+  })
+
+  it('持倉中即使交易服務沒說原因，保證金報酬率也是不適用', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({
+      status: 'open', closedAt: null, outcome: closedOutcome({ returnOnMarginPercentage: unavailable('temporarilyUnavailable') }),
+    }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('持倉中不適用')
+  })
+
+  it('資金費用算不出時保證金報酬率標示未含資金費用；名目缺少時說算不出而不是 0', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.findTrade.mockResolvedValue(buildRecord({
+      outcome: closedOutcome({ netProfitExcludesFunding: true, entryNotional: unavailable('temporarilyUnavailable') }),
+    }))
+
+    const record = await application.getTrade(27)
+
+    expect(record.outcome.figureLabelled('保證金報酬率')?.note).toBe('未含資金費用')
+    expect(record.outcome.figureLabelled('名目')?.text).toBe('暫時算不出，請稍後再看')
   })
 
   it('虧損的保證金報酬率以虧損色呈現', async () => {

@@ -26,6 +26,7 @@ const FEE_RATE_MISSING_NOTE = '尚未設定手續費率'
 const MISSING_SYMBOL_MESSAGE = '請填合約標的'
 const MISSING_ENTRY_MESSAGE = '至少要有一筆填好開倉價與數量的開倉'
 const MISSING_FILL_MESSAGE = '至少要有一筆填好價格與數量的開倉或平倉'
+const UNREADABLE_LEVERAGE_MESSAGE = '槓桿倍數要填大於零的數字，才能用保證金換算數量'
 
 export class ContractTradeDraftDomain {
   constructor(
@@ -35,11 +36,13 @@ export class ContractTradeDraftDomain {
   ) {}
 
   toPreviewDto(): ContractTradeDraftPreviewDto {
+    const draftPrices = this.draft.fills.map(fill => new DecimalInputDomain(fill.priceText).value)
+    const draftQuantities = this.draft.fills.map(fill => this.resolvedQuantity(fill))
     const pricedQuantities = [
       ...(this.existingFills ?? []).map(fill => new ContractTradePricedQuantityVo(fill.kind, fill.price, fill.quantity)),
-      ...this.draft.fills.flatMap((fill) => {
-        const price = new DecimalInputDomain(fill.priceText).value
-        const quantity = this.resolvedQuantity(fill)
+      ...this.draft.fills.flatMap((fill, index) => {
+        const price = draftPrices[index] ?? null
+        const quantity = draftQuantities[index] ?? null
 
         return price === null || quantity === null ? [] : [new ContractTradePricedQuantityVo(fill.kind, price, quantity)]
       }),
@@ -49,13 +52,14 @@ export class ContractTradeDraftDomain {
     const exitedQuantity = pricedQuantities
       .filter(pricedQuantity => pricedQuantity.kind === 'exit')
       .reduce((total, exit) => total.plus(exit.quantity), new Decimal(0))
-    const averageEntryPrice = enteredQuantity.isZero()
-      ? null
-      : entries.reduce((total, entry) => total.plus(entry.price.times(entry.quantity)), new Decimal(0))
-          .dividedBy(enteredQuantity)
     const entryNotional = entries.reduce((total, entry) => total.plus(entry.price.times(entry.quantity)), new Decimal(0))
+    const averageEntryPrice = enteredQuantity.isZero() ? null : entryNotional.dividedBy(enteredQuantity)
     const leverage = this.leverage
-    const baseAsset = new ContractSymbolDomain(this.draft.symbol).baseAsset
+    const contractSymbol = new ContractSymbolDomain(this.draft.symbol)
+    const baseAsset = contractSymbol.baseAsset
+    const marginText = (notional: Decimal) => leverage === null
+      ? null
+      : new JournalNumberDomain(notional.dividedBy(leverage)).amount()
     const displayedFractionDigits = Math.max(0, ...entries.map(entry => entry.price.decimalPlaces())) + 1
     const plannedStopLoss = new DecimalInputDomain(this.draft.plannedStopLossText).value
     const stopDistance = averageEntryPrice === null || plannedStopLoss === null
@@ -82,10 +86,10 @@ export class ContractTradeDraftDomain {
         : new JournalNumberDomain(stopDistance.abs().times(enteredQuantity)).amount(),
       distanceText(plannedTakeProfit),
       entrySlippageText,
-      this.draft.fills.map((fill) => {
+      this.draft.fills.map((fill, index) => {
         const rate = fill.liquidity === 'maker' ? this.setting.makerFeeRate : this.setting.takerFeeRate
-        const price = new DecimalInputDomain(fill.priceText).value ?? new Decimal(0)
-        const quantity = this.resolvedQuantity(fill) ?? new Decimal(0)
+        const price = draftPrices[index] ?? new Decimal(0)
+        const quantity = draftQuantities[index] ?? new Decimal(0)
 
         return rate === null
           ? new ContractTradeDraftFeePreviewDto(new JournalNumberDomain(new Decimal(0)).amount(), FEE_RATE_MISSING_NOTE)
@@ -94,9 +98,9 @@ export class ContractTradeDraftDomain {
       }),
       this.setting.makerFeeRate === null || this.setting.takerFeeRate === null,
       this.missingFieldMessage(),
-      this.draft.fills.map((fill) => {
-        const price = new DecimalInputDomain(fill.priceText).value
-        const quantity = this.resolvedQuantity(fill)
+      this.draft.fills.map((fill, index) => {
+        const price = draftPrices[index] ?? null
+        const quantity = draftQuantities[index] ?? null
         if (price === null || quantity === null || !price.greaterThan(0) || !quantity.greaterThan(0)) {
           return new ContractTradeDraftFillSizePreviewDto(null, null)
         }
@@ -106,17 +110,18 @@ export class ContractTradeDraftDomain {
           ? ''
           : `≈ ${new JournalNumberDomain(quantity).quantity()}${baseAsset === null ? '' : ` ${baseAsset}`}・`
         const fee = new DecimalInputDomain(fill.feeText).value
+        const fillMarginText = marginText(notional)
 
         return new ContractTradeDraftFillSizePreviewDto(
-          `${convertedQuantityText}名目 ${new JournalNumberDomain(notional).amount()}・保證金 ${new JournalNumberDomain(notional.dividedBy(leverage)).amount()}`,
+          `${convertedQuantityText}名目 ${new JournalNumberDomain(notional).amount()}${fillMarginText === null ? '' : `・保證金 ${fillMarginText}`}`,
           fee === null || !fee.greaterThan(0)
             ? null
             : `手續費約佔名目 ${fee.dividedBy(notional).times(PERCENT).toSignificantDigits(FEE_SHARE_SIGNIFICANT_DIGITS).toFixed()}%`,
         )
       }),
       enteredQuantity.isZero() ? null : new JournalNumberDomain(entryNotional).amount(),
-      enteredQuantity.isZero() ? null : new JournalNumberDomain(entryNotional.dividedBy(leverage)).amount(),
-      new ContractSymbolDomain(this.draft.symbol).quantityLabel,
+      enteredQuantity.isZero() ? null : marginText(entryNotional),
+      contractSymbol.quantityLabel,
     )
   }
 
@@ -184,7 +189,7 @@ export class ContractTradeDraftDomain {
       ['plannedTakeProfitPrice', stillMatching(this.draft.plannedTakeProfitText, prefill.plannedTakeProfitPrice)],
       ['tradingStrategy', prefill.tradingStrategyId !== null && this.draft.tradingStrategyId === prefill.tradingStrategyId],
       ['fillPrice', stillMatching(firstFill?.priceText ?? '', prefill.entryPrice)],
-      ['fillQuantity', stillMatching(firstFill?.quantityText ?? '', prefill.quantity)],
+      ['fillQuantity', firstFill?.sizeMode === 'quantity' && stillMatching(firstFill.quantityText, prefill.quantity)],
     ]
 
     return candidates.filter(([, prefilled]) => prefilled).map(([field]) => field)
@@ -199,6 +204,10 @@ export class ContractTradeDraftDomain {
       return MISSING_SYMBOL_MESSAGE
     }
 
+    if (this.leverage === null && this.draft.fills.some(fill => fill.sizeMode === 'margin')) {
+      return UNREADABLE_LEVERAGE_MESSAGE
+    }
+
     const unreadableIndex = this.draft.fills.findIndex(fill => this.toFillWriteDto(fill) === null)
     if (unreadableIndex !== -1) {
       return `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`
@@ -210,10 +219,14 @@ export class ContractTradeDraftDomain {
     return hasEntry ? null : MISSING_ENTRY_MESSAGE
   }
 
-  private get leverage(): Decimal {
+  private get leverage(): Decimal | null {
+    if (this.draft.leverageText.trim() === '') {
+      return new Decimal(1)
+    }
+
     const leverage = new DecimalInputDomain(this.draft.leverageText).value
 
-    return leverage === null || !leverage.greaterThan(0) ? new Decimal(1) : leverage
+    return leverage === null || !leverage.greaterThan(0) ? null : leverage
   }
 
   private resolvedQuantity(fill: ContractTradeDraftFillDto): Decimal | null {
@@ -223,13 +236,12 @@ export class ContractTradeDraftDomain {
     }
 
     const price = new DecimalInputDomain(fill.priceText).value
-    if (price === null || !price.greaterThan(0)) {
+    const leverage = fill.sizeMode === 'margin' ? this.leverage : new Decimal(1)
+    if (price === null || !price.greaterThan(0) || leverage === null) {
       return null
     }
 
-    const notional = fill.sizeMode === 'margin' ? size.times(this.leverage) : size
-
-    return notional.dividedBy(price).toDecimalPlaces(CONVERTED_QUANTITY_DECIMAL_PLACES, Decimal.ROUND_DOWN)
+    return size.times(leverage).dividedBy(price).toDecimalPlaces(CONVERTED_QUANTITY_DECIMAL_PLACES, Decimal.ROUND_DOWN)
   }
 
   private toFillWriteDto(fill: ContractTradeDraftFillDto): ContractTradeFillWriteDto | null {

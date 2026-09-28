@@ -75,7 +75,7 @@ describe('ContractTradeFillEditor', () => {
     })
   })
 
-  it('數量欄寫出單位；改用保證金輸入時標籤跟著換，預覽寫在小卡下方', async () => {
+  it('數量欄寫出單位並標示給輸入框；改用保證金輸入，預覽寫在小卡下方', async () => {
     const fills = [fillInput(1, '84780.9', '1')]
     const wrapper = mount(ContractTradeFillEditor, {
       props: {
@@ -93,6 +93,7 @@ describe('ContractTradeFillEditor', () => {
     await wrapper.get('[data-testid="fill-size-mode"]').setValue('margin')
 
     expect(fills[0]?.sizeMode).toBe('margin')
-    expect(wrapper.text()).toContain('保證金 USDT')
+    expect(wrapper.get('[data-testid="fill-quantity"]').attributes('aria-labelledby')).toBe('fill-size-label-1 fill-size-mode-1')
+    expect(wrapper.get('#fill-size-label-1').text()).toBe('數量（BTC）')
   })
 })

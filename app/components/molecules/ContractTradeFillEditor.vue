@@ -100,10 +100,14 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
       </label>
 
-      <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">{{ fill.sizeMode === 'quantity' ? quantityLabel : SIZE_MODE_LABELS[fill.sizeMode] }}</span>
+      <div class="contract-trade-fill-editor__field">
+        <span
+          :id="`fill-size-label-${fill.key}`"
+          class="contract-trade-fill-editor__label"
+        >{{ quantityLabel }}</span>
         <span class="contract-trade-fill-editor__size">
           <AppSelect
+            :id="`fill-size-mode-${fill.key}`"
             v-model="fill.sizeMode"
             aria-label="輸入方式"
             data-testid="fill-size-mode"
@@ -121,6 +125,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
             inputmode="decimal"
             :highlighted="index === 0 && prefilledFields.has('fillQuantity')"
             :invalid="FIELD_OF_COLUMN.quantity.includes(rejectedField ?? 'symbol')"
+            :aria-labelledby="`fill-size-label-${fill.key} fill-size-mode-${fill.key}`"
             data-testid="fill-quantity"
           />
         </span>
@@ -129,7 +134,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           class="contract-trade-fill-editor__confirm"
           data-testid="fill-quantity-confirm"
         >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
-      </label>
+      </div>
 
       <label class="contract-trade-fill-editor__field">
         <span class="contract-trade-fill-editor__label">掛單／吃單</span>

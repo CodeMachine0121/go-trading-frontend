@@ -268,6 +268,17 @@ describe('useContractTradeDraft：從連結打開', () => {
     expect(draft.prefillLoading.value).toBe(false)
   })
 
+  it('預填的數量改用名目或保證金輸入後不再算預填', async () => {
+    recordProxy.findJournalLink.mockResolvedValue(prefill())
+    const draft = draftUnderTest()
+    await draft.applyJournalLink('link-412')
+
+    draft.fills.value[0]!.sizeMode = 'notional'
+
+    expect(draft.prefilledFields.value.has('fillQuantity')).toBe(false)
+    expect(draft.prefilledFields.value.has('fillPrice')).toBe(true)
+  })
+
   it('改成實際成交後那兩格不再算預填，儲存時帶著連結', async () => {
     recordProxy.findJournalLink.mockResolvedValue(prefill())
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))

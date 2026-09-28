@@ -111,8 +111,8 @@ type ContractTradeOutcomeWire = {
   floatingProfit?: { available: boolean, amount?: string | null, unavailableReason?: string | null }
   liquidationPrice?: { available: boolean, price?: string | null, cannotBeLiquidated?: boolean, unavailableReason?: string | null }
   entrySlippagePercentage?: string | null
-  entryNotional?: string
-  entryMargin?: string
+  entryNotional?: string | null
+  entryMargin?: string | null
   returnOnMarginPercentage?: string | null
   returnOnMarginUnavailableReason?: string | null
   implausibleFeeFillIds?: number[] | null
@@ -525,8 +525,8 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
           FLOATING_PROFIT_REASONS[floatingProfit.unavailableReason ?? ''] ?? 'temporarilyUnavailable'),
         this.toMeasure(liquidation.available ? liquidation.price : null, liquidationReason),
         this.toMeasure(outcomeWire.entrySlippagePercentage, 'notApplicable'),
-        new Decimal(outcomeWire.entryNotional ?? '0'),
-        new Decimal(outcomeWire.entryMargin ?? '0'),
+        this.toMeasure(outcomeWire.entryNotional, 'temporarilyUnavailable'),
+        this.toMeasure(outcomeWire.entryMargin, 'temporarilyUnavailable'),
         this.toMeasure(
           outcomeWire.returnOnMarginPercentage,
           outcomeWire.returnOnMarginUnavailableReason === 'notClosed' ? 'notClosed' : 'temporarilyUnavailable'),
