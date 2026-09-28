@@ -1,4 +1,5 @@
 import type { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
+import type { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/contract-trade-draft-fill-size-preview-dto'
 
 export class ContractTradeDraftPreviewDto {
   constructor(
@@ -11,5 +12,9 @@ export class ContractTradeDraftPreviewDto {
     public readonly fees: readonly ContractTradeDraftFeePreviewDto[],
     public readonly feeRateMissing: boolean,
     public readonly missingFieldMessage: string | null,
+    public readonly fillSizes: readonly ContractTradeDraftFillSizePreviewDto[],
+    public readonly entryNotionalText: string | null,
+    public readonly entryMarginText: string | null,
+    public readonly quantityLabel: string,
   ) {}
 }

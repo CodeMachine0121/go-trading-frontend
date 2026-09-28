@@ -1,5 +1,6 @@
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
 import type { TradeFillLiquidity } from '~/domain/models/vo/trade-fill-liquidity-vo'
+import type { ContractTradeSizeMode } from '~/domain/models/vo/contract-trade-size-mode-vo'
 
 export class ContractTradeDraftFillInputDto {
   constructor(
@@ -10,5 +11,6 @@ export class ContractTradeDraftFillInputDto {
     public quantityText: string,
     public liquidity: TradeFillLiquidity,
     public feeText: string,
+    public sizeMode: ContractTradeSizeMode = 'quantity',
   ) {}
 }

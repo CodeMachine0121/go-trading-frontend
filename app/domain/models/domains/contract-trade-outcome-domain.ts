@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { ContractTradeOutcome } from '~/domain/models/entities/contract-trade-outcome'
+import { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain'
@@ -10,6 +11,7 @@ const FEE_RATE_MISSING_NOTE = '未設定費率'
 const EXCLUDES_FUNDING_NOTE = '未含資金費用'
 const SLIPPAGE_FRACTION_DIGITS = 2
 const CAPTURE_RATE_FRACTION_DIGITS = 0
+const RETURN_ON_MARGIN_FRACTION_DIGITS = 2
 const PERCENT = 100
 
 export class ContractTradeOutcomeDomain {
@@ -21,6 +23,10 @@ export class ContractTradeOutcomeDomain {
 
   toDto(): TradeOutcomeDto {
     const costFigures = [
+      new TradeMeasureDomain(this.outcome.entryNotional).toFigure(
+        '名目', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
+      new TradeMeasureDomain(this.outcome.entryMargin).toFigure(
+        '保證金', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
       this.signedFigure('毛損益', this.outcome.grossProfit),
       new TradeFigureVo(
         '手續費',
@@ -43,6 +49,11 @@ export class ContractTradeOutcomeDomain {
       this.signedFigure(
         this.open ? '已實現淨損益' : '淨損益',
         this.outcome.netProfit,
+        this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
+      new TradeMeasureDomain(this.open ? new TradeMeasure(null, 'notClosed') : this.outcome.returnOnMarginPercentage).toFigure(
+        '保證金報酬率',
+        value => new JournalNumberDomain(value).signedPercentage(RETURN_ON_MARGIN_FRACTION_DIGITS),
+        value => new JournalNumberDomain(value).tone(),
         this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
       new TradeMeasureDomain(this.outcome.plannedRisk).toFigure(
         '計畫風險', value => new JournalNumberDomain(value).amount(), () => 'neutral'),

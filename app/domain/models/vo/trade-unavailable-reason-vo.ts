@@ -5,4 +5,5 @@ export type TradeUnavailableReason
     | 'noLatestPrice'
     | 'noTradingSpecification'
     | 'notApplicable'
+    | 'notClosed'
     | 'temporarilyUnavailable'

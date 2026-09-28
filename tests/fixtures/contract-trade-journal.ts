@@ -51,6 +51,10 @@ export function closedOutcome(overrides: Partial<Record<keyof ContractTradeOutco
     floatingProfit: unavailable('notApplicable'),
     estimatedLiquidationPrice: unavailable('notApplicable'),
     entrySlippagePercentage: measured('0.06'),
+    entryNotional: measured('4994.31'),
+    entryMargin: measured('499.431'),
+    returnOnMarginPercentage: measured('24.13'),
+    implausibleFeeFillIds: [],
     ...overrides,
   } as Record<keyof ContractTradeOutcome, never>
 
@@ -74,6 +78,10 @@ export function closedOutcome(overrides: Partial<Record<keyof ContractTradeOutco
     base.floatingProfit,
     base.estimatedLiquidationPrice,
     base.entrySlippagePercentage,
+    base.entryNotional,
+    base.entryMargin,
+    base.returnOnMarginPercentage,
+    base.implausibleFeeFillIds,
   )
 }
 

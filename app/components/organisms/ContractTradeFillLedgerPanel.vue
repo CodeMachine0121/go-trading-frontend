@@ -75,7 +75,7 @@ watch(() => JSON.stringify(record.fills.map(fill => [fill.id, fill.kind, fill.fi
             :class="`contract-trade-fill-ledger-panel__kind--${fill.kind}`"
           >{{ fill.kindLabel }}</span>
           <span>{{ formatDateTimeInTimeZone(fill.filledAt, timeZoneIdentifier) }}</span>
-          <span class="contract-trade-fill-ledger-panel__number">{{ fill.priceText }} × {{ fill.quantityText }}</span>
+          <span class="contract-trade-fill-ledger-panel__number">{{ fill.priceText }} × {{ fill.quantityText }} {{ record.quantityUnit }}</span>
           <span class="contract-trade-fill-ledger-panel__number">{{ fill.liquidityLabel }} 手續費 {{ fill.feeText }}</span>
           <small
             v-if="fill.feeNote"

@@ -10,10 +10,12 @@ import { ContractTradeOutcomeDomain } from '~/domain/models/domains/contract-tra
 import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { TradeHoldingDurationDomain } from '~/domain/models/domains/trade-holding-duration-domain'
+import { ContractSymbolDomain } from '~/domain/models/domains/contract-symbol-domain'
 import Decimal from 'decimal.js'
 
 const REVIEW_AFTER_CLOSE_MESSAGE = '平倉後才能檢討'
 const NOT_SET_TEXT = '未設定'
+const IMPLAUSIBLE_FEE_NOTE = '手續費與數量對不上'
 
 export class ContractTradeRecordDomain {
   constructor(private readonly record: ContractTradeRecord) {}
@@ -36,6 +38,9 @@ export class ContractTradeRecordDomain {
 
       return { position, labels: [...state.labels, fill.kind === 'entry' ? entryLabel : exitLabel] }
     }, { position: new Decimal(0), labels: [] }).labels
+    const baseAsset = new ContractSymbolDomain(this.record.symbol).baseAsset
+    const implausibleFeePositions = chronologicalFills.flatMap((fill, index) =>
+      this.record.outcome.implausibleFeeFillIds.includes(fill.id) ? [index + 1] : [])
 
     return new ContractTradeRecordDto(
       this.record.id,
@@ -77,7 +82,7 @@ export class ContractTradeRecordDomain {
         fill.liquidity === 'maker' ? '掛單' : '吃單',
         fill.fee,
         new JournalNumberDomain(fill.fee).amount(),
-        fill.feeRateMissing ? '未設定費率' : null,
+        fill.feeRateMissing ? '未設定費率' : this.record.outcome.implausibleFeeFillIds.includes(fill.id) ? IMPLAUSIBLE_FEE_NOTE : null,
       )),
       [...this.record.notes]
         .sort((earlier, later) => earlier.createdAt.getTime() - later.createdAt.getTime())
@@ -107,6 +112,10 @@ export class ContractTradeRecordDomain {
         ? null
         : new TradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt).text,
       sourceLabel ?? linkedStrategyLabel,
+      baseAsset ?? '',
+      implausibleFeePositions.length === 0
+        ? null
+        : `第 ${implausibleFeePositions.join('、')} 筆的${IMPLAUSIBLE_FEE_NOTE}，數量可能記錯了${baseAsset === null ? '' : `（數量的單位是 ${baseAsset}）`}`,
     )
   }
 

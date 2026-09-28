@@ -22,5 +22,9 @@ export class ContractTradeOutcome {
     public readonly floatingProfit: TradeMeasure,
     public readonly estimatedLiquidationPrice: TradeMeasure,
     public readonly entrySlippagePercentage: TradeMeasure,
+    public readonly entryNotional: TradeMeasure,
+    public readonly entryMargin: TradeMeasure,
+    public readonly returnOnMarginPercentage: TradeMeasure,
+    public readonly implausibleFeeFillIds: readonly number[],
   ) {}
 }

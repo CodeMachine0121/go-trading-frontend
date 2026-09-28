@@ -45,6 +45,11 @@ const OUTCOME_WIRE = {
   floatingProfit: { available: false, unavailableReason: 'notOpen' },
   liquidationPrice: { available: false, unavailableReason: 'notOpen' },
   entrySlippagePercentage: '0.06',
+  entryNotional: '4994.31',
+  entryMargin: '499.431',
+  returnOnMarginPercentage: 24.13,
+  returnOnMarginUnavailableReason: '',
+  implausibleFeeFillIds: [2],
 }
 
 const RECORD_WIRE = {
@@ -117,6 +122,10 @@ describe('ContractTradeRecordProxy.findTrade', () => {
     expect(record.outcome.floatingProfit.unavailableReason).toBe('notApplicable')
     expect(record.outcome.estimatedLiquidationPrice.unavailableReason).toBe('notApplicable')
     expect(record.outcome.entrySlippagePercentage.value?.toString()).toBe('0.06')
+    expect(record.outcome.entryNotional.value?.toString()).toBe('4994.31')
+    expect(record.outcome.entryMargin.value?.toString()).toBe('499.431')
+    expect(record.outcome.returnOnMarginPercentage.value?.toString()).toBe('24.13')
+    expect(record.outcome.implausibleFeeFillIds).toEqual([2])
   })
 
   it.each([
@@ -172,6 +181,21 @@ describe('ContractTradeRecordProxy.findTrade', () => {
     expect(record.outcome.maximumAdverseExcursion.unavailableReason).toBe('temporarilyUnavailable')
     expect(record.outcome.floatingProfit.unavailableReason).toBe('temporarilyUnavailable')
     expect(record.outcome.estimatedLiquidationPrice.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.entryNotional.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.returnOnMarginPercentage.unavailableReason).toBe('temporarilyUnavailable')
+    expect(record.outcome.implausibleFeeFillIds).toEqual([])
+  })
+
+  it('持倉中的保證金報酬率收成不適用的原因', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      ...RECORD_WIRE,
+      status: 'open',
+      outcome: { ...OUTCOME_WIRE, returnOnMarginPercentage: null, returnOnMarginUnavailableReason: 'notClosed' },
+    }))
+
+    const record = await proxy().findTrade(27)
+
+    expect(record.outcome.returnOnMarginPercentage.unavailableReason).toBe('notClosed')
   })
 
   it('還沒檢討的交易沒有檢討', async () => {

@@ -268,6 +268,17 @@ describe('useContractTradeDraft：從連結打開', () => {
     expect(draft.prefillLoading.value).toBe(false)
   })
 
+  it('預填的數量改用名目或保證金輸入後不再算預填', async () => {
+    recordProxy.findJournalLink.mockResolvedValue(prefill())
+    const draft = draftUnderTest()
+    await draft.applyJournalLink('link-412')
+
+    draft.fills.value[0]!.sizeMode = 'notional'
+
+    expect(draft.prefilledFields.value.has('fillQuantity')).toBe(false)
+    expect(draft.prefilledFields.value.has('fillPrice')).toBe(true)
+  })
+
   it('改成實際成交後那兩格不再算預填，儲存時帶著連結', async () => {
     recordProxy.findJournalLink.mockResolvedValue(prefill())
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
@@ -355,5 +366,19 @@ describe('useContractTradeDraft：對既有交易加成交', () => {
     draft.fills.value[0]!.quantityText = '0.010'
 
     expect(draft.preview.value.positionText).toBe('0.02')
+  })
+
+  it('用保證金加倉時以那筆交易的槓桿換算，數量欄寫出它的單位', async () => {
+    const existing = buildRecord({ status: 'open', leverage: new Decimal('5') }).toDomain().toDto()
+    recordProxy.addFill.mockResolvedValue(buildRecord({ status: 'open' }))
+    const draft = draftUnderTest(existing)
+    draft.fills.value[0]!.priceText = '100'
+    draft.fills.value[0]!.quantityText = '20'
+    draft.fills.value[0]!.sizeMode = 'margin'
+
+    await draft.save()
+
+    expect(draft.preview.value.quantityLabel).toBe('數量（BTC）')
+    expect(recordProxy.addFill).toHaveBeenCalledWith(27, expect.objectContaining({ quantity: new Decimal('1') }))
   })
 })

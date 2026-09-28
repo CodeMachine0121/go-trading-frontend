@@ -201,6 +201,8 @@ const tradingStrategyValue = computed({
       <ContractTradeFillEditor
         :fills="draft.fills.value"
         :fees="draft.preview.value.fees"
+        :fill-sizes="draft.preview.value.fillSizes"
+        :quantity-label="draft.preview.value.quantityLabel"
         :prefilled-fields="draft.prefilledFields.value"
         :rejected-field="draft.rejectedField.value"
         :rejection-message="draft.rejectionMessage.value"
@@ -223,6 +225,10 @@ const tradingStrategyValue = computed({
       >
         持倉 <span data-testid="preview-position">{{ draft.preview.value.positionText }}</span>・均價
         <span data-testid="preview-average-entry">{{ draft.preview.value.averageEntryPriceText ?? '—' }}</span>
+        <template v-if="draft.preview.value.entryNotionalText">
+          ・名目 <span data-testid="preview-entry-notional">{{ draft.preview.value.entryNotionalText }}</span>・保證金
+          <span data-testid="preview-entry-margin">{{ draft.preview.value.entryMarginText }}</span>
+        </template>
         <template v-if="draft.preview.value.entrySlippageText">
           ・<span data-testid="preview-entry-slippage">{{ draft.preview.value.entrySlippageText }}</span>
         </template>
