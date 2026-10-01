@@ -17,6 +17,10 @@ import AppProgressBar from '~/components/atoms/AppProgressBar.vue'
 const { initializeAppearance } = useAppearance()
 initializeAppearance()
 
+// 語言也一樣：第一個畫面就要用記住的那一個說話，而不是先閃一下繁體中文。
+const { initializeDisplayLanguage } = useDisplayLanguage()
+initializeDisplayLanguage()
+
 const { open, closeDrawer } = useAssistantDrawer()
 
 // 助手要花錢，而且它讀得到行情——沒登入的人不該叫得出它，**還沒被放行的人也一樣**。
