@@ -1,6 +1,7 @@
 import type { ITimeZonePreferenceProxy } from '~/domain/interface/i-time-zone-preference-proxy'
 import { TimeZone } from '~/domain/models/entities/time-zone'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 可選的時區。第一個是預設，也是任何看不懂的識別字的退路——
@@ -8,13 +9,15 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
  * 清單內每一個時區的位移都是五分鐘的整數倍，K 線的五分鐘刻度在任何一個之下都仍看得出來。
  */
 const SELECTABLE_TIME_ZONES = [
-  new TimeZone('UTC', '世界標準時間'),
-  new TimeZone('Asia/Taipei', '台北'),
-  new TimeZone('Asia/Tokyo', '東京'),
-  new TimeZone('Asia/Hong_Kong', '香港'),
-  new TimeZone('Asia/Singapore', '新加坡'),
-  new TimeZone('Europe/London', '倫敦'),
-  new TimeZone('America/New_York', '紐約'),
+  new TimeZone('UTC', new LocalizedTextVo('世界標準時間', 'UTC')),
+  new TimeZone('Asia/Taipei', new LocalizedTextVo('台北', 'Taipei')),
+  new TimeZone('Asia/Tokyo', new LocalizedTextVo('東京', 'Tokyo')),
+  new TimeZone('Asia/Hong_Kong', new LocalizedTextVo('香港', 'Hong Kong')),
+  new TimeZone('Asia/Singapore', new LocalizedTextVo('新加坡', 'Singapore')),
+  // 澳洲只收布里斯本：它全年不實施日光節約時間，其餘澳洲城市會隨季節換位移。
+  new TimeZone('Australia/Brisbane', new LocalizedTextVo('布里斯本', 'Brisbane')),
+  new TimeZone('Europe/London', new LocalizedTextVo('倫敦', 'London')),
+  new TimeZone('America/New_York', new LocalizedTextVo('紐約', 'New York')),
 ]
 
 /**

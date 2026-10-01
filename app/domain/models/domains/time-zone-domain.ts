@@ -1,5 +1,6 @@
 import type { TimeZone } from '~/domain/models/entities/time-zone'
 import { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { formatUtcOffsetLabel } from '~/utilities/time-zone-format'
 
 /**
@@ -16,11 +17,19 @@ export class TimeZoneDomain {
     return formatUtcOffsetLabel(instant, this.timeZone.identifier)
   }
 
+  /** 選單上的說法：`台北（UTC+08:00）`／`Taipei (UTC+08:00)`——括號照各自語言的寫法。 */
   toDtoAt(instant: Date): TimeZoneDto {
+    const offsetLabel = this.offsetLabelAt(instant)
+    const { cityName } = this.timeZone
+
     return new TimeZoneDto(
       this.timeZone.identifier,
-      this.timeZone.cityLabel,
-      this.offsetLabelAt(instant),
+      cityName,
+      offsetLabel,
+      new LocalizedTextVo(
+        `${cityName.traditionalChinese}（${offsetLabel}）`,
+        `${cityName.english} (${offsetLabel})`,
+      ),
     )
   }
 }
