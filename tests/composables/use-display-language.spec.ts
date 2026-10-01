@@ -51,4 +51,13 @@ describe('useDisplayLanguage', () => {
     expect(displayLanguage.selectedLanguageCode.value).toBe('zh-TW')
     expect(document.documentElement.lang).toBe('zh-TW')
   })
+
+  it('頂列與設定頁各自取用時看的是同一份選擇', () => {
+    const topBar = displayLanguageRemembering(null)
+    const settingsPage = displayLanguageRemembering(null)
+
+    topBar.selectLanguage('en')
+
+    expect(settingsPage.selectedLanguageCode.value).toBe('en')
+  })
 })

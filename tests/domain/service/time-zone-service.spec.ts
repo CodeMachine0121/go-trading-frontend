@@ -42,6 +42,24 @@ describe('TimeZoneService', () => {
       expect(brisbane?.label.in(language)).toBe(expected)
     })
 
+    it('每一個城市名都有兩種說法', () => {
+      const timeZoneService = new TimeZoneService(buildProxy())
+
+      const cityNames = timeZoneService.listSelectableTimeZones()
+        .map(timeZone => [timeZone.cityName.in('zh-TW'), timeZone.cityName.in('en')])
+
+      expect(cityNames).toEqual([
+        ['世界標準時間', 'UTC'],
+        ['台北', 'Taipei'],
+        ['東京', 'Tokyo'],
+        ['香港', 'Hong Kong'],
+        ['新加坡', 'Singapore'],
+        ['布里斯本', 'Brisbane'],
+        ['倫敦', 'London'],
+        ['紐約', 'New York'],
+      ])
+    })
+
     it('每一個都標出目前的位移', () => {
       const timeZoneService = new TimeZoneService(buildProxy())
 

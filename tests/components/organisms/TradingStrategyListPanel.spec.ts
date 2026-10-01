@@ -172,5 +172,7 @@ describe('TradingStrategyListPanel 換成英文', () => {
     expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain(expected)
     expect(wrapper.get('[data-testid="trading-strategy-market-data-kind"]').text()).toBe('K-candle')
     expect(wrapper.get('[data-testid="trading-strategy-edit"]').text()).toBe('Edit')
+    // 名字是使用者自己取的，不跟著語言換。
+    expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain('黃金交叉')
   })
 })
