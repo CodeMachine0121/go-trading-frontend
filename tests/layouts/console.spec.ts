@@ -60,9 +60,8 @@ describe('console 版型的頁面標題', () => {
 
     wrapper.vm.$i18n.locale = language
     await nextTick()
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await vi.waitFor(() => expect(document.title).toBe(expected))
 
     expect(wrapper.get('h1').text()).toBe(expected)
-    expect(document.title).toBe(expected)
   })
 })

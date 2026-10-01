@@ -389,10 +389,10 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
   }
 
   it.each([
-    { name: '收一個信號', accepted: ['buy'], sentence: '突破 等於 買入', plainWords: '', isUndecided: false },
+    { name: '收一個信號', accepted: ['buy'], sentence: '突破 等於 買入', plainWords: null, isUndecided: false },
     { name: '收兩個信號時照「其中之一」讀，並翻成人話', accepted: ['buy', 'hold'], sentence: '突破 等於 買入或持有', plainWords: '也就是「不是賣出」', isUndecided: false },
     { name: '三個都收', accepted: ['buy', 'sell', 'hold'], sentence: '突破 等於 買入或賣出或持有', plainWords: '也就是「不管它說什麼都算」', isUndecided: false },
-    { name: '一個都沒收時照實說還沒決定', accepted: [], sentence: '突破 等於 （還沒選信號）', plainWords: '', isUndecided: true },
+    { name: '一個都沒收時照實說還沒決定', accepted: [], sentence: '突破 等於 （還沒選信號）', plainWords: null, isUndecided: true },
   ])('一條條件：$name', ({ accepted, sentence, plainWords, isUndecided }) => {
     const readOut = worded(new ConditionBoardDto('and', [
       new ConditionBoardItemDto(null, [piece('突破', ...accepted)]),
@@ -400,7 +400,7 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
 
     expect(readOut.relationWord.in('zh-TW')).toBe('等於')
     expect(readOut.sentence.in('zh-TW')).toBe(sentence)
-    expect(readOut.plainWords?.in('zh-TW') ?? '').toBe(plainWords)
+    expect(readOut.plainWords?.in('zh-TW') ?? null).toBe(plainWords)
     expect(readOut.isUndecided).toBe(isUndecided)
   })
 

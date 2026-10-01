@@ -6,6 +6,7 @@ import TradingStrategyPage from '~/pages/trading-strategies/[id].vue'
 import { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
 import { onADesktop } from '../fixtures/layout-density'
 import { buildTimeZone } from '../fixtures/time-zone'
+import { createDisplayLanguageI18n } from '~/locales/create-display-language-i18n'
 
 // 頁面只做接線。這裡看三件事：標題說的是「交易策略」、網址上那一段讀成改哪一份
 // （`new` 是新拼一份），以及回測那一側拿到的識別碼——還沒存過的那一份是沒有的。
@@ -53,18 +54,26 @@ const STUBS = {
 }
 
 describe('交易策略的兩個畫面', () => {
-  it('清單那一頁的標題是「交易策略」', () => {
+  // 頁面宣告的是語言目錄的鍵，版型才照目前的語言把它說成字。
+  const { global: translation } = createDisplayLanguageI18n()
+
+  it.each([
+    { traditionalChineseTitle: '交易策略', englishTitle: 'Trading strategies' },
+  ])('清單那一頁的標題是「$traditionalChineseTitle」，英文是「$englishTitle」', ({ traditionalChineseTitle, englishTitle }) => {
     pageState.declaredMeta.length = 0
     mount(TradingStrategyListPage, { global: { stubs: STUBS } })
 
-    expect(pageState.declaredMeta)
-      .toEqual([expect.objectContaining({ layout: 'console', consoleTitleKey: 'tradingStrategy.pages.list.title' })])
+    const [meta] = pageState.declaredMeta
+    expect(pageState.declaredMeta).toHaveLength(1)
+    expect(meta?.layout).toBe('console')
+    expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'zh-TW' })).toBe(traditionalChineseTitle)
+    expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'en' })).toBe(englishTitle)
   })
 
   it.each([
     { name: '「new」是新拼一份：不去讀任何一份，回測那一側還沒有東西可以指名', routeId: 'new', expectedId: 'none', reads: false },
     { name: '一個號碼就是改那一份', routeId: '7', expectedId: '7', reads: true },
-  ])('$name', async ({ routeId, expectedId, reads }) => {
+  ])('$name；標題是「交易策略」，英文是「Trading strategy」', async ({ routeId, expectedId, reads }) => {
     pageState.declaredMeta.length = 0
     pageState.routeId = routeId
     pageState.getTradingStrategy.mockReset().mockResolvedValue(null)
@@ -72,8 +81,11 @@ describe('交易策略的兩個畫面', () => {
     const wrapper = mount(TradingStrategyPage, { global: { stubs: STUBS } })
     await flushPromises()
 
-    expect(pageState.declaredMeta)
-      .toEqual([expect.objectContaining({ layout: 'console', consoleTitleKey: 'tradingStrategy.pages.workbench.title' })])
+    const [meta] = pageState.declaredMeta
+    expect(pageState.declaredMeta).toHaveLength(1)
+    expect(meta?.layout).toBe('console')
+    expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'zh-TW' })).toBe('交易策略')
+    expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'en' })).toBe('Trading strategy')
     expect(wrapper.get('[data-testid="backtest-id"]').text()).toBe(expectedId)
     expect(pageState.getTradingStrategy).toHaveBeenCalledTimes(reads ? 1 : 0)
   })
