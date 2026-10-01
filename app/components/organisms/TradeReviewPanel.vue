@@ -76,7 +76,7 @@ watch(() => JSON.stringify([
       class="trade-review-panel__state"
       data-testid="review-unavailable"
     >
-      {{ reviewUnavailableMessage === null ? '' : localize(reviewUnavailableMessage) }}
+      {{ localize(reviewUnavailableMessage) }}
     </p>
 
     <form

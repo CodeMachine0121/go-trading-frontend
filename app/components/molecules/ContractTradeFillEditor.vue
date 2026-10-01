@@ -45,11 +45,11 @@ const sizeModeLabels = computed<Readonly<Record<ContractTradeSizeMode, string>>>
   margin: t('contractTradeJournal.fillEditor.sizeModes.margin'),
 }))
 
-const feeNotes = computed(() => fees.map(fee => fee.note === null ? '' : localize(fee.note)))
+const feeNotes = computed(() => fees.map(fee => localize(fee.note)))
 
 const sizePreviews = computed(() => fillSizes.map(fillSize => ({
-  sizeText: fillSize.sizeText === null ? '' : localize(fillSize.sizeText),
-  feeShareText: fillSize.feeShareText === null ? '' : localize(fillSize.feeShareText),
+  sizeText: localize(fillSize.sizeText),
+  feeShareText: localize(fillSize.feeShareText),
 })))
 
 const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', readonly TradeFormField[]>> = {
@@ -201,7 +201,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       class="contract-trade-fill-editor__error"
       data-testid="fill-error"
     >
-      {{ rejectionMessage === null ? '' : localize(rejectionMessage) }}
+      {{ localize(rejectionMessage) }}
     </p>
 
     <div class="contract-trade-fill-editor__actions">

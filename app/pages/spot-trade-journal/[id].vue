@@ -106,7 +106,7 @@ onMounted(() => {
             <template v-if="detail.record.value.closedAt">
               → {{ t('tradeJournal.common.joined', {
                 first: formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier),
-                second: detail.record.value.holdingDurationText === null ? '' : localize(detail.record.value.holdingDurationText),
+                second: localize(detail.record.value.holdingDurationText),
               }) }}
             </template>
             <template v-else>

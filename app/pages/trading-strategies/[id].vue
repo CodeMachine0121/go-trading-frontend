@@ -142,7 +142,7 @@ const { localize } = useLocalizedText()
     </AppAlert>
 
     <template v-else>
-      <AppToast :message="workbench.announcement.value === null ? '' : localize(workbench.announcement.value)" />
+      <AppToast :message="localize(workbench.announcement.value)" />
 
       <!--
         回清單的出口擺在**分頁切換之上**，所以它與現在在哪一個分頁無關：

@@ -17,4 +17,17 @@ export class LocalizedTextVo {
   in(language: DisplayLanguageCodeVo): string {
     return language === 'en' ? this.english : this.traditionalChinese
   }
+
+  /**
+   * 以自己為連接詞，把幾段話接成一句（`、` 與 `, `、「或」與 `or`）；沒有的那一段（`null`）略過。
+   * 兩種語言各接各的，但接進來的段落一定是同一批——不會有一種語言多說了一段。
+   */
+  join(texts: readonly (LocalizedTextVo | null)[]): LocalizedTextVo {
+    const presentTexts = texts.filter(text => text !== null)
+
+    return new LocalizedTextVo(
+      presentTexts.map(text => text.traditionalChinese).join(this.traditionalChinese),
+      presentTexts.map(text => text.english).join(this.english),
+    )
+  }
 }

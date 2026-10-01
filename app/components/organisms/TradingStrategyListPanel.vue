@@ -66,7 +66,7 @@ onMounted(() => {
       </AppButton>
     </header>
 
-    <AppToast :message="tradingStrategies.announcement.value === null ? '' : localize(tradingStrategies.announcement.value)" />
+    <AppToast :message="localize(tradingStrategies.announcement.value)" />
 
     <AppAlert
       v-if="tradingStrategies.failureMessage.value !== null"

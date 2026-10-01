@@ -129,7 +129,7 @@ const selectedValue = computed({
                 </template>
                 <template v-else>
                   <td class="spot-trade-live-comparison-panel__unavailable">
-                    {{ row.backtestUnavailableMessage === null ? '' : localize(row.backtestUnavailableMessage) }}
+                    {{ localize(row.backtestUnavailableMessage) }}
                   </td>
                   <td>{{ localize(row.live.winRateText) }}</td>
                   <td>—</td>

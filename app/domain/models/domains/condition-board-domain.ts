@@ -67,11 +67,6 @@ export class ConditionBoardDomain {
    * 一組旁邊還有別的格時才加的括號、一條都沒有時那一行說什麼。畫面只把這些字排出來。
    */
   toDto(): ConditionBoardDto {
-    // 一句話是幾段話接起來的，兩種語言各自接、各自用自己的連接詞。
-    const joined = (texts: readonly LocalizedTextVo[], separator: LocalizedTextVo) => new LocalizedTextVo(
-      texts.map(text => text.traditionalChinese).join(separator.traditionalChinese),
-      texts.map(text => text.english).join(separator.english),
-    )
     const spaced = (word: LocalizedTextVo) => new LocalizedTextVo(
       ` ${word.traditionalChinese} `, ` ${word.english} `)
 
@@ -81,7 +76,7 @@ export class ConditionBoardDomain {
         const signalWords = isUndecided
           ? NO_SIGNAL_WORDS
           // 幾個信號之間是「其中之一」，所以連起來的字是「或」。
-          : joined(piece.acceptedSignals.map(signal => new SignalDomain(signal).label()), SIGNAL_SEPARATOR)
+          : SIGNAL_SEPARATOR.join(piece.acceptedSignals.map(signal => new SignalDomain(signal).label()))
         const excluded = SIGNAL_VALUES.find(signal => !piece.acceptedSignals.includes(signal))
         const excludedWords = excluded === undefined ? NO_WORDS : new SignalDomain(excluded).label()
         // **一支策略腳本同一時間只吐一個信號**，所以收了兩個以上時是「其中之一」，
@@ -103,7 +98,7 @@ export class ConditionBoardDomain {
           piece.acceptedSignals,
           RELATION_WORD,
           signalWords,
-          joined([sourceWords, RELATION_WORD, signalWords], new UntranslatedTextVo(' ')),
+          new UntranslatedTextVo(' ').join([sourceWords, RELATION_WORD, signalWords]),
           plainWords,
           isUndecided,
         )
@@ -111,16 +106,15 @@ export class ConditionBoardDomain {
       const joinerWord = item.operator === null ? NO_WORDS : OPERATOR_WORDS[item.operator]
 
       return new ConditionBoardItemDto(
-        item.operator, pieces, joinerWord, joined(pieces.map(piece => piece.sentence), spaced(joinerWord)))
+        item.operator, pieces, joinerWord, spaced(joinerWord).join(pieces.map(piece => piece.sentence)))
     })
     const joinerWord = OPERATOR_WORDS[this.board.operator]
     // 一組只有在**旁邊還有別的格**時才加上括號：「A 等於 買入 且（B 等於 買入 或 C 等於 買入）」。
     // 整張只有那一組時，括號什麼都沒有分開，只會讓一句話多兩個符號。
-    const sentence = joined(
+    const sentence = spaced(joinerWord).join(
       items.map(item => (item.isBundle && items.length > 1
         ? new LocalizedTextVo(`（${item.sentence.traditionalChinese}）`, `(${item.sentence.english})`)
         : item.sentence)),
-      spaced(joinerWord),
     )
 
     return new ConditionBoardDto(

@@ -29,10 +29,7 @@ export class BinanceTradingKeyDomain {
             `結尾 ${this.binanceTradingKey.apiKeyTail}`,
             `Ending in ${this.binanceTradingKey.apiKeyTail}`,
           ),
-      new LocalizedTextVo(
-        tradableMarketLabels.map(label => label.traditionalChinese).join('、'),
-        tradableMarketLabels.map(label => label.english).join(', '),
-      ),
+      new LocalizedTextVo('、', ', ').join(tradableMarketLabels),
       this.binanceTradingKey.configuredAt,
     )
   }

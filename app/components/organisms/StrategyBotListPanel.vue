@@ -416,7 +416,7 @@ onMounted(() => {
     <!--
       「存好了」那一句由工作台說，在這一頁看到——存完之後使用者已經被送回來了。
     -->
-    <AppToast :message="bots.announcement.value === null ? '' : localize(bots.announcement.value)" />
+    <AppToast :message="localize(bots.announcement.value)" />
 
     <ConfirmDialog
       :open="bots.deleting.value !== null"

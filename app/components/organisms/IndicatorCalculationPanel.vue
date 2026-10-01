@@ -918,7 +918,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               :class="`indicator-calculation-panel__signal--${calculationRun.result.value.signalTone}`"
               data-testid="signal-verdict"
             >
-              {{ calculationRun.result.value.signalLabel === null ? '' : localize(calculationRun.result.value.signalLabel) }}
+              {{ localize(calculationRun.result.value.signalLabel) }}
             </p>
 
             <div

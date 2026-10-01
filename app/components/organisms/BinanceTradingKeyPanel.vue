@@ -105,7 +105,7 @@ function confirmRemoval(): void {
           <span
             class="binance-trading-key-panel__secret"
             data-testid="binance-trading-key-api-key"
-          >{{ setting?.apiKeySummary ? localize(setting.apiKeySummary) : '' }}</span>
+          >{{ localize(setting?.apiKeySummary) }}</span>
           <AppButton
             v-if="!editing"
             variant="secondary"
@@ -127,7 +127,7 @@ function confirmRemoval(): void {
           class="binance-trading-key-panel__value"
           data-testid="binance-trading-key-tradable-markets"
         >
-          {{ setting ? localize(setting.tradableMarketsLabel) : '' }}
+          {{ localize(setting?.tradableMarketsLabel) }}
         </dd>
       </div>
 

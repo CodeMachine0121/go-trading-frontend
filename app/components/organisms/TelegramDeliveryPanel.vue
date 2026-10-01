@@ -153,7 +153,7 @@ function confirmRemoval(): void {
           <span class="telegram-delivery-panel__hint">{{ t('settings.telegramDelivery.botTokenTailHint') }}</span>
         </dt>
         <dd class="telegram-delivery-panel__value">
-          <span class="telegram-delivery-panel__secret">{{ setting?.summary ? localize(setting.summary) : '' }}</span>
+          <span class="telegram-delivery-panel__secret">{{ localize(setting?.summary) }}</span>
           <AppButton
             variant="secondary"
             size="small"

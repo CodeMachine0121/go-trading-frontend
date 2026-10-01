@@ -1,4 +1,5 @@
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 
 /** 後端的方向拼法對到畫面上的詞。認不得的不在這裡——不猜。 */
@@ -8,7 +9,8 @@ const DIRECTION_WORDS: Readonly<Record<string, LocalizedTextVo>> = {
 }
 
 /** 一句話的每一段之間用什麼隔開，兩種語言都一樣。 */
-const PART_SEPARATOR = ' · '
+const PART_SEPARATOR = new UntranslatedTextVo(' · ')
+const WORD_SEPARATOR = new UntranslatedTextVo(' ')
 
 /**
  * Domain Model：一輪建議過的部位，寫成一句話的規則。
@@ -48,10 +50,10 @@ export class StrategyBotRunSuggestionDomain {
       || this.runRecord.suggestedNotional !== null
 
     if (!isContractRound) {
-      return this.joined([
+      return PART_SEPARATOR.join([
         new LocalizedTextVo(`押 ${stake.toString()}`, `Stake ${stake.toString()}`),
         ...exitParts,
-      ], PART_SEPARATOR)
+      ])
     }
 
     // 只認這張表自己的鍵：沿著原型找到的 `constructor`、`toString` 不是方向。
@@ -60,16 +62,16 @@ export class StrategyBotRunSuggestionDomain {
       ? DIRECTION_WORDS[direction] ?? null
       : null
 
-    const directionAndLeverage = this.joined([
+    const directionAndLeverage = WORD_SEPARATOR.join([
       directionWords,
       this.runRecord.suggestedLeverage === null
         ? null
         : new LocalizedTextVo(
             `${this.runRecord.suggestedLeverage.toString()} 倍`,
             `${this.runRecord.suggestedLeverage.toString()}x`),
-    ], ' ')
+    ])
 
-    return this.joined([
+    return PART_SEPARATOR.join([
       directionAndLeverage.traditionalChinese === '' ? null : directionAndLeverage,
       new LocalizedTextVo(`保證金 ${stake.toString()}`, `Margin ${stake.toString()}`),
       this.runRecord.suggestedNotional === null
@@ -78,15 +80,6 @@ export class StrategyBotRunSuggestionDomain {
             `名目 ${this.runRecord.suggestedNotional.toString()}`,
             `Notional ${this.runRecord.suggestedNotional.toString()}`),
       ...exitParts,
-    ], PART_SEPARATOR)
-  }
-
-  /** 把有的那幾段接成一句，兩種語言各接各的——段落的取捨在兩種語言裡必須一樣。 */
-  private joined(parts: readonly (LocalizedTextVo | null)[], separator: string): LocalizedTextVo {
-    const present = parts.filter(part => part !== null)
-
-    return new LocalizedTextVo(
-      present.map(part => part.traditionalChinese).join(separator),
-      present.map(part => part.english).join(separator))
+    ])
   }
 }

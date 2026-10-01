@@ -14,8 +14,9 @@ export function useLocalizedText() {
   const currentLanguage = computed<DisplayLanguageCodeVo>(
     () => DISPLAY_LANGUAGE_CODES.find(code => code === locale.value) ?? DISPLAY_LANGUAGE_CODES[0])
 
-  function localize(text: LocalizedTextVo): string {
-    return text.in(currentLanguage.value)
+  /** 沒有話要說（`null`）就是空字串，畫面不必每一處自己判斷一次。 */
+  function localize(text: LocalizedTextVo | null | undefined): string {
+    return text === null || text === undefined ? '' : text.in(currentLanguage.value)
   }
 
   return { localize }

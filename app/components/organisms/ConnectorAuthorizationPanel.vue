@@ -72,7 +72,7 @@ const { localize } = useLocalizedText()
       tone="danger"
       data-testid="authorization-load-failed"
     >
-      {{ loadErrorMessage ? localize(loadErrorMessage) : '' }}
+      {{ localize(loadErrorMessage) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -108,7 +108,7 @@ const { localize } = useLocalizedText()
         class="connector-authorization-panel__caption"
       >
         <template #clientName>
-          <strong data-testid="authorization-client-name">{{ authorizationRequest ? localize(authorizationRequest.clientName) : '' }}</strong>
+          <strong data-testid="authorization-client-name">{{ localize(authorizationRequest?.clientName) }}</strong>
         </template>
         <template #email>
           <strong data-testid="authorization-email">{{ email }}</strong>
@@ -127,7 +127,7 @@ const { localize } = useLocalizedText()
         tone="danger"
         data-testid="authorization-decision-error"
       >
-        {{ decisionErrorMessage ? localize(decisionErrorMessage) : '' }}
+        {{ localize(decisionErrorMessage) }}
       </AppAlert>
 
       <div class="connector-authorization-panel__actions">
