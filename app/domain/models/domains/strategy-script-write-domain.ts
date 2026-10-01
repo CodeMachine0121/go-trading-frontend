@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
@@ -30,7 +31,7 @@ export class StrategyScriptWriteDomain {
   constructor(strategyScriptWriteDto: StrategyScriptWriteDto) {
     const normalizedName = strategyScriptWriteDto.name.trim()
     if (normalizedName === '') {
-      throw new StrategyScriptFieldError('name', '請填寫策略腳本名稱')
+      throw new StrategyScriptFieldError('name', new LocalizedTextVo('請填寫策略腳本名稱', 'Enter a strategy script name'))
     }
 
     // 整份空白就擋下，與送出計算、送出回測同一條規則、同一句話。
@@ -38,7 +39,7 @@ export class StrategyScriptWriteDomain {
     // 仍然是七行 package 與 import。現在存下去的就是編輯區裡那一份，
     // 少了這道門，一份空白會一路送到後端，換回一句畫面接不住的拒絕。
     if (strategyScriptWriteDto.content.script.trim() === '') {
-      throw new StrategyScriptFieldError('script', '請填寫算式內容')
+      throw new StrategyScriptFieldError('script', new LocalizedTextVo('請填寫算式內容', 'Enter the script'))
     }
 
     const resultType = new IndicatorResultTypeDomain(strategyScriptWriteDto.content.resultType)

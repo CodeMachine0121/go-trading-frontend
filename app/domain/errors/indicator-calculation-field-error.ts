@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /** 指標計算的輸入欄位。錯誤帶著它，畫面才知道訊息要標在哪一欄旁邊。 */
 /**
  * 這次拒絕是關於畫面上的哪一塊。它決定的是**訊息標在哪裡**——
@@ -11,10 +13,10 @@ export type IndicatorCalculationField = 'symbol' | 'span' | 'script' | 'paramete
 export class IndicatorCalculationFieldError extends Error {
   constructor(
     public readonly field: IndicatorCalculationField,
-    message: string,
+    public readonly localizedMessage: LocalizedTextVo,
     options?: { cause?: unknown },
   ) {
-    super(message, { cause: options?.cause })
+    super(localizedMessage.traditionalChinese, { cause: options?.cause })
     this.name = 'IndicatorCalculationFieldError'
   }
 }

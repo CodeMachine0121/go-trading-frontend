@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MarketplaceSearchDomain } from '~/domain/models/domains/marketplace-search-domain'
 import { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 一列，只帶會影響比對結果的那幾個字。 */
 function rowOf(
@@ -11,7 +12,7 @@ function rowOf(
   return new MarketplaceListingRowDto(
     new PublishedStrategyScriptDto(
       id, name, description, 'floatList', publisherEmail,
-      new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字'),
+      new Date('2026-09-10T08:00:00.000Z'), [], true, new LocalizedTextVo('一串數字', 'A list of numbers')),
     false,
   )
 }

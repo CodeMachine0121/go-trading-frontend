@@ -9,6 +9,7 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { CandleCoverageShortfallDomain } from '~/domain/models/domains/candle-coverage-shortfall-domain'
 import { MarketClosedThroughoutDomain } from '~/domain/models/domains/market-closed-throughout-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
@@ -189,7 +190,9 @@ export class IndicatorCalculationProxy extends BackendApiProxy implements IIndic
         && error.field === OBSERVATION_WINDOW_START_FIELD) {
         throw new IndicatorCalculationFieldError(
           'span',
-          `${error.message}。請縮短要看的區間，或換粗一點的彙總刻度。`,
+          new LocalizedTextVo(
+            `${error.message}。請縮短要看的區間，或換粗一點的彙總刻度。`,
+            `${error.message}. Shorten the span to view, or pick a coarser aggregation interval.`),
           { cause: error })
       }
 

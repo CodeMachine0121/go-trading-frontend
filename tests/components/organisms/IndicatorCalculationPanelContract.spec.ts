@@ -26,6 +26,7 @@ import {
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 
@@ -334,7 +335,7 @@ describe('合約策略腳本的工作區', () => {
 
   it('湊不出最少可算根數時，與現貨同一句話，落在「要看多長」旁邊', async () => {
     const wrapper = mountContractPanel({
-      calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError('span', '可用的只有 12 根，這支策略腳本至少要 20 根')),
+      calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError('span', new UntranslatedTextVo('可用的只有 12 根，這支策略腳本至少要 20 根'))),
     })
     await typeScript(wrapper, CONTRACT_SCRIPT)
 

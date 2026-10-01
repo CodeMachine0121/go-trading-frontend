@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
@@ -36,7 +37,7 @@ export class IndicatorCalculationRequestDomain {
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new IndicatorCalculationFieldError('symbol', '請指定交易標的')
+      throw new IndicatorCalculationFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Choose a trading symbol'))
     }
 
     // 只有「整份是空白」才擋：前後多餘的空白行不影響算式成立，但也不會被砍掉——
@@ -46,10 +47,10 @@ export class IndicatorCalculationRequestDomain {
 
     if (namesAStrategyScript && carriesAnAlgorithm) {
       throw new IndicatorCalculationFieldError(
-        'script', '指名一支策略腳本與自帶一段算式只能挑一種')
+        'script', new LocalizedTextVo('指名一支策略腳本與自帶一段算式只能挑一種', 'Either name a strategy script or bring your own script, not both'))
     }
     if (!namesAStrategyScript && !carriesAnAlgorithm) {
-      throw new IndicatorCalculationFieldError('script', '請填寫算式內容')
+      throw new IndicatorCalculationFieldError('script', new LocalizedTextVo('請填寫算式內容', 'Enter the script'))
     }
 
     this.symbol = normalizedSymbol

@@ -17,6 +17,7 @@ import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calcul
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const WHOLE_SCRIPT = 'package main\n\nimport "indicator"\n\n'
@@ -629,6 +630,29 @@ describe('策略腳本畫面：算式裡可以用什麼', () => {
     expect(readings.some(text => text.includes('indicator.Hold') && text.includes('持有'))).toBe(true)
     expect(wrapper.text()).not.toContain('看正負號')
   })
+  it('英文畫面上說明整份是英文，程式碼照原樣', async () => {
+    const wrapper = mountPanel(buildProxy())
+    wrapper.vm.$i18n.locale = 'en'
+    await openGuide(wrapper)
+
+    expect(wrapper.text()).toContain('This is the shape the script sees, not the database table')
+    expect(wrapper.text()).toContain('What each K-candle holds')
+    expect(wrapper.text()).toContain('indicator.LookbackCount("period")')
+    const readings = wrapper.findAll('[data-testid="signal-reading-row"]').map(row => row.text())
+    expect(readings.some(text => text.includes('indicator.Buy') && text.includes('Buy'))).toBe(true)
+  })
+
+  it('英文畫面上帶入的範例用英文的指標名稱', async () => {
+    const wrapper = mountPanel(buildProxy())
+    wrapper.vm.$i18n.locale = 'en'
+    await settle()
+
+    await wrapper.get('[data-testid="example-button"]').trigger('click')
+    await settle()
+
+    expect(scriptText(wrapper)).toContain('"Average price"')
+    expect(scriptText(wrapper)).not.toContain('均價')
+  })
 })
 
 describe('策略腳本畫面：這次用了多粗', () => {
@@ -775,7 +799,7 @@ describe('沒畫滿時，策略腳本畫面要明講', () => {
     const wrapper = mountPanel(buildProxy({
       calculateIndicator: vi.fn().mockRejectedValue(new IndicatorCalculationFieldError(
         'span',
-        '這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。')),
+        new UntranslatedTextVo('這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。'))),
     }))
 
     await fillAndSubmit(wrapper)

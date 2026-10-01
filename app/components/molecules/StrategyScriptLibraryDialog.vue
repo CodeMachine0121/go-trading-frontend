@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/atoms/AppModal.vue'
 import StrategyScriptLibraryList from '~/components/molecules/StrategyScriptLibraryList.vue'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：窄螢幕上的策略腳本清單——同一份清單，收在一張蓋上來的紙裡。
 //
@@ -20,7 +22,7 @@ const {
   open: boolean
   strategyScripts: StrategyScriptDto[]
   adoptedStrategyScripts: PublishedStrategyScriptDto[]
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
   activeStrategyScriptId?: number | null
   activeAdoptedStrategyScriptId?: number | null
 }>()
@@ -31,12 +33,14 @@ const emit = defineEmits<{
   deleteAdopted: [id: number]
   close: []
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <AppModal
     :open="open"
-    title="策略腳本清單"
+    :title="t('strategyScript.strategyScriptLibraryDialog.title')"
     @close="emit('close')"
   >
     <StrategyScriptLibraryList

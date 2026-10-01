@@ -20,7 +20,7 @@ describe('IndicatorCalculationDomain', () => {
       new IndicatorValueVo('均價', [120]),
     ]).toDomain().toDto()
 
-    expect(resultDto.indicatorValues.map(indicatorValue => indicatorValue.displayValues[0]))
+    expect(resultDto.indicatorValues.map(indicatorValue => indicatorValue.displayValues[0]?.in('zh-TW')))
       .toEqual(['110', '120'])
   })
 
@@ -31,7 +31,7 @@ describe('IndicatorCalculationDomain', () => {
 
     expect(resultDto.symbol).toBe('BTCUSDT')
     expect(resultDto.usedCandleCount).toBe(3)
-    expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['110'])
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('zh-TW'))).toEqual(['110'])
     expect(resultDto.isEmpty).toBe(false)
   })
 
@@ -48,7 +48,7 @@ describe('IndicatorCalculationDomain', () => {
     ]).toDomain().toDto()
 
     expect(resultDto.indicatorValues[0]?.isSeries).toBe(false)
-    expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['110'])
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('zh-TW'))).toEqual(['110'])
   })
 
   it('一串數字的每個值都看得到，順序不變', () => {
@@ -57,7 +57,7 @@ describe('IndicatorCalculationDomain', () => {
     ]).toDomain().toDto()
 
     expect(resultDto.indicatorValues[0]?.isSeries).toBe(true)
-    expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['100', '105', '110'])
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('zh-TW'))).toEqual(['100', '105', '110'])
   })
 
   it('是非以「是」與「否」呈現，畫面不必自己翻譯', () => {
@@ -66,7 +66,7 @@ describe('IndicatorCalculationDomain', () => {
       new IndicatorValueVo('死亡交叉', [false]),
     ]).toDomain().toDto()
 
-    expect(resultDto.indicatorValues.map(indicatorValue => indicatorValue.displayValues[0]))
+    expect(resultDto.indicatorValues.map(indicatorValue => indicatorValue.displayValues[0]?.in('zh-TW')))
       .toEqual(['否', '是'])
   })
 
@@ -75,7 +75,7 @@ describe('IndicatorCalculationDomain', () => {
       new IndicatorValueVo('逐根收紅', [true, false, true]),
     ]).toDomain().toDto()
 
-    expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['是', '否', '是'])
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('zh-TW'))).toEqual(['是', '否', '是'])
   })
 
   it('空的一串是一串，只是裡面沒有值', () => {
@@ -98,7 +98,7 @@ describe('IndicatorCalculationDomain', () => {
     const resultDto = new IndicatorCalculation('BTCUSDT', '5m', 3, resultType, [], [], 'buy')
       .toDomain().toDto()
 
-    expect(resultDto.resultTypeLabel).toBe(label)
+    expect(resultDto.resultTypeLabel.in('zh-TW')).toBe(label)
   })
 
   it.each([
@@ -110,7 +110,7 @@ describe('IndicatorCalculationDomain', () => {
       .toDomain().toDto()
 
     expect(resultDto.isSignal).toBe(true)
-    expect(resultDto.signalLabel).toBe(signalLabel)
+    expect(resultDto.signalLabel?.in('zh-TW')).toBe(signalLabel)
     expect(resultDto.signalTone).toBe(signalTone)
     expect(resultDto.indicatorValues).toHaveLength(0)
     expect(resultDto.isEmpty).toBe(false)
@@ -121,8 +121,8 @@ describe('IndicatorCalculationDomain', () => {
       new IndicatorValueVo('均價', [110]),
     ]).toDomain().toDto()
 
-    expect(resultDto.resultTypeLabel).toBe('一個數字')
-    expect(resultDto.indicatorValues[0]?.displayValues).toEqual(['110'])
+    expect(resultDto.resultTypeLabel.in('zh-TW')).toBe('一個數字')
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('zh-TW'))).toEqual(['110'])
   })
 })
 
@@ -145,14 +145,14 @@ describe('這一次有沒有畫滿', () => {
     //
     // **兩個數字各自綁在自己的那半句上。** 只檢查兩個數字有出現，
     // 對「裝反」是瞎的——而裝反之後那句話讀起來完全通順。
-    const message = resultOf(50, 119).shortCoverageMessage
+    const message = resultOf(50, 119).shortCoverageMessage?.in('zh-TW')
 
     expect(message).toMatch(/需要 119 根/)
     expect(message).toMatch(/只湊得出 50 根/)
   })
 
   it('兩個數字裝反了要看得出來', () => {
-    const message = resultOf(19, 20).shortCoverageMessage
+    const message = resultOf(19, 20).shortCoverageMessage?.in('zh-TW')
 
     expect(message).toMatch(/需要 20 根/)
     expect(message).toMatch(/只湊得出 19 根/)
@@ -161,7 +161,7 @@ describe('這一次有沒有畫滿', () => {
   it('兩個數字照抄，不自己算', () => {
     // 送出去的是格數、回來的已經含了回看根數，兩者不是同一個數。
     // 這裡若自己推算，說出來的數字會少掉回看的那一段。
-    const message = resultOf(50, 119).shortCoverageMessage
+    const message = resultOf(50, 119).shortCoverageMessage?.in('zh-TW')
 
     expect(message).not.toContain('100')
     expect(message).not.toContain('69')
@@ -183,6 +183,28 @@ describe('這一次有沒有畫滿', () => {
     ).toDomain().toDto()
 
     expect(resultDto.signalLabel).not.toBeNull()
-    expect(resultDto.shortCoverageMessage).toContain('50')
+    expect(resultDto.shortCoverageMessage?.in('zh-TW')).toContain('50')
+  })
+})
+
+describe('英文畫面上的計算結果', () => {
+  it.each([
+    { resultType: 'bool', values: [true, false], expected: ['Yes', 'No'] },
+    { resultType: 'float', values: [110], expected: ['110'] },
+  ])('$resultType 的值以英文說成 $expected', ({ resultType, values, expected }) => {
+    const resultDto = new IndicatorCalculation('BTCUSDT', '5m', 3, resultType, [
+      new IndicatorValueVo('average', values),
+    ]).toDomain().toDto()
+
+    expect(resultDto.indicatorValues[0]?.displayValues.map(value => value.in('en'))).toEqual(expected)
+  })
+
+  it('沒畫滿的那一句也有英文，兩個數字各自綁在自己的那半句上', () => {
+    const message = new IndicatorCalculation(
+      'BTCUSDT', '5m', 50, 'float', [new IndicatorValueVo('average', [110])], [], null, 119,
+    ).toDomain().toDto().shortCoverageMessage?.in('en')
+
+    expect(message).toMatch(/needs 119 candles/)
+    expect(message).toMatch(/only yields 50/)
   })
 })

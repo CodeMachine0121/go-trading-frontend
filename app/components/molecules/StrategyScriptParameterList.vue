@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
+import type { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
 
 // 分子：一支算式的旋鈕這一整塊——宣告、值、新增與移除。
@@ -19,7 +21,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 const { fields, kindOptions, readOnly = false } = defineProps<{
   /** 每一列：旋鈕本身，加上它該長什麼樣子。 */
   fields: readonly StrategyScriptParameterFieldDto[]
-  kindOptions: readonly { value: StrategyScriptParameterKind, label: string }[]
+  kindOptions: readonly StrategyScriptParameterKindOptionDto[]
   /**
    * 只看、不改：一支從市集加入來的策略腳本，旋鈕是分享者宣告的。
    * 每一格照樣顯示（那是分享者公開的東西），但改不動，也沒有新增與移除。
@@ -34,6 +36,9 @@ const emit = defineEmits<{
   changeKind: [index: number, kind: StrategyScriptParameterKind]
   changeValue: [index: number, value: number]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 /** 打到一半的東西不往下送——讀不成數字就當作使用者還沒打完。 */
 function onValueInput(index: number, raw: string | number) {
@@ -52,10 +57,10 @@ function onValueInput(index: number, raw: string | number) {
       data-testid="parameters-empty"
     >
       <template v-if="readOnly">
-        這支策略腳本沒有可調的東西。
+        {{ t('strategyScript.strategyScriptParameterList.emptyReadOnly') }}
       </template>
       <template v-else>
-        這支算式沒有可調的東西。加一個之後，算式就能用它的名字取用它。
+        {{ t('strategyScript.strategyScriptParameterList.emptyEditable') }}
       </template>
     </p>
 
@@ -70,8 +75,8 @@ function onValueInput(index: number, raw: string | number) {
           <AppInput
             :model-value="field.parameter.name"
             type="text"
-            placeholder="名稱"
-            aria-label="名稱"
+            :placeholder="t('strategyScript.strategyScriptParameterList.nameLabel')"
+            :aria-label="t('strategyScript.strategyScriptParameterList.nameLabel')"
             class="strategy-script-parameter-list__name"
             :invalid="field.isInvalid"
             :disabled="readOnly"
@@ -81,7 +86,7 @@ function onValueInput(index: number, raw: string | number) {
 
           <AppSelect
             :model-value="field.parameter.kind"
-            aria-label="種類"
+            :aria-label="t('strategyScript.strategyScriptParameterList.kindLabel')"
             class="strategy-script-parameter-list__kind"
             :disabled="readOnly"
             data-testid="parameter-kind-select"
@@ -92,7 +97,7 @@ function onValueInput(index: number, raw: string | number) {
               :key="kindOption.value"
               :value="kindOption.value"
             >
-              {{ kindOption.label }}
+              {{ localize(kindOption.label) }}
             </option>
           </AppSelect>
 
@@ -100,7 +105,7 @@ function onValueInput(index: number, raw: string | number) {
           <AppSelect
             v-if="field.control === 'options'"
             :model-value="String(field.parameter.value)"
-            aria-label="預設值"
+            :aria-label="t('strategyScript.strategyScriptParameterList.defaultValueLabel')"
             class="strategy-script-parameter-list__value"
             :disabled="readOnly"
             data-testid="parameter-value-input"
@@ -118,7 +123,7 @@ function onValueInput(index: number, raw: string | number) {
             v-else
             :model-value="String(field.parameter.value)"
             type="number"
-            aria-label="預設值"
+            :aria-label="t('strategyScript.strategyScriptParameterList.defaultValueLabel')"
             class="strategy-script-parameter-list__value"
             :inputmode="field.inputMode"
             :step="field.step"
@@ -133,7 +138,7 @@ function onValueInput(index: number, raw: string | number) {
             type="button"
             variant="ghost"
             size="small"
-            label="移除"
+            :label="t('strategyScript.strategyScriptParameterList.removeLabel')"
             class="strategy-script-parameter-list__remove"
             :data-testid="`remove-parameter-${index}`"
             @click="emit('remove', index)"
@@ -153,7 +158,7 @@ function onValueInput(index: number, raw: string | number) {
       data-testid="add-parameter-button"
       @click="emit('add')"
     >
-      新增參數
+      {{ t('strategyScript.strategyScriptParameterList.add') }}
     </AppButton>
   </div>
 </template>

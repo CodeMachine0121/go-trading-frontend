@@ -13,6 +13,7 @@ import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-app
 import { buildStrategyScriptMarketplaceApplication, buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const SCRIPT_BODY = 'return map[string]float64{"ma": 1}'
 
@@ -289,8 +290,8 @@ describe('要的太多了，說明要落在改得動的那一格旁邊', () => {
     const wrapper = mountPanel(buildProxy(vi.fn().mockRejectedValue(
       new IndicatorCalculationFieldError(
         'span',
-        '這一段配上回看根數要用到 105120 根，超過單次可用的最大根數（最多 1000 根）。'
-        + '請縮短要看的區間，或換粗一點的彙總刻度。'))))
+        new UntranslatedTextVo('這一段配上回看根數要用到 105120 根，超過單次可用的最大根數（最多 1000 根）。'
+          + '請縮短要看的區間，或換粗一點的彙總刻度。')))))
     await flushPromises()
     await typeScriptBody(wrapper, SCRIPT_BODY)
 

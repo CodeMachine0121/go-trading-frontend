@@ -1,13 +1,14 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { SignalVo } from '~/domain/models/vo/signal-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 
 /** 一個信號在畫面上該說什麼、用什麼語氣。判斷屬於領域，畫面不自己翻譯。 */
 const SIGNAL_DESCRIPTIONS: Readonly<
-  Record<SignalVo, { label: string, tone: 'positive' | 'negative' | 'neutral' }>
+  Record<SignalVo, { label: LocalizedTextVo, tone: 'positive' | 'negative' | 'neutral' }>
 > = {
-  buy: { label: '買入', tone: 'positive' },
-  sell: { label: '賣出', tone: 'negative' },
-  hold: { label: '持有', tone: 'neutral' },
+  buy: { label: new LocalizedTextVo('買入', 'Buy'), tone: 'positive' },
+  sell: { label: new LocalizedTextVo('賣出', 'Sell'), tone: 'negative' },
+  hold: { label: new LocalizedTextVo('持有', 'Hold'), tone: 'neutral' },
 }
 
 /**
@@ -36,7 +37,7 @@ export class SignalDomain {
   }
 
   /** 給使用者看的結論：買入／賣出／持有。 */
-  label(): string {
+  label(): LocalizedTextVo {
     return SIGNAL_DESCRIPTIONS[this.value].label
   }
 

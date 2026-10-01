@@ -4,6 +4,8 @@ import StrategyScriptLibraryDialog from '~/components/molecules/StrategyScriptLi
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 function strategyScriptOf(id: number, name: string): StrategyScriptDto {
   return new StrategyScriptDto(
@@ -76,7 +78,7 @@ describe('StrategyScriptLibraryDialog', () => {
 
   it('連不上後端時說連不上，不呈現空清單的說法', () => {
     // 把連線失敗顯示成空清單，會讓人以為自己什麼都沒存過。
-    const wrapper = mountLibrary({ strategyScripts: [], errorMessage: '連不上後端' })
+    const wrapper = mountLibrary({ strategyScripts: [], errorMessage: new UntranslatedTextVo('連不上後端') })
 
     expect(wrapper.get('[data-testid="strategy-script-library-error"]').text()).toBe('連不上後端')
     expect(wrapper.find('[data-testid="strategy-script-library-empty"]').exists()).toBe(false)
@@ -95,7 +97,7 @@ describe('StrategyScriptLibraryDialog', () => {
 function adoptedStrategyScriptOf(id: number, name: string): PublishedStrategyScriptDto {
   return new PublishedStrategyScriptDto(
     id, name, '抓短線轉折', 'floatList', 'someone@example.com',
-    new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
+    new Date('2026-09-10T08:00:00.000Z'), [], true, new LocalizedTextVo('一串數字', 'A list of numbers'))
 }
 
 describe('StrategyScriptLibraryDialog：兩段清單', () => {

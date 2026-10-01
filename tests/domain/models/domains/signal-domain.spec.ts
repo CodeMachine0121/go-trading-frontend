@@ -3,18 +3,19 @@ import { SignalDomain } from '~/domain/models/domains/signal-domain'
 
 describe('SignalDomain', () => {
   it.each([
-    { declared: 'buy', label: '買入', tone: 'positive' },
-    { declared: 'sell', label: '賣出', tone: 'negative' },
-    { declared: 'hold', label: '持有', tone: 'neutral' },
-  ])('$declared 讀作「$label」，語氣是 $tone', ({ declared, label, tone }) => {
+    { declared: 'buy', label: '買入', englishLabel: 'Buy', tone: 'positive' },
+    { declared: 'sell', label: '賣出', englishLabel: 'Sell', tone: 'negative' },
+    { declared: 'hold', label: '持有', englishLabel: 'Hold', tone: 'neutral' },
+  ])('$declared 讀作「$label」，語氣是 $tone', ({ declared, label, englishLabel, tone }) => {
     const signal = new SignalDomain(declared)
 
-    expect(signal.label()).toBe(label)
+    expect(signal.label().in('zh-TW')).toBe(label)
+    expect(signal.label().in('en')).toBe(englishLabel)
     expect(signal.tone()).toBe(tone)
   })
 
   it('前後空白與大小寫都不影響解讀', () => {
-    expect(new SignalDomain('  BUY ').label()).toBe('買入')
+    expect(new SignalDomain('  BUY ').label().in('zh-TW')).toBe('買入')
   })
 
   it.each([
@@ -24,7 +25,7 @@ describe('SignalDomain', () => {
   ])('$description 時當作持有——不讓結果畫面壞掉', ({ declared }) => {
     const signal = new SignalDomain(declared)
 
-    expect(signal.label()).toBe('持有')
+    expect(signal.label().in('zh-TW')).toBe('持有')
     expect(signal.tone()).toBe('neutral')
   })
 })

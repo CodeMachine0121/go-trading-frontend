@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -7,6 +8,10 @@ import type { StrategyScriptMarketplaceApplication } from '~/application/strateg
 import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 有機體：市集這一頁的全部。
@@ -18,6 +23,9 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 const { strategyScriptMarketplaceApplication } = defineProps<{
   strategyScriptMarketplaceApplication: StrategyScriptMarketplaceApplication
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const listingRows = ref<MarketplaceListingRowDto[]>([])
 
@@ -43,8 +51,8 @@ const loading = ref(true)
 const unavailable = ref(false)
 /** 正在改變加入狀態的那一支。同時只會有一支，因為使用者一次只按得到一顆按鈕。 */
 const changingStrategyScriptId = ref<number | null>(null)
-const failureMessage = ref<string | null>(null)
-const noticeMessage = ref<string | null>(null)
+const failureMessage = shallowRef<LocalizedTextVo | null>(null)
+const noticeMessage = shallowRef<LocalizedTextVo | null>(null)
 
 async function reload() {
   try {
@@ -69,7 +77,9 @@ async function adopt(id: number) {
 
   try {
     await strategyScriptMarketplaceApplication.adoptStrategyScript(id)
-    noticeMessage.value = '已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。'
+    noticeMessage.value = new LocalizedTextVo(
+      '已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。',
+      'Copied to your strategy scripts. Whatever the author changes later will not affect your copy.')
     await reload()
   }
   catch (error: unknown) {
@@ -80,17 +90,25 @@ async function adopt(id: number) {
   }
 }
 
-function messageOf(error: unknown): string {
+function messageOf(error: unknown): LocalizedTextVo {
   // 「市集上沒有這一支」是這一頁最可能遇到的失敗，而它有一個明確的下一步：
   // 重新看一次——那一支很可能剛被它的主人收回。
   if (error instanceof StrategyScriptNotFoundError) {
-    return '這一支已經不在市集上了，可能剛被分享的人收回。重新整理就會看到目前的樣子。'
+    return new LocalizedTextVo(
+      '這一支已經不在市集上了，可能剛被分享的人收回。重新整理就會看到目前的樣子。',
+      'This one is no longer on the marketplace; its publisher may have just withdrawn it. Refresh to see the current listing.')
   }
   if (error instanceof BackendUnreachableError) {
-    return '連不上後端，請確認它已經啟動。'
+    return new LocalizedTextVo(
+      '連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
+  }
+  if (error instanceof BackendRequestRejectedError || error instanceof BackendServerError) {
+    return error.localizedMessage
   }
 
-  return error instanceof Error ? error.message : '操作失敗。'
+  return error instanceof Error
+    ? new UntranslatedTextVo(error.message)
+    : new LocalizedTextVo('操作失敗。', 'The operation failed.')
 }
 
 onMounted(reload)
@@ -103,8 +121,7 @@ onMounted(reload)
         常駐說明，不是提示訊息：「看不到算式」是這個地方的規則，任何時候看這一頁的人都需要知道。
       -->
       <p class="strategy-script-marketplace-panel__note">
-        這裡是大家分享出來的策略腳本。你看得到它算什麼、有哪些旋鈕，但看不到它怎麼算——
-        加入之後，它會出現在你挑策略腳本的地方，可以拿去算、也可以套到 K 線圖上。
+        {{ t('strategyScript.strategyScriptMarketplacePanel.note') }}
       </p>
 
       <!--
@@ -118,12 +135,12 @@ onMounted(reload)
         <label
           class="strategy-script-marketplace-panel__search-label"
           for="marketplace-search"
-        >搜尋</label>
+        >{{ t('strategyScript.strategyScriptMarketplacePanel.searchLabel') }}</label>
         <AppInput
           id="marketplace-search"
           v-model="searchQuery"
           type="search"
-          placeholder="策略腳本名稱、說明，或是誰分享的"
+          :placeholder="t('strategyScript.strategyScriptMarketplacePanel.searchPlaceholder')"
           data-testid="marketplace-search-input"
         />
       </div>
@@ -134,7 +151,7 @@ onMounted(reload)
       tone="danger"
       data-testid="marketplace-failure-alert"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
 
     <AppAlert
@@ -142,7 +159,7 @@ onMounted(reload)
       tone="success"
       data-testid="marketplace-notice"
     >
-      {{ noticeMessage }}
+      {{ localize(noticeMessage) }}
     </AppAlert>
 
     <AppAlert
@@ -150,14 +167,14 @@ onMounted(reload)
       tone="danger"
       data-testid="marketplace-unavailable-alert"
     >
-      讀不到市集，請確認後端已啟動。
+      {{ t('strategyScript.strategyScriptMarketplacePanel.unavailable') }}
     </AppAlert>
 
     <p
       v-else-if="loading"
       class="strategy-script-marketplace-panel__placeholder"
     >
-      讀取市集中…
+      {{ t('strategyScript.strategyScriptMarketplacePanel.loading') }}
     </p>
 
     <p
@@ -165,7 +182,7 @@ onMounted(reload)
       class="strategy-script-marketplace-panel__placeholder strategy-script-marketplace-panel__placeholder--empty"
       data-testid="marketplace-empty"
     >
-      市集上還沒有任何策略腳本。把自己調好的一支分享出來，別人就看得到它了。
+      {{ t('strategyScript.strategyScriptMarketplacePanel.empty') }}
     </p>
 
     <!--
@@ -178,14 +195,14 @@ onMounted(reload)
       class="strategy-script-marketplace-panel__placeholder strategy-script-marketplace-panel__placeholder--empty"
       data-testid="marketplace-no-matches"
     >
-      沒有符合「{{ searchQuery.trim() }}」的策略腳本。
+      {{ t('strategyScript.strategyScriptMarketplacePanel.noMatches', { query: searchQuery.trim() }) }}
       <AppButton
         variant="ghost"
         size="small"
         data-testid="marketplace-clear-search"
         @click="searchQuery = ''"
       >
-        清掉搜尋
+        {{ t('strategyScript.strategyScriptMarketplacePanel.clearSearch') }}
       </AppButton>
     </p>
 

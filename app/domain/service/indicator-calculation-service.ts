@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
 import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
@@ -59,7 +60,7 @@ export class IndicatorCalculationService {
    * 這個種類之下，一份可以直接執行的範例算式——**整份**，含最上面的宣告與匯入。
    * 填進編輯區就送得出去，使用者不必自己補任何一行。
    */
-  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): string {
+  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): LocalizedTextVo {
     return new IndicatorScriptDomain(
       new IndicatorResultTypeDomain(resultType), new MarketDataKindDomain(marketDataKind)).exampleScript()
   }
@@ -126,9 +127,9 @@ export class IndicatorCalculationService {
   /** 「多長」那個單位選單上可以挑的每一個。 */
   listCalculationSpanUnitOptions(): CalculationSpanUnitOptionDto[] {
     return [
-      new CalculationSpanUnitOptionDto('minute', '分鐘'),
-      new CalculationSpanUnitOptionDto('hour', '小時'),
-      new CalculationSpanUnitOptionDto('day', '天'),
+      new CalculationSpanUnitOptionDto('minute', new LocalizedTextVo('分鐘', 'minutes')),
+      new CalculationSpanUnitOptionDto('hour', new LocalizedTextVo('小時', 'hours')),
+      new CalculationSpanUnitOptionDto('day', new LocalizedTextVo('天', 'days')),
     ]
   }
 
@@ -159,9 +160,9 @@ export class IndicatorCalculationService {
   /** 種類選單上可以挑的每一個。 */
   listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
     return [
-      new StrategyScriptParameterKindOptionDto('lookbackCount', '回看根數'),
-      new StrategyScriptParameterKindOptionDto('number', '數值'),
-      new StrategyScriptParameterKindOptionDto('boolean', '是非'),
+      new StrategyScriptParameterKindOptionDto('lookbackCount', new LocalizedTextVo('回看根數', 'Lookback count')),
+      new StrategyScriptParameterKindOptionDto('number', new LocalizedTextVo('數值', 'Number')),
+      new StrategyScriptParameterKindOptionDto('boolean', new LocalizedTextVo('是非', 'Yes-no')),
     ]
   }
 

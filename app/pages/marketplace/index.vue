@@ -3,8 +3,8 @@ import StrategyScriptMarketplacePanel from '~/components/organisms/StrategyScrip
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: 'Marketplace',
-  consoleSubtitle: '大家分享出來的策略腳本。看得到它算什麼、有哪些旋鈕，看不到它怎麼算；加入之後就出現在你挑策略腳本的地方。',
+  consoleTitleKey: 'strategyScript.pages.marketplace.title',
+  consoleSubtitleKey: 'strategyScript.pages.marketplace.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。

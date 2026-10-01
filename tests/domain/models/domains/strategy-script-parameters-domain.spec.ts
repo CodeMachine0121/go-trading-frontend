@@ -63,7 +63,7 @@ describe('這一份哪裡不對', () => {
     { name: '回看根數是零', parameters: [lookbackCount('期數', 0)], expected: '回看根數必須是大於零的整數' },
     { name: '回看根數是小數', parameters: [lookbackCount('期數', 20.5)], expected: '回看根數必須是大於零的整數' },
   ])('$name', ({ parameters, expected }) => {
-    expect(new StrategyScriptParametersDomain(parameters).validationMessage()).toBe(expected)
+    expect(new StrategyScriptParametersDomain(parameters).validationMessage()?.in('zh-TW')).toBe(expected)
   })
 
   it.each([
@@ -77,7 +77,15 @@ describe('這一份哪裡不對', () => {
   it('一次只說一則，讓人一次修一個地方', () => {
     const parameters = new StrategyScriptParametersDomain([lookbackCount('  ', 0), lookbackCount('  ', 0)])
 
-    expect(parameters.validationMessage()).toBe('參數名稱不得為空白')
+    expect(parameters.validationMessage()?.in('zh-TW')).toBe('參數名稱不得為空白')
+  })
+
+  it.each([
+    { name: '空白的名稱', parameters: [lookbackCount('   ', 20)], expected: 'The parameter name cannot be blank' },
+    { name: '重複的名稱', parameters: [lookbackCount('period', 20), numberParameter('period', 2)], expected: 'The parameter name period is used more than once; names must be unique within a strategy script' },
+    { name: '回看根數是零', parameters: [lookbackCount('period', 0)], expected: 'The lookback count must be a whole number greater than zero' },
+  ])('$name 在英文畫面上也說得出來', ({ parameters, expected }) => {
+    expect(new StrategyScriptParametersDomain(parameters).validationMessage()?.in('en')).toBe(expected)
   })
 })
 

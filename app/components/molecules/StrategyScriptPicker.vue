@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 
@@ -21,6 +22,8 @@ const { strategyScripts, activeStrategyScriptId = null } = defineProps<{
 
 const emit = defineEmits<{ select: [id: number] }>()
 
+const { t } = useI18n()
+
 /** 選單本身永遠顯示目前使用中的那一支；換掉它是 select 事件的結果，不是選單自己的狀態。 */
 const selectedValue = computed(() => (activeStrategyScriptId === null ? '' : String(activeStrategyScriptId)))
 
@@ -31,7 +34,7 @@ const selectedValue = computed(() => (activeStrategyScriptId === null ? '' : Str
  * 而一句永遠掛在那裡、每次都讀到的話，讀的人很快就會學會不讀它。
  */
 const hint = computed(() => (strategyScripts.length === 0
-  ? '寫好算式之後按「另存為新策略腳本」就會留下第一支。'
+  ? t('strategyScript.strategyScriptPicker.firstScriptHint')
   : null))
 
 function selectStrategyScript(value: string) {
@@ -45,14 +48,14 @@ function selectStrategyScript(value: string) {
   <div class="strategy-script-picker">
     <div class="strategy-script-picker__row">
       <label class="strategy-script-picker__field">
-        <span class="strategy-script-picker__label">策略腳本</span>
+        <span class="strategy-script-picker__label">{{ t('strategyScript.strategyScriptPicker.label') }}</span>
 
         <p
           v-if="strategyScripts.length === 0"
           class="strategy-script-picker__empty"
           data-testid="strategy-script-picker-empty"
         >
-          還沒有任何策略腳本
+          {{ t('strategyScript.strategyScriptPicker.empty') }}
         </p>
 
         <AppSelect
@@ -62,7 +65,7 @@ function selectStrategyScript(value: string) {
           @update:model-value="selectStrategyScript"
         >
           <option value="">
-            未使用任何策略腳本
+            {{ t('strategyScript.strategyScriptPicker.none') }}
           </option>
           <option
             v-for="strategyScript in strategyScripts"

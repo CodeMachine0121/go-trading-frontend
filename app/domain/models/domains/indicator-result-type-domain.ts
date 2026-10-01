@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import { INDICATOR_RESULT_TYPES } from '~/domain/models/vo/indicator-result-type'
 import { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-result-type-option-dto'
@@ -9,14 +10,14 @@ import { IndicatorResultTypeOptionDto } from '~/domain/models/dto/indicator-resu
 const INDICATOR_RESULT_TYPE_DESCRIPTIONS: Readonly<
   Record<
     IndicatorResultType,
-    { label: string, isList: boolean, holdsNumbers: boolean, isSignal: boolean }
+    { label: LocalizedTextVo, isList: boolean, holdsNumbers: boolean, isSignal: boolean }
   >
 > = {
-  float: { label: '一個數字', isList: false, holdsNumbers: true, isSignal: false },
-  floatList: { label: '一串數字', isList: true, holdsNumbers: true, isSignal: false },
-  bool: { label: '一個是非', isList: false, holdsNumbers: false, isSignal: false },
-  boolList: { label: '一串是非', isList: true, holdsNumbers: false, isSignal: false },
-  signal: { label: '一個信號', isList: false, holdsNumbers: false, isSignal: true },
+  float: { label: new LocalizedTextVo('一個數字', 'A number'), isList: false, holdsNumbers: true, isSignal: false },
+  floatList: { label: new LocalizedTextVo('一串數字', 'A list of numbers'), isList: true, holdsNumbers: true, isSignal: false },
+  bool: { label: new LocalizedTextVo('一個是非', 'A yes-no'), isList: false, holdsNumbers: false, isSignal: false },
+  boolList: { label: new LocalizedTextVo('一串是非', 'A list of yes-no'), isList: true, holdsNumbers: false, isSignal: false },
+  signal: { label: new LocalizedTextVo('一個信號', 'A signal'), isList: false, holdsNumbers: false, isSignal: true },
 }
 
 /** 沒有宣告、或宣告了不認得的種類時的歸屬。與後端的預設一致。 */
@@ -58,7 +59,7 @@ export class IndicatorResultTypeDomain {
   }
 
   /** 給使用者看的名字。畫面不自己翻譯種類。 */
-  label(): string {
+  label(): LocalizedTextVo {
     return INDICATOR_RESULT_TYPE_DESCRIPTIONS[this.value].label
   }
 

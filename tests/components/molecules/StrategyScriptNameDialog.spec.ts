@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import StrategyScriptNameDialog from '~/components/molecules/StrategyScriptNameDialog.vue'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountNameDialog(props: Record<string, unknown> = {}) {
   return mount(StrategyScriptNameDialog, {
@@ -46,11 +48,22 @@ describe('StrategyScriptNameDialog', () => {
     expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請填寫策略腳本名稱')
   })
 
+  it('英文畫面上，沒填名稱的那一句與按鈕都是英文', async () => {
+    const wrapper = mountNameDialog()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('Enter a strategy script name')
+    expect(wrapper.get('[data-testid="strategy-script-name-submit"]').text()).toBe('Save')
+  })
+
   it('名稱被佔用時就地顯示，而且輸入框裡的字還在', async () => {
     // 把使用者剛打的名字清掉重來，是最容易惹人生氣的做法。
     const wrapper = mountNameDialog()
     await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('二十根均線')
-    await wrapper.setProps({ errorMessage: '策略腳本名稱「二十根均線」已被使用' })
+    await wrapper.setProps({ errorMessage: new UntranslatedTextVo('策略腳本名稱「二十根均線」已被使用') })
 
     expect(wrapper.get('[data-testid="field-error"]').text())
       .toBe('策略腳本名稱「二十根均線」已被使用')

@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：算式本身的問題——無法解讀、缺少進入點、執行時失敗、
  * 試圖取用不該取用的東西，或算太久被中止。
@@ -7,8 +9,12 @@
  * 後端改一句話畫面就壞。
  */
 export class IndicatorScriptFailedError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'IndicatorScriptFailedError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

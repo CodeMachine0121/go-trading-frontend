@@ -4,11 +4,12 @@ import { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strat
 import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 function publishedOf(id: number, name: string): PublishedStrategyScriptDto {
   return new PublishedStrategyScriptDto(
     id, name, '', 'floatList', 'someone@example.com',
-    new Date('2026-09-10T08:00:00.000Z'), [], true, '一串數字')
+    new Date('2026-09-10T08:00:00.000Z'), [], true, new LocalizedTextVo('一串數字', 'A list of numbers'))
 }
 
 function ownStrategyScriptOf(id: number, name: string): StrategyScriptDto {

@@ -6,6 +6,7 @@ import { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
 import { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-workbench-dto'
 import { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
 import { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 每一種行情的全部差異，就這幾欄。多一種行情是在這張表加一列，
@@ -15,72 +16,88 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
   Record<
     MarketDataKind,
     {
-      label: string
+      label: LocalizedTextVo
       scriptInputTypeName: string
-      guideHeading: string
+      guideHeading: LocalizedTextVo
       fields: readonly KCandleFieldVo[]
-      valueTypeNote: string
-      notes: readonly string[]
+      valueTypeNote: LocalizedTextVo
+      notes: readonly LocalizedTextVo[]
       offersBacktest: boolean
       picksContractTradingSymbol: boolean
       replaysOnContractAccount: boolean
       strategyBotPage: {
         listPath: string
-        listTitle: string
-        listSubtitle: string
-        createTitle: string
-        editTitle: string
-        createLabel: string
-        emptyNotice: string
-        symbolSuffix: string
+        listTitle: LocalizedTextVo
+        listSubtitle: LocalizedTextVo
+        createTitle: LocalizedTextVo
+        editTitle: LocalizedTextVo
+        createLabel: LocalizedTextVo
+        emptyNotice: LocalizedTextVo
+        symbolSuffix: LocalizedTextVo
         takesLeverage: boolean
-        tradingStrategyLabel: string
-        tradingStrategyCreateHint: string
-        runHistoryNote: string | null
+        tradingStrategyLabel: LocalizedTextVo
+        tradingStrategyCreateHint: LocalizedTextVo
+        runHistoryNote: LocalizedTextVo | null
       }
     }
   >
 > = {
   kCandle: {
-    label: 'K 線',
+    label: new LocalizedTextVo('K 線', 'K-candle'),
     scriptInputTypeName: 'KCandle',
-    guideHeading: '每一根 K 線有什麼',
+    guideHeading: new LocalizedTextVo('每一根 K 線有什麼', 'What each K-candle holds'),
     fields: K_CANDLE_FIELDS,
-    valueTypeNote: '價量一律是 float64，直接算就好。',
+    valueTypeNote: new LocalizedTextVo('價量一律是 float64，直接算就好。', 'Prices and volumes are all float64, so you can calculate with them directly.'),
     notes: [],
     offersBacktest: true,
     picksContractTradingSymbol: false,
     replaysOnContractAccount: false,
     strategyBotPage: {
       listPath: '/strategy-bots',
-      listTitle: '現貨策略機器人',
-      listSubtitle: '挑一份 K 線交易策略、盯一個現貨標的。按下啟動之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。',
-      createTitle: '拼一台現貨機器人',
-      editTitle: '改一改這台現貨機器人',
-      createLabel: '＋ 拼一台現貨機器人',
-      emptyNotice: '還沒有任何現貨機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，在訊號變了的時候傳訊息給你。',
-      symbolSuffix: '',
+      listTitle: new LocalizedTextVo('現貨策略機器人', 'Spot strategy bots'),
+      listSubtitle: new LocalizedTextVo(
+        '挑一份 K 線交易策略、盯一個現貨標的。按下啟動之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。',
+        'Pick a K-candle trading strategy and watch one spot symbol. Once you press start you can walk away: it checks on its own every few minutes and messages you only when the signal changes.'),
+      createTitle: new LocalizedTextVo('拼一台現貨機器人', 'Build a spot bot'),
+      editTitle: new LocalizedTextVo('改一改這台現貨機器人', 'Edit this spot bot'),
+      createLabel: new LocalizedTextVo('＋ 拼一台現貨機器人', '+ Build a spot bot'),
+      emptyNotice: new LocalizedTextVo(
+        '還沒有任何現貨機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，在訊號變了的時候傳訊息給你。',
+        'No spot bots yet. Once you build one, it checks the market on its own every few minutes and messages you when the signal changes.'),
+      symbolSuffix: new LocalizedTextVo('', ''),
       takesLeverage: false,
-      tradingStrategyLabel: 'K 線交易策略',
+      tradingStrategyLabel: new LocalizedTextVo('K 線交易策略', 'K-candle trading strategy'),
       // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
-      tradingStrategyCreateHint: '',
+      tradingStrategyCreateHint: new LocalizedTextVo('', ''),
       runHistoryNote: null,
     },
   },
   contractKCandle: {
-    label: '合約行情',
+    label: new LocalizedTextVo('合約行情', 'Contract market data'),
     scriptInputTypeName: 'ContractKCandle',
-    guideHeading: '每一格合約行情有什麼',
+    guideHeading: new LocalizedTextVo('每一格合約行情有什麼', 'What each contract market data bar holds'),
     fields: CONTRACT_K_CANDLE_FIELDS,
     // 不能沿用現貨那一句「一律是 float64」：成交筆數、三組開高低收與結算旗標都不是。
-    valueTypeNote: '價量是 float64，但不是每一項都是：TradeCount 是 int64，要先 float64(...) 才能跟價格一起算；'
+    valueTypeNote: new LocalizedTextVo(
+      '價量是 float64，但不是每一項都是：TradeCount 是 int64，要先 float64(...) 才能跟價格一起算；'
       + 'Mark、Index、PremiumIndex 是 indicator.PriceLine，要取裡面的 Open / High / Low / Close；'
       + 'FundingSettledInBar 是 bool。',
+      'Prices and volumes are float64, but not every field is: TradeCount is int64, so convert it with float64(...) before combining it with prices; '
+      + 'Mark, Index and PremiumIndex are indicator.PriceLine, so read the Open / High / Low / Close inside them; '
+      + 'FundingSettledInBar is bool.'),
     notes: [
-      '沒有值的一律是零：指數價格開始記錄前的舊資料、第一次結算之前、沒錄到持倉統計的時段。持倉量是零多半代表那時沒有資料。',
-      '資金費率是這一格收盤前最近一次結算的費率，兩次結算之間每一格都延續上一次的；真的結算的那一格 FundingSettledInBar 才是 true。',
-      '持倉統計是收盤前最近、而且夠新的那一筆：不比五分鐘細的格子要落在格內，一分鐘的格子要落在收盤前五分鐘內。',
-      '每一項都只來自這一格收盤以前，收盤那一刻的結算與統計屬於下一格。',
+      new LocalizedTextVo(
+        '沒有值的一律是零：指數價格開始記錄前的舊資料、第一次結算之前、沒錄到持倉統計的時段。持倉量是零多半代表那時沒有資料。',
+        'Missing values are always zero: old data from before index prices were recorded, the time before the first settlement, and periods with no open interest statistics. An open interest of zero usually means there was no data at that time.'),
+      new LocalizedTextVo(
+        '資金費率是這一格收盤前最近一次結算的費率，兩次結算之間每一格都延續上一次的；真的結算的那一格 FundingSettledInBar 才是 true。',
+        'The funding rate is the rate of the latest settlement before this bar closes; every bar between two settlements carries the previous one forward. FundingSettledInBar is true only on the bar where a settlement actually happened.'),
+      new LocalizedTextVo(
+        '持倉統計是收盤前最近、而且夠新的那一筆：不比五分鐘細的格子要落在格內，一分鐘的格子要落在收盤前五分鐘內。',
+        'Open interest statistics are the latest sufficiently recent record before the close: for bars of five minutes or longer it must fall inside the bar; for one-minute bars it must fall within the five minutes before the close.'),
+      new LocalizedTextVo(
+        '每一項都只來自這一格收盤以前，收盤那一刻的結算與統計屬於下一格。',
+        'Every field comes only from before this bar closes; a settlement or statistic at the exact closing moment belongs to the next bar.'),
     ],
     // 合約的回測在逐倉合約帳戶上重演。
     offersBacktest: true,
@@ -89,20 +106,26 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     // 合約機器人只盯合約追蹤名單上的永續合約，訊息說做多／做空／平多／平空，建議部位多一個槓桿倍數。
     strategyBotPage: {
       listPath: '/contract-strategy-bots',
-      listTitle: '合約策略機器人',
-      listSubtitle: '挑一份合約交易策略、盯一個合約追蹤名單上的永續合約。它照交易策略的交易模式告訴你該做多、做空還是平倉，並依你的槓桿建議保證金與止損止盈。',
-      createTitle: '拼一台合約機器人',
-      editTitle: '改一改這台合約機器人',
-      createLabel: '＋ 拼一台合約機器人',
-      emptyNotice: '還沒有任何合約機器人。拼一台之後，它會每隔幾分鐘自己看一次永續合約，在訊號變了的時候傳訊息給你。',
-      symbolSuffix: ' 永續合約',
+      listTitle: new LocalizedTextVo('合約策略機器人', 'Contract strategy bots'),
+      listSubtitle: new LocalizedTextVo(
+        '挑一份合約交易策略、盯一個合約追蹤名單上的永續合約。它照交易策略的交易模式告訴你該做多、做空還是平倉，並依你的槓桿建議保證金與止損止盈。',
+        'Pick a contract trading strategy and watch one perpetual contract on your contract watchlist. Following the strategy\'s trading mode, it tells you whether to go long, go short or close, and suggests margin, stop-loss and take-profit based on your leverage.'),
+      createTitle: new LocalizedTextVo('拼一台合約機器人', 'Build a contract bot'),
+      editTitle: new LocalizedTextVo('改一改這台合約機器人', 'Edit this contract bot'),
+      createLabel: new LocalizedTextVo('＋ 拼一台合約機器人', '+ Build a contract bot'),
+      emptyNotice: new LocalizedTextVo(
+        '還沒有任何合約機器人。拼一台之後，它會每隔幾分鐘自己看一次永續合約，在訊號變了的時候傳訊息給你。',
+        'No contract bots yet. Once you build one, it checks the perpetual contract on its own every few minutes and messages you when the signal changes.'),
+      symbolSuffix: new LocalizedTextVo(' 永續合約', ' perpetual contract'),
       takesLeverage: true,
-      tradingStrategyLabel: '合約交易策略',
+      tradingStrategyLabel: new LocalizedTextVo('合約交易策略', 'contract trading strategy'),
       // 新拼一份交易策略預設是 K 線，所以要說出那一格該選哪一個，否則拼好了這裡還是挑不到。
-      tradingStrategyCreateHint: '（行情種類選「合約行情」）',
+      tradingStrategyCreateHint: new LocalizedTextVo('（行情種類選「合約行情」）', ' (set the market data kind to "Contract market data")'),
       // 交易服務在這個合約最新的一分鐘合約 K 線太舊或沒有時跳過那一輪：不送訊息，紀錄上是持有。
       // 一整排持有因此可能不是市場沒動靜，而是行情停了——那件事只有在這裡說得出來。
-      runHistoryNote: '連續好幾輪都是持有，也可能是這個合約的一分鐘合約 K 線超過 5 分鐘沒有進來——那幾輪會被跳過、不送訊息。可以到合約 K 線瀏覽看看最新一根的時間。',
+      runHistoryNote: new LocalizedTextVo(
+        '連續好幾輪都是持有，也可能是這個合約的一分鐘合約 K 線超過 5 分鐘沒有進來——那幾輪會被跳過、不送訊息。可以到合約 K 線瀏覽看看最新一根的時間。',
+        'Several holds in a row can also mean this contract\'s one-minute contract K-candles have not arrived for over 5 minutes; those runs are skipped and send no message. Check the time of the latest candle in the contract K-candle browser.'),
     },
   },
 }
@@ -131,7 +154,7 @@ export class MarketDataKindDomain {
   }
 
   /** 給人看的名字：「K 線」或「合約行情」。 */
-  label(): string {
+  label(): LocalizedTextVo {
     return MARKET_DATA_KIND_DESCRIPTIONS[this.value].label
   }
 
@@ -176,8 +199,11 @@ export class MarketDataKindDomain {
   }
 
   /** 一台這一種機器人的標的在畫面上怎麼說：合約的在後面標出永續合約。 */
-  strategyBotSymbolLabel(symbol: string): string {
-    return `${symbol}${MARKET_DATA_KIND_DESCRIPTIONS[this.value].strategyBotPage.symbolSuffix}`
+  strategyBotSymbolLabel(symbol: string): LocalizedTextVo {
+    const symbolSuffix = MARKET_DATA_KIND_DESCRIPTIONS[this.value].strategyBotPage.symbolSuffix
+
+    return new LocalizedTextVo(
+      `${symbol}${symbolSuffix.traditionalChinese}`, `${symbol}${symbolSuffix.english}`)
   }
 
   /** 選單上的一個選項。 */

@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個名稱已經被別的策略腳本用了。
  *
@@ -6,8 +8,12 @@
  * 讓使用者當場改一個名字再送一次。
  */
 export class StrategyScriptNameConflictError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'StrategyScriptNameConflictError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

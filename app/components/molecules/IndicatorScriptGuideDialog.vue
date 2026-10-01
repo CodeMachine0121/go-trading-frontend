@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import IndicatorScriptGuide from '~/components/molecules/IndicatorScriptGuide.vue'
@@ -21,12 +22,14 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ close: [] }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
   <AppModal
     :open="open"
-    title="算式裡可以用什麼"
+    :title="t('strategyScript.indicatorScriptGuideDialog.title')"
     @close="emit('close')"
   >
     <IndicatorScriptGuide
@@ -38,7 +41,7 @@ const emit = defineEmits<{ close: [] }>()
 
     <template #actions>
       <AppButton @click="emit('close')">
-        知道了
+        {{ t('strategyScript.indicatorScriptGuideDialog.acknowledge') }}
       </AppButton>
     </template>
   </AppModal>

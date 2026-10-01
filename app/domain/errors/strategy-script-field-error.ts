@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /** 策略腳本的輸入欄位。錯誤帶著它，畫面才知道訊息要標在哪一欄旁邊。 */
 /**
  * 這次拒絕是關於策略腳本的哪一塊。它決定的是**訊息標在哪裡**——
@@ -9,9 +11,9 @@ export type StrategyScriptField = 'name' | 'script' | 'parameters'
 export class StrategyScriptFieldError extends Error {
   constructor(
     public readonly field: StrategyScriptField,
-    message: string,
+    public readonly localizedMessage: LocalizedTextVo,
   ) {
-    super(message)
+    super(localizedMessage.traditionalChinese)
     this.name = 'StrategyScriptFieldError'
   }
 }
