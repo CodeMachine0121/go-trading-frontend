@@ -16,9 +16,9 @@ const { localize } = useLocalizedText()
   >
     <div
       v-for="figure in figures"
-      :key="figure.label.traditionalChinese"
+      :key="figure.kind"
       class="trade-summary-strip__figure"
-      :data-testid="`figure-${figure.label.traditionalChinese}`"
+      :data-testid="`figure-${figure.kind}`"
     >
       <dt class="trade-summary-strip__label">
         {{ localize(figure.label) }}

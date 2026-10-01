@@ -35,14 +35,14 @@ describe('SpotTradeStatisticsPanel', () => {
 
     const wrapper = mountPanel({ statistics })
 
-    const taiwanStock = wrapper.get('[data-testid="statistics-market-台股"]')
+    const taiwanStock = wrapper.get('[data-testid="statistics-market-taiwanStock"]')
     expect(taiwanStock.text()).toContain('已平倉 10 筆')
     expect(taiwanStock.get('[data-testid="statistics-r-note"]').text()).toBe('平均 R 以 3 筆計（有計畫止損的交易）')
     expect(taiwanStock.get('[data-testid="statistics-total-profit"]').text()).toBe('+120,000.00')
     expect(taiwanStock.get('[data-testid="return-distribution"]').text()).toContain('0%~5%')
     expect(taiwanStock.get('[data-testid="mistake-costs"]').text()).toContain('追價進場')
     expect(taiwanStock.get('[data-testid="source-comparison"]').text()).toContain('+5.00%')
-    expect(wrapper.get('[data-testid="statistics-market-加密貨幣"] [data-testid="statistics-empty"]').text()).toBe('這段期間沒有已平倉交易')
+    expect(wrapper.get('[data-testid="statistics-market-crypto"] [data-testid="statistics-empty"]').text()).toBe('這段期間沒有已平倉交易')
   })
 
   it('沒有失誤標籤時說明；換期間交給上層', async () => {

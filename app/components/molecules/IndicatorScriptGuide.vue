@@ -125,8 +125,8 @@ const { localize } = useLocalizedText()
             </template>
           </i18n-t>
           <li
-            v-for="note in guide.notes"
-            :key="note.traditionalChinese"
+            v-for="(note, noteIndex) in guide.notes"
+            :key="noteIndex"
             data-testid="script-input-note"
           >
             {{ localize(note) }}

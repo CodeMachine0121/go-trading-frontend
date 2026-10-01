@@ -12,7 +12,7 @@ describe('TradeMeasureDomain', () => {
     const measure = new TradeMeasureDomain(new TradeMeasure(null, null))
 
     expect(measure.unavailableReason).toBe('temporarilyUnavailable')
-    expect(measure.toFigure(R_MULTIPLE_LABEL, value => new UntranslatedTextVo(value.toString()), () => 'neutral').text.in('zh-TW'))
+    expect(measure.toFigure('rMultiple', R_MULTIPLE_LABEL, value => new UntranslatedTextVo(value.toString()), () => 'neutral').text.in('zh-TW'))
       .toBe('暫時算不出，請稍後再看')
   })
 
@@ -22,7 +22,7 @@ describe('TradeMeasureDomain', () => {
     ['notClosed', 'Not applicable while open'],
   ] as const)('英文畫面上說出算不出的原因：%s', (reason, expected) => {
     const figure = new TradeMeasureDomain(new TradeMeasure(null, reason))
-      .toFigure(R_MULTIPLE_LABEL, value => new UntranslatedTextVo(value.toString()), () => 'neutral')
+      .toFigure('rMultiple', R_MULTIPLE_LABEL, value => new UntranslatedTextVo(value.toString()), () => 'neutral')
 
     expect([figure.label.in('en'), figure.text.in('en'), figure.tone]).toEqual(['R multiple', expected, 'muted'])
   })

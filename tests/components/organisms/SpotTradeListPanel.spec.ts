@@ -29,8 +29,8 @@ describe('SpotTradeListPanel', () => {
     const wrapper = mountPanel()
 
     expect(wrapper.get('[data-testid="trade-list-counts"]').text()).toBe('最近 30 天・已平倉 10 筆・持有中 1 筆')
-    expect(wrapper.get('[data-testid="trade-list-summary-台股"]').text()).toContain('+120,000.00')
-    expect(wrapper.find('[data-testid="trade-list-summary-加密貨幣"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="trade-list-summary-taiwanStock"]').text()).toContain('+120,000.00')
+    expect(wrapper.find('[data-testid="trade-list-summary-crypto"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="trade-row-5"] a').attributes('href')).toBe('/spot-trade-journal/5')
     expect(wrapper.get('[data-testid="trade-row-5"]').text()).toContain('+6.47%')
     expect(wrapper.get('[data-testid="trade-row-6"]').text()).toContain('加密貨幣')

@@ -73,8 +73,8 @@ const { localize } = useLocalizedText()
 
         <dl class="backtest-rule-guide-dialog__rules">
           <template
-            v-for="rule in rules"
-            :key="rule.title.traditionalChinese"
+            v-for="(rule, ruleIndex) in rules"
+            :key="ruleIndex"
           >
             <dt data-testid="backtest-rule-title">
               {{ localize(rule.title) }}

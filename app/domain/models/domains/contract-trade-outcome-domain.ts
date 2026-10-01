@@ -3,6 +3,7 @@ import type { ContractTradeOutcome } from '~/domain/models/entities/contract-tra
 import { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeFigureKind } from '~/domain/models/vo/trade-figure-vo'
 import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
@@ -27,16 +28,18 @@ export class ContractTradeOutcomeDomain {
   toDto(): TradeOutcomeDto {
     const costFigures = [
       new TradeMeasureDomain(this.outcome.entryNotional).toFigure(
-        new LocalizedTextVo('名目', 'Notional'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
+        'entryNotional', new LocalizedTextVo('名目', 'Notional'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
       new TradeMeasureDomain(this.outcome.entryMargin).toFigure(
-        new LocalizedTextVo('保證金', 'Margin'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
-      this.signedFigure(new LocalizedTextVo('毛損益', 'Gross P&L'), this.outcome.grossProfit),
+        'entryMargin', new LocalizedTextVo('保證金', 'Margin'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
+      this.signedFigure('grossProfit', new LocalizedTextVo('毛損益', 'Gross P&L'), this.outcome.grossProfit),
       new TradeFigureVo(
+        'totalFee',
         new LocalizedTextVo('手續費', 'Fees'),
         new UntranslatedTextVo(new JournalNumberDomain(this.outcome.totalFee).amount()),
         'neutral',
         this.outcome.feeRateMissing ? FEE_RATE_MISSING_NOTE : null),
       new TradeMeasureDomain(this.outcome.fundingFee).toFigure(
+        'fundingFee',
         new LocalizedTextVo('資金費用', 'Funding fees'),
         (value) => {
           const amount = new JournalNumberDomain(value.abs()).amount()
@@ -52,48 +55,57 @@ export class ContractTradeOutcomeDomain {
     ]
     const riskFigures = [
       this.signedFigure(
+        'netProfit',
         this.open
           ? new LocalizedTextVo('已實現淨損益', 'Realized net P&L')
           : new LocalizedTextVo('淨損益', 'Net P&L'),
         this.outcome.netProfit,
         this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
       new TradeMeasureDomain(this.open ? new TradeMeasure(null, 'notClosed') : this.outcome.returnOnMarginPercentage).toFigure(
+        'returnOnMarginPercentage',
         new LocalizedTextVo('保證金報酬率', 'Return on margin'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).signedPercentage(RETURN_ON_MARGIN_FRACTION_DIGITS)),
         value => new JournalNumberDomain(value).tone(),
         this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
       new TradeMeasureDomain(this.outcome.plannedRisk).toFigure(
+        'plannedRisk',
         new LocalizedTextVo('計畫風險', 'Planned risk'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()),
         () => 'neutral'),
       new TradeMeasureDomain(this.outcome.rMultiple).toFigure(
+        'rMultiple',
         new LocalizedTextVo('R 倍數', 'R multiple'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         value => new JournalNumberDomain(value).tone()),
     ]
     const excursionFigures = [
       new TradeMeasureDomain(this.outcome.maximumAdverseExcursion).toFigure(
+        'maximumAdverseExcursion',
         new LocalizedTextVo('最大不利', 'Max adverse'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         () => 'danger',
         this.priceNote(this.outcome.maximumAdversePrice)),
       new TradeMeasureDomain(this.outcome.maximumFavorableExcursion).toFigure(
+        'maximumFavorableExcursion',
         new LocalizedTextVo('最大有利', 'Max favorable'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         () => 'success',
         this.priceNote(this.outcome.maximumFavorablePrice)),
       new TradeMeasureDomain(this.outcome.profitCaptureRate).toFigure(
+        'profitCaptureRate',
         new LocalizedTextVo('利潤捕捉率', 'Profit capture rate'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value.times(PERCENT)).percentage(CAPTURE_RATE_FRACTION_DIGITS)),
         () => 'neutral'),
       ...(this.open
         ? [
             new TradeMeasureDomain(this.outcome.floatingProfit).toFigure(
+              'floatingProfit',
               new LocalizedTextVo('浮動損益', 'Floating P&L'),
               value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
               value => new JournalNumberDomain(value).tone(),
               ESTIMATE_NOTE),
             new TradeMeasureDomain(this.outcome.estimatedLiquidationPrice).toFigure(
+              'estimatedLiquidationPrice',
               new LocalizedTextVo('預估強平價', 'Est. liquidation price'),
               value => new UntranslatedTextVo(new JournalNumberDomain(value).price()),
               () => 'neutral',
@@ -102,6 +114,7 @@ export class ContractTradeOutcomeDomain {
         : []),
       ...(this.fromJournalLink
         ? [new TradeMeasureDomain(this.outcome.entrySlippagePercentage).toFigure(
+            'entrySlippagePercentage',
             new LocalizedTextVo('進場滑點', 'Entry slippage'),
             value => new UntranslatedTextVo(new JournalNumberDomain(value).percentage(SLIPPAGE_FRACTION_DIGITS)),
             value => value.greaterThan(0) ? 'danger' : 'neutral')]
@@ -119,9 +132,14 @@ export class ContractTradeOutcomeDomain {
     )
   }
 
-  private signedFigure(label: LocalizedTextVo, value: Decimal, note: LocalizedTextVo | null = null): TradeFigureVo {
+  private signedFigure(
+    kind: TradeFigureKind,
+    label: LocalizedTextVo,
+    value: Decimal,
+    note: LocalizedTextVo | null = null,
+  ): TradeFigureVo {
     return new TradeFigureVo(
-      label, new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()), new JournalNumberDomain(value).tone(), note)
+      kind, label, new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()), new JournalNumberDomain(value).tone(), note)
   }
 
   private priceNote(price: Decimal | null): LocalizedTextVo | null {

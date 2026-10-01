@@ -45,11 +45,11 @@ export class ContractTradePricePathDomain {
     }
 
     const lineSources = [
-      { price: this.record.averageEntryPrice, label: new LocalizedTextVo('開倉均價', 'Avg. entry'), tone: 'neutral' as const },
-      { price: this.record.plannedStopLossPrice, label: new LocalizedTextVo('計畫止損', 'Planned stop loss'), tone: 'danger' as const },
-      { price: this.record.plannedTakeProfitPrice, label: new LocalizedTextVo('計畫止盈', 'Planned take profit'), tone: 'success' as const },
-      { price: this.record.maximumAdversePrice, label: new LocalizedTextVo('最大不利', 'Max adverse'), tone: 'muted' as const },
-      { price: this.record.maximumFavorablePrice, label: new LocalizedTextVo('最大有利', 'Max favorable'), tone: 'muted' as const },
+      { kind: 'averageEntryPrice' as const, price: this.record.averageEntryPrice, label: new LocalizedTextVo('開倉均價', 'Avg. entry'), tone: 'neutral' as const },
+      { kind: 'plannedStopLossPrice' as const, price: this.record.plannedStopLossPrice, label: new LocalizedTextVo('計畫止損', 'Planned stop loss'), tone: 'danger' as const },
+      { kind: 'plannedTakeProfitPrice' as const, price: this.record.plannedTakeProfitPrice, label: new LocalizedTextVo('計畫止盈', 'Planned take profit'), tone: 'success' as const },
+      { kind: 'maximumAdversePrice' as const, price: this.record.maximumAdversePrice, label: new LocalizedTextVo('最大不利', 'Max adverse'), tone: 'muted' as const },
+      { kind: 'maximumFavorablePrice' as const, price: this.record.maximumFavorablePrice, label: new LocalizedTextVo('最大有利', 'Max favorable'), tone: 'muted' as const },
     ]
 
     return new TradePricePathDto(
@@ -68,6 +68,7 @@ export class ContractTradePricePathDomain {
       lineSources.flatMap(lineSource => lineSource.price === null
         ? []
         : [new TradePricePathLineDto(
+            lineSource.kind,
             lineSource.price, lineSource.label, lineSource.tone, new JournalNumberDomain(lineSource.price).price())]),
       null,
     )

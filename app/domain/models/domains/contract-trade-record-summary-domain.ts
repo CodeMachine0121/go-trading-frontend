@@ -43,15 +43,18 @@ export class ContractTradeRecordSummaryDomain {
         : new JournalNumberDomain(this.summary.averageExitPrice).price(),
       status.isOpen || netProfit === null
         ? new TradeMeasureDomain(this.summary.floatingProfit).toFigure(
+            'floatingProfit',
             PROFIT_LABEL,
             value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
             value => new JournalNumberDomain(value).tone(),
             FLOATING_NOTE)
         : new TradeFigureVo(
+            'netProfit',
             PROFIT_LABEL,
             new UntranslatedTextVo(new JournalNumberDomain(netProfit).signedAmount()),
             new JournalNumberDomain(netProfit).tone()),
       new TradeMeasureDomain(this.summary.rMultiple).toFigure(
+        'rMultiple',
         new UntranslatedTextVo('R'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         () => 'neutral').text,

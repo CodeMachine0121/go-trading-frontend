@@ -35,8 +35,8 @@ const { localize } = useLocalizedText()
 
     <ul class="assistant-suggested-prompts__list">
       <li
-        v-for="prompt in prompts"
-        :key="prompt.traditionalChinese"
+        v-for="(prompt, promptIndex) in prompts"
+        :key="promptIndex"
       >
         <AppButton
           variant="secondary"

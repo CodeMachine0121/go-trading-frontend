@@ -180,7 +180,7 @@ const periodTab = computed({
               <tbody>
                 <tr
                   v-for="row in statistics.sourceComparison"
-                  :key="row.label.traditionalChinese"
+                  :key="row.source"
                 >
                   <td>{{ localize(row.label) }}</td>
                   <td>{{ localize(row.tradeCountText) }}</td>

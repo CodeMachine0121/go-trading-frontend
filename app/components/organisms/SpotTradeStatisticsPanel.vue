@@ -74,9 +74,9 @@ const periodTab = computed({
     <template v-else-if="statistics">
       <section
         v-for="market in statistics.markets"
-        :key="market.marketLabel.traditionalChinese"
+        :key="market.market"
         class="spot-trade-statistics-panel__market"
-        :data-testid="`statistics-market-${market.marketLabel.traditionalChinese}`"
+        :data-testid="`statistics-market-${market.market}`"
       >
         <h3 class="spot-trade-statistics-panel__market-label">
           {{ t('tradeJournal.common.joined', { first: localize(market.marketLabel), second: localize(market.closedTradeCountText) }) }}
@@ -184,7 +184,7 @@ const periodTab = computed({
                 <tbody>
                   <tr
                     v-for="row in market.sourceComparison"
-                    :key="row.label.traditionalChinese"
+                    :key="row.source"
                   >
                     <td>{{ localize(row.label) }}</td>
                     <td>{{ localize(row.tradeCountText) }}</td>

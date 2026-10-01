@@ -3,7 +3,7 @@ import type { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import type { TradeUnavailableReason } from '~/domain/models/vo/trade-unavailable-reason-vo'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import type { TradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeFigureKind, TradeFigureTone } from '~/domain/models/vo/trade-figure-vo'
 
 const UNAVAILABLE_SENTENCES: Readonly<Record<TradeUnavailableReason, LocalizedTextVo>> = {
   noStopLoss: new LocalizedTextVo('未設止損，算不出', 'No stop loss, cannot be calculated'),
@@ -26,6 +26,7 @@ export class TradeMeasureDomain {
   }
 
   toFigure(
+    kind: TradeFigureKind,
     label: LocalizedTextVo,
     describe: (value: Decimal) => LocalizedTextVo,
     toneOf: (value: Decimal) => TradeFigureTone,
@@ -34,9 +35,9 @@ export class TradeMeasureDomain {
     const value = this.measure.value
     if (value === null) {
       return new TradeFigureVo(
-        label, UNAVAILABLE_SENTENCES[this.measure.unavailableReason ?? 'temporarilyUnavailable'], 'muted')
+        kind, label, UNAVAILABLE_SENTENCES[this.measure.unavailableReason ?? 'temporarilyUnavailable'], 'muted')
     }
 
-    return new TradeFigureVo(label, describe(value), toneOf(value), note)
+    return new TradeFigureVo(kind, label, describe(value), toneOf(value), note)
   }
 }

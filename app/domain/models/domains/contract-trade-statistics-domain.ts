@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import type { ContractTradeStatistics } from '~/domain/models/entities/contract-trade-statistics'
 import type { ContractTradeSourceGroup } from '~/domain/models/entities/contract-trade-source-group'
+import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
 import { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-trade-statistics-dto'
 import { TradeChartPointDto } from '~/domain/models/dto/trade-chart-point-dto'
 import { TradeDistributionBarDto } from '~/domain/models/dto/trade-distribution-bar-dto'
@@ -60,8 +61,9 @@ export class ContractTradeStatisticsDomain {
         this.averageRMultipleFigure(),
         this.profitFactorFigure(),
         slippage === null || this.statistics.slippageTradeCount === 0
-          ? new TradeFigureVo(AVERAGE_ENTRY_SLIPPAGE_LABEL, NO_LINKED_TRADES_TEXT, 'muted')
+          ? new TradeFigureVo('averageEntrySlippagePercentage', AVERAGE_ENTRY_SLIPPAGE_LABEL, NO_LINKED_TRADES_TEXT, 'muted')
           : new TradeFigureVo(
+              'averageEntrySlippagePercentage',
               AVERAGE_ENTRY_SLIPPAGE_LABEL,
               new UntranslatedTextVo(new JournalNumberDomain(slippage).percentage(SLIPPAGE_FRACTION_DIGITS)),
               'neutral',
@@ -91,13 +93,14 @@ export class ContractTradeStatisticsDomain {
           ? 0
           : mistakeCost.rMultipleTotal.abs().dividedBy(largestMistakeCost).times(PERCENT).toNumber())),
       [
-        this.sourceComparisonRow(new LocalizedTextVo('有關聯策略', 'Linked strategy'), this.statistics.linkedGroup),
-        this.sourceComparisonRow(new LocalizedTextVo('自行判斷', 'Self-judged'), this.statistics.selfJudgedGroup),
+        this.sourceComparisonRow('linked', new LocalizedTextVo('有關聯策略', 'Linked strategy'), this.statistics.linkedGroup),
+        this.sourceComparisonRow('selfJudged', new LocalizedTextVo('自行判斷', 'Self-judged'), this.statistics.selfJudgedGroup),
       ],
       this.closedTradeCountText(),
       lastCumulativePoint === undefined
         ? null
         : new TradeFigureVo(
+            'cumulativeRMultiple',
             new LocalizedTextVo('累積 R', 'Cumulative R'),
             new UntranslatedTextVo(new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).rMultiple()),
             new JournalNumberDomain(lastCumulativePoint.cumulativeRMultiple).tone()),
@@ -106,6 +109,7 @@ export class ContractTradeStatisticsDomain {
 
   private netProfitFigure(): TradeFigureVo {
     return new TradeFigureVo(
+      'netProfit',
       new LocalizedTextVo('淨損益', 'Net P&L'),
       new UntranslatedTextVo(new JournalNumberDomain(this.statistics.netProfit).signedAmount()),
       new JournalNumberDomain(this.statistics.netProfit).tone(),
@@ -114,6 +118,7 @@ export class ContractTradeStatisticsDomain {
 
   private winRateFigure(): TradeFigureVo {
     return new TradeFigureVo(
+      'winRate',
       new LocalizedTextVo('勝率', 'Win rate'),
       this.ratioText(this.statistics.winRate),
       'neutral',
@@ -126,8 +131,9 @@ export class ContractTradeStatisticsDomain {
     const averageRMultiple = this.statistics.averageRMultiple
 
     return averageRMultiple === null
-      ? new TradeFigureVo(AVERAGE_R_MULTIPLE_LABEL, NOT_APPLICABLE_TEXT, 'muted')
+      ? new TradeFigureVo('averageRMultiple', AVERAGE_R_MULTIPLE_LABEL, NOT_APPLICABLE_TEXT, 'muted')
       : new TradeFigureVo(
+          'averageRMultiple',
           AVERAGE_R_MULTIPLE_LABEL,
           new UntranslatedTextVo(new JournalNumberDomain(averageRMultiple).rMultiple()),
           new JournalNumberDomain(averageRMultiple).tone(),
@@ -138,8 +144,9 @@ export class ContractTradeStatisticsDomain {
     const profitFactor = this.statistics.profitFactor
 
     return profitFactor === null
-      ? new TradeFigureVo(PROFIT_FACTOR_LABEL, NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
+      ? new TradeFigureVo('profitFactor', PROFIT_FACTOR_LABEL, NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
       : new TradeFigureVo(
+          'profitFactor',
           PROFIT_FACTOR_LABEL,
           new UntranslatedTextVo(profitFactor.toFixed(FACTOR_FRACTION_DIGITS)),
           'neutral',
@@ -148,14 +155,20 @@ export class ContractTradeStatisticsDomain {
 
   private feeShareFigure(): TradeFigureVo {
     return new TradeFigureVo(
+      'feeShareOfGrossProfit',
       new LocalizedTextVo('費用佔毛利', 'Fees vs gross profit'),
       this.ratioText(this.statistics.feeShareOfGrossProfit),
       'neutral',
       new LocalizedTextVo('手續費＋資金費', 'Trading fees + funding fees'))
   }
 
-  private sourceComparisonRow(label: LocalizedTextVo, group: ContractTradeSourceGroup): ContractTradeSourceComparisonRowDto {
+  private sourceComparisonRow(
+    source: Exclude<TradeSourceFilter, 'all'>,
+    label: LocalizedTextVo,
+    group: ContractTradeSourceGroup,
+  ): ContractTradeSourceComparisonRowDto {
     return new ContractTradeSourceComparisonRowDto(
+      source,
       label,
       this.tradeCountText(group.tradeCount),
       this.ratioText(group.winRate),

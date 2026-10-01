@@ -44,17 +44,20 @@ export class SpotTradeRecordSummaryDomain {
       outcome.averageSellPrice === null ? NOT_APPLICABLE_TEXT : new JournalNumberDomain(outcome.averageSellPrice).price(),
       status.isOpen
         ? new TradeMeasureDomain(outcome.floatingProfit).toFigure(
+            'floatingProfit',
             PROFIT_LABEL,
             value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
             value => new JournalNumberDomain(value).tone(),
             FLOATING_NOTE)
         : new TradeFigureVo(
+            'netProfit',
             PROFIT_LABEL,
             new UntranslatedTextVo(new JournalNumberDomain(outcome.netProfit).signedAmount()),
             new JournalNumberDomain(outcome.netProfit).tone()),
       status.isOpen
-        ? new TradeFigureVo(RETURN_RATE_LABEL, NOT_APPLICABLE_FIGURE_TEXT, 'muted')
+        ? new TradeFigureVo('returnRate', RETURN_RATE_LABEL, NOT_APPLICABLE_FIGURE_TEXT, 'muted')
         : new TradeMeasureDomain(outcome.returnRate).toFigure(
+            'returnRate',
             RETURN_RATE_LABEL,
             value => new UntranslatedTextVo(
               new JournalNumberDomain(value.times(PERCENT)).signedPercentage(RETURN_RATE_FRACTION_DIGITS)),

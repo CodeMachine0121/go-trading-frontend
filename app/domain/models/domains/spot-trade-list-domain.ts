@@ -41,7 +41,7 @@ export class SpotTradeListDomain {
         `${closedTradeCount} closed · ${openTradeCount} open`),
       marketDomains
         .filter(market => market.closedTradeCount > 0)
-        .map(market => new SpotTradeMarketSummaryDto(market.marketLabel, market.summaryFigures())),
+        .map(market => new SpotTradeMarketSummaryDto(market.market, market.marketLabel, market.summaryFigures())),
       rows,
       this.records.filter(record => new SpotTradeStatusDomain(record.status).awaitsReview).length,
       [...new Set(this.records.map(record => record.symbol))].sort(),

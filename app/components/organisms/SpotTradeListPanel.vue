@@ -132,9 +132,9 @@ const marketTab = computed({
     <template v-else-if="list">
       <section
         v-for="summary in list.marketSummaries"
-        :key="summary.marketLabel.traditionalChinese"
+        :key="summary.market"
         class="spot-trade-list-panel__market"
-        :data-testid="`trade-list-summary-${summary.marketLabel.traditionalChinese}`"
+        :data-testid="`trade-list-summary-${summary.market}`"
       >
         <h3 class="spot-trade-list-panel__market-label">
           {{ localize(summary.marketLabel) }}
