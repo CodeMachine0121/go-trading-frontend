@@ -39,5 +39,6 @@ export class StrategyBotDto {
     public readonly leverageLabel: string | null = null,
     /** 這一台的編輯頁——在它自己那一種的畫面底下。 */
     public readonly editPath: string = `/strategy-bots/${id}`,
+    public readonly autoOrderEnabled: boolean = false,
   ) {}
 }

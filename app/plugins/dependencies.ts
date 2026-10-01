@@ -63,6 +63,9 @@ import { PasswordChangeApplication } from '~/application/password-change-applica
 import { TelegramDeliveryProxy } from '~/infrastructure/proxy/telegram-delivery-proxy'
 import { TelegramDeliveryService } from '~/domain/service/telegram-delivery-service'
 import { TelegramDeliveryApplication } from '~/application/telegram-delivery-application'
+import { BinanceTradingKeyProxy } from '~/infrastructure/proxy/binance-trading-key-proxy'
+import { BinanceTradingKeyService } from '~/domain/service/binance-trading-key-service'
+import { BinanceTradingKeyApplication } from '~/application/binance-trading-key-application'
 import { ClipboardProxy } from '~/infrastructure/proxy/clipboard-proxy'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardApplication } from '~/application/clipboard-application'
@@ -271,6 +274,11 @@ export default defineNuxtPlugin(() => {
       new TelegramDeliveryProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
+  const binanceTradingKeyApplication = new BinanceTradingKeyApplication(
+    new BinanceTradingKeyService(
+      new BinanceTradingKeyProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
   const connectorAuthorizationApplication = new ConnectorAuthorizationApplication(
     new ConnectorAuthorizationService(
       new ConnectorAuthorizationProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
@@ -340,6 +348,7 @@ export default defineNuxtPlugin(() => {
       userSessionApplication,
       passwordChangeApplication,
       telegramDeliveryApplication,
+      binanceTradingKeyApplication,
       connectorAuthorizationApplication,
       contractTradeJournalApplication,
       spotTradeJournalApplication,

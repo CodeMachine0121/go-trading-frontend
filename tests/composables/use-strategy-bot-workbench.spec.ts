@@ -198,3 +198,22 @@ describe('useStrategyBotWorkbench 只拼這一種機器人', () => {
     expect(workbenchUnderTest(null, 'kCandle').page.listPath).toBe('/strategy-bots')
   })
 })
+
+describe('useStrategyBotWorkbench 的自動下單', () => {
+  it('新拼一台時沒有可以切換的機器人', async () => {
+    const enableAutoOrder = vi.fn()
+    const workbench = useStrategyBotWorkbench(
+      { ...strategyBotApplication, enableAutoOrder } as unknown as Parameters<typeof useStrategyBotWorkbench>[0],
+      tradingStrategyApplication as unknown as Parameters<typeof useStrategyBotWorkbench>[1],
+      null,
+      'kCandle',
+    )
+
+    await workbench.switchAutoOrder(true)
+
+    expect(enableAutoOrder).not.toHaveBeenCalled()
+    expect(workbench.autoOrderEnabled.value).toBe(false)
+    expect(workbench.autoOrderRefusal.value).toBeNull()
+    expect(workbench.autoOrderFailureMessage.value).toBeNull()
+  })
+})

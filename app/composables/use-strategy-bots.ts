@@ -131,6 +131,10 @@ export function useStrategyBots(
     await toggleRunHistory(id)
   }
 
+  function replaceStrategyBot(strategyBot: StrategyBotDto) {
+    strategyBots.value = strategyBots.value.map(listed => listed.id === strategyBot.id ? strategyBot : listed)
+  }
+
   function askToDelete(strategyBot: StrategyBotDto) {
     deleting.value = strategyBot
   }
@@ -201,6 +205,7 @@ export function useStrategyBots(
     runNow,
     deleting,
     load,
+    replaceStrategyBot,
     start,
     stop,
     askToDelete,

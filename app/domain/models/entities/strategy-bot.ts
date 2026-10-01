@@ -39,6 +39,7 @@ export class StrategyBot {
     public readonly positionPlan: PositionPlanDto | null,
     /** 現貨機器人（K 線）或合約機器人（合約行情）。舊版後端沒說的一律是現貨。 */
     public readonly marketDataKind: MarketDataKind = 'kCandle',
+    public readonly autoOrderEnabled: boolean = false,
   ) {}
 
   toDomain(): StrategyBotDomain {

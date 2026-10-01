@@ -51,4 +51,9 @@ export interface IStrategyBotProxy {
    * 機器人清單是打開來看「哪一台該管」，歷史是打開來看「其中那一台」。
    */
   listRunRecords(id: number): Promise<StrategyBotRunRecord[]>
+
+  /** 交易服務拒絕時拋 AutoOrderRefusedError。 */
+  enableAutoOrder(id: number): Promise<StrategyBot>
+
+  disableAutoOrder(id: number): Promise<StrategyBot>
 }

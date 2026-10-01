@@ -7,6 +7,8 @@ import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-error'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import Decimal from 'decimal.js'
+import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與每一個 domain model 都是真的。
 function buildApplication(strategyBotProxy: Partial<IStrategyBotProxy>): StrategyBotApplication {
@@ -20,6 +22,8 @@ function buildApplication(strategyBotProxy: Partial<IStrategyBotProxy>): Strateg
     stopStrategyBot: vi.fn(),
     runRoundNow: vi.fn(),
     listRunRecords: vi.fn(),
+    enableAutoOrder: vi.fn(),
+    disableAutoOrder: vi.fn(),
     ...strategyBotProxy,
   }))
 }
@@ -239,5 +243,62 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
       expect(createStrategyBot).toHaveBeenCalledOnce()
       expect(createStrategyBot.mock.calls[0]?.[0].sendable.marketDataKind).toBe('contractKCandle')
     }
+  })
+})
+
+function botWithAutoOrder(autoOrderEnabled: boolean, runState: 'running' | 'stopped' = 'running'): StrategyBot {
+  return new StrategyBot(
+    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉', runState, '', null, false, null, 'kCandle', autoOrderEnabled)
+}
+
+describe('StrategyBotApplication.enableAutoOrder', () => {
+  it('執行中的機器人也打得開，回來的那一台開著', async () => {
+    const enableAutoOrder = vi.fn().mockResolvedValue(botWithAutoOrder(true, 'running'))
+    const application = buildApplication({ enableAutoOrder })
+
+    const result = await application.enableAutoOrder(3)
+
+    expect(enableAutoOrder).toHaveBeenCalledWith(3)
+    expect(result.strategyBot?.autoOrderEnabled).toBe(true)
+    expect(result.refusal).toBeNull()
+  })
+
+  it.each([
+    { reason: 'binanceTradingKeyNotConfigured' as const, message: '請先完成幣安交易金鑰設定，才能打開自動下單', offersSettings: true },
+    { reason: 'tradableMarketNotCovered' as const, message: '這組幣安交易金鑰沒有合約交易權限', offersSettings: false },
+    { reason: 'binanceTradingKeyChanged' as const, message: '幣安交易金鑰剛被換過，請再試一次', offersSettings: false },
+  ])('被拒（$reason）是一個答案：照原話、是哪一台、要不要附去設定的路', async ({ reason, message, offersSettings }) => {
+    const application = buildApplication({
+      enableAutoOrder: vi.fn().mockRejectedValue(new AutoOrderRefusedError(message, reason)),
+    })
+
+    const result = await application.enableAutoOrder(3)
+
+    expect(result.strategyBot).toBeNull()
+    expect(result.refusal).toEqual(expect.objectContaining({
+      strategyBotId: 3,
+      message,
+      offersBinanceTradingKeySettings: offersSettings,
+    }))
+  })
+
+  it('其他失敗照樣往上拋', async () => {
+    const application = buildApplication({
+      enableAutoOrder: vi.fn().mockRejectedValue(new BackendRequestRejectedError('找不到這台機器人')),
+    })
+
+    await expect(application.enableAutoOrder(3)).rejects.toBeInstanceOf(BackendRequestRejectedError)
+  })
+})
+
+describe('StrategyBotApplication.disableAutoOrder', () => {
+  it('關掉，回來的那一台關著', async () => {
+    const disableAutoOrder = vi.fn().mockResolvedValue(botWithAutoOrder(false, 'stopped'))
+    const application = buildApplication({ disableAutoOrder })
+
+    const disabled = await application.disableAutoOrder(3)
+
+    expect(disableAutoOrder).toHaveBeenCalledWith(3)
+    expect(disabled.autoOrderEnabled).toBe(false)
   })
 })
