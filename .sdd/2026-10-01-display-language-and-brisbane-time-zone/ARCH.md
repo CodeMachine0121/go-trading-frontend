@@ -39,6 +39,7 @@
 | :--- | :--- | :--- |
 | `package.json` | **Modify** | 加入 `vue-i18n` 為 runtime dependency |
 | `app/domain/models/vo/localized-text-vo.ts` | **Add** | 雙語說法：`traditionalChinese`、`english` 兩欄 + `in(language)` 挑一種 |
+| `app/domain/models/vo/untranslated-text-vo.ts` | **Add** | 後端原文：兩種說法是同一段字，畫面仍只認得一種「要說的話」 |
 | `app/domain/models/vo/display-language-code-vo.ts` | **Add** | `DisplayLanguageCodeVo = 'zh-TW' \| 'en'` 有限 union 與清單常數 |
 | `app/domain/models/entities/display-language.ts` | **Add** | 一個可選語言的本體形狀：代碼與自己語言寫的名字 |
 | `app/domain/models/domains/display-language-domain.ts` | **Add** | 行為：判斷一組瀏覽器偏好語言標籤是否「偏好它」、轉 DTO |
@@ -47,20 +48,19 @@
 | `app/infrastructure/proxy/display-language-preference-proxy.ts` | **Add** | 實作：`localStorage` + `navigator.languages`（全站唯二碰這兩個 API 的地方之一） |
 | `app/domain/service/display-language-service.ts` | **Add** | 三個用例：列出可選語言、讀回（記住的 → 瀏覽器偏好 → 繁中）、選定並記住 |
 | `app/application/display-language-application.ts` | **Add** | 元件唯一認識的下層 |
-| `app/plugins/i18n.ts` | **Add** | 建立 vue-i18n 實例（`legacy: false`、預設 `zh-TW`、`fallbackLocale: 'zh-TW'`）並 `vueApp.use()` |
-| `app/locales/i18n-options.ts` | **Add** | vue-i18n 的建立選項（兩份語言目錄、預設語言），plugin 與測試共用同一份 |
+| `app/plugins/i18n.ts` | **Add** | 建立 vue-i18n 實例（`legacy: false`、預設 `zh-TW`、`fallbackLocale: 'zh-TW'`）並 `vueApp.use()`；全域 composer 以 `$globalTranslation` provide 給元件以外的切換語言 composable |
+| `app/locales/create-display-language-i18n.ts` | **Add** | 建立 vue-i18n 實例的唯一入口（兩份語言目錄、預設語言），plugin 與測試共用同一份 |
 | `app/locales/traditional-chinese-messages.ts`、`app/locales/english-messages.ts` | **Add** | 兩份語言目錄的根，各自組合 `app/locales/{traditional-chinese,english}/<area>.ts` |
-| `app/locales/{traditional-chinese,english}/<area>.ts` | **Add** | 依畫面區域拆開的語言目錄（`common`、`shell`、`marketData`、`strategyScript`、`tradingStrategy`、`strategyBot`、`tradeJournal`、`assistant`、`settings`）。英文那一份以 `typeof` 繁中那一份為型別——**少一個鍵、多一個鍵都過不了型別檢查** |
-| `app/types/vue-i18n.d.ts` | **Add** | 把繁中目錄的形狀註冊給 vue-i18n（`DefineLocaleMessage`），`t('打錯的鍵')` 直接型別錯誤 |
+| `app/locales/{traditional-chinese,english}/<area>.ts` | **Add** | 依畫面區域拆開的語言目錄（`common`、`shell`、`settings`、`marketData`、`strategyScript`、`backtest`、`tradingStrategy`、`strategyBot`、`tradeJournal`、`contractTradeJournal`、`assistant`）。英文那一份以 `typeof` 繁中那一份為型別——**少一個鍵、多一個鍵都過不了型別檢查** |
 | `app/composables/use-display-language.ts` | **Add** | 跨畫面共用的選定語言：還原、選定、同步到 vue-i18n 的 `locale` 與 `<html lang>` |
 | `app/composables/use-localized-text.ts` | **Add** | `localize(text: LocalizedTextVo): string`——只依賴 vue-i18n 的 `locale`，元件測試不必啟動 Nuxt |
 | `app/components/molecules/DisplayLanguageField.vue` | **Add** | 語言選單（笨元件，比照 `TimeZoneField`） |
-| `scripts/check-translations.mjs` | **Add** | 機械檢查：`.vue`、`app/composables/`、`app/pages/`、`app/layouts/`、`app/plugins/`、`app/middleware/` 的非註解程式碼不得出現中日韓文字；英文目錄不得出現中日韓文字。掛進 `bun run verify`（`lint:translations`） |
+| `scripts/check-translations.ts` | **Add** | 機械檢查（以 bun 執行，直接讀兩份目錄）：`app/` 非註解程式碼的中日韓文字只准出現在繁中目錄與 `new LocalizedTextVo(...)` 引數裡；英文目錄不得有中日韓文字或空字串；每一個 `t('…')`／`consoleTitleKey` 指的鍵都要存在，且鍵必須是字面量。vue-i18n 的 `t()` 型別接受任意字串，打錯的鍵只能靠這裡擋。掛進 `bun run verify`（`lint:translations`） |
 | `tests/setup/i18n.ts` + `vitest.config.ts` | **Add / Modify** | 測試全域安裝同一份 i18n（預設繁中），既有以中文驗證畫面的測試照常成立 |
 | `app/domain/service/time-zone-service.ts` | **Modify** | 清單加 `new TimeZone('Australia/Brisbane', …)`，位在新加坡之後、倫敦之前；城市名改為 `LocalizedTextVo` |
 | `TimeZone` / `TimeZoneDomain` / `TimeZoneDto` | **Modify** | `cityLabel: string` → `cityName: LocalizedTextVo`；`label` 改為 `LocalizedTextVo`（繁中用全形括號 `布里斯本（UTC+10:00）`、英文用 `Brisbane (UTC+10:00)`） |
 | `app/domain/errors/*.ts`（操作台自己說話的那些） | **Modify** | 建構子收 `LocalizedTextVo`，存於 `localizedMessage`；`Error.message` 仍設為繁中那一份（記錄與既有 `toThrow('…')` 測試照常） |
-| 轉述後端原文的錯誤（`BackendRequestRejectedError`、`BackendServerError`、`SignedOutError` 等） | **Modify** | `localizedMessage` 兩種說法都是後端原文——原樣呈現，不翻 |
+| 轉述後端原文的錯誤（`BackendRequestRejectedError`、`BackendServerError`、`SignedOutError` 等） | **Modify** | 建構子仍收字串；`localizedMessage` 是 `UntranslatedTextVo`——原樣呈現，不翻 |
 | domain 內所有產生畫面文字的 model / VO / service | **Modify** | 中文字串 → `LocalizedTextVo`；DTO 上對應欄位型別一起改 |
 | composables 裡存放錯誤訊息的 `ref<string>` | **Modify** | 改存 `LocalizedTextVo`，畫面渲染時才挑語言（換語言時已顯示的說明跟著換） |
 | 所有 `.vue` 與 `definePageMeta` | **Modify** | 字面中文 → `t('key')`；頁面標題 `consoleTitle` / `consoleSubtitle` 改為語言目錄的鍵（`consoleTitleKey` / `consoleSubtitleKey`），版型以 `t()` 讀出並同步 `useHead({ title })` |
@@ -90,8 +90,8 @@
 | `useDisplayLanguage` | Composable | 共用的選定語言代碼（`useState`）；`initializeDisplayLanguage()` 還原並套用；`selectLanguage(code)` 記住並套用。**套用＝寫 vue-i18n 的 `locale` 與 `document.documentElement.lang`** | `DisplayLanguageApplication`、vue-i18n | US-02 當場生效、頂欄與設定頁同一份；PRD「整份頁面宣告目前語言」 |
 | `useLocalizedText` | Composable | 回傳 `localize(text)`，照 vue-i18n 目前的 `locale` 挑說法 | vue-i18n、`LocalizedTextVo` | US-01、US-02（渲染當下才挑） |
 | `DisplayLanguageField` | Molecule | 列出可選語言（以自稱名字），v-model 為代碼 | `AppSelect` | US-02 頂欄與設定頁 |
-| `i18n-options` + 兩份語言目錄根 | 語言資源 | vue-i18n 的唯一建立選項；目錄依區域拆檔，英文目錄以繁中目錄為型別 | vue-i18n | US-01 全部；PRD 風險「翻譯覆蓋不全」 |
-| `check-translations.mjs` | 檢查腳本 | 擋下殘留在畫面層的中文字面字、英文目錄裡的中文 | — | PRD 風險「翻譯覆蓋不全」；Expected Outcome 1 |
+| `createDisplayLanguageI18n` + 兩份語言目錄根 | 語言資源 | vue-i18n 的唯一建立選項；目錄依區域拆檔，英文目錄以繁中目錄為型別 | vue-i18n | US-01 全部；PRD 風險「翻譯覆蓋不全」 |
+| `check-translations.ts` | 檢查腳本 | 擋下殘留在畫面層的中文字面字、英文目錄裡的中文 | — | PRD 風險「翻譯覆蓋不全」；Expected Outcome 1 |
 
 > `useLocalizedText` 只依賴 vue-i18n 而不依賴 `useDisplayLanguage`：後者要 `useNuxtApp()`，會讓上百個 happy-dom 元件測試都得改成 Nuxt 環境。vue-i18n 的 `locale` 本來就是「目前語言」的唯一真相，`useDisplayLanguage` 只負責**寫**它。
 
