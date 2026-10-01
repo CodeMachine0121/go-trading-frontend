@@ -39,6 +39,8 @@ export const contractTradeJournalTraditionalChineseMessages = {
     writeReview: '去寫檢討',
     deleteTitle: '刪除這筆交易',
     deleteMessage: '刪除後，這筆交易的開倉平倉紀錄、附註、檢討都會一併刪除，無法復原',
+    savedNotice: '已記下',
+    deletedNotice: '已刪除 #{id}',
   },
   fillEditor: {
     confirmActualFill: '請改成實際開倉的價格與數量',
@@ -96,6 +98,7 @@ export const contractTradeJournalTraditionalChineseMessages = {
     addToTrade: '加倉',
     saving: '儲存中…',
     saveOpen: '儲存（持倉中）',
+    journalLinkNotFound: '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。',
   },
   list: {
     pendingReview: '待檢討',

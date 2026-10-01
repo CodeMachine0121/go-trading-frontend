@@ -109,6 +109,7 @@ export const backtestEnglishMessages: typeof backtestTraditionalChineseMessages 
     parameterNotDeclared: 'A parameter problem (fix the name in the parameter row, or the line in the script that reads it): {message}',
     scriptFailed: 'A script problem (fix the script): {message}',
     runningNotice: 'Backtesting… the script runs once for every K-candle, so a long period can take several tens of seconds; after ninety seconds the trading service stops the run.',
+    unexpectedError: 'An unexpected error occurred while running the backtest.',
   },
   tradingStrategyBacktestPane: {
     unsaved: 'This one has not been saved yet, so there is nothing to backtest. Save it first, then come back here.',
@@ -117,5 +118,6 @@ export const backtestEnglishMessages: typeof backtestTraditionalChineseMessages 
     parameterNotDeclared: 'A parameter problem (fix the value that signal source fills in, or the line in the script that reads it): {message}',
     scriptFailed: 'A script problem (fix the strategy script that signal source names): {message}',
     runningNotice: 'Backtesting… on every K-candle each signal source runs its script once, so a long period can take several tens of seconds; after ninety seconds the trading service stops the run.',
+    unexpectedError: 'An unexpected error occurred while running the backtest.',
   },
 }

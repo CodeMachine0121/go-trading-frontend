@@ -41,6 +41,8 @@ export const contractTradeJournalEnglishMessages: typeof contractTradeJournalTra
     writeReview: 'Write the review',
     deleteTitle: 'Delete this trade',
     deleteMessage: 'Deleting removes this trade\'s entries and exits, notes and review as well. This cannot be undone.',
+    savedNotice: 'Saved',
+    deletedNotice: 'Deleted #{id}',
   },
   fillEditor: {
     confirmActualFill: 'Change these to your actual entry price and quantity',
@@ -98,6 +100,7 @@ export const contractTradeJournalEnglishMessages: typeof contractTradeJournalTra
     addToTrade: 'to add',
     saving: 'Saving…',
     saveOpen: 'Save (open)',
+    journalLinkNotFound: 'This run could not be found. Its suggestion is no longer on record; please fill in the form yourself.',
   },
   list: {
     pendingReview: 'To review',

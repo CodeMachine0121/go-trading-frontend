@@ -119,6 +119,10 @@ export const strategyScriptTraditionalChineseMessages = {
     empty: '市集上還沒有任何策略腳本。把自己調好的一支分享出來，別人就看得到它了。',
     noMatches: '沒有符合「{query}」的策略腳本。',
     clearSearch: '清掉搜尋',
+    adopted: '已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。',
+    noLongerListed: '這一支已經不在市集上了，可能剛被分享的人收回。重新整理就會看到目前的樣子。',
+    backendUnreachable: '連不上後端，請確認它已經啟動。',
+    operationFailed: '操作失敗。',
   },
   indicatorCalculationPanel: {
     destinations: {
@@ -210,5 +214,19 @@ export const strategyScriptTraditionalChineseMessages = {
       message: '收回之後，所有把它加進自己清單的人都會失去它，而且你不會知道有誰。重新分享也不會讓他們自動回來。',
       confirm: '收回',
     },
+    unexpectedCalculationError: '執行計算時發生未預期的錯誤。',
+  },
+  strategyScriptLibrary: {
+    listFailed: '取得策略腳本清單時發生未預期的錯誤。',
+    blankStarted: '已經開了一份新的空白策略腳本。',
+    saved: '已儲存「{name}」。',
+    saveFailed: '儲存策略腳本時發生未預期的錯誤。',
+    published: '已經分享到市集。',
+    withdrawn: '已經從市集收回。',
+    publicationChangeFailed: '變更分享狀態時發生未預期的錯誤。',
+    adoptedCopyDeleted: '已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。',
+    adoptedCopyDeleteFailed: '刪掉副本時發生未預期的錯誤。',
+    deleteFailed: '刪除策略腳本時發生未預期的錯誤。',
+    backendUnreachable: '連不上後端，請確認它已經啟動。',
   },
 }

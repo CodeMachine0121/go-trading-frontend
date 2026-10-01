@@ -45,6 +45,7 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
     confirmationLabel: 'Type the new password again',
     submit: 'Change password',
     submitting: 'Changing…',
+    unexpectedError: 'An unexpected error occurred while changing the password.',
   },
   telegramDelivery: {
     title: 'Telegram delivery',
@@ -71,6 +72,11 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
     testBlocked: 'Finish the Telegram setup above before you can send a test message.',
     sendTestMessage: 'Send test message',
     sending: 'Sending…',
+    defaultTestMessage: 'This is a test message from go-trading.',
+    sendSucceeded: 'Sent. Check Telegram for the message.',
+    secretSealUnavailable: '{message} (The backend has no SECRET_SEAL_KEY set; this is not something you entered wrong.)',
+    notConfigured: 'Finish the Telegram setup above before sending a test message.',
+    unexpectedError: 'An unexpected error occurred while working with the Telegram setting.',
   },
   binanceTradingKey: {
     title: 'Binance trading key',
@@ -89,5 +95,7 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
     saving: 'Checking with Binance…',
     removeConfirmationTitle: 'Remove Binance trading key',
     removeConfirmationMessage: 'Once removed, every bot with automatic ordering turned on will be switched off too. To use it again you will need to enter the API Key and Secret Key again.',
+    secretSealUnavailable: '{message} (This is not something you entered wrong.)',
+    unexpectedError: 'An unexpected error occurred while working with the Binance trading key setting.',
   },
 }

@@ -29,6 +29,7 @@ export const tradeJournalTraditionalChineseMessages = {
     goToTradeAddBuy: '前往 #{id} 加一筆買進',
     goToTrade: '前往 #{id}',
     saveAsOpen: '儲存（持有中）',
+    journalLinkNotFound: '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。',
   },
   pages: {
     spotDetail: {
@@ -59,6 +60,8 @@ export const tradeJournalTraditionalChineseMessages = {
     goWriteReview: '去寫檢討',
     deleteTitle: '刪除這筆交易',
     deleteMessage: '刪除後，這筆交易的買進賣出紀錄、附註、檢討都會一併刪除，無法復原',
+    savedNotice: '已記下',
+    deletedNotice: '已刪除 #{id}',
   },
   spotFillEditor: {
     kindLabel: '動作',

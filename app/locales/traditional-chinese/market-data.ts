@@ -52,6 +52,8 @@ export const marketDataTraditionalChineseMessages = {
     remove: '移除',
     calculatingNote: '計算中…',
     drawsNothing: '算完了，但這支算式沒有放進任何指標，所以圖上沒有線。',
+    backendUnreachable: '連不上後端，請確認它已經啟動。',
+    unexpectedCalculationError: '計算這支指標時發生未預期的錯誤。',
   },
   contractSymbolField: {
     label: '合約標的',

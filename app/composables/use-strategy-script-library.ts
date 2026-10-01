@@ -10,7 +10,7 @@ import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 目前哪一個對話框疊在畫面上。一次只有一個——好幾個同時開沒有任何意義。 */
@@ -36,6 +36,7 @@ export function useStrategyScriptLibrary(
    */
   marketDataKind: MarketDataKind = 'kCandle',
 ) {
+  const { translatedText } = useLocalizedText()
   /**
    * 自己寫的那些。它們帶著算式，所以載得進編輯器、改得動、刪得掉、發得出去。
    */
@@ -94,9 +95,7 @@ export function useStrategyScriptLibrary(
     }
     catch (error: unknown) {
       // 取不到清單時**不清空手上這一份**——把它清空等於告訴使用者他什麼都沒存過。
-      listErrorMessage.value = messageOf(error, new LocalizedTextVo(
-        '取得策略腳本清單時發生未預期的錯誤。',
-        'An unexpected error occurred while loading the strategy script list.'))
+      listErrorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.listFailed'))
     }
   }
 
@@ -189,8 +188,7 @@ export function useStrategyScriptLibrary(
     openDialog.value = 'none'
     clearMessages()
     // 編輯區本來就空的時候，少了這一句，那顆按鈕看起來像壞了。
-    noticeMessage.value = new LocalizedTextVo(
-      '已經開了一份新的空白策略腳本。', 'Started a new blank strategy script.')
+    noticeMessage.value = translatedText('strategyScript.strategyScriptLibrary.blankStarted')
   }
 
   /** 編輯區裡有還沒存的東西。離開這一頁、蓋掉編輯區之前都要先問這一句。 */
@@ -294,7 +292,7 @@ export function useStrategyScriptLibrary(
       activeStrategyScript.value = saved
       loadedContent.value = saved.content
       openDialog.value = 'none'
-      noticeMessage.value = new LocalizedTextVo(`已儲存「${saved.name}」。`, `Saved "${saved.name}".`)
+      noticeMessage.value = translatedText('strategyScript.strategyScriptLibrary.saved', { name: saved.name })
       await refreshStrategyScripts()
     }
     catch (error: unknown) {
@@ -308,9 +306,7 @@ export function useStrategyScriptLibrary(
         return
       }
 
-      errorMessage.value = messageOf(error, new LocalizedTextVo(
-        '儲存策略腳本時發生未預期的錯誤。',
-        'An unexpected error occurred while saving the strategy script.'))
+      errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.saveFailed'))
     }
     finally {
       saving.value = false
@@ -322,7 +318,7 @@ export function useStrategyScriptLibrary(
    */
   async function publishStrategyScript(id: number) {
     await changePublication(id, () => strategyScriptApplication.publishStrategyScript(id),
-      new LocalizedTextVo('已經分享到市集。', 'Published to the marketplace.'))
+      translatedText('strategyScript.strategyScriptLibrary.published'))
   }
 
   /**
@@ -342,7 +338,7 @@ export function useStrategyScriptLibrary(
     }
 
     await changePublication(id, () => strategyScriptApplication.withdrawStrategyScript(id),
-      new LocalizedTextVo('已經從市集收回。', 'Withdrawn from the marketplace.'))
+      translatedText('strategyScript.strategyScriptLibrary.withdrawn'))
   }
 
   /**
@@ -366,9 +362,7 @@ export function useStrategyScriptLibrary(
       await refreshStrategyScripts()
     }
     catch (error: unknown) {
-      errorMessage.value = messageOf(error, new LocalizedTextVo(
-        '變更分享狀態時發生未預期的錯誤。',
-        'An unexpected error occurred while changing the sharing status.'))
+      errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.publicationChangeFailed'))
       openDialog.value = 'none'
     }
     finally {
@@ -397,14 +391,11 @@ export function useStrategyScriptLibrary(
       }
 
       openDialog.value = 'library'
-      noticeMessage.value = new LocalizedTextVo(
-        '已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。',
-        'Deleted this copy. The original is unaffected; adopt it again from the marketplace if you want it back.')
+      noticeMessage.value = translatedText('strategyScript.strategyScriptLibrary.adoptedCopyDeleted')
       await refreshStrategyScripts()
     }
     catch (error: unknown) {
-      errorMessage.value = messageOf(error, new LocalizedTextVo(
-        '刪掉副本時發生未預期的錯誤。', 'An unexpected error occurred while deleting the copy.'))
+      errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.adoptedCopyDeleteFailed'))
       openDialog.value = 'library'
     }
     finally {
@@ -440,9 +431,7 @@ export function useStrategyScriptLibrary(
       openDialog.value = 'library'
     }
     catch (error: unknown) {
-      errorMessage.value = messageOf(error, new LocalizedTextVo(
-        '刪除策略腳本時發生未預期的錯誤。',
-        'An unexpected error occurred while deleting the strategy script.'))
+      errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.deleteFailed'))
       openDialog.value = 'library'
     }
   }
@@ -455,8 +444,7 @@ export function useStrategyScriptLibrary(
 
   function messageOf(error: unknown, fallback: LocalizedTextVo): LocalizedTextVo {
     if (error instanceof BackendUnreachableError) {
-      return new LocalizedTextVo(
-        '連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
+      return translatedText('strategyScript.strategyScriptLibrary.backendUnreachable')
     }
     if (error instanceof StrategyScriptNotFoundError
       || error instanceof BackendRequestRejectedError

@@ -38,6 +38,10 @@ export const assistantEnglishMessages: typeof assistantTraditionalChineseMessage
   },
   suggestedPrompts: {
     title: 'Try asking',
+    tradingSymbols: 'Which trading symbols does the system know?',
+    hourlyMovement: 'How has BTCUSDT moved hour by hour over the last day?',
+    savedStrategyScripts: 'Which strategy scripts have I saved?',
+    movingAverage: 'Use a 20-candle moving average to see where BTCUSDT stands now',
   },
   conversationThread: {
     emptyLead: 'Just ask about the market the way you would say it. The assistant looks up trading symbols, K-lines, indicators and strategy scripts on its own, then answers in a few sentences.',
@@ -56,5 +60,9 @@ export const assistantEnglishMessages: typeof assistantTraditionalChineseMessage
     startNew: 'New',
     reload: 'Reload',
     empty: 'No conversations yet. Ask something on the right to start one.',
+  },
+  conversation: {
+    conversationNotFound: 'This conversation could not be found; it may no longer exist. A new one has been started for you.',
+    unexpectedError: 'Something unexpected went wrong while talking to the assistant.',
   },
 }

@@ -1,7 +1,7 @@
 import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
@@ -18,6 +18,7 @@ export function useStrategyBots(
   /** 這一頁列的是哪一種機器人：現貨的畫面看不到合約機器人，反之亦然。 */
   marketDataKind: MarketDataKind,
 ) {
+  const { translatedText } = useLocalizedText()
   const strategyBots = ref<StrategyBotDto[]>([])
 
   const loading = ref(false)
@@ -192,7 +193,7 @@ export function useStrategyBots(
     // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('發生了一個說不出原因的錯誤', 'Something went wrong for an unknown reason')
+      : translatedText('strategyBot.listPanel.unknownError')
   }
 
   return {

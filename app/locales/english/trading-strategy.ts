@@ -35,6 +35,7 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     delete: 'Delete',
     deleteTitle: 'Delete this trading strategy?',
     deleteMessage: '“{name}” will be gone for good. If a bot still uses it, this will be blocked.',
+    unknownError: 'An unknown error occurred',
   },
   workbench: {
     nameLabel: 'Trading strategy name',
@@ -45,6 +46,10 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     unsaved: 'Unsaved changes',
     saving: 'Saving…',
     save: 'Save',
+    createdNotice: 'Trading strategy created',
+    savedNotice: 'Changes saved',
+    notSignalStrategyScript: '{name} (does not output a signal, so it cannot be a signal source)',
+    unknownError: 'An unknown error occurred',
   },
   signalSourceCard: {
     kicker: 'Signal sources',
@@ -87,5 +92,15 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     sourceField: 'Source',
     signalField: 'Signal',
     confirmAdd: 'Add',
+  },
+  form: {
+    marketDataKindChanged: 'Market data kind changed: the previous signal sources read the other kind, so they were removed. Pick again from this kind’s strategy scripts.',
+    missingStrategyScript: 'This strategy script (ID {id}) is no longer here',
+    signalSourceStillUsed: 'Conditions still use “{label}”; removing it also removes those conditions',
+    defaultSignalSourceLabel: 'Source {number}',
+    buyHeading: 'What counts as an entry',
+    buyConnectorWord: 'feeds',
+    sellHeading: 'What counts as an exit',
+    sellConnectorWord: 'also watched by',
   },
 }

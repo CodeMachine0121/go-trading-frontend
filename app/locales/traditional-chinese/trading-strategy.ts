@@ -33,6 +33,7 @@ export const tradingStrategyTraditionalChineseMessages = {
     delete: '刪掉',
     deleteTitle: '刪掉這一份交易策略？',
     deleteMessage: '「{name}」刪掉就沒了。還有機器人在用它的話，這一步會被擋下來。',
+    unknownError: '發生未知的錯誤',
   },
   workbench: {
     nameLabel: '交易策略名稱',
@@ -43,6 +44,10 @@ export const tradingStrategyTraditionalChineseMessages = {
     unsaved: '還沒存的改動',
     saving: '儲存中…',
     save: '儲存',
+    createdNotice: '交易策略拼好了',
+    savedNotice: '更改成功',
+    notSignalStrategyScript: '{name}（這支不吐訊號，當不了訊號來源）',
+    unknownError: '發生未知的錯誤',
   },
   signalSourceCard: {
     kicker: '訊號來源',
@@ -85,5 +90,15 @@ export const tradingStrategyTraditionalChineseMessages = {
     sourceField: '來源',
     signalField: '信號',
     confirmAdd: '加上去',
+  },
+  form: {
+    marketDataKindChanged: '換了行情種類：原本的信號來源吃的是另一種行情，已經拿掉，請從這一種的策略腳本重新挑。',
+    missingStrategyScript: '這支策略腳本（編號 {id}）已經不在了',
+    signalSourceStillUsed: '條件裡還在用「{label}」，刪掉它會一併拿掉那幾句條件',
+    defaultSignalSourceLabel: '來源{number}',
+    buyHeading: '什麼算買入',
+    buyConnectorWord: '拿來判斷',
+    sellHeading: '什麼算賣出',
+    sellConnectorWord: '同時也看',
   },
 }

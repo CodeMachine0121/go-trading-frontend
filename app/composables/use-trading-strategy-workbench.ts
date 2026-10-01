@@ -6,7 +6,7 @@ import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strate
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -32,6 +32,7 @@ export function useTradingStrategyWorkbench(
   strategyScriptApplication: StrategyScriptApplication,
   tradingStrategyId: number | null,
 ) {
+  const { translatedText } = useLocalizedText()
   // 存好了那一句現在要在**這一頁**上被看到，因為存完之後使用者留在原地。
   // 它仍然走跨頁的那一條，因為拼好一份新的會換一次網址（見 createdId）。
   const { announcement, announce } = useConsoleAnnouncement()
@@ -160,8 +161,8 @@ export function useTradingStrategyWorkbench(
       // 改一份與拼一份新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
       const savedNotice = writeDto.id === undefined
-        ? new LocalizedTextVo('交易策略拼好了', 'Trading strategy created')
-        : new LocalizedTextVo('更改成功', 'Changes saved')
+        ? translatedText('tradingStrategy.workbench.createdNotice')
+        : translatedText('tradingStrategy.workbench.savedNotice')
       announce(savedNotice)
       editing.value = savedTradingStrategy
       if (writeDto.id === undefined) {
@@ -217,10 +218,7 @@ export function useTradingStrategyWorkbench(
       parameterNames: Object.fromEntries(
         options.map(option => [option.value, option.parameterNames])) as Record<number, readonly string[]>,
       unusable: Object.fromEntries(
-        unusable.map(([id, name]) => [id, new LocalizedTextVo(
-          `${name}（這支不吐訊號，當不了訊號來源）`,
-          `${name} (does not output a signal, so it cannot be a signal source)`,
-        )])) as Record<number, LocalizedTextVo>,
+        unusable.map(([id, name]) => [id, translatedText('tradingStrategy.workbench.notSignalStrategyScript', { name })])) as Record<number, LocalizedTextVo>,
       shortage: options.length > 0
         ? null
         : (unusable.length === 0 ? 'noStrategyScripts' as const : 'noSignalStrategyScripts' as const),
@@ -239,7 +237,7 @@ export function useTradingStrategyWorkbench(
     // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('發生未知的錯誤', 'An unknown error occurred')
+      : translatedText('tradingStrategy.workbench.unknownError')
   }
 
   return {

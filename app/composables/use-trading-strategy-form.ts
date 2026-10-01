@@ -16,18 +16,12 @@ import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 新拼一份時的行情種類與（合約的）交易模式：與交易服務對留白的讀法一字不差。 */
 const DEFAULT_MARKET_DATA_KIND: MarketDataKind = 'kCandle'
 const DEFAULT_CONTRACT_TRADING_MODE: ContractTradingMode = 'longShort'
-
-/** 換了行情種類而原本有信號來源時要說的那一句。 */
-const MARKET_DATA_KIND_CHANGED_NOTICE = new LocalizedTextVo(
-  '換了行情種類：原本的信號來源吃的是另一種行情，已經拿掉，請從這一種的策略腳本重新挑。',
-  'Market data kind changed: the previous signal sources read the other kind, so they were removed. Pick again from this kind’s strategy scripts.',
-)
 
 /** 一條條件挑得到的三個值。信號只有三個，所以它是選的；怎麼稱呼它們由 SignalDomain 說。 */
 const SIGNAL_OPTIONS = SIGNAL_VALUES.map(signal => ({
@@ -56,6 +50,7 @@ export function useTradingStrategyForm(
   /** 每一支策略腳本宣告了哪幾個參數。 */
   parameterNamesByStrategyScriptId: () => Readonly<Record<number, readonly string[]>> = () => ({}),
 ) {
+  const { currentLanguage, translatedText } = useLocalizedText()
   const name = ref('')
   /**
    * 這一份吃哪一種行情，以及合約那一種的交易模式。
@@ -99,10 +94,7 @@ export function useTradingStrategyForm(
 
     return (pickable === undefined ? undefined : new UntranslatedTextVo(pickable))
       ?? unusableStrategyScripts()[signalSource.strategyScriptId]
-      ?? new LocalizedTextVo(
-        `這支策略腳本（編號 ${signalSource.strategyScriptId}）已經不在了`,
-        `This strategy script (ID ${signalSource.strategyScriptId}) is no longer here`,
-      )
+      ?? translatedText('tradingStrategy.form.missingStrategyScript', { id: signalSource.strategyScriptId })
   }))
 
   /** 每一個訊號來源調過的參數讀成一行：調過的才列，沒調的就是用那支策略腳本自己的預設值。 */
@@ -148,10 +140,7 @@ export function useTradingStrategyForm(
     const warnings: Record<number, LocalizedTextVo> = {}
     signalSources.value.forEach((signalSource, index) => {
       if (usedLabels.has(signalSource.label)) {
-        warnings[index] = new LocalizedTextVo(
-          `條件裡還在用「${signalSource.label}」，刪掉它會一併拿掉那幾句條件`,
-          `Conditions still use “${signalSource.label}”; removing it also removes those conditions`,
-        )
+        warnings[index] = translatedText('tradingStrategy.form.signalSourceStillUsed', { label: signalSource.label })
       }
     })
 
@@ -244,8 +233,9 @@ export function useTradingStrategyForm(
         }
       }
 
-      // translation-exempt: 預設代號會存進交易策略、成為使用者自己的資料，不隨顯示語言改變
-      return `來源${signalSources.value.length + 1}`
+      // 預設代號會存進交易策略、成為使用者自己的資料：建立當下照當時的語言取一次，之後不隨顯示語言改變。
+      return translatedText('tradingStrategy.form.defaultSignalSourceLabel', { number: signalSources.value.length + 1 })
+        .in(currentLanguage.value)
     }
 
     if (!taken.has(strategyScriptName)) {
@@ -273,7 +263,8 @@ export function useTradingStrategyForm(
     if (signalSources.value.length > 0) {
       signalSources.value = []
       committedLabels.value = []
-      marketDataKindNotice.value = MARKET_DATA_KIND_CHANGED_NOTICE
+      // 換了行情種類而原本有信號來源時要說的那一句。
+      marketDataKindNotice.value = translatedText('tradingStrategy.form.marketDataKindChanged')
     }
   }
 
@@ -440,10 +431,10 @@ export function useTradingStrategyForm(
   }
 
   const conditionSides = [
-    conditionSide('buy', new LocalizedTextVo('什麼算買入', 'What counts as an entry'), 'success',
-      new LocalizedTextVo('拿來判斷', 'feeds')),
-    conditionSide('sell', new LocalizedTextVo('什麼算賣出', 'What counts as an exit'), 'danger',
-      new LocalizedTextVo('同時也看', 'also watched by')),
+    conditionSide('buy', translatedText('tradingStrategy.form.buyHeading'), 'success',
+      translatedText('tradingStrategy.form.buyConnectorWord')),
+    conditionSide('sell', translatedText('tradingStrategy.form.sellHeading'), 'danger',
+      translatedText('tradingStrategy.form.sellConnectorWord')),
   ]
 
   return {

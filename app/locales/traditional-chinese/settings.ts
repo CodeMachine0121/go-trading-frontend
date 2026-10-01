@@ -43,6 +43,7 @@ export const settingsTraditionalChineseMessages = {
     confirmationLabel: '再打一次新的密碼',
     submit: '更換密碼',
     submitting: '更換中…',
+    unexpectedError: '更換密碼時發生未預期的錯誤。',
   },
   telegramDelivery: {
     title: 'Telegram 投遞',
@@ -69,6 +70,11 @@ export const settingsTraditionalChineseMessages = {
     testBlocked: '先完成上面的 Telegram 設定，才送得出測試訊息。',
     sendTestMessage: '送出測試訊息',
     sending: '送出中…',
+    defaultTestMessage: '這是一則來自 go-trading 的測試訊息。',
+    sendSucceeded: '送出成功，去 Telegram 看看那則訊息。',
+    secretSealUnavailable: '{message}（後端尚未設定 SECRET_SEAL_KEY，這不是你填錯了什麼。）',
+    notConfigured: '請先在上面完成 Telegram 設定，再送測試訊息。',
+    unexpectedError: '與 Telegram 設定往來時發生未預期的錯誤。',
   },
   binanceTradingKey: {
     title: '幣安交易金鑰',
@@ -87,5 +93,7 @@ export const settingsTraditionalChineseMessages = {
     saving: '向幣安確認中…',
     removeConfirmationTitle: '移除幣安交易金鑰',
     removeConfirmationMessage: '移除之後，所有開著自動下單的機器人會一併被關掉。要再用的話，得重新填入 API Key 與 Secret Key。',
+    secretSealUnavailable: '{message}（這不是你填錯了什麼。）',
+    unexpectedError: '與幣安交易金鑰設定往來時發生未預期的錯誤。',
   },
 }

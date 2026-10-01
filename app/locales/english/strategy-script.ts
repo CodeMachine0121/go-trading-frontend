@@ -121,6 +121,10 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     empty: 'The marketplace has no strategy scripts yet. Share one you have tuned and others will see it.',
     noMatches: 'No strategy scripts match "{query}".',
     clearSearch: 'Clear search',
+    adopted: 'Copied to your strategy scripts. Whatever the author changes later will not affect your copy.',
+    noLongerListed: 'This one is no longer on the marketplace; its publisher may have just withdrawn it. Refresh to see the current listing.',
+    backendUnreachable: 'Cannot reach the backend. Make sure it is running.',
+    operationFailed: 'The operation failed.',
   },
   indicatorCalculationPanel: {
     destinations: {
@@ -212,5 +216,19 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
       message: 'Once withdrawn, everyone who added it to their list loses it, and you will not know who they are. Publishing it again will not bring them back automatically.',
       confirm: 'Withdraw',
     },
+    unexpectedCalculationError: 'An unexpected error occurred while running the calculation.',
+  },
+  strategyScriptLibrary: {
+    listFailed: 'An unexpected error occurred while loading the strategy script list.',
+    blankStarted: 'Started a new blank strategy script.',
+    saved: 'Saved "{name}".',
+    saveFailed: 'An unexpected error occurred while saving the strategy script.',
+    published: 'Published to the marketplace.',
+    withdrawn: 'Withdrawn from the marketplace.',
+    publicationChangeFailed: 'An unexpected error occurred while changing the sharing status.',
+    adoptedCopyDeleted: 'Deleted this copy. The original is unaffected; adopt it again from the marketplace if you want it back.',
+    adoptedCopyDeleteFailed: 'An unexpected error occurred while deleting the copy.',
+    deleteFailed: 'An unexpected error occurred while deleting the strategy script.',
+    backendUnreachable: 'Cannot reach the backend. Make sure it is running.',
   },
 }

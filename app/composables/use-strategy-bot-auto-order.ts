@@ -1,11 +1,12 @@
 import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 
 export function useStrategyBotAutoOrder(strategyBotApplication: StrategyBotApplication) {
+  const { translatedText } = useLocalizedText()
   const switchingStrategyBotId = ref<number | null>(null)
   const refusal = ref<AutoOrderRefusalDto | null>(null)
   const failureMessage = ref<LocalizedTextVo | null>(null)
@@ -54,7 +55,7 @@ export function useStrategyBotAutoOrder(strategyBotApplication: StrategyBotAppli
     // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('自動下單沒有切換成功。', 'Auto-order could not be switched.')
+      : translatedText('strategyBot.autoOrderSwitch.switchFailed')
   }
 
   return {

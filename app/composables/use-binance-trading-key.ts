@@ -5,11 +5,12 @@ import { BinanceTradingKeyVerificationError } from '~/domain/errors/binance-trad
 import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavailable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useBinanceTradingKey(
   binanceTradingKeyApplication = useNuxtApp().$binanceTradingKeyApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const setting = ref<BinanceTradingKeyDto | null>(null)
   const loading = ref(false)
   const loadErrorMessage = ref<LocalizedTextVo | null>(null)
@@ -113,6 +114,24 @@ export function useBinanceTradingKey(
     }
   }
 
+  function messageFor(error: unknown): LocalizedTextVo {
+    if (error instanceof SecretSealUnavailableError) {
+      return translatedText('settings.binanceTradingKey.secretSealUnavailable', { message: error.message })
+    }
+
+    if (error instanceof BinanceTradingKeyVerificationError
+      || error instanceof BinanceTradingKeyFieldError
+      || error instanceof BackendRequestRejectedError) {
+      return error.localizedMessage
+    }
+
+    if (error instanceof BackendUnreachableError) {
+      return error.localizedMessage
+    }
+
+    return translatedText('settings.binanceTradingKey.unexpectedError')
+  }
+
   return {
     setting,
     configured,
@@ -132,28 +151,4 @@ export function useBinanceTradingKey(
     saveTradingKey,
     removeTradingKey,
   }
-}
-
-function messageFor(error: unknown): LocalizedTextVo {
-  if (error instanceof SecretSealUnavailableError) {
-    return new LocalizedTextVo(
-      `${error.message}（這不是你填錯了什麼。）`,
-      `${error.message} (This is not something you entered wrong.)`,
-    )
-  }
-
-  if (error instanceof BinanceTradingKeyVerificationError
-    || error instanceof BinanceTradingKeyFieldError
-    || error instanceof BackendRequestRejectedError) {
-    return error.localizedMessage
-  }
-
-  if (error instanceof BackendUnreachableError) {
-    return error.localizedMessage
-  }
-
-  return new LocalizedTextVo(
-    '與幣安交易金鑰設定往來時發生未預期的錯誤。',
-    'An unexpected error occurred while working with the Binance trading key setting.',
-  )
 }

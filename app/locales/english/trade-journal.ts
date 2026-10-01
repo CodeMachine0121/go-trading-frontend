@@ -31,6 +31,7 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
     goToTradeAddBuy: 'Go to #{id} to add a buy',
     goToTrade: 'Go to #{id}',
     saveAsOpen: 'Save (open)',
+    journalLinkNotFound: 'This run could not be found. Its suggestion is no longer on record; please fill in the form yourself.',
   },
   pages: {
     spotDetail: {
@@ -61,6 +62,8 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
     goWriteReview: 'Write a review',
     deleteTitle: 'Delete this trade',
     deleteMessage: 'Deleting this trade also deletes its buys and sells, notes and review. This cannot be undone.',
+    savedNotice: 'Saved',
+    deletedNotice: 'Deleted #{id}',
   },
   spotFillEditor: {
     kindLabel: 'Action',

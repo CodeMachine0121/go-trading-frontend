@@ -1,7 +1,7 @@
 import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -23,6 +23,7 @@ export function useStrategyBotWorkbench(
   strategyBotId: number | null,
   marketDataKind: MarketDataKind,
 ) {
+  const { translatedText } = useLocalizedText()
   /** 這一種機器人的畫面：標題、清單在哪、標的從哪挑、收不收槓桿。 */
   const page = strategyBotApplication.pageFor(marketDataKind)
 
@@ -120,8 +121,8 @@ export function useStrategyBotWorkbench(
       // 改一台與拼一台新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
       announce(writeDto.id === undefined
-        ? new LocalizedTextVo('機器人建好了', 'Bot created')
-        : new LocalizedTextVo('更改成功', 'Changes saved'))
+        ? translatedText('strategyBot.workbenchPage.createdNotice')
+        : translatedText('strategyBot.workbenchPage.savedNotice'))
       saved.value = true
     }
     catch (error: unknown) {
@@ -144,7 +145,7 @@ export function useStrategyBotWorkbench(
     // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('發生未知的錯誤', 'An unknown error occurred')
+      : translatedText('strategyBot.workbenchPage.unknownError')
   }
 
   return {

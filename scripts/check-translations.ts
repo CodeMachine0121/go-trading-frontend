@@ -11,10 +11,13 @@
  * 規則只有三條：
  *
  * - `app/` 底下的程式碼（註解以外）不得出現中日韓文字，除了三個地方：
- *   繁體中文語言目錄、`new LocalizedTextVo(...)` 的引數（領域說出來的話，兩種說法寫在一起），
- *   以及前一行標著 `translation-exempt` 的那一行（例如語言以自己的語言自稱）。
+ *   繁體中文語言目錄、domain 與 infrastructure 裡 `new LocalizedTextVo(...)` 的引數
+ *   （領域說出來的話，兩種說法寫在規則旁邊），以及前一行標著 `translation-exempt` 的那一行
+ *   （例如語言以自己的語言自稱）。畫面層（元件、頁面、composable）自己的話一律進語言目錄，
+ *   要留在狀態裡的用 `translatedText('…')` 取。
  * - 英文語言目錄不得出現中日韓文字，也不得有空字串。
- * - 每一個 `t('…')`、`$t('…')`、`keypath="…"`、`consoleTitleKey: '…'` 指的鍵都要在兩份目錄裡是一句話；
+ * - 每一個 `t('…')`、`$t('…')`、`translatedText('…')`、`keypath="…"`、`consoleTitleKey: '…'`
+ *   指的鍵都要在兩份目錄裡是一句話；
  *   鍵不得用組出來的（組出來的鍵沒有辦法在這裡被檢查）。
  * - 兩份目錄的每一句都要翻得出來：`{`、`@`、`|` 這幾個字在 vue-i18n 裡有意思，
  *   沒跳脫的話那一句要到有人打開那個畫面才會炸。
@@ -32,6 +35,7 @@ const CHECKED_EXTENSIONS = ['.vue', '.ts']
 const CJK_CHARACTER = /[\u3000-\u303F\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/
 const EXEMPTION_MARKER = 'translation-exempt'
 const LOCALIZED_TEXT_CONSTRUCTION = 'new LocalizedTextVo('
+const LAYERS_THAT_SPEAK_FOR_THE_DOMAIN = [join(APP_DIRECTORY, 'domain'), join(APP_DIRECTORY, 'infrastructure')]
 
 const violations: string[] = []
 
@@ -160,7 +164,9 @@ function checkNoUntranslatedText(file: string, source: string): void {
   }
 
   const code = blankOutNonCode(source)
-  const spans = localizedTextSpans(code)
+  const spans = LAYERS_THAT_SPEAK_FOR_THE_DOMAIN.some(directory => file.startsWith(directory))
+    ? localizedTextSpans(code)
+    : []
   const sourceLines = source.split('\n')
   const reportedLines = new Set<number>()
 
@@ -222,7 +228,7 @@ for (const key of traditionalChineseEntries.keys()) {
 }
 
 const KEY_REFERENCES = [
-  /(?<![\w$.])\$?t\(\s*(['"`])((?:(?!\1).)*)\1/g,
+  /(?<![\w$.])(?:\$?t|translatedText)\(\s*(['"`])((?:(?!\1).)*)\1/g,
   /\bkeypath="([^"]*)"/g,
   /\bconsole(?:Title|Subtitle)Key:\s*(['"`])((?:(?!\1).)*)\1/g,
 ]

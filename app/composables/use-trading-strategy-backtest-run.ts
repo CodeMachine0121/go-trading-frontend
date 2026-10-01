@@ -4,7 +4,6 @@ import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-back
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { useLatestRun } from '~/composables/use-latest-run'
 
 /**
@@ -14,9 +13,10 @@ import { useLatestRun } from '~/composables/use-latest-run'
  * 共用一份就代表切過去會看到別人的結果。
  */
 export function useTradingStrategyBacktestRun(backtestApplication: BacktestApplication) {
+  const { translatedText } = useLocalizedText()
   const latestRun = useLatestRun<BacktestResultDto, BacktestField>(
     BacktestFieldError,
-    new LocalizedTextVo('執行回測時發生未預期的錯誤。', 'An unexpected error occurred while running the backtest.'))
+    translatedText('backtest.tradingStrategyBacktestPane.unexpectedError'))
 
   return {
     ...latestRun,

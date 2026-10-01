@@ -36,6 +36,10 @@ export const assistantTraditionalChineseMessages = {
   },
   suggestedPrompts: {
     title: '可以這樣問',
+    tradingSymbols: '系統認得哪些交易標的？',
+    hourlyMovement: 'BTCUSDT 最近一天每小時的走勢如何？',
+    savedStrategyScripts: '我有哪些已存的策略腳本？',
+    movingAverage: '用一條二十根的均線看看 BTCUSDT 現在的位置',
   },
   conversationThread: {
     emptyLead: '用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略腳本，再用一段話回答。',
@@ -54,5 +58,9 @@ export const assistantTraditionalChineseMessages = {
     startNew: '開新的',
     reload: '重新讀取',
     empty: '還沒有任何對話。在右邊問一句就開始了。',
+  },
+  conversation: {
+    conversationNotFound: '找不到這段對話，可能已經不在了。已經替你開一段新的。',
+    unexpectedError: '與助手對話時發生未預期的錯誤。',
   },
 }

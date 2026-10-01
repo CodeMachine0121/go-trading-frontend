@@ -5,23 +5,8 @@ import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-su
 import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
-
-/**
- * 空的對話上那幾句建議提問。
- *
- * 四句剛好涵蓋助手辦得到的四類事：列清單、看行情、讀策略腳本、算指標。
- * 少於四句會讓人以為它只會其中一件；而它會什麼在畫面上是看不出來的。
- *
- * 寫在這裡而不是元件裡，因為抽屜與整頁都要給同一組——寫兩份就會有一天只改了一邊。
- */
-const SUGGESTED_PROMPTS: readonly LocalizedTextVo[] = [
-  new LocalizedTextVo('系統認得哪些交易標的？', 'Which trading symbols does the system know?'),
-  new LocalizedTextVo('BTCUSDT 最近一天每小時的走勢如何？', 'How has BTCUSDT moved hour by hour over the last day?'),
-  new LocalizedTextVo('我有哪些已存的策略腳本？', 'Which strategy scripts have I saved?'),
-  new LocalizedTextVo('用一條二十根的均線看看 BTCUSDT 現在的位置', 'Use a 20-candle moving average to see where BTCUSDT stands now'),
-]
 
 /**
  * 有一則回答在寫的時候，多久回頭問一次後端。
@@ -60,6 +45,21 @@ export function useAssistantConversation(
    */
   currentConversationPreferenceProxy = useNuxtApp().$currentConversationPreferenceProxy,
 ) {
+  const { translatedText } = useLocalizedText()
+  /**
+   * 空的對話上那幾句建議提問。
+   *
+   * 四句剛好涵蓋助手辦得到的四類事：列清單、看行情、讀策略腳本、算指標。
+   * 少於四句會讓人以為它只會其中一件；而它會什麼在畫面上是看不出來的。
+   *
+   * 寫在這裡而不是元件裡，因為抽屜與整頁都要給同一組——寫兩份就會有一天只改了一邊。
+   */
+  const suggestedPrompts: readonly LocalizedTextVo[] = [
+    translatedText('assistant.suggestedPrompts.tradingSymbols'),
+    translatedText('assistant.suggestedPrompts.hourlyMovement'),
+    translatedText('assistant.suggestedPrompts.savedStrategyScripts'),
+    translatedText('assistant.suggestedPrompts.movingAverage'),
+  ]
   const conversationId = useState<number | null>('assistant-conversation-id', () => null)
   const messages = useState<ConversationMessageDto[]>('assistant-messages', () => [])
   const draft = useState('assistant-draft', () => '')
@@ -204,10 +204,7 @@ export function useAssistantConversation(
     catch (error: unknown) {
       if (error instanceof ConversationNotFoundError) {
         startNewConversation()
-        sendRejectionMessage.value = new LocalizedTextVo(
-          '找不到這段對話，可能已經不在了。已經替你開一段新的。',
-          'This conversation could not be found; it may no longer exist. A new one has been started for you.',
-        )
+        sendRejectionMessage.value = translatedText('assistant.conversation.conversationNotFound')
         return
       }
 
@@ -523,11 +520,11 @@ export function useAssistantConversation(
 
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('與助手對話時發生未預期的錯誤。', 'Something unexpected went wrong while talking to the assistant.')
+      : translatedText('assistant.conversation.unexpectedError')
   }
 
   return {
-    suggestedPrompts: SUGGESTED_PROMPTS,
+    suggestedPrompts,
     conversationId,
     messages,
     draft,

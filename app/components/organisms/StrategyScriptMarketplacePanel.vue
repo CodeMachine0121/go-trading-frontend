@@ -10,7 +10,7 @@ import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -25,7 +25,7 @@ const { strategyScriptMarketplaceApplication } = defineProps<{
 }>()
 
 const { t } = useI18n()
-const { localize } = useLocalizedText()
+const { localize, translatedText } = useLocalizedText()
 
 const listingRows = ref<MarketplaceListingRowDto[]>([])
 
@@ -77,9 +77,7 @@ async function adopt(id: number) {
 
   try {
     await strategyScriptMarketplaceApplication.adoptStrategyScript(id)
-    noticeMessage.value = new LocalizedTextVo(
-      '已複製一份到你的策略腳本；之後作者怎麼改都不會影響你。',
-      'Copied to your strategy scripts. Whatever the author changes later will not affect your copy.')
+    noticeMessage.value = translatedText('strategyScript.strategyScriptMarketplacePanel.adopted')
     await reload()
   }
   catch (error: unknown) {
@@ -94,13 +92,10 @@ function messageOf(error: unknown): LocalizedTextVo {
   // 「市集上沒有這一支」是這一頁最可能遇到的失敗，而它有一個明確的下一步：
   // 重新看一次——那一支很可能剛被它的主人收回。
   if (error instanceof StrategyScriptNotFoundError) {
-    return new LocalizedTextVo(
-      '這一支已經不在市集上了，可能剛被分享的人收回。重新整理就會看到目前的樣子。',
-      'This one is no longer on the marketplace; its publisher may have just withdrawn it. Refresh to see the current listing.')
+    return translatedText('strategyScript.strategyScriptMarketplacePanel.noLongerListed')
   }
   if (error instanceof BackendUnreachableError) {
-    return new LocalizedTextVo(
-      '連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
+    return translatedText('strategyScript.strategyScriptMarketplacePanel.backendUnreachable')
   }
   if (error instanceof BackendRequestRejectedError || error instanceof BackendServerError) {
     return error.localizedMessage
@@ -108,7 +103,7 @@ function messageOf(error: unknown): LocalizedTextVo {
 
   return error instanceof Error
     ? new UntranslatedTextVo(error.message)
-    : new LocalizedTextVo('操作失敗。', 'The operation failed.')
+    : translatedText('strategyScript.strategyScriptMarketplacePanel.operationFailed')
 }
 
 onMounted(reload)

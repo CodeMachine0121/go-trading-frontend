@@ -41,6 +41,7 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     unreachable: 'Unreachable',
     notChecked: 'Not checked',
     recheck: 'Recheck backend status',
+    unexpectedError: 'An unexpected error occurred while checking the backend status.',
   },
   appearance: {
     label: 'Appearance',
@@ -49,6 +50,7 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     copy: 'Copy',
     copied: 'Copied',
     failed: 'Copy failed',
+    failedNotice: 'Copy failed. Please select the text and copy it by hand.',
   },
   signedInUser: {
     signOut: 'Sign out',
@@ -76,6 +78,9 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     denying: 'Denying…',
     approve: 'Allow',
     approving: 'Allowing…',
+    unreachable: 'Cannot reach the trading service (go-trading API). Make sure it is running, then try again.',
+    loadFailed: 'An unexpected error occurred while reading the authorization request. Please try again.',
+    decisionRejected: 'The trading service did not accept this decision. Please try again.',
   },
   signIn: {
     signInTitle: 'Sign in',
@@ -88,5 +93,10 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     switchToRegister: 'No account yet? Create one',
     emailLabel: 'Email',
     passwordLabel: 'Password',
+    passwordChanged: 'Password changed. Please sign in again with the new password.',
+    accessTokenUnavailable: 'The backend cannot issue sign-in tokens right now (AUTH_ACCESS_TOKEN_SIGNING_KEY is not set). This is not something you entered wrong.',
+    unexpectedError: 'An unexpected error occurred while signing in.',
+    locked: 'This account is locked after repeated failed sign-ins. Please try again later.',
+    lockedUntil: 'This account is locked after repeated failed sign-ins. You can try again after {moment}.',
   },
 }

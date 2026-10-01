@@ -29,6 +29,7 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
     off: 'Off',
     on: 'On',
     notInEffect: 'Not in effect yet: the bot still only sends Telegram notifications and does not place orders',
+    switchFailed: 'Auto-order could not be switched.',
   },
   statusBadge: {
     conflicting: 'Rules conflict',
@@ -85,10 +86,14 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
     deleteTitle: 'Delete this bot?',
     deleteMessage: '"{name}" will be gone for good, and it stops too if it is running.',
     deleteConfirm: 'Delete',
+    unknownError: 'Something went wrong for an unknown reason',
   },
   workbenchPage: {
     leaveConfirm: 'Changes on this page have not been saved. Leave anyway?',
     backToList: '‹ Back to list',
     missing: 'This bot cannot be found. It may have been deleted.',
+    createdNotice: 'Bot created',
+    savedNotice: 'Changes saved',
+    unknownError: 'An unknown error occurred',
   },
 }

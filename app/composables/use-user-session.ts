@@ -8,7 +8,7 @@ import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 第一站：沒有「原本想去的那一頁」時，登入成功要去哪。
@@ -50,6 +50,7 @@ export function useUserSession(
    */
   userSessionApplication = useNuxtApp().$userSessionApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const currentUser = useState<SignedInUserDto | null>('user-session', () => null)
   /**
    * 正在進行（或已經完成）的那一次確認。
@@ -249,10 +250,7 @@ export function useUserSession(
    * 中間那一瞬間看起來像被踢出去。所以兩邊都說，由這裡把它交過去。
    */
   async function signOutAfterPasswordChange(): Promise<void> {
-    signInNotice.value = new LocalizedTextVo(
-      '密碼已更換，請用新密碼重新登入。',
-      'Password changed. Please sign in again with the new password.',
-    )
+    signInNotice.value = translatedText('shell.signIn.passwordChanged')
     // 記著的那一對也要忘掉，不只是清掉畫面上的狀態。留著的話，下一次換頁時把關會
     // 拿兩份已經不算數的憑證去敲兩次門才放棄——而那段時間畫面說不清楚自己是誰。
     userSessionApplication.forgetSession()
@@ -334,6 +332,60 @@ export function useUserSession(
     }
   }
 
+  /**
+   * 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼。
+   * 三個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
+   */
+  function messageFor(error: unknown): LocalizedTextVo {
+    // 這一種在帳密不正確之前，因為兩者是完全相反的指示：一個是再打一次密碼，
+    // 另一個是不要再打了。順序反過來不會出錯（型別不同），寫在前面只是讓讀的人
+    // 先看到那個例外。
+    if (error instanceof SignInLockedError) {
+      return signInLockedMessageFor(error.lockedUntil)
+    }
+
+    if (error instanceof CredentialsRejectedError || error instanceof EmailAlreadyRegisteredError) {
+      // 這兩種後端已經講得夠清楚了，原文轉達即可——多一層轉譯只會多一個會漂移的地方。
+      return error.localizedMessage
+    }
+
+    if (error instanceof AccessTokenUnavailableError) {
+      return translatedText('shell.signIn.accessTokenUnavailable')
+    }
+
+    if (error instanceof BackendUnreachableError) {
+      return error.localizedMessage
+    }
+
+    return translatedText('shell.signIn.unexpectedError')
+  }
+
+  /**
+   * 被鎖住的那句話，時刻換算成**使用者自己電腦的時區**。
+   *
+   * 後端給的是世界標準時間。照抄的話，一個在台北的人會讀到一個早他八小時的時間，
+   * 然後以為已經可以進去了而白跑一趟。
+   *
+   * 日期與時間都要寫出來：只寫時間的話，一個隔一週的鎖會被讀成「再等幾分鐘」。
+   *
+   * 說不出時刻時仍然說他被鎖住。退回去說「電子郵件或密碼不正確」是最糟的選擇——
+   * 那句話會讓他繼續試密碼，而那正是這道鎖要終結的行為。
+   */
+  function signInLockedMessageFor(lockedUntil: Date | null): LocalizedTextVo {
+    if (lockedUntil === null) {
+      return translatedText('shell.signIn.locked')
+    }
+
+    // 寫法跟著每一種語言，時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
+    const readableMomentIn = (language: string) => new Intl.DateTimeFormat(language, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: undefined,
+    }).format(lockedUntil)
+
+    return translatedText('shell.signIn.lockedUntil', language => ({ moment: readableMomentIn(language) }))
+  }
+
   return {
     currentUser,
     awaitingActivation,
@@ -352,67 +404,4 @@ export function useUserSession(
     takeSignInNotice,
     recoverExpiredSession,
   }
-}
-
-/**
- * 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼。
- * 三個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
- */
-function messageFor(error: unknown): LocalizedTextVo {
-  // 這一種在帳密不正確之前，因為兩者是完全相反的指示：一個是再打一次密碼，
-  // 另一個是不要再打了。順序反過來不會出錯（型別不同），寫在前面只是讓讀的人
-  // 先看到那個例外。
-  if (error instanceof SignInLockedError) {
-    return signInLockedMessageFor(error.lockedUntil)
-  }
-
-  if (error instanceof CredentialsRejectedError || error instanceof EmailAlreadyRegisteredError) {
-    // 這兩種後端已經講得夠清楚了，原文轉達即可——多一層轉譯只會多一個會漂移的地方。
-    return error.localizedMessage
-  }
-
-  if (error instanceof AccessTokenUnavailableError) {
-    return new LocalizedTextVo(
-      '後端目前簽不出登入憑證（尚未設定 AUTH_ACCESS_TOKEN_SIGNING_KEY），這不是你填錯了什麼。',
-      'The backend cannot issue sign-in tokens right now (AUTH_ACCESS_TOKEN_SIGNING_KEY is not set). This is not something you entered wrong.',
-    )
-  }
-
-  if (error instanceof BackendUnreachableError) {
-    return error.localizedMessage
-  }
-
-  return new LocalizedTextVo('登入時發生未預期的錯誤。', 'An unexpected error occurred while signing in.')
-}
-
-/**
- * 被鎖住的那句話，時刻換算成**使用者自己電腦的時區**。
- *
- * 後端給的是世界標準時間。照抄的話，一個在台北的人會讀到一個早他八小時的時間，
- * 然後以為已經可以進去了而白跑一趟。
- *
- * 日期與時間都要寫出來：只寫時間的話，一個隔一週的鎖會被讀成「再等幾分鐘」。
- *
- * 說不出時刻時仍然說他被鎖住。退回去說「電子郵件或密碼不正確」是最糟的選擇——
- * 那句話會讓他繼續試密碼，而那正是這道鎖要終結的行為。
- */
-function signInLockedMessageFor(lockedUntil: Date | null): LocalizedTextVo {
-  if (lockedUntil === null) {
-    return new LocalizedTextVo(
-      '這個帳號因為連續登入失敗已被鎖住，請稍後再試。',
-      'This account is locked after repeated failed sign-ins. Please try again later.',
-    )
-  }
-
-  // 寫法跟著每一種語言，時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
-  const readableMomentIn = (language: string) => new Intl.DateTimeFormat(language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: undefined,
-  }).format(lockedUntil)
-
-  return new LocalizedTextVo(
-    `這個帳號因為連續登入失敗已被鎖住，${readableMomentIn('zh-TW')} 之後才能再試。`,
-    `This account is locked after repeated failed sign-ins. You can try again after ${readableMomentIn('en')}.`,
-  )
 }

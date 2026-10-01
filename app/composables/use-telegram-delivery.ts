@@ -4,12 +4,7 @@ import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavaila
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { useLocalizedText } from '~/composables/use-localized-text'
-
-/** 輸入框裡預先填好的那一句。預填是為了讓「按一下就知道通不通」真的只要按一下。 */
-export const DEFAULT_TEST_MESSAGE = new LocalizedTextVo(
-  '這是一則來自 go-trading 的測試訊息。', 'This is a test message from go-trading.')
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 設定畫面上「Telegram 投遞」那一張卡的狀態與編排。
@@ -19,6 +14,7 @@ export const DEFAULT_TEST_MESSAGE = new LocalizedTextVo(
 export function useTelegramDelivery(
   telegramDeliveryApplication = useNuxtApp().$telegramDeliveryApplication,
 ) {
+  const { currentLanguage, translatedText } = useLocalizedText()
   const setting = ref<TelegramDeliveryDto | null>(null)
   /**
    * 正在讀第一次。它與 `null` 的設定分開，因為兩者在畫面上長得完全不同：
@@ -33,12 +29,13 @@ export function useTelegramDelivery(
   const saving = ref(false)
   const saveErrorMessage = ref<LocalizedTextVo | null>(null)
 
-  const { currentLanguage } = useLocalizedText()
-  const message = ref(DEFAULT_TEST_MESSAGE.in(currentLanguage.value))
+  /** 輸入框裡預先填好的那一句。預填是為了讓「按一下就知道通不通」真的只要按一下。 */
+  const defaultTestMessage = translatedText('settings.telegramDelivery.defaultTestMessage')
+  const message = ref(defaultTestMessage.in(currentLanguage.value))
   // 預填的那一句沒被動過就跟著換語言；動過了就是使用者自己的字，不碰。
   watch(currentLanguage, (nextLanguage, previousLanguage) => {
-    if (message.value === DEFAULT_TEST_MESSAGE.in(previousLanguage)) {
-      message.value = DEFAULT_TEST_MESSAGE.in(nextLanguage)
+    if (message.value === defaultTestMessage.in(previousLanguage)) {
+      message.value = defaultTestMessage.in(nextLanguage)
     }
   })
   const sending = ref(false)
@@ -175,8 +172,7 @@ export function useTelegramDelivery(
       const result = await telegramDeliveryApplication.sendTestMessage(message.value)
       sendSucceeded.value = result.delivered
       sendResultMessage.value = result.delivered
-        ? new LocalizedTextVo(
-            '送出成功，去 Telegram 看看那則訊息。', 'Sent. Check Telegram for the message.')
+        ? translatedText('settings.telegramDelivery.sendSucceeded')
         : result.failureSentence
     }
     catch (error: unknown) {
@@ -185,6 +181,31 @@ export function useTelegramDelivery(
     finally {
       sending.value = false
     }
+  }
+
+  /**
+   * 哨兵錯誤分流。三種失敗要使用者做的事完全不同，所以說法也不同：
+   * 後端存不了金鑰是什麼都不必改、還沒設定過是去上面那張卡設定一次、
+   * 連不上後端是去把它啟動。
+   */
+  function messageFor(error: unknown): LocalizedTextVo {
+    if (error instanceof SecretSealUnavailableError) {
+      return translatedText('settings.telegramDelivery.secretSealUnavailable', { message: error.message })
+    }
+
+    if (error instanceof TelegramNotConfiguredError) {
+      return translatedText('settings.telegramDelivery.notConfigured')
+    }
+
+    if (error instanceof BackendRequestRejectedError) {
+      return error.localizedMessage
+    }
+
+    if (error instanceof BackendUnreachableError) {
+      return error.localizedMessage
+    }
+
+    return translatedText('settings.telegramDelivery.unexpectedError')
   }
 
   return {
@@ -213,38 +234,4 @@ export function useTelegramDelivery(
     removeDeliverySetting,
     sendTestMessage,
   }
-}
-
-/**
- * 哨兵錯誤分流。三種失敗要使用者做的事完全不同，所以說法也不同：
- * 後端存不了金鑰是什麼都不必改、還沒設定過是去上面那張卡設定一次、
- * 連不上後端是去把它啟動。
- */
-function messageFor(error: unknown): LocalizedTextVo {
-  if (error instanceof SecretSealUnavailableError) {
-    return new LocalizedTextVo(
-      `${error.message}（後端尚未設定 SECRET_SEAL_KEY，這不是你填錯了什麼。）`,
-      `${error.message} (The backend has no SECRET_SEAL_KEY set; this is not something you entered wrong.)`,
-    )
-  }
-
-  if (error instanceof TelegramNotConfiguredError) {
-    return new LocalizedTextVo(
-      '請先在上面完成 Telegram 設定，再送測試訊息。',
-      'Finish the Telegram setup above before sending a test message.',
-    )
-  }
-
-  if (error instanceof BackendRequestRejectedError) {
-    return error.localizedMessage
-  }
-
-  if (error instanceof BackendUnreachableError) {
-    return error.localizedMessage
-  }
-
-  return new LocalizedTextVo(
-    '與 Telegram 設定往來時發生未預期的錯誤。',
-    'An unexpected error occurred while working with the Telegram setting.',
-  )
 }

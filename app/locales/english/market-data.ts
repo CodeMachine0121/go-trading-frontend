@@ -54,6 +54,8 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     remove: 'Remove',
     calculatingNote: 'Calculating…',
     drawsNothing: 'Calculated, but this script did not output any indicator, so there are no lines on the chart.',
+    backendUnreachable: 'Cannot reach the backend. Make sure it is running.',
+    unexpectedCalculationError: 'An unexpected error occurred while calculating this indicator.',
   },
   contractSymbolField: {
     label: 'Contract symbol',

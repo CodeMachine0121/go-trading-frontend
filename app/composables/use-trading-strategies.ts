@@ -1,7 +1,7 @@
 import { LocalizedError } from '~/domain/errors/localized-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -12,6 +12,7 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 而那個數字救不了任何一次操作。
  */
 export function useTradingStrategies(tradingStrategyApplication: TradingStrategyApplication) {
+  const { translatedText } = useLocalizedText()
   const tradingStrategies = ref<TradingStrategyDto[]>([])
 
   const loading = ref(false)
@@ -87,7 +88,7 @@ export function useTradingStrategies(tradingStrategyApplication: TradingStrategy
     // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
     return error instanceof Error
       ? new UntranslatedTextVo(error.message)
-      : new LocalizedTextVo('發生未知的錯誤', 'An unknown error occurred')
+      : translatedText('tradingStrategy.listPanel.unknownError')
   }
 
   return {

@@ -27,6 +27,7 @@ export const strategyBotTraditionalChineseMessages = {
     off: '關',
     on: '開',
     notInEffect: '尚未生效：目前機器人仍只送 Telegram 通知，不會下單',
+    switchFailed: '自動下單沒有切換成功。',
   },
   statusBadge: {
     conflicting: '規則打架了',
@@ -83,10 +84,14 @@ export const strategyBotTraditionalChineseMessages = {
     deleteTitle: '刪掉這台機器人？',
     deleteMessage: '「{name}」刪掉就沒了，正在跑的話也會一起停下來。',
     deleteConfirm: '刪掉',
+    unknownError: '發生了一個說不出原因的錯誤',
   },
   workbenchPage: {
     leaveConfirm: '這一頁改過的東西還沒存，確定要離開嗎？',
     backToList: '‹ 回清單',
     missing: '找不到這一台機器人，它可能已經被刪掉了。',
+    createdNotice: '機器人建好了',
+    savedNotice: '更改成功',
+    unknownError: '發生未知的錯誤',
   },
 }

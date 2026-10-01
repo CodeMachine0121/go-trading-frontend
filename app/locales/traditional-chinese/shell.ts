@@ -39,6 +39,7 @@ export const shellTraditionalChineseMessages = {
     unreachable: '連不上',
     notChecked: '尚未檢查',
     recheck: '重新檢查後端狀態',
+    unexpectedError: '檢查後端狀態時發生未預期的錯誤。',
   },
   appearance: {
     label: '外觀',
@@ -47,6 +48,7 @@ export const shellTraditionalChineseMessages = {
     copy: '複製',
     copied: '已複製',
     failed: '複製失敗',
+    failedNotice: '複製失敗，請手動選取這段內容。',
   },
   signedInUser: {
     signOut: '登出',
@@ -74,6 +76,9 @@ export const shellTraditionalChineseMessages = {
     denying: '拒絕中…',
     approve: '允許',
     approving: '允許中…',
+    unreachable: '連不上交易服務（go-trading API），請確認它已啟動後再試一次。',
+    loadFailed: '讀取授權請求時發生未預期的錯誤，請再試一次。',
+    decisionRejected: '交易服務沒有接受這次決定，請再試一次。',
   },
   signIn: {
     signInTitle: '登入',
@@ -86,5 +91,10 @@ export const shellTraditionalChineseMessages = {
     switchToRegister: '還沒有帳號？建立一個',
     emailLabel: '電子郵件',
     passwordLabel: '密碼',
+    passwordChanged: '密碼已更換，請用新密碼重新登入。',
+    accessTokenUnavailable: '後端目前簽不出登入憑證（尚未設定 AUTH_ACCESS_TOKEN_SIGNING_KEY），這不是你填錯了什麼。',
+    unexpectedError: '登入時發生未預期的錯誤。',
+    locked: '這個帳號因為連續登入失敗已被鎖住，請稍後再試。',
+    lockedUntil: '這個帳號因為連續登入失敗已被鎖住，{moment} 之後才能再試。',
   },
 }

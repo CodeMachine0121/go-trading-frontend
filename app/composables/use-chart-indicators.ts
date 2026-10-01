@@ -9,7 +9,7 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -27,6 +27,7 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 一筆算完會覆蓋掉另一筆的線——而這四件事沒有一件會報錯。
  */
 export function useChartIndicators(chartIndicatorApplication: ChartIndicatorApplication) {
+  const { translatedText } = useLocalizedText()
   /** 已套用的那幾筆，依加入的順序。順序決定沒挑過顏色時誰先拿到哪個顏色。 */
   const appliedIndicators = ref<AppliedIndicatorDto[]>([])
   /** 算成功的那幾筆該畫的線。失敗與計算中的不在裡面——圖上就不會有它們。 */
@@ -579,7 +580,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
   function messageOf(error: unknown): LocalizedTextVo {
     if (error instanceof BackendUnreachableError) {
-      return new LocalizedTextVo('連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
+      return translatedText('marketData.chartIndicatorPanel.backendUnreachable')
     }
     // 具名錯誤各自帶著要說的話（算式的問題、後端拒絕的原文）；沒帶的錯誤只剩工程師的原文，原樣呈現。
     if (error instanceof LocalizedError) {
@@ -589,8 +590,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       return new UntranslatedTextVo(error.message)
     }
 
-    return new LocalizedTextVo(
-      '計算這支指標時發生未預期的錯誤。', 'An unexpected error occurred while calculating this indicator.')
+    return translatedText('marketData.chartIndicatorPanel.unexpectedCalculationError')
   }
 
   return {

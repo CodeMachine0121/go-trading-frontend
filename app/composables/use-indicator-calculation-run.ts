@@ -3,7 +3,6 @@ import type { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicat
 import type { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-calculation-result-dto'
 import type { IndicatorCalculationField } from '~/domain/errors/indicator-calculation-field-error'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { useLatestRun } from '~/composables/use-latest-run'
 
 /**
@@ -15,9 +14,10 @@ import { useLatestRun } from '~/composables/use-latest-run'
 export function useIndicatorCalculationRun(
   indicatorCalculationApplication: IndicatorCalculationApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const latestRun = useLatestRun<IndicatorCalculationResultDto, IndicatorCalculationField>(
     IndicatorCalculationFieldError,
-    new LocalizedTextVo('執行計算時發生未預期的錯誤。', 'An unexpected error occurred while running the calculation.'))
+    translatedText('strategyScript.indicatorCalculationPanel.unexpectedCalculationError'))
 
   return {
     ...latestRun,

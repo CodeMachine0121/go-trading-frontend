@@ -14,7 +14,6 @@ import TradeOutcomePanel from '~/components/organisms/TradeOutcomePanel.vue'
 import TradePlanPanel from '~/components/organisms/TradePlanPanel.vue'
 import TradeReviewPanel from '~/components/organisms/TradeReviewPanel.vue'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 definePageMeta({
   layout: 'console',
@@ -22,11 +21,8 @@ definePageMeta({
   consoleSubtitleKey: 'contractTradeJournal.pages.detail.subtitle',
 })
 
-const SAVED_NOTICE = new LocalizedTextVo('已記下', 'Saved')
-const CLOSED_NOTICE = new LocalizedTextVo('這筆已平倉', 'This trade is closed')
-
 const { t } = useI18n()
-const { localize } = useLocalizedText()
+const { localize, translatedText } = useLocalizedText()
 
 const route = useRoute()
 const { $contractTradeJournalApplication, $tradeJournalSettingApplication, $tradingStrategyApplication } = useNuxtApp()
@@ -56,7 +52,9 @@ function adoptSavedFills(savedRecord: ContractTradeRecordDto): void {
   addingFills.value = false
   addFillDirty.value = false
   closedJustNow.value = savedRecord.status !== 'open'
-  announce(savedRecord.status === 'open' ? SAVED_NOTICE : CLOSED_NOTICE)
+  announce(savedRecord.status === 'open'
+    ? translatedText('contractTradeJournal.detailPage.savedNotice')
+    : translatedText('contractTradeJournal.detailPage.closedJustNow'))
   // The bot-link round is used up once saved; leaving it in the address would prefill it again on reload.
   journalLinkIdentifier.value = null
   void navigateTo({ path: route.path }, { replace: true })
@@ -260,7 +258,7 @@ onMounted(() => {
       :message="t('contractTradeJournal.detailPage.deleteMessage')"
       :confirm-label="t('contractTradeJournal.common.delete')"
       variant="danger"
-      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(new LocalizedTextVo(`已刪除 #${tradeId}`, `Deleted #${tradeId}`)); leaveConfirmation.allowLeaving(); navigateTo('/contract-trade-journal') } })"
+      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(translatedText('contractTradeJournal.detailPage.deletedNotice', { id: tradeId })); leaveConfirmation.allowLeaving(); navigateTo('/contract-trade-journal') } })"
       @cancel="deleteConfirmationOpen = false"
     />
     <ConfirmDialog

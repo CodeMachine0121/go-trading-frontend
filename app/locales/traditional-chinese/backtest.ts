@@ -107,6 +107,7 @@ export const backtestTraditionalChineseMessages = {
     parameterNotDeclared: '參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{message}',
     scriptFailed: '算式的問題（要改的是算式）：{message}',
     runningNotice: '回測中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。',
+    unexpectedError: '執行回測時發生未預期的錯誤。',
   },
   tradingStrategyBacktestPane: {
     unsaved: '這一份還沒存過，所以還沒有東西可以拿去回測。先存起來，再回來這裡。',
@@ -115,5 +116,6 @@ export const backtestTraditionalChineseMessages = {
     parameterNotDeclared: '參數的問題（要改的是那個訊號來源填的值，或算式裡取用它的那一行）：{message}',
     scriptFailed: '算式的問題（要改的是那個訊號來源指名的策略腳本）：{message}',
     runningNotice: '回測中…每一根 K 線上每個訊號來源都要各跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。',
+    unexpectedError: '執行回測時發生未預期的錯誤。',
   },
 }
