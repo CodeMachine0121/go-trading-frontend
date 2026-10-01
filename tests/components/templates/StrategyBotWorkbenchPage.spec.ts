@@ -8,12 +8,15 @@ import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
 import { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
+import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 
 // 模板只做接線；這裡只看它把「這一種」接對了：標題、讀到另一種時送去哪、存好回到哪。
-const { navigateToSpy, getStrategyBot, createStrategyBot, leaveGuards } = vi.hoisted(() => ({
+const { navigateToSpy, getStrategyBot, createStrategyBot, enableAutoOrder, disableAutoOrder, leaveGuards } = vi.hoisted(() => ({
   navigateToSpy: vi.fn(),
   getStrategyBot: vi.fn(),
   createStrategyBot: vi.fn(),
+  enableAutoOrder: vi.fn(),
+  disableAutoOrder: vi.fn(),
   // 這一頁向路由登記的離開守衛。記下來，才問得到「要離開時它說了什麼」。
   leaveGuards: [] as (() => boolean)[],
 }))
@@ -25,7 +28,7 @@ mockNuxtImport('onBeforeRouteLeave', () => (guard: () => boolean) => {
 mockNuxtImport('useConsoleAnnouncement', () => () => ({ announce: () => {}, announcement: { value: '' } }))
 mockNuxtImport('useNuxtApp', () => () => ({
   $strategyBotApplication: new StrategyBotApplication(new StrategyBotService(
-    { getStrategyBot, createStrategyBot } as unknown as IStrategyBotProxy)),
+    { getStrategyBot, createStrategyBot, enableAutoOrder, disableAutoOrder } as unknown as IStrategyBotProxy)),
   $tradingStrategyApplication: { listTradingStrategiesFollowableBy: vi.fn().mockResolvedValue([]) },
   $tradingSymbolApplication: {},
 }))
@@ -130,5 +133,82 @@ describe('StrategyBotWorkbenchPage 有沒存的改動時離開先問過', () => 
     if (asks) {
       expect(confirm).toHaveBeenCalledWith('這一頁改過的東西還沒存，確定要離開嗎？')
     }
+  })
+})
+
+describe('StrategyBotWorkbenchPage 的自動下單開關', () => {
+  function botWith(marketDataKind: MarketDataKind, autoOrderEnabled: boolean) {
+    return new StrategyBot(
+      7, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'running', '', null, false, null, marketDataKind, autoOrderEnabled)
+  }
+
+  it('新建機器人的畫面沒有開關', async () => {
+    const wrapper = mountPage(null, 'kCandle')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="auto-order-switch"]').exists()).toBe(false)
+  })
+
+  it.each(['kCandle', 'contractKCandle'] as const)('%s 機器人的頁面照交易服務的狀態畫開關', async (marketDataKind) => {
+    getStrategyBot.mockResolvedValue(botWith(marketDataKind, true))
+    const wrapper = mountPage(7, marketDataKind)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
+    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text()).toContain('尚未生效')
+  })
+
+  it('執行中的機器人打得開，開關變成開著', async () => {
+    getStrategyBot.mockResolvedValue(botWith('kCandle', false))
+    enableAutoOrder.mockResolvedValue(botWith('kCandle', true))
+    const wrapper = mountPage(7, 'kCandle')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(enableAutoOrder).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
+  })
+
+  it('合約機器人因金鑰沒有合約權限被拒時照原話說，開關停在關閉', async () => {
+    getStrategyBot.mockResolvedValue(botWith('contractKCandle', false))
+    enableAutoOrder.mockRejectedValue(new AutoOrderRefusedError(
+      '這組幣安交易金鑰沒有合約交易權限', 'tradableMarketNotCovered'))
+    const wrapper = mountPage(7, 'contractKCandle')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="auto-order-refusal"]').text()).toContain('這組幣安交易金鑰沒有合約交易權限')
+    expect(wrapper.find('[data-testid="auto-order-settings-link"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('false')
+  })
+
+  it('關掉直接關，沒有任何確認', async () => {
+    getStrategyBot.mockResolvedValue(botWith('kCandle', true))
+    disableAutoOrder.mockResolvedValue(botWith('kCandle', false))
+    const wrapper = mountPage(7, 'kCandle')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(disableAutoOrder).toHaveBeenCalledWith(7)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('false')
+  })
+
+  it('切換失敗時開關停在原本的狀態', async () => {
+    getStrategyBot.mockResolvedValue(botWith('kCandle', true))
+    disableAutoOrder.mockRejectedValue(new Error('找不到這台策略機器人'))
+    const wrapper = mountPage(7, 'kCandle')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="auto-order-failure"]').text()).toBe('找不到這台策略機器人')
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
   })
 })

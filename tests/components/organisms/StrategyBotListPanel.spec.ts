@@ -8,6 +8,8 @@ import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-sta
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
+import { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
+import { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-result-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 function runningState() {
@@ -460,5 +462,115 @@ describe('StrategyBotListPanel 選中一台之後', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="bot-summary"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyBotListPanel 的自動下單', () => {
+  function botWithAutoOrder(id: number, name: string, autoOrderEnabled: boolean, runState = runningState()) {
+    return new StrategyBotDto(
+      id, name, 'BTCUSDT', 5, 9, '黃金交叉', runState, null,
+      'kCandle', 'BTCUSDT', null, `/strategy-bots/${id}`, autoOrderEnabled)
+  }
+
+  async function mountWithSelected(
+    bots: StrategyBotDto[],
+    overrides: Partial<StrategyBotApplication> = {},
+    showsDetailInline = false,
+  ) {
+    const mounted = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue(bots),
+      ...overrides,
+    }, 'kCandle', showsDetailInline)
+    await flushPromises()
+    await mounted.wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    return mounted
+  }
+
+  it('清單上只有開著的那幾台標出「自動下單」', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botWithAutoOrder(1, '早盤突破', false),
+        botWithAutoOrder(2, '費率反轉', true),
+        botWithAutoOrder(3, '均線', false),
+      ]),
+    })
+    await flushPromises()
+
+    const rows = wrapper.findAll('[data-testid="bot-row"]')
+    expect(rows.map(row => row.find('[data-testid="bot-auto-order-badge"]').exists()))
+      .toEqual([false, true, false])
+  })
+
+  it.each([false, true])('選中那一台時看得到它的開關（內嵌：%s）', async (showsDetailInline) => {
+    const { wrapper } = await mountWithSelected(
+      [botWithAutoOrder(1, '早盤突破', true)], {}, showsDetailInline)
+
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
+    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text()).toContain('尚未生效')
+  })
+
+  it('執行中的機器人也打得開，打開之後那一列標出自動下單', async () => {
+    const enableAutoOrder = vi.fn().mockResolvedValue(
+      new AutoOrderSwitchResultDto(botWithAutoOrder(1, '早盤突破', true), null))
+    const { wrapper } = await mountWithSelected(
+      [botWithAutoOrder(1, '早盤突破', false, runningState())], { enableAutoOrder })
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(enableAutoOrder).toHaveBeenCalledWith(1)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
+    expect(wrapper.find('[data-testid="bot-auto-order-badge"]').exists()).toBe(true)
+  })
+
+  it('沒有金鑰而被拒時開關停在關閉，並給一條前往設定畫面的路', async () => {
+    const enableAutoOrder = vi.fn().mockResolvedValue(new AutoOrderSwitchResultDto(
+      null, new AutoOrderRefusalDto(1, '請先完成幣安交易金鑰設定，才能打開自動下單', true)))
+    const { wrapper } = await mountWithSelected(
+      [botWithAutoOrder(1, '早盤突破', false)], { enableAutoOrder })
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('false')
+    expect(wrapper.get('[data-testid="auto-order-refusal"]').text()).toContain('請先完成幣安交易金鑰設定')
+    expect(wrapper.get('[data-testid="auto-order-settings-link"]').attributes('href'))
+      .toBe('/settings#settings-binance-trading-key')
+  })
+
+  it('手機上在那一台底下也切得動', async () => {
+    const disableAutoOrder = vi.fn().mockResolvedValue(botWithAutoOrder(1, '早盤突破', false))
+    const { wrapper } = await mountWithSelected(
+      [botWithAutoOrder(1, '早盤突破', true)], { disableAutoOrder }, true)
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(disableAutoOrder).toHaveBeenCalledWith(1)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('false')
+  })
+
+  it('關掉沒有任何確認，直接關', async () => {
+    const disableAutoOrder = vi.fn().mockResolvedValue(botWithAutoOrder(1, '早盤突破', false, stoppedState()))
+    const { wrapper } = await mountWithSelected(
+      [botWithAutoOrder(1, '早盤突破', true, stoppedState())], { disableAutoOrder })
+
+    await wrapper.get('[data-testid="auto-order-switch"]').trigger('click')
+    await flushPromises()
+
+    expect(disableAutoOrder).toHaveBeenCalledWith(1)
+    expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('false')
+    expect(wrapper.find('[data-testid="bot-auto-order-badge"]').exists()).toBe(false)
+  })
+
+  it('每次打開清單都向交易服務重讀，不沿用之前的開關狀態', async () => {
+    const listStrategyBots = vi.fn().mockResolvedValue([botWithAutoOrder(1, '早盤突破', false)])
+    const { wrapper } = mountPanel({ listStrategyBots })
+    await flushPromises()
+
+    expect(listStrategyBots).toHaveBeenCalledOnce()
+    expect(wrapper.find('[data-testid="bot-auto-order-badge"]').exists()).toBe(false)
   })
 })

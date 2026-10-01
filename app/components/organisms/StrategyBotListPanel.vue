@@ -7,6 +7,9 @@ import StrategyBotStatusBadge from '~/components/molecules/StrategyBotStatusBadg
 import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppToast from '~/components/atoms/AppToast.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
+import StrategyBotAutoOrderSwitch from '~/components/molecules/StrategyBotAutoOrderSwitch.vue'
+import { useStrategyBotAutoOrder } from '~/composables/use-strategy-bot-auto-order'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
@@ -31,6 +34,14 @@ const { strategyBotApplication, page, timeZoneIdentifier, showsDetailInline = fa
 }>()
 
 const bots = useStrategyBots(strategyBotApplication, page.marketDataKind)
+const autoOrder = useStrategyBotAutoOrder(strategyBotApplication)
+
+async function switchAutoOrder(strategyBotId: number, enabled: boolean) {
+  const switched = await autoOrder.switchAutoOrder(strategyBotId, enabled)
+  if (switched !== null) {
+    bots.replaceStrategyBot(switched)
+  }
+}
 
 /** 選中的那一台——紀錄展開著的那一台。一次只會有一台。 */
 const selectedBot = computed(
@@ -185,6 +196,13 @@ onMounted(() => {
             <div class="strategy-bot-list__headline">
               <span class="strategy-bot-list__name">{{ strategyBot.name }}</span>
               <StrategyBotStatusBadge :run-state="strategyBot.runState" />
+              <AppBadge
+                v-if="strategyBot.autoOrderEnabled"
+                variant="accent"
+                data-testid="bot-auto-order-badge"
+              >
+                自動下單
+              </AppBadge>
             </div>
 
             <div class="strategy-bot-list__identity">
@@ -315,6 +333,16 @@ onMounted(() => {
               </AppButton>
             </div>
 
+            <StrategyBotAutoOrderSwitch
+              v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
+              class="strategy-bot-list__inline-history"
+              :enabled="strategyBot.autoOrderEnabled"
+              :switching="autoOrder.switchingStrategyBotId.value === strategyBot.id"
+              :refusal="autoOrder.refusalFor(strategyBot.id)"
+              :failure-message="autoOrder.failureMessageFor(strategyBot.id)"
+              @switch="switchAutoOrder(strategyBot.id, $event)"
+            />
+
             <StrategyBotRunHistory
               v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
               class="strategy-bot-list__inline-history"
@@ -358,6 +386,15 @@ onMounted(() => {
             />
           </AppButton>
         </template>
+
+        <StrategyBotAutoOrderSwitch
+          class="strategy-bot-list__detail-auto-order"
+          :enabled="selectedBot.autoOrderEnabled"
+          :switching="autoOrder.switchingStrategyBotId.value === selectedBot.id"
+          :refusal="autoOrder.refusalFor(selectedBot.id)"
+          :failure-message="autoOrder.failureMessageFor(selectedBot.id)"
+          @switch="switchAutoOrder(selectedBot.id, $event)"
+        />
 
         <h3 class="strategy-bot-list__detail-heading">
           執行紀錄
@@ -607,6 +644,12 @@ onMounted(() => {
     grid-column: 1 / -1;
     border-top: 1px solid color('border');
     padding-top: spacing('xs');
+  }
+
+  &__detail-auto-order {
+    margin-bottom: spacing('sm');
+    border-bottom: 1px solid color('border');
+    padding-bottom: spacing('sm');
   }
 
   &__detail-heading {

@@ -4,6 +4,7 @@ import type { TradingStrategyApplication } from '~/application/trading-strategy-
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { useStrategyBotAutoOrder } from '~/composables/use-strategy-bot-auto-order'
 
 /**
  * 拼一台機器人那一頁自己的狀態：它在改哪一台、可以挑哪幾份交易策略、存得怎麼樣了。
@@ -44,6 +45,25 @@ export function useStrategyBotWorkbench(
    */
   const redirectPath = ref<string | null>(null)
 
+  // 開關另記一份，不換掉 editing：換掉會把表單上還沒存的字洗掉。
+  const autoOrderEnabled = ref(false)
+  const autoOrder = useStrategyBotAutoOrder(strategyBotApplication)
+  const autoOrderSwitching = computed(() => autoOrder.switchingStrategyBotId.value !== null)
+  const autoOrderRefusal = computed(() => strategyBotId === null ? null : autoOrder.refusalFor(strategyBotId))
+  const autoOrderFailureMessage = computed(
+    () => strategyBotId === null ? null : autoOrder.failureMessageFor(strategyBotId))
+
+  async function switchAutoOrder(enabled: boolean) {
+    if (strategyBotId === null) {
+      return
+    }
+
+    const switched = await autoOrder.switchAutoOrder(strategyBotId, enabled)
+    if (switched !== null) {
+      autoOrderEnabled.value = switched.autoOrderEnabled
+    }
+  }
+
   async function load() {
     loading.value = true
     failureMessage.value = ''
@@ -63,6 +83,7 @@ export function useStrategyBotWorkbench(
       }
 
       editing.value = bot
+      autoOrderEnabled.value = bot?.autoOrderEnabled ?? false
       // 一次讀完，不為了顯示一個名字而每一列各問一次。
       // 只列這一種機器人跟得了的那幾份——挑到另一種只會在存下時被拒絕。
       tradingStrategyOptions.value = tradingStrategies
@@ -133,5 +154,10 @@ export function useStrategyBotWorkbench(
     load,
     save,
     markDirty,
+    autoOrderEnabled,
+    autoOrderSwitching,
+    autoOrderRefusal,
+    autoOrderFailureMessage,
+    switchAutoOrder,
   }
 }

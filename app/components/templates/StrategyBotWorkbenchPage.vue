@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
+import AppPanel from '~/components/atoms/AppPanel.vue'
 import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
+import StrategyBotAutoOrderSwitch from '~/components/molecules/StrategyBotAutoOrderSwitch.vue'
 import { useStrategyBotWorkbench } from '~/composables/use-strategy-bot-workbench'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
@@ -89,18 +91,31 @@ onBeforeRouteLeave(() => workbench.dirty.value
       找不到這一台機器人，它可能已經被刪掉了。
     </AppAlert>
 
-    <StrategyBotForm
-      v-else
-      :editing="workbench.editing.value"
-      :page="page"
-      :trading-symbol-application="$tradingSymbolApplication"
-      :trading-strategy-options="workbench.tradingStrategyOptions.value"
-      :saving="workbench.saving.value"
-      :failure-message="workbench.failureMessage.value"
-      @cancel="navigateTo(page.listPath)"
-      @save="workbench.save"
-      @dirty-change="workbench.markDirty"
-    />
+    <template v-else>
+      <AppPanel
+        v-if="strategyBotId !== null && workbench.editing.value !== null"
+      >
+        <StrategyBotAutoOrderSwitch
+          :enabled="workbench.autoOrderEnabled.value"
+          :switching="workbench.autoOrderSwitching.value"
+          :refusal="workbench.autoOrderRefusal.value"
+          :failure-message="workbench.autoOrderFailureMessage.value"
+          @switch="workbench.switchAutoOrder"
+        />
+      </AppPanel>
+
+      <StrategyBotForm
+        :editing="workbench.editing.value"
+        :page="page"
+        :trading-symbol-application="$tradingSymbolApplication"
+        :trading-strategy-options="workbench.tradingStrategyOptions.value"
+        :saving="workbench.saving.value"
+        :failure-message="workbench.failureMessage.value"
+        @cancel="navigateTo(page.listPath)"
+        @save="workbench.save"
+        @dirty-change="workbench.markDirty"
+      />
+    </template>
   </div>
 </template>
 
