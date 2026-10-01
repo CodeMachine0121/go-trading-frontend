@@ -16,6 +16,7 @@ import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import type { BacktestResultSectionKind } from '~/domain/models/dto/backtest-result-section-dto'
 import { BacktestResultSectionDto } from '~/domain/models/dto/backtest-result-section-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 比率寫到小數點後兩位：再細一位對「這支策略腳本好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
@@ -166,7 +167,7 @@ export class BacktestDomain {
       this.percentage(this.backtest.maximumDrawdown, RATE_FRACTION_DIGITS),
       this.backtest.winRate === null
         ? WIN_RATE_NOT_APPLICABLE
-        : this.figure(this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS)),
+        : new UntranslatedTextVo(this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS)),
       this.backtest.positionOpenCount,
       this.backtest.closedTrades.length,
       this.backtest.conflictedCandleCount,
@@ -210,11 +211,6 @@ export class BacktestDomain {
             this.amount(closedTrade.stake),
             this.amount(closedTrade.contractFigures.fundingFee)),
     )
-  }
-
-  /** 一個純數字兩種語言寫法相同。 */
-  private figure(text: string): LocalizedTextVo {
-    return new LocalizedTextVo(text, text)
   }
 
   /** 一筆錢寫出來的樣子。 */

@@ -3,6 +3,7 @@ import { BinanceTradingKeyDto } from '~/domain/models/dto/binance-trading-key-dt
 import type { TradableMarketVo } from '~/domain/models/vo/tradable-market-vo'
 import { TRADABLE_MARKETS } from '~/domain/models/vo/tradable-market-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const TRADABLE_MARKET_LABELS: Readonly<Record<TradableMarketVo, LocalizedTextVo>> = {
   spot: new LocalizedTextVo('現貨', 'Spot'),
@@ -14,7 +15,7 @@ export class BinanceTradingKeyDomain {
 
   toDto(): BinanceTradingKeyDto {
     if (!this.binanceTradingKey.configured) {
-      return new BinanceTradingKeyDto(false, null, new LocalizedTextVo('', ''), null)
+      return new BinanceTradingKeyDto(false, null, new UntranslatedTextVo(''), null)
     }
 
     const tradableMarketLabels = TRADABLE_MARKETS

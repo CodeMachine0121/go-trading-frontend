@@ -7,6 +7,7 @@ import { StrategyScriptWorkbenchDto } from '~/domain/models/dto/strategy-script-
 import { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
 import { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 每一種行情的全部差異，就這幾欄。多一種行情是在這張表加一列，
@@ -64,11 +65,11 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       emptyNotice: new LocalizedTextVo(
         '還沒有任何現貨機器人。拼一台之後，它會每隔幾分鐘自己看一次盤，在訊號變了的時候傳訊息給你。',
         'No spot bots yet. Once you build one, it checks the market on its own every few minutes and messages you when the signal changes.'),
-      symbolSuffix: new LocalizedTextVo('', ''),
+      symbolSuffix: new UntranslatedTextVo(''),
       takesLeverage: false,
       tradingStrategyLabel: new LocalizedTextVo('K 線交易策略', 'K-candle trading strategy'),
       // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
-      tradingStrategyCreateHint: new LocalizedTextVo('', ''),
+      tradingStrategyCreateHint: new UntranslatedTextVo(''),
       runHistoryNote: null,
     },
   },

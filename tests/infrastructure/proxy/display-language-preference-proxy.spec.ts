@@ -17,12 +17,12 @@ describe('DisplayLanguagePreferenceProxy', () => {
 
   it('瀏覽器記不住時，讀回 null、寫入安靜略過', () => {
     vi.stubGlobal('localStorage', {
-      getItem: () => {
+      getItem: vi.fn(() => {
         throw new Error('storage blocked')
-      },
-      setItem: () => {
+      }),
+      setItem: vi.fn(() => {
         throw new Error('storage blocked')
-      },
+      }),
     })
     const displayLanguagePreferenceProxy = new DisplayLanguagePreferenceProxy()
 

@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { DISPLAY_LANGUAGE_CODES } from '~/domain/models/vo/display-language-code-vo'
 import { englishMessages } from '~/locales/english-messages'
 import { traditionalChineseMessages } from '~/locales/traditional-chinese-messages'
 
@@ -9,10 +10,12 @@ import { traditionalChineseMessages } from '~/locales/traditional-chinese-messag
  * 英文目錄缺了某一句時退回繁體中文——寧可露出原文，也不讓畫面出現一串鍵名。
  */
 export function createDisplayLanguageI18n() {
+  const [defaultLanguage] = DISPLAY_LANGUAGE_CODES
+
   return createI18n({
     legacy: false,
-    locale: 'zh-TW',
-    fallbackLocale: 'zh-TW',
+    locale: defaultLanguage,
+    fallbackLocale: defaultLanguage,
     messages: {
       'zh-TW': traditionalChineseMessages,
       'en': englishMessages,

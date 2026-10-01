@@ -1,4 +1,5 @@
 import type { IDisplayLanguagePreferenceProxy } from '~/domain/interface/i-display-language-preference-proxy'
+import type { DisplayLanguageCodeVo } from '~/domain/models/vo/display-language-code-vo'
 
 /** 記在瀏覽器儲存裡的鍵。換名字等於忘掉所有人的選擇，所以只寫在這裡一次。 */
 const SELECTED_DISPLAY_LANGUAGE_STORAGE_KEY = 'go-trading:selected-display-language'
@@ -19,7 +20,7 @@ export class DisplayLanguagePreferenceProxy implements IDisplayLanguagePreferenc
     }
   }
 
-  writeSelectedLanguageCode(code: string): void {
+  writeSelectedLanguageCode(code: DisplayLanguageCodeVo): void {
     try {
       localStorage.setItem(SELECTED_DISPLAY_LANGUAGE_STORAGE_KEY, code)
     }

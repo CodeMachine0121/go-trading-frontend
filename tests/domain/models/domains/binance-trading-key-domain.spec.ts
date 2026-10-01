@@ -53,5 +53,6 @@ describe('BinanceTradingKeyDomain.toDto', () => {
       configuredAt: null,
     }))
     expect(dto.tradableMarketsLabel.in('zh-TW')).toBe('')
+    expect(dto.tradableMarketsLabel.in('en')).toBe('')
   })
 })

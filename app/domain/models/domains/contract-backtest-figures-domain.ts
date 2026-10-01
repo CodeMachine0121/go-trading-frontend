@@ -3,6 +3,7 @@ import type { ContractBacktestFigures } from '~/domain/models/entities/backtest'
 import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 import { ContractBacktestSummaryDto } from '~/domain/models/dto/contract-backtest-summary-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const AMOUNT_FRACTION_DIGITS = 2
 const WIN_RATE_FRACTION_DIGITS = 1
@@ -64,7 +65,7 @@ export class ContractBacktestFiguresDomain {
     if (fundingFee.isZero()) {
       const amount = fundingFee.abs().toFixed(AMOUNT_FRACTION_DIGITS)
 
-      return new LocalizedTextVo(amount, amount)
+      return new UntranslatedTextVo(amount)
     }
 
     if (fundingFee.isPositive()) {
@@ -85,6 +86,6 @@ export class ContractBacktestFiguresDomain {
 
     const percentage = `${(winRate * 100).toFixed(WIN_RATE_FRACTION_DIGITS)}%`
 
-    return new LocalizedTextVo(percentage, percentage)
+    return new UntranslatedTextVo(percentage)
   }
 }

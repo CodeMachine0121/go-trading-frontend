@@ -18,6 +18,7 @@ import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { formatMinuteInputInTimeZone, parseMinuteInputInTimeZone } from '~/utilities/time-zone-format'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const JOURNAL_LINK_NOT_FOUND_MESSAGE = new LocalizedTextVo(
   '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。',
@@ -35,7 +36,7 @@ export function useContractTradeDraft(
   const existingRecord = options.existingRecord
   let nextFillKey = 0
 
-  const setting = ref(new TradeJournalSettingDto(null, null, false, new LocalizedTextVo('', '')))
+  const setting = ref(new TradeJournalSettingDto(null, null, false, new UntranslatedTextVo('')))
   const tradingStrategies = ref<TradingStrategyDto[]>([])
   const setupTags = ref<TradeTagDto[]>([])
   const referenceFailureMessage = ref<LocalizedTextVo | null>(null)

@@ -1,6 +1,7 @@
 import type { BacktestTradeStatistics } from '~/domain/models/entities/backtest'
 import { BacktestTradeStatisticsDto } from '~/domain/models/dto/backtest-trade-statistics-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const NOT_APPLICABLE = new LocalizedTextVo('不適用', 'N/A')
 
@@ -33,10 +34,10 @@ export class BacktestTradeStatisticsDomain {
     return new BacktestTradeStatisticsDto(
       statistics.profitFactor === null
         ? NOT_APPLICABLE
-        : this.figure(statistics.profitFactor.toFixed(RATIO_FRACTION_DIGITS)),
+        : new UntranslatedTextVo(statistics.profitFactor.toFixed(RATIO_FRACTION_DIGITS)),
       statistics.expectancy === null
         ? NOT_APPLICABLE
-        : this.figure(statistics.expectancy.toFixed(AMOUNT_FRACTION_DIGITS)),
+        : new UntranslatedTextVo(statistics.expectancy.toFixed(AMOUNT_FRACTION_DIGITS)),
       statistics.averageHoldingSeconds === null
         ? NOT_APPLICABLE
         : this.holdingTime(statistics.averageHoldingSeconds),
@@ -45,13 +46,8 @@ export class BacktestTradeStatisticsDomain {
         `${statistics.maximumConsecutiveLossCount} ${statistics.maximumConsecutiveLossCount === 1 ? 'trade' : 'trades'}`),
       statistics.costToGrossProfitRatio === null
         ? NOT_APPLICABLE
-        : this.figure(`${(statistics.costToGrossProfitRatio * 100).toFixed(PERCENTAGE_FRACTION_DIGITS)}%`),
+        : new UntranslatedTextVo(`${(statistics.costToGrossProfitRatio * 100).toFixed(PERCENTAGE_FRACTION_DIGITS)}%`),
     )
-  }
-
-  /** 一個純數字兩種語言寫法相同。 */
-  private figure(text: string): LocalizedTextVo {
-    return new LocalizedTextVo(text, text)
   }
 
   private holdingTime(averageHoldingSeconds: number): LocalizedTextVo {
