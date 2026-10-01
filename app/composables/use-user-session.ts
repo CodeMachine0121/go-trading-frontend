@@ -8,6 +8,7 @@ import { SignInLockedError } from '~/domain/errors/sign-in-locked-error'
 import { EmailAlreadyRegisteredError } from '~/domain/errors/email-already-registered-error'
 import { AccessTokenUnavailableError } from '~/domain/errors/access-token-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 第一站：沒有「原本想去的那一頁」時，登入成功要去哪。
@@ -71,7 +72,7 @@ export function useUserSession(
    */
   const recovery = useState<Promise<boolean> | null>('user-session-recovery', () => null)
   const pending = useState('user-session-pending', () => false)
-  const errorMessage = useState<string | null>('user-session-error', () => null)
+  const errorMessage = useState<LocalizedTextVo | null>('user-session-error', () => null)
   const fieldErrors = useState<CredentialsFieldErrorsDto | null>(
     'user-session-field-errors', () => null)
   const redirectTo = useState<string | null>('user-session-redirect-to', () => null)
@@ -82,7 +83,7 @@ export function useUserSession(
    * 它是跨畫面共用的狀態，因為說這句話的地方（設定畫面）與顯示它的地方（登入畫面）
    * 是兩個畫面，中間隔著一次換頁。
    */
-  const signInNotice = useState<string | null>('user-session-sign-in-notice', () => null)
+  const signInNotice = useState<LocalizedTextVo | null>('user-session-sign-in-notice', () => null)
 
   /**
    * 確認這台瀏覽器記著的憑證認不認得出人來，**一個分頁只做一次**。
@@ -248,7 +249,10 @@ export function useUserSession(
    * 中間那一瞬間看起來像被踢出去。所以兩邊都說，由這裡把它交過去。
    */
   async function signOutAfterPasswordChange(): Promise<void> {
-    signInNotice.value = '密碼已更換，請用新密碼重新登入。'
+    signInNotice.value = new LocalizedTextVo(
+      '密碼已更換，請用新密碼重新登入。',
+      'Password changed. Please sign in again with the new password.',
+    )
     // 記著的那一對也要忘掉，不只是清掉畫面上的狀態。留著的話，下一次換頁時把關會
     // 拿兩份已經不算數的憑證去敲兩次門才放棄——而那段時間畫面說不清楚自己是誰。
     userSessionApplication.forgetSession()
@@ -261,7 +265,7 @@ export function useUserSession(
   }
 
   /** 取出並用掉登入畫面上那一句話。用掉之後就忘記，否則它會一直掛在那裡。 */
-  function takeSignInNotice(): string | null {
+  function takeSignInNotice(): LocalizedTextVo | null {
     const notice = signInNotice.value
     signInNotice.value = null
 
@@ -354,7 +358,7 @@ export function useUserSession(
  * 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼。
  * 三個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
  */
-function messageFor(error: unknown): string {
+function messageFor(error: unknown): LocalizedTextVo {
   // 這一種在帳密不正確之前，因為兩者是完全相反的指示：一個是再打一次密碼，
   // 另一個是不要再打了。順序反過來不會出錯（型別不同），寫在前面只是讓讀的人
   // 先看到那個例外。
@@ -364,18 +368,21 @@ function messageFor(error: unknown): string {
 
   if (error instanceof CredentialsRejectedError || error instanceof EmailAlreadyRegisteredError) {
     // 這兩種後端已經講得夠清楚了，原文轉達即可——多一層轉譯只會多一個會漂移的地方。
-    return error.message
+    return error.localizedMessage
   }
 
   if (error instanceof AccessTokenUnavailableError) {
-    return '後端目前簽不出登入憑證（尚未設定 AUTH_ACCESS_TOKEN_SIGNING_KEY），這不是你填錯了什麼。'
+    return new LocalizedTextVo(
+      '後端目前簽不出登入憑證（尚未設定 AUTH_ACCESS_TOKEN_SIGNING_KEY），這不是你填錯了什麼。',
+      'The backend cannot issue sign-in tokens right now (AUTH_ACCESS_TOKEN_SIGNING_KEY is not set). This is not something you entered wrong.',
+    )
   }
 
   if (error instanceof BackendUnreachableError) {
-    return '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
+    return error.explanation
   }
 
-  return '登入時發生未預期的錯誤。'
+  return new LocalizedTextVo('登入時發生未預期的錯誤。', 'An unexpected error occurred while signing in.')
 }
 
 /**
@@ -389,9 +396,12 @@ function messageFor(error: unknown): string {
  * 說不出時刻時仍然說他被鎖住。退回去說「電子郵件或密碼不正確」是最糟的選擇——
  * 那句話會讓他繼續試密碼，而那正是這道鎖要終結的行為。
  */
-function signInLockedMessageFor(lockedUntil: Date | null): string {
+function signInLockedMessageFor(lockedUntil: Date | null): LocalizedTextVo {
   if (lockedUntil === null) {
-    return '這個帳號因為連續登入失敗已被鎖住，請稍後再試。'
+    return new LocalizedTextVo(
+      '這個帳號因為連續登入失敗已被鎖住，請稍後再試。',
+      'This account is locked after repeated failed sign-ins. Please try again later.',
+    )
   }
 
   // 時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
@@ -400,5 +410,8 @@ function signInLockedMessageFor(lockedUntil: Date | null): string {
     timeStyle: 'short',
   }).format(lockedUntil)
 
-  return `這個帳號因為連續登入失敗已被鎖住，${readableMoment} 之後才能再試。`
+  return new LocalizedTextVo(
+    `這個帳號因為連續登入失敗已被鎖住，${readableMoment} 之後才能再試。`,
+    `This account is locked after repeated failed sign-ins. You can try again after ${readableMoment}.`,
+  )
 }

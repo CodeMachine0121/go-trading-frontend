@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-field-errors-dto'
 
 /**
@@ -7,11 +8,14 @@ import type { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-
  * 它與後端的拒絕分開，是因為它連送都沒送出去——沒有來回，也沒有後端說過任何話。
  */
 export class CredentialsFieldError extends Error {
+  readonly localizedMessage: LocalizedTextVo
   readonly fieldErrors: CredentialsFieldErrorsDto
 
   // 它沒有 cause，因為它沒有起因：這一次根本沒有送出去，沒有任何下層的失敗可以包。
   constructor(fieldErrors: CredentialsFieldErrorsDto) {
-    super('登入內容有欄位需要修正')
+    const localizedMessage = new LocalizedTextVo('登入內容有欄位需要修正', 'Some sign-in fields need correcting')
+    super(localizedMessage.traditionalChinese)
+    this.localizedMessage = localizedMessage
     this.name = 'CredentialsFieldError'
     this.fieldErrors = fieldErrors
   }

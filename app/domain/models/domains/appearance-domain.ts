@@ -1,12 +1,13 @@
 import { AppearanceDto } from '~/domain/models/dto/appearance-dto'
 import { AppearanceOptionDto } from '~/domain/models/dto/appearance-option-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { APPEARANCE_CHOICES } from '~/domain/models/vo/appearance-choice-vo'
 import type { AppearanceChoiceVo, ResolvedThemeVo } from '~/domain/models/vo/appearance-choice-vo'
 
-const APPEARANCE_LABELS: Record<AppearanceChoiceVo, string> = {
-  light: '淺色',
-  system: '跟隨系統',
-  dark: '深色',
+const APPEARANCE_LABELS: Record<AppearanceChoiceVo, LocalizedTextVo> = {
+  light: new LocalizedTextVo('淺色', 'Light'),
+  system: new LocalizedTextVo('跟隨系統', 'System'),
+  dark: new LocalizedTextVo('深色', 'Dark'),
 }
 
 /**

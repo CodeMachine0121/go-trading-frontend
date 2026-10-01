@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：一次試送的結果，以及送不出去時要顯示的那一句話。
  *
@@ -10,6 +12,6 @@
 export class TestMessageResultDto {
   constructor(
     public readonly delivered: boolean,
-    public readonly failureSentence: string | null,
+    public readonly failureSentence: LocalizedTextVo | null,
   ) {}
 }

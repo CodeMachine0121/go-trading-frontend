@@ -6,6 +6,7 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BinanceTradingKeyFieldError } from '~/domain/errors/binance-trading-key-field-error'
 import { BinanceTradingKeyVerificationError } from '~/domain/errors/binance-trading-key-verification-error'
 import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavailable-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { TRADING_KEY_VERIFICATION_FAILURES } from '~/domain/models/vo/trading-key-verification-failure-vo'
 import type { BinanceTradingKeyFieldVo } from '~/domain/models/vo/binance-trading-key-field-vo'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -62,7 +63,8 @@ export class BinanceTradingKeyProxy extends BackendApiProxy implements IBinanceT
         const field = FIELD_NAMES_IN_MESSAGE
           .find(([fieldName]) => error.message.includes(fieldName))?.[1] ?? null
 
-        throw new BinanceTradingKeyFieldError(error.message, field, { cause: error })
+        throw new BinanceTradingKeyFieldError(
+          new UntranslatedTextVo(error.message), field, { cause: error })
       }
 
       throw error

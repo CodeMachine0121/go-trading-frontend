@@ -5,8 +5,12 @@ import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/conne
 import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { SignedOutError } from '~/domain/errors/signed-out-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
+const UNREACHABLE_MESSAGE = new LocalizedTextVo(
+  '連不上交易服務（go-trading API），請確認它已啟動後再試一次。',
+  'Cannot reach the trading service (go-trading API). Make sure it is running, then try again.',
+)
 
 export function useConnectorAuthorization(
   connectorAuthorizationApplication = useNuxtApp().$connectorAuthorizationApplication,
@@ -14,8 +18,8 @@ export function useConnectorAuthorization(
   const stage = ref<ConnectorAuthorizationStageVo>('loading')
   const authorizationRequest = ref<ConnectorAuthorizationRequestDto | null>(null)
   const pendingDecision = ref<ConnectorAuthorizationDecisionVo | null>(null)
-  const loadErrorMessage = ref<string | null>(null)
-  const decisionErrorMessage = ref<string | null>(null)
+  const loadErrorMessage = ref<LocalizedTextVo | null>(null)
+  const decisionErrorMessage = ref<LocalizedTextVo | null>(null)
   const requestId = ref('')
 
   async function load(targetRequestId: string): Promise<void> {
@@ -36,7 +40,10 @@ export function useConnectorAuthorization(
 
       loadErrorMessage.value = error instanceof BackendUnreachableError
         ? UNREACHABLE_MESSAGE
-        : '讀取授權請求時發生未預期的錯誤，請再試一次。'
+        : new LocalizedTextVo(
+            '讀取授權請求時發生未預期的錯誤，請再試一次。',
+            'An unexpected error occurred while reading the authorization request. Please try again.',
+          )
       stage.value = 'loadFailed'
     }
   }
@@ -68,7 +75,10 @@ export function useConnectorAuthorization(
       else if (!(error instanceof SignedOutError)) {
         decisionErrorMessage.value = error instanceof BackendUnreachableError
           ? UNREACHABLE_MESSAGE
-          : '交易服務沒有接受這次決定，請再試一次。'
+          : new LocalizedTextVo(
+              '交易服務沒有接受這次決定，請再試一次。',
+              'The trading service did not accept this decision. Please try again.',
+            )
       }
     }
     finally {

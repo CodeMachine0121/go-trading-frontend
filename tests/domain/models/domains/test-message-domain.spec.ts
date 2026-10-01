@@ -23,7 +23,7 @@ describe('TestMessageDomain', () => {
     const testMessage = new TestMessageDomain(message)
 
     expect(testMessage.isSendable()).toBe(false)
-    expect(testMessage.error()).toBe('訊息不得為空白')
+    expect(testMessage.error()?.in('zh-TW')).toBe('訊息不得為空白')
   })
 
   it('剛好 4096 個字元送得出去', () => {
@@ -35,7 +35,7 @@ describe('TestMessageDomain', () => {
     const testMessage = new TestMessageDomain('字'.repeat(4097))
 
     expect(testMessage.isSendable()).toBe(false)
-    expect(testMessage.error()).toBe('一則訊息上限為 4096 個字元，目前有 4097 個')
+    expect(testMessage.error()?.in('zh-TW')).toBe('一則訊息上限為 4096 個字元，目前有 4097 個')
   })
 
   it('字數數的是字元，不是位元組', () => {
@@ -50,5 +50,14 @@ describe('TestMessageDomain', () => {
 
   it('說得出上限是幾個字', () => {
     expect(new TestMessageDomain('哈囉').maximumCharacterCount()).toBe(4096)
+  })
+})
+
+describe('TestMessageDomain：英文畫面上的說法', () => {
+  it.each([
+    { name: '空白', message: '   ', expected: 'The message cannot be blank' },
+    { name: '太長', message: '字'.repeat(4097), expected: 'A message can be at most 4096 characters; this one has 4097' },
+  ])('$name 時說「$expected」', ({ message, expected }) => {
+    expect(new TestMessageDomain(message).error()?.in('en')).toBe(expected)
   })
 })

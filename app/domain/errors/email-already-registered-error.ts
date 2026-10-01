@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個電子郵件已經有人用了。
  *
@@ -6,8 +8,12 @@
  * 或是直接切到登入。
  */
 export class EmailAlreadyRegisteredError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'EmailAlreadyRegisteredError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

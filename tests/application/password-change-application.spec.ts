@@ -37,7 +37,7 @@ describe('PasswordChangeApplication.changePassword', () => {
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(PasswordChangeFieldError)
-    expect((failure as PasswordChangeFieldError).fieldErrors.newPasswordConfirmation)
+    expect((failure as PasswordChangeFieldError).fieldErrors.newPasswordConfirmation?.in('zh-TW'))
       .toBe('兩次輸入的新密碼不一致')
     expect(changePassword).not.toHaveBeenCalled()
   })

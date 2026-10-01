@@ -12,10 +12,13 @@
  * 計時器由這裡拿著，不交給畫它的那個元件：連著做兩件事時會有兩個計時器數同一格位子，
  * 先到的那個會把後來的話收掉。
  */
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 const ANNOUNCEMENT_VISIBLE_MILLISECONDS = 4000
 
 export function useConsoleAnnouncement() {
-  const announcement = useState<string>('console-announcement', () => '')
+  // 存的是兩種說法而不是一段字：話還掛在畫面上時換了語言，它要跟著換。
+  const announcement = useState<LocalizedTextVo | null>('console-announcement', () => null)
   const timer = useState<ReturnType<typeof setTimeout> | null>('console-announcement-timer',
     () => null)
 
@@ -25,14 +28,14 @@ export function useConsoleAnnouncement() {
    * 收掉的計時器在**這裡**啟動而不是在讀到它的那一頁，是因為換頁時讀它的那一頁
    * 才剛掛上來——由它啟動的話，換頁慢一點那句話就會多留一會兒，快一點就少留一會兒。
    */
-  function announce(message: string) {
+  function announce(message: LocalizedTextVo) {
     announcement.value = message
 
     if (timer.value !== null) {
       clearTimeout(timer.value)
     }
     timer.value = setTimeout(() => {
-      announcement.value = ''
+      announcement.value = null
       timer.value = null
     }, ANNOUNCEMENT_VISIBLE_MILLISECONDS)
   }

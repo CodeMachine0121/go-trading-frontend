@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：這台操作台看得到的 Telegram 投遞設定。
  *
@@ -14,6 +16,6 @@ export class TelegramDeliveryDto {
     public readonly chatId: string,
     public readonly botTokenTail: string,
     /** 已設定時它是一句「已設定，結尾 1234」；還沒設定時是 null。 */
-    public readonly summary: string | null,
+    public readonly summary: LocalizedTextVo | null,
   ) {}
 }

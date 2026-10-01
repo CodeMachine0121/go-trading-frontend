@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import { useI18n } from 'vue-i18n'
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：側欄底下那顆燈。
 //
@@ -12,10 +14,13 @@ import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 const { health, checking, errorMessage = null } = defineProps<{
   health: BackendHealthDto | null
   checking: boolean
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{ recheck: [] }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 /**
  * 燈有四種說法，而且順序有講究：正在查的時候不要先報上一次的結果，
@@ -23,22 +28,22 @@ const emit = defineEmits<{ recheck: [] }>()
  */
 const state = computed(() => {
   if (checking) {
-    return { tone: 'checking', label: '檢查中' }
+    return { tone: 'checking', label: t('shell.backendStatus.checking') }
   }
   if (errorMessage !== null) {
-    return { tone: 'unreachable', label: '連不上' }
+    return { tone: 'unreachable', label: t('shell.backendStatus.unreachable') }
   }
   if (health !== null) {
-    return { tone: health.tone, label: health.label }
+    return { tone: health.tone, label: localize(health.label) }
   }
 
-  return { tone: 'idle', label: '尚未檢查' }
+  return { tone: 'idle', label: t('shell.backendStatus.notChecked') }
 })
 </script>
 
 <template>
   <div class="backend-status-indicator">
-    <span class="backend-status-indicator__label">後端</span>
+    <span class="backend-status-indicator__label">{{ t('shell.backendStatus.backend') }}</span>
 
     <span
       class="backend-status-indicator__state"
@@ -52,8 +57,8 @@ const state = computed(() => {
     <button
       class="backend-status-indicator__recheck"
       type="button"
-      aria-label="重新檢查後端狀態"
-      title="重新檢查後端狀態"
+      :aria-label="t('shell.backendStatus.recheck')"
+      :title="t('shell.backendStatus.recheck')"
       :disabled="checking"
       data-testid="backend-status-recheck"
       @click="emit('recheck')"

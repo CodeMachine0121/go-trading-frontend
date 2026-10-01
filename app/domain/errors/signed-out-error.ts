@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這一次請求沒有帶著有效的身分——沒帶、被改過、過期，或它指向的人已經不在。
  *
@@ -8,8 +10,12 @@
  * 畫面不自己發明第二句話。
  */
 export class SignedOutError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, { cause: options?.cause })
     this.name = 'SignedOutError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

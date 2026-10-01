@@ -1,5 +1,6 @@
 import type { IClipboardProxy } from '~/domain/interface/i-clipboard-proxy'
 import { ClipboardWriteFailedError } from '~/domain/errors/clipboard-write-failed-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Proxy：瀏覽器的剪貼簿。
@@ -18,7 +19,10 @@ export class ClipboardProxy implements IClipboardProxy {
       await navigator.clipboard.writeText(text)
     }
     catch (error: unknown) {
-      throw new ClipboardWriteFailedError('複製失敗，請手動選取這段內容。', { cause: error })
+      throw new ClipboardWriteFailedError(new LocalizedTextVo(
+        '複製失敗，請手動選取這段內容。',
+        'Copy failed. Please select the text and copy it by hand.',
+      ), { cause: error })
     }
   }
 }

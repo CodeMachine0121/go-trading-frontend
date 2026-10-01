@@ -2,8 +2,11 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import TelegramDeliveryPanel from '~/components/organisms/TelegramDeliveryPanel.vue'
 import { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const CONFIGURED = new TelegramDeliveryDto(true, '987654', '1234', '金鑰結尾 1234')
+const CONFIGURED = new TelegramDeliveryDto(
+  true, '987654', '1234', new LocalizedTextVo('金鑰結尾 1234', 'Token ending in 1234'))
 const UNCONFIGURED = new TelegramDeliveryDto(false, '', '', null)
 
 function mountPanel(props: Record<string, unknown> = {}) {
@@ -49,7 +52,7 @@ describe('TelegramDeliveryPanel：目前的狀態', () => {
   })
 
   it('讀不到設定與沒有設定分得開', () => {
-    const wrapper = mountPanel({ loadErrorMessage: '連不上後端 go-trading API' })
+    const wrapper = mountPanel({ loadErrorMessage: new UntranslatedTextVo('連不上後端 go-trading API') })
 
     expect(wrapper.get('[data-testid="telegram-load-error"]').text()).toContain('連不上後端')
     expect(wrapper.find('[data-testid="telegram-unconfigured"]').exists()).toBe(false)
@@ -193,7 +196,7 @@ describe('TelegramDeliveryPanel：試送一則訊息', () => {
 
   it('訊息不合規時說在那一格底下', () => {
     const wrapper = mountPanel({
-      setting: CONFIGURED, messageError: '一則訊息上限為 4096 個字元，目前有 4097 個',
+      setting: CONFIGURED, messageError: new UntranslatedTextVo('一則訊息上限為 4096 個字元，目前有 4097 個'),
     })
 
     expect(wrapper.text()).toContain('一則訊息上限為 4096 個字元，目前有 4097 個')
@@ -201,7 +204,7 @@ describe('TelegramDeliveryPanel：試送一則訊息', () => {
 
   it('送成功說成功', () => {
     const wrapper = mountPanel({
-      setting: CONFIGURED, sendSucceeded: true, sendResultMessage: '送出成功，去 Telegram 看看那則訊息。',
+      setting: CONFIGURED, sendSucceeded: true, sendResultMessage: new UntranslatedTextVo('送出成功，去 Telegram 看看那則訊息。'),
     })
 
     expect(wrapper.get('[data-testid="test-message-result"]').text()).toContain('送出成功')
@@ -215,7 +218,7 @@ describe('TelegramDeliveryPanel：試送一則訊息', () => {
   ])('送不成時把那一句原樣說出來：%s', (sentence) => {
     // 這顆鍵的全部價值就在於它會說出是哪一格填錯。
     const wrapper = mountPanel({
-      setting: CONFIGURED, sendSucceeded: false, sendResultMessage: sentence,
+      setting: CONFIGURED, sendSucceeded: false, sendResultMessage: new UntranslatedTextVo(sentence),
     })
 
     expect(wrapper.get('[data-testid="test-message-result"]').text()).toContain(sentence)
@@ -257,7 +260,7 @@ describe('TelegramDeliveryPanel：三格都往上綁', () => {
   })
 
   it('訊息不合規時那一格自己也標出來', () => {
-    const wrapper = mountPanel({ setting: CONFIGURED, messageError: '訊息不得為空白' })
+    const wrapper = mountPanel({ setting: CONFIGURED, messageError: new UntranslatedTextVo('訊息不得為空白') })
 
     expect(wrapper.get('[data-testid="test-message-input"]').attributes('aria-invalid'))
       .toBe('true')
@@ -265,7 +268,7 @@ describe('TelegramDeliveryPanel：三格都往上綁', () => {
 
   it('儲存失敗的話說在那張卡上', () => {
     const wrapper = mountPanel({
-      setting: UNCONFIGURED, saveErrorMessage: '系統目前無法安全保存機器人金鑰',
+      setting: UNCONFIGURED, saveErrorMessage: new UntranslatedTextVo('系統目前無法安全保存機器人金鑰'),
     })
 
     expect(wrapper.get('[data-testid="telegram-save-error"]').text())

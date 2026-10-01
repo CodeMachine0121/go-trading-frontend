@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：後端目前簽不出任何憑證（它沒有設定簽章鑰匙）。
  *
@@ -5,8 +7,12 @@
  * 把它說成帳密錯，會讓人在一組本來就正確的密碼上重打一個小時。
  */
 export class AccessTokenUnavailableError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'AccessTokenUnavailableError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

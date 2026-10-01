@@ -1,5 +1,6 @@
 import type { DeliveryFailureReasonVo } from '~/domain/models/vo/delivery-failure-reason-vo'
 import { DELIVERY_FAILURE_REASONS } from '~/domain/models/vo/delivery-failure-reason-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 四種原因各自那一句話。
@@ -12,11 +13,20 @@ import { DELIVERY_FAILURE_REASONS } from '~/domain/models/vo/delivery-failure-re
 // 「送不到這個聊天室」把兩件事講在一起，因為後端回的是同一個取值，而使用者要做的
 // 檢查也是同一組：代號對不對、有沒有先對 bot 按過 Start。第一次設定最常卡的正是
 // 後者——bot 不能主動私訊沒找過它的人，而那件事光看代號是看不出來的。
-const DELIVERY_FAILURE_SENTENCES: Readonly<Record<DeliveryFailureReasonVo, string>> = {
-  credentialRejected: 'Telegram 不接受這組機器人金鑰，請重新填一次整串金鑰。',
-  destinationNotFound: 'Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。',
-  unreachable: '連不上 Telegram，請稍後再試。',
-  timedOut: 'Telegram 太久沒有回答，這一則當作沒送成，請稍後再試。',
+const DELIVERY_FAILURE_SENTENCES: Readonly<Record<DeliveryFailureReasonVo, LocalizedTextVo>> = {
+  credentialRejected: new LocalizedTextVo(
+    'Telegram 不接受這組機器人金鑰，請重新填一次整串金鑰。',
+    'Telegram rejected this bot token. Enter the whole token again.',
+  ),
+  destinationNotFound: new LocalizedTextVo(
+    'Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。',
+    'Telegram cannot deliver to this chat. Check the chat ID, and make sure you have pressed Start on this bot in Telegram — it cannot message people who have never contacted it.',
+  ),
+  unreachable: new LocalizedTextVo('連不上 Telegram，請稍後再試。', 'Cannot reach Telegram. Please try again later.'),
+  timedOut: new LocalizedTextVo(
+    'Telegram 太久沒有回答，這一則當作沒送成，請稍後再試。',
+    'Telegram took too long to answer, so this message counts as not sent. Please try again later.',
+  ),
 }
 
 /**
@@ -46,7 +56,7 @@ export class DeliveryFailureDomain {
   }
 
   /** 給使用者看的那一句：說出是哪一件事出了問題，以及他該做什麼。 */
-  sentence(): string {
+  sentence(): LocalizedTextVo {
     return DELIVERY_FAILURE_SENTENCES[this.reason]
   }
 }

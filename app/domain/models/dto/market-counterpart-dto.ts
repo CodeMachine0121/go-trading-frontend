@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
 
 /**
@@ -10,7 +11,7 @@ export class MarketCounterpartDto {
     public readonly side: MarketSideVo | null,
     public readonly counterpartPath: string | null,
     /** 開關的名字與停留提示：可以切時說它做什麼，不能切時說為什麼。 */
-    public readonly switchLabel: string,
+    public readonly switchLabel: LocalizedTextVo,
   ) {}
 
   get switchable(): boolean {

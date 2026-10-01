@@ -11,7 +11,7 @@ describe('TelegramDeliveryDomain', () => {
     expect(deliveryDto.configured).toBe(true)
     expect(deliveryDto.chatId).toBe('987654')
     expect(deliveryDto.botTokenTail).toBe('1234')
-    expect(deliveryDto.summary).toBe('金鑰結尾 1234')
+    expect(deliveryDto.summary?.in('zh-TW')).toBe('金鑰結尾 1234')
   })
 
   it('那句話不重複畫面上已經有的東西', () => {
@@ -20,7 +20,7 @@ describe('TelegramDeliveryDomain', () => {
     const deliveryDto = new TelegramDeliveryDomain(
       new TelegramDelivery(true, '987654', '1234')).toDto()
 
-    expect(deliveryDto.summary).not.toContain('987654')
+    expect(deliveryDto.summary?.in('zh-TW')).not.toContain('987654')
   })
 
   it('還沒設定過時沒有那一句話', () => {
@@ -37,6 +37,18 @@ describe('TelegramDeliveryDomain', () => {
     const deliveryDto = new TelegramDeliveryDomain(
       new TelegramDelivery(true, '987654', '')).toDto()
 
-    expect(deliveryDto.summary).toBe('金鑰已設定')
+    expect(deliveryDto.summary?.in('zh-TW')).toBe('金鑰已設定')
+  })
+})
+
+describe('TelegramDeliveryDomain：英文畫面上的說法', () => {
+  it.each([
+    { botTokenTail: '1234', expected: 'Token ending in 1234' },
+    { botTokenTail: '', expected: 'Token configured' },
+  ])('結尾「$botTokenTail」說成「$expected」', ({ botTokenTail, expected }) => {
+    const deliveryDto = new TelegramDeliveryDomain(
+      new TelegramDelivery(true, '987654', botTokenTail)).toDto()
+
+    expect(deliveryDto.summary?.in('en')).toBe(expected)
   })
 })

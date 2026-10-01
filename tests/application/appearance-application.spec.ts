@@ -36,9 +36,10 @@ describe('AppearanceApplication 還原外觀', () => {
 
     const { options } = appearanceApplication.restoreAppearance(true)
 
-    expect(options.map(option => [option.value, option.label])).toEqual([
+    expect(options.map(option => [option.value, option.label.in('zh-TW')])).toEqual([
       ['light', '淺色'], ['system', '跟隨系統'], ['dark', '深色'],
     ])
+    expect(options.map(option => option.label.in('en'))).toEqual(['Light', 'System', 'Dark'])
   })
 })
 

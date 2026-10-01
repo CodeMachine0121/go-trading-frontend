@@ -7,6 +7,8 @@ import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-r
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 工廠會被提升，所以它要用到的東西也得跟著提升。
 const { navigateToSpy } = vi.hoisted(() => ({
@@ -59,8 +61,9 @@ describe('usePasswordChange', () => {
 
     await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
 
-    expect(useState<string | null>('user-session-sign-in-notice').value)
-      .toBe('密碼已更換，請用新密碼重新登入。')
+    const signInNotice = useState<LocalizedTextVo | null>('user-session-sign-in-notice').value
+    expect(signInNotice?.in('zh-TW')).toBe('密碼已更換，請用新密碼重新登入。')
+    expect(signInNotice?.in('en')).toBe('Password changed. Please sign in again with the new password.')
     expect(navigateToSpy).toHaveBeenCalledWith('/login')
   })
 
@@ -113,12 +116,12 @@ describe('usePasswordChange', () => {
   it('畫面自己擋下來的原因掛回逐格', async () => {
     passwordChangeApplication.changePassword.mockRejectedValue(
       new PasswordChangeFieldError(
-        new PasswordChangeFieldErrorsDto(null, null, '兩次輸入的新密碼不一致')))
+        new PasswordChangeFieldErrorsDto(null, null, new UntranslatedTextVo('兩次輸入的新密碼不一致'))))
     const { submitPasswordChange, fieldErrors, errorMessage } = passwordChangeUnderTest()
 
     await submitPasswordChange('correct horse', 'battery staple', 'battery stapel')
 
-    expect(fieldErrors.value?.newPasswordConfirmation).toBe('兩次輸入的新密碼不一致')
+    expect(fieldErrors.value?.newPasswordConfirmation?.in('zh-TW')).toBe('兩次輸入的新密碼不一致')
     expect(errorMessage.value).toBeNull()
     expect(navigateToSpy).not.toHaveBeenCalled()
   })
@@ -131,7 +134,7 @@ describe('usePasswordChange', () => {
 
     await submitPasswordChange('wrong horse', 'battery staple', 'battery staple')
 
-    expect(fieldErrors.value?.currentPassword).toBe('目前的密碼不正確')
+    expect(fieldErrors.value?.currentPassword?.in('zh-TW')).toBe('目前的密碼不正確')
     expect(fieldErrors.value?.newPassword).toBeNull()
     expect(navigateToSpy).not.toHaveBeenCalled()
   })
@@ -143,7 +146,7 @@ describe('usePasswordChange', () => {
 
     await submitPasswordChange('correct horse', 'short', 'short')
 
-    expect(fieldErrors.value?.newPassword).toBe('密碼至少要 8 個字元')
+    expect(fieldErrors.value?.newPassword?.in('zh-TW')).toBe('密碼至少要 8 個字元')
   })
 
   it('連不上後端時說的是整張卡的話，不是某一格的', async () => {
@@ -154,7 +157,7 @@ describe('usePasswordChange', () => {
     await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
 
     expect(fieldErrors.value).toBeNull()
-    expect(errorMessage.value).toContain('連不上後端 go-trading API')
+    expect(errorMessage.value?.in('zh-TW')).toContain('連不上後端 go-trading API')
   })
 
   it('沒見過的失敗也說得出一句話，不是一片空白', async () => {
@@ -163,7 +166,7 @@ describe('usePasswordChange', () => {
 
     await submitPasswordChange('correct horse', 'battery staple', 'battery staple')
 
-    expect(errorMessage.value).toBe('更換密碼時發生未預期的錯誤。')
+    expect(errorMessage.value?.in('zh-TW')).toBe('更換密碼時發生未預期的錯誤。')
   })
 
   it('動了那幾格就把上一次的說明清掉', async () => {

@@ -260,6 +260,7 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
   private momentIn(value: string): Date {
     const moment = new Date(value)
     if (Number.isNaN(moment.getTime())) {
+      // translation-exempt：這個拒絕不會原文上畫面——登入與續用一律只說「發生未預期的錯誤」。
       throw new BackendRequestRejectedError(`後端給了一個讀不出來的時刻：「${value}」`)
     }
 

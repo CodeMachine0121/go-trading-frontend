@@ -7,10 +7,13 @@ import { BinanceTradingKeyVerificationError } from '~/domain/errors/binance-trad
 import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavailable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const STORED = new BinanceTradingKeyDto(true, '結尾 a1b2', '現貨、合約', new Date('2026-10-01T08:00:00Z'))
-const REPLACED = new BinanceTradingKeyDto(true, '結尾 c3d4', '現貨', new Date('2026-10-01T09:00:00Z'))
-const UNCONFIGURED = new BinanceTradingKeyDto(false, null, '', null)
+const STORED = new BinanceTradingKeyDto(
+  true, new UntranslatedTextVo('結尾 a1b2'), new UntranslatedTextVo('現貨、合約'), new Date('2026-10-01T08:00:00Z'))
+const REPLACED = new BinanceTradingKeyDto(
+  true, new UntranslatedTextVo('結尾 c3d4'), new UntranslatedTextVo('現貨'), new Date('2026-10-01T09:00:00Z'))
+const UNCONFIGURED = new BinanceTradingKeyDto(false, null, new UntranslatedTextVo(''), null)
 
 const binanceTradingKeyApplication = {
   loadTradingKey: vi.fn(),
@@ -51,7 +54,7 @@ describe('useBinanceTradingKey：讀回目前的設定', () => {
   it('已設定時收起兩格、顯示存著的那一組', async () => {
     const { setting, formVisible } = await loadedWithStoredKey()
 
-    expect(setting.value?.apiKeySummary).toBe('結尾 a1b2')
+    expect(setting.value?.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
     expect(formVisible.value).toBe(false)
   })
 
@@ -62,7 +65,7 @@ describe('useBinanceTradingKey：讀回目前的設定', () => {
 
     await loadTradingKey()
 
-    expect(loadErrorMessage.value).toContain('連不上')
+    expect(loadErrorMessage.value?.in('zh-TW')).toContain('連不上')
     expect(setting.value).toBeNull()
     expect(configured.value).toBe(false)
   })
@@ -100,7 +103,7 @@ describe('useBinanceTradingKey：換一組', () => {
 
     expect(binanceTradingKey.apiKey.value).toBe('')
     expect(binanceTradingKey.formVisible.value).toBe(false)
-    expect(binanceTradingKey.setting.value?.apiKeySummary).toBe('結尾 a1b2')
+    expect(binanceTradingKey.setting.value?.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
   })
 })
 
@@ -115,7 +118,7 @@ describe('useBinanceTradingKey：存入', () => {
 
     expect(binanceTradingKeyApplication.saveTradingKey).toHaveBeenCalledWith(
       new BinanceTradingKeyWriteDto('the-api-key', 'the-secret-key'))
-    expect(binanceTradingKey.setting.value?.apiKeySummary).toBe('結尾 c3d4')
+    expect(binanceTradingKey.setting.value?.apiKeySummary?.in('zh-TW')).toBe('結尾 c3d4')
     expect(binanceTradingKey.apiKey.value).toBe('')
     expect(binanceTradingKey.secretKey.value).toBe('')
     expect(binanceTradingKey.formVisible.value).toBe(false)
@@ -144,24 +147,24 @@ describe('useBinanceTradingKey：存入', () => {
     { field: 'secretKey' as const, message: '必須給 Secret Key' },
   ])('$field 那一格的問題掛在那一格上', async ({ field, message }) => {
     binanceTradingKeyApplication.saveTradingKey.mockRejectedValue(
-      new BinanceTradingKeyFieldError(message, field))
+      new BinanceTradingKeyFieldError(new UntranslatedTextVo(message), field))
     const binanceTradingKey = binanceTradingKeyUnderTest()
 
     await binanceTradingKey.saveTradingKey()
 
     const fieldErrors = { apiKey: binanceTradingKey.apiKeyError.value, secretKey: binanceTradingKey.secretKeyError.value }
-    expect(fieldErrors[field]).toBe(message)
+    expect(fieldErrors[field]?.in('zh-TW')).toBe(message)
     expect(binanceTradingKey.saveErrorMessage.value).toBeNull()
   })
 
   it('指不出是哪一格的欄位問題照原話掛在段落上', async () => {
     binanceTradingKeyApplication.saveTradingKey.mockRejectedValue(
-      new BinanceTradingKeyFieldError('invalid character in request body', null))
+      new BinanceTradingKeyFieldError(new UntranslatedTextVo('invalid character in request body'), null))
     const binanceTradingKey = binanceTradingKeyUnderTest()
 
     await binanceTradingKey.saveTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value).toBe('invalid character in request body')
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toBe('invalid character in request body')
   })
 
   it('幣安不接受時照原話說，畫面仍是原本那一組', async () => {
@@ -172,10 +175,10 @@ describe('useBinanceTradingKey：存入', () => {
 
     await binanceTradingKey.saveTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value)
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW'))
       .toBe('幣安不接受這組金鑰，請確認 API Key 與 Secret Key 後重新填寫')
     expect(binanceTradingKey.configured.value).toBe(true)
-    expect(binanceTradingKey.setting.value?.apiKeySummary).toBe('結尾 a1b2')
+    expect(binanceTradingKey.setting.value?.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
   })
 
   it.each([
@@ -189,7 +192,7 @@ describe('useBinanceTradingKey：存入', () => {
 
     await binanceTradingKey.saveTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value).toBe(error.message)
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toBe(error.message)
   })
 
   it('系統目前存不了時照原話說，並說明這不是使用者填錯', async () => {
@@ -199,8 +202,8 @@ describe('useBinanceTradingKey：存入', () => {
 
     await binanceTradingKey.saveTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value).toContain('系統目前無法安全保存幣安交易金鑰')
-    expect(binanceTradingKey.saveErrorMessage.value).toContain('不是你填錯了什麼')
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toContain('系統目前無法安全保存幣安交易金鑰')
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toContain('不是你填錯了什麼')
   })
 
   it('說不出原因的錯誤給一句通用的話', async () => {
@@ -209,7 +212,7 @@ describe('useBinanceTradingKey：存入', () => {
 
     await binanceTradingKey.saveTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value).toBe('與幣安交易金鑰設定往來時發生未預期的錯誤。')
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toBe('與幣安交易金鑰設定往來時發生未預期的錯誤。')
   })
 })
 
@@ -231,8 +234,8 @@ describe('useBinanceTradingKey：移除', () => {
 
     await binanceTradingKey.removeTradingKey()
 
-    expect(binanceTradingKey.saveErrorMessage.value).toBe('移除失敗')
-    expect(binanceTradingKey.setting.value?.apiKeySummary).toBe('結尾 a1b2')
+    expect(binanceTradingKey.saveErrorMessage.value?.in('zh-TW')).toBe('移除失敗')
+    expect(binanceTradingKey.setting.value?.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
   })
 
   it('存入進行中不會同時移除', async () => {

@@ -3,6 +3,7 @@ import { PasswordChangeFieldError } from '~/domain/errors/password-change-field-
 import { CurrentPasswordRejectedError } from '~/domain/errors/current-password-rejected-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 設定畫面上「更換密碼」那一張卡的狀態與編排。
@@ -25,7 +26,7 @@ export function usePasswordChange(
   userSession = useUserSession(),
 ) {
   const pending = ref(false)
-  const errorMessage = ref<string | null>(null)
+  const errorMessage = ref<LocalizedTextVo | null>(null)
   const fieldErrors = ref<PasswordChangeFieldErrorsDto | null>(null)
 
   /**
@@ -81,12 +82,12 @@ export function usePasswordChange(
     }
 
     if (error instanceof CurrentPasswordRejectedError) {
-      fieldErrors.value = new PasswordChangeFieldErrorsDto(error.message, null, null)
+      fieldErrors.value = new PasswordChangeFieldErrorsDto(error.localizedMessage, null, null)
       return
     }
 
     if (error instanceof BackendRequestRejectedError) {
-      fieldErrors.value = new PasswordChangeFieldErrorsDto(null, error.message, null)
+      fieldErrors.value = new PasswordChangeFieldErrorsDto(null, error.localizedMessage, null)
       return
     }
 
@@ -97,10 +98,11 @@ export function usePasswordChange(
 }
 
 /** 這一張卡對「不是某一格的錯」的那幾種失敗會說的話。 */
-function messageFor(error: unknown): string {
+function messageFor(error: unknown): LocalizedTextVo {
   if (error instanceof BackendUnreachableError) {
-    return '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
+    return error.explanation
   }
 
-  return '更換密碼時發生未預期的錯誤。'
+  return new LocalizedTextVo(
+    '更換密碼時發生未預期的錯誤。', 'An unexpected error occurred while changing the password.')
 }

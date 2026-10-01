@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import SignInPanel from '~/components/organisms/SignInPanel.vue'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountPanel(props: Record<string, unknown> = {}) {
   return mount(SignInPanel, { props })
@@ -43,7 +44,7 @@ describe('SignInPanel：一張卡片，兩種模式', () => {
   })
 
   it('切換時說一聲，好讓上一次的訊息被清掉', async () => {
-    const wrapper = mountPanel({ errorMessage: '電子郵件或密碼不正確' })
+    const wrapper = mountPanel({ errorMessage: new UntranslatedTextVo('電子郵件或密碼不正確') })
 
     await wrapper.find('[data-testid="switch-mode"]').trigger('click')
 
@@ -112,7 +113,7 @@ describe('SignInPanel：送出', () => {
 
 describe('SignInPanel：失敗說得出原因', () => {
   it('後端拒絕的原因寫在卡片上', () => {
-    const wrapper = mountPanel({ errorMessage: '電子郵件或密碼不正確' })
+    const wrapper = mountPanel({ errorMessage: new UntranslatedTextVo('電子郵件或密碼不正確') })
 
     expect(wrapper.find('[data-testid="submission-error"]').text()).toContain('電子郵件或密碼不正確')
   })
@@ -122,8 +123,8 @@ describe('SignInPanel：失敗說得出原因', () => {
   })
 
   it.each([
-    { name: '電子郵件那一格', props: { emailError: '請填入電子郵件' }, expected: '請填入電子郵件' },
-    { name: '密碼那一格', props: { passwordError: '密碼至少要 8 個字元' }, expected: '密碼至少要 8 個字元' },
+    { name: '電子郵件那一格', props: { emailError: new UntranslatedTextVo('請填入電子郵件') }, expected: '請填入電子郵件' },
+    { name: '密碼那一格', props: { passwordError: new UntranslatedTextVo('密碼至少要 8 個字元') }, expected: '密碼至少要 8 個字元' },
   ])('$name 的原因寫在該格底下', ({ props, expected }) => {
     const wrapper = mountPanel(props)
 
@@ -144,7 +145,7 @@ describe('SignInPanel：密碼那一格是密碼', () => {
 describe('SignInPanel：上一個畫面留下的那一句話', () => {
   it('說明為什麼這個人會在這裡，而且不是紅字', () => {
     // 它講的不是這一次送出失敗了。用紅字說出來，看起來就像他剛才做的事出了錯。
-    const wrapper = mountPanel({ notice: '密碼已更換，請用新密碼重新登入。' })
+    const wrapper = mountPanel({ notice: new UntranslatedTextVo('密碼已更換，請用新密碼重新登入。') })
 
     expect(wrapper.get('[data-testid="sign-in-notice"]').text())
       .toBe('密碼已更換，請用新密碼重新登入。')

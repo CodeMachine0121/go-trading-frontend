@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { IClipboardProxy } from '~/domain/interface/i-clipboard-proxy'
 import { ClipboardWriteFailedError } from '~/domain/errors/clipboard-write-failed-error'
 import { ClipboardService } from '~/domain/service/clipboard-service'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 替身一律用 vi.fn() 對介面產生，不手刻 Fake class（見 .claude/rules/testing.md）
 function buildProxyMock(failure: Error | null = null): IClipboardProxy {
@@ -48,7 +49,7 @@ describe('ClipboardService.copyText', () => {
   })
 
   it('寫不進去時往上拋，不吞掉', async () => {
-    const proxy = buildProxyMock(new ClipboardWriteFailedError('複製失敗'))
+    const proxy = buildProxyMock(new ClipboardWriteFailedError(new LocalizedTextVo('複製失敗', 'Copy failed')))
 
     await expect(new ClipboardService(proxy).copyText('sum := 0.0'))
       .rejects.toBeInstanceOf(ClipboardWriteFailedError)

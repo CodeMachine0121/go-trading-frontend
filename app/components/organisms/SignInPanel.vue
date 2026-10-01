@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { SignInMode } from '~/domain/models/vo/sign-in-mode'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -26,16 +28,16 @@ const {
   notice = null,
 } = defineProps<{
   pending?: boolean
-  errorMessage?: string | null
-  emailError?: string | null
-  passwordError?: string | null
+  errorMessage?: LocalizedTextVo | null
+  emailError?: LocalizedTextVo | null
+  passwordError?: LocalizedTextVo | null
   /**
    * 上一個畫面留下的一句話，例如「密碼已更換，請用新密碼重新登入」。
    *
    * 它與 errorMessage 分開，因為它講的不是這一次送出失敗了——它解釋的是
    * **為什麼這個人會在這裡**。用紅字說出來，看起來就像他剛才做的事出了錯。
    */
-  notice?: string | null
+  notice?: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{
@@ -47,25 +49,29 @@ const emit = defineEmits<{
   modeChange: []
 }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const mode = ref<SignInMode>('signIn')
 const email = ref('')
 const password = ref('')
 
 const registering = computed(() => mode.value === 'register')
-const title = computed(() => registering.value ? '建立帳號' : '登入')
+const title = computed(
+  () => registering.value ? t('shell.signIn.registerTitle') : t('shell.signIn.signInTitle'))
 const caption = computed(() => registering.value
-  ? '用一個電子郵件與一組密碼開一個新的帳號。'
-  : '用你的電子郵件與密碼進入操作台。')
+  ? t('shell.signIn.registerCaption')
+  : t('shell.signIn.signInCaption'))
 const submitLabel = computed(() => {
   if (pending) {
-    return registering.value ? '建立中…' : '登入中…'
+    return registering.value ? t('shell.signIn.registering') : t('shell.signIn.signingIn')
   }
 
   return title.value
 })
 const switchLabel = computed(() => registering.value
-  ? '已經有帳號了？登入'
-  : '還沒有帳號？建立一個')
+  ? t('shell.signIn.switchToSignIn')
+  : t('shell.signIn.switchToRegister'))
 
 function switchMode(): void {
   mode.value = registering.value ? 'signIn' : 'register'
@@ -106,8 +112,8 @@ function submit(): void {
 
     <div class="sign-in-panel__fields">
       <FormField
-        label="電子郵件"
-        :error-message="emailError"
+        :label="t('shell.signIn.emailLabel')"
+        :error-message="emailError ? localize(emailError) : null"
       >
         <AppInput
           v-model="email"
@@ -121,8 +127,8 @@ function submit(): void {
       </FormField>
 
       <FormField
-        label="密碼"
-        :error-message="passwordError"
+        :label="t('shell.signIn.passwordLabel')"
+        :error-message="passwordError ? localize(passwordError) : null"
       >
         <!--
           自動填入的提示隨模式換：瀏覽器與密碼管理器靠它決定要提供既有的那一組，
@@ -142,7 +148,7 @@ function submit(): void {
         tone="info"
         data-testid="sign-in-notice"
       >
-        {{ notice }}
+        {{ localize(notice) }}
       </AppAlert>
 
       <AppAlert
@@ -150,7 +156,7 @@ function submit(): void {
         tone="danger"
         data-testid="submission-error"
       >
-        {{ errorMessage }}
+        {{ localize(errorMessage) }}
       </AppAlert>
     </div>
 

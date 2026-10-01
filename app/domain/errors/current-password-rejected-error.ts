@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：後端說「目前的密碼」那一格填的不是目前的密碼。
  *
@@ -6,8 +8,12 @@
  * 好得很，把他帶回登入畫面是最不該做的事。
  */
 export class CurrentPasswordRejectedError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'CurrentPasswordRejectedError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

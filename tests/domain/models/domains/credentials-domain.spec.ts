@@ -38,7 +38,7 @@ describe('CredentialsDomain：兩格都填了才送得出去', () => {
     const credentials = credentialsOf(email, password, 'signIn')
 
     expect(credentials.isSubmittable()).toBe(false)
-    expect(credentials.fieldErrors().email).toContain('電子郵件')
+    expect(credentials.fieldErrors().email?.in('zh-TW')).toContain('電子郵件')
     expect(credentials.fieldErrors().password).toBeNull()
   })
 
@@ -46,7 +46,7 @@ describe('CredentialsDomain：兩格都填了才送得出去', () => {
     const credentials = credentialsOf('james@example.com', '', 'signIn')
 
     expect(credentials.isSubmittable()).toBe(false)
-    expect(credentials.fieldErrors().password).toContain('密碼')
+    expect(credentials.fieldErrors().password?.in('zh-TW')).toContain('密碼')
     expect(credentials.fieldErrors().email).toBeNull()
   })
 
@@ -80,7 +80,7 @@ describe('CredentialsDomain：密碼的長度規則只在建立帳號時套用',
     const credentials = credentialsOf('james@example.com', password, 'register')
 
     expect(credentials.isSubmittable()).toBe(false)
-    expect(credentials.fieldErrors().password).toContain(expectedFragment)
+    expect(credentials.fieldErrors().password?.in('zh-TW')).toContain(expectedFragment)
   })
 
   it.each([
@@ -105,5 +105,17 @@ describe('CredentialsDomain：電子郵件的格式交給後端判', () => {
 
     expect(credentials.isSubmittable()).toBe(true)
     expect(credentials.fieldErrors().email).toBeNull()
+  })
+})
+
+describe('CredentialsDomain：英文畫面上的說明', () => {
+  it.each([
+    { name: '電子郵件沒填', email: '', password: 'correct horse', field: 'email' as const, expected: 'Enter your email' },
+    { name: '密碼沒填', email: 'james@example.com', password: '', field: 'password' as const, expected: 'Enter your password' },
+    { name: '密碼太短', email: 'james@example.com', password: '1234567', field: 'password' as const, expected: 'Password must be at least 8 characters' },
+  ])('$name 時說「$expected」', ({ email, password, field, expected }) => {
+    const credentials = credentialsOf(email, password, 'register')
+
+    expect(credentials.fieldErrors()[field]?.in('en')).toBe(expected)
   })
 })

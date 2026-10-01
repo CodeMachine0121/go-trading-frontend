@@ -1,4 +1,5 @@
 import { ClipboardWriteFailedError } from '~/domain/errors/clipboard-write-failed-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { ClipboardApplication } from '~/application/clipboard-application'
 
 /** 複製成功之後那個勾停留多久。 */
@@ -23,7 +24,7 @@ export function useCopyText(
   clipboardApplication: ClipboardApplication = useNuxtApp().$clipboardApplication,
 ) {
   const state = ref<CopyState>('idle')
-  const failureMessage = ref<string | null>(null)
+  const failureMessage = ref<LocalizedTextVo | null>(null)
 
   let resetTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -57,8 +58,11 @@ export function useCopyText(
     catch (error: unknown) {
       state.value = 'failed'
       failureMessage.value = error instanceof ClipboardWriteFailedError
-        ? error.message
-        : '複製失敗，請手動選取這段內容。'
+        ? error.localizedMessage
+        : new LocalizedTextVo(
+            '複製失敗，請手動選取這段內容。',
+            'Copy failed. Please select the text and copy it by hand.',
+          )
     }
 
     scheduleReset()

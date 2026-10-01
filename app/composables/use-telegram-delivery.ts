@@ -4,9 +4,12 @@ import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavaila
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { DISPLAY_LANGUAGE_CODES } from '~/domain/models/vo/display-language-code-vo'
 
 /** 輸入框裡預先填好的那一句。預填是為了讓「按一下就知道通不通」真的只要按一下。 */
-export const DEFAULT_TEST_MESSAGE = '這是一則來自 go-trading 的測試訊息。'
+export const DEFAULT_TEST_MESSAGE = new LocalizedTextVo(
+  '這是一則來自 go-trading 的測試訊息。', 'This is a test message from go-trading.')
 
 /**
  * 設定畫面上「Telegram 投遞」那一張卡的狀態與編排。
@@ -23,16 +26,19 @@ export function useTelegramDelivery(
    * 已經設定過的人會在每次進來的頭半秒被告知他沒有設定。
    */
   const loading = ref(false)
-  const loadErrorMessage = ref<string | null>(null)
+  const loadErrorMessage = ref<LocalizedTextVo | null>(null)
 
   const botToken = ref('')
   const chatId = ref('')
   const saving = ref(false)
-  const saveErrorMessage = ref<string | null>(null)
+  const saveErrorMessage = ref<LocalizedTextVo | null>(null)
 
-  const message = ref(DEFAULT_TEST_MESSAGE)
+  // 預填的那一句一進來就是使用者手上的字，所以照當下的語言填一次；之後換語言不改他的字。
+  const { locale } = useNuxtApp().$globalTranslation
+  const message = ref(DEFAULT_TEST_MESSAGE.in(
+    DISPLAY_LANGUAGE_CODES.find(code => code === locale.value) ?? DISPLAY_LANGUAGE_CODES[0]))
   const sending = ref(false)
-  const sendResultMessage = ref<string | null>(null)
+  const sendResultMessage = ref<LocalizedTextVo | null>(null)
   const sendSucceeded = ref(false)
 
   const configured = computed(() => setting.value?.configured ?? false)
@@ -165,7 +171,8 @@ export function useTelegramDelivery(
       const result = await telegramDeliveryApplication.sendTestMessage(message.value)
       sendSucceeded.value = result.delivered
       sendResultMessage.value = result.delivered
-        ? '送出成功，去 Telegram 看看那則訊息。'
+        ? new LocalizedTextVo(
+            '送出成功，去 Telegram 看看那則訊息。', 'Sent. Check Telegram for the message.')
         : result.failureSentence
     }
     catch (error: unknown) {
@@ -209,22 +216,31 @@ export function useTelegramDelivery(
  * 後端存不了金鑰是什麼都不必改、還沒設定過是去上面那張卡設定一次、
  * 連不上後端是去把它啟動。
  */
-function messageFor(error: unknown): string {
+function messageFor(error: unknown): LocalizedTextVo {
   if (error instanceof SecretSealUnavailableError) {
-    return `${error.message}（後端尚未設定 SECRET_SEAL_KEY，這不是你填錯了什麼。）`
+    return new LocalizedTextVo(
+      `${error.message}（後端尚未設定 SECRET_SEAL_KEY，這不是你填錯了什麼。）`,
+      `${error.message} (The backend has no SECRET_SEAL_KEY set; this is not something you entered wrong.)`,
+    )
   }
 
   if (error instanceof TelegramNotConfiguredError) {
-    return '請先在上面完成 Telegram 設定，再送測試訊息。'
+    return new LocalizedTextVo(
+      '請先在上面完成 Telegram 設定，再送測試訊息。',
+      'Finish the Telegram setup above before sending a test message.',
+    )
   }
 
   if (error instanceof BackendRequestRejectedError) {
-    return error.message
+    return error.localizedMessage
   }
 
   if (error instanceof BackendUnreachableError) {
-    return '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
+    return error.explanation
   }
 
-  return '與 Telegram 設定往來時發生未預期的錯誤。'
+  return new LocalizedTextVo(
+    '與 Telegram 設定往來時發生未預期的錯誤。',
+    'An unexpected error occurred while working with the Telegram setting.',
+  )
 }

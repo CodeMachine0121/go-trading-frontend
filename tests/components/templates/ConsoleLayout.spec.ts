@@ -62,6 +62,17 @@ describe('ConsoleLayout', () => {
     expect(labels).toEqual(['行情圖表', 'K 線資料', '策略腳本', '交易策略', '策略機器人', '交易日誌', 'Marketplace', '設定'])
   })
 
+  it('英文畫面上側欄的去處都是英文', async () => {
+    const wrapper = await mountLayoutAt(DESKTOP)
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    const labels = wrapper.findAll('[data-testid^="destination-"]').map(link => link.text())
+
+    expect(labels).toEqual(['Market chart', 'K-candle data', 'Strategy scripts', 'Trading strategies', 'Strategy bots', 'Trade journal', 'Marketplace', 'Settings'])
+  })
+
   it.each([
     { name: '在現貨 K 線圖表時行情圖表亮著', path: '/k-candles/chart', current: '/k-candles/chart' },
     { name: '在合約 K 線圖表時行情圖表也亮著', path: '/contract-k-candles/chart', current: '/k-candles/chart' },

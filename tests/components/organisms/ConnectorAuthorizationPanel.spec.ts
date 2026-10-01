@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import ConnectorAuthorizationPanel from '~/components/organisms/ConnectorAuthorizationPanel.vue'
 import { ConnectorAuthorizationRequestDto } from '~/domain/models/dto/connector-authorization-request-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 type PanelProps = InstanceType<typeof ConnectorAuthorizationPanel>['$props']
 
@@ -9,7 +10,7 @@ function mountPanel(props: Partial<PanelProps> = {}) {
   return mount(ConnectorAuthorizationPanel, {
     props: {
       stage: 'awaitingDecision',
-      authorizationRequest: new ConnectorAuthorizationRequestDto('Claude Code'),
+      authorizationRequest: new ConnectorAuthorizationRequestDto(new UntranslatedTextVo('Claude Code')),
       email: 'james@example.com',
       ...props,
     },
@@ -54,7 +55,7 @@ describe('ConnectorAuthorizationPanel：等他決定', () => {
   })
 
   it('決定失敗時說明原因，選擇仍可按', () => {
-    const wrapper = mountPanel({ decisionErrorMessage: '連不上交易服務' })
+    const wrapper = mountPanel({ decisionErrorMessage: new UntranslatedTextVo('連不上交易服務') })
 
     expect(wrapper.get('[data-testid="authorization-decision-error"]').text()).toBe('連不上交易服務')
     expect(wrapper.get('[data-testid="authorization-approve"]').attributes('disabled')).toBeUndefined()
@@ -76,7 +77,7 @@ describe('ConnectorAuthorizationPanel：其他結局', () => {
   })
 
   it('讀取失敗時說明原因並給再試一次，沒有允許與拒絕', async () => {
-    const wrapper = mountPanel({ stage: 'loadFailed', loadErrorMessage: '連不上交易服務' })
+    const wrapper = mountPanel({ stage: 'loadFailed', loadErrorMessage: new UntranslatedTextVo('連不上交易服務') })
 
     expect(wrapper.get('[data-testid="authorization-load-failed"]').text()).toContain('連不上交易服務')
     expect(wrapper.find('[data-testid="authorization-approve"]').exists()).toBe(false)

@@ -1,5 +1,6 @@
 import { MarketCounterpartDto } from '~/domain/models/dto/market-counterpart-dto'
 import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 有兩邊的去處：現貨那一頁的路徑與合約那一頁的路徑。
@@ -16,8 +17,10 @@ const COUNTERPART_PAIRS = [
 
 const DESTINATIONS_WITH_DEEPER_PAGES = ['-bots', '-journal']
 
-const SWITCHABLE_LABEL = '切換到另一個市場的同一個畫面'
-const NOT_SWITCHABLE_LABEL = '這個畫面不分現貨與合約'
+const SWITCHABLE_LABEL = new LocalizedTextVo(
+  '切換到另一個市場的同一個畫面', 'Switch to the same screen in the other market')
+const NOT_SWITCHABLE_LABEL = new LocalizedTextVo(
+  '這個畫面不分現貨與合約', 'This screen is the same for spot and futures')
 
 /**
  * Domain Model：一條路徑在現貨／合約開關眼裡是什麼。

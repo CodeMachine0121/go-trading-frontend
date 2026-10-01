@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import ConnectorAuthorizationPage from '~/pages/connector-authorization.vue'
@@ -22,6 +22,11 @@ mockNuxtImport('useConnectorAuthorization', () => () => ({
   retry: vi.fn(),
   approve: vi.fn(),
   deny: vi.fn(),
+}))
+mockNuxtImport('useDisplayLanguage', () => () => ({
+  selectableLanguages: [],
+  selectedLanguageCode: computed(() => 'zh-TW'),
+  selectLanguage: vi.fn(),
 }))
 mockNuxtImport('useUserSession', () => () => ({
   currentUser: ref(new SignedInUserDto(7, 'james@example.com', true, null)),

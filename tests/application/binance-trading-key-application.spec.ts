@@ -29,11 +29,9 @@ describe('BinanceTradingKeyApplication.loadTradingKey', () => {
 
     const setting = await application.loadTradingKey()
 
-    expect(setting).toMatchObject({
-      configured: true,
-      apiKeySummary: '結尾 a1b2',
-      tradableMarketsLabel: '現貨',
-    })
+    expect(setting.configured).toBe(true)
+    expect(setting.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
+    expect(setting.tradableMarketsLabel.in('zh-TW')).toBe('現貨')
   })
 
   it('還沒設定過不是錯誤', async () => {
@@ -53,21 +51,24 @@ describe('BinanceTradingKeyApplication.saveTradingKey', () => {
 
     expect(binanceTradingKeyProxy.saveTradingKey).toHaveBeenCalledWith(
       new BinanceTradingKeyWriteDto('the-api-key', 'the-secret-key'))
-    expect(saved.apiKeySummary).toBe('結尾 a1b2')
+    expect(saved.apiKeySummary?.in('zh-TW')).toBe('結尾 a1b2')
   })
 
   it.each([
-    { apiKey: '', secretKey: 'the-secret-key', expectedField: 'apiKey', expectedMessage: '必須給 API Key' },
-    { apiKey: 'the-api-key', secretKey: '   ', expectedField: 'secretKey', expectedMessage: '必須給 Secret Key' },
-    { apiKey: ' ', secretKey: '', expectedField: 'apiKey', expectedMessage: '必須給 API Key' },
+    { apiKey: '', secretKey: 'the-secret-key', expectedField: 'apiKey', expectedMessage: '必須給 API Key', expectedEnglishMessage: 'API Key is required' },
+    { apiKey: 'the-api-key', secretKey: '   ', expectedField: 'secretKey', expectedMessage: '必須給 Secret Key', expectedEnglishMessage: 'Secret Key is required' },
+    { apiKey: ' ', secretKey: '', expectedField: 'apiKey', expectedMessage: '必須給 API Key', expectedEnglishMessage: 'API Key is required' },
   ])('空白的那一格（$expectedField）被指出來，而且什麼都沒送出', async (
-    { apiKey, secretKey, expectedField, expectedMessage }) => {
+    { apiKey, secretKey, expectedField, expectedMessage, expectedEnglishMessage }) => {
     const { application, binanceTradingKeyProxy } = buildFixture()
 
     const saving = application.saveTradingKey(new BinanceTradingKeyWriteDto(apiKey, secretKey))
 
     await expect(saving).rejects.toBeInstanceOf(BinanceTradingKeyFieldError)
     await expect(saving).rejects.toMatchObject({ field: expectedField, message: expectedMessage })
+    const failure = await saving.catch((error: unknown) => error)
+    expect(failure instanceof BinanceTradingKeyFieldError && failure.localizedMessage.in('en'))
+      .toBe(expectedEnglishMessage)
     expect(binanceTradingKeyProxy.saveTradingKey).not.toHaveBeenCalled()
   })
 })

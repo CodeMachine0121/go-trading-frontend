@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * 哨兵錯誤：寫不進剪貼簿。
  *
@@ -6,8 +8,11 @@
  * 而畫面必須說出來，否則他會帶著一個空的剪貼簿去貼上。
  */
 export class ClipboardWriteFailedError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+  readonly localizedMessage: LocalizedTextVo
+
+  constructor(localizedMessage: LocalizedTextVo, options?: { cause?: unknown }) {
+    super(localizedMessage.traditionalChinese, options)
     this.name = 'ClipboardWriteFailedError'
+    this.localizedMessage = localizedMessage
   }
 }

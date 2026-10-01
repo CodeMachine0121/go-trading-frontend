@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // 原子：全站唯一的對話框。疊在畫面上、把注意力收在一件事上——
 // 清單、取名、再問一次三處共用它，不各自長出一個。
@@ -140,8 +143,8 @@ function closeOnEscape(event: KeyboardEvent) {
         <button
           class="app-modal__close"
           type="button"
-          aria-label="關閉"
-          title="關閉"
+          :aria-label="t('common.close')"
+          :title="t('common.close')"
           @click="emit('close')"
         >
           <AppIcon name="close" />

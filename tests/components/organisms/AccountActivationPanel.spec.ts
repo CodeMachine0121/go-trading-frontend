@@ -2,9 +2,13 @@ import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountActivationPanel from '~/components/organisms/AccountActivationPanel.vue'
 import { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const SUBJECT = 'go-trading 開通申請：alice@example.com'
 const INSTRUCTION = new AccountActivationInstructionDto('gatekeeper@example.com', SUBJECT)
+
+const COPY_FAILURE = new LocalizedTextVo(
+  '複製失敗，請手動選取這段內容。', 'Copy failed. Please select the text and copy it by hand.')
 
 const copiedTexts: string[] = []
 
@@ -16,7 +20,7 @@ const copiedTexts: string[] = []
  */
 type CopyStub = {
   state: { value: 'idle' | 'copied' | 'failed' }
-  failureMessage: { value: string | null }
+  failureMessage: { value: LocalizedTextVo | null }
 }
 
 function newCopyStub(): CopyStub {
@@ -160,7 +164,7 @@ describe('AccountActivationPanel：那顆複製鍵說得出剛才發生了什麼
 
   it('複製失敗時另外說一句該怎麼辦——那一串還在畫面上，選得起來', () => {
     subjectCopy.state.value = 'failed'
-    subjectCopy.failureMessage.value = '複製失敗，請手動選取這段內容。'
+    subjectCopy.failureMessage.value = COPY_FAILURE
     const wrapper = mountPanel()
 
     expect(wrapper.find('[data-testid="copy-failure"]').text())
@@ -176,7 +180,7 @@ describe('AccountActivationPanel：那顆複製鍵說得出剛才發生了什麼
 
   it('失敗的是信箱那一顆時，說的也是同一句話', () => {
     // 兩顆各記各的，所以「只有其中一顆失敗」是真的會發生的情況。
-    mailboxCopy.failureMessage.value = '複製失敗，請手動選取這段內容。'
+    mailboxCopy.failureMessage.value = COPY_FAILURE
     const wrapper = mountPanel()
 
     expect(wrapper.find('[data-testid="copy-failure"]').text())

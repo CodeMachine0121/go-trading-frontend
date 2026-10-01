@@ -8,24 +8,35 @@ describe('DeliveryFailureDomain', () => {
     ['timedOut', '太久'],
     ['unreachable', '連不上'],
   ])('%s 說的是自己那一件事', (reason, expectedFragment) => {
-    expect(new DeliveryFailureDomain(reason).sentence()).toContain(expectedFragment)
+    expect(new DeliveryFailureDomain(reason).sentence().in('zh-TW')).toContain(expectedFragment)
   })
 
   it('四種原因說四句不同的話', () => {
     // 合成一句，一個只是打錯聊天室代號的人會去重新產生一支從來沒錯的機器人金鑰。
     const sentences = [
       'credentialRejected', 'destinationNotFound', 'timedOut', 'unreachable',
-    ].map(reason => new DeliveryFailureDomain(reason).sentence())
+    ].map(reason => new DeliveryFailureDomain(reason).sentence().in('zh-TW'))
 
     expect(new Set(sentences).size).toBe(4)
   })
 
   it('認不得的原因說「稍後再試」，不叫人去改一格其實沒錯的東西', () => {
     // 後端哪天多一種，畫面該說的是稍後再試，不是一片空白，也不是一個英文代號。
-    expect(new DeliveryFailureDomain('somethingNew').sentence()).toBe('連不上 Telegram，請稍後再試。')
+    expect(new DeliveryFailureDomain('somethingNew').sentence().in('zh-TW')).toBe('連不上 Telegram，請稍後再試。')
   })
 
   it('前後空白不影響它認不認得', () => {
-    expect(new DeliveryFailureDomain('  timedOut  ').sentence()).toContain('太久')
+    expect(new DeliveryFailureDomain('  timedOut  ').sentence().in('zh-TW')).toContain('太久')
+  })
+})
+
+describe('DeliveryFailureDomain：英文畫面上的說法', () => {
+  it.each([
+    { reason: 'credentialRejected', expectedFragment: 'bot token' },
+    { reason: 'destinationNotFound', expectedFragment: 'chat ID' },
+    { reason: 'unreachable', expectedFragment: 'Cannot reach Telegram' },
+    { reason: 'timedOut', expectedFragment: 'took too long' },
+  ])('$reason 說「…$expectedFragment…」', ({ reason, expectedFragment }) => {
+    expect(new DeliveryFailureDomain(reason).sentence().in('en')).toContain(expectedFragment)
   })
 })

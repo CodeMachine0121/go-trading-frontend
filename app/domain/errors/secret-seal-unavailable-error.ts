@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：後端說它目前沒有東西可以把機器人金鑰鎖起來，所以拒絕保存。
  *
@@ -6,8 +8,12 @@
  * 重貼三次，然後去重新產生一支。
  */
 export class SecretSealUnavailableError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'SecretSealUnavailableError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

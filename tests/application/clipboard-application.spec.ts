@@ -3,6 +3,7 @@ import { ClipboardApplication } from '~/application/clipboard-application'
 import type { IClipboardProxy } from '~/domain/interface/i-clipboard-proxy'
 import { ClipboardWriteFailedError } from '~/domain/errors/clipboard-write-failed-error'
 import { ClipboardService } from '~/domain/service/clipboard-service'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 注入**真的** domain service，只 mock 最外層的剪貼簿——
@@ -37,7 +38,7 @@ describe('ClipboardApplication', () => {
   })
 
   it('寫不進去時往上拋', async () => {
-    const { application } = buildApplicationUnderTest(new ClipboardWriteFailedError('複製失敗'))
+    const { application } = buildApplicationUnderTest(new ClipboardWriteFailedError(new LocalizedTextVo('複製失敗', 'Copy failed')))
 
     await expect(application.copyText('sum := 0.0'))
       .rejects.toBeInstanceOf(ClipboardWriteFailedError)

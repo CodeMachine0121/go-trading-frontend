@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：後端說這個帳號因為連續登入失敗被鎖住了。
  *
@@ -15,9 +17,13 @@ export class SignInLockedError extends Error {
    */
   readonly lockedUntil: Date | null
 
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, lockedUntil: Date | null, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'SignInLockedError'
     this.lockedUntil = lockedUntil
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

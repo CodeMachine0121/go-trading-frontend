@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppSwitch from '~/components/atoms/AppSwitch.vue'
 import type { MarketCounterpartDto } from '~/domain/models/dto/market-counterpart-dto'
 
@@ -11,6 +12,9 @@ import type { MarketCounterpartDto } from '~/domain/models/dto/market-counterpar
 const { counterpart } = defineProps<{ counterpart: MarketCounterpartDto }>()
 
 const emit = defineEmits<{ navigate: [path: string] }>()
+
+const { localize } = useLocalizedText()
+const { t } = useI18n()
 
 const onContract = computed({
   get: () => counterpart.onContract,
@@ -27,14 +31,14 @@ const onContract = computed({
     <AppSwitch
       v-model="onContract"
       :disabled="!counterpart.switchable"
-      :label="counterpart.switchLabel"
+      :label="localize(counterpart.switchLabel)"
       data-testid="market-switch"
     >
       <template #off>
-        現貨
+        {{ t('shell.marketSwitch.spot') }}
       </template>
       <template #on>
-        合約
+        {{ t('shell.marketSwitch.contract') }}
       </template>
     </AppSwitch>
 
@@ -43,7 +47,7 @@ const onContract = computed({
       v-if="!counterpart.switchable"
       class="market-switch__reason"
       data-testid="market-switch-reason"
-    >{{ counterpart.switchLabel }}</span>
+    >{{ localize(counterpart.switchLabel) }}</span>
   </div>
 </template>
 

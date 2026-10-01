@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：送出之前畫面自己擋下來的原因，**一格一則**。
  *
@@ -10,7 +12,7 @@
  */
 export class CredentialsFieldErrorsDto {
   constructor(
-    public readonly email: string | null,
-    public readonly password: string | null,
+    public readonly email: LocalizedTextVo | null,
+    public readonly password: LocalizedTextVo | null,
   ) {}
 }

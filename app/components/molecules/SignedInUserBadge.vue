@@ -2,6 +2,7 @@
 import type { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import { useI18n } from 'vue-i18n'
 
 // 分子：側欄底下那一行——現在是誰在用，旁邊一顆離開。
 //
@@ -11,6 +12,8 @@ defineProps<{
 }>()
 
 defineEmits<{ signOut: [] }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -25,7 +28,7 @@ defineEmits<{ signOut: [] }>()
     <AppButton
       variant="ghost"
       size="small"
-      label="登出"
+      :label="t('shell.signedInUser.signOut')"
       data-testid="sign-out"
       @click="$emit('signOut')"
     >

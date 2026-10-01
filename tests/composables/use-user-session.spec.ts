@@ -9,6 +9,8 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-field-errors-dto'
 import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 import { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 工廠會被提升，所以它要用到的東西也得跟著提升。
 const { navigateToSpy } = vi.hoisted(() => ({
@@ -123,7 +125,7 @@ describe('useUserSession：確認「現在是誰在用」只做一次', () => {
     await ensureSessionRestored()
 
     expect(currentUser.value).toBeNull()
-    expect(errorMessage.value).toContain('連不上後端')
+    expect(errorMessage.value?.in('zh-TW')).toContain('連不上後端')
   })
 })
 
@@ -187,7 +189,7 @@ describe('useUserSession：送出那兩格', () => {
 
     await submitCredentials('james@example.com', 'wrong horse', 'signIn')
 
-    expect(errorMessage.value).toContain(expected)
+    expect(errorMessage.value?.in('zh-TW')).toContain(expected)
     expect(navigateToSpy).not.toHaveBeenCalled()
   })
 
@@ -217,11 +219,11 @@ describe('useUserSession：送出那兩格', () => {
     const localHour = shutUntil.getHours()
     const twelveHourClock = localHour % 12 === 0 ? 12 : localHour % 12
     const localMinutes = String(shutUntil.getMinutes()).padStart(2, '0')
-    expect(errorMessage.value).toContain('被鎖住')
-    expect(errorMessage.value).toMatch(
+    expect(errorMessage.value?.in('zh-TW')).toContain('被鎖住')
+    expect(errorMessage.value?.in('zh-TW')).toMatch(
       new RegExp(`\\b(${localHour}|${twelveHourClock}):${localMinutes}\\b`))
-    expect(errorMessage.value).not.toContain('08:00:00')
-    expect(errorMessage.value).not.toContain('電子郵件或密碼不正確')
+    expect(errorMessage.value?.in('zh-TW')).not.toContain('08:00:00')
+    expect(errorMessage.value?.in('zh-TW')).not.toContain('電子郵件或密碼不正確')
   })
 
   it('那句話同時寫得出日期與時間——只有時間的話，一週的鎖會被讀成再等幾分鐘', async () => {
@@ -231,8 +233,8 @@ describe('useUserSession：送出那兩格', () => {
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    expect(errorMessage.value).toContain('2026')
-    expect(errorMessage.value).toMatch(/\d{1,2}:\d{2}/)
+    expect(errorMessage.value?.in('zh-TW')).toContain('2026')
+    expect(errorMessage.value?.in('zh-TW')).toMatch(/\d{1,2}:\d{2}/)
   })
 
   it('說不出時刻時仍然說他被鎖住，絕不退回去說帳密不正確', async () => {
@@ -242,9 +244,9 @@ describe('useUserSession：送出那兩格', () => {
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    expect(errorMessage.value).toContain('被鎖住')
-    expect(errorMessage.value).not.toContain('電子郵件或密碼不正確')
-    expect(errorMessage.value).not.toBe('登入時發生未預期的錯誤。')
+    expect(errorMessage.value?.in('zh-TW')).toContain('被鎖住')
+    expect(errorMessage.value?.in('zh-TW')).not.toContain('電子郵件或密碼不正確')
+    expect(errorMessage.value?.in('zh-TW')).not.toBe('登入時發生未預期的錯誤。')
   })
 
   it('沒見過的失敗也要說一句人看得懂的話，而不是把原始訊息丟出去', async () => {
@@ -253,17 +255,17 @@ describe('useUserSession：送出那兩格', () => {
 
     await submitCredentials('james@example.com', 'correct horse', 'signIn')
 
-    expect(errorMessage.value).toBe('登入時發生未預期的錯誤。')
+    expect(errorMessage.value?.in('zh-TW')).toBe('登入時發生未預期的錯誤。')
   })
 
   it('被畫面自己擋下來時，原因掛在該格上而不是掛成一句話', async () => {
     userSessionApplication.signIn.mockRejectedValue(
-      new CredentialsFieldError(new CredentialsFieldErrorsDto(null, '請填入密碼')))
+      new CredentialsFieldError(new CredentialsFieldErrorsDto(null, new UntranslatedTextVo('請填入密碼'))))
     const { errorMessage, fieldErrors, submitCredentials } = sessionUnderTest()
 
     await submitCredentials('james@example.com', '', 'signIn')
 
-    expect(fieldErrors.value?.password).toBe('請填入密碼')
+    expect(fieldErrors.value?.password?.in('zh-TW')).toBe('請填入密碼')
     expect(errorMessage.value).toBeNull()
   })
 
@@ -481,10 +483,11 @@ describe('useUserSession：把過期的那一段救回來', () => {
 describe('useUserSession：帶去登入畫面的那一句話', () => {
   it('說了之後由登入畫面取走，而且只說一次', () => {
     // 留著的話，下一次因為別的原因回到登入畫面時，它會再說一次一件早就過去的事。
-    useState<string | null>('user-session-sign-in-notice').value = '密碼已更換，請用新密碼重新登入。'
+    useState<LocalizedTextVo | null>('user-session-sign-in-notice').value
+      = new LocalizedTextVo('密碼已更換，請用新密碼重新登入。', 'Password changed.')
     const { takeSignInNotice } = sessionUnderTest()
 
-    expect(takeSignInNotice()).toBe('密碼已更換，請用新密碼重新登入。')
+    expect(takeSignInNotice()?.in('zh-TW')).toBe('密碼已更換，請用新密碼重新登入。')
     expect(takeSignInNotice()).toBeNull()
   })
 
@@ -578,5 +581,29 @@ describe('useUserSession：還沒被放行的那一段', () => {
     await Promise.all([recheckActivation(), recheckActivation()])
 
     expect(userSessionApplication.restoreSession).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useUserSession：英文畫面上的說法', () => {
+  it.each([
+    { name: '被鎖住、說不出時刻', failure: new SignInLockedError('已被鎖住', null), expected: 'This account is locked after repeated failed sign-ins. Please try again later.' },
+    { name: '沒見過的失敗', failure: new Error('boom'), expected: 'An unexpected error occurred while signing in.' },
+    { name: '後端簽不出憑證', failure: new AccessTokenUnavailableError('尚未設定憑證簽章鑰匙'), expected: 'The backend cannot issue sign-in tokens right now (AUTH_ACCESS_TOKEN_SIGNING_KEY is not set). This is not something you entered wrong.' },
+  ])('$name 時說英文', async ({ failure, expected }) => {
+    userSessionApplication.signIn.mockRejectedValue(failure)
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(errorMessage.value?.in('en')).toBe(expected)
+  })
+
+  it('帳密對不上時後端那一句原樣轉達，不翻', async () => {
+    userSessionApplication.signIn.mockRejectedValue(new CredentialsRejectedError('電子郵件或密碼不正確'))
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(errorMessage.value?.in('en')).toBe('電子郵件或密碼不正確')
   })
 })

@@ -21,15 +21,16 @@ describe('BackendHealthDomain', () => {
   })
 
   it.each([
-    { rawStatus: 'healthy', expectedLabel: '正常', expectedTone: 'success' },
-    { rawStatus: 'degraded', expectedLabel: '異常', expectedTone: 'danger' },
-  ])('「$rawStatus」在畫面上叫「$expectedLabel」，語氣是 $expectedTone', (
-    { rawStatus, expectedLabel, expectedTone },
+    { rawStatus: 'healthy', expectedLabel: '正常', expectedEnglishLabel: 'Healthy', expectedTone: 'success' },
+    { rawStatus: 'degraded', expectedLabel: '異常', expectedEnglishLabel: 'Unhealthy', expectedTone: 'danger' },
+  ])('「$rawStatus」在畫面上叫「$expectedLabel」（$expectedEnglishLabel），語氣是 $expectedTone', (
+    { rawStatus, expectedLabel, expectedEnglishLabel, expectedTone },
   ) => {
     const dto = new BackendHealth(rawStatus, CHECKED_AT).toDomain().toDto()
 
     // 名字與語氣由領域決定，畫面不得自己寫 `healthy ? '正常' : '異常'`
-    expect(dto.label).toBe(expectedLabel)
+    expect(dto.label.in('zh-TW')).toBe(expectedLabel)
+    expect(dto.label.in('en')).toBe(expectedEnglishLabel)
     expect(dto.tone).toBe(expectedTone)
   })
 })
