@@ -20,6 +20,7 @@ import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../../fixtures/contract-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const recordProxy = contractTradeRecordProxyMock()
 const tradingStrategyProxy = tradingStrategyProxyMock()
@@ -60,6 +61,25 @@ beforeEach(() => {
 })
 
 describe('ContractTradeForm：記一筆', () => {
+  it('換成英文時欄位、預覽與缺東西的說明都說英文', async () => {
+    const wrapper = mountForm()
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+
+    await wrapper.get('[data-testid="fill-price"]').setValue('97905')
+    await wrapper.get('[data-testid="fill-quantity"]').setValue('0.030')
+    await wrapper.get('[data-testid="trade-planned-stop-loss"]').setValue('96380')
+    await wrapper.get('[data-testid="contract-trade-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Leverage')
+    expect(wrapper.text()).toContain('1.56% below · planned risk 45.75')
+    expect(wrapper.get('[data-testid="fee-rate-missing"]').text()).toContain('Fee rates are not set yet')
+    expect(wrapper.get('[data-testid="draft-preview"]').text()).toContain('Position 0.03 · avg. price')
+    expect(wrapper.text()).toContain('Enter the Contract symbol')
+    expect(recordProxy.recordTrade).not.toHaveBeenCalled()
+  })
+
   it('輸入成交即時顯示持倉與均價；尚未設定費率時提示並附前往設定', async () => {
     const wrapper = mountForm()
     await flushPromises()
@@ -103,7 +123,7 @@ describe('ContractTradeForm：記一筆', () => {
   })
 
   it('止損放錯邊時原話寫在計畫止損旁', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError('做多的止損必須低於進場價', new TradeFormFieldVo('plannedStopLossPrice')))
+    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('做多的止損必須低於進場價'), new TradeFormFieldVo('plannedStopLossPrice')))
     const wrapper = mountForm()
     await flushPromises()
     await wrapper.get('[data-testid="trade-symbol"]').setValue('BTCUSDT')
@@ -166,7 +186,7 @@ describe('ContractTradeForm：記一筆', () => {
 
   it('後面的成交沒存成功時提供前往已建立的那一筆', async () => {
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new TradeRejectedError('請求有誤', null))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('請求有誤'), null))
     const wrapper = mountForm()
     await flushPromises()
     await wrapper.get('[data-testid="trade-symbol"]').setValue('BTCUSDT')

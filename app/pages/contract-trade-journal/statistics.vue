@@ -4,8 +4,8 @@ import ContractTradeLiveComparisonPanel from '~/components/organisms/ContractTra
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '績效統計',
-  consoleSubtitle: '以 R 看一段期間的成績、失誤成本，以及同一份策略的實盤 vs 回測。',
+  consoleTitleKey: 'contractTradeJournal.pages.statistics.title',
+  consoleSubtitleKey: 'contractTradeJournal.pages.statistics.subtitle',
 })
 
 const { selectedTimeZone } = useSelectedTimeZone()

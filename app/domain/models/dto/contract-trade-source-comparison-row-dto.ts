@@ -1,8 +1,10 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 export class ContractTradeSourceComparisonRowDto {
   constructor(
-    public readonly label: string,
-    public readonly tradeCountText: string,
-    public readonly winRateText: string,
-    public readonly averageRMultipleText: string,
+    public readonly label: LocalizedTextVo,
+    public readonly tradeCountText: LocalizedTextVo,
+    public readonly winRateText: LocalizedTextVo,
+    public readonly averageRMultipleText: LocalizedTextVo,
   ) {}
 }

@@ -58,6 +58,6 @@ describe('useContractTradeJournal', () => {
     await loadTrades()
 
     expect(list.value).toBeNull()
-    expect(failureMessage.value).toContain('連不上交易服務')
+    expect(failureMessage.value?.in('zh-TW')).toContain('連不上交易服務')
   })
 })

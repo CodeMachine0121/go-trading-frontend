@@ -21,6 +21,7 @@ import type { ContractTradeCumulativePoint } from '~/domain/models/entities/cont
 import type { ContractTradeDistributionBucket } from '~/domain/models/entities/contract-trade-distribution-bucket'
 import type { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trade-mistake-cost'
 import { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function measured(value: string): TradeMeasure {
   return new TradeMeasure(new Decimal(value), null)
@@ -230,11 +231,11 @@ export function buildPage(summaries: ContractTradeRecordSummary[]): ContractTrad
 }
 
 export function takerFeeSetting(): TradeJournalSettingDto {
-  return new TradeJournalSettingDto(new Decimal('0.02'), new Decimal('0.05'), true, '')
+  return new TradeJournalSettingDto(new Decimal('0.02'), new Decimal('0.05'), true, new LocalizedTextVo('', ''))
 }
 
 export function unconfiguredFeeSetting(): TradeJournalSettingDto {
-  return new TradeJournalSettingDto(null, null, false, '還沒設定')
+  return new TradeJournalSettingDto(null, null, false, new LocalizedTextVo('還沒設定', 'Not set yet'))
 }
 
 export function unconfiguredSettingEntity(): TradeJournalSetting {

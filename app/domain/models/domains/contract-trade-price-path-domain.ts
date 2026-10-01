@@ -7,11 +7,12 @@ import { TradePricePathCandleDto } from '~/domain/models/dto/trade-price-path-ca
 import { TradePricePathMarkerDto } from '~/domain/models/dto/trade-price-path-marker-dto'
 import { TradePricePathLineDto } from '~/domain/models/dto/trade-price-path-line-dto'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const MINIMUM_MARGIN_MILLISECONDS = 30 * 60 * 1000
 const MARGIN_RATIO = 0.1
-const AUTOMATIC_INTERVAL_LABEL = '自動'
-const NO_MARKET_DATA_MESSAGE = '沒有行情資料，無法計算'
+const AUTOMATIC_INTERVAL_LABEL = new LocalizedTextVo('自動', 'Auto')
+const NO_MARKET_DATA_MESSAGE = new LocalizedTextVo('沒有行情資料，無法計算', 'No market data, cannot be calculated')
 
 export class ContractTradePricePathDomain {
   constructor(
@@ -44,11 +45,11 @@ export class ContractTradePricePathDomain {
     }
 
     const lineSources = [
-      { price: this.record.averageEntryPrice, label: '開倉均價', tone: 'neutral' as const },
-      { price: this.record.plannedStopLossPrice, label: '計畫止損', tone: 'danger' as const },
-      { price: this.record.plannedTakeProfitPrice, label: '計畫止盈', tone: 'success' as const },
-      { price: this.record.maximumAdversePrice, label: '最大不利', tone: 'muted' as const },
-      { price: this.record.maximumFavorablePrice, label: '最大有利', tone: 'muted' as const },
+      { price: this.record.averageEntryPrice, label: new LocalizedTextVo('開倉均價', 'Avg. entry'), tone: 'neutral' as const },
+      { price: this.record.plannedStopLossPrice, label: new LocalizedTextVo('計畫止損', 'Planned stop loss'), tone: 'danger' as const },
+      { price: this.record.plannedTakeProfitPrice, label: new LocalizedTextVo('計畫止盈', 'Planned take profit'), tone: 'success' as const },
+      { price: this.record.maximumAdversePrice, label: new LocalizedTextVo('最大不利', 'Max adverse'), tone: 'muted' as const },
+      { price: this.record.maximumFavorablePrice, label: new LocalizedTextVo('最大有利', 'Max favorable'), tone: 'muted' as const },
     ]
 
     return new TradePricePathDto(
@@ -60,7 +61,10 @@ export class ContractTradePricePathDomain {
         kCandleContract.close,
       )),
       this.record.fills.map(fill => new TradePricePathMarkerDto(
-        fill.filledAt, fill.kind, `${fill.kindLabel} ${fill.priceText}`)),
+        fill.filledAt,
+        fill.kind,
+        new LocalizedTextVo(
+          `${fill.kindLabel.traditionalChinese} ${fill.priceText}`, `${fill.kindLabel.english} ${fill.priceText}`))),
       lineSources.flatMap(lineSource => lineSource.price === null
         ? []
         : [new TradePricePathLineDto(

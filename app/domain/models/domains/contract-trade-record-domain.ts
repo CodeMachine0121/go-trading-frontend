@@ -11,11 +11,20 @@ import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { TradeHoldingDurationDomain } from '~/domain/models/domains/trade-holding-duration-domain'
 import { ContractSymbolDomain } from '~/domain/models/domains/contract-symbol-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import Decimal from 'decimal.js'
 
-const REVIEW_AFTER_CLOSE_MESSAGE = '平倉後才能檢討'
-const NOT_SET_TEXT = '未設定'
-const IMPLAUSIBLE_FEE_NOTE = '手續費與數量對不上'
+const REVIEW_AFTER_CLOSE_MESSAGE = new LocalizedTextVo('平倉後才能檢討', 'You can review after the trade is closed')
+const NOT_SET_TEXT = new LocalizedTextVo('未設定', 'Not set')
+const IMPLAUSIBLE_FEE_NOTE = new LocalizedTextVo('手續費與數量對不上', 'Fee does not match the quantity')
+const FEE_RATE_MISSING_NOTE = new LocalizedTextVo('未設定費率', 'Fee rate not set')
+const MAKER_LABEL = new LocalizedTextVo('掛單', 'Maker')
+const TAKER_LABEL = new LocalizedTextVo('吃單', 'Taker')
+const OPENING_LABEL = new LocalizedTextVo('開倉', 'Entry')
+const ADDING_LABEL = new LocalizedTextVo('加倉', 'Add')
+const CLOSING_LABEL = new LocalizedTextVo('平倉', 'Exit')
+const REDUCING_LABEL = new LocalizedTextVo('減倉', 'Reduce')
 
 export class ContractTradeRecordDomain {
   constructor(private readonly record: ContractTradeRecord) {}
@@ -28,13 +37,22 @@ export class ContractTradeRecordDomain {
       this.record.tradingStrategyId,
       this.record.tradingStrategyName,
       this.record.tradingStrategyDeleted).label
-    const sourceLabel = source === null ? null : `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`
+    const sourceDto = source === null
+      ? null
+      : new TradeSourceDto(
+          new LocalizedTextVo(
+            `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`,
+            `From ${source.strategyBotName} · run ${source.runNumber}`),
+          this.priceText(source.referencePrice),
+          this.priceText(source.suggestedStopLossPrice),
+          this.priceText(source.suggestedTakeProfitPrice),
+        )
     const chronologicalFills = [...this.record.fills]
       .sort((earlier, later) => earlier.filledAt.getTime() - later.filledAt.getTime())
-    const positionActionLabels = chronologicalFills.reduce<{ position: Decimal, labels: string[] }>((state, fill) => {
+    const positionActionLabels = chronologicalFills.reduce<{ position: Decimal, labels: LocalizedTextVo[] }>((state, fill) => {
       const position = fill.kind === 'entry' ? state.position.plus(fill.quantity) : state.position.minus(fill.quantity)
-      const entryLabel = state.position.isZero() ? '開倉' : '加倉'
-      const exitLabel = position.lessThanOrEqualTo(0) ? '平倉' : '減倉'
+      const entryLabel = state.position.isZero() ? OPENING_LABEL : ADDING_LABEL
+      const exitLabel = position.lessThanOrEqualTo(0) ? CLOSING_LABEL : REDUCING_LABEL
 
       return { position, labels: [...state.labels, fill.kind === 'entry' ? entryLabel : exitLabel] }
     }, { position: new Decimal(0), labels: [] }).labels
@@ -44,7 +62,9 @@ export class ContractTradeRecordDomain {
 
     return new ContractTradeRecordDto(
       this.record.id,
-      `#${this.record.id} ${this.record.symbol} ${direction.label}`,
+      new LocalizedTextVo(
+        `#${this.record.id} ${this.record.symbol} ${direction.label.traditionalChinese}`,
+        `#${this.record.id} ${this.record.symbol} ${direction.label.english}`),
       this.record.symbol,
       this.record.direction,
       direction.label,
@@ -72,31 +92,26 @@ export class ContractTradeRecordDomain {
       chronologicalFills.map((fill, index) => new ContractTradeFillDto(
         fill.id,
         fill.kind,
-        positionActionLabels[index] ?? '',
+        positionActionLabels[index] ?? OPENING_LABEL,
         fill.filledAt,
         fill.price,
         new JournalNumberDomain(fill.price).price(),
         fill.quantity,
         new JournalNumberDomain(fill.quantity).quantity(),
         fill.liquidity,
-        fill.liquidity === 'maker' ? '掛單' : '吃單',
+        fill.liquidity === 'maker' ? MAKER_LABEL : TAKER_LABEL,
         fill.fee,
         new JournalNumberDomain(fill.fee).amount(),
-        fill.feeRateMissing ? '未設定費率' : this.record.outcome.implausibleFeeFillIds.includes(fill.id) ? IMPLAUSIBLE_FEE_NOTE : null,
+        fill.feeRateMissing
+          ? FEE_RATE_MISSING_NOTE
+          : this.record.outcome.implausibleFeeFillIds.includes(fill.id) ? IMPLAUSIBLE_FEE_NOTE : null,
       )),
       [...this.record.notes]
         .sort((earlier, later) => earlier.createdAt.getTime() - later.createdAt.getTime())
         .map(note => new TradeNoteDto(note.id, note.content, note.createdAt)),
       this.record.tags.filter(tag => tag.kind === 'setup').map(tag => tag.toDto()),
       this.record.tags.filter(tag => tag.kind === 'mistake').map(tag => tag.toDto()),
-      source === null
-        ? null
-        : new TradeSourceDto(
-            sourceLabel ?? '',
-            this.priceText(source.referencePrice),
-            this.priceText(source.suggestedStopLossPrice),
-            this.priceText(source.suggestedTakeProfitPrice),
-          ),
+      sourceDto,
       this.record.review === null
         ? null
         : new TradeReviewDto(
@@ -111,15 +126,17 @@ export class ContractTradeRecordDomain {
       this.record.closedAt === null
         ? null
         : new TradeHoldingDurationDomain(this.record.openedAt, this.record.closedAt).text,
-      sourceLabel ?? linkedStrategyLabel,
+      sourceDto?.label ?? linkedStrategyLabel,
       baseAsset ?? '',
       implausibleFeePositions.length === 0
         ? null
-        : `第 ${implausibleFeePositions.join('、')} 筆的${IMPLAUSIBLE_FEE_NOTE}，數量可能記錯了${baseAsset === null ? '' : `（數量的單位是 ${baseAsset}）`}`,
+        : new LocalizedTextVo(
+            `第 ${implausibleFeePositions.join('、')} 筆的${IMPLAUSIBLE_FEE_NOTE.traditionalChinese}，數量可能記錯了${baseAsset === null ? '' : `（數量的單位是 ${baseAsset}）`}`,
+            `The fee on fill ${implausibleFeePositions.join(', ')} does not match the quantity; the quantity may be wrong${baseAsset === null ? '' : ` (quantity is in ${baseAsset})`}`),
     )
   }
 
-  private priceText(price: Decimal | null): string {
-    return price === null ? NOT_SET_TEXT : new JournalNumberDomain(price).price()
+  private priceText(price: Decimal | null): LocalizedTextVo {
+    return price === null ? NOT_SET_TEXT : new UntranslatedTextVo(new JournalNumberDomain(price).price())
   }
 }

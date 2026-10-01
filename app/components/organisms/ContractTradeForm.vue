@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -14,8 +15,7 @@ import type { ContractTradeJournalApplication } from '~/application/contract-tra
 import type { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
-
-const PREFILLED_HINT = '預填'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 
 const {
   existingRecord = null,
@@ -46,6 +46,17 @@ const draft = useContractTradeDraft(
   tradingStrategyApplication,
 )
 const addingToExistingTrade = computed(() => existingRecord !== null)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const prefilledHint = computed(() => t('contractTradeJournal.form.prefilled'))
+
+function fieldErrorText(field: TradeFormField): string | null {
+  const fieldError = draft.fieldError(field)
+
+  return fieldError === null ? null : localize(fieldError)
+}
 
 watch(draft.dirty, dirty => emit('dirtyChange', dirty))
 
@@ -89,7 +100,7 @@ const tradingStrategyValue = computed({
       class="contract-trade-form__state"
       data-testid="prefill-loading"
     >
-      讀取這一輪的建議…
+      {{ t('contractTradeJournal.form.loadingPrefill') }}
     </p>
 
     <AppAlert
@@ -97,7 +108,7 @@ const tradingStrategyValue = computed({
       tone="warning"
       data-testid="reference-failure"
     >
-      {{ draft.referenceFailureMessage.value }}
+      {{ localize(draft.referenceFailureMessage.value) }}
     </AppAlert>
 
     <div
@@ -105,9 +116,9 @@ const tradingStrategyValue = computed({
       class="contract-trade-form__grid"
     >
       <FormField
-        label="合約標的"
-        :hint="draft.prefilledFields.value.has('symbol') ? PREFILLED_HINT : undefined"
-        :error-message="draft.fieldError('symbol')"
+        :label="t('contractTradeJournal.form.symbol')"
+        :hint="draft.prefilledFields.value.has('symbol') ? prefilledHint : undefined"
+        :error-message="fieldErrorText('symbol')"
       >
         <AppInput
           v-model="draft.symbol.value"
@@ -120,8 +131,8 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="方向"
-        :hint="draft.prefilledFields.value.has('direction') ? PREFILLED_HINT : undefined"
+        :label="t('contractTradeJournal.form.direction')"
+        :hint="draft.prefilledFields.value.has('direction') ? prefilledHint : undefined"
       >
         <AppSelect
           v-model="draft.direction.value"
@@ -129,18 +140,18 @@ const tradingStrategyValue = computed({
           data-testid="trade-direction"
         >
           <option value="long">
-            做多
+            {{ t('contractTradeJournal.form.long') }}
           </option>
           <option value="short">
-            做空
+            {{ t('contractTradeJournal.form.short') }}
           </option>
         </AppSelect>
       </FormField>
 
       <FormField
-        label="槓桿倍數"
-        :hint="draft.prefilledFields.value.has('leverage') ? PREFILLED_HINT : '留白即一倍，逐倉'"
-        :error-message="draft.fieldError('leverage')"
+        :label="t('contractTradeJournal.form.leverage')"
+        :hint="draft.prefilledFields.value.has('leverage') ? prefilledHint : t('contractTradeJournal.form.leverageHint')"
+        :error-message="fieldErrorText('leverage')"
       >
         <AppInput
           v-model="draft.leverageText.value"
@@ -152,11 +163,11 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="計畫止損"
+        :label="t('contractTradeJournal.form.plannedStopLoss')"
         :hint="draft.preview.value.stopLossDistanceText
-          ? `${draft.preview.value.stopLossDistanceText}・計畫風險 ${draft.preview.value.plannedRiskText}`
+          ? t('contractTradeJournal.form.stopLossHint', { distance: localize(draft.preview.value.stopLossDistanceText), risk: draft.preview.value.plannedRiskText })
           : undefined"
-        :error-message="draft.fieldError('plannedStopLossPrice')"
+        :error-message="fieldErrorText('plannedStopLossPrice')"
       >
         <AppInput
           v-model="draft.plannedStopLossText.value"
@@ -168,9 +179,9 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="計畫止盈"
-        :hint="draft.preview.value.takeProfitDistanceText ?? undefined"
-        :error-message="draft.fieldError('plannedTakeProfitPrice')"
+        :label="t('contractTradeJournal.form.plannedTakeProfit')"
+        :hint="draft.preview.value.takeProfitDistanceText ? localize(draft.preview.value.takeProfitDistanceText) : undefined"
+        :error-message="fieldErrorText('plannedTakeProfitPrice')"
       >
         <AppInput
           v-model="draft.plannedTakeProfitText.value"
@@ -182,13 +193,13 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="信心"
+        :label="t('contractTradeJournal.form.confidence')"
         grouped
-        :error-message="draft.fieldError('confidence')"
+        :error-message="fieldErrorText('confidence')"
       >
         <AppRating
           v-model="draft.confidence.value"
-          label="信心"
+          :label="t('contractTradeJournal.form.confidence')"
           data-testid="trade-confidence"
         />
       </FormField>
@@ -196,7 +207,7 @@ const tradingStrategyValue = computed({
 
     <section class="contract-trade-form__section">
       <h3 class="contract-trade-form__heading">
-        開倉與平倉
+        {{ t('contractTradeJournal.form.fillsHeading') }}
       </h3>
       <ContractTradeFillEditor
         :fills="draft.fills.value"
@@ -214,23 +225,23 @@ const tradingStrategyValue = computed({
         class="contract-trade-form__hint"
         data-testid="fee-rate-missing"
       >
-        尚未設定手續費率，手續費先記為 0。
+        {{ t('contractTradeJournal.form.feeRateMissing') }}
         <NuxtLink to="/settings#settings-trade-journal">
-          前往設定
+          {{ t('contractTradeJournal.form.goToSettings') }}
         </NuxtLink>
       </p>
       <p
         class="contract-trade-form__preview"
         data-testid="draft-preview"
       >
-        持倉 <span data-testid="preview-position">{{ draft.preview.value.positionText }}</span>・均價
+        {{ t('contractTradeJournal.form.previewPosition') }} <span data-testid="preview-position">{{ draft.preview.value.positionText }}</span>{{ t('contractTradeJournal.form.previewAverage') }}
         <span data-testid="preview-average-entry">{{ draft.preview.value.averageEntryPriceText ?? '—' }}</span>
         <template v-if="draft.preview.value.entryNotionalText">
-          ・名目 <span data-testid="preview-entry-notional">{{ draft.preview.value.entryNotionalText }}</span>・保證金
+          {{ t('contractTradeJournal.form.previewNotional') }} <span data-testid="preview-entry-notional">{{ draft.preview.value.entryNotionalText }}</span>{{ t('contractTradeJournal.form.previewMargin') }}
           <span data-testid="preview-entry-margin">{{ draft.preview.value.entryMarginText }}</span>
         </template>
         <template v-if="draft.preview.value.entrySlippageText">
-          ・<span data-testid="preview-entry-slippage">{{ draft.preview.value.entrySlippageText }}</span>
+          {{ t('contractTradeJournal.common.separator') }}<span data-testid="preview-entry-slippage">{{ localize(draft.preview.value.entrySlippageText) }}</span>
         </template>
       </p>
     </section>
@@ -240,9 +251,9 @@ const tradingStrategyValue = computed({
       class="contract-trade-form__section"
     >
       <FormField
-        label="關聯交易策略"
-        :hint="draft.prefilledFields.value.has('tradingStrategy') ? PREFILLED_HINT : '不關聯即自行判斷'"
-        :error-message="draft.fieldError('tradingStrategy')"
+        :label="t('contractTradeJournal.form.linkedStrategy')"
+        :hint="draft.prefilledFields.value.has('tradingStrategy') ? prefilledHint : t('contractTradeJournal.form.linkedStrategyHint')"
+        :error-message="fieldErrorText('tradingStrategy')"
       >
         <AppSelect
           v-model="tradingStrategyValue"
@@ -250,7 +261,7 @@ const tradingStrategyValue = computed({
           data-testid="trade-trading-strategy"
         >
           <option value="">
-            不關聯（自行判斷）
+            {{ t('contractTradeJournal.form.noLinkedStrategy') }}
           </option>
           <option
             v-for="tradingStrategy in draft.tradingStrategies.value"
@@ -261,14 +272,14 @@ const tradingStrategyValue = computed({
           </option>
         </AppSelect>
       </FormField>
-      <FormField label="進場理由（平倉後鎖定）">
+      <FormField :label="t('contractTradeJournal.form.entryReason')">
         <AppTextarea
           v-model="draft.entryReason.value"
           data-testid="trade-entry-reason"
         />
       </FormField>
       <FormField
-        label="型態標籤"
+        :label="t('contractTradeJournal.form.setupTags')"
         grouped
       >
         <TradeTagPicker
@@ -284,7 +295,7 @@ const tradingStrategyValue = computed({
       tone="danger"
       data-testid="form-rejection"
     >
-      {{ draft.rejectionMessage.value }}
+      {{ localize(draft.rejectionMessage.value) }}
       <template
         v-if="draft.conflictingTradeId.value !== null || draft.recordedTradeId.value !== null"
         #action
@@ -294,8 +305,8 @@ const tradingStrategyValue = computed({
           :to="`/contract-trade-journal/${draft.conflictingTradeId.value ?? draft.recordedTradeId.value}`"
           data-testid="form-rejection-go"
         >
-          前往 #{{ draft.conflictingTradeId.value ?? draft.recordedTradeId.value }}
-          {{ draft.conflictingTradeId.value !== null ? '加倉' : '' }}
+          {{ t('contractTradeJournal.form.goToTrade', { id: draft.conflictingTradeId.value ?? draft.recordedTradeId.value }) }}
+          {{ draft.conflictingTradeId.value !== null ? t('contractTradeJournal.form.addToTrade') : '' }}
         </AppButton>
       </template>
     </AppAlert>
@@ -306,7 +317,7 @@ const tradingStrategyValue = computed({
         :disabled="draft.saving.value || draft.prefillLoading.value"
         data-testid="trade-save"
       >
-        {{ draft.saving.value ? '儲存中…' : (addingToExistingTrade ? '儲存' : '儲存（持倉中）') }}
+        {{ draft.saving.value ? t('contractTradeJournal.form.saving') : (addingToExistingTrade ? t('contractTradeJournal.common.save') : t('contractTradeJournal.form.saveOpen')) }}
       </AppButton>
     </div>
   </form>

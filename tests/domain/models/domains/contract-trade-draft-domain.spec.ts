@@ -5,6 +5,7 @@ import { ContractTradeDraftFillDto } from '~/domain/models/dto/contract-trade-dr
 import { ContractTradePrefillDto } from '~/domain/models/dto/contract-trade-prefill-dto'
 import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import Decimal from 'decimal.js'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { buildRecord, takerFeeSetting } from '../../../fixtures/contract-trade-journal'
 
 function draftWithFills(fills: ContractTradeDraftFillDto[]): ContractTradeDraftDto {
@@ -13,10 +14,10 @@ function draftWithFills(fills: ContractTradeDraftFillDto[]): ContractTradeDraftD
 
 describe('ContractTradeDraftDomain', () => {
   it.each([
-    { name: '做多止損在下、止盈在上', direction: 'long', stop: '96380', target: '100785', stopText: '往下 1.58%', targetText: '往上 2.92%' },
-    { name: '做空止損在上、止盈在下', direction: 'short', stop: '99000', target: '95000', stopText: '往上 1.10%', targetText: '往下 2.99%' },
-    { name: '沒填就不說', direction: 'long', stop: '', target: '', stopText: null, targetText: null },
-  ] as const)('止損止盈離進場均價多遠：$name', ({ direction, stop, target, stopText, targetText }) => {
+    { name: '做多止損在下、止盈在上', direction: 'long', stop: '96380', target: '100785', stopText: '往下 1.58%', targetText: '往上 2.92%', stopEnglish: '1.58% below', targetEnglish: '2.92% above' },
+    { name: '做空止損在上、止盈在下', direction: 'short', stop: '99000', target: '95000', stopText: '往上 1.10%', targetText: '往下 2.99%', stopEnglish: '1.10% above', targetEnglish: '2.99% below' },
+    { name: '沒填就不說', direction: 'long', stop: '', target: '', stopText: null, targetText: null, stopEnglish: null, targetEnglish: null },
+  ] as const)('止損止盈離進場均價多遠：$name', ({ direction, stop, target, stopText, targetText, stopEnglish, targetEnglish }) => {
     const preview = new ContractTradeDraftDomain(
       new ContractTradeDraftDto('BTCUSDT', direction, '10', [
         new ContractTradeDraftFillDto('entry', null, '97905', '0.030', 'taker', ''),
@@ -24,8 +25,10 @@ describe('ContractTradeDraftDomain', () => {
       ], stop, target, '', null, null, [], null),
       takerFeeSetting()).toPreviewDto()
 
-    expect(preview.stopLossDistanceText).toBe(stopText)
-    expect(preview.takeProfitDistanceText).toBe(targetText)
+    expect(preview.stopLossDistanceText?.in('zh-TW') ?? null).toBe(stopText)
+    expect(preview.takeProfitDistanceText?.in('zh-TW') ?? null).toBe(targetText)
+    expect(preview.stopLossDistanceText?.in('en') ?? null).toBe(stopEnglish)
+    expect(preview.takeProfitDistanceText?.in('en') ?? null).toBe(targetEnglish)
   })
 
   it.each([
@@ -40,7 +43,7 @@ describe('ContractTradeDraftDomain', () => {
       ], '', '', '', null, null, [], 'link-1', referencePrice),
       takerFeeSetting(), existingFills).toPreviewDto()
 
-    expect(preview.entrySlippageText).toBe(expected)
+    expect(preview.entrySlippageText?.in('zh-TW') ?? null).toBe(expected)
   })
 
   it('新增一筆交易一定要在草稿裡有進場成交，不能只靠既有成交', () => {
@@ -72,8 +75,9 @@ describe('ContractTradeDraftDomain', () => {
 
   it('沒有成交列時成交價與數量不算預填', () => {
     const prefill = new ContractTradePrefillDto(
-      'link-412', 'newTrade', null, null, '來自 x・第 1 輪', new Date(), '97,850', null, 'BTCUSDT', 'long',
-      new Decimal(10), null, null, null, new Decimal(97850), new Decimal('0.051'), '做多 10 倍', 'success')
+      'link-412', 'newTrade', null, null, new LocalizedTextVo('來自 x・第 1 輪', 'From x · run 1'), new Date(), '97,850', null,
+      'BTCUSDT', 'long', new Decimal(10), null, null, null, new Decimal(97850), new Decimal('0.051'),
+      new LocalizedTextVo('做多 10 倍', 'Long 10x'), 'success')
 
     const fields = new ContractTradeDraftDomain(draftWithFills([]), takerFeeSetting()).prefilledFields(prefill)
 

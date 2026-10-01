@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ContractTradeFillLedgerPanel from '~/components/organisms/ContractTradeFillLedgerPanel.vue'
 import { buildRecord } from '../../fixtures/contract-trade-journal'
 
@@ -43,5 +44,17 @@ describe('ContractTradeFillLedgerPanel', () => {
     await wrapper.setProps({ record: buildRecord({ status: 'open', fills: buildRecord().fills.slice(0, 2) }).toDomain().toDto() })
 
     expect(wrapper.find('[data-testid="detail-fill-price"]').exists()).toBe(false)
+  })
+
+  it('換成英文時開倉平倉、掛單吃單與費率提示都說英文', async () => {
+    const wrapper = mountPanel()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Entries and exits')
+    expect(wrapper.get('[data-testid="detail-fill-3"]').text()).toContain('Exit')
+    expect(wrapper.get('[data-testid="detail-fill-3"]').text()).toContain('Maker fee')
+    expect(wrapper.get('[data-testid="detail-fill-3"]').text()).toContain('Fee rate not set')
   })
 })

@@ -1,12 +1,14 @@
 import Decimal from 'decimal.js'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ContractTradeLiveComparisonPanel from '~/components/organisms/ContractTradeLiveComparisonPanel.vue'
 import { ContractTradeLiveComparisonDomain } from '~/domain/models/domains/contract-trade-live-comparison-domain'
 import { ContractTradeLiveComparison } from '~/domain/models/entities/contract-trade-live-comparison'
 import { ContractTradeLiveComparisonRow } from '~/domain/models/entities/contract-trade-live-comparison-row'
 import { ContractTradePerformance } from '~/domain/models/entities/contract-trade-performance'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const STRATEGIES = [new TradingStrategyDto(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle')]
 
@@ -79,10 +81,33 @@ describe('ContractTradeLiveComparisonPanel', () => {
 
   it('沒有已平倉實單或策略已刪除時寫說明；失敗時寫原因', () => {
     const empty = mount(ContractTradeLiveComparisonPanel, { props: { tradingStrategies: STRATEGIES, selectedTradingStrategyId: 5, comparison: comparisonOf([]) } })
-    const failed = mount(ContractTradeLiveComparisonPanel, { props: { tradingStrategies: STRATEGIES, selectedTradingStrategyId: 5, failureMessage: '連不上' } })
+    const failed = mount(ContractTradeLiveComparisonPanel, { props: { tradingStrategies: STRATEGIES, selectedTradingStrategyId: 5, failureMessage: new UntranslatedTextVo('連不上') } })
 
     expect(empty.get('[data-testid="comparison-notice"]').text()).toBe('還沒有已平倉的實單可以對照')
     expect(empty.find('[data-testid="comparison-table"]').exists()).toBe(false)
     expect(failed.get('[data-testid="comparison-failure"]').text()).toBe('連不上')
+  })
+
+  it('換成英文時欄名、判讀與重演失敗的說明都說英文，後端給的原因原樣保留', async () => {
+    const wrapper = mount(ContractTradeLiveComparisonPanel, {
+      props: {
+        tradingStrategies: STRATEGIES,
+        selectedTradingStrategyId: 5,
+        comparison: comparisonOf([
+          new ContractTradeLiveComparisonRow('ETHUSDT', new ContractTradePerformance(8, 0.38, 0.5, null), new ContractTradePerformance(20, 0.61, 0.6, 0.62), null),
+          new ContractTradeLiveComparisonRow('BTCUSDT', new ContractTradePerformance(3, 0.33, 0.33, null), null, '合約行情不夠'),
+        ]),
+      },
+    })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="comparison-table"] thead').text()).toContain('Backtest win rate')
+    expect(wrapper.get('[data-testid="comparison-verdict-ETHUSDT"]').text()).toBe('23 percentage points below backtest')
+    expect(wrapper.get('[data-testid="comparison-row-ETHUSDT"]').text()).toContain('8 trades')
+    expect(wrapper.get('[data-testid="comparison-row-BTCUSDT"]').text()).toContain('合約行情不夠; cannot replay')
+    expect(wrapper.get('[data-testid="comparison-strategy-slippage"]').text())
+      .toBe('Strategy-wide average entry slippage: N/A (no live trades from bot links)')
   })
 })

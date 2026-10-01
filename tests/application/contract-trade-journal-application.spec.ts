@@ -25,6 +25,7 @@ import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
 import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
 import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import {
   buildPage,
   buildRecord,
@@ -98,15 +99,15 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const list = await application.listTrades(new ContractTradeListFilterDto())
 
-    expect(list.periodLabel).toBe('最近 30 天')
-    expect(list.summaryFigures.map(figure => [figure.label, figure.text])).toEqual([
+    expect(list.periodLabel.in('zh-TW')).toBe('最近 30 天')
+    expect(list.summaryFigures.map(figure => [figure.label.in('zh-TW'), figure.text.in('zh-TW')])).toEqual([
       ['淨損益', '+1,284.60'],
       ['勝率', '47%'],
       ['平均 R', '+0.38R'],
       ['獲利因子', '1.46'],
       ['費用佔毛利', '18%'],
     ])
-    expect(list.summaryFigures.map(figure => figure.note)).toEqual([
+    expect(list.summaryFigures.map(figure => figure.note?.in('zh-TW'))).toEqual([
       'USDT，已扣費用', '14 勝 16 敗', '每筆期望值', '總賺 ÷ 總賠', '手續費＋資金費',
     ])
     expect(recordProxy.findStatistics).toHaveBeenCalledWith('30d')
@@ -122,16 +123,14 @@ describe('ContractTradeJournalApplication.listTrades', () => {
     expect(row).toMatchObject({
       id: 27,
       symbol: 'BTCUSDT',
-      directionLabel: '做多 10 倍',
       directionTone: 'success',
-      statusLabel: '已平倉',
-      sourceLabel: 'BTC 趨勢跟隨',
       averageEntryPriceText: '97,927.6',
       averageExitPriceText: '100,420',
-      rMultipleText: '+1.53R',
     })
+    expect([row?.directionLabel, row?.statusLabel, row?.sourceLabel, row?.rMultipleText].map(text => text?.in('zh-TW')))
+      .toEqual(['做多 10 倍', '已平倉', 'BTC 趨勢跟隨', '+1.53R'])
     expect(row?.tags.map(tag => [tag.name, tag.tone])).toEqual([['突破', 'neutral']])
-    expect(row?.profit.text).toBe('+120.53')
+    expect(row?.profit.text.in('zh-TW')).toBe('+120.53')
     expect(row?.profit.tone).toBe('success')
   })
 
@@ -148,7 +147,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const [row] = (await application.listTrades(new ContractTradeListFilterDto())).rows
 
-    expect(row?.sourceLabel).toBe(expectedSource)
+    expect(row?.sourceLabel.in('zh-TW')).toBe(expectedSource)
   })
 
   it('持倉中的損益是浮動的，出場均價是「—」', async () => {
@@ -161,10 +160,10 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const [row] = (await application.listTrades(new ContractTradeListFilterDto())).rows
 
-    expect(row?.profit.text).toBe('+38.20')
-    expect(row?.profit.note).toBe('浮')
+    expect(row?.profit.text.in('zh-TW')).toBe('+38.20')
+    expect(row?.profit.note?.in('zh-TW')).toBe('浮')
     expect(row?.averageExitPriceText).toBe('—')
-    expect(row?.rMultipleText).toBe('未設止損，算不出')
+    expect(row?.rMultipleText.in('zh-TW')).toBe('未設止損，算不出')
   })
 
   it('浮動損益估不出時寫出原因', async () => {
@@ -176,7 +175,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const [row] = (await application.listTrades(new ContractTradeListFilterDto())).rows
 
-    expect(row?.profit.text).toBe('沒有最新價，無法估算')
+    expect(row?.profit.text.in('zh-TW')).toBe('沒有最新價，無法估算')
     expect(row?.profit.tone).toBe('muted')
   })
 
@@ -190,7 +189,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const [row] = (await application.listTrades(new ContractTradeListFilterDto())).rows
 
-    expect(row?.profit.text).toBe(expectedText)
+    expect(row?.profit.text.in('zh-TW')).toBe(expectedText)
     expect(row?.profit.tone).toBe(expectedTone)
   })
 
@@ -235,9 +234,9 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const list = await application.listTrades(new ContractTradeListFilterDto())
 
-    expect(list.emptyMessage).toContain('還沒有任何交易')
-    expect(list.emptyMessage).toContain('記到交易日誌')
-    expect(list.emptyMessage).toContain('記一筆')
+    expect(list.emptyMessage?.in('zh-TW')).toContain('還沒有任何交易')
+    expect(list.emptyMessage?.in('zh-TW')).toContain('記到交易日誌')
+    expect(list.emptyMessage?.in('zh-TW')).toContain('記一筆')
     expect(list.summaryFigures).toEqual([])
   })
 
@@ -248,7 +247,7 @@ describe('ContractTradeJournalApplication.listTrades', () => {
 
     const list = await application.listTrades(new ContractTradeListFilterDto('open'))
 
-    expect(list.emptyMessage).toBe('沒有符合篩選的交易')
+    expect(list.emptyMessage?.in('zh-TW')).toBe('沒有符合篩選的交易')
   })
 })
 
@@ -259,7 +258,7 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figures.map(figure => [figure.label, figure.text])).toEqual([
+    expect(record.outcome.figures.map(figure => [figure.label.in('zh-TW'), figure.text.in('zh-TW')])).toEqual([
       ['名目', '4,994.31'],
       ['保證金', '499.43'],
       ['毛損益', '+127.11'],
@@ -274,15 +273,15 @@ describe('ContractTradeJournalApplication.getTrade', () => {
       ['利潤捕捉率', '82%'],
       ['進場滑點', '0.06%'],
     ])
-    expect(record.outcome.figureLabelled('最大不利')?.note).toBe('97,110')
+    expect(record.outcome.figureLabelled('最大不利')?.note?.in('zh-TW')).toBe('97,110')
     expect(record.outcome.pricePathUnavailableMessage).toBeNull()
-    expect(record.outcome.figureGroups.map(group => group.map(figure => figure.label))).toEqual([
+    expect(record.outcome.figureGroups.map(group => group.map(figure => figure.label.in('zh-TW')))).toEqual([
       ['名目', '保證金', '毛損益', '手續費', '資金費用'],
       ['淨損益', '保證金報酬率', '計畫風險', 'R 倍數'],
       ['最大不利', '最大有利', '利潤捕捉率', '進場滑點'],
     ])
-    expect(record.holdingDurationText).toBe('持倉 1 天 2 小時')
-    expect(record.originLabel).toBe('來自 BTC 趨勢跟隨・第 412 輪')
+    expect(record.holdingDurationText?.in('zh-TW')).toBe('持倉 1 天 2 小時')
+    expect(record.originLabel.in('zh-TW')).toBe('來自 BTC 趨勢跟隨・第 412 輪')
   })
 
   it.each([
@@ -295,8 +294,8 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.holdingDurationText).toBe(expectedDuration)
-    expect(record.originLabel).toBe(expectedOrigin)
+    expect(record.holdingDurationText?.in('zh-TW') ?? null).toBe(expectedDuration)
+    expect(record.originLabel.in('zh-TW')).toBe(expectedOrigin)
   })
 
   it('來自連結的交易列出當時的建議', async () => {
@@ -305,12 +304,10 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.source).toMatchObject({
-      label: '來自 BTC 趨勢跟隨・第 412 輪',
-      referencePriceText: '97,850',
-      suggestedStopLossPriceText: '96,380',
-      suggestedTakeProfitPriceText: '100,785',
-    })
+    const source = record.source
+    expect([
+      source?.label, source?.referencePriceText, source?.suggestedStopLossPriceText, source?.suggestedTakeProfitPriceText,
+    ].map(text => text?.in('zh-TW'))).toEqual(['來自 BTC 趨勢跟隨・第 412 輪', '97,850', '96,380', '100,785'])
   })
 
   it('不是來自連結就沒有滑點', async () => {
@@ -337,10 +334,10 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(31)
 
-    expect(['R 倍數', '最大不利', '最大有利'].map(label => record.outcome.figureLabelled(label)?.text))
+    expect(['R 倍數', '最大不利', '最大有利'].map(label => record.outcome.figureLabelled(label)?.text.in('zh-TW')))
       .toEqual(['未設止損，算不出', '未設止損，算不出', '未設止損，算不出'])
     expect(record.outcome.figureLabelled('R 倍數')?.tone).toBe('muted')
-    expect(record.plannedStopLossText).toBe('未設定')
+    expect(record.plannedStopLossText.in('zh-TW')).toBe('未設定')
   })
 
   it('沒有結算資料時寫原因並標示淨損益未含資金費用', async () => {
@@ -351,8 +348,8 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(29)
 
-    expect(record.outcome.figureLabelled('資金費用')?.text).toBe('沒有結算資料，無法計算')
-    expect(record.outcome.figureLabelled('淨損益')?.note).toBe('未含資金費用')
+    expect(record.outcome.figureLabelled('資金費用')?.text.in('zh-TW')).toBe('沒有結算資料，無法計算')
+    expect(record.outcome.figureLabelled('淨損益')?.note?.in('zh-TW')).toBe('未含資金費用')
   })
 
   it.each([
@@ -364,7 +361,7 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('資金費用')?.text).toBe(expectedText)
+    expect(record.outcome.figureLabelled('資金費用')?.text.in('zh-TW')).toBe(expectedText)
     expect(record.outcome.figureLabelled('資金費用')?.tone).toBe(expectedTone)
   })
 
@@ -382,9 +379,9 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(30)
 
-    expect(['最大不利', '最大有利', '利潤捕捉率'].map(label => record.outcome.figureLabelled(label)?.text))
+    expect(['最大不利', '最大有利', '利潤捕捉率'].map(label => record.outcome.figureLabelled(label)?.text.in('zh-TW')))
       .toEqual(['沒有行情資料，無法計算', '沒有行情資料，無法計算', '沒有行情資料，無法計算'])
-    expect(record.outcome.pricePathUnavailableMessage).toBe('沒有行情資料，無法計算')
+    expect(record.outcome.pricePathUnavailableMessage?.in('zh-TW')).toBe('沒有行情資料，無法計算')
   })
 
   it('持倉中呈現估算的浮動損益與預估強平價，計畫與成交可以改、不能檢討', async () => {
@@ -402,14 +399,15 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(32)
 
-    expect(record.outcome.figureLabelled('浮動損益')).toMatchObject({ text: '+38.20', note: '估算' })
-    expect(record.outcome.figureLabelled('預估強平價')).toMatchObject({ text: '3,751.2', note: '估算' })
+    expect(['浮動損益', '預估強平價'].map(label => [
+      record.outcome.figureLabelled(label)?.text.in('zh-TW'), record.outcome.figureLabelled(label)?.note?.in('zh-TW'),
+    ])).toEqual([['+38.20', '估算'], ['3,751.2', '估算']])
     expect(record.outcome.figureLabelled('已實現淨損益')).toBeDefined()
     expect(record.planLocked).toBe(false)
     expect(record.canEditFills).toBe(true)
     expect(record.canWriteReview).toBe(false)
-    expect(record.reviewUnavailableMessage).toBe('平倉後才能檢討')
-    expect(record.statusLabel).toBe('持倉中')
+    expect(record.reviewUnavailableMessage?.in('zh-TW')).toBe('平倉後才能檢討')
+    expect(record.statusLabel.in('zh-TW')).toBe('持倉中')
   })
 
   it.each([
@@ -424,7 +422,7 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(32)
 
-    expect(record.outcome.figureLabelled(label)?.text).toBe(expectedText)
+    expect(record.outcome.figureLabelled(label)?.text.in('zh-TW')).toBe(expectedText)
   })
 
   it('平倉後計畫與成交鎖定、可以檢討，成交與附註依時間由早到晚', async () => {
@@ -437,11 +435,13 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     expect(record.canEditFills).toBe(false)
     expect(record.canWriteReview).toBe(true)
     expect(record.fills.map(fill => fill.id)).toEqual([1, 2, 3])
-    expect(record.fills[2]).toMatchObject({ kindLabel: '平倉', liquidityLabel: '掛單', feeNote: '未設定費率' })
+    const lastFill = record.fills[2]
+    expect([lastFill?.kindLabel, lastFill?.liquidityLabel, lastFill?.feeNote].map(text => text?.in('zh-TW')))
+      .toEqual(['平倉', '掛單', '未設定費率'])
     expect(record.notes.map(note => note.content)).toEqual(['第一則', '第二則'])
     expect(record.setupTags.map(tag => tag.name)).toEqual(['突破'])
     expect(record.mistakeTags.map(tag => tag.name)).toEqual(['提早出場'])
-    expect(record.title).toBe('#27 BTCUSDT 做多 10 倍')
+    expect(record.title.in('zh-TW')).toBe('#27 BTCUSDT 做多 10 倍')
   })
 
   it('進場滑點對交易有利時不是下跌色', async () => {
@@ -450,14 +450,15 @@ describe('ContractTradeJournalApplication.getTrade', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('進場滑點')).toMatchObject({ text: '−0.02%', tone: 'neutral' })
+    expect(record.outcome.figureLabelled('進場滑點')?.text.in('zh-TW')).toBe('−0.02%')
+    expect(record.outcome.figureLabelled('進場滑點')?.tone).toBe('neutral')
   })
 
   it('關聯的策略已刪除', async () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.findTrade.mockResolvedValue(buildRecord({ tradingStrategyDeleted: true }))
 
-    expect((await application.getTrade(27)).sourceLabel).toBe('關聯的交易策略已刪除')
+    expect((await application.getTrade(27)).sourceLabel.in('zh-TW')).toBe('關聯的交易策略已刪除')
   })
 
   it('做空以做空色標示，已檢討帶出檢討內容', async () => {
@@ -473,10 +474,11 @@ describe('ContractTradeJournalApplication.getTrade', () => {
     const record = await application.getTrade(26)
 
     expect(record.directionTone).toBe('danger')
-    expect(record.statusLabel).toBe('已檢討')
+    expect(record.statusLabel.in('zh-TW')).toBe('已檢討')
     expect(record.review).toMatchObject({ wentWrong: '提早出場', executionScore: 4 })
-    expect(record.outcome.figureLabelled('手續費')?.note).toBe('未設定費率')
-    expect(record.outcome.figureLabelled('R 倍數')).toMatchObject({ text: '−1.02R', tone: 'danger' })
+    expect(record.outcome.figureLabelled('手續費')?.note?.in('zh-TW')).toBe('未設定費率')
+    expect(record.outcome.figureLabelled('R 倍數')?.text.in('zh-TW')).toBe('−1.02R')
+    expect(record.outcome.figureLabelled('R 倍數')?.tone).toBe('danger')
   })
 })
 
@@ -500,7 +502,7 @@ describe('ContractTradeJournalApplication.previewDraft', () => {
       plannedStopLossText: '96380',
     }), takerFeeSetting())
 
-    expect(preview.stopLossDistanceText).toBe('往下 1.58%')
+    expect(preview.stopLossDistanceText?.in('zh-TW')).toBe('往下 1.58%')
     expect(preview.plannedRiskText).toBe('78.93')
   })
 
@@ -511,7 +513,7 @@ describe('ContractTradeJournalApplication.previewDraft', () => {
       direction: 'short', fills: [draftFill({ priceText: '3500', quantityText: '1' })], plannedStopLossText: '3535',
     }), takerFeeSetting())
 
-    expect(preview.stopLossDistanceText).toBe('往上 1.00%')
+    expect(preview.stopLossDistanceText?.in('zh-TW')).toBe('往上 1.00%')
   })
 
   it('手續費依吃單費率自動帶出', () => {
@@ -537,7 +539,8 @@ describe('ContractTradeJournalApplication.previewDraft', () => {
 
     const preview = application.previewDraft(draft(), unconfiguredFeeSetting())
 
-    expect(preview.fees[0]).toMatchObject({ automaticFeeText: '0.00', note: '尚未設定手續費率' })
+    expect(preview.fees[0]?.automaticFeeText).toBe('0.00')
+    expect(preview.fees[0]?.note?.in('zh-TW')).toBe('尚未設定手續費率')
     expect(preview.feeRateMissing).toBe(true)
   })
 
@@ -569,7 +572,7 @@ describe('ContractTradeJournalApplication.previewDraft', () => {
 
     const preview = application.previewDraft(draft(overrides), takerFeeSetting())
 
-    expect(preview.missingFieldMessage).toBe(expectedMessage)
+    expect(preview.missingFieldMessage?.in('zh-TW')).toBe(expectedMessage)
   })
 
   it('還沒有進場均價時不算距離', () => {
@@ -642,7 +645,7 @@ describe('ContractTradeJournalApplication.recordDraft', () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
     recordProxy.addFill.mockRejectedValue(new TradeRejectedError(
-      '出場數量超過目前持倉 0.030', new TradeFormFieldVo('exitQuantity')))
+      new UntranslatedTextVo('出場數量超過目前持倉 0.030'), new TradeFormFieldVo('exitQuantity')))
 
     const failure = await application.recordDraft(draft({
       fills: [draftFill(), draftFill({ kind: 'exit', quantityText: '0.05' })],
@@ -690,13 +693,13 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
     }), takerFeeSetting(), [])
 
     expect(recordProxy.addFill).toHaveBeenCalledTimes(2)
-    expect(record.statusLabel).toBe('已平倉')
+    expect(record.statusLabel.in('zh-TW')).toBe('已平倉')
   })
 
   it('第二筆失敗時說前幾筆已存下，讓表單不再重送已存下的那幾筆', async () => {
     const { application, recordProxy } = buildFixture()
     recordProxy.addFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError('出場數量超過目前持倉 0.030', new TradeFormFieldVo('exitQuantity')))
+    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError(new UntranslatedTextVo('出場數量超過目前持倉 0.030'), new TradeFormFieldVo('exitQuantity')))
     const submittedDraft = draft({ symbol: '', fills: [draftFill(), draftFill({ kind: 'exit', quantityText: '0.05' })] })
 
     const failure = await application.addDraftFills(27, submittedDraft, takerFeeSetting(), [])
@@ -711,7 +714,7 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
   it('出場超過持倉的拒絕原樣帶回', async () => {
     const { application, recordProxy } = buildFixture()
     const rejection = new TradeRejectedError(
-      '出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易', new TradeFormFieldVo('exitQuantity'))
+      new UntranslatedTextVo('出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易'), new TradeFormFieldVo('exitQuantity'))
     recordProxy.addFill.mockRejectedValue(rejection)
 
     await expect(application.addDraftFills(27, draft({ symbol: '', fills: [draftFill({ kind: 'exit', quantityText: '0.05' })] }), takerFeeSetting(), buildRecord().toDomain().toDto().fills))
@@ -740,7 +743,7 @@ describe('ContractTradeJournalApplication.addDraftFills', () => {
 
     const record = await application.addDraftFills(27, draft({ fills: [draftFill()] }), takerFeeSetting(), [])
 
-    expect(record.statusLabel).toBe('持倉中')
+    expect(record.statusLabel.in('zh-TW')).toBe('持倉中')
   })
 })
 
@@ -757,7 +760,7 @@ describe('ContractTradeJournalApplication 其餘寫入', () => {
 
     const record = await act(application)
 
-    expect(record.statusLabel).toBe('已檢討')
+    expect(record.statusLabel.in('zh-TW')).toBe('已檢討')
     expect(recordProxy[proxyMethod]).toHaveBeenCalled()
   })
 
@@ -841,12 +844,12 @@ describe('ContractTradeJournalApplication.openJournalLink', () => {
     expect(prefillDto).toMatchObject({
       mode: 'newTrade',
       targetPath: null,
-      sourceLabel: '來自 BTC 趨勢跟隨・第 412 輪',
       referencePriceText: '97,850',
       notice: null,
       symbol: 'BTCUSDT',
       tradingStrategyId: 5,
     })
+    expect(prefillDto.sourceLabel.in('zh-TW')).toBe('來自 BTC 趨勢跟隨・第 412 輪')
     expect(prefillDto.entryPrice?.toString()).toBe('97850')
     expect(prefillDto.quantity?.toString()).toBe('0.051')
   })
@@ -859,7 +862,7 @@ describe('ContractTradeJournalApplication.openJournalLink', () => {
 
     expect(prefillDto.mode).toBe('addEntryFill')
     expect(prefillDto.targetPath).toBe('/contract-trade-journal/27')
-    expect(prefillDto.notice).toBe('BTCUSDT 做多已有持倉中的 #27，這一輪記成加碼')
+    expect(prefillDto.notice?.in('zh-TW')).toBe('BTCUSDT 做多已有持倉中的 #27，這一輪記成加碼')
   })
 
   it('舊的一輪沒有參考價時進場價與數量留白並說明', async () => {
@@ -871,7 +874,7 @@ describe('ContractTradeJournalApplication.openJournalLink', () => {
     expect(prefillDto.entryPrice).toBeNull()
     expect(prefillDto.quantity).toBeNull()
     expect(prefillDto.referencePriceText).toBeNull()
-    expect(prefillDto.notice).toBe('這一輪沒有記下參考價，請手動填寫進場價與數量')
+    expect(prefillDto.notice?.in('zh-TW')).toBe('這一輪沒有記下參考價，請手動填寫進場價與數量')
     expect(prefillDto.plannedStopLossPrice?.toString()).toBe('96380')
   })
 })
@@ -895,7 +898,7 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
     const statistics = await application.getStatistics('30d')
 
     expect(statistics.emptyMessage).toBeNull()
-    expect(statistics.figures.map(figure => [figure.label, figure.text])).toEqual([
+    expect(statistics.figures.map(figure => [figure.label.in('zh-TW'), figure.text.in('zh-TW')])).toEqual([
       ['淨損益', '+1,284.60'],
       ['勝率', '47%'],
       ['平均 R', '+0.38R'],
@@ -903,15 +906,17 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
       ['平均進場滑點', '0.07%'],
       ['費用佔毛利', '18%'],
     ])
-    expect(statistics.exclusionNote).toBe('3 筆沒設止損，未計入 R')
+    expect(statistics.exclusionNote?.in('zh-TW')).toBe('3 筆沒設止損，未計入 R')
     expect(statistics.cumulativePoints[0]?.value).toBe(1.5)
     expect(statistics.distribution.map(bar => [bar.tone, bar.widthPercentage])).toEqual([['danger', 100], ['success', 50]])
-    expect(statistics.mistakeCosts[0]).toMatchObject({ tagName: '移動止損', tradeCountText: '4 筆', rMultipleText: '−3.20R', tone: 'danger' })
+    expect(statistics.mistakeCosts[0]).toMatchObject({ tagName: '移動止損', rMultipleText: '−3.20R', tone: 'danger' })
+    expect(statistics.mistakeCosts[0]?.tradeCountText.in('zh-TW')).toBe('4 筆')
     expect(statistics.mistakeCosts.map(mistakeCost => mistakeCost.widthPercentage)).toEqual([100, 50])
-    expect(statistics.closedTradeCountText).toBe('已平倉 30 筆')
-    expect(statistics.sourceComparison).toEqual([
-      expect.objectContaining({ label: '有關聯策略', tradeCountText: '22 筆', winRateText: '56%', averageRMultipleText: '+0.71R' }),
-      expect.objectContaining({ label: '自行判斷', tradeCountText: '8 筆', winRateText: '25%', averageRMultipleText: '−0.28R' }),
+    expect(statistics.closedTradeCountText.in('zh-TW')).toBe('已平倉 30 筆')
+    expect(statistics.sourceComparison.map(row => [row.label, row.tradeCountText, row.winRateText, row.averageRMultipleText]
+      .map(text => text.in('zh-TW')))).toEqual([
+      ['有關聯策略', '22 筆', '56%', '+0.71R'],
+      ['自行判斷', '8 筆', '25%', '−0.28R'],
     ])
     expect(recordProxy.findStatistics).toHaveBeenCalledWith('30d')
   })
@@ -922,8 +927,8 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
 
     const statistics = await application.getStatistics('7d')
 
-    expect(statistics.emptyMessage).toBe('這段期間沒有已平倉交易')
-    expect(statistics.periodLabel).toBe('最近 7 天')
+    expect(statistics.emptyMessage?.in('zh-TW')).toBe('這段期間沒有已平倉交易')
+    expect(statistics.periodLabel.in('zh-TW')).toBe('最近 7 天')
     expect(statistics.figures).toEqual([])
     expect(statistics.cumulativePoints).toEqual([])
   })
@@ -939,7 +944,7 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
 
     const statistics = await application.getStatistics('30d')
 
-    expect(statistics.figures.find(figure => figure.label === label)?.text).toBe(expectedText)
+    expect(statistics.figures.find(figure => figure.label.in('zh-TW') === label)?.text.in('zh-TW')).toBe(expectedText)
   })
 
   it('兩組比較裡沒有平均 R 時寫不適用', async () => {
@@ -949,13 +954,14 @@ describe('ContractTradeJournalApplication.getStatistics', () => {
 
     const statistics = await application.getStatistics('30d')
 
-    expect(statistics.sourceComparison[1]).toMatchObject({ winRateText: '不適用', averageRMultipleText: '不適用' })
+    expect([statistics.sourceComparison[1]?.winRateText, statistics.sourceComparison[1]?.averageRMultipleText]
+      .map(text => text?.in('zh-TW'))).toEqual(['不適用', '不適用'])
   })
 
   it('期間選項依序是 7、30、90 天與全部', () => {
     const { application } = buildFixture()
 
-    expect(application.listStatisticsPeriods().map(option => [option.value, option.label])).toEqual([
+    expect(application.listStatisticsPeriods().map(option => [option.value, option.label.in('zh-TW')])).toEqual([
       ['7d', '最近 7 天'], ['30d', '最近 30 天'], ['90d', '最近 90 天'], ['all', '全部期間'],
     ])
   })
@@ -972,11 +978,12 @@ describe('ContractTradeJournalApplication.getLiveComparison', () => {
     const comparison = await application.getLiveComparison(9)
 
     expect(comparison.notice).toBeNull()
-    expect(comparison.rows[0]).toMatchObject({
-      symbol: 'ETHUSDT', liveWinRateTone: 'danger', winRateGapText: '比回測低 23 個百分點', backtestUnavailableMessage: null,
-    })
-    expect(comparison.rows[0]?.live).toMatchObject({ closedTradeCountText: '8 筆', winRateText: '38%', shortWinRateText: '不適用' })
-    expect(comparison.rows[0]?.backtest?.winRateText).toBe('61%')
+    expect(comparison.rows[0]).toMatchObject({ symbol: 'ETHUSDT', liveWinRateTone: 'danger', backtestUnavailableMessage: null })
+    expect(comparison.rows[0]?.winRateGapText?.in('zh-TW')).toBe('比回測低 23 個百分點')
+    const live = comparison.rows[0]?.live
+    expect([live?.closedTradeCountText, live?.winRateText, live?.shortWinRateText].map(text => text?.in('zh-TW')))
+      .toEqual(['8 筆', '38%', '不適用'])
+    expect(comparison.rows[0]?.backtest?.winRateText.in('zh-TW')).toBe('61%')
     expect(comparison.rows[1]).toMatchObject({ liveWinRateTone: 'neutral', winRateGapText: null })
   })
 
@@ -988,9 +995,9 @@ describe('ContractTradeJournalApplication.getLiveComparison', () => {
 
     const [row] = (await application.getLiveComparison(5)).rows
 
-    expect(row?.live.winRateText).toBe('33%')
+    expect(row?.live.winRateText.in('zh-TW')).toBe('33%')
     expect(row?.backtest).toBeNull()
-    expect(row?.backtestUnavailableMessage).toBe('合約行情不夠，無法重演')
+    expect(row?.backtestUnavailableMessage?.in('zh-TW')).toBe('合約行情不夠，無法重演')
   })
 
   it('策略已刪除時說無法重演，實盤照常', async () => {
@@ -1001,15 +1008,15 @@ describe('ContractTradeJournalApplication.getLiveComparison', () => {
 
     const comparison = await application.getLiveComparison(5)
 
-    expect(comparison.notice).toBe('交易策略已刪除，無法重演')
-    expect(comparison.rows[0]?.backtestUnavailableMessage).toBe('交易策略已刪除，無法重演')
+    expect(comparison.notice?.in('zh-TW')).toBe('交易策略已刪除，無法重演')
+    expect(comparison.rows[0]?.backtestUnavailableMessage?.in('zh-TW')).toBe('交易策略已刪除，無法重演')
   })
 
   it('沒有已平倉實單時說還沒有可以對照的', async () => {
     const { application, tradingStrategyProxy } = buildFixture()
     tradingStrategyProxy.findContractTradeComparison.mockResolvedValue(new ContractTradeLiveComparison('BTC 趨勢跟隨', false, []))
 
-    expect((await application.getLiveComparison(5)).notice).toBe('還沒有已平倉的實單可以對照')
+    expect((await application.getLiveComparison(5)).notice?.in('zh-TW')).toBe('還沒有已平倉的實單可以對照')
   })
 })
 
@@ -1030,8 +1037,8 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
     expect(loadPlan.fetchStartTime.getTime()).toBeLessThan(record.openedAt.getTime())
     expect(loadPlan.fetchEndTime.getTime()).toBeGreaterThan(record.closedAt?.getTime() ?? 0)
     expect(pricePath.emptyMessage).toBeNull()
-    expect(pricePath.markers.map(marker => marker.text)).toEqual(['開倉 97,905', '加倉 97,960', '平倉 100,420'])
-    expect(pricePath.lines.map(line => `${line.label} ${line.priceText}`)).toEqual([
+    expect(pricePath.markers.map(marker => marker.text.in('zh-TW'))).toEqual(['開倉 97,905', '加倉 97,960', '平倉 100,420'])
+    expect(pricePath.lines.map(line => `${line.label.in('zh-TW')} ${line.priceText}`)).toEqual([
       '開倉均價 97,927.6', '計畫止損 96,380', '計畫止盈 100,785', '最大不利 97,110', '最大有利 100,960',
     ])
     expect(pricePath.candles).toHaveLength(1)
@@ -1050,7 +1057,7 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
       new KCandleContractSeriesVo([kCandleContract('2026-09-25T06:00:00Z')], { value: '1h' } as never))
     const record = await application.getTrade(27)
 
-    expect((await application.getPricePath(record)).lines.map(line => line.label)).toEqual(['開倉均價'])
+    expect((await application.getPricePath(record)).lines.map(line => line.label.in('zh-TW'))).toEqual(['開倉均價'])
   })
 
   it('持倉中的行情取到現在為止，沒有行情時寫同一句話', async () => {
@@ -1065,7 +1072,7 @@ describe('ContractTradeJournalApplication.getPricePath', () => {
 
     const [loadPlan] = kCandleContractProxy.findKCandleContractSeries.mock.calls[0] as [import('~/domain/models/vo/k-candle-chart-load-plan-vo').KCandleChartLoadPlanVo]
     expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-25T07:00:00.000Z')
-    expect(pricePath.emptyMessage).toBe('沒有行情資料，無法計算')
+    expect(pricePath.emptyMessage?.in('zh-TW')).toBe('沒有行情資料，無法計算')
   })
 })
 
@@ -1084,7 +1091,7 @@ describe('ContractTradeJournalApplication 開倉、加倉、減倉、平倉', ()
 
     const record = await application.getTrade(27)
 
-    expect(record.fills.map(fill => fill.kindLabel)).toEqual(['開倉', '加倉', '減倉', '平倉'])
+    expect(record.fills.map(fill => fill.kindLabel.in('zh-TW'))).toEqual(['開倉', '加倉', '減倉', '平倉'])
   })
 })
 
@@ -1097,7 +1104,7 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const preview = application.previewDraft(draft({ symbol }), takerFeeSetting())
 
-    expect(preview.quantityLabel).toBe(expectedLabel)
+    expect(preview.quantityLabel.in('zh-TW')).toBe(expectedLabel)
   })
 
   it('小卡預覽說出這一筆的名目、保證金與手續費約佔名目', () => {
@@ -1107,8 +1114,8 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
       leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '1', feeText: '0.05' })],
     }), takerFeeSetting())
 
-    expect(preview.fillSizes[0]?.sizeText).toBe('名目 84,780.90・保證金 42,390.45')
-    expect(preview.fillSizes[0]?.feeShareText).toBe('手續費約佔名目 0.000059%')
+    expect(preview.fillSizes[0]?.sizeText?.in('zh-TW')).toBe('名目 84,780.90・保證金 42,390.45')
+    expect(preview.fillSizes[0]?.feeShareText?.in('zh-TW')).toBe('手續費約佔名目 0.000059%')
   })
 
   it('底部預覽有整筆交易的名目與保證金，槓桿留白即一倍', () => {
@@ -1130,7 +1137,7 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
       leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '112.80', sizeMode: 'notional' })],
     }), takerFeeSetting())
 
-    expect(preview.fillSizes[0]?.sizeText).toBe('≈ 0.00133048 BTC・名目 112.80・保證金 56.40')
+    expect(preview.fillSizes[0]?.sizeText?.in('zh-TW')).toBe('≈ 0.00133048 BTC・名目 112.80・保證金 56.40')
     expect(preview.positionText).toBe('0.00133048')
   })
 
@@ -1189,7 +1196,7 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
       leverageText: '10x', fills: [draftFill({ priceText: '100', quantityText: '200', sizeMode: 'notional' })],
     }), takerFeeSetting())
 
-    expect(preview.fillSizes[0]?.sizeText).toBe('≈ 2 BTC・名目 200.00')
+    expect(preview.fillSizes[0]?.sizeText?.in('zh-TW')).toBe('≈ 2 BTC・名目 200.00')
     expect(preview.entryMarginText).toBeNull()
   })
 
@@ -1211,8 +1218,8 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.feeWarningMessage).toBe('第 1、2 筆的手續費與數量對不上，數量可能記錯了（數量的單位是 BTC）')
-    expect(record.fills.map(fill => fill.feeNote)).toEqual(['手續費與數量對不上', '手續費與數量對不上', '未設定費率'])
+    expect(record.feeWarningMessage?.in('zh-TW')).toBe('第 1、2 筆的手續費與數量對不上，數量可能記錯了（數量的單位是 BTC）')
+    expect(record.fills.map(fill => fill.feeNote?.in('zh-TW'))).toEqual(['手續費與數量對不上', '手續費與數量對不上', '未設定費率'])
     expect(record.quantityUnit).toBe('BTC')
   })
 
@@ -1233,7 +1240,7 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('持倉中不適用')
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text.in('zh-TW')).toBe('持倉中不適用')
   })
 
   it('持倉中即使交易服務沒說原因，保證金報酬率也是不適用', async () => {
@@ -1244,7 +1251,7 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('持倉中不適用')
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text.in('zh-TW')).toBe('持倉中不適用')
   })
 
   it('資金費用算不出時保證金報酬率標示未含資金費用；名目缺少時說算不出而不是 0', async () => {
@@ -1255,8 +1262,8 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('保證金報酬率')?.note).toBe('未含資金費用')
-    expect(record.outcome.figureLabelled('名目')?.text).toBe('暫時算不出，請稍後再看')
+    expect(record.outcome.figureLabelled('保證金報酬率')?.note?.in('zh-TW')).toBe('未含資金費用')
+    expect(record.outcome.figureLabelled('名目')?.text.in('zh-TW')).toBe('暫時算不出，請稍後再看')
   })
 
   it('虧損的保證金報酬率以虧損色呈現', async () => {
@@ -1265,7 +1272,74 @@ describe('ContractTradeJournalApplication 合約交易的部位大小', () => {
 
     const record = await application.getTrade(27)
 
-    expect(record.outcome.figureLabelled('保證金報酬率')?.text).toBe('−0.33%')
+    expect(record.outcome.figureLabelled('保證金報酬率')?.text.in('zh-TW')).toBe('−0.33%')
     expect(record.outcome.figureLabelled('保證金報酬率')?.tone).toBe('danger')
+  })
+})
+
+describe('ContractTradeJournalApplication 英文說法', () => {
+  it('列表、詳情與統計的每一句領域說的話都有英文', async () => {
+    const { application, recordProxy, tradingStrategyProxy } = buildFixture()
+    recordProxy.listTrades.mockResolvedValue(buildPage([buildSummary()]))
+    recordProxy.findStatistics.mockResolvedValue(buildStatistics({ excludedFromRMultipleCount: 3 }))
+    recordProxy.findTrade.mockResolvedValue(buildRecord({ outcome: closedOutcome({ implausibleFeeFillIds: [1, 2] }) }))
+    tradingStrategyProxy.findContractTradeComparison.mockResolvedValue(new ContractTradeLiveComparison('ETH 均值回歸', false, [
+      new ContractTradeLiveComparisonRow('ETHUSDT', new ContractTradePerformance(8, 0.38, 0.5, null), new ContractTradePerformance(20, 0.61, 0.6, 0.62), null),
+    ]))
+
+    const list = await application.listTrades(new ContractTradeListFilterDto())
+    const record = await application.getTrade(27)
+    const statistics = await application.getStatistics('30d')
+    const comparison = await application.getLiveComparison(9)
+
+    expect.soft([
+      list.periodLabel, list.tradeCountsLabel, list.rows[0]?.directionLabel, list.rows[0]?.statusLabel,
+    ].map(text => text?.in('en'))).toEqual(['Last 30 days', '30 closed · 0 open', 'Long 10x', 'Closed'])
+    expect.soft(record.outcome.figures.slice(0, 6).map(figure => [figure.label.in('en'), figure.text.in('en')])).toEqual([
+      ['Notional', '4,994.31'],
+      ['Margin', '499.43'],
+      ['Gross P&L', '+127.11'],
+      ['Fees', '5.06'],
+      ['Funding fees', 'Paid 1.52'],
+      ['Net P&L', '+120.53'],
+    ])
+    expect.soft([record.title, record.originLabel, record.holdingDurationText, record.fills[2]?.kindLabel].map(text => text?.in('en')))
+      .toEqual(['#27 BTCUSDT Long 10x', 'From BTC 趨勢跟隨 · run 412', 'Held 1d 2h', 'Exit'])
+    expect.soft(record.feeWarningMessage?.in('en'))
+      .toBe('The fee on fill 1, 2 does not match the quantity; the quantity may be wrong (quantity is in BTC)')
+    expect.soft(statistics.exclusionNote?.in('en')).toBe('3 trades have no stop loss and are left out of R')
+    expect.soft(statistics.figures.map(figure => figure.label.in('en'))).toEqual([
+      'Net P&L', 'Win rate', 'Avg R', 'Profit factor', 'Avg entry slippage', 'Fees vs gross profit',
+    ])
+    expect.soft(comparison.rows[0]?.verdictLabel.in('en')).toBe('23 percentage points below backtest')
+    expect.soft(comparison.rows[0]?.live.closedTradeCountText.in('en')).toBe('8 trades')
+  })
+
+  it.each([
+    ['止損距離', draft({ plannedStopLossText: '96380' }), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.stopLossDistanceText, '1.56% below'],
+    ['缺合約標的', draft({ symbol: '' }), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.missingFieldMessage, 'Enter the Contract symbol'],
+    ['小卡預覽', draft({ leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '1', feeText: '0.05' })] }),
+      (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.fillSizes[0]?.sizeText ?? null, 'Notional 84,780.90 · Margin 42,390.45'],
+    ['尚未設定費率', draft(), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.fees[0]?.note ?? null, 'Fee rates not set yet'],
+  ])('草稿預覽的%s有英文', (_, submittedDraft, pick, expectedEnglish) => {
+    const { application } = buildFixture()
+    const setting = expectedEnglish === 'Fee rates not set yet' ? unconfiguredFeeSetting() : takerFeeSetting()
+
+    expect(pick(application.previewDraft(submittedDraft, setting))?.in('en')).toBe(expectedEnglish)
+  })
+
+  it('後面的成交沒存成功時，英文說已建立哪一筆，後端的原話原樣附上', async () => {
+    const { application, recordProxy } = buildFixture()
+    recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError(
+      new UntranslatedTextVo('出場數量超過目前持倉 0.030'), new TradeFormFieldVo('exitQuantity')))
+
+    const failure = await application.recordDraft(draft({
+      fills: [draftFill(), draftFill({ kind: 'exit', quantityText: '0.05' })],
+    }), takerFeeSetting()).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(TradeRejectedError)
+    expect((failure as TradeRejectedError).localizedMessage.in('en'))
+      .toBe('Created #27, but fill 2 was not saved: 出場數量超過目前持倉 0.030')
   })
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
@@ -13,12 +14,19 @@ import TradeOutcomePanel from '~/components/organisms/TradeOutcomePanel.vue'
 import TradePlanPanel from '~/components/organisms/TradePlanPanel.vue'
 import TradeReviewPanel from '~/components/organisms/TradeReviewPanel.vue'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '合約交易',
-  consoleSubtitle: '結果、價格路徑、進場時的計畫與檢討。',
+  consoleTitleKey: 'contractTradeJournal.pages.detail.title',
+  consoleSubtitleKey: 'contractTradeJournal.pages.detail.subtitle',
 })
+
+const SAVED_NOTICE = new LocalizedTextVo('已記下', 'Saved')
+const CLOSED_NOTICE = new LocalizedTextVo('這筆已平倉', 'This trade is closed')
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const route = useRoute()
 const { $contractTradeJournalApplication, $tradeJournalSettingApplication, $tradingStrategyApplication } = useNuxtApp()
@@ -48,7 +56,7 @@ function adoptSavedFills(savedRecord: ContractTradeRecordDto): void {
   addingFills.value = false
   addFillDirty.value = false
   closedJustNow.value = savedRecord.status !== 'open'
-  announce(savedRecord.status === 'open' ? '已記下' : '這筆已平倉')
+  announce(savedRecord.status === 'open' ? SAVED_NOTICE : CLOSED_NOTICE)
   // The bot-link round is used up once saved; leaving it in the address would prefill it again on reload.
   journalLinkIdentifier.value = null
   void navigateTo({ path: route.path }, { replace: true })
@@ -65,20 +73,20 @@ onMounted(() => {
       v-if="detail.loading.value && !detail.record.value"
       class="contract-trade-page__state"
     >
-      讀取中…
+      {{ t('contractTradeJournal.common.loading') }}
     </p>
 
     <AppAlert
       v-else-if="detail.failureMessage.value && !detail.record.value"
       tone="danger"
     >
-      {{ detail.notFound.value ? '找不到這筆交易' : detail.failureMessage.value }}
+      {{ detail.notFound.value ? t('contractTradeJournal.detailPage.tradeNotFound') : localize(detail.failureMessage.value) }}
       <template #action>
         <AppButton
           variant="ghost"
           to="/contract-trade-journal"
         >
-          回交易日誌
+          {{ t('contractTradeJournal.common.backToJournal') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -87,7 +95,7 @@ onMounted(() => {
       <header class="contract-trade-page__header">
         <div class="contract-trade-page__heading">
           <h2 class="contract-trade-page__title">
-            {{ detail.record.value.title }}
+            {{ localize(detail.record.value.title) }}
           </h2>
           <p
             class="contract-trade-page__period"
@@ -95,22 +103,22 @@ onMounted(() => {
           >
             {{ formatDateTimeInTimeZone(detail.record.value.openedAt, selectedTimeZone.identifier) }}
             <template v-if="detail.record.value.closedAt">
-              → {{ formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier) }}・{{ detail.record.value.holdingDurationText }}
+              → {{ formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier) }}{{ detail.record.value.holdingDurationText === null ? '' : `${t('contractTradeJournal.common.separator')}${localize(detail.record.value.holdingDurationText)}` }}
             </template>
             <template v-else>
-              起・持倉中
+              {{ t('contractTradeJournal.detailPage.openSince') }}
             </template>
           </p>
         </div>
         <TradeStatusBadge
-          :label="detail.record.value.statusLabel"
+          :label="localize(detail.record.value.statusLabel)"
           :tone="detail.record.value.statusTone"
         />
         <AppBadge
           variant="accent"
           data-testid="trade-origin"
         >
-          {{ detail.record.value.originLabel }}
+          {{ localize(detail.record.value.originLabel) }}
         </AppBadge>
         <div class="contract-trade-page__actions">
           <AppButton
@@ -118,14 +126,14 @@ onMounted(() => {
             variant="secondary"
             @click="addingFills = true"
           >
-            ＋ 加倉／減倉
+            {{ t('contractTradeJournal.detailPage.addOrReduce') }}
           </AppButton>
           <AppButton
             variant="danger-ghost"
             :disabled="detail.busy.value"
             @click="deleteConfirmationOpen = true"
           >
-            刪除
+            {{ t('contractTradeJournal.common.delete') }}
           </AppButton>
         </div>
       </header>
@@ -134,20 +142,20 @@ onMounted(() => {
         v-if="detail.notFound.value"
         tone="danger"
       >
-        找不到這筆交易，可能已經被刪除。
+        {{ t('contractTradeJournal.detailPage.tradeDeleted') }}
         <template #action>
           <AppButton
             variant="ghost"
             to="/contract-trade-journal"
           >
-            回交易日誌
+            {{ t('contractTradeJournal.common.backToJournal') }}
           </AppButton>
         </template>
       </AppAlert>
 
       <AppPanel
         v-if="addingFills && detail.record.value.canEditFills"
-        title="加倉或減倉"
+        :title="t('contractTradeJournal.detailPage.addFillsTitle')"
       >
         <ContractTradeForm
           :existing-record="detail.record.value"
@@ -165,13 +173,13 @@ onMounted(() => {
         v-if="closedJustNow"
         tone="success"
       >
-        這筆已平倉
+        {{ t('contractTradeJournal.detailPage.closedJustNow') }}
         <template #action>
           <AppButton
             variant="ghost"
             @click="closedJustNow = false; reviewPanel?.$el?.scrollIntoView?.({ behavior: 'smooth' })"
           >
-            去寫檢討
+            {{ t('contractTradeJournal.detailPage.writeReview') }}
           </AppButton>
         </template>
       </AppAlert>
@@ -181,7 +189,7 @@ onMounted(() => {
         tone="warning"
         data-testid="detail-fee-warning"
       >
-        {{ detail.record.value.feeWarningMessage }}
+        {{ localize(detail.record.value.feeWarningMessage) }}
       </AppAlert>
 
       <TradeOutcomePanel
@@ -198,7 +206,7 @@ onMounted(() => {
         tone="danger"
         data-testid="detail-action-failure"
       >
-        {{ detail.actionFailureMessage.value }}
+        {{ localize(detail.actionFailureMessage.value) }}
       </AppAlert>
 
       <div class="contract-trade-page__columns">
@@ -248,18 +256,18 @@ onMounted(() => {
 
     <ConfirmDialog
       :open="deleteConfirmationOpen"
-      title="刪除這筆交易"
-      message="刪除後，這筆交易的開倉平倉紀錄、附註、檢討都會一併刪除，無法復原"
-      confirm-label="刪除"
+      :title="t('contractTradeJournal.detailPage.deleteTitle')"
+      :message="t('contractTradeJournal.detailPage.deleteMessage')"
+      :confirm-label="t('contractTradeJournal.common.delete')"
       variant="danger"
-      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(`已刪除 #${tradeId}`); leaveConfirmation.allowLeaving(); navigateTo('/contract-trade-journal') } })"
+      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(new LocalizedTextVo(`已刪除 #${tradeId}`, `Deleted #${tradeId}`)); leaveConfirmation.allowLeaving(); navigateTo('/contract-trade-journal') } })"
       @cancel="deleteConfirmationOpen = false"
     />
     <ConfirmDialog
       :open="leaveConfirmation.confirmationOpen.value"
-      title="還沒儲存"
-      message="還沒儲存，離開後這些內容會丟失"
-      confirm-label="離開"
+      :title="t('contractTradeJournal.common.unsavedTitle')"
+      :message="t('contractTradeJournal.common.unsavedMessage')"
+      :confirm-label="t('contractTradeJournal.common.leave')"
       variant="danger"
       @confirm="leaveConfirmation.leave"
       @cancel="leaveConfirmation.stay"

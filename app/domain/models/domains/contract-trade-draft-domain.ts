@@ -17,16 +17,21 @@ import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { ContractTradeEntrySlippageDomain } from '~/domain/models/domains/contract-trade-entry-slippage-domain'
 import { ContractSymbolDomain } from '~/domain/models/domains/contract-symbol-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const PERCENT = 100
 const DISTANCE_FRACTION_DIGITS = 2
 const CONVERTED_QUANTITY_DECIMAL_PLACES = 8
 const FEE_SHARE_SIGNIFICANT_DIGITS = 2
-const FEE_RATE_MISSING_NOTE = '尚未設定手續費率'
-const MISSING_SYMBOL_MESSAGE = '請填合約標的'
-const MISSING_ENTRY_MESSAGE = '至少要有一筆填好開倉價與數量的開倉'
-const MISSING_FILL_MESSAGE = '至少要有一筆填好價格與數量的開倉或平倉'
-const UNREADABLE_LEVERAGE_MESSAGE = '槓桿倍數要填大於零的數字，才能用保證金換算數量'
+const FEE_RATE_MISSING_NOTE = new LocalizedTextVo('尚未設定手續費率', 'Fee rates not set yet')
+const MISSING_SYMBOL_MESSAGE = new LocalizedTextVo('請填合約標的', 'Enter the Contract symbol')
+const MISSING_ENTRY_MESSAGE = new LocalizedTextVo(
+  '至少要有一筆填好開倉價與數量的開倉', 'Add at least one entry with its entry price and quantity filled in')
+const MISSING_FILL_MESSAGE = new LocalizedTextVo(
+  '至少要有一筆填好價格與數量的開倉或平倉', 'Add at least one entry or exit with its price and quantity filled in')
+const UNREADABLE_LEVERAGE_MESSAGE = new LocalizedTextVo(
+  '槓桿倍數要填大於零的數字，才能用保證金換算數量',
+  'Leverage must be a number greater than zero to convert margin into quantity')
 
 export class ContractTradeDraftDomain {
   constructor(
@@ -70,10 +75,17 @@ export class ContractTradeDraftDomain {
     const entrySlippageText = this.existingFills !== null || averageEntryPrice === null || referencePrice === null || referencePrice.isZero()
       ? null
       : new ContractTradeEntrySlippageDomain(this.draft.direction, averageEntryPrice, referencePrice).text
-    const distanceText = (level: Decimal | null) => averageEntryPrice === null || level === null
-      ? null
-      : `${level.greaterThanOrEqualTo(averageEntryPrice) ? '往上' : '往下'} ${new JournalNumberDomain(
-        level.minus(averageEntryPrice).abs().dividedBy(averageEntryPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)}`
+    const distanceText = (level: Decimal | null) => {
+      if (averageEntryPrice === null || level === null) {
+        return null
+      }
+
+      const above = level.greaterThanOrEqualTo(averageEntryPrice)
+      const percentage = new JournalNumberDomain(
+        level.minus(averageEntryPrice).abs().dividedBy(averageEntryPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)
+
+      return new LocalizedTextVo(`${above ? '往上' : '往下'} ${percentage}`, `${percentage} ${above ? 'above' : 'below'}`)
+    }
 
     return new ContractTradeDraftPreviewDto(
       new JournalNumberDomain(enteredQuantity.minus(exitedQuantity)).quantity(),
@@ -108,15 +120,21 @@ export class ContractTradeDraftDomain {
         const notional = price.times(quantity)
         const convertedQuantityText = fill.sizeMode === 'quantity'
           ? ''
-          : `≈ ${new JournalNumberDomain(quantity).quantity()}${baseAsset === null ? '' : ` ${baseAsset}`}・`
+          : `≈ ${new JournalNumberDomain(quantity).quantity()}${baseAsset === null ? '' : ` ${baseAsset}`}`
         const fee = new DecimalInputDomain(fill.feeText).value
         const fillMarginText = marginText(notional)
+        const notionalText = new JournalNumberDomain(notional).amount()
+        const feeShareText = fee === null || !fee.greaterThan(0)
+          ? null
+          : `${fee.dividedBy(notional).times(PERCENT).toSignificantDigits(FEE_SHARE_SIGNIFICANT_DIGITS).toFixed()}%`
 
         return new ContractTradeDraftFillSizePreviewDto(
-          `${convertedQuantityText}名目 ${new JournalNumberDomain(notional).amount()}${fillMarginText === null ? '' : `・保證金 ${fillMarginText}`}`,
-          fee === null || !fee.greaterThan(0)
+          new LocalizedTextVo(
+            `${convertedQuantityText === '' ? '' : `${convertedQuantityText}・`}名目 ${notionalText}${fillMarginText === null ? '' : `・保證金 ${fillMarginText}`}`,
+            `${convertedQuantityText === '' ? '' : `${convertedQuantityText} · `}Notional ${notionalText}${fillMarginText === null ? '' : ` · Margin ${fillMarginText}`}`),
+          feeShareText === null
             ? null
-            : `手續費約佔名目 ${fee.dividedBy(notional).times(PERCENT).toSignificantDigits(FEE_SHARE_SIGNIFICANT_DIGITS).toFixed()}%`,
+            : new LocalizedTextVo(`手續費約佔名目 ${feeShareText}`, `Fee is about ${feeShareText} of notional`),
         )
       }),
       enteredQuantity.isZero() ? null : new JournalNumberDomain(entryNotional).amount(),
@@ -199,7 +217,7 @@ export class ContractTradeDraftDomain {
     return JSON.stringify(this.draft) !== JSON.stringify(initialDraft)
   }
 
-  private missingFieldMessage(): string | null {
+  private missingFieldMessage(): LocalizedTextVo | null {
     if (this.existingFills === null && this.draft.symbol.trim() === '') {
       return MISSING_SYMBOL_MESSAGE
     }
@@ -210,7 +228,9 @@ export class ContractTradeDraftDomain {
 
     const unreadableIndex = this.draft.fills.findIndex(fill => this.toFillWriteDto(fill) === null)
     if (unreadableIndex !== -1) {
-      return `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`
+      return new LocalizedTextVo(
+        `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`,
+        `Fill ${unreadableIndex + 1} needs a price and quantity greater than zero`)
     }
 
     const hasEntry = (this.existingFills ?? []).some(fill => fill.kind === 'entry')

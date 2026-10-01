@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
@@ -8,16 +9,22 @@ import type { ContractTradeStatisticsDto } from '~/domain/models/dto/contract-tr
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const { statistics = null, loading = false, failureMessage = null, periodOptions, timeZone } = defineProps<{
   statistics?: ContractTradeStatisticsDto | null
   loading?: boolean
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
   periodOptions: readonly JournalOptionDto[]
   timeZone: TimeZoneDto
 }>()
 
 const period = defineModel<TradeStatisticsPeriod>('period', { required: true })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const periodTabOptions = computed(() => periodOptions.map(option => ({ value: option.value, label: localize(option.label) })))
 
 const periodTab = computed({
   get: () => period.value,
@@ -35,11 +42,11 @@ const periodTab = computed({
         class="contract-trade-statistics-panel__headline"
         data-testid="statistics-headline"
       >
-        {{ statistics.periodLabel }}・{{ statistics.closedTradeCountText }}，以 R 計算，大小不同的單才能放一起比
+        {{ t('contractTradeJournal.statistics.headline', { period: localize(statistics.periodLabel), closedTradeCount: localize(statistics.closedTradeCountText) }) }}
       </p>
       <AppTabs
         v-model="periodTab"
-        :options="periodOptions"
+        :options="periodTabOptions"
         variant="segmented"
         data-testid="statistics-period"
       />
@@ -50,7 +57,7 @@ const periodTab = computed({
       class="contract-trade-statistics-panel__state"
       data-testid="statistics-loading"
     >
-      讀取中…
+      {{ t('contractTradeJournal.common.loading') }}
     </p>
 
     <AppAlert
@@ -58,7 +65,7 @@ const periodTab = computed({
       tone="danger"
       data-testid="statistics-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
 
     <template v-else-if="statistics">
@@ -67,7 +74,7 @@ const periodTab = computed({
         class="contract-trade-statistics-panel__state"
         data-testid="statistics-empty"
       >
-        {{ statistics.emptyMessage }}
+        {{ localize(statistics.emptyMessage) }}
       </p>
 
       <template v-else>
@@ -77,11 +84,11 @@ const periodTab = computed({
           class="contract-trade-statistics-panel__note"
           data-testid="statistics-exclusion"
         >
-          {{ statistics.exclusionNote }}
+          {{ localize(statistics.exclusionNote) }}
         </p>
 
         <div class="contract-trade-statistics-panel__charts">
-          <AppPanel title="累積 R">
+          <AppPanel :title="t('contractTradeJournal.statistics.cumulativeR')">
             <template
               v-if="statistics.totalRMultiple"
               #actions
@@ -90,14 +97,14 @@ const periodTab = computed({
                 class="contract-trade-statistics-panel__total"
                 :class="`contract-trade-statistics-panel__total--${statistics.totalRMultiple.tone}`"
                 data-testid="statistics-total-r"
-              >{{ statistics.totalRMultiple.text }}</span>
+              >{{ localize(statistics.totalRMultiple.text) }}</span>
             </template>
             <TradeCumulativeChart
               :points="statistics.cumulativePoints"
               :time-zone="timeZone"
             />
           </AppPanel>
-          <AppPanel title="R 分布">
+          <AppPanel :title="t('contractTradeJournal.statistics.rDistribution')">
             <ul
               class="contract-trade-statistics-panel__histogram"
               data-testid="r-distribution"
@@ -122,15 +129,15 @@ const periodTab = computed({
         </div>
 
         <div class="contract-trade-statistics-panel__tables">
-          <AppPanel title="失誤花了你多少">
+          <AppPanel :title="t('contractTradeJournal.statistics.mistakeCosts')">
             <template #actions>
-              <span class="contract-trade-statistics-panel__caption">R 合計</span>
+              <span class="contract-trade-statistics-panel__caption">{{ t('contractTradeJournal.statistics.rTotal') }}</span>
             </template>
             <p
               v-if="statistics.mistakeCosts.length === 0"
               class="contract-trade-statistics-panel__state"
             >
-              這段期間沒有貼失誤標籤的交易
+              {{ t('contractTradeJournal.statistics.noMistakes') }}
             </p>
             <ul
               v-else
@@ -142,7 +149,7 @@ const periodTab = computed({
                 :key="mistakeCost.tagName"
                 class="contract-trade-statistics-panel__bar-row"
               >
-                <span class="contract-trade-statistics-panel__bar-label">{{ mistakeCost.tagName }}<small>{{ mistakeCost.tradeCountText }}</small></span>
+                <span class="contract-trade-statistics-panel__bar-label">{{ mistakeCost.tagName }}<small>{{ localize(mistakeCost.tradeCountText) }}</small></span>
                 <span class="contract-trade-statistics-panel__track">
                   <span
                     class="contract-trade-statistics-panel__bar"
@@ -157,28 +164,28 @@ const periodTab = computed({
               </li>
             </ul>
           </AppPanel>
-          <AppPanel title="有關聯策略 vs 自行判斷">
+          <AppPanel :title="t('contractTradeJournal.statistics.sourceComparison')">
             <table
               class="contract-trade-statistics-panel__table"
               data-testid="source-comparison"
             >
               <thead>
                 <tr>
-                  <th>來源</th>
-                  <th>筆數</th>
-                  <th>勝率</th>
-                  <th>平均 R</th>
+                  <th>{{ t('contractTradeJournal.statistics.columns.source') }}</th>
+                  <th>{{ t('contractTradeJournal.statistics.columns.tradeCount') }}</th>
+                  <th>{{ t('contractTradeJournal.statistics.columns.winRate') }}</th>
+                  <th>{{ t('contractTradeJournal.statistics.columns.averageR') }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="row in statistics.sourceComparison"
-                  :key="row.label"
+                  :key="row.label.traditionalChinese"
                 >
-                  <td>{{ row.label }}</td>
-                  <td>{{ row.tradeCountText }}</td>
-                  <td>{{ row.winRateText }}</td>
-                  <td>{{ row.averageRMultipleText }}</td>
+                  <td>{{ localize(row.label) }}</td>
+                  <td>{{ localize(row.tradeCountText) }}</td>
+                  <td>{{ localize(row.winRateText) }}</td>
+                  <td>{{ localize(row.averageRMultipleText) }}</td>
                 </tr>
               </tbody>
             </table>
