@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
@@ -8,14 +9,23 @@ import type { SpotTradeStatisticsDto } from '~/domain/models/dto/spot-trade-stat
 import type { JournalOptionDto } from '~/domain/models/dto/journal-option-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const { statistics = null, loading = false, failureMessage = null, periodOptions, timeZone } = defineProps<{
   statistics?: SpotTradeStatisticsDto | null
   loading?: boolean
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
   periodOptions: readonly JournalOptionDto[]
   timeZone: TimeZoneDto
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const periodTabOptions = computed(() => periodOptions.map(option => ({
+  value: option.value,
+  label: localize(option.label),
+})))
 
 const period = defineModel<TradeStatisticsPeriod>('period', { required: true })
 
@@ -35,11 +45,11 @@ const periodTab = computed({
         class="spot-trade-statistics-panel__headline"
         data-testid="statistics-headline"
       >
-        {{ statistics.periodLabel }}・台股與加密貨幣分開計算，金額不跨幣別加總
+        {{ t('tradeJournal.spotStatistics.headline', { period: localize(statistics.periodLabel) }) }}
       </p>
       <AppTabs
         v-model="periodTab"
-        :options="periodOptions"
+        :options="periodTabOptions"
         variant="segmented"
         data-testid="statistics-period"
       />
@@ -50,7 +60,7 @@ const periodTab = computed({
       class="spot-trade-statistics-panel__state"
       data-testid="statistics-loading"
     >
-      讀取中…
+      {{ t('tradeJournal.common.loading') }}
     </p>
 
     <AppAlert
@@ -58,25 +68,25 @@ const periodTab = computed({
       tone="danger"
       data-testid="statistics-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
 
     <template v-else-if="statistics">
       <section
         v-for="market in statistics.markets"
-        :key="market.marketLabel"
+        :key="market.marketLabel.traditionalChinese"
         class="spot-trade-statistics-panel__market"
-        :data-testid="`statistics-market-${market.marketLabel}`"
+        :data-testid="`statistics-market-${market.marketLabel.traditionalChinese}`"
       >
         <h3 class="spot-trade-statistics-panel__market-label">
-          {{ market.marketLabel }}・{{ market.closedTradeCountText }}
+          {{ t('tradeJournal.common.joined', { first: localize(market.marketLabel), second: localize(market.closedTradeCountText) }) }}
         </h3>
         <p
           v-if="market.emptyMessage"
           class="spot-trade-statistics-panel__state"
           data-testid="statistics-empty"
         >
-          {{ market.emptyMessage }}
+          {{ localize(market.emptyMessage) }}
         </p>
         <template v-else>
           <TradeSummaryStrip :figures="market.figures" />
@@ -85,10 +95,10 @@ const periodTab = computed({
             class="spot-trade-statistics-panel__note"
             data-testid="statistics-r-note"
           >
-            {{ market.rMultipleNote }}
+            {{ localize(market.rMultipleNote) }}
           </p>
           <div class="spot-trade-statistics-panel__grid">
-            <AppPanel title="累積損益">
+            <AppPanel :title="t('tradeJournal.spotStatistics.cumulativeProfit')">
               <template
                 v-if="market.totalProfit"
                 #actions
@@ -97,14 +107,14 @@ const periodTab = computed({
                   class="spot-trade-statistics-panel__total"
                   :class="`spot-trade-statistics-panel__total--${market.totalProfit.tone}`"
                   data-testid="statistics-total-profit"
-                >{{ market.totalProfit.text }}</span>
+                >{{ localize(market.totalProfit.text) }}</span>
               </template>
               <TradeCumulativeChart
                 :points="market.cumulativePoints"
                 :time-zone="timeZone"
               />
             </AppPanel>
-            <AppPanel title="報酬率分布">
+            <AppPanel :title="t('tradeJournal.spotStatistics.returnDistribution')">
               <ul
                 class="spot-trade-statistics-panel__histogram"
                 data-testid="return-distribution"
@@ -126,12 +136,12 @@ const periodTab = computed({
                 </li>
               </ul>
             </AppPanel>
-            <AppPanel title="失誤花了你多少">
+            <AppPanel :title="t('tradeJournal.spotStatistics.mistakeCosts')">
               <p
                 v-if="market.mistakeCosts.length === 0"
                 class="spot-trade-statistics-panel__state"
               >
-                這段期間沒有貼失誤標籤的交易
+                {{ t('tradeJournal.spotStatistics.noMistakeCosts') }}
               </p>
               <ul
                 v-else
@@ -143,7 +153,7 @@ const periodTab = computed({
                   :key="mistakeCost.tagName"
                   class="spot-trade-statistics-panel__bar-row"
                 >
-                  <span class="spot-trade-statistics-panel__bar-label">{{ mistakeCost.tagName }}<small>{{ mistakeCost.tradeCountText }}</small></span>
+                  <span class="spot-trade-statistics-panel__bar-label">{{ mistakeCost.tagName }}<small>{{ localize(mistakeCost.tradeCountText) }}</small></span>
                   <span class="spot-trade-statistics-panel__track">
                     <span
                       class="spot-trade-statistics-panel__bar"
@@ -154,32 +164,32 @@ const periodTab = computed({
                   <span
                     class="spot-trade-statistics-panel__bar-count"
                     :class="`spot-trade-statistics-panel__tone--${mistakeCost.tone}`"
-                  >{{ mistakeCost.totalNetProfitText }}<small>{{ mistakeCost.averageReturnRateText }}</small></span>
+                  >{{ mistakeCost.totalNetProfitText }}<small>{{ localize(mistakeCost.averageReturnRateText) }}</small></span>
                 </li>
               </ul>
             </AppPanel>
-            <AppPanel title="有關聯策略 vs 自行判斷">
+            <AppPanel :title="t('tradeJournal.spotStatistics.sourceComparison')">
               <table
                 class="spot-trade-statistics-panel__table"
                 data-testid="source-comparison"
               >
                 <thead>
                   <tr>
-                    <th>來源</th>
-                    <th>筆數</th>
-                    <th>勝率</th>
-                    <th>平均報酬率</th>
+                    <th>{{ t('tradeJournal.spotStatistics.headings.source') }}</th>
+                    <th>{{ t('tradeJournal.spotStatistics.headings.tradeCount') }}</th>
+                    <th>{{ t('tradeJournal.spotStatistics.headings.winRate') }}</th>
+                    <th>{{ t('tradeJournal.spotStatistics.headings.averageReturnRate') }}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr
                     v-for="row in market.sourceComparison"
-                    :key="row.label"
+                    :key="row.label.traditionalChinese"
                   >
-                    <td>{{ row.label }}</td>
-                    <td>{{ row.tradeCountText }}</td>
-                    <td>{{ row.winRateText }}</td>
-                    <td>{{ row.averageReturnRateText }}</td>
+                    <td>{{ localize(row.label) }}</td>
+                    <td>{{ localize(row.tradeCountText) }}</td>
+                    <td>{{ localize(row.winRateText) }}</td>
+                    <td>{{ localize(row.averageReturnRateText) }}</td>
                   </tr>
                 </tbody>
               </table>

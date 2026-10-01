@@ -2,10 +2,11 @@ import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain
 import type { TradeJournalSetting } from '~/domain/models/entities/trade-journal-setting'
 import { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import { TradeFeeRatesWriteDto } from '~/domain/models/dto/trade-fee-rates-write-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const NOT_CONFIGURED_SUMMARY = '還沒設定'
-const NEGATIVE_RATE_MESSAGE = '手續費率不得為負'
-const UNREADABLE_RATE_MESSAGE = '手續費率要填數字'
+const NOT_CONFIGURED_SUMMARY = new LocalizedTextVo('還沒設定', 'Not set yet')
+const NEGATIVE_RATE_MESSAGE = new LocalizedTextVo('手續費率不得為負', 'Fee rate cannot be negative')
+const UNREADABLE_RATE_MESSAGE = new LocalizedTextVo('手續費率要填數字', 'Fee rate must be a number')
 
 export class TradeJournalSettingDomain {
   constructor(private readonly setting: TradeJournalSetting) {}
@@ -20,12 +21,14 @@ export class TradeJournalSettingDomain {
       takerFeeRate,
       configured,
       configured
-        ? `掛單 ${makerFeeRate.toFixed()}%・吃單 ${takerFeeRate.toFixed()}%`
+        ? new LocalizedTextVo(
+            `掛單 ${makerFeeRate.toFixed()}%・吃單 ${takerFeeRate.toFixed()}%`,
+            `Maker ${makerFeeRate.toFixed()}% · Taker ${takerFeeRate.toFixed()}%`)
         : NOT_CONFIGURED_SUMMARY,
     )
   }
 
-  rateInputHint(rateText: string): string | null {
+  rateInputHint(rateText: string): LocalizedTextVo | null {
     const trimmed = rateText.trim()
     if (trimmed === '') {
       return null

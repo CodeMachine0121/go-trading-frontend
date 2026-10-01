@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
@@ -8,6 +9,7 @@ import FormField from '~/components/molecules/FormField.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
 import type { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const DEFAULT_EXECUTION_SCORE = 3
 
@@ -21,7 +23,7 @@ const {
 } = defineProps<{
   review: TradeReviewDto | null
   canWriteReview: boolean
-  reviewUnavailableMessage: string | null
+  reviewUnavailableMessage: LocalizedTextVo | null
   recordedMistakeTags: readonly TradeTagDto[]
   mistakeTags: readonly TradeTagDto[]
   busy?: boolean
@@ -30,6 +32,9 @@ const {
 const emit = defineEmits<{
   submit: [wentWell: string, wentWrong: string, nextTime: string, executionScore: number, mistakeTagIds: number[]]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const wentWell = ref('')
 const wentWrong = ref('')
@@ -54,7 +59,7 @@ watch(() => JSON.stringify([
 </script>
 
 <template>
-  <AppPanel title="檢討">
+  <AppPanel :title="t('tradeJournal.reviewPanel.title')">
     <template
       v-if="canWriteReview && !review"
       #actions
@@ -63,7 +68,7 @@ watch(() => JSON.stringify([
         variant="warning"
         data-testid="review-pending"
       >
-        尚未填寫
+        {{ t('tradeJournal.reviewPanel.pending') }}
       </AppBadge>
     </template>
     <p
@@ -71,7 +76,7 @@ watch(() => JSON.stringify([
       class="trade-review-panel__state"
       data-testid="review-unavailable"
     >
-      {{ reviewUnavailableMessage }}
+      {{ reviewUnavailableMessage === null ? '' : localize(reviewUnavailableMessage) }}
     </p>
 
     <form
@@ -80,37 +85,37 @@ watch(() => JSON.stringify([
       data-testid="review-form"
       @submit.prevent="emit('submit', wentWell, wentWrong, nextTime, executionScore ?? DEFAULT_EXECUTION_SCORE, mistakeTagIds)"
     >
-      <FormField label="哪裡做對">
+      <FormField :label="t('tradeJournal.reviewPanel.wentWell')">
         <AppTextarea
           v-model="wentWell"
           data-testid="review-went-well"
         />
       </FormField>
-      <FormField label="哪裡做錯">
+      <FormField :label="t('tradeJournal.reviewPanel.wentWrong')">
         <AppTextarea
           v-model="wentWrong"
           data-testid="review-went-wrong"
         />
       </FormField>
-      <FormField label="下次怎麼做">
+      <FormField :label="t('tradeJournal.reviewPanel.nextTime')">
         <AppTextarea
           v-model="nextTime"
           data-testid="review-next-time"
         />
       </FormField>
       <FormField
-        label="執行評分"
+        :label="t('tradeJournal.reviewPanel.executionScore')"
         grouped
       >
         <AppRating
           v-model="executionScore"
-          label="執行評分"
+          :label="t('tradeJournal.reviewPanel.executionScore')"
           :clearable="false"
           data-testid="review-execution-score"
         />
       </FormField>
       <FormField
-        label="失誤標籤"
+        :label="t('tradeJournal.common.mistakeTags')"
         grouped
       >
         <TradeTagPicker
@@ -125,7 +130,7 @@ watch(() => JSON.stringify([
           :disabled="busy"
           data-testid="review-save"
         >
-          {{ review ? '更新檢討' : '寫下檢討' }}
+          {{ review ? t('tradeJournal.reviewPanel.update') : t('tradeJournal.reviewPanel.write') }}
         </AppButton>
       </div>
     </form>

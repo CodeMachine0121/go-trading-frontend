@@ -2,23 +2,24 @@ import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-s
 import type { TradeTagGroupDto } from '~/domain/models/dto/trade-tag-group-dto'
 import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import type { TradeTagKind } from '~/domain/models/vo/trade-tag-kind-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useTradeJournalSettings(
   tradeJournalSettingApplication = useNuxtApp().$tradeJournalSettingApplication,
 ) {
   const setting = ref<TradeJournalSettingDto | null>(null)
   const loading = ref(false)
-  const loadErrorMessage = ref<string | null>(null)
+  const loadErrorMessage = ref<LocalizedTextVo | null>(null)
 
   const makerRateText = ref('')
   const takerRateText = ref('')
   const saving = ref(false)
-  const saveErrorMessage = ref<string | null>(null)
+  const saveErrorMessage = ref<LocalizedTextVo | null>(null)
   const makerRateHint = computed(() => tradeJournalSettingApplication.rateInputHint(makerRateText.value))
   const takerRateHint = computed(() => tradeJournalSettingApplication.rateInputHint(takerRateText.value))
 
   const tagGroups = ref<TradeTagGroupDto[]>([])
-  const tagErrorMessage = ref<string | null>(null)
+  const tagErrorMessage = ref<LocalizedTextVo | null>(null)
   const newTagKind = ref<TradeTagKind>('setup')
   const newTagName = ref('')
   const tagBusy = ref(false)

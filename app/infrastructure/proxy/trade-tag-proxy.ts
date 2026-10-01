@@ -12,6 +12,7 @@ import type { BackendRequestBody } from '~/infrastructure/proxy/backend-api-prox
 const TRADE_TAGS_ENDPOINT = '/users/me/trade-tags'
 const NOT_FOUND_STATUS = 404
 const CONFLICT_STATUS = 409
+// translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
 const IN_USE_HINT = '貼著'
 
 type TradeTagWire = { id: number, kind: string, name: string }

@@ -1,10 +1,12 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import SpotTradeListPanel from '~/components/organisms/SpotTradeListPanel.vue'
 import { SpotTradeListDomain } from '~/domain/models/domains/spot-trade-list-domain'
 import { SpotTradeListFilterDto } from '~/domain/models/dto/spot-trade-list-filter-dto'
 import { measured } from '../../fixtures/contract-trade-journal'
 import { buildSpotRecord, closedSpotOutcome, spotStatistics } from '../../fixtures/spot-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const STUBS = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 
@@ -35,6 +37,18 @@ describe('SpotTradeListPanel', () => {
     expect(wrapper.get('[data-testid="trade-row-6"]').text()).toContain('浮')
   })
 
+  it('英文畫面上期間、筆數、欄名與市場都換成英文', async () => {
+    const wrapper = mountPanel()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="trade-list-counts"]').text()).toBe('Last 30 days · 10 closed · 1 open')
+    expect(wrapper.text()).toContain('Avg buy price')
+    expect(wrapper.get('[data-testid="trade-row-6"]').text()).toContain('Crypto')
+    expect(wrapper.get('[data-testid="pending-review"]').text()).toBe('To review 1')
+  })
+
   it('待檢討一眼看得到，點了交給上層', async () => {
     const wrapper = mountPanel()
 
@@ -61,7 +75,7 @@ describe('SpotTradeListPanel', () => {
   it('讀取中、連不上可重試、沒有交易時說明', async () => {
     expect(mountPanel({ list: null, loading: true }).find('[data-testid="trade-list-loading"]').exists()).toBe(true)
 
-    const failed = mountPanel({ list: null, failureMessage: '連不上交易服務' })
+    const failed = mountPanel({ list: null, failureMessage: new UntranslatedTextVo('連不上交易服務') })
     await failed.get('[data-testid="trade-list-retry"]').trigger('click')
     expect(failed.get('[data-testid="trade-list-failure"]').text()).toContain('連不上交易服務')
     expect(failed.emitted('retry')).toHaveLength(1)

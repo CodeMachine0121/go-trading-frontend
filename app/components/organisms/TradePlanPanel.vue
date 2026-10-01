@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -9,6 +10,7 @@ import FormField from '~/components/molecules/FormField.vue'
 import TradeTagPicker from '~/components/molecules/TradeTagPicker.vue'
 import type Decimal from 'decimal.js'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const {
   planLocked,
@@ -26,8 +28,8 @@ const {
   entryReason: string
   plannedStopLossPrice: Decimal | null
   plannedTakeProfitPrice: Decimal | null
-  plannedStopLossText: string
-  plannedTakeProfitText: string
+  plannedStopLossText: LocalizedTextVo
+  plannedTakeProfitText: LocalizedTextVo
   confidence: number | null
   selectedSetupTags: readonly TradeTagDto[]
   setupTags: readonly TradeTagDto[]
@@ -39,6 +41,9 @@ const emit = defineEmits<{
   assignSetupTags: [setupTagIds: number[]]
   createSetupTag: [name: string]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const editingPlan = ref(false)
 const planStopLossText = ref('')
@@ -57,13 +62,13 @@ const setupTagIds = computed({
 </script>
 
 <template>
-  <AppPanel title="進場時的我">
+  <AppPanel :title="t('tradeJournal.planPanel.title')">
     <template #actions>
       <AppBadge
         v-if="planLocked"
         data-testid="plan-locked"
       >
-        已鎖定
+        {{ t('tradeJournal.planPanel.locked') }}
       </AppBadge>
     </template>
 
@@ -72,14 +77,14 @@ const setupTagIds = computed({
         v-if="editingPlan && !planLocked"
         class="trade-plan-panel__form"
       >
-        <FormField label="計畫止損">
+        <FormField :label="t('tradeJournal.planPanel.plannedStopLoss')">
           <AppInput
             v-model="planStopLossText"
             inputmode="decimal"
             data-testid="plan-stop-loss"
           />
         </FormField>
-        <FormField label="計畫止盈">
+        <FormField :label="t('tradeJournal.planPanel.plannedTakeProfit')">
           <AppInput
             v-model="planTakeProfitText"
             inputmode="decimal"
@@ -87,17 +92,17 @@ const setupTagIds = computed({
           />
         </FormField>
         <FormField
-          label="信心"
+          :label="t('tradeJournal.planPanel.confidence')"
           grouped
         >
           <AppRating
             v-model="planConfidence"
-            label="信心"
+            :label="t('tradeJournal.planPanel.confidence')"
             data-testid="plan-confidence"
           />
         </FormField>
         <FormField
-          label="進場理由"
+          :label="t('tradeJournal.planPanel.entryReason')"
           class="trade-plan-panel__wide"
         >
           <AppTextarea
@@ -111,14 +116,14 @@ const setupTagIds = computed({
             data-testid="plan-save"
             @click="emit('savePlan', planStopLossText, planTakeProfitText, planEntryReason, planConfidence)"
           >
-            儲存計畫
+            {{ t('tradeJournal.planPanel.savePlan') }}
           </AppButton>
           <AppButton
             variant="ghost"
             data-testid="plan-cancel"
             @click="editingPlan = false"
           >
-            取消
+            {{ t('tradeJournal.common.cancel') }}
           </AppButton>
         </div>
       </div>
@@ -128,23 +133,23 @@ const setupTagIds = computed({
           class="trade-plan-panel__reason"
           data-testid="plan-reason"
         >
-          {{ entryReason || '沒有寫進場理由' }}
+          {{ entryReason || t('tradeJournal.planPanel.noEntryReason') }}
         </blockquote>
         <dl
           class="trade-plan-panel__plan"
           data-testid="plan-summary"
         >
           <div>
-            <dt>計畫止損</dt>
-            <dd>{{ plannedStopLossText }}</dd>
+            <dt>{{ t('tradeJournal.planPanel.plannedStopLoss') }}</dt>
+            <dd>{{ localize(plannedStopLossText) }}</dd>
           </div>
           <div>
-            <dt>計畫止盈</dt>
-            <dd>{{ plannedTakeProfitText }}</dd>
+            <dt>{{ t('tradeJournal.planPanel.plannedTakeProfit') }}</dt>
+            <dd>{{ localize(plannedTakeProfitText) }}</dd>
           </div>
           <div>
-            <dt>信心</dt>
-            <dd>{{ confidence === null ? '未填' : `${confidence} / 5` }}</dd>
+            <dt>{{ t('tradeJournal.planPanel.confidence') }}</dt>
+            <dd>{{ confidence === null ? t('tradeJournal.planPanel.confidenceNotFilled') : `${confidence} / 5` }}</dd>
           </div>
         </dl>
         <AppButton
@@ -155,12 +160,12 @@ const setupTagIds = computed({
           data-testid="plan-edit"
           @click="planStopLossText = plannedStopLossPrice?.toString() ?? ''; planTakeProfitText = plannedTakeProfitPrice?.toString() ?? ''; planEntryReason = entryReason; planConfidence = confidence; editingPlan = true"
         >
-          修改計畫
+          {{ t('tradeJournal.planPanel.editPlan') }}
         </AppButton>
       </template>
 
       <FormField
-        label="型態標籤"
+        :label="t('tradeJournal.common.setupTags')"
         grouped
       >
         <TradeTagPicker

@@ -10,10 +10,15 @@ import { TradeTagNameConflictError } from '~/domain/errors/trade-tag-name-confli
 import { TradeTagInUseError } from '~/domain/errors/trade-tag-in-use-error'
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
-const SERVER_FAILURE_MESSAGE = '交易服務暫時出了問題，請稍後再試。'
-const UNEXPECTED_MESSAGE = '與交易日誌往來時發生未預期的錯誤。'
+const UNREACHABLE_MESSAGE = new LocalizedTextVo(
+  '連不上交易服務（go-trading API），請確認它已啟動後再試一次。',
+  'Cannot reach the trading service (go-trading API). Make sure it is running, then try again.')
+const SERVER_FAILURE_MESSAGE = new LocalizedTextVo(
+  '交易服務暫時出了問題，請稍後再試。', 'The trading service ran into a problem. Please try again later.')
+const UNEXPECTED_MESSAGE = new LocalizedTextVo(
+  '與交易日誌往來時發生未預期的錯誤。', 'An unexpected error occurred while talking to the trade journal.')
 
 const MESSAGE_CARRYING_ERRORS = [
   BackendRequestRejectedError,
@@ -39,10 +44,12 @@ export class TradeFailureDomain {
       return new TradeFailureDto(SERVER_FAILURE_MESSAGE, false)
     }
 
-    const carriedMessage = MESSAGE_CARRYING_ERRORS.some(errorClass => this.error instanceof errorClass)
-      ? (this.error as Error).message
-      : UNEXPECTED_MESSAGE
+    for (const errorClass of MESSAGE_CARRYING_ERRORS) {
+      if (this.error instanceof errorClass) {
+        return new TradeFailureDto(this.error.localizedMessage, false)
+      }
+    }
 
-    return new TradeFailureDto(carriedMessage, false)
+    return new TradeFailureDto(UNEXPECTED_MESSAGE, false)
   }
 }

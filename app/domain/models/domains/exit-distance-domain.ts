@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 距離的上限：整個價格。正好一百允許——荒謬但算得出來；再多價格會變成負數。 */
 const WHOLE_PRICE_PERCENTAGE = new Decimal(100)
@@ -27,21 +28,25 @@ export class ExitDistanceDomain {
    */
   constructor(
     private readonly distance: Decimal,
-    private readonly name: string,
+    private readonly name: LocalizedTextVo,
   ) {}
 
   /** 講不通時說出理由；講得通時 `null`。 */
-  validationMessage(): string | null {
+  validationMessage(): LocalizedTextVo | null {
     if (this.distance.isNaN()) {
-      return `${this.name}請填一個數字`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}請填一個數字`, `${this.name.english} must be a number`)
     }
 
     if (this.distance.isNegative()) {
-      return `${this.name}不得為負`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}不得為負`, `${this.name.english} cannot be negative`)
     }
 
     if (this.distance.greaterThan(WHOLE_PRICE_PERCENTAGE)) {
-      return `${this.name}不得超過 100%——那會讓價格變成負數`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}不得超過 100%——那會讓價格變成負數`,
+        `${this.name.english} cannot exceed 100%—that would make the price negative`)
     }
 
     return null

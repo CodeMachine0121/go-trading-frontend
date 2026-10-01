@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { TradePrefillSourceDto } from '~/domain/models/dto/trade-prefill-source-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 const {
@@ -13,11 +15,14 @@ const {
   timeZoneIdentifier,
 } = defineProps<{
   source?: TradePrefillSourceDto | null
-  message?: string | null
+  message?: LocalizedTextVo | null
   showJournalLink?: boolean
   journalPath: string
   timeZoneIdentifier: string
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -31,12 +36,12 @@ const {
       data-testid="prefill-source"
     >
       <AppBadge :variant="source.badgeTone">
-        {{ source.badgeLabel }}
+        {{ localize(source.badgeLabel) }}
       </AppBadge>
-      <strong class="trade-prefill-banner__round">{{ source.sourceLabel }}</strong>
+      <strong class="trade-prefill-banner__round">{{ localize(source.sourceLabel) }}</strong>
       <span class="trade-prefill-banner__detail">
-        {{ formatDateTimeInTimeZone(source.ranAt, timeZoneIdentifier) }} 送出<template v-if="source.referencePriceText">
-          ・參考價 {{ source.referencePriceText }}
+        {{ t('tradeJournal.prefillBanner.sentAt', { time: formatDateTimeInTimeZone(source.ranAt, timeZoneIdentifier) }) }}<template v-if="source.referencePriceText">
+          {{ t('tradeJournal.prefillBanner.referencePrice', { price: source.referencePriceText }) }}
         </template>
       </span>
     </p>
@@ -44,14 +49,14 @@ const {
       v-if="source"
       class="trade-prefill-banner__hint"
     >
-      {{ source.hint }}
+      {{ localize(source.hint) }}
     </p>
     <AppAlert
       v-if="message"
       tone="info"
       data-testid="prefill-message"
     >
-      {{ message }}
+      {{ localize(message) }}
       <template
         v-if="showJournalLink"
         #action
@@ -61,7 +66,7 @@ const {
           :to="journalPath"
           data-testid="prefill-go-journal"
         >
-          前往交易日誌
+          {{ t('tradeJournal.prefillBanner.goToJournal') }}
         </AppButton>
       </template>
     </AppAlert>

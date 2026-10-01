@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -15,8 +16,7 @@ import type { TradeJournalSettingApplication } from '~/application/trade-journal
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { SpotTradeRecordDto } from '~/domain/models/dto/spot-trade-record-dto'
 import type { SpotTradeFillKind } from '~/domain/models/vo/spot-trade-fill-kind-vo'
-
-const PREFILLED_HINT = '預填'
+import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
 
 const {
   existingRecord = null,
@@ -41,6 +41,9 @@ const emit = defineEmits<{
   dirtyChange: [dirty: boolean]
   redirect: [path: string]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const draft = useSpotTradeDraft(
   {
@@ -67,6 +70,12 @@ onMounted(async () => {
     emit('redirect', `${prefill.targetPath}&journalLink=${encodeURIComponent(journalLinkIdentifier)}`)
   }
 })
+
+function fieldErrorText(field: TradeFormField): string | null {
+  const fieldError = draft.fieldError(field)
+
+  return fieldError === null ? null : localize(fieldError)
+}
 
 const tradingStrategyValue = computed({
   get: () => draft.tradingStrategyId.value === null ? '' : String(draft.tradingStrategyId.value),
@@ -96,7 +105,7 @@ const tradingStrategyValue = computed({
       class="spot-trade-form__state"
       data-testid="prefill-loading"
     >
-      讀取這一輪的建議…
+      {{ t('tradeJournal.spotForm.loadingPrefill') }}
     </p>
 
     <AppAlert
@@ -104,7 +113,7 @@ const tradingStrategyValue = computed({
       tone="warning"
       data-testid="reference-failure"
     >
-      {{ draft.referenceFailureMessage.value }}
+      {{ localize(draft.referenceFailureMessage.value) }}
     </AppAlert>
 
     <div
@@ -112,9 +121,9 @@ const tradingStrategyValue = computed({
       class="spot-trade-form__grid"
     >
       <FormField
-        label="標的"
-        :hint="draft.prefilledFields.value.has('symbol') ? PREFILLED_HINT : '台股填代號（如 2330），加密貨幣填交易對（如 BTCUSDT）'"
-        :error-message="draft.fieldError('symbol')"
+        :label="t('tradeJournal.spotForm.symbol')"
+        :hint="draft.prefilledFields.value.has('symbol') ? t('tradeJournal.spotForm.prefilled') : t('tradeJournal.spotForm.symbolHint')"
+        :error-message="fieldErrorText('symbol')"
       >
         <AppInput
           v-model="draft.symbol.value"
@@ -127,11 +136,14 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="計畫止損"
+        :label="t('tradeJournal.planPanel.plannedStopLoss')"
         :hint="draft.preview.value.stopLossDistanceText
-          ? `${draft.preview.value.stopLossDistanceText}・計畫風險 ${draft.preview.value.plannedRiskText}`
+          ? t('tradeJournal.spotForm.stopLossHint', {
+            distance: localize(draft.preview.value.stopLossDistanceText),
+            risk: draft.preview.value.plannedRiskText ?? '',
+          })
           : undefined"
-        :error-message="draft.fieldError('plannedStopLossPrice')"
+        :error-message="fieldErrorText('plannedStopLossPrice')"
       >
         <AppInput
           v-model="draft.plannedStopLossText.value"
@@ -143,9 +155,9 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="計畫止盈"
-        :hint="draft.preview.value.takeProfitDistanceText ?? undefined"
-        :error-message="draft.fieldError('plannedTakeProfitPrice')"
+        :label="t('tradeJournal.planPanel.plannedTakeProfit')"
+        :hint="draft.preview.value.takeProfitDistanceText ? localize(draft.preview.value.takeProfitDistanceText) : undefined"
+        :error-message="fieldErrorText('plannedTakeProfitPrice')"
       >
         <AppInput
           v-model="draft.plannedTakeProfitText.value"
@@ -157,13 +169,13 @@ const tradingStrategyValue = computed({
       </FormField>
 
       <FormField
-        label="信心"
+        :label="t('tradeJournal.planPanel.confidence')"
         grouped
-        :error-message="draft.fieldError('confidence')"
+        :error-message="fieldErrorText('confidence')"
       >
         <AppRating
           v-model="draft.confidence.value"
-          label="信心"
+          :label="t('tradeJournal.planPanel.confidence')"
           data-testid="trade-confidence"
         />
       </FormField>
@@ -171,7 +183,7 @@ const tradingStrategyValue = computed({
 
     <section class="spot-trade-form__section">
       <h3 class="spot-trade-form__heading">
-        買進與賣出
+        {{ t('tradeJournal.spotForm.fillsHeading') }}
       </h3>
       <SpotTradeFillEditor
         :fills="draft.fills.value"
@@ -186,10 +198,10 @@ const tradingStrategyValue = computed({
         class="spot-trade-form__preview"
         data-testid="draft-preview"
       >
-        持有 <span data-testid="preview-holding">{{ draft.preview.value.holdingText }}</span>・買進均價
+        {{ t('tradeJournal.spotForm.previewHolding') }} <span data-testid="preview-holding">{{ draft.preview.value.holdingText }}</span>{{ t('tradeJournal.spotForm.previewAverageBuy') }}
         <span data-testid="preview-average-buy">{{ draft.preview.value.averageBuyPriceText ?? '—' }}</span>
         <template v-if="draft.preview.value.entrySlippageText">
-          ・<span data-testid="preview-entry-slippage">{{ draft.preview.value.entrySlippageText }}</span>
+          {{ t('tradeJournal.spotForm.previewSeparator') }}<span data-testid="preview-entry-slippage">{{ localize(draft.preview.value.entrySlippageText) }}</span>
         </template>
       </p>
     </section>
@@ -199,9 +211,9 @@ const tradingStrategyValue = computed({
       class="spot-trade-form__section"
     >
       <FormField
-        label="關聯交易策略"
-        :hint="draft.prefilledFields.value.has('tradingStrategy') ? PREFILLED_HINT : '只列出現貨（K 線）交易策略；不關聯即自行判斷'"
-        :error-message="draft.fieldError('tradingStrategy')"
+        :label="t('tradeJournal.spotForm.tradingStrategy')"
+        :hint="draft.prefilledFields.value.has('tradingStrategy') ? t('tradeJournal.spotForm.prefilled') : t('tradeJournal.spotForm.tradingStrategyHint')"
+        :error-message="fieldErrorText('tradingStrategy')"
       >
         <AppSelect
           v-model="tradingStrategyValue"
@@ -209,7 +221,7 @@ const tradingStrategyValue = computed({
           data-testid="trade-trading-strategy"
         >
           <option value="">
-            不關聯（自行判斷）
+            {{ t('tradeJournal.spotForm.noTradingStrategy') }}
           </option>
           <option
             v-for="tradingStrategy in draft.tradingStrategies.value"
@@ -220,14 +232,14 @@ const tradingStrategyValue = computed({
           </option>
         </AppSelect>
       </FormField>
-      <FormField label="進場理由（平倉後鎖定）">
+      <FormField :label="t('tradeJournal.spotForm.entryReason')">
         <AppTextarea
           v-model="draft.entryReason.value"
           data-testid="trade-entry-reason"
         />
       </FormField>
       <FormField
-        label="型態標籤"
+        :label="t('tradeJournal.common.setupTags')"
         grouped
       >
         <TradeTagPicker
@@ -243,7 +255,7 @@ const tradingStrategyValue = computed({
       tone="danger"
       data-testid="form-rejection"
     >
-      {{ draft.rejectionMessage.value }}
+      {{ localize(draft.rejectionMessage.value) }}
       <template
         v-if="draft.conflictingTradeId.value !== null || draft.recordedTradeId.value !== null"
         #action
@@ -253,8 +265,9 @@ const tradingStrategyValue = computed({
           :to="`/spot-trade-journal/${draft.conflictingTradeId.value ?? draft.recordedTradeId.value}${draft.conflictingTradeId.value !== null ? '?addFill=buy' : ''}`"
           data-testid="form-rejection-go"
         >
-          前往 #{{ draft.conflictingTradeId.value ?? draft.recordedTradeId.value }}
-          {{ draft.conflictingTradeId.value !== null ? '加一筆買進' : '' }}
+          {{ draft.conflictingTradeId.value !== null
+            ? t('tradeJournal.spotForm.goToTradeAddBuy', { id: draft.conflictingTradeId.value })
+            : t('tradeJournal.spotForm.goToTrade', { id: draft.recordedTradeId.value ?? '' }) }}
         </AppButton>
       </template>
     </AppAlert>
@@ -265,7 +278,7 @@ const tradingStrategyValue = computed({
         :disabled="draft.saving.value || draft.prefillLoading.value"
         data-testid="trade-save"
       >
-        {{ draft.saving.value ? '儲存中…' : (addingToExistingTrade ? '儲存' : '儲存（持有中）') }}
+        {{ draft.saving.value ? t('tradeJournal.settingsPanel.saving') : (addingToExistingTrade ? t('tradeJournal.common.save') : t('tradeJournal.spotForm.saveAsOpen')) }}
       </AppButton>
     </div>
   </form>

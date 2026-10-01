@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
@@ -6,13 +7,17 @@ import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { SpotTradeLiveComparisonDto } from '~/domain/models/dto/spot-trade-live-comparison-dto'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const { tradingStrategies, comparison = null, replaying = false, failureMessage = null } = defineProps<{
   tradingStrategies: readonly TradingStrategyDto[]
   comparison?: SpotTradeLiveComparisonDto | null
   replaying?: boolean
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const selectedTradingStrategyId = defineModel<number | null>('selectedTradingStrategyId', { required: true })
 
@@ -25,11 +30,11 @@ const selectedValue = computed({
 </script>
 
 <template>
-  <AppPanel title="實盤 vs 回測">
+  <AppPanel :title="t('tradeJournal.liveComparison.title')">
     <div class="spot-trade-live-comparison-panel">
       <FormField
-        label="現貨交易策略"
-        hint="以這份策略、同一個標的、實單涵蓋的那段期間重演一次，並排比較。"
+        :label="t('tradeJournal.liveComparison.strategyLabel')"
+        :hint="t('tradeJournal.liveComparison.strategyHint')"
       >
         <AppSelect
           v-model="selectedValue"
@@ -37,7 +42,7 @@ const selectedValue = computed({
           data-testid="comparison-strategy"
         >
           <option value="">
-            挑一份現貨交易策略
+            {{ t('tradeJournal.liveComparison.pickStrategy') }}
           </option>
           <option
             v-for="tradingStrategy in tradingStrategies"
@@ -54,7 +59,7 @@ const selectedValue = computed({
         class="spot-trade-live-comparison-panel__state"
         data-testid="comparison-replaying"
       >
-        重演中…
+        {{ t('tradeJournal.liveComparison.replaying') }}
       </p>
 
       <AppAlert
@@ -62,7 +67,7 @@ const selectedValue = computed({
         tone="danger"
         data-testid="comparison-failure"
       >
-        {{ failureMessage }}
+        {{ localize(failureMessage) }}
       </AppAlert>
 
       <template v-else-if="comparison">
@@ -70,21 +75,21 @@ const selectedValue = computed({
           class="spot-trade-live-comparison-panel__state"
           data-testid="comparison-cost-note"
         >
-          {{ comparison.costNote }}
+          {{ localize(comparison.costNote) }}
         </p>
         <p
           v-if="comparison.notice"
           class="spot-trade-live-comparison-panel__state"
           data-testid="comparison-notice"
         >
-          {{ comparison.notice }}
+          {{ localize(comparison.notice) }}
         </p>
         <p
           v-if="comparison.strategyEntrySlippageText"
           class="spot-trade-live-comparison-panel__state"
           data-testid="comparison-strategy-slippage"
         >
-          {{ comparison.strategyEntrySlippageText }}
+          {{ localize(comparison.strategyEntrySlippageText) }}
         </p>
         <div
           v-if="comparison.rows.length > 0"
@@ -96,14 +101,14 @@ const selectedValue = computed({
           >
             <thead>
               <tr>
-                <th>標的</th>
-                <th>市場</th>
-                <th>回測勝率</th>
-                <th>實盤勝率</th>
-                <th>回測筆數</th>
-                <th>實盤筆數</th>
-                <th>實盤平均滑點</th>
-                <th>判讀</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.symbol') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.market') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.backtestWinRate') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.liveWinRate') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.backtestTradeCount') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.liveTradeCount') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.liveAverageSlippage') }}</th>
+                <th>{{ t('tradeJournal.liveComparison.headings.verdict') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -113,30 +118,30 @@ const selectedValue = computed({
                 :data-testid="`comparison-row-${row.symbol}`"
               >
                 <td>{{ row.symbol }}</td>
-                <td>{{ row.marketLabel }}</td>
+                <td>{{ localize(row.marketLabel) }}</td>
                 <template v-if="row.backtest">
-                  <td>{{ row.backtest.winRateText }}</td>
+                  <td>{{ localize(row.backtest.winRateText) }}</td>
                   <td :class="`spot-trade-live-comparison-panel__tone--${row.liveWinRateTone}`">
-                    {{ row.live.winRateText }}
+                    {{ localize(row.live.winRateText) }}
                   </td>
-                  <td>{{ row.backtest.closedTradeCountText }}</td>
-                  <td>{{ row.live.closedTradeCountText }}</td>
+                  <td>{{ localize(row.backtest.closedTradeCountText) }}</td>
+                  <td>{{ localize(row.live.closedTradeCountText) }}</td>
                 </template>
                 <template v-else>
                   <td class="spot-trade-live-comparison-panel__unavailable">
-                    {{ row.backtestUnavailableMessage }}
+                    {{ row.backtestUnavailableMessage === null ? '' : localize(row.backtestUnavailableMessage) }}
                   </td>
-                  <td>{{ row.live.winRateText }}</td>
+                  <td>{{ localize(row.live.winRateText) }}</td>
                   <td>—</td>
-                  <td>{{ row.live.closedTradeCountText }}</td>
+                  <td>{{ localize(row.live.closedTradeCountText) }}</td>
                 </template>
                 <td>
-                  {{ row.live.entrySlippageText }}
-                  <small v-if="row.live.entrySlippageNote">{{ row.live.entrySlippageNote }}</small>
+                  {{ localize(row.live.entrySlippageText) }}
+                  <small v-if="row.live.entrySlippageNote">{{ localize(row.live.entrySlippageNote) }}</small>
                 </td>
                 <td>
                   <AppBadge :variant="row.verdictTone">
-                    {{ row.verdictLabel }}
+                    {{ localize(row.verdictLabel) }}
                   </AppBadge>
                 </td>
               </tr>

@@ -10,6 +10,7 @@ import { SpotTradeMistakeCost } from '~/domain/models/entities/spot-trade-mistak
 import { TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/trade-statistics-period-vo'
 import { spotMarketStatistics, spotStatistics } from '../../fixtures/spot-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const PERIOD_OPTIONS = TRADE_STATISTICS_PERIODS.map(period => new TradeStatisticsPeriodDomain(period).toOptionDto())
 const STUBS = { TradeCumulativeChart: true }
@@ -55,6 +56,6 @@ describe('SpotTradeStatisticsPanel', () => {
 
   it('讀取中與讀不到時各說一句', () => {
     expect(mountPanel({ loading: true }).find('[data-testid="statistics-loading"]').exists()).toBe(true)
-    expect(mountPanel({ failureMessage: '連不上' }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
+    expect(mountPanel({ failureMessage: new UntranslatedTextVo('連不上') }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
   })
 })

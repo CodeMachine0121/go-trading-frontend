@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
@@ -12,6 +13,8 @@ const { tags, creatable = true, disabled = false } = defineProps<{
 const selectedIds = defineModel<number[]>('selectedIds', { required: true })
 
 const emit = defineEmits<{ create: [name: string] }>()
+
+const { t } = useI18n()
 
 const newTagName = ref('')
 
@@ -54,7 +57,7 @@ function create(): void {
     >
       <AppInput
         v-model="newTagName"
-        placeholder="新增一個標籤"
+        :placeholder="t('tradeJournal.tagPicker.newTagPlaceholder')"
         data-testid="tag-picker-input"
         @keydown.enter.prevent="create"
       />
@@ -65,7 +68,7 @@ function create(): void {
         data-testid="tag-picker-create"
         @click="create"
       >
-        新增
+        {{ t('tradeJournal.tagPicker.create') }}
       </AppButton>
     </div>
   </div>

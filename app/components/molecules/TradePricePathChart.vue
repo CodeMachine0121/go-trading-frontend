@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { IChartApi, IPriceLine, ISeriesApi, ISeriesMarkersPluginApi, Time, UTCTimestamp } from 'lightweight-charts'
 import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
@@ -16,6 +17,9 @@ const { pricePath, timeZone } = defineProps<{
   pricePath: TradePricePathDto
   timeZone: TimeZoneDto
 }>()
+
+const { locale } = useI18n()
+const { localize } = useLocalizedText()
 
 const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
@@ -53,7 +57,7 @@ function drawPricePath(): void {
     color: readColor(LINE_TONE_TOKENS[line.tone]),
     lineWidth: 1,
     lineStyle: 2,
-    title: line.label,
+    title: localize(line.label),
   }))
 
   markersApi.value?.setMarkers(pricePath.markers.map(marker => ({
@@ -61,7 +65,7 @@ function drawPricePath(): void {
     position: marker.kind === 'entry' ? 'belowBar' : 'aboveBar',
     shape: marker.kind === 'entry' ? 'arrowUp' : 'arrowDown',
     color: readColor(marker.kind === 'entry' ? '--color-success' : '--color-primary'),
-    text: marker.text,
+    text: localize(marker.text),
   })))
   chartApi.value?.timeScale().fitContent()
 }
@@ -118,7 +122,7 @@ onBeforeUnmount(() => {
   markersApi.value = null
 })
 
-watch(() => [pricePath, timeZone] as const, drawPricePath)
+watch(() => [pricePath, timeZone, locale.value] as const, drawPricePath)
 </script>
 
 <template>
@@ -135,11 +139,11 @@ watch(() => [pricePath, timeZone] as const, drawPricePath)
     >
       <li
         v-for="line in pricePath.lines"
-        :key="line.label"
+        :key="line.label.traditionalChinese"
         class="trade-price-path-chart__legend-item"
         :class="`trade-price-path-chart__legend-item--${line.tone}`"
       >
-        — {{ line.label }} {{ line.priceText }}
+        — {{ localize(line.label) }} {{ line.priceText }}
       </li>
     </ul>
   </div>

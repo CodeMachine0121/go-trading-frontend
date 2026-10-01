@@ -1,5 +1,8 @@
-const SELF_JUDGED_LABEL = '自行判斷'
-const TRADING_STRATEGY_DELETED_LABEL = '關聯的交易策略已刪除'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
+const SELF_JUDGED_LABEL = new LocalizedTextVo('自行判斷', 'Self-judged')
+const TRADING_STRATEGY_DELETED_LABEL = new LocalizedTextVo('關聯的交易策略已刪除', 'Linked trading strategy deleted')
 
 export class TradeLinkedStrategyDomain {
   constructor(
@@ -8,11 +11,14 @@ export class TradeLinkedStrategyDomain {
     private readonly tradingStrategyDeleted: boolean,
   ) {}
 
-  get label(): string {
+  get label(): LocalizedTextVo {
     if (this.tradingStrategyId === null) {
       return SELF_JUDGED_LABEL
     }
 
-    return this.tradingStrategyDeleted ? TRADING_STRATEGY_DELETED_LABEL : this.tradingStrategyName ?? ''
+    // 交易策略的名字是使用者自己取的，原樣呈現、不翻。
+    return this.tradingStrategyDeleted
+      ? TRADING_STRATEGY_DELETED_LABEL
+      : new UntranslatedTextVo(this.tradingStrategyName ?? '')
   }
 }

@@ -32,7 +32,7 @@ describe('useTradeJournalSettings：讀取', () => {
 
     await loadSettings()
 
-    expect(setting.value?.summary).toBe('還沒設定')
+    expect(setting.value?.summary.in('zh-TW')).toBe('還沒設定')
     expect(makerRateText.value).toBe('')
     expect(tagGroups.value[0]?.tags.map(tag => tag.name)).toEqual(['移動止損'])
     expect(loading.value).toBe(false)
@@ -54,7 +54,7 @@ describe('useTradeJournalSettings：讀取', () => {
 
     await loadSettings()
 
-    expect(loadErrorMessage.value).toContain('連不上交易服務')
+    expect(loadErrorMessage.value?.in('zh-TW')).toContain('連不上交易服務')
   })
 })
 
@@ -65,7 +65,7 @@ describe('useTradeJournalSettings：手續費率', () => {
 
     await saveFeeRates()
 
-    expect(makerRateHint.value).toBe('手續費率不得為負')
+    expect(makerRateHint.value?.in('zh-TW')).toBe('手續費率不得為負')
     expect(settingProxy.saveFeeRates).not.toHaveBeenCalled()
   })
 
@@ -75,7 +75,7 @@ describe('useTradeJournalSettings：手續費率', () => {
 
     await saveFeeRates()
 
-    expect(takerRateHint.value).toBe('手續費率要填數字')
+    expect(takerRateHint.value?.in('zh-TW')).toBe('手續費率要填數字')
     expect(settingProxy.saveFeeRates).not.toHaveBeenCalled()
   })
 
@@ -87,7 +87,7 @@ describe('useTradeJournalSettings：手續費率', () => {
 
     await saveFeeRates()
 
-    expect(setting.value?.summary).toBe('掛單 0.02%・吃單 0.05%')
+    expect(setting.value?.summary.in('zh-TW')).toBe('掛單 0.02%・吃單 0.05%')
     expect(saving.value).toBe(false)
   })
 
@@ -107,7 +107,7 @@ describe('useTradeJournalSettings：手續費率', () => {
 
     await saveFeeRates()
 
-    expect(saveErrorMessage.value).toBe('交易服務暫時出了問題，請稍後再試。')
+    expect(saveErrorMessage.value?.in('zh-TW')).toBe('交易服務暫時出了問題，請稍後再試。')
   })
 })
 
@@ -141,7 +141,7 @@ describe('useTradeJournalSettings：標籤', () => {
 
     await createTag()
 
-    expect(tagErrorMessage.value).toBe('已有同名的型態標籤')
+    expect(tagErrorMessage.value?.in('zh-TW')).toBe('已有同名的型態標籤')
     expect(newTagName.value).toBe('突破')
   })
 
@@ -161,7 +161,7 @@ describe('useTradeJournalSettings：標籤', () => {
 
     await deleteTag(2)
 
-    expect(tagErrorMessage.value).toBe('還有 4 筆交易貼著它，請先從交易上移除或改名')
+    expect(tagErrorMessage.value?.in('zh-TW')).toBe('還有 4 筆交易貼著它，請先從交易上移除或改名')
   })
 
   it('一個標籤動作進行中時不接受下一個', async () => {
@@ -180,6 +180,7 @@ describe('useTradeJournalSettings：標籤', () => {
 
     await deleteTag(2)
 
-    expect(tagErrorMessage.value).toBe('與交易日誌往來時發生未預期的錯誤。')
+    expect(tagErrorMessage.value?.in('zh-TW')).toBe('與交易日誌往來時發生未預期的錯誤。')
+    expect(tagErrorMessage.value?.in('en')).toBe('An unexpected error occurred while talking to the trade journal.')
   })
 })

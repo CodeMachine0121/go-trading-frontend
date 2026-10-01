@@ -37,6 +37,7 @@ import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import type { BackendRequestBody, BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const SPOT_TRADE_RECORDS_ENDPOINT = '/spot-trade-records'
 const BAD_REQUEST_STATUS = 400
@@ -57,19 +58,33 @@ const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, TradeFormField>> = {
 }
 
 const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, TradeFormField])[] = [
+  // translation-exempt: 比對後端回覆原文裡的字
   ['超過目前持有', 'exitQuantity'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['整數', 'fillQuantity'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['止損', 'plannedStopLossPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['止盈', 'plannedTakeProfitPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['標的', 'symbol'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['時間', 'fillTime'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['賣出不能早於', 'fillTime'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['手續費', 'fillFee'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['價格', 'fillPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['買進價', 'fillPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['數量', 'fillQuantity'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['信心', 'confidence'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['評分', 'executionScore'],
+  // translation-exempt: 比對後端回覆原文裡的字
   ['交易策略', 'tradingStrategy'],
 ]
 
@@ -360,7 +375,7 @@ export class SpotTradeRecordProxy extends BackendApiProxy implements ISpotTradeR
       const formField = fieldFromBackend ?? FIELD_OF_MESSAGE_HINT.find(([hint]) => error.message.includes(hint))?.[1]
 
       return new TradeRejectedError(
-        error.message,
+        new UntranslatedTextVo(error.message),
         formField === undefined ? null : new TradeFormFieldVo(formField),
         null,
         0,

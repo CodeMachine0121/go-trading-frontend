@@ -1,15 +1,20 @@
 import type { FillTiming } from '~/domain/models/vo/fill-timing-vo'
 import { FILL_TIMINGS } from '~/domain/models/vo/fill-timing-vo'
 import { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const FILL_TIMING_DESCRIPTIONS: Readonly<Record<FillTiming, { label: string, description: string }>> = {
+const FILL_TIMING_DESCRIPTIONS: Readonly<Record<FillTiming, { label: LocalizedTextVo, description: LocalizedTextVo }>> = {
   close: {
-    label: '收盤成交',
-    description: '信號在說出它的那一格的收盤價成交。',
+    label: new LocalizedTextVo('收盤成交', 'Fill at close'),
+    description: new LocalizedTextVo(
+      '信號在說出它的那一格的收盤價成交。',
+      'The signal fills at the close of the candle that raised it.'),
   },
   nextOpen: {
-    label: '下一格開盤成交',
-    description: '信號在下一格的開盤價成交；最後一格的信號不成交。短線策略用它比較貼近真的能拿到的價格。',
+    label: new LocalizedTextVo('下一格開盤成交', 'Fill at next open'),
+    description: new LocalizedTextVo(
+      '信號在下一格的開盤價成交；最後一格的信號不成交。短線策略用它比較貼近真的能拿到的價格。',
+      'The signal fills at the next candle\'s open; a signal on the last candle does not fill. Closer to the price a short-term strategy can really get.'),
   },
 }
 
@@ -32,7 +37,7 @@ export class FillTimingDomain {
     return this.value === DEFAULT_FILL_TIMING
   }
 
-  label(): string {
+  label(): LocalizedTextVo {
     return FILL_TIMING_DESCRIPTIONS[this.value].label
   }
 

@@ -36,7 +36,7 @@ describe('useSpotTradeJournal', () => {
     await loadTrades()
 
     expect(list.value?.rows.map(row => row.id)).toEqual([1, 2])
-    expect(list.value?.marketSummaries.map(summary => summary.marketLabel)).toEqual(['台股'])
+    expect(list.value?.marketSummaries.map(summary => summary.marketLabel.in('zh-TW'))).toEqual(['台股'])
     expect(loading.value).toBe(false)
   })
 
@@ -78,6 +78,7 @@ describe('useSpotTradeJournal', () => {
     await loadTrades()
 
     expect(list.value).toBeNull()
-    expect(failureMessage.value).toContain('連不上')
+    expect(failureMessage.value?.in('zh-TW')).toContain('連不上')
+    expect(failureMessage.value?.in('en')).toContain('Cannot reach the trading service')
   })
 })

@@ -1,7 +1,10 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import TradeOutcomePanel from '~/components/organisms/TradeOutcomePanel.vue'
 import { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { buildRecord, closedOutcome, unavailable } from '../../fixtures/contract-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -34,9 +37,20 @@ describe('TradeOutcomePanel', () => {
 
   it('行情讀取中；讀不到時說原因；讀回來是空的也說', () => {
     expect(mountPanel({ pricePathLoading: true }).find('[data-testid="price-path-loading"]').exists()).toBe(true)
-    expect(mountPanel({ pricePathFailureMessage: '連不上' }).get('[data-testid="price-path-message"]').text()).toBe('連不上')
-    expect(mountPanel({ pricePath: new TradePricePathDto([], [], [], '沒有行情資料，無法計算') }).get('[data-testid="price-path-message"]').text())
+    expect(mountPanel({ pricePathFailureMessage: new UntranslatedTextVo('連不上') }).get('[data-testid="price-path-message"]').text()).toBe('連不上')
+    expect(mountPanel({ pricePath: new TradePricePathDto([], [], [], new LocalizedTextVo('沒有行情資料，無法計算', 'No market data, cannot be calculated')) }).get('[data-testid="price-path-message"]').text())
       .toBe('沒有行情資料，無法計算')
+  })
+
+  it('英文畫面上標題、建議與沒有行情的說明都換成英文', async () => {
+    const wrapper = mountPanel({ pricePath: new TradePricePathDto([], [], [], new LocalizedTextVo('沒有行情資料，無法計算', 'No market data, cannot be calculated')) })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Price path')
+    expect(wrapper.get('[data-testid="price-path-message"]').text()).toBe('No market data, cannot be calculated')
+    expect(wrapper.get('[data-testid="trade-source"]').text()).toContain('Reference price 97,850')
   })
 
   it('不是來自連結就沒有建議那一段', () => {

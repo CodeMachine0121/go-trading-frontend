@@ -11,10 +11,14 @@ import { SpotTradeOutcomeDomain } from '~/domain/models/domains/spot-trade-outco
 import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-strategy-domain'
 import { TradeHoldingDurationDomain } from '~/domain/models/domains/trade-holding-duration-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const REVIEW_AFTER_CLOSE_MESSAGE = '平倉後才能檢討'
-const NOT_SET_TEXT = '未設定'
-const HOLDING_WORD = '持有'
+const REVIEW_AFTER_CLOSE_MESSAGE = new LocalizedTextVo('平倉後才能檢討', 'You can review after the trade is closed')
+const NOT_SET_TEXT = new LocalizedTextVo('未設定', 'Not set')
+const BUY_LABEL = new LocalizedTextVo('買進', 'Buy')
+const SELL_LABEL = new LocalizedTextVo('賣出', 'Sell')
+const HOLDING_WORD = new LocalizedTextVo('持有', 'Held')
 
 export class SpotTradeRecordDomain {
   constructor(private readonly record: SpotTradeRecord) {}
@@ -30,7 +34,9 @@ export class SpotTradeRecordDomain {
     const sourceDto = source === null
       ? null
       : new TradeSourceDto(
-          `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`,
+          new LocalizedTextVo(
+            `來自 ${source.strategyBotName}・第 ${source.runNumber} 輪`,
+            `From ${source.strategyBotName} · run ${source.runNumber}`),
           this.priceText(source.referencePrice),
           this.priceText(source.suggestedStopLossPrice),
           this.priceText(source.suggestedTakeProfitPrice),
@@ -61,14 +67,14 @@ export class SpotTradeRecordDomain {
       this.record.openedAt,
       this.record.closedAt,
       this.record.outcome.holding,
-      `${new JournalNumberDomain(this.record.outcome.holding).quantity()}${market.wholeSharesOnly ? ' 股' : ''}`,
+      this.holdingText(market.wholeSharesOnly),
       this.record.outcome.averageBuyPrice,
       [...this.record.fills]
         .sort((earlier, later) => earlier.filledAt.getTime() - later.filledAt.getTime())
         .map(fill => new SpotTradeFillDto(
           fill.id,
           fill.kind,
-          fill.kind === 'buy' ? '買進' : '賣出',
+          fill.kind === 'buy' ? BUY_LABEL : SELL_LABEL,
           fill.filledAt,
           fill.price,
           new JournalNumberDomain(fill.price).price(),
@@ -101,7 +107,15 @@ export class SpotTradeRecordDomain {
     )
   }
 
-  private priceText(price: Decimal | null): string {
-    return price === null ? NOT_SET_TEXT : new JournalNumberDomain(price).price()
+  private priceText(price: Decimal | null): LocalizedTextVo {
+    return price === null ? NOT_SET_TEXT : new UntranslatedTextVo(new JournalNumberDomain(price).price())
+  }
+
+  private holdingText(wholeSharesOnly: boolean): LocalizedTextVo {
+    const quantity = new JournalNumberDomain(this.record.outcome.holding).quantity()
+
+    return wholeSharesOnly
+      ? new LocalizedTextVo(`${quantity} 股`, `${quantity} shares`)
+      : new UntranslatedTextVo(quantity)
   }
 }

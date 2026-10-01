@@ -6,9 +6,12 @@ import { SpotTradeMarketSummaryDto } from '~/domain/models/dto/spot-trade-market
 import { SpotTradeStatusDomain } from '~/domain/models/domains/spot-trade-status-domain'
 import { SpotTradeStatisticsDomain } from '~/domain/models/domains/spot-trade-statistics-domain'
 import { SpotTradeRecordSummaryDomain } from '~/domain/models/domains/spot-trade-record-summary-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const NO_TRADES_MESSAGE = '還沒有任何現貨交易。收到機器人信號下單後，可以點訊息裡的「記到交易日誌」，或按「記一筆」。'
-const NO_MATCHING_TRADES_MESSAGE = '沒有符合篩選的交易'
+const NO_TRADES_MESSAGE = new LocalizedTextVo(
+  '還沒有任何現貨交易。收到機器人信號下單後，可以點訊息裡的「記到交易日誌」，或按「記一筆」。',
+  'No spot trades yet. After placing an order on a bot signal, tap "Log to trade journal" in the message, or press "Log a trade".')
+const NO_MATCHING_TRADES_MESSAGE = new LocalizedTextVo('沒有符合篩選的交易', 'No trades match the filters')
 
 export class SpotTradeListDomain {
   constructor(
@@ -33,7 +36,9 @@ export class SpotTradeListDomain {
 
     return new SpotTradeListDto(
       statisticsDomain.periodLabel,
-      `已平倉 ${closedTradeCount} 筆・持有中 ${openTradeCount} 筆`,
+      new LocalizedTextVo(
+        `已平倉 ${closedTradeCount} 筆・持有中 ${openTradeCount} 筆`,
+        `${closedTradeCount} closed · ${openTradeCount} open`),
       marketDomains
         .filter(market => market.closedTradeCount > 0)
         .map(market => new SpotTradeMarketSummaryDto(market.marketLabel, market.summaryFigures())),

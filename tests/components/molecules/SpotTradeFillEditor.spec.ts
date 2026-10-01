@@ -1,7 +1,13 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import SpotTradeFillEditor from '~/components/molecules/SpotTradeFillEditor.vue'
 import { SpotTradeDraftFillInputDto } from '~/domain/models/dto/spot-trade-draft-fill-input-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
+const WHOLE_SHARES_MESSAGE = new LocalizedTextVo(
+  '台股數量以股計，必須是整數', 'Taiwan stock quantities are in shares and must be whole numbers')
 
 function fills() {
   return [new SpotTradeDraftFillInputDto(1, 'buy', '2026-09-27T09:00', '1050', '1000', '')]
@@ -21,15 +27,26 @@ describe('SpotTradeFillEditor', () => {
   })
 
   it('整數股提示優先於欄位拒絕；拒絕落在買賣欄位時寫在下方', () => {
-    const wholeShares = mount(SpotTradeFillEditor, { props: { fills: fills(), wholeSharesMessage: '台股數量以股計，必須是整數', rejectedField: 'fillQuantity', rejectionMessage: '別的' } })
+    const wholeShares = mount(SpotTradeFillEditor, { props: { fills: fills(), wholeSharesMessage: WHOLE_SHARES_MESSAGE, rejectedField: 'fillQuantity', rejectionMessage: new UntranslatedTextVo('別的') } })
     expect(wholeShares.get('[data-testid="fill-whole-shares"]').text()).toBe('台股數量以股計，必須是整數')
     expect(wholeShares.find('[data-testid="fill-error"]').exists()).toBe(false)
 
-    const rejected = mount(SpotTradeFillEditor, { props: { fills: fills(), rejectedField: 'exitQuantity', rejectionMessage: '賣出超過持有' } })
+    const rejected = mount(SpotTradeFillEditor, { props: { fills: fills(), rejectedField: 'exitQuantity', rejectionMessage: new UntranslatedTextVo('賣出超過持有') } })
     expect(rejected.get('[data-testid="fill-error"]').text()).toBe('賣出超過持有')
 
-    const elsewhere = mount(SpotTradeFillEditor, { props: { fills: fills(), rejectedField: 'symbol', rejectionMessage: '找不到標的' } })
+    const elsewhere = mount(SpotTradeFillEditor, { props: { fills: fills(), rejectedField: 'symbol', rejectionMessage: new UntranslatedTextVo('找不到標的') } })
     expect(elsewhere.find('[data-testid="fill-error"]').exists()).toBe(false)
+  })
+
+  it('英文畫面上欄名、按鈕與整數股提示都跟著換', async () => {
+    const wrapper = mount(SpotTradeFillEditor, { props: { fills: fills(), wholeSharesMessage: WHOLE_SHARES_MESSAGE } })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Buy price')
+    expect(wrapper.get('[data-testid="fill-add-sell"]').text()).toBe('+ Add a sell')
+    expect(wrapper.get('[data-testid="fill-whole-shares"]').text()).toBe('Taiwan stock quantities are in shares and must be whole numbers')
   })
 
   it('改動作、時間與手續費會寫回那一列', async () => {
