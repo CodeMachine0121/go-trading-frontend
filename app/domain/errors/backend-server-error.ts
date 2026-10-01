@@ -16,9 +16,12 @@ export class BackendServerError extends Error {
    */
   readonly status: number | undefined
 
-  constructor(message: string, options?: { cause?: unknown, status?: number }) {
+  readonly reason: string | undefined
+
+  constructor(message: string, options?: { cause?: unknown, status?: number, reason?: string }) {
     super(message, { cause: options?.cause })
     this.name = 'BackendServerError'
     this.status = options?.status
+    this.reason = options?.reason
   }
 }

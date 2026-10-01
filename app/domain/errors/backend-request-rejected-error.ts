@@ -64,6 +64,8 @@ export class BackendRequestRejectedError extends Error {
 
   readonly openTradeId: number | undefined
 
+  readonly reason: string | undefined
+
   constructor(
     message: string,
     options?: {
@@ -76,6 +78,7 @@ export class BackendRequestRejectedError extends Error {
       retryableFrom?: string
       timeAllowanceSpent?: boolean
       openTradeId?: number
+      reason?: string
     },
   ) {
     super(message, { cause: options?.cause })
@@ -88,5 +91,6 @@ export class BackendRequestRejectedError extends Error {
     this.retryableFrom = options?.retryableFrom
     this.timeAllowanceSpent = options?.timeAllowanceSpent ?? false
     this.openTradeId = options?.openTradeId
+    this.reason = options?.reason
   }
 }

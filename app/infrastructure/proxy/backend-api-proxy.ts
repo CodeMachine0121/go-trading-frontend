@@ -22,6 +22,8 @@ type BackendFailure = {
     lockedUntil?: string
     timeAllowanceSpent?: boolean
     openTradeId?: number
+    reason?: string
+    failureReason?: string
   }
 }
 
@@ -191,10 +193,13 @@ export abstract class BackendApiProxy {
           }
 
           // 後端自己壞掉時，使用者改什麼都沒用——不能說成「你的請求有問題」。
+          const reason = backendFailure.data?.reason ?? backendFailure.data?.failureReason
+
           if (backendFailure.response.status >= SERVER_ERROR_STATUS_FLOOR) {
             throw new BackendServerError(message, {
               cause: error,
               status: backendFailure.response.status,
+              reason,
             })
           }
 
@@ -224,6 +229,7 @@ export abstract class BackendApiProxy {
               // 所以要靠這個標記才分得開——下一步完全不同。
               timeAllowanceSpent: backendFailure.data?.timeAllowanceSpent ?? false,
               openTradeId: backendFailure.data?.openTradeId,
+              reason,
             },
           )
         }
