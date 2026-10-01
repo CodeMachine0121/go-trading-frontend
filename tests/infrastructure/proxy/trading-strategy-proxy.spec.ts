@@ -169,6 +169,22 @@ describe('TradingStrategyProxy 把拒絕翻成該做什麼', () => {
     await expect(proxy().getTradingStrategy(3)).rejects.toBeInstanceOf(expectedError)
   })
 
+  it.each([
+    [404, '找不到識別碼為 3 的交易策略'],
+    [409, '交易策略名稱「黃金交叉」已被使用'],
+    [409, '還有 1 台機器人正在用它'],
+  ])('後端說的那一句（%s）不論顯示語言都原樣呈現', async (status, message) => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({ status, message })))
+
+    const failure = await proxy().getTradingStrategy(3).catch((error: unknown) => error)
+
+    expect(failure instanceof TradingStrategyNotFoundError
+      || failure instanceof TradingStrategyNameConflictError
+      || failure instanceof TradingStrategyInUseError
+      ? failure.localizedMessage.in('en')
+      : null).toBe(message)
+  })
+
   it('其餘的拒絕照原樣往上丟', async () => {
     // 一個猜錯的翻譯，比一句原話更難查。
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildFetchError({ status: 500 })))
@@ -253,9 +269,9 @@ describe('TradingStrategyProxy 的行情種類與交易模式', () => {
     const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
 
     expect(tradingStrategyDto.marketDataKind).toBe('contractKCandle')
-    expect(tradingStrategyDto.marketDataKindLabel).toBe('合約行情')
+    expect(tradingStrategyDto.marketDataKindLabel.in('zh-TW')).toBe('合約行情')
     expect(tradingStrategyDto.tradingMode).toBe('shortOnly')
-    expect(tradingStrategyDto.tradingModeLabel).toBe('只做空')
+    expect(tradingStrategyDto.tradingModeLabel?.in('zh-TW')).toBe('只做空')
     expect(tradingStrategyDto.replaysOnContractAccount).toBe(true)
   })
 
@@ -265,7 +281,7 @@ describe('TradingStrategyProxy 的行情種類與交易模式', () => {
     const tradingStrategyDto = (await proxy().getTradingStrategy(3)).toDomain().toDto()
 
     expect(tradingStrategyDto.marketDataKind).toBe('kCandle')
-    expect(tradingStrategyDto.marketDataKindLabel).toBe('K 線')
+    expect(tradingStrategyDto.marketDataKindLabel.in('zh-TW')).toBe('K 線')
     expect(tradingStrategyDto.replaysOnContractAccount).toBe(false)
   })
 })

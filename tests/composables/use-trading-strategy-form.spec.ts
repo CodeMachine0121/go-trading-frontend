@@ -6,6 +6,7 @@ import {
   StrategyBotParameterValueDto,
   TradingStrategySignalSourceDto,
 } from '~/domain/models/dto/trading-strategy-signal-source-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const STRATEGY_OPTIONS = [
   { value: 9, label: '均線' },
@@ -16,7 +17,7 @@ function formUnderTest(editing: TradingStrategyDto | null = null) {
   return useTradingStrategyForm(
     () => editing,
     () => STRATEGY_OPTIONS,
-    () => ({ 11: '收盤價（不是一個信號）' }),
+    () => ({ 11: new LocalizedTextVo('收盤價（不是一個信號）', 'Close price (not a signal)') }),
     () => ({ 9: ['快線期數', '慢線期數'] }),
   )
 }
@@ -125,7 +126,7 @@ describe('useTradingStrategyForm 的策略腳本清單', () => {
 
     form.changeSignalSourceLabel(0, '動能')
 
-    expect(form.rejection.value).toContain('重複')
+    expect(form.rejection.value?.in('zh-TW')).toContain('重複')
   })
 
   it('換策略腳本時把舊策略腳本的旋鈕值清掉——它們屬於另一支算式', () => {
@@ -155,7 +156,7 @@ describe('useTradingStrategyForm 的策略腳本清單', () => {
     const form = formUnderTest(aStoredBot())
     form.reset()
 
-    expect(form.signalSourceUsageWarnings.value[0]).toContain('均線')
+    expect(form.signalSourceUsageWarnings.value[0]?.in('zh-TW')).toContain('均線')
 
     form.removeSignalSource(0)
 
@@ -208,7 +209,7 @@ describe('useTradingStrategyForm 的那張表', () => {
 
     form.conditionSides[1]!.toggleSignal('均線', 'sell')
 
-    expect(form.rejection.value).toContain('兩邊都要至少勾一格')
+    expect(form.rejection.value?.in('zh-TW')).toContain('兩邊都要至少勾一格')
   })
 
   it('交出去的是那張表寫成的條件樹——存的形狀一個位元都沒變', () => {
@@ -250,7 +251,7 @@ describe('useTradingStrategyForm 存得下去嗎', () => {
     form.reset()
     form.name.value = '   '
 
-    expect(form.rejection.value).toContain('名稱')
+    expect(form.rejection.value?.in('zh-TW')).toContain('名稱')
     expect(form.toWriteDto()).toBeNull()
   })
 })
@@ -281,17 +282,19 @@ describe('useTradingStrategyForm：一個動作一次呼叫', () => {
   })
 
   it.each([
-    { side: 0 as const, tone: 'success', connectorWord: '拿來判斷' },
-    { side: 1 as const, tone: 'danger', connectorWord: '同時也看' },
-  ])('每一邊說得出自己的顏色與卡前那一句（$tone）', ({ side, tone, connectorWord }) => {
+    { side: 0 as const, tone: 'success', connectorWord: '拿來判斷', englishHeading: 'What counts as an entry' },
+    { side: 1 as const, tone: 'danger', connectorWord: '同時也看', englishHeading: 'What counts as an exit' },
+  ])('每一邊說得出自己的顏色與卡前那一句（$tone）', ({ side, tone, connectorWord, englishHeading }) => {
     const form = formUnderTest()
 
     expect(form.conditionSides[side]!.tone).toBe(tone)
-    expect(form.conditionSides[side]!.connectorWord).toBe(connectorWord)
+    expect(form.conditionSides[side]!.connectorWord.in('zh-TW')).toBe(connectorWord)
+    expect(form.conditionSides[side]!.heading.in('en')).toBe(englishHeading)
   })
 
   it('信號選單由 SignalDomain 說它們叫什麼', () => {
-    expect(formUnderTest().signalOptions).toEqual([
+    expect(formUnderTest().signalOptions.map(
+      option => ({ value: option.value, label: option.label.in('zh-TW') }))).toEqual([
       { value: 'buy', label: '買入' },
       { value: 'sell', label: '賣出' },
       { value: 'hold', label: '持有' },
@@ -301,15 +304,16 @@ describe('useTradingStrategyForm：一個動作一次呼叫', () => {
 
 describe('useTradingStrategyForm：訊號來源卡上讀出來的字', () => {
   it.each([
-    { name: '挑得到的就是它的名字', strategyScriptId: 9, expected: '均線' },
-    { name: '存在但挑不得的，說它為什麼挑不得', strategyScriptId: 11, expected: '收盤價（不是一個信號）' },
-    { name: '認不得的，說它已經不在了', strategyScriptId: 42, expected: '這支策略腳本（編號 42）已經不在了' },
-  ])('策略腳本那一欄：$name', ({ strategyScriptId, expected }) => {
+    { name: '挑得到的就是它的名字', strategyScriptId: 9, expected: '均線', english: '均線' },
+    { name: '存在但挑不得的，說它為什麼挑不得', strategyScriptId: 11, expected: '收盤價（不是一個信號）', english: 'Close price (not a signal)' },
+    { name: '認不得的，說它已經不在了', strategyScriptId: 42, expected: '這支策略腳本（編號 42）已經不在了', english: 'This strategy script (ID 42) is no longer here' },
+  ])('策略腳本那一欄：$name', ({ strategyScriptId, expected, english }) => {
     const form = formUnderTest(new TradingStrategyDto(
       3, '黃金交叉', [new TradingStrategySignalSourceDto('來源', strategyScriptId, '1h', [])], null, null))
     form.reset()
 
-    expect(form.signalSourceStrategyScriptLabels.value).toEqual([expected])
+    expect(form.signalSourceStrategyScriptLabels.value.map(label => label.in('zh-TW'))).toEqual([expected])
+    expect(form.signalSourceStrategyScriptLabels.value.map(label => label.in('en'))).toEqual([english])
   })
 
   it.each([

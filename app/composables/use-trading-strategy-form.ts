@@ -16,14 +16,18 @@ import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 新拼一份時的行情種類與（合約的）交易模式：與交易服務對留白的讀法一字不差。 */
 const DEFAULT_MARKET_DATA_KIND: MarketDataKind = 'kCandle'
 const DEFAULT_CONTRACT_TRADING_MODE: ContractTradingMode = 'longShort'
 
 /** 換了行情種類而原本有信號來源時要說的那一句。 */
-const MARKET_DATA_KIND_CHANGED_NOTICE
-  = '換了行情種類：原本的信號來源吃的是另一種行情，已經拿掉，請從這一種的策略腳本重新挑。'
+const MARKET_DATA_KIND_CHANGED_NOTICE = new LocalizedTextVo(
+  '換了行情種類：原本的信號來源吃的是另一種行情，已經拿掉，請從這一種的策略腳本重新挑。',
+  'Market data kind changed: the previous signal sources read the other kind, so they were removed. Pick again from this kind’s strategy scripts.',
+)
 
 /** 一條條件挑得到的三個值。信號只有三個，所以它是選的；怎麼稱呼它們由 SignalDomain 說。 */
 const SIGNAL_OPTIONS = SIGNAL_VALUES.map(signal => ({
@@ -48,7 +52,7 @@ export function useTradingStrategyForm(
   editing: () => TradingStrategyDto | null,
   strategyScriptOptions: () => readonly { value: number, label: string }[],
   /** 存在、但當不了訊號來源的那幾支，以及原因——一個指著它們的來源要說得出自己指著誰。 */
-  unusableStrategyScripts: () => Readonly<Record<number, string>> = () => ({}),
+  unusableStrategyScripts: () => Readonly<Record<number, LocalizedTextVo>> = () => ({}),
   /** 每一支策略腳本宣告了哪幾個參數。 */
   parameterNamesByStrategyScriptId: () => Readonly<Record<number, readonly string[]>> = () => ({}),
 ) {
@@ -61,7 +65,7 @@ export function useTradingStrategyForm(
    */
   const marketDataKind = ref<MarketDataKind>(DEFAULT_MARKET_DATA_KIND)
   const tradingMode = ref<ContractTradingMode>(DEFAULT_CONTRACT_TRADING_MODE)
-  const marketDataKindNotice = ref('')
+  const marketDataKindNotice = ref<LocalizedTextVo | null>(null)
   const marketDataKindLocked = computed(() => editing() !== null)
   const replaysOnContractAccount = computed(
     () => new MarketDataKindDomain(marketDataKind.value).toWorkbenchDto().replaysOnContractAccount)
@@ -89,11 +93,17 @@ export function useTradingStrategyForm(
    * 挑得到的就是它的名字；存在但挑不得的，說它為什麼挑不得；認不得那個識別碼時
    * （腳本被刪了、或那份採用被收回）也照樣說一句——一片空白看起來像「還沒選」。
    */
-  const signalSourceStrategyScriptLabels = computed(() => signalSources.value.map(
-    signalSource => strategyScriptOptions().find(
+  const signalSourceStrategyScriptLabels = computed(() => signalSources.value.map((signalSource) => {
+    const pickable = strategyScriptOptions().find(
       option => option.value === signalSource.strategyScriptId)?.label
+
+    return (pickable === undefined ? undefined : new UntranslatedTextVo(pickable))
       ?? unusableStrategyScripts()[signalSource.strategyScriptId]
-      ?? `這支策略腳本（編號 ${signalSource.strategyScriptId}）已經不在了`))
+      ?? new LocalizedTextVo(
+        `這支策略腳本（編號 ${signalSource.strategyScriptId}）已經不在了`,
+        `This strategy script (ID ${signalSource.strategyScriptId}) is no longer here`,
+      )
+  }))
 
   /** 每一個訊號來源調過的參數讀成一行：調過的才列，沒調的就是用那支策略腳本自己的預設值。 */
   const signalSourceParameterSummaries = computed(() => signalSources.value.map(
@@ -135,10 +145,13 @@ export function useTradingStrategyForm(
       ...boards.sell.value.placedLabels,
     ])
 
-    const warnings: Record<number, string> = {}
+    const warnings: Record<number, LocalizedTextVo> = {}
     signalSources.value.forEach((signalSource, index) => {
       if (usedLabels.has(signalSource.label)) {
-        warnings[index] = `條件裡還在用「${signalSource.label}」，刪掉它會一併拿掉那幾句條件`
+        warnings[index] = new LocalizedTextVo(
+          `條件裡還在用「${signalSource.label}」，刪掉它會一併拿掉那幾句條件`,
+          `Conditions still use “${signalSource.label}”; removing it also removes those conditions`,
+        )
       }
     })
 
@@ -173,7 +186,7 @@ export function useTradingStrategyForm(
     name.value = loaded?.name ?? ''
     marketDataKind.value = loaded?.marketDataKind ?? DEFAULT_MARKET_DATA_KIND
     tradingMode.value = loaded?.tradingMode ?? DEFAULT_CONTRACT_TRADING_MODE
-    marketDataKindNotice.value = ''
+    marketDataKindNotice.value = null
     // 打開既有的那一份就是它存著的那一個；新的一份用預設值——
     // 與後端對一份沒填的交易策略的讀法一字不差。
     signalSources.value = [...(loaded?.signalSources ?? [])]
@@ -231,6 +244,7 @@ export function useTradingStrategyForm(
         }
       }
 
+      // translation-exempt: 預設代號會存進交易策略、成為使用者自己的資料，不隨顯示語言改變
       return `來源${signalSources.value.length + 1}`
     }
 
@@ -359,9 +373,9 @@ export function useTradingStrategyForm(
    */
   function conditionSide(
     key: ConditionSideVo,
-    heading: string,
+    heading: LocalizedTextVo,
     tone: 'success' | 'danger',
-    connectorWord: string,
+    connectorWord: LocalizedTextVo,
   ) {
     const board = boards[key]
 
@@ -426,8 +440,10 @@ export function useTradingStrategyForm(
   }
 
   const conditionSides = [
-    conditionSide('buy', '什麼算買入', 'success', '拿來判斷'),
-    conditionSide('sell', '什麼算賣出', 'danger', '同時也看'),
+    conditionSide('buy', new LocalizedTextVo('什麼算買入', 'What counts as an entry'), 'success',
+      new LocalizedTextVo('拿來判斷', 'feeds')),
+    conditionSide('sell', new LocalizedTextVo('什麼算賣出', 'What counts as an exit'), 'danger',
+      new LocalizedTextVo('同時也看', 'also watched by')),
   ]
 
   return {

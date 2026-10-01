@@ -44,18 +44,18 @@ describe('TradingStrategyWriteDomain', () => {
     const writeDomain = aBotWrite(overrides)
 
     expect(writeDomain.isSendable).toBe(false)
-    expect(writeDomain.rejection).toContain(expectedMessage)
+    expect(writeDomain.rejection?.in('zh-TW')).toContain(expectedMessage)
   })
 
   it('代號重複時說出是哪一個代號撞了', () => {
     // 代號是這張表單上少數幾個真的用打字的欄位，所以它擋不住、必須驗。
     const writeDomain = aBotWrite({ signalSources: [source('A'), source('A')] })
 
-    expect(writeDomain.rejection).toContain('「A」重複了')
+    expect(writeDomain.rejection?.in('zh-TW')).toContain('「A」重複了')
   })
 
   it('代號只有空白也不行', () => {
-    expect(aBotWrite({ signalSources: [source('  ')] }).rejection)
+    expect(aBotWrite({ signalSources: [source('  ')] }).rejection?.in('zh-TW'))
       .toContain('都要有一個代號')
   })
 
@@ -64,7 +64,7 @@ describe('TradingStrategyWriteDomain', () => {
     // 第一個反應是不知道要從哪裡開始。
     const writeDomain = aBotWrite({ name: '', signalSources: [] })
 
-    expect(writeDomain.rejection).toBe('必須給交易策略取一個名稱')
+    expect(writeDomain.rejection?.in('zh-TW')).toBe('必須給交易策略取一個名稱')
   })
 
   it('條件指到一個沒宣告的代號就送不出去', () => {
@@ -73,7 +73,7 @@ describe('TradingStrategyWriteDomain', () => {
     const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
 
     expect(writeDomain.isSendable).toBe(false)
-    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
+    expect(writeDomain.rejection?.in('zh-TW')).toContain('沒有宣告過的代號')
   })
 
   it('形狀不必驗——條件是由一張表寫出來的，而表寫不出不合法的形狀', () => {
@@ -94,7 +94,7 @@ describe('TradingStrategyWriteDomain', () => {
     const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
 
     expect(writeDomain.isSendable).toBe(false)
-    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
+    expect(writeDomain.rejection?.in('zh-TW')).toContain('沒有宣告過的代號')
   })
 
   it('形狀不必驗——條件是由一張表寫出來的，而表寫不出不合法的形狀', () => {
@@ -115,6 +115,23 @@ describe('TradingStrategyWriteDomain', () => {
     const writeDomain = aBotWrite({ buyCondition: comparison('沒有宣告過的代號') })
 
     expect(writeDomain.isSendable).toBe(false)
-    expect(writeDomain.rejection).toContain('沒有宣告過的代號')
+    expect(writeDomain.rejection?.in('zh-TW')).toContain('沒有宣告過的代號')
+  })
+
+  it.each([
+    ['名稱只有空白', { name: '   ' }, 'Give the trading strategy a name'],
+    ['代號重複', { signalSources: [source('A'), source('A')] }, 'The signal source label “A” is used twice'],
+    ['買入一格都沒勾', { buyCondition: null }, 'Both the entry and exit sides need at least one condition'],
+    ['條件指到沒宣告的代號', { buyCondition: comparison('Ghost') }, 'A condition still points at “Ghost”'],
+  ])('%s時那一句也說得出英文', (_situation, overrides, expectedMessage) => {
+    expect(aBotWrite(overrides).rejection?.in('en')).toContain(expectedMessage)
+  })
+
+  it('零件看的粗細不一樣時，英文那一句列出它現在有哪幾種', () => {
+    const writeDomain = aBotWrite({
+      signalSources: [source('A'), new TradingStrategySignalSourceDto('B', 9, '5m', [])],
+    })
+
+    expect(writeDomain.rejection?.in('en')).toContain('(1h, 5m)')
   })
 })

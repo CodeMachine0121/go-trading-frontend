@@ -398,9 +398,9 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
       new ConditionBoardItemDto(null, [piece('突破', ...accepted)]),
     ], true)).items[0]!.pieces[0]!
 
-    expect(readOut.relationWord).toBe('等於')
-    expect(readOut.sentence).toBe(sentence)
-    expect(readOut.plainWords).toBe(plainWords)
+    expect(readOut.relationWord.in('zh-TW')).toBe('等於')
+    expect(readOut.sentence.in('zh-TW')).toBe(sentence)
+    expect(readOut.plainWords?.in('zh-TW') ?? '').toBe(plainWords)
     expect(readOut.isUndecided).toBe(isUndecided)
   })
 
@@ -431,9 +431,9 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
   ])('整張：$name', ({ board, sentence, readOut }) => {
     const dto = worded(board)
 
-    expect(dto.sentence).toBe(sentence)
-    expect(dto.readOut).toBe(readOut)
-    expect(dto.relationWord).toBe('等於')
+    expect(dto.sentence.in('zh-TW')).toBe(sentence)
+    expect(dto.readOut.in('zh-TW')).toBe(readOut)
+    expect(dto.relationWord.in('zh-TW')).toBe('等於')
   })
 
   it.each([
@@ -445,8 +445,51 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
       new ConditionBoardItemDto(null, [piece('均線', 'buy')]),
     ], true))
 
-    expect(dto.joinerWord).toBe(boardJoiner)
-    expect(dto.items[0]!.joinerWord).toBe('且')
-    expect(dto.items[1]!.joinerWord).toBe('')
+    expect(dto.joinerWord.in('zh-TW')).toBe(boardJoiner)
+    expect(dto.items[0]!.joinerWord.in('zh-TW')).toBe('且')
+    expect(dto.items[1]!.joinerWord.in('zh-TW')).toBe('')
+  })
+
+  it.each([
+    {
+      name: '收兩個信號的一條',
+      board: new ConditionBoardDto('and', [
+        new ConditionBoardItemDto(null, [piece('Breakout', 'buy', 'hold')]),
+      ], true),
+      readOut: 'Breakout is Buy or Hold',
+    },
+    {
+      name: '一組旁邊還有別的格時加上括號',
+      board: new ConditionBoardDto('and', [
+        new ConditionBoardItemDto(null, [piece('MA', 'buy')]),
+        new ConditionBoardItemDto('or', [piece('Breakout', 'buy'), piece('Momentum', 'hold')]),
+      ], true),
+      readOut: 'MA is Buy and (Breakout is Buy or Momentum is Hold)',
+    },
+    {
+      name: '一個都沒收',
+      board: new ConditionBoardDto('or', [
+        new ConditionBoardItemDto(null, [piece('Breakout')]),
+      ], true),
+      readOut: 'Breakout is (no signal chosen yet)',
+    },
+    {
+      name: '空的一張',
+      board: new ConditionBoardDto('and', [], true),
+      readOut: 'No conditions yet.',
+    },
+  ])('英文讀出來是一句照英文語序的話：$name', ({ board, readOut }) => {
+    expect(worded(board).readOut.in('en')).toBe(readOut)
+  })
+
+  it.each([
+    { accepted: ['buy', 'hold'], plainWords: 'i.e. “not Sell”' },
+    { accepted: ['buy', 'sell', 'hold'], plainWords: 'i.e. “counts no matter what it says”' },
+  ])('收了兩個以上信號時的人話也有英文（$accepted）', ({ accepted, plainWords }) => {
+    const readOut = worded(new ConditionBoardDto('and', [
+      new ConditionBoardItemDto(null, [piece('Breakout', ...accepted)]),
+    ], true)).items[0]!.pieces[0]!
+
+    expect(readOut.plainWords?.in('en')).toBe(plainWords)
   })
 })

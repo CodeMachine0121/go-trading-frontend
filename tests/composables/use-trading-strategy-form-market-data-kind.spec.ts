@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const STRATEGY_OPTIONS = [{ value: 9, label: '均線' }]
 
@@ -16,7 +17,8 @@ function aStoredContractStrategy() {
     [new TradingStrategySignalSourceDto('費率', 21, '1h', [])],
     new TradingStrategyConditionDto('b', null, [], '費率', 'buy'),
     new TradingStrategyConditionDto('s', null, [], '費率', 'sell'),
-    'contractKCandle', '合約行情', 'shortOnly', '只做空', true)
+    'contractKCandle', new LocalizedTextVo('合約行情', 'Contract market data'), 'shortOnly',
+    new LocalizedTextVo('只做空', 'Short only'), true)
 }
 
 describe('useTradingStrategyForm 的行情種類與交易模式', () => {
@@ -49,7 +51,8 @@ describe('useTradingStrategyForm 的行情種類與交易模式', () => {
 
     expect(form.marketDataKind.value).toBe('contractKCandle')
     expect(form.signalSources.value).toHaveLength(0)
-    expect(form.marketDataKindNotice.value).toContain('原本的信號來源吃的是另一種行情，已經拿掉')
+    expect(form.marketDataKindNotice.value?.in('zh-TW')).toContain('原本的信號來源吃的是另一種行情，已經拿掉')
+    expect(form.marketDataKindNotice.value?.in('en')).toContain('the previous signal sources read the other kind')
   })
 
   it('還沒加任何來源就換，不必說任何話', () => {
@@ -58,7 +61,7 @@ describe('useTradingStrategyForm 的行情種類與交易模式', () => {
 
     form.changeMarketDataKind('contractKCandle')
 
-    expect(form.marketDataKindNotice.value).toBe('')
+    expect(form.marketDataKindNotice.value).toBeNull()
     expect(form.replaysOnContractAccount.value).toBe(true)
   })
 

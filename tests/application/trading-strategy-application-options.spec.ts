@@ -8,7 +8,7 @@ const application = new TradingStrategyApplication(new TradingStrategyService({}
 
 describe('TradingStrategyApplication 的兩份選單', () => {
   it('行情種類：K 線在前（新拼一份的預設），合約行情在後', () => {
-    expect(application.listMarketDataKindOptions().map(option => [option.value, option.label]))
+    expect(application.listMarketDataKindOptions().map(option => [option.value, option.label.in('zh-TW')]))
       .toEqual([['kCandle', 'K 線'], ['contractKCandle', '合約行情']])
   })
 

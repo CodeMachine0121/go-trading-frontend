@@ -1,6 +1,8 @@
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyConditionNodeIdVo } from '~/domain/models/vo/trading-strategy-condition-node-id-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * DTO：條件卡上的一條條件——它看的是哪一個訊號來源，以及那個來源要是哪幾個信號才算數。
@@ -17,13 +19,13 @@ export class ConditionBoardPieceDto {
     public readonly sourceLabel: string,
     public readonly acceptedSignals: readonly string[],
     /** 「等於」——信號比對唯一的那一種關係。 */
-    public readonly relationWord = '',
+    public readonly relationWord: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 它收的那幾個信號讀成一段話：「買入」「買入或持有」。 */
-    public readonly signalWords = '',
+    public readonly signalWords: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 這一條讀成一句話：「突破 等於 買入」。 */
-    public readonly sentence = '',
-    /** 收了兩個以上信號時，它其實在說什麼（「也就是『不是買入』」）；沒什麼要解釋時是空字串。 */
-    public readonly plainWords = '',
+    public readonly sentence: LocalizedTextVo = new UntranslatedTextVo(''),
+    /** 收了兩個以上信號時，它其實在說什麼（「也就是『不是買入』」）；沒什麼要解釋時是 `null`。 */
+    public readonly plainWords: LocalizedTextVo | null = null,
     /** 一個信號都沒收——這一條還沒決定。 */
     public readonly isUndecided = false,
   ) {}
@@ -59,9 +61,9 @@ export class ConditionBoardItemDto {
     public readonly operator: ConditionOperatorVo | null,
     public readonly pieces: readonly ConditionBoardPieceDto[],
     /** 一組裡面那幾句之間的連接詞；單獨一條時沒有。 */
-    public readonly joinerWord = '',
+    public readonly joinerWord: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 這一格讀成一句話：「突破 等於 買入 或 動能 等於 買入」。 */
-    public readonly sentence = '',
+    public readonly sentence: LocalizedTextVo = new UntranslatedTextVo(''),
   ) {}
 
   get isBundle(): boolean {
@@ -107,13 +109,13 @@ export class ConditionBoardDto {
     public readonly items: readonly ConditionBoardItemDto[],
     public readonly representable: boolean,
     /** 格與格之間的連接詞。 */
-    public readonly joinerWord = '',
+    public readonly joinerWord: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 「等於」——加一條條件時，來源與信號之間的那個字。 */
-    public readonly relationWord = '',
+    public readonly relationWord: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 整張讀成一句話；一張空的是空字串。 */
-    public readonly sentence = '',
+    public readonly sentence: LocalizedTextVo = new UntranslatedTextVo(''),
     /** 設定裡那一行讀出來的字：有條件時就是那一句，空的時候照實說還沒有。 */
-    public readonly readOut = '',
+    public readonly readOut: LocalizedTextVo = new UntranslatedTextVo(''),
   ) {}
 
   /** 條件卡上一條條件都沒有。 */

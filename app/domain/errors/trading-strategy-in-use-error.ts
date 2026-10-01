@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 刪不掉：還有機器人在用它。
  *
@@ -5,8 +7,12 @@
  * 那一個只要按停止。後端那句話裡有幾台在用，所以原樣講出來。
  */
 export class TradingStrategyInUseError extends Error {
+  /** 後端那一句的原文，不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: ErrorOptions) {
     super(message, options)
+    this.localizedMessage = new UntranslatedTextVo(message)
     this.name = 'TradingStrategyInUseError'
   }
 }

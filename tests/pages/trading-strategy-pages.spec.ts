@@ -10,14 +10,14 @@ import { buildTimeZone } from '../fixtures/time-zone'
 // 頁面只做接線。這裡看三件事：標題說的是「交易策略」、網址上那一段讀成改哪一份
 // （`new` 是新拼一份），以及回測那一側拿到的識別碼——還沒存過的那一份是沒有的。
 const pageState = vi.hoisted(() => ({
-  declaredMeta: [] as { layout?: string, consoleTitle?: string }[],
+  declaredMeta: [] as { layout?: string, consoleTitleKey?: string }[],
   routeId: 'new',
   getTradingStrategy: vi.fn(),
   // 這一頁向路由登記的離開守衛。記下來，才問得到「要離開時它說了什麼」。
   leaveGuards: [] as (() => boolean)[],
 }))
 
-mockNuxtImport('definePageMeta', () => (meta: { layout?: string, consoleTitle?: string }) => {
+mockNuxtImport('definePageMeta', () => (meta: { layout?: string, consoleTitleKey?: string }) => {
   pageState.declaredMeta.push(meta)
 })
 mockNuxtImport('useRoute', () => () => ({ params: { id: pageState.routeId } }))
@@ -38,7 +38,7 @@ mockNuxtImport('useLayoutDensity', () => () => ({ layoutDensity: ref(onADesktop(
 mockNuxtImport('onBeforeRouteLeave', () => (guard: () => boolean) => {
   pageState.leaveGuards.push(guard)
 })
-mockNuxtImport('useConsoleAnnouncement', () => () => ({ announcement: ref(''), announce: () => {} }))
+mockNuxtImport('useConsoleAnnouncement', () => () => ({ announcement: ref(null), announce: () => {} }))
 
 const STUBS = {
   TradingStrategyListPanel: { template: '<p data-testid="list" />' },
@@ -58,7 +58,7 @@ describe('交易策略的兩個畫面', () => {
     mount(TradingStrategyListPage, { global: { stubs: STUBS } })
 
     expect(pageState.declaredMeta)
-      .toEqual([expect.objectContaining({ layout: 'console', consoleTitle: '交易策略' })])
+      .toEqual([expect.objectContaining({ layout: 'console', consoleTitleKey: 'tradingStrategy.pages.list.title' })])
   })
 
   it.each([
@@ -73,7 +73,7 @@ describe('交易策略的兩個畫面', () => {
     await flushPromises()
 
     expect(pageState.declaredMeta)
-      .toEqual([expect.objectContaining({ layout: 'console', consoleTitle: '交易策略' })])
+      .toEqual([expect.objectContaining({ layout: 'console', consoleTitleKey: 'tradingStrategy.pages.workbench.title' })])
     expect(wrapper.get('[data-testid="backtest-id"]').text()).toBe(expectedId)
     expect(pageState.getTradingStrategy).toHaveBeenCalledTimes(reads ? 1 : 0)
   })

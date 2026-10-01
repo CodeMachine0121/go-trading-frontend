@@ -8,6 +8,8 @@ import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-stra
 import { TradingStrategyService } from '~/domain/service/trading-strategy-service'
 import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
 import { onADesktop } from '../../fixtures/layout-density'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 
 const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
 
@@ -19,8 +21,8 @@ function storedStrategy(marketDataKind: 'kCandle' | 'contractKCandle') {
     [new TradingStrategySignalSourceDto('A', contract ? 21 : 9, '1h', [])],
     new TradingStrategyConditionDto('b', null, [], 'A', 'buy'),
     new TradingStrategyConditionDto('s', null, [], 'A', 'sell'),
-    marketDataKind, contract ? '合約行情' : 'K 線',
-    contract ? 'shortOnly' : null, contract ? '只做空' : null, contract)
+    marketDataKind, new MarketDataKindDomain(marketDataKind).label(),
+    contract ? 'shortOnly' : null, contract ? new ContractTradingModeDomain('shortOnly').label() : null, contract)
 }
 
 function mountWorkbench(editing: TradingStrategyDto | null) {
@@ -37,7 +39,7 @@ function mountWorkbench(editing: TradingStrategyDto | null) {
       marketDataKindOptions: optionsService.listMarketDataKindOptions(),
       contractTradingModeOptions: optionsService.listContractTradingModeOptions(),
       saving: false,
-      failureMessage: '',
+      failureMessage: null,
       savedGeneration: 0,
       layoutDensity: onADesktop(),
     },
