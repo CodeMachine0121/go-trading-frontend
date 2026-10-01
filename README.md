@@ -308,6 +308,7 @@ Relevance AI 的圓形浮動鍵；Base44、Hims、Substack 的圓泡泡與膠囊
 | K 線圖表 | [`.sdd/2026-09-02-k-candle-chart-view/`](.sdd/2026-09-02-k-candle-chart-view/) |
 | 交易標的選單 | [`.sdd/2026-09-02-trading-symbol-picker/`](.sdd/2026-09-02-trading-symbol-picker/) |
 | 顯示時區 | [`.sdd/2026-09-03-display-time-zone/`](.sdd/2026-09-03-display-time-zone/) |
+| 顯示語言與布里斯本時區 | [`.sdd/2026-10-01-display-language-and-brisbane-time-zone/`](.sdd/2026-10-01-display-language-and-brisbane-time-zone/) |
 | 查到送出當下 | [`.sdd/2026-09-03-k-candle-search-until-now/`](.sdd/2026-09-03-k-candle-search-until-now/) |
 | 策略腳本庫 | [`.sdd/2026-09-03-strategy-script-library/`](.sdd/2026-09-03-strategy-script-library/) |
 | 開一份新的空白策略腳本 | [`.sdd/2026-09-03-blank-strategy-script-draft/`](.sdd/2026-09-03-blank-strategy-script-draft/) |
@@ -456,7 +457,7 @@ bun run typecheck     # vue-tsc 型別檢查
 bun run test          # Vitest 跑一次
 bun run test:watch    # Vitest watch 模式
 bun run test:coverage # 覆蓋率報告
-bun run verify        # lint + lint:style + typecheck + test（等同 pre-push 的檢查）
+bun run verify        # lint + lint:style + lint:tokens + lint:translations + typecheck + test（等同 pre-push 的檢查）
 ```
 
 > ⚠️ **一定要 `bun run test`，不要 `bun test`。** `bun test` 會跑 bun 內建的測試 runner
