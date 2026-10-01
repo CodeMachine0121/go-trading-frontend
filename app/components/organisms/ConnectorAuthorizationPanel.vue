@@ -59,7 +59,7 @@ const deciding = computed(() => pendingDecision !== null)
       tone="warning"
       data-testid="authorization-expired"
     >
-      這一張授權請求已失效或已被使用，請回到 Claude Code 重新連線。
+      這一張授權請求已失效或已被使用，請回到 Claude 重新連線。
     </AppAlert>
 
     <AppAlert
@@ -85,7 +85,7 @@ const deciding = computed(() => pendingDecision !== null)
       tone="danger"
       data-testid="authorization-return-address-rejected"
     >
-      交易服務給的返回位址不是這台電腦上的外掛，為了安全沒有把你送過去。請回到 Claude Code 重新連線。
+      交易服務給的返回位址不是信任的外掛位址，為了安全沒有把你送過去。請回到 Claude 重新連線。
     </AppAlert>
 
     <AppAlert
@@ -93,7 +93,7 @@ const deciding = computed(() => pendingDecision !== null)
       tone="success"
       data-testid="authorization-handed-back"
     >
-      已交回 Claude Code，可以關掉這個分頁，回到 Claude Code。
+      已交回外掛，可以關掉這個分頁，回到 Claude。
     </AppAlert>
 
     <template v-else>
