@@ -87,7 +87,7 @@ function confirmRemoval(): void {
     </AppAlert>
 
     <dl
-      v-else-if="configured && !formVisible"
+      v-else-if="configured"
       class="binance-trading-key-panel__record"
       data-testid="binance-trading-key-summary"
     >
@@ -102,6 +102,7 @@ function confirmRemoval(): void {
             data-testid="binance-trading-key-api-key"
           >{{ setting?.apiKeySummary }}</span>
           <AppButton
+            v-if="!editing"
             variant="secondary"
             size="small"
             :disabled="saving"
@@ -137,7 +138,10 @@ function confirmRemoval(): void {
         </dd>
       </div>
 
-      <div class="binance-trading-key-panel__row">
+      <div
+        v-if="!editing"
+        class="binance-trading-key-panel__row"
+      >
         <dt class="binance-trading-key-panel__label">
           移除金鑰
         </dt>

@@ -83,10 +83,16 @@ describe('BinanceTradingKeyPanel：存入', () => {
     expect(wrapper.get('[data-testid="binance-trading-key-save-error"]').text()).toBe('連不上幣安，請稍後再試')
   })
 
-  it('欄位錯誤掛在那一格底下', () => {
-    const wrapper = mountPanel({ setting: UNCONFIGURED, secretKeyError: '必須給 Secret Key' })
+  it.each([
+    { field: 'apiKeyError', inputTestId: 'binance-api-key-input', message: '必須給 API Key' },
+    { field: 'secretKeyError', inputTestId: 'binance-secret-key-input', message: '必須給 Secret Key' },
+  ])('$message 掛在那一格底下', ({ field, inputTestId, message }) => {
+    const wrapper = mountPanel({ setting: UNCONFIGURED, [field]: message })
 
-    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('必須給 Secret Key')
+    const fieldErrors = wrapper.findAll('[data-testid="field-error"]')
+    expect(fieldErrors).toHaveLength(1)
+    expect(fieldErrors[0]!.element.parentElement?.querySelector(`[data-testid="${inputTestId}"]`)).not.toBeNull()
+    expect(fieldErrors[0]!.text()).toBe(message)
   })
 
   it('等幣安確認期間說正在確認，存入鍵與兩格都按不動', () => {
@@ -96,6 +102,19 @@ describe('BinanceTradingKeyPanel：存入', () => {
     expect(wrapper.get('[data-testid="binance-trading-key-save"]').text()).toBe('向幣安確認中…')
     expect(wrapper.get('[data-testid="binance-trading-key-save"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="binance-api-key-input"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('換一組存不成時，畫面仍顯示原本那一組', () => {
+    const wrapper = mountStored({
+      formVisible: true,
+      editing: true,
+      saveErrorMessage: '幣安不接受這組金鑰，請確認 API Key 與 Secret Key 後重新填寫',
+    })
+
+    expect(wrapper.get('[data-testid="binance-trading-key-api-key"]').text()).toBe('結尾 a1b2')
+    expect(wrapper.get('[data-testid="binance-trading-key-save-error"]').text()).toContain('幣安不接受這組金鑰')
+    expect(wrapper.find('[data-testid="binance-trading-key-unconfigured"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="binance-trading-key-remove"]').exists()).toBe(false)
   })
 
   it('換一組時可以取消', async () => {
