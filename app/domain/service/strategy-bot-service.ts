@@ -7,6 +7,9 @@ import { StrategyBotRejectedError } from '~/domain/errors/strategy-bot-rejected-
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { AutoOrderRefusalDomain } from '~/domain/models/domains/auto-order-refusal-domain'
+import { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-result-dto'
 
 /**
  * Domain Service：策略機器人的編排。
@@ -83,5 +86,27 @@ export class StrategyBotService {
     const runRecords = await this.strategyBotProxy.listRunRecords(id)
 
     return runRecords.map(runRecord => runRecord.toDomain().toDto())
+  }
+
+  async enableAutoOrder(id: number): Promise<AutoOrderSwitchResultDto> {
+    try {
+      const enabled = await this.strategyBotProxy.enableAutoOrder(id)
+
+      return new AutoOrderSwitchResultDto(enabled.toDomain().toDto(), null)
+    }
+    catch (error: unknown) {
+      if (error instanceof AutoOrderRefusedError) {
+        return new AutoOrderSwitchResultDto(
+          null, new AutoOrderRefusalDomain(id, error.reason, error.message).toDto())
+      }
+
+      throw error
+    }
+  }
+
+  async disableAutoOrder(id: number): Promise<StrategyBotDto> {
+    const disabled = await this.strategyBotProxy.disableAutoOrder(id)
+
+    return disabled.toDomain().toDto()
   }
 }

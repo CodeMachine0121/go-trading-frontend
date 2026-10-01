@@ -36,6 +36,7 @@ export class StrategyBotDomain {
       // 只有收槓桿的那一種、而且真的有建議部位時才說：沒有建議部位的那一台什麼都不押，說它幾倍是在講一個不存在的部位。
       page.takesLeverage && leverage !== null ? `${leverage.toString()} 倍` : null,
       `${page.listPath}/${this.strategyBot.id}`,
+      this.strategyBot.autoOrderEnabled,
     )
   }
 }

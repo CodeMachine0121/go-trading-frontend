@@ -10,6 +10,8 @@ import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-er
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import Decimal from 'decimal.js'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 
 const BASE_URL = 'http://localhost:8080'
@@ -424,5 +426,71 @@ describe('StrategyBotProxy 分得出現貨與合約機器人', () => {
     expect(sentBody.marketDataKind).toBe(marketDataKind)
     expect(sentBody.positionPlan.leverage).toBe(sentLeverage)
     expect('leverage' in sentBody.positionPlan).toBe(sentLeverage !== undefined)
+  })
+})
+
+describe('StrategyBotProxy 的自動下單', () => {
+  function buildRefusal(status: number, data: { message: string, reason?: string }) {
+    return createFetchError({
+      request: BASE_URL,
+      options: {},
+      response: { status, statusText: 'rejected', _data: data },
+    } as unknown as FetchContext)
+  }
+
+  it.each([
+    { autoOrderEnabled: true, expected: true },
+    { autoOrderEnabled: false, expected: false },
+    { autoOrderEnabled: undefined, expected: false },
+  ])('交易服務說 $autoOrderEnabled 時讀作 $expected', async ({ autoOrderEnabled, expected }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ autoOrderEnabled })))
+
+    const bot = await proxy().getStrategyBot(3)
+
+    expect(bot.autoOrderEnabled).toBe(expected)
+  })
+
+  it.each([
+    { action: 'enableAutoOrder' as const, method: 'POST' },
+    { action: 'disableAutoOrder' as const, method: 'DELETE' },
+  ])('$action 打那一台的自動下單子資源（$method）', async ({ action, method }) => {
+    const fetchStub = vi.fn().mockResolvedValue(botWire({ marketDataKind: 'contractKCandle' }))
+    vi.stubGlobal('$fetch', fetchStub)
+
+    await proxy()[action](7)
+
+    expect(fetchStub).toHaveBeenCalledWith(
+      `${BASE_URL}/strategy-bots/7/auto-order`, expect.objectContaining({ method }))
+  })
+
+  it.each([
+    'binanceTradingKeyNotConfigured',
+    'tradableMarketNotCovered',
+    'binanceTradingKeyChanged',
+  ])('打開被拒（%s）帶著原話與原因', async (reason) => {
+    const message = 'strategy bot auto order market not covered: 這組幣安交易金鑰沒有合約交易權限'
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildRefusal(409, { message, reason })))
+
+    const enabling = proxy().enableAutoOrder(7)
+
+    await expect(enabling).rejects.toBeInstanceOf(AutoOrderRefusedError)
+    await expect(enabling).rejects.toMatchObject({ message, reason })
+  })
+
+  it('沒帶自動下單原因的 409 仍然是原本那幾種', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildRefusal(409, { message: '已經有一台叫「早盤突破」的機器人' })))
+
+    await expect(proxy().enableAutoOrder(7)).rejects.toBeInstanceOf(StrategyBotNameConflictError)
+  })
+
+  it('不是 409 的同名原因不當成自動下單拒絕', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      buildRefusal(400, { message: '機器人識別碼必須是正整數', reason: 'binanceTradingKeyChanged' })))
+
+    const enabling = proxy().enableAutoOrder(7)
+
+    await expect(enabling).rejects.toBeInstanceOf(BackendRequestRejectedError)
+    await expect(enabling).rejects.not.toBeInstanceOf(AutoOrderRefusedError)
   })
 })

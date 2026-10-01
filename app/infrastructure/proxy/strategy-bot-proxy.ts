@@ -8,6 +8,8 @@ import { StrategyBotNotFoundError } from '~/domain/errors/strategy-bot-not-found
 import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-error'
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { AUTO_ORDER_REFUSAL_REASONS } from '~/domain/models/vo/auto-order-refusal-reason-vo'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
@@ -91,6 +93,7 @@ type StrategyBotWire = {
   positionPlan?: PositionPlanWire | null
   /** 舊版後端不回，那一台就是現貨機器人。 */
   marketDataKind?: string
+  autoOrderEnabled?: boolean
 }
 
 /**
@@ -179,6 +182,14 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     }
   }
 
+  async enableAutoOrder(id: number): Promise<StrategyBot> {
+    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/auto-order`, 'POST')
+  }
+
+  async disableAutoOrder(id: number): Promise<StrategyBot> {
+    return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/auto-order`, 'DELETE')
+  }
+
   /**
    * 每一條會交回一台機器人的路徑都走這裡：送出、正規化、翻譯失敗。
    *
@@ -217,6 +228,12 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       return error.message.includes('策略機器人')
         ? new StrategyBotNotFoundError(error.message, { cause: error })
         : new TradingStrategyNotFoundError(error.message, { cause: error })
+    }
+
+    const autoOrderRefusalReason = AUTO_ORDER_REFUSAL_REASONS
+      .find(reason => reason === error.reason)
+    if (error.status === CONFLICT_STATUS && autoOrderRefusalReason !== undefined) {
+      return new AutoOrderRefusedError(error.message, autoOrderRefusalReason, { cause: error })
     }
 
     if (error.status === CONFLICT_STATUS) {
@@ -322,6 +339,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       botWire.conflicting ?? false,
       this.toPositionPlan(marketDataKind, botWire.positionPlan),
       marketDataKind.value,
+      botWire.autoOrderEnabled ?? false,
     )
   }
 }
