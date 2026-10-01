@@ -105,7 +105,7 @@ const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultTyp
     '',
     new LocalizedTextVo(
       'return map[string][]bool{"這一格有結算": answers}',
-      'return map[string][]bool{"Settled in this bar": answers}'),
+      'return map[string][]bool{"Settled in this candle": answers}'),
   ],
   signal: [
     'first := data[0]',

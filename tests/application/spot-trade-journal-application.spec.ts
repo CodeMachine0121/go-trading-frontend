@@ -261,7 +261,7 @@ describe('SpotTradeJournalApplication 英文說法', () => {
 
   it.each([
     ['沒有標的', { symbol: '' }, 'Enter a symbol'],
-    ['價格讀不懂', { fills: [draftFill({ priceText: 'abc' })] }, 'Fill 1 needs a price and quantity greater than zero'],
+    ['價格讀不懂', { fills: [draftFill({ priceText: 'abc' })] }, 'Row 1 needs a price and quantity greater than zero'],
   ])('記一筆時%s，英文畫面說出缺什麼', (_name, overrides, expected) => {
     const { application } = setup()
 

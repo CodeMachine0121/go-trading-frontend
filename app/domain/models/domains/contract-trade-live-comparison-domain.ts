@@ -42,8 +42,8 @@ export class ContractTradeLiveComparisonDomain {
         const failureReason = row.backtestFailureReason
         const failureMessage = row.backtest === null
           ? failureReason === null
-            ? new LocalizedTextVo('重演沒有結果，無法重演', 'The replay produced no result, so it cannot be replayed')
-            : new LocalizedTextVo(`${failureReason}，無法重演`, `${failureReason}; cannot replay`)
+            ? new LocalizedTextVo('重演沒有結果，無法重演', 'The replay returned no result, so nothing can be compared')
+            : new LocalizedTextVo(`${failureReason}，無法重演`, `${failureReason}, so nothing can be compared`)
           : null
 
         return new ContractTradeLiveComparisonRowDto(
@@ -62,10 +62,10 @@ export class ContractTradeLiveComparisonDomain {
         : this.comparison.averageEntrySlippagePercentage === null
           ? new LocalizedTextVo(
               '整份策略平均進場滑點：不適用（沒有來自機器人連結的實單）',
-              'Strategy-wide average entry slippage: N/A (no live trades from bot links)')
+              'Strategy-wide avg entry slippage: N/A (no live trades from bot links)')
           : new LocalizedTextVo(
               `整份策略平均進場滑點 ${this.slippageText(this.comparison.averageEntrySlippagePercentage)}，以 ${this.comparison.entrySlippageTradeCount} 筆計`,
-              `Strategy-wide average entry slippage ${this.slippageText(this.comparison.averageEntrySlippagePercentage)}, across ${this.comparison.entrySlippageTradeCount} ${this.comparison.entrySlippageTradeCount === 1 ? 'trade' : 'trades'}`),
+              `Strategy-wide avg entry slippage ${this.slippageText(this.comparison.averageEntrySlippagePercentage)}, across ${this.comparison.entrySlippageTradeCount} ${this.comparison.entrySlippageTradeCount === 1 ? 'trade' : 'trades'}`),
     )
   }
 

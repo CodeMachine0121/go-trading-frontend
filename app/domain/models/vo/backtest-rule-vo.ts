@@ -33,12 +33,12 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
       'Set the indicator value type to "A signal". On every candle the script returns one signal — '
       + '`return indicator.Buy`, `indicator.Sell` or `indicator.Hold`: one of the three, there is no fourth.')),
   new BacktestRuleVo(
-    new LocalizedTextVo('只跑「一個信號」的算式', 'Only scripts that return "A signal" run'),
+    new LocalizedTextVo('只跑「一個信號」的算式', 'Only "A signal" scripts can be backtested'),
     new LocalizedTextVo(
       '回測一根 K 線問一次，每一次讀一個訊號。所以指標值種類必須是「一個信號」——'
       + '回傳數字或是非的算式，回測讀不出這一棒的意見。',
       'The backtest asks once per K-candle and reads one signal each time, so the indicator value type must be "A signal" — '
-      + 'from a script that returns a number or a yes-no, the backtest cannot read a view on the candle.')),
+      + 'a script that returns a number or true/false gives the backtest no view on the candle.')),
   new BacktestRuleVo(
     new LocalizedTextVo('一根 K 線跑一次，愈往後看得愈長', 'One run per K-candle, seeing further back as it goes'),
     new LocalizedTextVo(
@@ -52,14 +52,14 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
       '說訊號的那一棒，就是成交的那一棒。你拿計算機就能自己驗一遍。',
       'The candle that gives the signal is the candle that fills. You can check it yourself with a calculator.')),
   new BacktestRuleVo(
-    new LocalizedTextVo('重演只做現貨', 'The replay trades Spot only'),
+    new LocalizedTextVo('重演只做現貨', 'The replay trades spot only'),
     new LocalizedTextVo(
       '買入就開倉，賣出就平倉把錢收回來、之後空手等下一個買點；'
       + '空手時聽到賣出什麼都不做——你沒有東西可以賣，而這裡開不了空倉。'
       + '借錢與做空是合約帳戶的事，那是另外一件事，這裡不做：'
       + '這裡的成績單講的永遠是「拿現金換東西，賣掉就回到現金」。',
       'Buy opens a position; sell closes it and takes the money back, then waits flat for the next buy; '
-      + 'a sell heard while flat does nothing — you have nothing to sell, and no short position can be opened here. '
+      + 'a sell signal while flat is ignored — you have nothing to sell, and no short position can be opened here. '
       + 'Borrowing and shorting belong to a contract account, which is a different matter and not done here: '
       + 'the scorecard here always tells the story of "trade cash for something, sell it and you are back to cash".')),
   new BacktestRuleVo(
@@ -67,8 +67,8 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
     new LocalizedTextVo(
       '空手聽到買入就開倉；已經持有又聽到買入，當作沒聽到。'
       + '賣出就平倉，之後空手；空手時聽到賣出什麼都不做。',
-      'A buy heard while flat opens a position; a buy heard while already holding is ignored. '
-      + 'A sell closes the position and leaves you flat; a sell heard while flat does nothing.')),
+      'A buy signal while flat opens a position; a buy signal while already holding is ignored. '
+      + 'A sell closes the position and leaves you flat; a sell signal while flat is ignored.')),
   new BacktestRuleVo(
     new LocalizedTextVo('押不下去就跳過，不算失敗', 'A position that cannot be funded is skipped, not a failure'),
     new LocalizedTextVo(
@@ -91,9 +91,9 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
       + '留白就完全不模擬，而不是套用一個常見的預設值。'
       + '同一支算式、同一段行情，止損放不放可以是完全不同的兩張成績單。',
       'Fill in a stop-loss or take-profit distance and the backtest really accounts for it — '
-      + 'distances are measured from the **entry price**: the stop-loss is always below and the take-profit always above, because there is only one kind of position here. '
+      + 'distances are measured from the **entry price**: the stop loss is always below and the take profit always above, because there is only one kind of position here. '
       + 'Left blank, nothing is simulated at all; no common default is applied. '
-      + 'Same script, same market data: with or without a stop-loss can be two completely different scorecards.')),
+      + 'Same script, same market data: with or without a stop loss can be two completely different scorecards.')),
   new BacktestRuleVo(
     new LocalizedTextVo('出場價位用那一棒的最高最低價判', 'Exit levels are checked against the candle\'s high and low'),
     new LocalizedTextVo(
@@ -102,9 +102,9 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
       + '**同一棒同時碰到兩個價位時一律算止損**——'
       + '一根 K 線說不出哪一個先到，而兩種讀法只有這一種永遠不會讓成績單變好看。'
       + '被掃出場之後，那一棒的訊號照常判。',
-      'Not against the close — a stop-loss is hit intraday and fills at that level itself. '
+      'Not against the close — a stop loss is hit intraday and fills at that level itself. '
       + '**The entry candle is not checked**: the fill is at its close, and its high and low happened before the fill. '
-      + '**When one candle touches both levels, it always counts as the stop-loss** — '
+      + '**When one candle touches both levels, it always counts as the stop loss** — '
       + 'a K-candle cannot tell which came first, and of the two readings only this one never makes the scorecard look better. '
       + 'After being stopped out, that candle\'s signal is still evaluated as usual.')),
   new BacktestRuleVo(
@@ -128,12 +128,12 @@ export const BACKTEST_RULES: BacktestRuleVo[] = [
  */
 export const CONTRACT_BACKTEST_RULES: BacktestRuleVo[] = [
   new BacktestRuleVo(
-    new LocalizedTextVo('算式要說出這一格的意見', 'The script must give its view on this bar'),
+    new LocalizedTextVo('算式要說出這一格的意見', 'The script must give its view on this candle'),
     new LocalizedTextVo(
       '指標值種類選「一個信號」。算式每一格回傳 `indicator.Buy`、`indicator.Sell` 或 `indicator.Hold`，'
       + '看得到的是第 1 格到這一格（含）的合約行情格。',
-      'Set the indicator value type to "A signal". On every bar the script returns `indicator.Buy`, `indicator.Sell` or `indicator.Hold`, '
-      + 'and it sees the contract market data bars from bar 1 up to this one (inclusive).')),
+      'Set the indicator value type to "A signal". On every candle the script returns `indicator.Buy`, `indicator.Sell` or `indicator.Hold`, '
+      + 'and it sees the contract market data candles from candle 1 up to this one (inclusive).')),
   new BacktestRuleVo(
     new LocalizedTextVo('逐倉的合約帳戶', 'An isolated-margin contract account'),
     new LocalizedTextVo(
@@ -153,8 +153,8 @@ export const CONTRACT_BACKTEST_RULES: BacktestRuleVo[] = [
     new LocalizedTextVo(
       '一格的標記價格碰到強平價，這一注就被強制平倉、保證金全部沒有。'
       + '止損與強平誰離進場價近誰先到；同一格碰到止損與止盈一律算止損。',
-      'When a bar\'s mark price reaches the liquidation price, the position is force-closed and all its margin is lost. '
-      + 'Between stop-loss and liquidation, whichever is closer to the entry price comes first; a bar that touches both stop-loss and take-profit always counts as the stop-loss.')),
+      'When a candle\'s mark price reaches the liquidation price, the position is force-closed and all its margin is lost. '
+      + 'Between stop loss and liquidation, whichever is closer to the entry price comes first; a candle that touches both stop loss and take profit always counts as the stop loss.')),
   new BacktestRuleVo(
     new LocalizedTextVo('資金費率一律計入', 'Funding is always counted'),
     new LocalizedTextVo(
@@ -163,12 +163,12 @@ export const CONTRACT_BACKTEST_RULES: BacktestRuleVo[] = [
       'Every funding settlement passed while holding a position is paid or received: with a positive rate longs pay and shorts receive; with a negative rate it is the other way round. '
       + 'Funding fees go straight into or out of the position\'s margin, so the liquidation price moves with them.')),
   new BacktestRuleVo(
-    new LocalizedTextVo('一格裡的順序', 'The order within a bar'),
+    new LocalizedTextVo('一格裡的順序', 'The order within a candle'),
     new LocalizedTextVo(
       '先收付這一格的資金費率 → 再看止損與強平 → 再看止盈 → 最後才套這一格的信號，成交在收盤價。'
       + '開倉的那一格不判出場價位。',
-      'First this bar\'s funding is paid or received → then stop-loss and liquidation are checked → then take-profit → and only last is this bar\'s signal applied, filling at the close. '
-      + 'Exit levels are not checked on the bar a position opens.')),
+      'First this candle\'s funding is paid or received → then stop loss and liquidation are checked → then take profit → and only last is this candle\'s signal applied, filling at the close. '
+      + 'Exit levels are not checked on the candle a position opens.')),
   new BacktestRuleVo(
     new LocalizedTextVo('交易所不讓下的單，這裡也不下', 'Orders the exchange would refuse are not placed here either'),
     new LocalizedTextVo(

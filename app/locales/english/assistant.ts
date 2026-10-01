@@ -8,7 +8,7 @@ export const assistantEnglishMessages: typeof assistantTraditionalChineseMessage
   pages: {
     chat: {
       title: 'AI-Assistant',
-      subtitle: 'Ask about the market in plain words. The assistant looks up trading symbols, K-lines, indicators and strategy scripts on its own.',
+      subtitle: 'Ask about the market in plain words. The assistant looks up trading symbols, K-candles, indicators and strategy scripts on its own.',
     },
   },
   message: {
@@ -44,7 +44,7 @@ export const assistantEnglishMessages: typeof assistantTraditionalChineseMessage
     movingAverage: 'Use a 20-candle moving average to see where BTCUSDT stands now',
   },
   conversationThread: {
-    emptyLead: 'Just ask about the market the way you would say it. The assistant looks up trading symbols, K-lines, indicators and strategy scripts on its own, then answers in a few sentences.',
+    emptyLead: 'Just ask about the market the way you would say it. The assistant looks up trading symbols, K-candles, indicators and strategy scripts on its own, then answers in a few sentences.',
   },
   console: {
     historyWithCount: 'Conversation history ({count})',

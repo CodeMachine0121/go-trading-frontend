@@ -60,8 +60,8 @@ const POSITION_DIRECTION_LABELS: Readonly<Record<PositionDirection, LocalizedTex
  */
 const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, LocalizedTextVo>> = {
   signal: new LocalizedTextVo('訊號', 'Signal'),
-  stopLoss: new LocalizedTextVo('止損', 'Stop-loss'),
-  takeProfit: new LocalizedTextVo('止盈', 'Take-profit'),
+  stopLoss: new LocalizedTextVo('止損', 'Stop loss'),
+  takeProfit: new LocalizedTextVo('止盈', 'Take profit'),
   liquidation: new LocalizedTextVo('強平', 'Liquidation'),
 }
 
@@ -108,7 +108,7 @@ export class BacktestDomain {
         new LocalizedTextVo('驗證段', 'Validation segment'),
         new LocalizedTextVo(
           '這一段是調參數時沒看過的行情，以它為準',
-          'This segment is market data the tuning never saw — go by this one'),
+          'This segment is market data the tuning never saw — trust this one'),
         true),
       inSample.toDomain().toSectionDto(
         'inSample',

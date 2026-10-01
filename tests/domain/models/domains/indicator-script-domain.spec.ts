@@ -162,7 +162,7 @@ describe('IndicatorScriptDomain 吃合約行情的算式', () => {
 
   it.each([
     { scriptDomain: scriptOf('float'), chineseName: '"均價"', englishName: '"Average price"' },
-    { scriptDomain: contractScriptOf('boolList'), chineseName: '"這一格有結算"', englishName: '"Settled in this bar"' },
+    { scriptDomain: contractScriptOf('boolList'), chineseName: '"這一格有結算"', englishName: '"Settled in this candle"' },
   ])('英文畫面帶入的範例用英文的指標名稱 $englishName，程式碼與中文那一份一字不差', ({ scriptDomain, chineseName, englishName }) => {
     const example = scriptDomain.exampleScript()
 

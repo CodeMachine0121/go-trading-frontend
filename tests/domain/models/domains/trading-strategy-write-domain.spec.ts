@@ -120,9 +120,9 @@ describe('TradingStrategyWriteDomain', () => {
 
   it.each([
     ['名稱只有空白', { name: '   ' }, 'Give the trading strategy a name'],
-    ['代號重複', { signalSources: [source('A'), source('A')] }, 'The signal source label “A” is used twice'],
-    ['買入一格都沒勾', { buyCondition: null }, 'Both the entry and exit sides need at least one condition'],
-    ['條件指到沒宣告的代號', { buyCondition: comparison('Ghost') }, 'A condition still points at “Ghost”'],
+    ['代號重複', { signalSources: [source('A'), source('A')] }, 'The signal source label "A" is used twice'],
+    ['買入一格都沒勾', { buyCondition: null }, 'Both the buy and sell sides need at least one condition'],
+    ['條件指到沒宣告的代號', { buyCondition: comparison('Ghost') }, 'A condition still points at "Ghost"'],
   ])('%s時那一句也說得出英文', (_situation, overrides, expectedMessage) => {
     expect(aBotWrite(overrides).rejection?.in('en')).toContain(expectedMessage)
   })

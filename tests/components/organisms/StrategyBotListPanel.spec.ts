@@ -28,7 +28,7 @@ function stoppedState() {
 function haltedState() {
   return new StrategyBotRunStateDto(
     false, true, false, new LocalizedTextVo('停擺', 'Halted'), 'danger',
-    new LocalizedTextVo('機器人金鑰不被接受', 'The bot key was not accepted'), new LocalizedTextVo('買入', 'Buy'), true, false, true, null)
+    new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'), new LocalizedTextVo('買入', 'Buy'), true, false, true, null)
 }
 
 function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {

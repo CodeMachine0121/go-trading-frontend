@@ -10,8 +10,8 @@ const ENTRY_TIME = new Date('2026-09-01T04:00:00Z')
 const EXIT_TIME = new Date('2026-09-02T04:00:00Z')
 const LONG = new LocalizedTextVo('做多', 'Long')
 const SIGNAL_EXIT = new LocalizedTextVo('訊號', 'Signal')
-const STOP_LOSS_EXIT = new LocalizedTextVo('止損', 'Stop-loss')
-const TAKE_PROFIT_EXIT = new LocalizedTextVo('止盈', 'Take-profit')
+const STOP_LOSS_EXIT = new LocalizedTextVo('止損', 'Stop loss')
+const TAKE_PROFIT_EXIT = new LocalizedTextVo('止盈', 'Take profit')
 
 function tradeOf(
   profit: string,
@@ -194,7 +194,7 @@ describe('BacktestTradeTable 切成英文', () => {
       'Direction', 'Entry (UTC)', 'Entry price', 'Exit (UTC)', 'Exit price', 'Exit reason',
       'Entry cost', 'Exit cost', 'Profit (after costs)'])
     expect(wrapper.findAll('[data-testid="trade-row"] td')[0]!.text()).toBe('Long')
-    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Stop-loss')
+    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Stop loss')
   })
 
   it.each([

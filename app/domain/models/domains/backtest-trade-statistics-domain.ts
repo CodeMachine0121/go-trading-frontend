@@ -15,7 +15,7 @@ const PERCENTAGE_FRACTION_DIGITS = 2
 const HOLDING_TIME_UNITS: readonly { seconds: number, label: LocalizedTextVo }[] = [
   { seconds: 86400, label: new LocalizedTextVo('天', 'd') },
   { seconds: 3600, label: new LocalizedTextVo('小時', 'h') },
-  { seconds: 60, label: new LocalizedTextVo('分', 'min') },
+  { seconds: 60, label: new LocalizedTextVo('分', 'm') },
   { seconds: 1, label: new LocalizedTextVo('秒', 's') },
 ]
 

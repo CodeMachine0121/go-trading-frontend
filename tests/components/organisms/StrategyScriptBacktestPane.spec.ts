@@ -808,7 +808,7 @@ describe('StrategyScriptBacktestPane 切成英文', () => {
 
     expect(wrapper.text()).toContain('Scorecard')
     expect(wrapper.text()).toContain('Equity curve')
-    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('Candles backtested: 3')
+    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('3 candles backtested')
     expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Signal')
   })
 })

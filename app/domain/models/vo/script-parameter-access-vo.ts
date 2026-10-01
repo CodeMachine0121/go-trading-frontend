@@ -69,7 +69,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       'Any single number, such as a multiplier, threshold or weight. The system does not interpret it and passes it to the script as is.'),
   ),
   new ScriptParameterAccessVo(
-    new LocalizedTextVo('是非', 'Yes-no'),
+    new LocalizedTextVo('是非', 'True/false'),
     'bool',
     new LocalizedTextVo(
       [

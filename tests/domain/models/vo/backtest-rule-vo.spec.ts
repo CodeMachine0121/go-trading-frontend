@@ -84,8 +84,8 @@ describe('回測規則的英文說法', () => {
   it('英文的現貨規則同樣說得出這裡只做現貨、出場價位留白就不模擬', () => {
     const text = BACKTEST_RULES.map(rule => `${rule.title.in('en')} ${rule.description.in('en')}`).join('\n')
 
-    expect(text).toContain('The replay trades Spot only')
+    expect(text).toContain('The replay trades spot only')
     expect(text).toContain('Left blank, nothing is simulated at all')
-    expect(text).toContain('it always counts as the stop-loss')
+    expect(text).toContain('it always counts as the stop loss')
   })
 })

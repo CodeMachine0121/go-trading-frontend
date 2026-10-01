@@ -44,7 +44,7 @@ export class SpotTradeLiveComparisonDomain {
         const verdictLabel = gapPoints === null
           ? NO_VERDICT_LABEL
           : (lagging
-              ? new LocalizedTextVo(`比回測低 ${gapPoints} 個百分點`, `${gapPoints} points below backtest`)
+              ? new LocalizedTextVo(`比回測低 ${gapPoints} 個百分點`, `${gapPoints} percentage points below backtest`)
               : KEEPING_UP_LABEL)
         const verdictTone = gapPoints === null ? 'neutral' : (lagging ? 'danger' : 'success')
 
@@ -67,14 +67,16 @@ export class SpotTradeLiveComparisonDomain {
               'Strategy-wide avg entry slippage: N/A (no live trades from bot links)')
           : new LocalizedTextVo(
               `整份策略平均進場滑點 ${this.slippageText(strategySlippage)}，以 ${this.comparison.entrySlippageTradeCount} 筆計`,
-              `Strategy-wide avg entry slippage ${this.slippageText(strategySlippage)}, based on ${this.comparison.entrySlippageTradeCount} trades`),
+              `Strategy-wide avg entry slippage ${this.slippageText(strategySlippage)}, across ${this.comparison.entrySlippageTradeCount} ${this.comparison.entrySlippageTradeCount === 1 ? 'trade' : 'trades'}`),
       COST_NOTE,
     )
   }
 
   private performanceDto(performance: SpotTradePerformance): SpotTradePerformanceDto {
     return new SpotTradePerformanceDto(
-      new LocalizedTextVo(`${performance.closedTradeCount} 筆`, `${performance.closedTradeCount} trades`),
+      new LocalizedTextVo(
+        `${performance.closedTradeCount} 筆`,
+        `${performance.closedTradeCount} ${performance.closedTradeCount === 1 ? 'trade' : 'trades'}`),
       performance.winRate === null
         ? NOT_APPLICABLE_TEXT
         : new UntranslatedTextVo(`${Math.round(performance.winRate * PERCENT)}%`),
@@ -83,7 +85,7 @@ export class SpotTradeLiveComparisonDomain {
         : new UntranslatedTextVo(this.slippageText(performance.averageEntrySlippagePercentage)),
       performance.entrySlippageTradeCount > 0
         ? new LocalizedTextVo(
-            `以 ${performance.entrySlippageTradeCount} 筆計`, `Based on ${performance.entrySlippageTradeCount} trades`)
+            `以 ${performance.entrySlippageTradeCount} 筆計`, `across ${performance.entrySlippageTradeCount} ${performance.entrySlippageTradeCount === 1 ? 'trade' : 'trades'}`)
         : null,
     )
   }
@@ -91,8 +93,8 @@ export class SpotTradeLiveComparisonDomain {
   /** 後端給的失敗原因是它自己的原文，照抄、不翻；只有它缺席時的那一句是這一側說的。 */
   private backtestFailureMessage(backtestFailureReason: string | null): LocalizedTextVo {
     return backtestFailureReason === null
-      ? new LocalizedTextVo('重演沒有結果，無法重演', 'No replay result, so it cannot be replayed')
-      : new LocalizedTextVo(`${backtestFailureReason}，無法重演`, `${backtestFailureReason}, so it cannot be replayed`)
+      ? new LocalizedTextVo('重演沒有結果，無法重演', 'The replay returned no result, so nothing can be compared')
+      : new LocalizedTextVo(`${backtestFailureReason}，無法重演`, `${backtestFailureReason}, so nothing can be compared`)
   }
 
   private slippageText(percentage: Decimal): string {

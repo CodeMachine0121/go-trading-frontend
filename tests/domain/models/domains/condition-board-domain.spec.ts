@@ -483,8 +483,8 @@ describe('一張條件卡讀成畫面要的那幾個字', () => {
   })
 
   it.each([
-    { accepted: ['buy', 'hold'], plainWords: 'i.e. “not Sell”' },
-    { accepted: ['buy', 'sell', 'hold'], plainWords: 'i.e. “counts no matter what it says”' },
+    { accepted: ['buy', 'hold'], plainWords: 'i.e. "not Sell"' },
+    { accepted: ['buy', 'sell', 'hold'], plainWords: 'i.e. "counts no matter what it says"' },
   ])('收了兩個以上信號時的人話也有英文（$accepted）', ({ accepted, plainWords }) => {
     const readOut = worded(new ConditionBoardDto('and', [
       new ConditionBoardItemDto(null, [piece('Breakout', ...accepted)]),

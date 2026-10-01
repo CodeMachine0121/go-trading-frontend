@@ -114,7 +114,7 @@ describe('IndicatorCalculationService', () => {
     expect(optionDtos.map(optionDto => optionDto.label.in('zh-TW')))
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
     expect(optionDtos.map(optionDto => optionDto.label.in('en')))
-      .toEqual(['A number', 'A list of numbers', 'A yes-no', 'A list of yes-no', 'A signal'])
+      .toEqual(['A number', 'A list of numbers', 'A true/false', 'A list of true/false', 'A signal'])
   })
 
   it('信號種類的範例算式回傳一個信號，用系統提供的方式選一個', () => {
@@ -270,7 +270,7 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
     expect(accesses.map(access => access.kindLabel))
       .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
         .map(option => option.label))
-    expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'Yes-no'])
+    expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false'])
   })
 
   it.each([

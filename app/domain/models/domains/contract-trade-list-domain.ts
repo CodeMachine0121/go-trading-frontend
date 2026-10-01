@@ -9,7 +9,7 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const NO_TRADES_MESSAGE = new LocalizedTextVo(
   '還沒有任何交易。收到機器人信號下單後，可以點訊息裡的「記到交易日誌」，或按「記一筆」。',
-  'No trades yet. After placing an order on a bot signal, tap "Record in trade journal" in the message, or press "Record a trade".')
+  'No trades yet. After placing an order on a bot signal, use the trade journal button in the strategy bot\'s Telegram message, or press "Log a trade".')
 const NO_MATCHING_TRADES_MESSAGE = new LocalizedTextVo('沒有符合篩選的交易', 'No trades match the filters')
 
 export class ContractTradeListDomain {

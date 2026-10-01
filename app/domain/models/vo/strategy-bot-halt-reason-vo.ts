@@ -28,6 +28,6 @@ export const STRATEGY_BOT_HALT_REASON_LABELS: Readonly<Record<StrategyBotHaltRea
   strategyUnavailable: new LocalizedTextVo('有一支策略腳本找不到了', 'One of its strategy scripts can no longer be found'),
   tradingStrategyUnavailable: new LocalizedTextVo('它用的那一份交易策略找不到了', 'The trading strategy it follows can no longer be found'),
   scriptFailed: new LocalizedTextVo('有一支策略腳本算不出來', 'One of its strategy scripts failed to calculate'),
-  credentialRejected: new LocalizedTextVo('機器人金鑰不被接受', 'The bot key was not accepted'),
+  credentialRejected: new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'),
   destinationNotFound: new LocalizedTextVo('找不到這個聊天室', 'This Telegram chat cannot be found'),
 }

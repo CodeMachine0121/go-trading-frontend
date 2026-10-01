@@ -162,7 +162,7 @@ export class IndicatorCalculationService {
     return [
       new StrategyScriptParameterKindOptionDto('lookbackCount', new LocalizedTextVo('回看根數', 'Lookback count')),
       new StrategyScriptParameterKindOptionDto('number', new LocalizedTextVo('數值', 'Number')),
-      new StrategyScriptParameterKindOptionDto('boolean', new LocalizedTextVo('是非', 'Yes-no')),
+      new StrategyScriptParameterKindOptionDto('boolean', new LocalizedTextVo('是非', 'True/false')),
     ]
   }
 

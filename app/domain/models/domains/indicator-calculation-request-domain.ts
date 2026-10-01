@@ -37,7 +37,7 @@ export class IndicatorCalculationRequestDomain {
   constructor(indicatorCalculationRequestDto: IndicatorCalculationRequestDto) {
     const normalizedSymbol = indicatorCalculationRequestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new IndicatorCalculationFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Choose a trading symbol'))
+      throw new IndicatorCalculationFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     // 只有「整份是空白」才擋：前後多餘的空白行不影響算式成立，但也不會被砍掉——

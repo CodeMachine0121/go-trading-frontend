@@ -130,7 +130,7 @@ describe('KCandleSearchPanel', () => {
     await nextTick()
 
     expect(wrapper.get('[data-testid="submit-button"]').text()).toBe('Search')
-    expect(wrapper.get('[data-testid="result-count"]').text()).toBe('K-candles: 1')
+    expect(wrapper.get('[data-testid="result-count"]').text()).toBe('1 K-candle')
     expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 12:00')
     expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
       .toBe('2026-08-30T10:00')

@@ -35,7 +35,7 @@ const RELATION_WORD = new LocalizedTextVo('等於', 'is')
 const NO_SIGNAL_WORDS = new LocalizedTextVo('（還沒選信號）', '(no signal chosen yet)')
 
 /** 三個信號全收時，那一條其實在說的話。 */
-const EVERY_SIGNAL_WORDS = new LocalizedTextVo('也就是「不管它說什麼都算」', 'i.e. “counts no matter what it says”')
+const EVERY_SIGNAL_WORDS = new LocalizedTextVo('也就是「不管它說什麼都算」', 'i.e. "counts no matter what it says"')
 
 /** 一張空的條件卡讀出來的那一行——空的不是一句話，所以照實說還沒有。 */
 const EMPTY_READ_OUT = new LocalizedTextVo('還沒有任何條件。', 'No conditions yet.')
@@ -89,7 +89,7 @@ export class ConditionBoardDomain {
             ? EVERY_SIGNAL_WORDS
             : new LocalizedTextVo(
                 `也就是「不是${excludedWords.traditionalChinese}」`,
-                `i.e. “not ${excludedWords.english}”`,
+                `i.e. "not ${excludedWords.english}"`,
               )
         const sourceWords = new UntranslatedTextVo(piece.sourceLabel)
 

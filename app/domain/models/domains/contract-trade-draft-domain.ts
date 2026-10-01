@@ -24,7 +24,7 @@ const DISTANCE_FRACTION_DIGITS = 2
 const CONVERTED_QUANTITY_DECIMAL_PLACES = 8
 const FEE_SHARE_SIGNIFICANT_DIGITS = 2
 const FEE_RATE_MISSING_NOTE = new LocalizedTextVo('尚未設定手續費率', 'Fee rates not set yet')
-const MISSING_SYMBOL_MESSAGE = new LocalizedTextVo('請填合約標的', 'Enter the Contract symbol')
+const MISSING_SYMBOL_MESSAGE = new LocalizedTextVo('請填合約標的', 'Enter the contract symbol')
 const MISSING_ENTRY_MESSAGE = new LocalizedTextVo(
   '至少要有一筆填好開倉價與數量的開倉', 'Add at least one entry with its entry price and quantity filled in')
 const MISSING_FILL_MESSAGE = new LocalizedTextVo(
@@ -230,7 +230,7 @@ export class ContractTradeDraftDomain {
     if (unreadableIndex !== -1) {
       return new LocalizedTextVo(
         `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`,
-        `Fill ${unreadableIndex + 1} needs a price and quantity greater than zero`)
+        `Row ${unreadableIndex + 1} needs a price and quantity greater than zero`)
     }
 
     const hasEntry = (this.existingFills ?? []).some(fill => fill.kind === 'entry')

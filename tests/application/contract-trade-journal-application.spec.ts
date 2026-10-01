@@ -1317,7 +1317,7 @@ describe('ContractTradeJournalApplication 英文說法', () => {
 
   it.each([
     ['止損距離', draft({ plannedStopLossText: '96380' }), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.stopLossDistanceText, '1.56% below'],
-    ['缺合約標的', draft({ symbol: '' }), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.missingFieldMessage, 'Enter the Contract symbol'],
+    ['缺合約標的', draft({ symbol: '' }), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.missingFieldMessage, 'Enter the contract symbol'],
     ['小卡預覽', draft({ leverageText: '2', fills: [draftFill({ priceText: '84780.9', quantityText: '1', feeText: '0.05' })] }),
       (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.fillSizes[0]?.sizeText ?? null, 'Notional 84,780.90 · Margin 42,390.45'],
     ['尚未設定費率', draft(), (preview: ReturnType<ContractTradeJournalApplication['previewDraft']>) => preview.fees[0]?.note ?? null, 'Fee rates not set yet'],

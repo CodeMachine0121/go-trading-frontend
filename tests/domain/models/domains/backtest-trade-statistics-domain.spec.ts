@@ -44,7 +44,7 @@ describe('BacktestTradeStatisticsDomain 的英文說法', () => {
   it.each([
     [45, '45 s'],
     [273600, '3 d 4 h'],
-    [90, '1 min 30 s'],
+    [90, '1 m 30 s'],
     [0, '0 s'],
   ])('平均持倉 %d 秒寫成「%s」', (averageHoldingSeconds, expected) => {
     const statistics = new BacktestTradeStatisticsDomain(new BacktestTradeStatistics(

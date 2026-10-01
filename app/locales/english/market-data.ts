@@ -3,7 +3,7 @@ import type { marketDataTraditionalChineseMessages } from '~/locales/traditional
 export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessages = {
   appliedIndicatorDialog: {
     parametersHeading: 'Parameters for this indicator',
-    parametersNote: 'Changing a value recalculates only this indicator; other lines on the chart stay as they are. These values belong to this application only and leave the strategy script\'s saved defaults untouched.',
+    parametersNote: 'Changing a value recalculates only this indicator; other lines on the chart stay as they are. These values apply only to this chart overlay and leave the strategy script\'s saved defaults untouched.',
     lineColorsHeading: 'Line colors',
     nothingToSet: 'Nothing to adjust here: it declares no parameters and has not drawn any lines yet.',
   },
@@ -32,7 +32,7 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
       premiumIndexClose: 'Premium index close',
     },
     resultTitle: 'Results',
-    resultCount: 'K-candles: {count}',
+    resultCount: '{count} K-candle | {count} K-candles',
     chartServerError: 'The backend ran into an error (nothing is wrong with the range you are viewing). Please try again later: {message}',
     loadingMarketData: 'Loading market data…',
     unexpectedChartFailure: 'An unexpected error occurred while loading market data.',

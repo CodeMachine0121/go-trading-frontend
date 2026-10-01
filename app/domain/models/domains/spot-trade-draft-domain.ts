@@ -178,7 +178,7 @@ export class SpotTradeDraftDomain {
     if (unreadableIndex !== -1) {
       return new LocalizedTextVo(
         `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`,
-        `Fill ${unreadableIndex + 1} needs a price and quantity greater than zero`)
+        `Row ${unreadableIndex + 1} needs a price and quantity greater than zero`)
     }
 
     const hasBuy = (this.existingFills ?? []).some(fill => fill.kind === 'buy')

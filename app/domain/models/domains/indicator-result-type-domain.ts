@@ -15,8 +15,8 @@ const INDICATOR_RESULT_TYPE_DESCRIPTIONS: Readonly<
 > = {
   float: { label: new LocalizedTextVo('一個數字', 'A number'), isList: false, holdsNumbers: true, isSignal: false },
   floatList: { label: new LocalizedTextVo('一串數字', 'A list of numbers'), isList: true, holdsNumbers: true, isSignal: false },
-  bool: { label: new LocalizedTextVo('一個是非', 'A yes-no'), isList: false, holdsNumbers: false, isSignal: false },
-  boolList: { label: new LocalizedTextVo('一串是非', 'A list of yes-no'), isList: true, holdsNumbers: false, isSignal: false },
+  bool: { label: new LocalizedTextVo('一個是非', 'A true/false'), isList: false, holdsNumbers: false, isSignal: false },
+  boolList: { label: new LocalizedTextVo('一串是非', 'A list of true/false'), isList: true, holdsNumbers: false, isSignal: false },
   signal: { label: new LocalizedTextVo('一個信號', 'A signal'), isList: false, holdsNumbers: false, isSignal: true },
 }
 

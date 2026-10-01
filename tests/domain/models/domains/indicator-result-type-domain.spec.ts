@@ -5,8 +5,8 @@ describe('IndicatorResultTypeDomain', () => {
   it.each([
     { declared: 'float', label: '一個數字', englishLabel: 'A number', isList: false, holdsNumbers: true, isSignal: false },
     { declared: 'floatList', label: '一串數字', englishLabel: 'A list of numbers', isList: true, holdsNumbers: true, isSignal: false },
-    { declared: 'bool', label: '一個是非', englishLabel: 'A yes-no', isList: false, holdsNumbers: false, isSignal: false },
-    { declared: 'boolList', label: '一串是非', englishLabel: 'A list of yes-no', isList: true, holdsNumbers: false, isSignal: false },
+    { declared: 'bool', label: '一個是非', englishLabel: 'A true/false', isList: false, holdsNumbers: false, isSignal: false },
+    { declared: 'boolList', label: '一串是非', englishLabel: 'A list of true/false', isList: true, holdsNumbers: false, isSignal: false },
     { declared: 'signal', label: '一個信號', englishLabel: 'A signal', isList: false, holdsNumbers: false, isSignal: true },
   ])('$declared 是「$label」', ({ declared, label, englishLabel, isList, holdsNumbers, isSignal }) => {
     const resultType = new IndicatorResultTypeDomain(declared)

@@ -282,8 +282,8 @@ describe('useTradingStrategyForm：一個動作一次呼叫', () => {
   })
 
   it.each([
-    { side: 0 as const, tone: 'success', connectorWord: '拿來判斷', englishHeading: 'What counts as an entry' },
-    { side: 1 as const, tone: 'danger', connectorWord: '同時也看', englishHeading: 'What counts as an exit' },
+    { side: 0 as const, tone: 'success', connectorWord: '拿來判斷', englishHeading: 'What counts as a buy' },
+    { side: 1 as const, tone: 'danger', connectorWord: '同時也看', englishHeading: 'What counts as a sell' },
   ])('每一邊說得出自己的顏色與卡前那一句（$tone）', ({ side, tone, connectorWord, englishHeading }) => {
     const form = formUnderTest()
 

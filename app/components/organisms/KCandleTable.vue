@@ -58,7 +58,7 @@ const { localize } = useLocalizedText()
       v-if="result"
       #meta
     >
-      <span data-testid="result-count">{{ t('marketData.common.resultCount', { count: result.count }) }}</span>
+      <span data-testid="result-count">{{ t('marketData.common.resultCount', { count: result.count }, result.count) }}</span>
     </template>
 
     <template

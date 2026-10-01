@@ -38,7 +38,7 @@ describe('StrategyBotStatusBadge', () => {
       isHalted: true,
       statusLabel: new LocalizedTextVo('停擺', 'Halted'),
       statusTone: 'danger',
-      haltReasonLabel: new LocalizedTextVo('機器人金鑰不被接受', 'The bot key was not accepted'),
+      haltReasonLabel: new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'),
     })
 
     expect(wrapper.get('[data-testid="bot-status-badge"]').text()).toBe('停擺')
@@ -69,14 +69,14 @@ describe('StrategyBotStatusBadge', () => {
       isConflicting: true,
       statusLabel: new LocalizedTextVo('停擺', 'Halted'),
       statusTone: 'danger',
-      haltReasonLabel: new LocalizedTextVo('機器人金鑰不被接受', 'The bot key was not accepted'),
+      haltReasonLabel: new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'),
     })
 
     wrapper.vm.$i18n.locale = 'en'
     await nextTick()
 
     expect(wrapper.get('[data-testid="bot-status-badge"]').text()).toBe('Halted')
-    expect(wrapper.get('[data-testid="bot-halt-reason"]').text()).toBe('The bot key was not accepted')
+    expect(wrapper.get('[data-testid="bot-halt-reason"]').text()).toBe('The bot token was not accepted')
     expect(wrapper.get('[data-testid="bot-conflicting-badge"]').text()).toBe('Rules conflict')
   })
 })

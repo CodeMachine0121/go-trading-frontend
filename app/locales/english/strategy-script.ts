@@ -8,7 +8,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     },
     contractStrategyScripts: {
       title: 'Contract strategy scripts',
-      subtitle: 'Write a script that reads perpetual contract market data: besides the last price, every bar carries the mark price, funding rate and open interest statistics. Try it, save it and backtest it on an isolated-margin contract account. Scripts always run in the backend sandbox.',
+      subtitle: 'Write a script that reads perpetual contract market data: besides the last price, every candle carries the mark price, funding rate and open interest statistics. Try it, save it and backtest it on an isolated-margin contract account. Scripts always run in the backend sandbox.',
     },
     marketplace: {
       title: 'Marketplace',
@@ -19,7 +19,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
   indicatorScriptEditor: {
     concealedHint: 'Adopted from the marketplace: usable, not editable',
     editableHint: 'The whole file is editable and needs at least one Calculate entry point; changing the indicator value type rewrites its return type',
-    concealedNotice: 'This strategy script\'s script is not public',
+    concealedNotice: 'This strategy script\'s code is hidden',
   },
   indicatorScriptGuideDialog: {
     title: 'What a script can use',
@@ -43,14 +43,14 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
       readStep: 'Read it in the script by {emphasis}.',
       readStepEmphasis: 'the same name',
       overrideStep: 'Parameters are saved with the strategy script. When you apply this strategy script on the K-candle chart, you can set a different value for {emphasis}, and the default entered here stays untouched.',
-      overrideStepEmphasis: 'that application',
+      overrideStepEmphasis: 'that chart overlay',
       returnType: 'reads as {returnType}',
       misnamedTitle: 'A mistyped name {emphasis} instead of quietly reading zero',
       misnamedTitleEmphasis: 'fails and names it',
       misnamedReason: 'Zero is a valid number: it would look like a bug in the script when the real problem is the name.',
     },
     signal: {
-      heading: 'Giving this bar\'s verdict (when the kind is "A signal")',
+      heading: 'Giving this candle\'s verdict (when the kind is "A signal")',
       explanation: 'When the indicator value type is "A signal", the entry point returns a signal. Pick one of the three values the system provides and {return} it; there is no fourth, and you cannot build your own. This is what the backtest reads.',
       returnedHeading: 'Script returns',
       meaningHeading: 'Meaning',
@@ -160,7 +160,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     },
     parameters: {
       title: 'Parameters',
-      lead: 'The script reads them by name, and they are saved with this strategy script. When applying it on the K-candle chart you can set a different value for that application; the defaults entered here stay untouched.',
+      lead: 'The script reads them by name, and they are saved with this strategy script. When applying it on the K-candle chart you can set a different value for that chart overlay; the defaults entered here stay untouched.',
     },
     guideTitle: 'What a script can use',
     runConditions: {
@@ -171,10 +171,10 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     },
     findings: {
       placeholder: 'Press "Run calculation" and the indicator values this script calculates over this stretch of market data will appear here.',
-      parameterNotDeclared: 'A parameter problem (fix the name in the parameter row, or the line in the script that reads it): {message}',
-      scriptFailed: 'A script problem (fix the script): {message}',
+      parameterNotDeclared: 'Parameter problem (fix the name in the parameter row, or the line in the script that reads it): {message}',
+      scriptFailed: 'Script problem (fix the script): {message}',
       scriptFailedGuide: 'What a script can use',
-      requestRejected: 'A request problem: {message}',
+      requestRejected: 'Problem with the request: {message}',
       serverError: 'The backend failed (your request is fine); try again later: {message}',
       retry: 'Retry',
       unreachable: 'Cannot reach the go-trading API backend. Make sure it is running and that this site\'s origin is in its CORS_ALLOWED_ORIGINS list.',
@@ -184,7 +184,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
       title: 'Calculation result',
       usedCandleCount: '{count} candle used | {count} candles used',
       usedInterval: 'Each candle covers {interval}',
-      closedCandlesOnly: 'Only completed bars are used; the bar still forming is left out because its numbers will still change.',
+      closedCandlesOnly: 'Only completed candles are used; the candle still forming is left out because its numbers will still change.',
       empty: 'No indicators were calculated this time. A script may put nothing into the result; that is not a failure.',
       indicatorNameHeading: 'Indicator name',
       valueHeading: 'Value',

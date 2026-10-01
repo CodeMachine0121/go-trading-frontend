@@ -88,7 +88,7 @@ export class SpotTradeMarketStatisticsDomain {
         ? null
         : new LocalizedTextVo(
             `平均 R 以 ${this.statistics.rTradeCount} 筆計（有計畫止損的交易）`,
-            `Avg R is based on ${this.statistics.rTradeCount} trades (those with a planned stop loss)`),
+            `Avg R is based on ${this.statistics.rTradeCount} ${this.statistics.rTradeCount === 1 ? 'trade' : 'trades'} (those with a planned stop loss)`),
       this.statistics.cumulativeProfit.map(point => new TradeChartPointDto(
         point.closedAt, point.cumulativeNetProfit.toNumber())),
       lastCumulativePoint === undefined
@@ -181,7 +181,8 @@ export class SpotTradeMarketStatisticsDomain {
           new UntranslatedTextVo(new JournalNumberDomain(averageRMultiple).rMultiple()),
           new JournalNumberDomain(averageRMultiple).tone(),
           new LocalizedTextVo(
-            `以 ${this.statistics.rTradeCount} 筆計`, `Based on ${this.statistics.rTradeCount} trades`))
+            `以 ${this.statistics.rTradeCount} 筆計`,
+            `Based on ${this.statistics.rTradeCount} ${this.statistics.rTradeCount === 1 ? 'trade' : 'trades'}`))
   }
 
   private sourceComparisonRow(
@@ -199,7 +200,7 @@ export class SpotTradeMarketStatisticsDomain {
   }
 
   private tradeCountText(tradeCount: number): LocalizedTextVo {
-    return new LocalizedTextVo(`${tradeCount} 筆`, `${tradeCount} trades`)
+    return new LocalizedTextVo(`${tradeCount} 筆`, `${tradeCount} ${tradeCount === 1 ? 'trade' : 'trades'}`)
   }
 
   private returnRateText(returnRate: number | null): LocalizedTextVo {

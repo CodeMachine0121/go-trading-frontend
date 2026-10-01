@@ -64,7 +64,7 @@ const { localize } = useLocalizedText()
               ? 'backtest-used-candle-count'
               : `backtest-used-candle-count-${section.kind}`"
           >
-            {{ t('backtest.resultSections.usedCandleCount', { count: section.usedCandleCount }) }}
+            {{ t('backtest.resultSections.usedCandleCount', { count: section.usedCandleCount }, section.usedCandleCount) }}
             <AppBadge variant="info">
               {{ t('backtest.resultSections.intervalCoverage', { interval: localize(section.intervalLabel) }) }}
             </AppBadge>

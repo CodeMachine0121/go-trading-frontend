@@ -180,7 +180,7 @@ export class SpotTradeJournalService {
           recordedTradeId === null
             ? new LocalizedTextVo(
                 `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason.traditionalChinese}`,
-                `The first ${savedFillCount} fills were saved, but fill ${savedFillCount + 1} was not: ${reason.english}`)
+                `The first ${savedFillCount} ${savedFillCount === 1 ? 'fill was' : 'fills were'} saved, but fill ${savedFillCount + 1} was not: ${reason.english}`)
             : new LocalizedTextVo(
                 `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason.traditionalChinese}`,
                 `Created #${recordedTradeId}, but fill ${savedFillCount + 1} was not saved: ${reason.english}`),

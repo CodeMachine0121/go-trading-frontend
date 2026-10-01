@@ -915,8 +915,8 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
 describe('TradingStrategyWorkbench 換成英文', () => {
   it.each([
     { testId: 'trading-strategy-form-save', expected: 'Save' },
-    { testId: 'step-buy', expected: 'What counts as an entry' },
-    { testId: 'step-sell', expected: 'What counts as an exit' },
+    { testId: 'step-buy', expected: 'What counts as a buy' },
+    { testId: 'step-sell', expected: 'What counts as a sell' },
   ])('「$testId」說英文', async ({ testId, expected }) => {
     const wrapper = mountWorkbench()
     await flushPromises()

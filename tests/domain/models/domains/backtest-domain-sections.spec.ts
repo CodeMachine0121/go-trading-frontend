@@ -52,7 +52,7 @@ describe('BacktestDomain 結果畫成哪幾塊', () => {
     expect(summary.fillTimingLabel?.in('zh-TW')).toBe('下一格開盤成交')
     expect(summary.tradeStatistics?.profitFactor.in('zh-TW')).toBe('2.50')
     expect(summary.tradeStatistics?.averageHoldingTime.in('zh-TW')).toBe('2 小時 30 分')
-    expect(summary.tradeStatistics?.averageHoldingTime.in('en')).toBe('2 h 30 min')
+    expect(summary.tradeStatistics?.averageHoldingTime.in('en')).toBe('2 h 30 m')
   })
   it('每一塊畫的是取樣過的曲線，成績單的數字仍照完整的結果', () => {
     const longCurve = Array.from({ length: 3000 }, (_, pointIndex) =>

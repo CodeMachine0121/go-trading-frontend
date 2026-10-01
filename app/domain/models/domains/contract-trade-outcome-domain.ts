@@ -93,14 +93,14 @@ export class ContractTradeOutcomeDomain {
         this.priceNote(this.outcome.maximumFavorablePrice)),
       new TradeMeasureDomain(this.outcome.profitCaptureRate).toFigure(
         'profitCaptureRate',
-        new LocalizedTextVo('利潤捕捉率', 'Profit capture rate'),
+        new LocalizedTextVo('利潤捕捉率', 'Profit capture'),
         value => new UntranslatedTextVo(new JournalNumberDomain(value.times(PERCENT)).percentage(CAPTURE_RATE_FRACTION_DIGITS)),
         () => 'neutral'),
       ...(this.open
         ? [
             new TradeMeasureDomain(this.outcome.floatingProfit).toFigure(
               'floatingProfit',
-              new LocalizedTextVo('浮動損益', 'Floating P&L'),
+              new LocalizedTextVo('浮動損益', 'Unrealized P&L'),
               value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
               value => new JournalNumberDomain(value).tone(),
               ESTIMATE_NOTE),

@@ -25,7 +25,7 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
     previewHolding: 'Holding',
     previewAverageBuy: ' · avg buy price',
     tradingStrategy: 'Linked trading strategy',
-    tradingStrategyHint: 'Only Spot (K-candle) trading strategies are listed; leave unlinked for a self-judged trade',
+    tradingStrategyHint: 'Only spot (K-candle) trading strategies are listed; leave unlinked for a self-judged trade',
     noTradingStrategy: 'Not linked (self-judged)',
     entryReason: 'Entry reason (locked after close)',
     goToTradeAddBuy: 'Go to #{id} to add a buy',
@@ -40,11 +40,11 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
     },
     spotList: {
       title: 'Spot trade journal',
-      subtitle: 'Taiwan stocks and crypto Spot: log each buy and sell afterwards; P&L, returns and statistics are calculated by the trading service.',
+      subtitle: 'Taiwan stocks and crypto spot: log each buy and sell afterwards; P&L, returns and statistics are calculated by the trading service.',
     },
     spotNew: {
-      title: 'Log a Spot trade',
-      subtitle: 'Enter your actual buy price and quantity; when opened from a bot message\'s link, that run\'s suggestion is already filled in.',
+      title: 'Log a spot trade',
+      subtitle: 'Enter your actual buy price and quantity; when opened from a strategy bot message link, that run\'s suggestion is already filled in.',
     },
     spotStatistics: {
       title: 'Spot performance',
@@ -120,7 +120,7 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
   },
   leaveConfirmation: {
     title: 'Not saved yet',
-    message: 'Not saved yet—if you leave, these changes will be lost',
+    message: 'Not saved yet. If you leave, these changes will be lost.',
     confirm: 'Leave',
   },
   notesPanel: {
@@ -160,7 +160,7 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
   },
   settingsPanel: {
     title: 'Trade journal',
-    description: 'The fee rates the Contract journal fills in automatically when you log an open or close (the Spot journal takes a fee per fill), plus the mistake and setup tags both journals share.',
+    description: 'The fee rates the contract journal fills in automatically when you log an open or close (the spot journal takes a fee per fill), plus the mistake and setup tags both journals share.',
     loading: 'Loading current settings…',
     feeRatesHeading: 'Fee rates',
     notConfigured: 'Not set yet',
@@ -185,7 +185,7 @@ export const tradeJournalEnglishMessages: typeof tradeJournalTraditionalChineseM
     title: 'Live vs backtest',
     strategyLabel: 'Spot trading strategy',
     strategyHint: 'Replay this strategy on the same symbol over the period your live trades cover, and compare side by side.',
-    pickStrategy: 'Pick a Spot trading strategy',
+    pickStrategy: 'Pick a spot trading strategy',
     replaying: 'Replaying…',
   },
   spotStatistics: {

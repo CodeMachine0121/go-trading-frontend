@@ -85,7 +85,7 @@ describe('ContractTradeListPanel', () => {
     expect(wrapper.get('[data-testid="trade-list-counts"]').text()).toBe('Last 30 days · 30 closed · 1 open')
     expect(wrapper.get('[data-testid="status-filter"]').text()).toContain('Reviewed')
     expect(wrapper.get('[data-testid="source-filter"]').text()).toContain('Self-judged')
-    expect(wrapper.get('thead').text()).toContain('Avg. entry')
+    expect(wrapper.get('thead').text()).toContain('Avg entry')
     expect(wrapper.get('[data-testid="trade-row-27"]').text()).toContain('Long 10x')
     expect(wrapper.get('[data-testid="trade-row-32"]').text()).toContain('unrealized')
   })

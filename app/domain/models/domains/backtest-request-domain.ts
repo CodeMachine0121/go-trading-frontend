@@ -51,7 +51,7 @@ export class BacktestRequestDomain {
   constructor(backtestRequestDto: BacktestRequestDto) {
     const normalizedSymbol = backtestRequestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Choose a trading symbol'))
+      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     // 與指標預覽同一條規則：要嘛指名一支策略腳本，要嘛自帶一段算式，兩者只能挑一種。
@@ -65,7 +65,7 @@ export class BacktestRequestDomain {
         'Either name a strategy script or bring your own script, not both'))
     }
     if (!namesAStrategyScript && !carriesAnAlgorithm) {
-      throw new BacktestFieldError('script', new LocalizedTextVo('請填寫算式內容', 'Write the script body'))
+      throw new BacktestFieldError('script', new LocalizedTextVo('請填寫算式內容', 'Enter the script'))
     }
 
     // 兩種重演共有的那幾組條件，一句問完。

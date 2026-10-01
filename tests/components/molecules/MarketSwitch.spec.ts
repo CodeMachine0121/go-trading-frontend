@@ -8,7 +8,7 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 const SWITCHABLE_LABEL = new LocalizedTextVo(
   '切換到另一個市場的同一個畫面', 'Switch to the same screen in the other market')
 const NOT_SWITCHABLE_LABEL = new LocalizedTextVo(
-  '這個畫面不分現貨與合約', 'This screen is the same for spot and futures')
+  '這個畫面不分現貨與合約', 'This screen is the same for spot and contract')
 
 function mountSwitch(counterpart: MarketCounterpartDto) {
   return mount(MarketSwitch, { props: { counterpart } })
@@ -60,6 +60,6 @@ describe('MarketSwitch', () => {
 
     expect(wrapper.text()).toContain('Spot')
     expect(wrapper.text()).toContain('Contract')
-    expect(wrapper.get('[data-testid="market-switch-reason"]').text()).toBe('This screen is the same for spot and futures')
+    expect(wrapper.get('[data-testid="market-switch-reason"]').text()).toBe('This screen is the same for spot and contract')
   })
 })

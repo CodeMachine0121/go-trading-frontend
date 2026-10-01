@@ -8,7 +8,7 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
     },
   },
   common: {
-    loading: 'Reading the current setting…',
+    loading: 'Loading current settings…',
   },
   navigation: {
     label: 'Settings sections',
@@ -38,7 +38,7 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
   },
   passwordChange: {
     title: 'Change password',
-    description: 'For safety, once changed your sign-ins on every device stop counting, including this one — you will be asked to sign in again with the new password.',
+    description: 'For security, changing it signs you out on every device, including this one — sign in again with the new password.',
     currentPasswordLabel: 'Current password',
     newPasswordLabel: 'New password',
     newPasswordHint: 'At least 8 characters, at most 72 bytes (a Chinese character counts as three).',

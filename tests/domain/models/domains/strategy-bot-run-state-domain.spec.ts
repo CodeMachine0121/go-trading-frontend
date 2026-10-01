@@ -109,7 +109,7 @@ describe('StrategyBotRunStateDomain', () => {
 
 describe('StrategyBotRunStateDomain 的英文那一份', () => {
   it.each([
-    { name: '停擺', bot: () => aBot({ haltReason: 'credentialRejected' }), status: 'Halted', reason: 'The bot key was not accepted' },
+    { name: '停擺', bot: () => aBot({ haltReason: 'credentialRejected' }), status: 'Halted', reason: 'The bot token was not accepted' },
     { name: '執行中', bot: () => aBot({ runState: 'running' }), status: 'Running', reason: undefined },
     { name: '已停止', bot: () => aBot(), status: 'Stopped', reason: undefined },
   ])('$name說得出英文的狀態與停擺原因', ({ bot, status, reason }) => {

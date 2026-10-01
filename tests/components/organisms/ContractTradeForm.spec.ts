@@ -75,8 +75,8 @@ describe('ContractTradeForm：記一筆', () => {
     expect(wrapper.text()).toContain('Leverage')
     expect(wrapper.text()).toContain('1.56% below · planned risk 45.75')
     expect(wrapper.get('[data-testid="fee-rate-missing"]').text()).toContain('Fee rates are not set yet')
-    expect(wrapper.get('[data-testid="draft-preview"]').text()).toContain('Position 0.03 · avg. price')
-    expect(wrapper.text()).toContain('Enter the Contract symbol')
+    expect(wrapper.get('[data-testid="draft-preview"]').text()).toContain('Position 0.03 · avg price')
+    expect(wrapper.text()).toContain('Enter the contract symbol')
     expect(recordProxy.recordTrade).not.toHaveBeenCalled()
   })
 

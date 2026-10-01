@@ -58,7 +58,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       listTitle: new LocalizedTextVo('現貨策略機器人', 'Spot strategy bots'),
       listSubtitle: new LocalizedTextVo(
         '挑一份 K 線交易策略、盯一個現貨標的。按下啟動之後你就可以離開——它每隔幾分鐘自己看一次，訊號變了才傳訊息給你。',
-        'Pick a K-candle trading strategy and watch one spot symbol. Once you press start you can walk away: it checks on its own every few minutes and messages you only when the signal changes.'),
+        'Pick a K-candle trading strategy and watch one spot symbol. Once you press Start you can walk away: it checks on its own every few minutes and messages you only when the signal changes.'),
       createTitle: new LocalizedTextVo('拼一台現貨機器人', 'Build a spot bot'),
       editTitle: new LocalizedTextVo('改一改這台現貨機器人', 'Edit this spot bot'),
       createLabel: new LocalizedTextVo('＋ 拼一台現貨機器人', '+ Build a spot bot'),
@@ -76,7 +76,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
   contractKCandle: {
     label: new LocalizedTextVo('合約行情', 'Contract market data'),
     scriptInputTypeName: 'ContractKCandle',
-    guideHeading: new LocalizedTextVo('每一格合約行情有什麼', 'What each contract market data bar holds'),
+    guideHeading: new LocalizedTextVo('每一格合約行情有什麼', 'What each contract market data candle holds'),
     fields: CONTRACT_K_CANDLE_FIELDS,
     // 不能沿用現貨那一句「一律是 float64」：成交筆數、三組開高低收與結算旗標都不是。
     valueTypeNote: new LocalizedTextVo(
@@ -92,13 +92,13 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         'Missing values are always zero: old data from before index prices were recorded, the time before the first settlement, and periods with no open interest statistics. An open interest of zero usually means there was no data at that time.'),
       new LocalizedTextVo(
         '資金費率是這一格收盤前最近一次結算的費率，兩次結算之間每一格都延續上一次的；真的結算的那一格 FundingSettledInBar 才是 true。',
-        'The funding rate is the rate of the latest settlement before this bar closes; every bar between two settlements carries the previous one forward. FundingSettledInBar is true only on the bar where a settlement actually happened.'),
+        'The funding rate is the rate of the latest settlement before this candle closes; every candle between two settlements carries the previous one forward. FundingSettledInBar is true only on the candle where a settlement actually happened.'),
       new LocalizedTextVo(
         '持倉統計是收盤前最近、而且夠新的那一筆：不比五分鐘細的格子要落在格內，一分鐘的格子要落在收盤前五分鐘內。',
-        'Open interest statistics are the latest sufficiently recent record before the close: for bars of five minutes or longer it must fall inside the bar; for one-minute bars it must fall within the five minutes before the close.'),
+        'Open interest statistics are the latest sufficiently recent record before the close: for candles of five minutes or longer it must fall inside the candle; for one-minute candles it must fall within the five minutes before the close.'),
       new LocalizedTextVo(
         '每一項都只來自這一格收盤以前，收盤那一刻的結算與統計屬於下一格。',
-        'Every field comes only from before this bar closes; a settlement or statistic at the exact closing moment belongs to the next bar.'),
+        'Every field comes only from before this candle closes; a settlement or statistic at the exact closing moment belongs to the next candle.'),
     ],
     // 合約的回測在逐倉合約帳戶上重演。
     offersBacktest: true,
@@ -110,7 +110,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       listTitle: new LocalizedTextVo('合約策略機器人', 'Contract strategy bots'),
       listSubtitle: new LocalizedTextVo(
         '挑一份合約交易策略、盯一個合約追蹤名單上的永續合約。它照交易策略的交易模式告訴你該做多、做空還是平倉，並依你的槓桿建議保證金與止損止盈。',
-        'Pick a contract trading strategy and watch one perpetual contract on your contract watchlist. Following the strategy\'s trading mode, it tells you whether to go long, go short or close, and suggests margin, stop-loss and take-profit based on your leverage.'),
+        'Pick a contract trading strategy and watch one perpetual contract on your contract watchlist. Following the strategy\'s trading mode, it tells you whether to go long, go short or close, and suggests margin, stop loss and take profit based on your leverage.'),
       createTitle: new LocalizedTextVo('拼一台合約機器人', 'Build a contract bot'),
       editTitle: new LocalizedTextVo('改一改這台合約機器人', 'Edit this contract bot'),
       createLabel: new LocalizedTextVo('＋ 拼一台合約機器人', '+ Build a contract bot'),

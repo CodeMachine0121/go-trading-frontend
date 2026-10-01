@@ -31,7 +31,7 @@ export class ContractTradePrefillDomain {
       addsToExistingTrade
         ? new LocalizedTextVo(
             `${this.prefill.symbol} ${direction.word.traditionalChinese}已有持倉中的 #${this.prefill.targetTradeId}，這一輪記成加碼`,
-            `${this.prefill.symbol} ${direction.word.english} already has open trade #${this.prefill.targetTradeId}; this run is recorded as adding to it`)
+            `An open ${this.prefill.symbol} ${direction.word.english.toLowerCase()} (#${this.prefill.targetTradeId}) already exists; this run is recorded as an add`)
         : missingReferenceNotice,
       this.prefill.symbol,
       this.prefill.direction,

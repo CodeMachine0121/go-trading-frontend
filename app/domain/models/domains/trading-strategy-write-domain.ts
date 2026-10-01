@@ -121,14 +121,14 @@ export class TradingStrategyWriteDomain {
       if (takenLabels.includes(label)) {
         return new LocalizedTextVo(
           `訊號來源代號「${label}」重複了，同一份交易策略內的代號必須各不相同`,
-          `The signal source label “${label}” is used twice; labels must be unique within a trading strategy`,
+          `The signal source label "${label}" is used twice; labels must be unique within a trading strategy`,
         )
       }
 
       if (signalSource.strategyScriptId === 0) {
         return new LocalizedTextVo(
           `訊號來源「${label}」必須指名一支策略腳本`,
-          `The signal source “${label}” must name a strategy script`,
+          `The signal source "${label}" must name a strategy script`,
         )
       }
 
@@ -180,7 +180,7 @@ export class TradingStrategyWriteDomain {
     if (buyCondition.isEmpty || sellCondition.isEmpty) {
       return new LocalizedTextVo(
         '買入與賣出兩邊都要至少勾一格——少了任何一邊，這份交易策略就只會說一種話',
-        'Both the entry and exit sides need at least one condition — without either side, this trading strategy can only ever say one thing',
+        'Both the buy and sell sides need at least one condition — without either side, this trading strategy can only ever say one thing',
       )
     }
 
@@ -195,7 +195,7 @@ export class TradingStrategyWriteDomain {
       ? null
       : new LocalizedTextVo(
           `條件裡還指著「${orphan}」，但已經沒有這一支策略腳本了`,
-          `A condition still points at “${orphan}”, but that strategy script is no longer here`,
+          `A condition still points at "${orphan}", but that strategy script is no longer here`,
         )
   }
 }

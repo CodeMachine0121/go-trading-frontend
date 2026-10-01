@@ -47,7 +47,7 @@ export class TradingStrategyBacktestRequestDomain {
 
     const normalizedSymbol = requestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Choose a trading symbol'))
+      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     // 兩種重演共有的那六組條件，一句問完。交易模式傳 null——**這條路問不到它**：

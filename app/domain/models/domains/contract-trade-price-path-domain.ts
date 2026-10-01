@@ -45,7 +45,7 @@ export class ContractTradePricePathDomain {
     }
 
     const lineSources = [
-      { kind: 'averageEntryPrice' as const, price: this.record.averageEntryPrice, label: new LocalizedTextVo('開倉均價', 'Avg. entry'), tone: 'neutral' as const },
+      { kind: 'averageEntryPrice' as const, price: this.record.averageEntryPrice, label: new LocalizedTextVo('開倉均價', 'Avg entry'), tone: 'neutral' as const },
       { kind: 'plannedStopLossPrice' as const, price: this.record.plannedStopLossPrice, label: new LocalizedTextVo('計畫止損', 'Planned stop loss'), tone: 'danger' as const },
       { kind: 'plannedTakeProfitPrice' as const, price: this.record.plannedTakeProfitPrice, label: new LocalizedTextVo('計畫止盈', 'Planned take profit'), tone: 'success' as const },
       { kind: 'maximumAdversePrice' as const, price: this.record.maximumAdversePrice, label: new LocalizedTextVo('最大不利', 'Max adverse'), tone: 'muted' as const },

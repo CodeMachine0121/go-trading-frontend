@@ -5,12 +5,12 @@ import { useLocalizedText } from '~/composables/use-localized-text'
 
 describe('useLocalizedText', () => {
   it.each([
-    { language: 'zh-TW' as const, expected: '共 3 根' },
-    { language: 'en' as const, expected: 'K-candles: 3' },
+    { language: 'zh-TW' as const, expected: '歷史對話（3）' },
+    { language: 'en' as const, expected: 'Conversation history (3)' },
   ])('同一句話兩種說法都帶著，帶入的值兩邊都換上（$language）', ({ language, expected }) => {
     const { translatedText } = useLocalizedText()
 
-    expect(translatedText('marketData.common.resultCount', { count: 3 }).in(language)).toBe(expected)
+    expect(translatedText('assistant.console.historyWithCount', { count: 3 }).in(language)).toBe(expected)
   })
 })
 
