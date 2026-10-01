@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * VO：指標線可以挑的一種顏色。不可變、無行為。
  *
@@ -7,7 +9,7 @@
 export class ChartLineColorVo {
   constructor(
     public readonly token: string,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
   ) {}
 }
 
@@ -19,12 +21,12 @@ export class ChartLineColorVo {
  * 多一種顏色就是在這裡多一列（前提是 token 也補上）。
  */
 export const CHART_LINE_COLORS: ChartLineColorVo[] = [
-  new ChartLineColorVo('--color-chart-line-1', '橙'),
-  new ChartLineColorVo('--color-chart-line-2', '綠'),
-  new ChartLineColorVo('--color-chart-line-3', '紫'),
-  new ChartLineColorVo('--color-chart-line-4', '藍'),
-  new ChartLineColorVo('--color-chart-line-5', '粉'),
-  new ChartLineColorVo('--color-chart-line-6', '青'),
+  new ChartLineColorVo('--color-chart-line-1', new LocalizedTextVo('橙', 'Orange')),
+  new ChartLineColorVo('--color-chart-line-2', new LocalizedTextVo('綠', 'Green')),
+  new ChartLineColorVo('--color-chart-line-3', new LocalizedTextVo('紫', 'Purple')),
+  new ChartLineColorVo('--color-chart-line-4', new LocalizedTextVo('藍', 'Blue')),
+  new ChartLineColorVo('--color-chart-line-5', new LocalizedTextVo('粉', 'Pink')),
+  new ChartLineColorVo('--color-chart-line-6', new LocalizedTextVo('青', 'Cyan')),
 ]
 
 /** 顏色用完時的歸屬——一條線沒有顏色就畫不出來，所以總得有一個。 */

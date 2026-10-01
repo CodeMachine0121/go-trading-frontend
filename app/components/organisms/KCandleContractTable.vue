@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { KCandleContractSearchResultDto } from '~/domain/models/dto/k-candle-contract-search-result-dto'
@@ -24,11 +25,14 @@ defineProps<{
  * 刻意不是 `0`：溢價指數本來就常在零附近，一個 `0` 會被讀成「這一分鐘沒有溢價」。
  */
 const ABSENT_FIGURE = '—'
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <AppPanel
-    title="查詢結果"
+    :title="t('marketData.common.resultTitle')"
     flush
     class="k-candle-contract-table"
   >
@@ -36,7 +40,7 @@ const ABSENT_FIGURE = '—'
       v-if="result"
       #meta
     >
-      <span data-testid="result-count">共 {{ result.count }} 根</span>
+      <span data-testid="result-count">{{ t('marketData.common.resultCount', { count: result.count }) }}</span>
     </template>
 
     <div
@@ -51,7 +55,7 @@ const ABSENT_FIGURE = '—'
       class="k-candle-contract-table__placeholder"
       data-testid="idle-result"
     >
-      填好上面的條件按「查詢」，查到的合約 K 線會列在這裡。
+      {{ t('marketData.kCandleContractTable.idle') }}
     </p>
 
     <p
@@ -59,7 +63,7 @@ const ABSENT_FIGURE = '—'
       class="k-candle-contract-table__placeholder"
       data-testid="empty-result"
     >
-      查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。
+      {{ t('marketData.kCandleContractTable.empty') }}
     </p>
 
     <div
@@ -70,37 +74,37 @@ const ABSENT_FIGURE = '—'
         <thead>
           <tr>
             <th scope="col">
-              起始時間（{{ timeZone.cityLabel }}）
+              {{ t('marketData.common.columns.openTime', { cityName: localize(timeZone.cityName) }) }}
             </th>
             <th scope="col">
-              漲跌
+              {{ t('marketData.common.columns.trend') }}
             </th>
             <th scope="col">
-              開盤價
+              {{ t('marketData.common.columns.open') }}
             </th>
             <th scope="col">
-              最高價
+              {{ t('marketData.common.columns.high') }}
             </th>
             <th scope="col">
-              最低價
+              {{ t('marketData.common.columns.low') }}
             </th>
             <th scope="col">
-              收盤價
+              {{ t('marketData.common.columns.close') }}
             </th>
             <th scope="col">
-              成交量
+              {{ t('marketData.common.columns.volume') }}
             </th>
             <th scope="col">
-              成交筆數
+              {{ t('marketData.common.columns.tradeCount') }}
             </th>
             <th scope="col">
-              標記價格收盤
+              {{ t('marketData.common.columns.markPriceClose') }}
             </th>
             <th scope="col">
-              指數價格收盤
+              {{ t('marketData.common.columns.indexPriceClose') }}
             </th>
             <th scope="col">
-              溢價指數收盤
+              {{ t('marketData.common.columns.premiumIndexClose') }}
             </th>
           </tr>
         </thead>
@@ -115,7 +119,7 @@ const ABSENT_FIGURE = '—'
             </td>
             <td>
               <AppBadge :variant="kCandleContract.trend.tone">
-                {{ kCandleContract.trend.label }}
+                {{ localize(kCandleContract.trend.label) }}
               </AppBadge>
             </td>
             <td>{{ kCandleContract.open.toString() }}</td>

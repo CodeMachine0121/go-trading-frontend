@@ -13,6 +13,7 @@ import { DrawnKCandleRangeDomain } from '~/domain/models/domains/drawn-k-candle-
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
 const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR
@@ -25,7 +26,7 @@ const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR
  * 一進來看一天是一個判斷，所以寫成一個判斷。
  */
 const DEFAULT_K_CANDLE_CHART_RANGE_PRESET
-  = new KCandleChartRangePresetDto('一天', 1 * MILLISECONDS_PER_DAY)
+  = new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 1 * MILLISECONDS_PER_DAY)
 
 /**
  * 一鍵可切換的幾個長度，由短到長。固定的一組，不隨資料改變——
@@ -38,15 +39,15 @@ const DEFAULT_K_CANDLE_CHART_RANGE_PRESET
  * 交易時段挑的，這一排只說使用者要看多長。
  */
 const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
-  new KCandleChartRangePresetDto('一小時', 1 * MILLISECONDS_PER_HOUR),
-  new KCandleChartRangePresetDto('五小時', 5 * MILLISECONDS_PER_HOUR),
-  new KCandleChartRangePresetDto('十小時', 10 * MILLISECONDS_PER_HOUR),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一小時', '1 hour'), 1 * MILLISECONDS_PER_HOUR),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('五小時', '5 hours'), 5 * MILLISECONDS_PER_HOUR),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('十小時', '10 hours'), 10 * MILLISECONDS_PER_HOUR),
   DEFAULT_K_CANDLE_CHART_RANGE_PRESET,
-  new KCandleChartRangePresetDto('五天', 5 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto('一個月', 30 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto('三個月', 90 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto('六個月', 180 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto('一年', 365 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('五天', '5 days'), 5 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一個月', '1 month'), 30 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('三個月', '3 months'), 90 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('六個月', '6 months'), 180 * MILLISECONDS_PER_DAY),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一年', '1 year'), 365 * MILLISECONDS_PER_DAY),
 ]
 
 /**
@@ -59,7 +60,8 @@ const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
  * **這裡也是「記住上次挑的那一種」將來要接上的地方**：那一天要換掉的是
  * 這個判斷的內容，而不是每一個問「預設是哪一個」的呼叫端。
  */
-const AUTOMATIC_AGGREGATION_INTERVAL_CHOICE = new AggregationIntervalChoiceDto('自動', null)
+const AUTOMATIC_AGGREGATION_INTERVAL_CHOICE = new AggregationIntervalChoiceDto(
+  new LocalizedTextVo('自動', 'Auto'), null)
 
 /**
  * 六種彙總刻度裡，圖表選單放哪幾種。

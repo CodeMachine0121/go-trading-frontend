@@ -34,25 +34,26 @@ describe('AggregationIntervalDomain', () => {
   })
 
   it.each([
-    { declared: '1m', expected: '一分鐘' },
-    { declared: '5m', expected: '五分鐘' },
-    { declared: '15m', expected: '十五分鐘' },
-    { declared: '1h', expected: '一小時' },
-    { declared: '4h', expected: '四小時' },
-    { declared: '1d', expected: '一天' },
-  ])('$declared 說出來是「$expected」', ({ declared, expected }) => {
+    { declared: '1m', expected: '一分鐘', expectedInEnglish: '1 minute' },
+    { declared: '5m', expected: '五分鐘', expectedInEnglish: '5 minutes' },
+    { declared: '15m', expected: '十五分鐘', expectedInEnglish: '15 minutes' },
+    { declared: '1h', expected: '一小時', expectedInEnglish: '1 hour' },
+    { declared: '4h', expected: '四小時', expectedInEnglish: '4 hours' },
+    { declared: '1d', expected: '一天', expectedInEnglish: '1 day' },
+  ])('$declared 說出來是「$expected」／「$expectedInEnglish」', ({ declared, expected, expectedInEnglish }) => {
     // 翻譯屬於領域：畫面拿到的已經是給人看的名字，不必自己認得代號。
-    expect(new AggregationIntervalDomain(declared).label()).toBe(expected)
+    expect(new AggregationIntervalDomain(declared).label().in('zh-TW')).toBe(expected)
+    expect(new AggregationIntervalDomain(declared).label().in('en')).toBe(expectedInEnglish)
   })
 
   it('認不得的代號說出來的是最細那一種的名字', () => {
-    expect(new AggregationIntervalDomain('7m').label()).toBe('一分鐘')
+    expect(new AggregationIntervalDomain('7m').label().in('zh-TW')).toBe('一分鐘')
   })
 
   it('交出選項時代號與名字一起交，選單不必自己配對', () => {
     const optionDto = new AggregationIntervalDomain('4h').toOptionDto()
 
     expect(optionDto.value).toBe('4h')
-    expect(optionDto.label).toBe('四小時')
+    expect(optionDto.label.in('zh-TW')).toBe('四小時')
   })
 })

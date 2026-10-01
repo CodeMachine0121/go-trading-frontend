@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
@@ -25,6 +26,8 @@ import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-rang
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
@@ -59,11 +62,14 @@ const {
   layoutDensity: LayoutDensityDto
 }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const symbol = ref(DEFAULT_SYMBOL)
 const drawing = ref<'candlestick' | 'line'>('candlestick')
 
 const presets = ref<KCandleChartRangePresetDto[]>([])
-const activePresetLabel = ref<string | null>(null)
+const activePreset = ref<KCandleChartRangePresetDto | null>(null)
 
 /**
  * 使用者要多細。它與「看哪一段」是兩個獨立的意圖，所以住在自己的 ref 裡：
@@ -102,9 +108,10 @@ const requestedStartTime = ref(new Date())
 const requestedEndTime = ref(new Date())
 
 const loading = ref(false)
-const rejectedMessage = ref<string | null>(null)
-const serverErrorMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
+const rejectedMessage = ref<LocalizedTextVo | null>(null)
+const unexpectedFailure = ref(false)
+const serverErrorMessage = ref<LocalizedTextVo | null>(null)
+const unreachableExplanation = ref<LocalizedTextVo | null>(null)
 
 /**
  * 使用者拉一下、還沒回來又拉一下時，先送出的那次可能後回來。
@@ -118,7 +125,7 @@ const chartIndicators = useChartIndicators(chartIndicatorApplication)
 /** 可以挑來套用的策略腳本。取不到清單時是空的——那是一份清單，不是一個功能。 */
 const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
 
-const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
+const intervalLabel = computed(() => chart.value === null ? '—' : localize(chart.value.interval.label))
 
 /**
  * 圖的標題：畫出來的那一檔，能說出名字就連名字一起說。
@@ -154,12 +161,16 @@ const liveUpdateNotice = computed(() => liveKCandleApplication.liveUpdateNotice(
  * 「沒有名額」與「停了」的措辭刻意不像：一句要人接受現況，一句要人稍等——
  * 讀起來像同一件事的話，這兩句就等於只有一句。
  */
-const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
-  marketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
-  noLivePlace: '這一檔沒有即時更新，資料每分鐘更新一次。',
-  ended: '即時更新已中斷，不會自己重新連上。重新整理頁面再試一次；圖表顯示的是目前手上的資料。',
-  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
-}
+const liveUpdateNoticeMessages = computed<Record<LiveUpdateNoticeValue, string>>(() => ({
+  marketClosed: t('marketData.kCandleChartPanel.liveUpdateMarketClosed'),
+  noLivePlace: t('marketData.kCandleChartPanel.liveUpdateNoLivePlace'),
+  ended: t('marketData.kCandleChartPanel.liveUpdateEnded'),
+  stalled: t('marketData.common.liveUpdateStalled'),
+}))
+
+const liveUpdateNoticeMessage = computed(() => liveUpdateNotice.value === null
+  ? null
+  : liveUpdateNoticeMessages.value[liveUpdateNotice.value.value])
 /**
  * 這個市場會收盤，所以「等下一輪」不見得等得到東西——手動要求更新才有意義。
  *
@@ -170,8 +181,32 @@ const canCatchUp = computed(() => selectedTradingSymbol.value?.hasTradingSession
 
 /** 正在補齊。補的時候不讓人再按一次——第二次要的是同一批東西。 */
 const catchingUp = ref(false)
-/** 上一次補齊的結果，補完才有話說。 */
-const catchUpMessage = ref<string | null>(null)
+/**
+ * 上一次補齊的結果，補完才有話說。
+ * 存的是結果本身而不是那一句話——換語言時已經顯示的那一句才跟著換。
+ */
+const catchUpOutcome = ref<
+  { collectedCount: number, failureReason: null }
+  | { collectedCount: null, failureReason: LocalizedTextVo | null }
+  | null
+>(null)
+
+const catchUpMessage = computed(() => {
+  const outcome = catchUpOutcome.value
+  if (outcome === null) {
+    return null
+  }
+  if (outcome.collectedCount === 0) {
+    return t('marketData.kCandleChartPanel.upToDate')
+  }
+  if (outcome.collectedCount !== null) {
+    return t('marketData.kCandleChartPanel.backfilled', { count: outcome.collectedCount })
+  }
+
+  return outcome.failureReason === null
+    ? t('marketData.kCandleChartPanel.backfillFailed')
+    : t('marketData.kCandleChartPanel.backfillFailedBecause', { reason: localize(outcome.failureReason) })
+})
 
 /**
  * 去把這一檔缺的補回來，補完重畫。
@@ -181,7 +216,7 @@ const catchUpMessage = ref<string | null>(null)
  */
 async function catchUp() {
   catchingUp.value = true
-  catchUpMessage.value = null
+  catchUpOutcome.value = null
 
   // 記下這一次補的是誰。等回來時使用者可能已經換了標的，那時候拿 symbol.value
   // 會變成「補 A、重畫 B」。
@@ -191,9 +226,7 @@ async function catchUp() {
     const collected = await kCandleChartApplication.catchUpSymbol(caughtUpSymbol)
     // 補到零根也是一個答案，而且是常見的那一個（手上已經是最新的）。
     // 不說出來的話，看的人分不出「按了沒事」與「按了沒反應」。
-    catchUpMessage.value = collected === 0
-      ? '已經是最新的了，沒有可補的 K 線。'
-      : `補回 ${collected} 根 K 線。`
+    catchUpOutcome.value = { collectedCount: collected, failureReason: null }
 
     // 手上那批「還夠用」的判斷是拿涵蓋範圍算的，而補齊填的是**範圍之內**的洞——
     // 照平常那條路重取，它會說不必取，於是剛補回來的那幾根一根都不會出現。
@@ -208,14 +241,7 @@ async function catchUp() {
       aggregationIntervalChoice.value))
   }
   catch (error: unknown) {
-    if (error instanceof BackendUnreachableError) {
-      catchUpMessage.value = `補不回來：${error.explanation}`
-    }
-    else {
-      catchUpMessage.value = error instanceof Error
-        ? `補不回來：${error.message}`
-        : '補不回來。'
-    }
+    catchUpOutcome.value = { collectedCount: null, failureReason: catchUpFailureReason(error) }
   }
   finally {
     catchingUp.value = false
@@ -244,8 +270,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
 
   loading.value = true
   rejectedMessage.value = null
+  unexpectedFailure.value = false
   serverErrorMessage.value = null
-  backendUnreachable.value = false
+  unreachableExplanation.value = null
 
   // 一檔都沒選著——這個市場目前沒有東西可挑。沒有東西可問，也沒有人做錯什麼，
   // 所以這裡既不送出請求，也不標一句「請指定交易標的」：那是在怪使用者沒填，
@@ -295,16 +322,16 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     // 哨兵錯誤分流。這裡沒有「請使用者自己修正」的那一種：標的只能從選單挑，
     // 而一檔都沒選著在上面就先攔下了——剩下的每一種都是後端那頭的事。
     if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
+      serverErrorMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendRequestRejectedError) {
-      rejectedMessage.value = error.message
+      rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
+      unreachableExplanation.value = error.explanation
     }
     else {
-      rejectedMessage.value = '取行情時發生未預期的錯誤。'
+      unexpectedFailure.value = true
     }
 
     forgetTheChart()
@@ -377,7 +404,7 @@ onBeforeUnmount(() => {
 })
 
 function selectPreset(preset: KCandleChartRangePresetDto) {
-  activePresetLabel.value = preset.label
+  activePreset.value = preset
 
   return showViewport(preset.toViewportDto(
     symbol.value, chart.value, aggregationIntervalChoice.value))
@@ -385,7 +412,7 @@ function selectPreset(preset: KCandleChartRangePresetDto) {
 
 function showRange(range: { startTime: Date, endTime: Date }) {
   // 使用者自己拉出來的一段，就不再屬於任何一個快捷區間。
-  activePresetLabel.value = null
+  activePreset.value = null
 
   return showViewport(new KCandleChartViewportDto(
     symbol.value, range.startTime, range.endTime, chart.value,
@@ -415,7 +442,7 @@ watch(aggregationIntervalChoice, () => reload())
 watch(symbol, () => {
   // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
   // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
-  catchUpMessage.value = null
+  catchUpOutcome.value = null
 
   return reload()
 })
@@ -448,6 +475,18 @@ onMounted(async () => {
     strategyScripts.value = []
   }
 })
+
+/** 補不回來的原因：具名錯誤各自帶著要說的話，其餘只剩工程師的原文，原樣呈現。 */
+function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
+  if (error instanceof BackendUnreachableError) {
+    return error.explanation
+  }
+  if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+    return error.localizedMessage
+  }
+
+  return error instanceof Error ? new UntranslatedTextVo(error.message) : null
+}
 </script>
 
 <template>
@@ -465,7 +504,7 @@ onMounted(async () => {
     >
       <template #tags>
         <AppBadge variant="neutral">
-          現貨
+          {{ t('marketData.kCandleChartPanel.spotBadge') }}
         </AppBadge>
       </template>
     </KCandleQuote>
@@ -484,15 +523,15 @@ onMounted(async () => {
       :tone="liveUpdateNotice.tone"
       :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
     >
-      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
+      {{ liveUpdateNoticeMessage }}
     </AppAlert>
 
     <AppAlert
-      v-if="rejectedMessage"
+      v-if="rejectedMessage || unexpectedFailure"
       tone="danger"
       data-testid="rejected-alert"
     >
-      {{ rejectedMessage }}
+      {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
     </AppAlert>
 
     <AppAlert
@@ -500,7 +539,7 @@ onMounted(async () => {
       tone="danger"
       data-testid="server-error-alert"
     >
-      後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
+      {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -508,17 +547,17 @@ onMounted(async () => {
           :disabled="loading"
           @click="reload"
         >
-          重試
+          {{ t('marketData.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
 
     <AppAlert
-      v-else-if="backendUnreachable"
+      v-else-if="unreachableExplanation"
       tone="danger"
       data-testid="unreachable-alert"
     >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      {{ localize(unreachableExplanation) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -526,7 +565,7 @@ onMounted(async () => {
           :disabled="loading"
           @click="reload"
         >
-          重試
+          {{ t('marketData.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -536,7 +575,7 @@ onMounted(async () => {
       tone="info"
       data-testid="loading-alert"
     >
-      取行情中…
+      {{ t('marketData.common.loadingMarketData') }}
     </AppAlert>
 
     <!-- 寬螢幕上兩欄：左邊是圖，右邊是看什麼與套用中的指標。手機上由上往下疊，圖在前。 -->
@@ -552,7 +591,7 @@ onMounted(async () => {
         <!-- 每根涵蓋多久寫在圖的標題列上：它說的是圖上那批 K 線多粗，
              所以它跟著圖，不跟著控制項。 -->
         <template #meta>
-          <span>每根涵蓋</span>
+          <span>{{ t('marketData.common.aggregationIntervalCaption') }}</span>
           <AppBadge
             variant="info"
             data-testid="interval-label"
@@ -582,7 +621,7 @@ onMounted(async () => {
             @click="catchUp"
           >
             <AppIcon name="refresh" />
-            {{ catchingUp ? '補齊中…' : '立刻更新' }}
+            {{ catchingUp ? t('marketData.kCandleChartPanel.catchingUp') : t('marketData.kCandleChartPanel.catchUp') }}
           </AppButton>
         </template>
 
@@ -592,7 +631,7 @@ onMounted(async () => {
             v-model:drawing="drawing"
             class="k-candle-chart-panel__toolbar"
             :presets="presets"
-            :active-preset-label="activePresetLabel"
+            :active-preset="activePreset"
             :aggregation-interval-choices="aggregationIntervalChoices"
             :active-aggregation-interval-choice="aggregationIntervalChoice"
             :loading="loading"
@@ -605,7 +644,7 @@ onMounted(async () => {
             class="k-candle-chart-panel__empty"
             data-testid="empty-chart"
           >
-            查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
+            {{ t('marketData.kCandleChartPanel.emptyChart') }}
           </p>
 
           <KCandleChart
@@ -626,7 +665,7 @@ onMounted(async () => {
             class="k-candle-chart-panel__empty"
             data-testid="idle-chart"
           >
-            還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+            {{ t('marketData.common.chartIdle') }}
           </p>
         </div>
 
@@ -637,16 +676,19 @@ onMounted(async () => {
           #footer
         >
           <span data-testid="covered-range">
-            手上這批共 {{ chart.count }} 根，涵蓋
-            {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
-            {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
+            {{ t('marketData.common.coveredRange', {
+              count: chart.count,
+              startTime: timeZone.formatDateTime(chart.coveredStartTime),
+              endTime: timeZone.formatDateTime(chart.coveredEndTime),
+              cityName: localize(timeZone.cityName),
+            }) }}
           </span>
         </template>
       </AppPanel>
 
       <aside class="k-candle-chart-panel__side">
         <AppPanel
-          title="看什麼"
+          :title="t('marketData.common.controlsTitle')"
           collapsible
           :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
         >

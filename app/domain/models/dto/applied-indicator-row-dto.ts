@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 
@@ -26,14 +27,14 @@ export class AppliedIndicatorRowDto {
     public readonly parameterFields: readonly StrategyScriptParameterFieldDto[],
     public readonly isCalculating: boolean,
     /** 這一列算不出來的原因，算得出來時是 `null`。 */
-    public readonly failureMessage: string | null,
+    public readonly failureMessage: LocalizedTextVo | null,
     /**
      * 這一列填的東西哪裡不對，沒有就是 `null`。
      *
      * 與上面那個分開，因為它們講的是不同的事：那個說「算過了、算不出來」，
      * 這個說「還沒算——你填的東西用不了」。混成同一個，使用者會以為算式壞了。
      */
-    public readonly parameterMessage: string | null,
+    public readonly parameterMessage: LocalizedTextVo | null,
     /** 這一列畫出來的線。水平線與曲線攤成同一份——畫面上它們長得一樣。 */
     public readonly lines: readonly AppliedIndicatorLineDto[],
     /** 算完了，但這支算式沒有放進任何指標。**這不是失敗。** */

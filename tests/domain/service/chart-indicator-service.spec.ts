@@ -233,7 +233,7 @@ describe('ChartIndicatorService.listChartLineColorOptions', () => {
 
     expect(options).toHaveLength(6)
     expect(options[0]?.token).toBe('--color-chart-line-1')
-    expect(options.every(option => option.label.length > 0)).toBe(true)
+    expect(options.every(option => option.label.in('zh-TW').length > 0 && option.label.in('en').length > 0)).toBe(true)
   })
 })
 
@@ -289,7 +289,7 @@ describe('ChartIndicatorService.restoreAppliedIndicators', () => {
 
     const restored = fixture.chartIndicatorService.restoreAppliedIndicators([strategyScript], 0)
 
-    expect(restored.map(one => [one.id, one.strategyScript.name, one.parameterSummary]))
+    expect(restored.map(one => [one.id, one.strategyScript.name, one.parameterSummary.in('zh-TW')]))
       .toEqual([[1, '均線', '期數 60']])
   })
 

@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /** 六種可選的彙總刻度，與後端同名。 */
 export type AggregationIntervalValue = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
@@ -10,7 +12,7 @@ export type AggregationIntervalValue = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 export class AggregationIntervalVo {
   constructor(
     public readonly value: AggregationIntervalValue,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     public readonly minutes: number,
   ) {}
 }
@@ -22,12 +24,12 @@ export class AggregationIntervalVo {
  * 所以多支援一種刻度就是在這裡多一列（前提是後端也認得同一個代號）。
  */
 export const AGGREGATION_INTERVALS: AggregationIntervalVo[] = [
-  new AggregationIntervalVo('1m', '一分鐘', 1),
-  new AggregationIntervalVo('5m', '五分鐘', 5),
-  new AggregationIntervalVo('15m', '十五分鐘', 15),
-  new AggregationIntervalVo('1h', '一小時', 60),
-  new AggregationIntervalVo('4h', '四小時', 240),
-  new AggregationIntervalVo('1d', '一天', 24 * 60),
+  new AggregationIntervalVo('1m', new LocalizedTextVo('一分鐘', '1 minute'), 1),
+  new AggregationIntervalVo('5m', new LocalizedTextVo('五分鐘', '5 minutes'), 5),
+  new AggregationIntervalVo('15m', new LocalizedTextVo('十五分鐘', '15 minutes'), 15),
+  new AggregationIntervalVo('1h', new LocalizedTextVo('一小時', '1 hour'), 60),
+  new AggregationIntervalVo('4h', new LocalizedTextVo('四小時', '4 hours'), 240),
+  new AggregationIntervalVo('1d', new LocalizedTextVo('一天', '1 day'), 24 * 60),
 ]
 
 /**

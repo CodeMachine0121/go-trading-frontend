@@ -96,6 +96,7 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
       ))
     }
     catch (error: unknown) {
+      // translation-exempt：寫給開發者主控台的紀錄，不是畫面上的話。
       console.warn('讀不懂的即時更新，略過這一則', error)
 
       return null

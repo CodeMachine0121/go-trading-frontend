@@ -6,6 +6,7 @@ import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** Application：圖表指標的用例編排，全程只碰 DTO。 */
 export class ChartIndicatorApplication {
@@ -37,7 +38,7 @@ export class ChartIndicatorApplication {
 
   validateAppliedIndicatorParameters(
     parameters: readonly StrategyScriptParameterDto[],
-  ): string | null {
+  ): LocalizedTextVo | null {
     return this.chartIndicatorService.validateAppliedIndicatorParameters(parameters)
   }
 

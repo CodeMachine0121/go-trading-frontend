@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
@@ -28,6 +29,8 @@ const {
 
 const symbol = defineModel<string>({ required: true })
 
+const { t } = useI18n()
+
 const contractTradingSymbols = ref<ContractTradingSymbolDto[]>([])
 
 /**
@@ -50,18 +53,18 @@ const options = computed(() => tradingSymbolApplication.contractOptionsFor(
 
 const hint = computed(() => {
   if (loading.value) {
-    return '取合約標的清單中…'
+    return t('marketData.contractSymbolField.loading')
   }
   if (unavailable.value) {
-    return '取不到合約標的清單，請確認後端已啟動'
+    return t('marketData.contractSymbolField.unavailable')
   }
   if (options.value.hasNone) {
-    return '目前沒有任何合約標的，先把合約加進合約追蹤名單'
+    return t('marketData.contractSymbolField.none')
   }
 
   return watchedOnly
-    ? '只列合約追蹤名單上的合約'
-    : '合約那一邊認得的每一個標的；沒在追蹤的也列著'
+    ? t('marketData.contractSymbolField.watchedOnlyHint')
+    : t('marketData.contractSymbolField.allHint')
 })
 
 onMounted(async () => {
@@ -84,7 +87,7 @@ onMounted(async () => {
 
 <template>
   <FormField
-    label="合約標的"
+    :label="t('marketData.contractSymbolField.label')"
     :hint="hint"
     :error-message="errorMessage"
     class="contract-symbol-field"
@@ -100,14 +103,18 @@ onMounted(async () => {
         v-if="!options.options.some(contractTradingSymbol => contractTradingSymbol.symbol === symbol)"
         :value="symbol"
       >
-        {{ symbol === '' ? '（沒有可選的合約）' : `${symbol}${watchedOnly ? '（不在合約追蹤名單上）' : ''}` }}
+        {{ symbol === ''
+          ? t('marketData.contractSymbolField.noOptions')
+          : watchedOnly ? t('marketData.contractSymbolField.notOnWatchlist', { symbol }) : symbol }}
       </option>
       <option
         v-for="contractTradingSymbol in options.options"
         :key="contractTradingSymbol.symbol"
         :value="contractTradingSymbol.symbol"
       >
-        {{ contractTradingSymbol.symbol }}{{ contractTradingSymbol.isWatched ? '' : '（未追蹤）' }}
+        {{ contractTradingSymbol.isWatched
+          ? contractTradingSymbol.symbol
+          : t('marketData.contractSymbolField.notWatched', { symbol: contractTradingSymbol.symbol }) }}
       </option>
     </AppSelect>
   </FormField>

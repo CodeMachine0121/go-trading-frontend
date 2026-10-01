@@ -7,12 +7,13 @@ import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-se
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const LOAD_PLAN = new KCandleChartLoadPlanVo(
   true, 'BTCUSDT',
   new Date('2026-09-23T03:00:00.000Z'), new Date('2026-09-23T09:00:00.000Z'),
   new Date('2026-09-23T00:00:00.000Z'), new Date('2026-09-23T12:00:00.000Z'),
-  new AggregationIntervalChoiceDto('自動', null),
+  new AggregationIntervalChoiceDto(new LocalizedTextVo('自動', 'Auto'), null),
 )
 
 function lineClosingAt(close: string | null): ContractPriceLineVo | null {

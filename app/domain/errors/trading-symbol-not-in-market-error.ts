@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個代號在那個市場找不到。
  *
@@ -6,8 +8,12 @@
  * 說成同一句話，等於讓一半的人在一個本來就正確的代號上反覆重打。
  */
 export class TradingSymbolNotInMarketError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'TradingSymbolNotInMarketError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

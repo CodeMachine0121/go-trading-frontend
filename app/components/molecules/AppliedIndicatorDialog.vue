@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
@@ -26,6 +27,9 @@ const emit = defineEmits<{
   changeParameterValue: [parameterName: string, value: number]
   changeLineColor: [lineKey: string, colorToken: string]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -43,7 +47,7 @@ const emit = defineEmits<{
         class="applied-indicator-dialog__section"
       >
         <h3 class="applied-indicator-dialog__heading">
-          這一次的參數
+          {{ t('marketData.appliedIndicatorDialog.parametersHeading') }}
         </h3>
         <AppliedIndicatorParameterFields
           :fields="row.parameterFields"
@@ -54,12 +58,11 @@ const emit = defineEmits<{
           tone="danger"
           data-testid="applied-parameters-alert"
         >
-          {{ row.parameterMessage }}
+          {{ localize(row.parameterMessage) }}
         </AppAlert>
 
         <p class="applied-indicator-dialog__note">
-          改了就重算這一筆，圖上其他線不動。這裡填的值只屬於這一次套用，
-          策略腳本記著的預設值不會被動到。
+          {{ t('marketData.appliedIndicatorDialog.parametersNote') }}
         </p>
       </section>
 
@@ -68,7 +71,7 @@ const emit = defineEmits<{
         class="applied-indicator-dialog__section"
       >
         <h3 class="applied-indicator-dialog__heading">
-          線的顏色
+          {{ t('marketData.appliedIndicatorDialog.lineColorsHeading') }}
         </h3>
         <div
           v-for="line in row.lines"
@@ -92,7 +95,7 @@ const emit = defineEmits<{
               :key="colorOption.token"
               :value="colorOption.token"
             >
-              {{ colorOption.label }}
+              {{ localize(colorOption.label) }}
             </option>
           </AppSelect>
         </div>
@@ -103,7 +106,7 @@ const emit = defineEmits<{
         class="applied-indicator-dialog__note"
         data-testid="applied-indicator-nothing-to-set"
       >
-        這一筆沒有可以調的東西：它沒有宣告旋鈕，這一輪也還沒畫出線。
+        {{ t('marketData.appliedIndicatorDialog.nothingToSet') }}
       </p>
     </div>
 
@@ -112,7 +115,7 @@ const emit = defineEmits<{
         data-testid="close-applied-indicator-button"
         @click="emit('close')"
       >
-        完成
+        {{ t('marketData.common.done') }}
       </AppButton>
     </template>
   </AppModal>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
 import FormField from '~/components/molecules/FormField.vue'
@@ -22,6 +23,9 @@ const { tradingSymbolApplication, errorMessage = null } = defineProps<{
 }>()
 
 const symbol = defineModel<string>({ required: true })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const tradingSymbols = ref<TradingSymbolDto[]>([])
 
@@ -49,10 +53,10 @@ const unavailable = ref(false)
 const ALL_MARKETS = 'all'
 const selectedMarket = ref<MarketValue | typeof ALL_MARKETS>(ALL_MARKETS)
 
-const MARKET_TABS = [
-  { value: ALL_MARKETS, label: '全部' },
-  ...MARKETS.map(market => ({ value: market.value, label: market.label })),
-]
+const marketTabs = computed(() => [
+  { value: ALL_MARKETS, label: t('marketData.symbolField.allMarkets') },
+  ...MARKETS.map(market => ({ value: market.value, label: localize(market.label) })),
+])
 
 /**
  * 這一次該列出來的那幾檔，以及這個市場是不是根本沒有東西。
@@ -81,21 +85,21 @@ watch(selectedMarket, () => {
 
 const hint = computed(() => {
   if (loading.value) {
-    return '取交易標的清單中…'
+    return t('marketData.symbolField.loading')
   }
   if (unavailable.value) {
-    return '取不到交易標的清單，請確認後端已啟動'
+    return t('marketData.symbolField.unavailable')
   }
   if (options.value.hasNoneInMarket) {
     return selectedMarket.value === ALL_MARKETS
-      ? '後端目前沒有任何交易標的'
+      ? t('marketData.symbolField.noneAtAll')
       // 這一句以前指向觀察清單那一頁，而那一頁已經不在了。指一條走不到的路
       // 比不指路更糟，所以它現在說的是他**在這台操作台上做得到**的那一件事。
-      : '這個市場目前沒有任何交易標的，換一個市場看看'
+      : t('marketData.symbolField.noneInMarket')
   }
 
   // 每一檔的市場與有沒有即時更新寫在選項自己身上，這一句只說這份清單是什麼。
-  return '後端認得的每一個交易標的；標示了市場與有沒有即時更新'
+  return t('marketData.symbolField.hint')
 })
 
 onMounted(async () => {
@@ -135,12 +139,12 @@ onMounted(async () => {
     -->
     <AppTabs
       v-model="selectedMarket"
-      :options="MARKET_TABS"
+      :options="marketTabs"
       class="symbol-field__markets"
     />
 
     <FormField
-      label="交易標的"
+      :label="t('marketData.symbolField.label')"
       :hint="hint"
       :error-message="errorMessage"
     >
@@ -159,7 +163,7 @@ onMounted(async () => {
           v-if="!options.options.some(tradingSymbol => tradingSymbol.symbol === symbol)"
           :value="symbol"
         >
-          {{ symbol === '' ? '（沒有可選的標的）' : symbol }}
+          {{ symbol === '' ? t('marketData.symbolField.noOptions') : symbol }}
         </option>
         <!--
           市場與有沒有即時更新都寫在選項文字裡：原生的 option 裝不下一個元件，
@@ -171,9 +175,13 @@ onMounted(async () => {
           :key="tradingSymbol.symbol"
           :value="tradingSymbol.symbol"
         >
-          {{ tradingSymbol.label }}
-          · {{ tradingSymbol.market.label
-          }}{{ tradingSymbol.hasLiveUpdates ? '' : `（${tradingSymbol.liveUpdateAvailability.label}）` }}
+          {{ tradingSymbol.hasLiveUpdates
+            ? `${tradingSymbol.label} · ${localize(tradingSymbol.market.label)}`
+            : t('marketData.symbolField.optionWithoutLiveUpdates', {
+              label: tradingSymbol.label,
+              market: localize(tradingSymbol.market.label),
+              liveUpdateAvailability: localize(tradingSymbol.liveUpdateAvailability.label),
+            }) }}
         </option>
       </AppSelect>
     </FormField>

@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /** 一根 K 線在畫面上可以填的每一個欄位。錯誤帶著它，畫面才知道訊息要標在哪一欄旁邊。 */
 export type KCandleWriteField
   = | 'symbol'
@@ -18,9 +20,9 @@ export type KCandleWriteField
 export class KCandleFieldError extends Error {
   constructor(
     public readonly field: KCandleWriteField,
-    message: string,
+    public readonly localizedMessage: LocalizedTextVo,
   ) {
-    super(message)
+    super(localizedMessage.traditionalChinese)
     this.name = 'KCandleFieldError'
   }
 }

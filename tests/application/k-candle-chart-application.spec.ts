@@ -19,6 +19,7 @@ import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
 import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-series-vo'
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
@@ -101,7 +102,7 @@ describe('KCandleChartApplication', () => {
       expect(chartView.reloadedChart?.count).toBe(2)
       expect(chartView.reloadedChart?.kCandles.map(kCandle => kCandle.trend.tone))
         .toEqual(['success', 'danger'])
-      expect(chartView.reloadedChart?.interval.label).toBe('一分鐘')
+      expect(chartView.reloadedChart?.interval.label.in('zh-TW')).toBe('一分鐘')
     })
 
     it('取回一根都沒有時是空的一批，不是錯誤', async () => {
@@ -201,7 +202,7 @@ describe('KCandleChartApplication', () => {
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
 
       await expect(kCandleChartApplication.loadKCandleChart(viewportSpanning(24 * 60, null, ' ')))
-        .rejects.toThrowError(new KCandleQueryValidationError('symbol', '請指定交易標的'))
+        .rejects.toThrowError(new KCandleQueryValidationError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required')))
       expect(findKCandleSeries).not.toHaveBeenCalled()
     })
 
@@ -232,7 +233,7 @@ describe('KCandleChartApplication', () => {
     it('列出一鍵可切換的幾個長度，由短到長', () => {
       const presets = buildApplication(buildProxy()).listRangePresets()
 
-      expect(presets.map(preset => preset.label))
+      expect(presets.map(preset => preset.label.in('zh-TW')))
         .toEqual([
           '一小時', '五小時', '十小時',
           '一天', '五天', '一個月', '三個月', '六個月', '一年',
@@ -267,7 +268,7 @@ describe('KCandleChartApplication', () => {
     it('列出五種可挑的粗細，由細到粗，第一項是自動', () => {
       const choices = buildApplication(buildProxy()).listAggregationIntervalChoices()
 
-      expect(choices.map(choice => choice.label))
+      expect(choices.map(choice => choice.label.in('zh-TW')))
         .toEqual(['自動', '一分鐘', '五分鐘', '十五分鐘', '一小時'])
     })
 
@@ -276,7 +277,7 @@ describe('KCandleChartApplication', () => {
 
       const defaultChoice = kCandleChartApplication.defaultAggregationIntervalChoice()
 
-      expect(defaultChoice.label).toBe('自動')
+      expect(defaultChoice.label.in('zh-TW')).toBe('自動')
       expect(defaultChoice.declaredInterval).toBeNull()
     })
 
@@ -358,8 +359,8 @@ describe('KCandleChartApplication', () => {
     it('一進畫面看的是一天，不是那一排最短的一段', () => {
       const kCandleChartApplication = buildApplication(buildProxy())
 
-      expect(kCandleChartApplication.defaultRangePreset().label).toBe('一天')
-      expect(kCandleChartApplication.listRangePresets()[0]?.label).toBe('一小時')
+      expect(kCandleChartApplication.defaultRangePreset().label.in('zh-TW')).toBe('一天')
+      expect(kCandleChartApplication.listRangePresets()[0]?.label.in('zh-TW')).toBe('一小時')
     })
   })
 
@@ -402,9 +403,9 @@ describe('KCandleChartApplication', () => {
       expect(loadPlan.symbol).toBe('BTCUSDT')
       expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
       expect(spotProxy.findKCandleSeries).not.toHaveBeenCalled()
-      expect(chartView.reloadedChart?.interval.label).toBe('十五分鐘')
+      expect(chartView.reloadedChart?.interval.label.in('zh-TW')).toBe('十五分鐘')
       expect(chartView.reloadedChart?.latestKCandle?.close.toString()).toBe('105')
-      expect(chartView.reloadedChart?.kCandles.map(kCandle => kCandle.trend.label))
+      expect(chartView.reloadedChart?.kCandles.map(kCandle => kCandle.trend.label.in('zh-TW')))
         .toEqual(['上漲', '下跌'])
     })
 
@@ -420,7 +421,7 @@ describe('KCandleChartApplication', () => {
       expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('5m')
       expect(chartView.visibleRange.startTime.toISOString()).toBe('2026-09-01T12:00:00.000Z')
       expect(chartView.visibleRange.endTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
-      expect(chartView.reloadedChart?.interval.label).toBe('五分鐘')
+      expect(chartView.reloadedChart?.interval.label.in('zh-TW')).toBe('五分鐘')
     })
 
     it('手上那批還夠用時不重新取——與現貨圖表同一條規則', async () => {

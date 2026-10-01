@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * VO：這一檔有沒有即時更新，連同該怎麼說它。不可變、無行為。
  *
@@ -7,12 +9,14 @@
  */
 export class LiveUpdateAvailabilityVo {
   constructor(
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     public readonly tone: 'success' | 'neutral',
   ) {}
 }
 
 /** 有即時更新的說法。 */
-export const LIVE_UPDATES_AVAILABLE = new LiveUpdateAvailabilityVo('即時更新中', 'success')
+export const LIVE_UPDATES_AVAILABLE = new LiveUpdateAvailabilityVo(
+  new LocalizedTextVo('即時更新中', 'Live updates on'), 'success')
 /** 沒有即時更新的說法。 */
-export const LIVE_UPDATES_UNAVAILABLE = new LiveUpdateAvailabilityVo('無即時更新', 'neutral')
+export const LIVE_UPDATES_UNAVAILABLE = new LiveUpdateAvailabilityVo(
+  new LocalizedTextVo('無即時更新', 'No live updates'), 'neutral')

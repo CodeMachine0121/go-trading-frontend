@@ -92,13 +92,13 @@ describe('KCandleSeriesDomain', () => {
     const chart = new KCandleSeriesDomain(seriesOf([], '4h'), loadPlanForThatStretch()).toDto()
 
     expect(chart.interval.value).toBe('4h')
-    expect(chart.interval.label).toBe('四小時')
+    expect(chart.interval.label.in('zh-TW')).toBe('四小時')
   })
 
   it('系統回報一個認不得的刻度時退回最細的那一種，不讓畫面壞掉', () => {
     const chart = new KCandleSeriesDomain(seriesOf([], '7m'), loadPlanForThatStretch()).toDto()
 
     expect(chart.interval.value).toBe('1m')
-    expect(chart.interval.label).toBe('一分鐘')
+    expect(chart.interval.label.in('zh-TW')).toBe('一分鐘')
   })
 })

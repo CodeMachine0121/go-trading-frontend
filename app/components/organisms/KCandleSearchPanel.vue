@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import KCandleTable from '~/components/organisms/KCandleTable.vue'
@@ -17,6 +18,7 @@ import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-vali
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
@@ -45,11 +47,15 @@ const startTime = ref('')
 
 const loading = ref(false)
 const result = ref<KCandleSearchResultDto | null>(null)
-const symbolError = ref<string | null>(null)
-const startTimeError = ref<string | null>(null)
-const rejectedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
+const symbolError = ref<LocalizedTextVo | null>(null)
+const startTimeError = ref<LocalizedTextVo | null>(null)
+const rejectedMessage = ref<LocalizedTextVo | null>(null)
+const unexpectedFailure = ref(false)
+const unreachableExplanation = ref<LocalizedTextVo | null>(null)
+const serverErrorMessage = ref<LocalizedTextVo | null>(null)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 // 維護狀態：null 代表沒在維護；editingKCandle 為 null 但 editorOpen 為真代表正在新增。
 const editorOpen = ref(false)
@@ -100,7 +106,8 @@ async function searchKCandles() {
   symbolError.value = null
   startTimeError.value = null
   rejectedMessage.value = null
-  backendUnreachable.value = false
+  unexpectedFailure.value = false
+  unreachableExplanation.value = null
   serverErrorMessage.value = null
   result.value = null
 
@@ -115,23 +122,23 @@ async function searchKCandles() {
     // 哨兵錯誤分流：使用者可自行修正的標在欄位旁，其餘整塊呈現。
     if (error instanceof KCandleQueryValidationError) {
       if (error.field === 'symbol') {
-        symbolError.value = error.message
+        symbolError.value = error.localizedMessage
       }
       else {
-        startTimeError.value = error.message
+        startTimeError.value = error.localizedMessage
       }
     }
     else if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
+      serverErrorMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendRequestRejectedError) {
-      rejectedMessage.value = error.message
+      rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
+      unreachableExplanation.value = error.explanation
     }
     else {
-      rejectedMessage.value = '查詢時發生未預期的錯誤。'
+      unexpectedFailure.value = true
     }
   }
   finally {
@@ -159,24 +166,24 @@ async function searchKCandles() {
           v-model:start-time="startTime"
           :time-zone="timeZone"
           :loading="loading"
-          :start-time-error="startTimeError"
+          :start-time-error="startTimeError ? localize(startTimeError) : null"
           @submit="searchKCandles"
         >
           <template #symbol>
             <SymbolField
               v-model="symbol"
               :trading-symbol-application="tradingSymbolApplication"
-              :error-message="symbolError"
+              :error-message="symbolError ? localize(symbolError) : null"
             />
           </template>
         </KCandleQueryForm>
 
         <AppAlert
-          v-if="rejectedMessage"
+          v-if="rejectedMessage || unexpectedFailure"
           tone="danger"
           data-testid="rejected-alert"
         >
-          {{ rejectedMessage }}
+          {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedSearchFailure') }}
         </AppAlert>
 
         <AppAlert
@@ -184,7 +191,7 @@ async function searchKCandles() {
           tone="danger"
           data-testid="server-error-alert"
         >
-          後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+          {{ t('marketData.common.searchServerError', { message: localize(serverErrorMessage) }) }}
           <template #action>
             <AppButton
               variant="secondary"
@@ -192,17 +199,17 @@ async function searchKCandles() {
               :disabled="loading"
               @click="searchKCandles"
             >
-              重試
+              {{ t('marketData.common.retry') }}
             </AppButton>
           </template>
         </AppAlert>
 
         <AppAlert
-          v-else-if="backendUnreachable"
+          v-else-if="unreachableExplanation"
           tone="danger"
           data-testid="unreachable-alert"
         >
-          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+          {{ localize(unreachableExplanation) }}
           <template #action>
             <AppButton
               variant="secondary"
@@ -210,7 +217,7 @@ async function searchKCandles() {
               :disabled="loading"
               @click="searchKCandles"
             >
-              重試
+              {{ t('marketData.common.retry') }}
             </AppButton>
           </template>
         </AppAlert>
@@ -220,7 +227,7 @@ async function searchKCandles() {
           tone="info"
           data-testid="loading-alert"
         >
-          查詢中…
+          {{ t('marketData.common.searching') }}
         </AppAlert>
       </template>
 
@@ -236,7 +243,7 @@ async function searchKCandles() {
             name="plus"
             size="small"
           />
-          新增 K 線
+          {{ t('marketData.kCandleSearchPanel.createKCandle') }}
         </AppButton>
       </template>
 
@@ -249,7 +256,7 @@ async function searchKCandles() {
           data-testid="edit-button"
           @click.stop="startEditing(kCandle)"
         >
-          編輯
+          {{ t('marketData.kCandleSearchPanel.edit') }}
         </AppButton>
       </template>
     </KCandleTable>

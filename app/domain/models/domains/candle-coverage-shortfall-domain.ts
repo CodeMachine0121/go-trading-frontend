@@ -1,4 +1,5 @@
 import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-coverage-shortfall-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：走完的刻度區間連一個值都湊不出來時，該對使用者說的那一句話。
@@ -26,10 +27,16 @@ import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-covera
 export class CandleCoverageShortfallDomain {
   constructor(private readonly shortfall: CandleCoverageShortfallVo) {}
 
-  message(): string {
-    return `這段區間只湊得出 ${this.shortfall.availableCandleCount} 根 K 線，`
+  message(): LocalizedTextVo {
+    return new LocalizedTextVo(
+      `這段區間只湊得出 ${this.shortfall.availableCandleCount} 根 K 線，`
       + `而這支策略腳本至少要 ${this.shortfall.minimumCandleCount} 根才算得出一個值。`
       + '請改用更細的彙總刻度（每根涵蓋的時間更短，同一段時間就切得出更多根），'
-      + '或先補上這段缺的歷史。'
+      + '或先補上這段缺的歷史。',
+      `This period only yields ${this.shortfall.availableCandleCount} K-candles, `
+      + `but this strategy script needs at least ${this.shortfall.minimumCandleCount} to calculate a single value. `
+      + 'Use a finer aggregation interval (each K-candle covers less time, so the same period yields more of them), '
+      + 'or backfill the missing history first.',
+    )
   }
 }

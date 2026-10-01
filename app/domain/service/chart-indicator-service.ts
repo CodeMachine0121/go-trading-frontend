@@ -18,6 +18,7 @@ import type { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicat
 import { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-option-dto'
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { CHART_LINE_COLORS } from '~/domain/models/vo/chart-line-color-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Service：圖表指標的編排。
@@ -122,7 +123,7 @@ export class ChartIndicatorService {
   /** 這幾格哪裡不對——沒有就是 null。規則與宣告在哪裡編輯無關，所以借用同一份。 */
   validateAppliedIndicatorParameters(
     parameters: readonly StrategyScriptParameterDto[],
-  ): string | null {
+  ): LocalizedTextVo | null {
     return new StrategyScriptParametersDomain(parameters).validationMessage()
   }
 

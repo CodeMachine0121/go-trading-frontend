@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo'
 
 /**
@@ -9,6 +10,6 @@ import type { CalculationSpanUnit } from '~/domain/models/vo/calculation-span-vo
 export class CalculationSpanUnitOptionDto {
   constructor(
     public readonly value: CalculationSpanUnit,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
   ) {}
 }

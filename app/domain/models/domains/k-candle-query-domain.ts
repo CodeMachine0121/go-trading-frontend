@@ -1,5 +1,6 @@
 import type { KCandleQueryDto } from '~/domain/models/dto/k-candle-query-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一組查詢條件，建構當下即驗證。
@@ -20,17 +21,20 @@ export class KCandleQueryDomain {
 
     const normalizedSymbol = kCandleQueryDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new KCandleQueryValidationError('symbol', '請指定交易標的')
+      throw new KCandleQueryValidationError(
+        'symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     // 時間欄位被清空或只填一半時會得到一個無效的時間值，它與任何時間比較都不成立，
     // 因此必須先擋下來，否則會一路帶到後端才以看不懂的方式失敗。
     if (Number.isNaN(kCandleQueryDto.startTime.getTime())) {
-      throw new KCandleQueryValidationError('startTime', '請填寫開始時間')
+      throw new KCandleQueryValidationError(
+        'startTime', new LocalizedTextVo('請填寫開始時間', 'Start time is required'))
     }
 
     if (kCandleQueryDto.startTime.getTime() > currentTime.getTime()) {
-      throw new KCandleQueryValidationError('startTime', '開始時間不得晚於目前時間')
+      throw new KCandleQueryValidationError(
+        'startTime', new LocalizedTextVo('開始時間不得晚於目前時間', 'Start time must not be later than now'))
     }
 
     this.symbol = normalizedSymbol

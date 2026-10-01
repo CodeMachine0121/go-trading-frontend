@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * Domain Model：要看的那一段裡，那個市場**根本沒有開過**時該對使用者說的那一句話。
  *
@@ -17,9 +19,14 @@
  * 指名一個，就會在另一個畫面上叫使用者去按一個不存在的東西。
  */
 export class MarketClosedThroughoutDomain {
-  message(): string {
-    return '這一段時間市場沒有交易，所以沒有東西可以算。'
+  message(): LocalizedTextVo {
+    return new LocalizedTextVo(
+      '這一段時間市場沒有交易，所以沒有東西可以算。'
       + '請改看這個市場有交易的時間——這一檔不是全天候交易的，'
-      + '收盤之後與週末不會有任何成交。'
+      + '收盤之後與週末不會有任何成交。',
+      'The market did not trade during this period, so there is nothing to calculate. '
+      + 'Look at a time when this market was trading instead — it does not trade around the clock, '
+      + 'and there are no trades after the close or at weekends.',
+    )
   }
 }

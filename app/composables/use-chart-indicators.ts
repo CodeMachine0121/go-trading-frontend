@@ -8,7 +8,8 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 圖表上「已套用的指標」這一塊的**狀態**：誰在清單上、誰正在算、誰失敗了、算出哪幾條線。
@@ -31,14 +32,14 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
   const chartIndicators = ref<ChartIndicatorDto[]>([])
   const calculatingIds = ref<number[]>([])
   /** 每一筆各自的失敗說明。一筆失敗只標在它自己旁邊，其他筆照常畫。 */
-  const failureMessages = ref<Map<number, string>>(new Map())
+  const failureMessages = ref<Map<number, LocalizedTextVo>>(new Map())
   /**
    * 每一筆各自的「這幾格哪裡不對」。
    *
    * 與失敗說明分開，因為它們講的是不同的事：那個說「算過了、算不出來」，
    * 這個說「還沒算——你填的東西用不了」。混成同一個，使用者會以為算式壞了。
    */
-  const parameterMessages = ref<Map<number, string>>(new Map())
+  const parameterMessages = ref<Map<number, LocalizedTextVo>>(new Map())
 
   /**
    * 還沒上圖的那一筆：使用者挑了一支有旋鈕的策略腳本，正在調它的值。
@@ -49,7 +50,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 拆出去就會浮到元件層，而元件不該做那個判斷。
    */
   const pendingAppliedIndicator = ref<AppliedIndicatorDto | null>(null)
-  const pendingParametersMessage = ref<string | null>(null)
+  const pendingParametersMessage = ref<LocalizedTextVo | null>(null)
 
   /**
    * 下一筆套用的序號。它只在這個畫面活著——留存的是「他要哪幾支、各配什麼值」，
@@ -338,8 +339,8 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
   /** 換掉某一筆的說明；`null` 就是把它拿掉。 */
   function withMessage(
-    messages: ReadonlyMap<number, string>, appliedIndicatorId: number, message: string | null,
-  ): Map<number, string> {
+    messages: ReadonlyMap<number, LocalizedTextVo>, appliedIndicatorId: number, message: LocalizedTextVo | null,
+  ): Map<number, LocalizedTextVo> {
     const changed = new Map(messages)
     if (message === null) {
       changed.delete(appliedIndicatorId)
@@ -575,18 +576,20 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     failureMessages.value = remaining
   }
 
-  function messageOf(error: unknown): string {
+  function messageOf(error: unknown): LocalizedTextVo {
     if (error instanceof BackendUnreachableError) {
-      return '連不上後端，請確認它已經啟動。'
+      return new LocalizedTextVo('連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
     }
-    if (error instanceof IndicatorScriptFailedError) {
-      return error.message
+    // 具名錯誤各自帶著要說的話（算式的問題、後端拒絕的原文）；沒帶的錯誤只剩工程師的原文，原樣呈現。
+    if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+      return error.localizedMessage
     }
     if (error instanceof Error) {
-      return error.message
+      return new UntranslatedTextVo(error.message)
     }
 
-    return '計算這支指標時發生未預期的錯誤。'
+    return new LocalizedTextVo(
+      '計算這支指標時發生未預期的錯誤。', 'An unexpected error occurred while calculating this indicator.')
   }
 
   return {

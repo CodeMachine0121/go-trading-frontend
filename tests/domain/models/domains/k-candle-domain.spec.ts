@@ -21,14 +21,15 @@ function buildKCandle(open: string, close: string): KCandle {
 
 describe('KCandleDomain', () => {
   it.each([
-    { open: '100', close: '110', expectedValue: 'up', expectedLabel: '上漲', expectedTone: 'success' },
-    { open: '100', close: '90', expectedValue: 'down', expectedLabel: '下跌', expectedTone: 'danger' },
-    { open: '100', close: '100', expectedValue: 'flat', expectedLabel: '持平', expectedTone: 'neutral' },
-  ])('開盤 $open、收盤 $close 的漲跌為 $expectedValue', ({ open, close, expectedValue, expectedLabel, expectedTone }) => {
+    { open: '100', close: '110', expectedValue: 'up', expectedLabel: '上漲', expectedEnglishLabel: 'Up', expectedTone: 'success' },
+    { open: '100', close: '90', expectedValue: 'down', expectedLabel: '下跌', expectedEnglishLabel: 'Down', expectedTone: 'danger' },
+    { open: '100', close: '100', expectedValue: 'flat', expectedLabel: '持平', expectedEnglishLabel: 'Flat', expectedTone: 'neutral' },
+  ])('開盤 $open、收盤 $close 的漲跌為 $expectedValue', ({ open, close, expectedValue, expectedLabel, expectedEnglishLabel, expectedTone }) => {
     const trend = buildKCandle(open, close).toDomain().trend()
 
     expect(trend.value).toBe(expectedValue)
-    expect(trend.label).toBe(expectedLabel)
+    expect(trend.label.in('zh-TW')).toBe(expectedLabel)
+    expect(trend.label.in('en')).toBe(expectedEnglishLabel)
     expect(trend.tone).toBe(expectedTone)
   })
 

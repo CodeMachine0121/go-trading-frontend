@@ -35,7 +35,7 @@ describe('RememberedAppliedIndicatorsDomain：上次那幾支自己回來', () =
     const restored = restore(
       [rememberedOf(7, { 期數: 60 })], [strategyScriptOf(7, '均線', [lookbackCount('期數', 20)])])
 
-    expect(restored.map(one => [one.strategyScript.name, one.parameterSummary]))
+    expect(restored.map(one => [one.strategyScript.name, one.parameterSummary.in('zh-TW')]))
       .toEqual([['均線', '期數 60']])
   })
 
@@ -61,7 +61,7 @@ describe('RememberedAppliedIndicatorsDomain：上次那幾支自己回來', () =
       [rememberedOf(7, { 期數: 20 }), rememberedOf(7, { 期數: 60 })],
       [strategyScriptOf(7, '均線', [lookbackCount('期數', 20)])])
 
-    expect(restored.map(one => one.parameterSummary)).toEqual(['期數 20', '期數 60'])
+    expect(restored.map(one => one.parameterSummary.in('zh-TW'))).toEqual(['期數 20', '期數 60'])
   })
 
   it('一筆都沒留存時交出空的一份', () => {
@@ -189,7 +189,7 @@ describe('RememberedAppliedIndicatorsDomain：留存的值用不了時退回預�
       [rememberedOf(7, { 期數: rememberedValue })],
       [strategyScriptOf(7, '均線', [lookbackCount('期數', 20)])])
 
-    expect(restored.map(one => one.parameterSummary)).toEqual(['期數 20'])
+    expect(restored.map(one => one.parameterSummary.in('zh-TW'))).toEqual(['期數 20'])
   })
 
   it('數值那一種不受整數限制——1.5 照樣採用', () => {
@@ -197,7 +197,7 @@ describe('RememberedAppliedIndicatorsDomain：留存的值用不了時退回預�
       [rememberedOf(7, { 倍數: 1.5 })],
       [strategyScriptOf(7, '布林', [new StrategyScriptParameterDto('倍數', 'number', 2)])])
 
-    expect(restored.map(one => one.parameterSummary)).toEqual(['倍數 1.5'])
+    expect(restored.map(one => one.parameterSummary.in('zh-TW'))).toEqual(['倍數 1.5'])
   })
 
   it('用不了的那一格退回預設值，同一筆其他格照樣採用留存的值', () => {

@@ -11,6 +11,7 @@ import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../../fixtures/aggregation-interval-choice'
 import { aggregationIntervalNamed as intervalFor } from '../../../fixtures/aggregation-interval'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 const MILLISECONDS_PER_MINUTE = 60 * 1000
@@ -36,7 +37,7 @@ function loadedChart(
       symbol, new Date(coveredStartTime),
       new Decimal('100'), new Decimal('110'), new Decimal('90'), new Decimal('105'),
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
-      new KCandleTrendVo('up', '上漲', 'success'),
+      new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success'),
       new Decimal('5'),
       new Decimal('5'),
     )],
@@ -346,7 +347,7 @@ describe('KCandleChartViewportDomain', () => {
       { name: '只填了空白字元', symbol: '   ' },
     ])('$name 就不成立，並指名是交易標的這一欄', ({ symbol }) => {
       expect(() => viewportSpanning(120, null, symbol))
-        .toThrowError(new KCandleQueryValidationError('symbol', '請指定交易標的'))
+        .toThrowError(new KCandleQueryValidationError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required')))
     })
   })
 })

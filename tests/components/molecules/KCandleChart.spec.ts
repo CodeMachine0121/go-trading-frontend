@@ -13,6 +13,7 @@ import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-v
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 繪圖函式庫是最外層的邊界，比照 proxy 用 mocking 套件替身，不手刻假實作。
 // 它需要真正的畫布，測試環境沒有；而我們要驗的也不是它畫得對不對，
@@ -146,7 +147,7 @@ vi.mock('lightweight-charts', () => ({
   TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
 }))
 
-const UP_TREND = new KCandleTrendVo('up', '上漲', 'success')
+const UP_TREND = new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')
 const VISIBLE_START_TIME = new Date('2026-09-02T10:00:00.000Z')
 const VISIBLE_END_TIME = new Date('2026-09-02T12:00:00.000Z')
 /**
@@ -169,7 +170,7 @@ function kCandleDto(openTime: string, closePrice: string, trend: KCandleTrendVo)
 function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
   return new KCandleChartDto(
     'BTCUSDT',
-    new AggregationIntervalVo('5m', '五分鐘', 5),
+    new AggregationIntervalVo('5m', new LocalizedTextVo('五分鐘', '5 minutes'), 5),
     VISIBLE_START_TIME,
     VISIBLE_END_TIME,
     kCandles,
@@ -236,8 +237,8 @@ afterEach(() => {
 describe('KCandleChart', () => {
   it('把拿到的每一根都畫出去，開高低收原樣帶過去', async () => {
     await mountChart(chartDto([
-      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success')),
-      kCandleDto('2026-09-02T10:05:00.000Z', '90', new KCandleTrendVo('down', '下跌', 'danger')),
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')),
+      kCandleDto('2026-09-02T10:05:00.000Z', '90', new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger')),
     ]))
 
     const rows = drawnRows()
@@ -248,9 +249,9 @@ describe('KCandleChart', () => {
 
   it('每一根用領域算好的漲跌語氣上色', async () => {
     await mountChart(chartDto([
-      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success')),
-      kCandleDto('2026-09-02T10:05:00.000Z', '90', new KCandleTrendVo('down', '下跌', 'danger')),
-      kCandleDto('2026-09-02T10:10:00.000Z', '100', new KCandleTrendVo('flat', '持平', 'neutral')),
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')),
+      kCandleDto('2026-09-02T10:05:00.000Z', '90', new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger')),
+      kCandleDto('2026-09-02T10:10:00.000Z', '100', new KCandleTrendVo('flat', new LocalizedTextVo('持平', 'Flat'), 'neutral')),
     ]))
 
     expect(drawnRows().map(row => row.color))
@@ -279,7 +280,7 @@ describe('KCandleChart', () => {
 
   it('外觀換了就重新上色——K 線與圖框都重讀一次，畫的還是同一批', async () => {
     await mountChart(chartDto([
-      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success')),
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')),
     ]))
     chartLibrary.chartApi.applyOptions.mockClear()
     chartLibrary.candlestickSeries.setData.mockClear()
@@ -302,7 +303,7 @@ describe('KCandleChart', () => {
   })
 
   it('換上新的一批之後，看的位置回到領域算好的那幾根上', async () => {
-    await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success'))]))
+    await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success'))]))
 
     // 以序位擺位，不以時刻：右端「第 1.5 根」落在最後一根之後，多出來的就是右側留白。
     // 拿時刻擺位時這件事表達不出來——函式庫會把它收回最後一根，於是最新那一根貼著右緣。
@@ -320,7 +321,7 @@ describe('KCandleChart', () => {
 
   it('換成曲線畫法時，改以收盤價連成一條線', async () => {
     const wrapper = await mountChart(chartDto([
-      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', '上漲', 'success')),
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')),
     ]))
 
     await wrapper.setProps({ drawing: 'line' })

@@ -81,7 +81,7 @@ describe('TradingSymbolProxy 讀後端隨標的送來的四件事', () => {
     const tradingSymbols = await new TradingSymbolProxy(BASE_URL, signedInSessionStorage()).findTradingSymbols()
 
     expect(tradingSymbols[0]!.market.value).toBe('taiwanStock')
-    expect(tradingSymbols[0]!.market.label).toBe('台股')
+    expect(tradingSymbols[0]!.market.label.in('zh-TW')).toBe('台股')
   })
 
   it('把後端說的三件事原樣帶進來，不自己推算', async () => {

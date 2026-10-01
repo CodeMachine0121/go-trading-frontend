@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
@@ -23,6 +24,7 @@ import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 進入畫面時預先帶入的合約標的，只是省一次挑選，不在清單上就會被換掉。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
@@ -45,11 +47,14 @@ const {
   layoutDensity: LayoutDensityDto
 }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const symbol = ref(DEFAULT_SYMBOL)
 const drawing = ref<'candlestick' | 'line'>('candlestick')
 
 const presets = ref<KCandleChartRangePresetDto[]>([])
-const activePresetLabel = ref<string | null>(null)
+const activePreset = ref<KCandleChartRangePresetDto | null>(null)
 
 const aggregationIntervalChoices = ref<AggregationIntervalChoiceDto[]>([])
 const aggregationIntervalChoice = ref<AggregationIntervalChoiceDto>(
@@ -67,9 +72,10 @@ const requestedStartTime = ref(new Date())
 const requestedEndTime = ref(new Date())
 
 const loading = ref(false)
-const rejectedMessage = ref<string | null>(null)
-const serverErrorMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
+const rejectedMessage = ref<LocalizedTextVo | null>(null)
+const unexpectedFailure = ref(false)
+const serverErrorMessage = ref<LocalizedTextVo | null>(null)
+const unreachableExplanation = ref<LocalizedTextVo | null>(null)
 
 /** 先送出的那次可能後回來；只採用最後一次的結果。 */
 let latestRequestNumber = 0
@@ -91,17 +97,21 @@ const liveUpdateNotice = computed(() => liveKCandleContractApplication.liveUpdat
  * 每一種說法在合約圖表上是哪一句中文。合約不收盤，所以收盤那一句不會出現；
  * 「沒有即時更新」在合約這邊的原因只有一個——不在合約追蹤名單上——所以直接說出怎麼辦。
  */
-const LIVE_UPDATE_NOTICE_MESSAGES: Record<LiveUpdateNoticeValue, string> = {
-  marketClosed: '這個市場目前收盤中。',
-  noLivePlace: '這個合約標的不在合約追蹤名單上，沒有即時更新——把它加進合約追蹤名單就會即時跟盤。',
-  ended: '即時更新已中斷，不會自己重新連上——確認這個合約標的還在合約追蹤名單上，再重新整理頁面。圖表顯示的是目前手上的資料。',
-  stalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
-}
+const liveUpdateNoticeMessages = computed<Record<LiveUpdateNoticeValue, string>>(() => ({
+  marketClosed: t('marketData.kCandleContractChartPanel.liveUpdateMarketClosed'),
+  noLivePlace: t('marketData.kCandleContractChartPanel.liveUpdateNoLivePlace'),
+  ended: t('marketData.kCandleContractChartPanel.liveUpdateEnded'),
+  stalled: t('marketData.common.liveUpdateStalled'),
+}))
+
+const liveUpdateNoticeMessage = computed(() => liveUpdateNotice.value === null
+  ? null
+  : liveUpdateNoticeMessages.value[liveUpdateNotice.value.value])
 
 /** 選著的合約標的**確定**不在合約追蹤名單上。不知道時不算——那時照常跟。 */
 const isKnownUnwatched = computed(() => selectedContractTradingSymbol.value?.isWatched === false)
 
-const intervalLabel = computed(() => chart.value === null ? '—' : chart.value.interval.label)
+const intervalLabel = computed(() => chart.value === null ? '—' : localize(chart.value.interval.label))
 
 /**
  * 行情摘要上的標記價格、指數價格與溢價指數：畫出來的那批裡最新那一根的三條線。
@@ -122,8 +132,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
 
   loading.value = true
   rejectedMessage.value = null
+  unexpectedFailure.value = false
   serverErrorMessage.value = null
-  backendUnreachable.value = false
+  unreachableExplanation.value = null
 
   // 一個都沒選著——合約那一邊目前沒有東西可挑。挑合約那一格已經說了原因，
   // 這裡不送出，也不怪使用者沒填。
@@ -158,16 +169,16 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     }
 
     if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
+      serverErrorMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendRequestRejectedError) {
-      rejectedMessage.value = error.message
+      rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
+      unreachableExplanation.value = error.explanation
     }
     else {
-      rejectedMessage.value = '取行情時發生未預期的錯誤。'
+      unexpectedFailure.value = true
     }
 
     forgetTheChart()
@@ -240,7 +251,7 @@ onBeforeUnmount(() => {
 })
 
 function selectPreset(preset: KCandleChartRangePresetDto) {
-  activePresetLabel.value = preset.label
+  activePreset.value = preset
 
   return showViewport(preset.toViewportDto(
     symbol.value, chart.value, aggregationIntervalChoice.value))
@@ -248,7 +259,7 @@ function selectPreset(preset: KCandleChartRangePresetDto) {
 
 function showRange(range: { startTime: Date, endTime: Date }) {
   // 使用者自己拉出來的一段，就不再屬於任何一個快捷區間。
-  activePresetLabel.value = null
+  activePreset.value = null
 
   return showViewport(new KCandleChartViewportDto(
     symbol.value, range.startTime, range.endTime, chart.value,
@@ -293,7 +304,7 @@ onMounted(() => {
     >
       <template #tags>
         <AppBadge variant="accent">
-          永續合約
+          {{ t('marketData.kCandleContractChartPanel.perpetualBadge') }}
         </AppBadge>
       </template>
 
@@ -302,7 +313,7 @@ onMounted(() => {
           class="k-candle-contract-chart-panel__stat"
           data-testid="mark-price-stat"
         >
-          <span class="k-candle-contract-chart-panel__stat-label">標記價格</span>
+          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.markPrice') }}</span>
           <span class="k-candle-contract-chart-panel__stat-value">
             {{ contractPrices?.markPrice.toString() ?? '—' }}
           </span>
@@ -311,7 +322,7 @@ onMounted(() => {
           class="k-candle-contract-chart-panel__stat"
           data-testid="index-price-stat"
         >
-          <span class="k-candle-contract-chart-panel__stat-label">指數價格</span>
+          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.indexPrice') }}</span>
           <span class="k-candle-contract-chart-panel__stat-value">
             {{ contractPrices?.indexPrice?.toString() ?? '—' }}
           </span>
@@ -320,7 +331,7 @@ onMounted(() => {
           class="k-candle-contract-chart-panel__stat"
           data-testid="premium-index-stat"
         >
-          <span class="k-candle-contract-chart-panel__stat-label">溢價指數</span>
+          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.premiumIndex') }}</span>
           <span class="k-candle-contract-chart-panel__stat-value">
             {{ contractPrices?.premiumIndex?.toString() ?? '—' }}
           </span>
@@ -331,7 +342,9 @@ onMounted(() => {
           class="k-candle-contract-chart-panel__stat-at"
           data-testid="contract-prices-at"
         >
-          記錄於 {{ timeZone.formatDateTime(contractPrices.recordedAt) }}
+          {{ t('marketData.kCandleContractChartPanel.recordedAt', {
+            time: timeZone.formatDateTime(contractPrices.recordedAt),
+          }) }}
         </span>
       </template>
     </KCandleQuote>
@@ -341,15 +354,15 @@ onMounted(() => {
       :tone="liveUpdateNotice.tone"
       :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
     >
-      {{ LIVE_UPDATE_NOTICE_MESSAGES[liveUpdateNotice.value] }}
+      {{ liveUpdateNoticeMessage }}
     </AppAlert>
 
     <AppAlert
-      v-if="rejectedMessage"
+      v-if="rejectedMessage || unexpectedFailure"
       tone="danger"
       data-testid="rejected-alert"
     >
-      {{ rejectedMessage }}
+      {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
     </AppAlert>
 
     <AppAlert
@@ -357,7 +370,7 @@ onMounted(() => {
       tone="danger"
       data-testid="server-error-alert"
     >
-      後端出錯了（不是你看的區間有問題），請稍後重試：{{ serverErrorMessage }}
+      {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -365,17 +378,17 @@ onMounted(() => {
           :disabled="loading"
           @click="reload"
         >
-          重試
+          {{ t('marketData.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
 
     <AppAlert
-      v-else-if="backendUnreachable"
+      v-else-if="unreachableExplanation"
       tone="danger"
       data-testid="unreachable-alert"
     >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      {{ localize(unreachableExplanation) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -383,7 +396,7 @@ onMounted(() => {
           :disabled="loading"
           @click="reload"
         >
-          重試
+          {{ t('marketData.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -393,7 +406,7 @@ onMounted(() => {
       tone="info"
       data-testid="loading-alert"
     >
-      取行情中…
+      {{ t('marketData.common.loadingMarketData') }}
     </AppAlert>
 
     <div class="k-candle-contract-chart-panel__workspace">
@@ -403,7 +416,7 @@ onMounted(() => {
         class="k-candle-contract-chart-panel__chart"
       >
         <template #meta>
-          <span>每根涵蓋</span>
+          <span>{{ t('marketData.common.aggregationIntervalCaption') }}</span>
           <AppBadge
             variant="info"
             data-testid="interval-label"
@@ -418,7 +431,7 @@ onMounted(() => {
             v-model:drawing="drawing"
             class="k-candle-contract-chart-panel__toolbar"
             :presets="presets"
-            :active-preset-label="activePresetLabel"
+            :active-preset="activePreset"
             :aggregation-interval-choices="aggregationIntervalChoices"
             :active-aggregation-interval-choice="aggregationIntervalChoice"
             :loading="loading"
@@ -431,7 +444,7 @@ onMounted(() => {
             class="k-candle-contract-chart-panel__empty"
             data-testid="empty-chart"
           >
-            查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。
+            {{ t('marketData.kCandleContractChartPanel.emptyChart') }}
           </p>
 
           <KCandleChart
@@ -449,7 +462,7 @@ onMounted(() => {
             class="k-candle-contract-chart-panel__empty"
             data-testid="idle-chart"
           >
-            還沒有行情可以畫。挑一個看多長，或先確認後端起來了。
+            {{ t('marketData.common.chartIdle') }}
           </p>
         </div>
 
@@ -458,16 +471,19 @@ onMounted(() => {
           #footer
         >
           <span data-testid="covered-range">
-            手上這批共 {{ chart.count }} 根，涵蓋
-            {{ timeZone.formatDateTime(chart.coveredStartTime) }} ～
-            {{ timeZone.formatDateTime(chart.coveredEndTime) }}（{{ timeZone.cityLabel }}）
+            {{ t('marketData.common.coveredRange', {
+              count: chart.count,
+              startTime: timeZone.formatDateTime(chart.coveredStartTime),
+              endTime: timeZone.formatDateTime(chart.coveredEndTime),
+              cityName: localize(timeZone.cityName),
+            }) }}
           </span>
         </template>
       </AppPanel>
 
       <aside class="k-candle-contract-chart-panel__side">
         <AppPanel
-          title="看什麼"
+          :title="t('marketData.common.controlsTitle')"
           collapsible
           :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
         >
@@ -486,7 +502,7 @@ onMounted(() => {
           tone="info"
           data-testid="no-indicators-notice"
         >
-          合約圖表沒有指標。
+          {{ t('marketData.kCandleContractChartPanel.noIndicators') }}
         </AppAlert>
       </aside>
     </div>

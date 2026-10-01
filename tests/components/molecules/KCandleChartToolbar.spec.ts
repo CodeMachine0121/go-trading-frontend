@@ -1,8 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import {
   AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../fixtures/aggregation-interval-choice'
@@ -21,7 +23,7 @@ const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = [
 const AUTOMATIC = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE
 
 function choiceLabelled(label: string): AggregationIntervalChoiceDto {
-  const choice = AGGREGATION_INTERVAL_CHOICES.find(candidate => candidate.label === label)
+  const choice = AGGREGATION_INTERVAL_CHOICES.find(candidate => candidate.label.traditionalChinese === label)
   if (choice === undefined) {
     throw new Error(`選單上沒有「${label}」這一項`)
   }
@@ -35,7 +37,7 @@ function mountToolbar(
 ) {
   return mount(KCandleChartToolbar, {
     props: {
-      presets: [new KCandleChartRangePresetDto('一天', 24 * 60 * 60 * 1000)],
+      presets: [new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 24 * 60 * 60 * 1000)],
       aggregationIntervalChoices: AGGREGATION_INTERVAL_CHOICES,
       activeAggregationIntervalChoice: activeChoice,
       drawing: 'candlestick' as const,
@@ -109,5 +111,21 @@ describe('圖表上挑一根 K 線涵蓋多久', () => {
     await intervalSelect(wrapper).setValue('4h')
 
     expect(wrapper.emitted('selectAggregationIntervalChoice')).toBeUndefined()
+  })
+})
+
+describe('圖表工具列換顯示語言', () => {
+  it('選單上每一項與那一排長度都改用英文說，送出去的代號不變', async () => {
+    const wrapper = mountToolbar()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(intervalSelect(wrapper).findAll('option').map(option => option.text()))
+      .toEqual(['Auto', '1 minute', '5 minutes', '15 minutes', '1 hour'])
+    expect(intervalSelect(wrapper).findAll('option').map(option => option.element.value))
+      .toEqual(['auto', '1m', '5m', '15m', '1h'])
+    expect(wrapper.get('[data-testid="range-preset-button"]').text()).toBe('1 day')
+    expect(wrapper.text()).toContain('Aggregation interval')
   })
 })

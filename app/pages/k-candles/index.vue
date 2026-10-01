@@ -3,8 +3,8 @@ import KCandleSearchPanel from '~/components/organisms/KCandleSearchPanel.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨 K 線瀏覽',
-  consoleSubtitle: '指定交易標的與開始時間查詢，查到送出當下為止，結果由新到舊列出；時間一律照頂欄選定的時區呈現。',
+  consoleTitleKey: 'marketData.pages.spotKCandles.title',
+  consoleSubtitleKey: 'marketData.pages.spotKCandles.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。

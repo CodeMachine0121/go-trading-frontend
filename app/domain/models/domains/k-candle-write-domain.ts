@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import type { KCandleWriteDto } from '~/domain/models/dto/k-candle-write-dto'
 import { KCandleFieldError, type KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 import { KCandleIdentityVo } from '~/domain/models/vo/k-candle-identity-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 一根 K 線涵蓋的分鐘數。起始時間唯一合法的取值就是這個長度的刻度。
@@ -19,17 +20,17 @@ export const K_CANDLE_INTERVAL_MINUTES = 1
 const DECIMAL_PATTERN = /^-?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i
 
 /** 欄位在畫面上的說法。訊息由它組出來，加欄位時只要多一列。 */
-const FIELD_LABELS: Record<KCandleWriteField, string> = {
-  symbol: '交易標的',
-  openTime: '起始時間',
-  open: '開盤價',
-  high: '最高價',
-  low: '最低價',
-  close: '收盤價',
-  volume: '成交量',
-  quoteVolume: '成交額',
-  takerBuyBaseVolume: '主動買入量',
-  takerBuyQuoteVolume: '主動買入額',
+const FIELD_LABELS: Record<KCandleWriteField, LocalizedTextVo> = {
+  symbol: new LocalizedTextVo('交易標的', 'Symbol'),
+  openTime: new LocalizedTextVo('起始時間', 'Open time'),
+  open: new LocalizedTextVo('開盤價', 'Open price'),
+  high: new LocalizedTextVo('最高價', 'High price'),
+  low: new LocalizedTextVo('最低價', 'Low price'),
+  close: new LocalizedTextVo('收盤價', 'Close price'),
+  volume: new LocalizedTextVo('成交量', 'Volume'),
+  quoteVolume: new LocalizedTextVo('成交額', 'Quote volume'),
+  takerBuyBaseVolume: new LocalizedTextVo('主動買入量', 'Taker buy volume'),
+  takerBuyQuoteVolume: new LocalizedTextVo('主動買入額', 'Taker buy quote volume'),
 }
 
 /**
@@ -64,12 +65,14 @@ export class KCandleWriteDomain {
       && openTime.getUTCSeconds() === 0
       && openTime.getUTCMilliseconds() === 0
     if (!isOnInterval) {
-      throw new KCandleFieldError(
-        'openTime', `起始時間必須落在${K_CANDLE_INTERVAL_MINUTES}分鐘刻度上`)
+      throw new KCandleFieldError('openTime', new LocalizedTextVo(
+        `起始時間必須落在${K_CANDLE_INTERVAL_MINUTES}分鐘刻度上`,
+        `Open time must fall on a ${K_CANDLE_INTERVAL_MINUTES}-minute boundary`))
     }
 
     if (openTime.getTime() > Date.now()) {
-      throw new KCandleFieldError('openTime', '起始時間不得指向未來')
+      throw new KCandleFieldError(
+        'openTime', new LocalizedTextVo('起始時間不得指向未來', 'Open time must not be in the future'))
     }
 
     // 每個欄位的解讀規則一模一樣，逐欄展開會是八份重複。
@@ -85,7 +88,8 @@ export class KCandleWriteDomain {
       kCandleWriteDto.takerBuyQuoteVolume, 'takerBuyQuoteVolume')
 
     if (this.high.lessThan(this.low)) {
-      throw new KCandleFieldError('high', '最高價不得低於最低價')
+      throw new KCandleFieldError(
+        'high', new LocalizedTextVo('最高價不得低於最低價', 'High price must not be below low price'))
     }
   }
 
@@ -108,16 +112,19 @@ export class KCandleWriteDomain {
 
     const trimmedValue = rawValue.trim()
     if (trimmedValue === '') {
-      throw new KCandleFieldError(field, `請填寫${label}`)
+      throw new KCandleFieldError(field, new LocalizedTextVo(
+        `請填寫${label.traditionalChinese}`, `${label.english} is required`))
     }
 
     if (!DECIMAL_PATTERN.test(trimmedValue)) {
-      throw new KCandleFieldError(field, `${label}必須是數字`)
+      throw new KCandleFieldError(field, new LocalizedTextVo(
+        `${label.traditionalChinese}必須是數字`, `${label.english} must be a number`))
     }
 
     const figure = new Decimal(trimmedValue)
     if (figure.isNegative()) {
-      throw new KCandleFieldError(field, '價格與成交數字不得為負數')
+      throw new KCandleFieldError(field, new LocalizedTextVo(
+        '價格與成交數字不得為負數', 'Prices and volumes must not be negative'))
     }
 
     return figure

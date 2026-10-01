@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
@@ -42,11 +43,14 @@ function selectRow(kCandle: KCandleDto) {
     emit('select', kCandle)
   }
 }
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <AppPanel
-    title="查詢結果"
+    :title="t('marketData.common.resultTitle')"
     flush
     class="k-candle-table"
   >
@@ -54,7 +58,7 @@ function selectRow(kCandle: KCandleDto) {
       v-if="result"
       #meta
     >
-      <span data-testid="result-count">共 {{ result.count }} 根</span>
+      <span data-testid="result-count">{{ t('marketData.common.resultCount', { count: result.count }) }}</span>
     </template>
 
     <template
@@ -76,7 +80,7 @@ function selectRow(kCandle: KCandleDto) {
       class="k-candle-table__placeholder"
       data-testid="idle-result"
     >
-      填好上面的條件按「查詢」，查到的 K 線會列在這裡。
+      {{ t('marketData.kCandleTable.idle') }}
     </p>
 
     <p
@@ -84,7 +88,7 @@ function selectRow(kCandle: KCandleDto) {
       class="k-candle-table__placeholder"
       data-testid="empty-result"
     >
-      查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。
+      {{ t('marketData.kCandleTable.empty') }}
     </p>
 
     <div
@@ -97,40 +101,40 @@ function selectRow(kCandle: KCandleDto) {
             <th scope="col">
               <!-- 標城市名而不是位移：每一列的位移是那一列那個瞬間的，
                    一個「現在的」位移會在日光節約時間前後對不上自己底下的列 -->
-              起始時間（{{ timeZone.cityLabel }}）
+              {{ t('marketData.common.columns.openTime', { cityName: localize(timeZone.cityName) }) }}
             </th>
             <th scope="col">
-              漲跌
+              {{ t('marketData.common.columns.trend') }}
             </th>
             <th scope="col">
-              開盤價
+              {{ t('marketData.common.columns.open') }}
             </th>
             <th scope="col">
-              最高價
+              {{ t('marketData.common.columns.high') }}
             </th>
             <th scope="col">
-              最低價
+              {{ t('marketData.common.columns.low') }}
             </th>
             <th scope="col">
-              收盤價
+              {{ t('marketData.common.columns.close') }}
             </th>
             <th scope="col">
-              成交量
+              {{ t('marketData.common.columns.volume') }}
             </th>
             <th scope="col">
-              成交額
+              {{ t('marketData.common.columns.quoteVolume') }}
             </th>
             <th scope="col">
-              主動買入量
+              {{ t('marketData.common.columns.takerBuyBaseVolume') }}
             </th>
             <th scope="col">
-              主動買入額
+              {{ t('marketData.common.columns.takerBuyQuoteVolume') }}
             </th>
             <th
               v-if="$slots['row-actions']"
               scope="col"
             >
-              操作
+              {{ t('marketData.common.columns.actions') }}
             </th>
           </tr>
         </thead>
@@ -152,7 +156,7 @@ function selectRow(kCandle: KCandleDto) {
             </td>
             <td>
               <AppBadge :variant="kCandle.trend.tone">
-                {{ kCandle.trend.label }}
+                {{ localize(kCandle.trend.label) }}
               </AppBadge>
             </td>
             <td>{{ kCandle.open.toString() }}</td>

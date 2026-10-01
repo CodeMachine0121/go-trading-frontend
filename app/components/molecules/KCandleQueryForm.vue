@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
@@ -21,6 +22,9 @@ const emit = defineEmits<{ submit: [] }>()
 defineSlots<{ symbol: () => unknown }>()
 
 const startTime = defineModel<string>('startTime', { required: true })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -33,8 +37,8 @@ const startTime = defineModel<string>('startTime', { required: true })
     </div>
 
     <FormField
-      label="開始時間"
-      :hint="`${timeZone.cityLabel}；查到送出當下`"
+      :label="t('marketData.kCandleQueryForm.startTimeLabel')"
+      :hint="t('marketData.kCandleQueryForm.startTimeHint', { cityName: localize(timeZone.cityName) })"
       :error-message="startTimeError"
       class="k-candle-query-form__field"
     >
@@ -53,7 +57,7 @@ const startTime = defineModel<string>('startTime', { required: true })
       class="k-candle-query-form__submit"
       data-testid="submit-button"
     >
-      {{ loading ? '查詢中…' : '查詢' }}
+      {{ loading ? t('marketData.kCandleQueryForm.submitting') : t('marketData.kCandleQueryForm.submit') }}
     </AppButton>
   </form>
 </template>

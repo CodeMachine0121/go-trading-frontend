@@ -5,7 +5,7 @@ import { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-coverage-sh
 describe('走完的刻度區間連一個值都湊不出來時該說的那一句話', () => {
   function messageFor(availableCandleCount: number, minimumCandleCount: number): string {
     return new CandleCoverageShortfallDomain(
-      new CandleCoverageShortfallVo(availableCandleCount, minimumCandleCount)).message()
+      new CandleCoverageShortfallVo(availableCandleCount, minimumCandleCount)).message().in('zh-TW')
   }
 
   it('說出湊得出幾根，也說出至少要幾根', () => {
