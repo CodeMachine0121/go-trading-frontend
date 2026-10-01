@@ -2,6 +2,7 @@
 import AppearanceToggle from '~/components/molecules/AppearanceToggle.vue'
 import SettingsSection from '~/components/molecules/SettingsSection.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
+import BinanceTradingKeyPanel from '~/components/organisms/BinanceTradingKeyPanel.vue'
 import AccountProfilePanel from '~/components/organisms/AccountProfilePanel.vue'
 import PasswordChangePanel from '~/components/organisms/PasswordChangePanel.vue'
 import TelegramDeliveryPanel from '~/components/organisms/TelegramDeliveryPanel.vue'
@@ -19,6 +20,7 @@ definePageMeta({
 const { currentUser, signOut } = useUserSession()
 const passwordChange = usePasswordChange()
 const telegramDelivery = useTelegramDelivery()
+const binanceTradingKey = useBinanceTradingKey()
 const tradeJournalSettings = useTradeJournalSettings()
 
 // 顯示那一段：時區與外觀。頂列上也有這兩個（窄螢幕上頂列收掉了它們），
@@ -31,6 +33,7 @@ const SECTIONS = [
   { anchor: 'settings-account', label: '帳號' },
   { anchor: 'settings-password', label: '密碼' },
   { anchor: 'settings-telegram', label: 'Telegram 投遞' },
+  { anchor: 'settings-binance-trading-key', label: '幣安交易金鑰' },
   { anchor: 'settings-trade-journal', label: '交易日誌' },
   { anchor: 'settings-display', label: '顯示' },
 ] as const
@@ -38,6 +41,7 @@ const SECTIONS = [
 // 這一頁掛載之後才取得資料：身分記在這台瀏覽器裡，而這一份設定是屬於那個人的。
 onMounted(() => {
   void telegramDelivery.loadDeliverySetting()
+  void binanceTradingKey.loadTradingKey()
   void tradeJournalSettings.loadSettings()
 })
 </script>
@@ -105,6 +109,26 @@ onMounted(() => {
           @send-test-message="telegramDelivery.sendTestMessage"
         />
       </div>
+
+      <BinanceTradingKeyPanel
+        id="settings-binance-trading-key"
+        v-model:api-key="binanceTradingKey.apiKey.value"
+        v-model:secret-key="binanceTradingKey.secretKey.value"
+        :setting="binanceTradingKey.setting.value"
+        :loading="binanceTradingKey.loading.value"
+        :load-error-message="binanceTradingKey.loadErrorMessage.value"
+        :form-visible="binanceTradingKey.formVisible.value"
+        :editing="binanceTradingKey.editing.value"
+        :saving="binanceTradingKey.saving.value"
+        :save-error-message="binanceTradingKey.saveErrorMessage.value"
+        :api-key-error="binanceTradingKey.apiKeyError.value"
+        :secret-key-error="binanceTradingKey.secretKeyError.value"
+        :time-zone-identifier="selectedTimeZone.identifier"
+        @save="binanceTradingKey.saveTradingKey"
+        @remove="binanceTradingKey.removeTradingKey"
+        @start-editing="binanceTradingKey.startEditing"
+        @cancel-editing="binanceTradingKey.cancelEditing"
+      />
 
       <TradeJournalSettingsPanel
         id="settings-trade-journal"

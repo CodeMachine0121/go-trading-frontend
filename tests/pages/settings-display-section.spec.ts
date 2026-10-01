@@ -33,6 +33,13 @@ mockNuxtImport('useTelegramDelivery', () => () => {
   })
 })
 
+mockNuxtImport('useBinanceTradingKey', () => () => {
+  const state = stateWithEveryFieldEmpty()
+  return new Proxy(state, {
+    get: (target, key) => key === 'loadTradingKey' ? vi.fn() : Reflect.get(target, key),
+  })
+})
+
 mockNuxtImport('useTradeJournalSettings', () => () => {
   const state = stateWithEveryFieldEmpty()
   return new Proxy(state, {
@@ -44,6 +51,7 @@ const STUBS = {
   AccountProfilePanel: true,
   PasswordChangePanel: true,
   TelegramDeliveryPanel: true,
+  BinanceTradingKeyPanel: true,
   TradeJournalSettingsPanel: true,
   TimeZoneField: {
     props: ['modelValue'],
