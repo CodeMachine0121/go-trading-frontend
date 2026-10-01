@@ -33,9 +33,11 @@ const CONFLICT_STATUS = 409
  * 而這一種與那些完全不同：**它要離開這個畫面才解得掉**。認得出它，
  * 畫面才給得出一條到帳號設定的路。
  */
+// translation-exempt：比對的是後端回覆原文裡的字，不是畫面要說的話。
 const DELIVERY_NOT_CONFIGURED_HINT = 'Telegram 設定'
 
 /** 後端說「這台正在執行中」時，訊息裡一定有的那幾個字。 */
+// translation-exempt：比對的是後端回覆原文裡的字，不是畫面要說的話。
 const BOT_RUNNING_HINT = '執行中'
 
 /** 後端回來的一輪。時間是字串，在這裡就收成一個瞬間，不讓 wire 格式進 domain。 */
@@ -225,6 +227,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     if (error.status === NOT_FOUND_STATUS) {
       // 指名一份看不到的交易策略，後端也回這一個狀態碼。兩者靠訊息分開，
       // 因為要做的事不同：一個去挑別的規則，一個是這一台根本不在了。
+      // translation-exempt：比對的是後端回覆原文裡的字，不是畫面要說的話。
       return error.message.includes('策略機器人')
         ? new StrategyBotNotFoundError(error.message, { cause: error })
         : new TradingStrategyNotFoundError(error.message, { cause: error })

@@ -1,18 +1,21 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
 import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountHistory(options: {
   runRecords?: StrategyBotRunRecordDto[]
   loading?: boolean
-  failureMessage?: string
+  failureMessage?: LocalizedTextVo
 } = {}) {
   return mount(StrategyBotRunHistory, {
     props: {
       runRecords: options.runRecords ?? [],
       loading: options.loading ?? false,
-      failureMessage: options.failureMessage ?? '',
+      failureMessage: options.failureMessage ?? null,
       timeZoneIdentifier: 'Asia/Taipei',
     },
   })
@@ -25,9 +28,10 @@ function runRecord(
   needsAttention = false,
   suggestionText: string | null = null,
 ) {
+  // 這裡測的是元件怎麼畫，不是那幾個詞怎麼翻：照一種說法傳進去就夠了。
   return new StrategyBotRunRecordDto(
-    runNumber, new Date('2026-09-16T05:05:00Z'), resultLabel, resultTone, needsAttention,
-    suggestionText)
+    runNumber, new Date('2026-09-16T05:05:00Z'), new UntranslatedTextVo(resultLabel), resultTone, needsAttention,
+    suggestionText === null ? null : new UntranslatedTextVo(suggestionText))
 }
 
 describe('StrategyBotRunHistory', () => {
@@ -57,7 +61,7 @@ describe('StrategyBotRunHistory', () => {
   })
 
   it('讀不到時說出原因', () => {
-    expect(mountHistory({ failureMessage: '後端連不上' })
+    expect(mountHistory({ failureMessage: new UntranslatedTextVo('後端連不上') })
       .get('[data-testid="run-history-failure"]').text()).toContain('後端連不上')
   })
 
@@ -127,12 +131,47 @@ describe('StrategyBotRunHistory 的註腳', () => {
     { name: '一輪都沒跑過時不說', note: '一排持有也可能是行情停了', records: [], shown: false },
   ])('$name', ({ note, records, shown }) => {
     const wrapper = mount(StrategyBotRunHistory, {
-      props: { runRecords: records, loading: false, failureMessage: '', timeZoneIdentifier: 'Asia/Taipei', note },
+      props: {
+        runRecords: records,
+        loading: false,
+        failureMessage: null,
+        timeZoneIdentifier: 'Asia/Taipei',
+        note: note === null ? null : new UntranslatedTextVo(note),
+      },
     })
 
     expect(wrapper.find('[data-testid="run-history-note"]').exists()).toBe(shown)
     if (shown) {
       expect(wrapper.get('[data-testid="run-history-note"]').text()).toBe(note)
     }
+  })
+})
+
+describe('StrategyBotRunHistory 切成英文', () => {
+  it('結果、建議與操作台自己說的那幾句都換成英文', async () => {
+    const wrapper = mountHistory({
+      runRecords: [new StrategyBotRunRecordDto(
+        3, new Date('2026-09-16T05:05:00Z'), new LocalizedTextVo('衝突', 'Conflict'), 'warning', true,
+        new LocalizedTextVo('押 5000', 'Stake 5000'))],
+    })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="run-history-row"]').text()).toContain('Run 3')
+    expect(wrapper.get('[data-testid="run-history-result"]').text()).toBe('Conflict')
+    expect(wrapper.get('[data-testid="run-history-plan"]').text()).toBe('Stake 5000')
+    expect(wrapper.get('[data-testid="run-history-attention"]').text())
+      .toBe('Buy and sell both hold, so it stays silent until you change one of them')
+  })
+
+  it('還沒跑過時說英文', async () => {
+    const wrapper = mountHistory()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="run-history-empty"]').text())
+      .toBe('No runs yet. Once started, the result of every run is recorded here.')
   })
 })

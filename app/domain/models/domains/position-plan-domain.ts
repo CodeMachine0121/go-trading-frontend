@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
@@ -25,7 +26,7 @@ export class PositionPlanDomain {
    *
    * 一次只說一個，與這張表單其餘每一條同一個理由：使用者一次只改得動一格。
    */
-  get rejection(): string | null {
+  get rejection(): LocalizedTextVo | null {
     // 押多少先問，因為它是這五格裡唯一一個**別的地方也在用**的規則——
     // 兩張表單對同一個數字必須給出同一句話。
     try {
@@ -34,7 +35,7 @@ export class PositionPlanDomain {
     }
     catch (error: unknown) {
       if (error instanceof BacktestFieldError) {
-        return error.message
+        return error.localizedMessage
       }
 
       throw error
@@ -43,9 +44,11 @@ export class PositionPlanDomain {
     // 兩個距離的規則也是**委派**出去的，與上面押多少那一段同一個理由：
     // 回測那一列現在也在問同樣兩個距離，而同一個 150 在兩張表單上
     // 必須得到同一句話。
-    const exitRejection = new ExitDistanceDomain(this.positionPlan.stopLossPercentage, '停損距離')
+    const exitRejection = new ExitDistanceDomain(
+      this.positionPlan.stopLossPercentage, new LocalizedTextVo('停損距離', 'Stop-loss distance'))
       .validationMessage()
-      ?? new ExitDistanceDomain(this.positionPlan.takeProfitPercentage, '停利距離')
+      ?? new ExitDistanceDomain(
+        this.positionPlan.takeProfitPercentage, new LocalizedTextVo('停利距離', 'Take-profit distance'))
         .validationMessage()
     if (exitRejection !== null) {
       return exitRejection
@@ -55,7 +58,7 @@ export class PositionPlanDomain {
     // 有人打 0.5 是有意思的，默默當成一倍等於把他要的放大一倍。
     const leverage = this.positionPlan.leverage
     if (leverage !== null && (leverage.isNaN() || leverage.lessThan(MINIMUM_LEVERAGE))) {
-      return '槓桿倍數不得小於 1 倍'
+      return new LocalizedTextVo('槓桿倍數不得小於 1 倍', 'Leverage cannot be less than 1x')
     }
 
     return null

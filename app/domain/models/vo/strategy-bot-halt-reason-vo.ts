@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * VO：系統自己把一台機器人停下來的原因。
  *
@@ -22,10 +24,10 @@ export const STRATEGY_BOT_HALT_REASONS = [
 export type StrategyBotHaltReasonVo = typeof STRATEGY_BOT_HALT_REASONS[number]
 
 /** 畫面上要說的那一句。說的是「發生了什麼」，因為要做什麼由使用者自己決定。 */
-export const STRATEGY_BOT_HALT_REASON_LABELS: Readonly<Record<StrategyBotHaltReasonVo, string>> = {
-  strategyUnavailable: '有一支策略腳本找不到了',
-  tradingStrategyUnavailable: '它用的那一份交易策略找不到了',
-  scriptFailed: '有一支策略腳本算不出來',
-  credentialRejected: '機器人金鑰不被接受',
-  destinationNotFound: '找不到這個聊天室',
+export const STRATEGY_BOT_HALT_REASON_LABELS: Readonly<Record<StrategyBotHaltReasonVo, LocalizedTextVo>> = {
+  strategyUnavailable: new LocalizedTextVo('有一支策略腳本找不到了', 'One of its strategy scripts can no longer be found'),
+  tradingStrategyUnavailable: new LocalizedTextVo('它用的那一份交易策略找不到了', 'The trading strategy it follows can no longer be found'),
+  scriptFailed: new LocalizedTextVo('有一支策略腳本算不出來', 'One of its strategy scripts failed to calculate'),
+  credentialRejected: new LocalizedTextVo('機器人金鑰不被接受', 'The bot key was not accepted'),
+  destinationNotFound: new LocalizedTextVo('找不到這個聊天室', 'This Telegram chat cannot be found'),
 }

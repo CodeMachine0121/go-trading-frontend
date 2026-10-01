@@ -4,6 +4,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const strategyBotApplication = {
   listStrategyBots: vi.fn(),
@@ -21,9 +22,9 @@ const strategyScriptApplication = { listAvailableStrategyScripts: vi.fn() }
 function runStateOf(isRunning: boolean) {
   return new StrategyBotRunStateDto(
     isRunning, false, false,
-    isRunning ? '執行中' : '已停止',
+    isRunning ? new LocalizedTextVo('執行中', 'Running') : new LocalizedTextVo('已停止', 'Stopped'),
     isRunning ? 'success' : 'neutral',
-    '', '還沒送出過', !isRunning, isRunning, !isRunning, '')
+    null, new LocalizedTextVo('還沒送出過', 'None sent yet'), !isRunning, isRunning, !isRunning, null)
 }
 
 function botDto(id: number, name: string, isRunning = false) {
@@ -81,7 +82,7 @@ describe('useStrategyBots 載入', () => {
     const bots = botsUnderTest()
     await bots.load()
 
-    expect(bots.failureMessage.value).toBe('後端連不上')
+    expect(bots.failureMessage.value?.in('zh-TW')).toBe('後端連不上')
     expect(bots.strategyBots.value).toEqual([])
     expect(bots.loading.value).toBe(false)
   })
@@ -92,7 +93,20 @@ describe('useStrategyBots 載入', () => {
     const bots = botsUnderTest()
     await bots.load()
 
-    expect(bots.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+    expect(bots.failureMessage.value?.in('zh-TW')).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+  })
+
+  it.each([
+    // 後端（或別人）說的原話不翻，換成英文時照樣是那一句。
+    { error: new Error('後端連不上'), expected: '後端連不上' },
+    { error: 'not an error', expected: 'Something went wrong for an unknown reason' },
+  ])('英文那一份：$expected', async ({ error, expected }) => {
+    strategyBotApplication.listStrategyBots.mockRejectedValue(error)
+
+    const bots = botsUnderTest()
+    await bots.load()
+
+    expect(bots.failureMessage.value?.in('en')).toBe(expected)
   })
 })
 
@@ -121,7 +135,7 @@ describe('useStrategyBots 的三顆按鈕', () => {
     await bots.start(3)
 
     expect(bots.deliveryNotConfigured.value).toBe(true)
-    expect(bots.failureMessage.value).toBe('')
+    expect(bots.failureMessage.value).toBeNull()
   })
 
   it('其餘的失敗照原樣說出來', async () => {
@@ -131,7 +145,7 @@ describe('useStrategyBots 的三顆按鈕', () => {
     const bots = botsUnderTest()
     await bots.start(3)
 
-    expect(bots.failureMessage.value).toBe('同時執行中的機器人上限是 10 台')
+    expect(bots.failureMessage.value?.in('zh-TW')).toBe('同時執行中的機器人上限是 10 台')
     expect(bots.deliveryNotConfigured.value).toBe(false)
   })
 
@@ -209,7 +223,7 @@ describe('useStrategyBots 的執行紀錄', () => {
     const bots = botsUnderTest()
     await bots.toggleRunHistory(3)
 
-    expect(bots.runRecordsFailureMessage.value).toBe('後端連不上')
+    expect(bots.runRecordsFailureMessage.value?.in('zh-TW')).toBe('後端連不上')
     expect(bots.runRecords.value).toEqual([])
   })
 
@@ -267,7 +281,7 @@ describe('useStrategyBots 的立即運算', () => {
     const bots = botsUnderTest()
     await bots.runNow(3)
 
-    expect(bots.failureMessage.value).toContain('正在跑一輪')
+    expect(bots.failureMessage.value?.in('zh-TW')).toContain('正在跑一輪')
     expect(bots.expandedBotId.value).toBeNull()
   })
 })

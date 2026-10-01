@@ -18,7 +18,7 @@ describe('StrategyBotRunRecordDomain', () => {
     // 而那是業務決定不是配色偏好，所以它住在這裡而不是元件裡。
     const runRecord = recordOf(result)
 
-    expect(runRecord.resultLabel).toBe(expectedLabel)
+    expect(runRecord.resultLabel.in('zh-TW')).toBe(expectedLabel)
     expect(runRecord.resultTone).toBe(expectedTone)
   })
 
@@ -32,7 +32,7 @@ describe('StrategyBotRunRecordDomain', () => {
     // 持有的機器人在等市場；衝突的機器人在等它的主人去改一個條件，
     // 而它在那之前一句話都不會說。記成同一個字，等於把歷史上唯一
     // 「請你去處理」的那一列藏起來。
-    expect(recordOf('conflict').resultLabel).not.toBe(recordOf('hold').resultLabel)
+    expect(recordOf('conflict').resultLabel.in('zh-TW')).not.toBe(recordOf('hold').resultLabel.in('zh-TW'))
     expect(recordOf('conflict').resultTone).not.toBe(recordOf('hold').resultTone)
   })
 
@@ -53,7 +53,7 @@ describe('StrategyBotRunRecordDomain', () => {
     // 一格空白在一排紀錄裡讀起來像「這一列壞了」。
     const unknown = recordOf('somethingNew')
 
-    expect(unknown.resultLabel).toBe('持有')
+    expect(unknown.resultLabel.in('zh-TW')).toBe('持有')
     expect(unknown.resultTone).toBe('neutral')
     expect(unknown.needsAttention).toBe(false)
   })
@@ -75,7 +75,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
       new Decimal(5000), new Decimal('66105.915'), new Decimal('60971.475'),
     ).toDomain().toDto()
 
-    expect(runRecord.suggestionText).toBe('押 5000 · 停損 66105.915 · 停利 60971.475')
+    expect(runRecord.suggestionText?.in('zh-TW')).toBe('押 5000 · 停損 66105.915 · 停利 60971.475')
   })
 
   it('只建議過停損的那一輪就只寫金額與停損——與今天一字不差', () => {
@@ -84,7 +84,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
       new Decimal(5000), new Decimal('62255.085'), null,
     ).toDomain().toDto()
 
-    expect(runRecord.suggestionText).toBe('押 5000 · 停損 62255.085')
+    expect(runRecord.suggestionText?.in('zh-TW')).toBe('押 5000 · 停損 62255.085')
   })
 
   it('沒有建議的那一輪整段不寫', () => {
@@ -99,7 +99,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
       new Decimal(5000), new Decimal(0), null,
     ).toDomain().toDto()
 
-    expect(runRecord.suggestionText).toBe('押 5000 · 停損 0')
+    expect(runRecord.suggestionText?.in('zh-TW')).toBe('押 5000 · 停損 0')
   })
 
   it('那兩個數字叫「停損」與「停利」，不叫「止損」與「止盈」', () => {
@@ -108,7 +108,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
     const text = new StrategyBotRunRecord(
       1, new Date('2026-09-16T05:05:00Z'), 'sell',
       new Decimal(5000), new Decimal(1), new Decimal(2),
-    ).toDomain().toDto().suggestionText
+    ).toDomain().toDto().suggestionText?.in('zh-TW')
 
     expect(text).not.toContain('止損')
     expect(text).not.toContain('止盈')
@@ -162,7 +162,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（合約）', () =
       expected: '做多 · 保證金 1000',
     },
   ])('$name', ({ record, expected }) => {
-    expect(record().suggestionText).toBe(expected)
+    expect(record().suggestionText?.in('zh-TW')).toBe(expected)
   })
 
   it('交易所不收的那一輪沒有任何數字，整段不寫', () => {
@@ -171,5 +171,17 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（合約）', () =
     ).toDomain().toDto()
 
     expect(runRecord.suggestionText).toBeNull()
+  })
+})
+
+describe('StrategyBotRunRecordDomain 的英文那一份', () => {
+  it.each([
+    ['buy', 'Buy'],
+    ['sell', 'Sell'],
+    ['hold', 'Hold'],
+    ['conflict', 'Conflict'],
+    ['somethingNew', 'Hold'],
+  ])('%s 講成「%s」', (result, expected) => {
+    expect(recordOf(result).resultLabel.in('en')).toBe(expected)
   })
 })

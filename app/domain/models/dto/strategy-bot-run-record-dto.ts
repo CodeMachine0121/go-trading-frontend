@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：一輪跑過的紀錄，已經算成畫面直接畫得出來的樣子。
  *
@@ -9,7 +11,7 @@ export class StrategyBotRunRecordDto {
     public readonly runNumber: number,
     public readonly ranAt: Date,
     /** 買入／賣出／持有／衝突。 */
-    public readonly resultLabel: string,
+    public readonly resultLabel: LocalizedTextVo,
     /** 那個結果該用什麼語氣。**它是規則不是樣式**。 */
     public readonly resultTone: 'success' | 'danger' | 'neutral' | 'warning',
     /**
@@ -27,6 +29,6 @@ export class StrategyBotRunRecordDto {
      * `null` 就是那一段不畫。沒有建議的那幾輪是常態——一排寫著「—」的欄位
      * 會讓那張表讀起來像壞掉的。怎麼寫是規則，所以句子在這裡就組好，元件不拼字。
      */
-    public readonly suggestionText: string | null,
+    public readonly suggestionText: LocalizedTextVo | null,
   ) {}
 }

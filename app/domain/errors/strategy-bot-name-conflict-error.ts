@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個名稱在這位使用者自己的機器人之間已經有人用了。
  *
@@ -5,8 +7,12 @@
  * 與其他拒絕混在一起，使用者會去檢查每一個欄位，而其實只有一格要改。
  */
 export class StrategyBotNameConflictError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options)
     this.name = 'StrategyBotNameConflictError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

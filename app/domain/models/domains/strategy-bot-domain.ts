@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
@@ -34,7 +35,9 @@ export class StrategyBotDomain {
       marketDataKind.value,
       marketDataKind.strategyBotSymbolLabel(this.strategyBot.symbol),
       // 只有收槓桿的那一種、而且真的有建議部位時才說：沒有建議部位的那一台什麼都不押，說它幾倍是在講一個不存在的部位。
-      page.takesLeverage && leverage !== null ? `${leverage.toString()} 倍` : null,
+      page.takesLeverage && leverage !== null
+        ? new LocalizedTextVo(`${leverage.toString()} 倍`, `${leverage.toString()}x`)
+        : null,
       `${page.listPath}/${this.strategyBot.id}`,
       this.strategyBot.autoOrderEnabled,
     )

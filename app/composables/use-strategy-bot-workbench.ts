@@ -1,4 +1,6 @@
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -33,7 +35,7 @@ export function useStrategyBotWorkbench(
   const loading = ref(true)
   const saving = ref(false)
   const saved = ref(false)
-  const failureMessage = ref('')
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   /** 讀不到那一台。與 `failureMessage` 分開，因為它的下一步是回清單，不是重試。 */
   const missing = ref(false)
   const dirty = ref(false)
@@ -66,7 +68,7 @@ export function useStrategyBotWorkbench(
 
   async function load() {
     loading.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       const [bot, tradingStrategies] = await Promise.all([
@@ -110,14 +112,16 @@ export function useStrategyBotWorkbench(
    */
   async function save(writeDto: StrategyBotWriteDto) {
     saving.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       await strategyBotApplication.saveStrategyBot(writeDto)
       dirty.value = false
       // 改一台與拼一台新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
-      announce(writeDto.id === undefined ? '機器人建好了' : '更改成功')
+      announce(writeDto.id === undefined
+        ? new LocalizedTextVo('機器人建好了', 'Bot created')
+        : new LocalizedTextVo('更改成功', 'Changes saved'))
       saved.value = true
     }
     catch (error: unknown) {
@@ -132,12 +136,20 @@ export function useStrategyBotWorkbench(
     dirty.value = changed
   }
 
-  function messageOf(error: unknown): string {
+  function messageOf(error: unknown): LocalizedTextVo {
     if (error instanceof BackendUnreachableError) {
       return error.explanation
     }
 
-    return error instanceof Error ? error.message : '發生未知的錯誤'
+    if (error instanceof Error && 'localizedMessage' in error
+      && error.localizedMessage instanceof LocalizedTextVo) {
+      return error.localizedMessage
+    }
+
+    // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : new LocalizedTextVo('發生未知的錯誤', 'An unknown error occurred')
   }
 
   return {

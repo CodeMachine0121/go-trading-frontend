@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -11,6 +12,7 @@ import type { TradingSymbolApplication } from '~/application/trading-symbol-appl
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { useStrategyBotForm } from '~/composables/use-strategy-bot-form'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：拼一台機器人的那一張表單。
 //
@@ -36,7 +38,7 @@ const { editing, page, tradingStrategyOptions, saving, failureMessage } = define
   tradingStrategyOptions: readonly { value: number, label: string }[]
   saving: boolean
   /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
-  failureMessage: string
+  failureMessage: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{
@@ -45,6 +47,9 @@ const emit = defineEmits<{
   /** 這一頁被改過了沒有——離開前要不要問，由上面那一層決定。 */
   dirtyChange: [dirty: boolean]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const form = useStrategyBotForm(() => editing, page)
 
@@ -73,7 +78,7 @@ function onSave() {
   <div class="bot-form">
     <section class="bot-form__section">
       <h3 class="bot-form__section-title">
-        這台機器人
+        {{ t('strategyBot.form.sectionTitle') }}
       </h3>
 
       <!--
@@ -81,16 +86,16 @@ function onSave() {
         寬螢幕上兩兩並排，順序不變。
       -->
       <div class="bot-form__grid">
-        <FormField label="機器人名稱">
+        <FormField :label="t('strategyBot.form.nameLabel')">
           <AppInput
             v-model="form.name.value"
             type="text"
-            placeholder="早盤突破"
+            :placeholder="t('strategyBot.form.namePlaceholder')"
             data-testid="bot-name-input"
           />
         </FormField>
 
-        <FormField label="用哪一份交易策略">
+        <FormField :label="t('strategyBot.form.tradingStrategyLabel')">
           <AppSelect
             v-if="tradingStrategyOptions.length > 0"
             :model-value="String(form.tradingStrategyId.value)"
@@ -100,7 +105,7 @@ function onSave() {
             <!-- 沒挑的那一格是一個選項，不是一個空白：一個看起來已經挑好的選單，
                  會讓人在被擋下來時不知道哪裡不對。 -->
             <option value="0">
-              挑一份
+              {{ t('strategyBot.form.tradingStrategyPlaceholder') }}
             </option>
             <option
               v-for="tradingStrategyOption in tradingStrategyOptions"
@@ -119,11 +124,11 @@ function onSave() {
             tone="info"
             data-testid="bot-no-trading-strategies"
           >
-            還沒有任何{{ page.tradingStrategyLabel }}。
+            {{ t('strategyBot.form.noTradingStrategiesBefore', { tradingStrategyLabel: localize(page.tradingStrategyLabel) }) }}
             <NuxtLink to="/trading-strategies/new">
-              先去拼一份
+              {{ t('strategyBot.form.noTradingStrategiesLink') }}
             </NuxtLink>
-            {{ page.tradingStrategyCreateHint }}，機器人才知道要照什麼判斷。
+            {{ t('strategyBot.form.noTradingStrategiesAfter', { tradingStrategyCreateHint: localize(page.tradingStrategyCreateHint) }) }}
           </AppAlert>
         </FormField>
 
@@ -140,7 +145,7 @@ function onSave() {
         />
         <FormField
           v-else
-          label="盯哪一個交易標的"
+          :label="t('strategyBot.form.symbolLabel')"
         >
           <SymbolField
             v-model="form.symbol.value"
@@ -148,7 +153,7 @@ function onSave() {
           />
         </FormField>
 
-        <FormField label="每隔幾分鐘">
+        <FormField :label="t('strategyBot.form.triggerIntervalLabel')">
           <AppInput
             v-model="form.triggerIntervalText.value"
             type="number"
@@ -175,7 +180,7 @@ function onSave() {
           type="checkbox"
           data-testid="bot-position-plan-toggle"
         >
-        <span>要不要順便算部位？訊息會多講押多少、停損與停利</span>
+        <span>{{ t('strategyBot.form.positionPlanToggle') }}</span>
       </label>
 
       <div
@@ -186,7 +191,7 @@ function onSave() {
         <!-- 只有合約機器人有：現貨沒有人借錢給你。 -->
         <FormField
           v-if="form.takesLeverage"
-          label="槓桿倍數（留空就是一倍）"
+          :label="t('strategyBot.form.leverageLabel')"
         >
           <AppInput
             v-model="form.leverageText.value"
@@ -197,7 +202,7 @@ function onSave() {
           />
         </FormField>
 
-        <FormField label="部位資金">
+        <FormField :label="t('strategyBot.form.capitalLabel')">
           <AppInput
             v-model="form.capitalText.value"
             type="number"
@@ -207,7 +212,7 @@ function onSave() {
           />
         </FormField>
 
-        <FormField label="每次開倉押多少">
+        <FormField :label="t('strategyBot.form.sizingModeLabel')">
           <AppSelect
             v-model="form.sizingMode.value"
             data-testid="bot-position-sizing-mode-select"
@@ -217,7 +222,7 @@ function onSave() {
               :key="modeOption.value"
               :value="modeOption.value"
             >
-              {{ modeOption.label }}
+              {{ localize(modeOption.label) }}
             </option>
           </AppSelect>
         </FormField>
@@ -225,7 +230,7 @@ function onSave() {
         <!-- 只有全押不必填，而那件事是既有那個模型答的，不是這裡記的。 -->
         <FormField
           v-if="form.sizingRequiresValue.value"
-          label="押多少的數字"
+          :label="t('strategyBot.form.sizingValueLabel')"
         >
           <AppInput
             v-model="form.sizingValueText.value"
@@ -235,7 +240,7 @@ function onSave() {
           />
         </FormField>
 
-        <FormField label="停損距離（百分點，留空就不設）">
+        <FormField :label="t('strategyBot.form.stopLossLabel')">
           <AppInput
             v-model="form.stopLossText.value"
             type="number"
@@ -245,7 +250,7 @@ function onSave() {
           />
         </FormField>
 
-        <FormField label="停利距離（百分點，留空就不設）">
+        <FormField :label="t('strategyBot.form.takeProfitLabel')">
           <AppInput
             v-model="form.takeProfitText.value"
             type="number"
@@ -262,15 +267,15 @@ function onSave() {
       tone="warning"
       data-testid="bot-form-rejection"
     >
-      {{ form.rejection.value }}
+      {{ localize(form.rejection.value) }}
     </AppAlert>
 
     <AppAlert
-      v-else-if="failureMessage !== ''"
+      v-else-if="failureMessage !== null"
       tone="danger"
       data-testid="bot-form-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
 
     <!-- 手機上兩顆鍵各佔一半、貼在拇指區；寬螢幕上靠右。 -->
@@ -280,7 +285,7 @@ function onSave() {
         variant="secondary"
         @click="emit('cancel')"
       >
-        取消
+        {{ t('strategyBot.form.cancel') }}
       </AppButton>
       <AppButton
         type="button"
@@ -288,7 +293,7 @@ function onSave() {
         data-testid="bot-form-save"
         @click="onSave"
       >
-        {{ saving ? '儲存中…' : '儲存' }}
+        {{ saving ? t('strategyBot.form.saving') : t('strategyBot.form.save') }}
       </AppButton>
     </div>
   </div>

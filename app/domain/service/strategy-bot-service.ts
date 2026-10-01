@@ -97,7 +97,7 @@ export class StrategyBotService {
     catch (error: unknown) {
       if (error instanceof AutoOrderRefusedError) {
         return new AutoOrderSwitchResultDto(
-          null, new AutoOrderRefusalDomain(id, error.reason, error.message).toDto())
+          null, new AutoOrderRefusalDomain(id, error.reason, error.localizedMessage).toDto())
       }
 
       throw error

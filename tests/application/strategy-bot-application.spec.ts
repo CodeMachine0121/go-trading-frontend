@@ -126,7 +126,7 @@ describe('StrategyBotApplication 開關與刪除', () => {
     const started = await application.startStrategyBot(3)
 
     expect(started.runState.isRunning).toBe(true)
-    expect(started.runState.statusLabel).toBe('執行中')
+    expect(started.runState.statusLabel.in('zh-TW')).toBe('執行中')
   })
 
   it('停止之後交回來的那一台已經是已停止的樣子', async () => {
@@ -193,8 +193,8 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
     const botDto = await application.getStrategyBot(3)
 
     expect(botDto.marketDataKind).toBe(bot.marketDataKind)
-    expect(botDto.symbolLabel).toBe(symbolLabel)
-    expect(botDto.leverageLabel).toBe(leverageLabel)
+    expect(botDto.symbolLabel.in('zh-TW')).toBe(symbolLabel)
+    expect(botDto.leverageLabel?.in('zh-TW') ?? null).toBe(leverageLabel)
     expect(botDto.editPath).toBe(editPath)
   })
 
@@ -207,12 +207,35 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
     expect(page.marketDataKind).toBe(marketDataKind)
     expect(page.listPath).toBe(listPath)
     expect(page.newPath).toBe(`${listPath}/new`)
-    expect(page.listTitle).toBe(listTitle)
+    expect(page.listTitle.in('zh-TW')).toBe(listTitle)
     expect(page.picksContractTradingSymbol).toBe(picksContract)
     expect(page.takesLeverage).toBe(takesLeverage)
     // 只有合約機器人的執行紀錄要提醒：交易服務在合約 K 線停了的時候跳過那一輪，紀錄上看起來是持有。
     expect(page.runHistoryNote !== null).toBe(takesLeverage)
-    expect(page.runHistoryNote ?? '').toContain(takesLeverage ? '超過 5 分鐘沒有進來' : '')
+    expect(page.runHistoryNote?.in('zh-TW') ?? '').toContain(takesLeverage ? '超過 5 分鐘沒有進來' : '')
+  })
+
+  it('合約機器人那一列的標的與倍數也說得出英文', async () => {
+    const application = buildApplication({
+      getStrategyBot: vi.fn().mockResolvedValue(storedBotOf('contractKCandle', aPlan(new Decimal(5)))),
+    })
+
+    const botDto = await application.getStrategyBot(3)
+
+    expect(botDto.symbolLabel.in('en')).toBe('BTCUSDT perpetual contract')
+    expect(botDto.leverageLabel?.in('en')).toBe('5x')
+  })
+
+  it('這一側擋下來的那一句帶著英文的說法', async () => {
+    const application = buildApplication({})
+    const writeDto = new StrategyBotWriteDto(
+      undefined, '費率反轉', 'BTCUSDT', 9, 5, aPlan(new Decimal(0.5)), 'contractKCandle')
+
+    const rejection = await application.saveStrategyBot(writeDto).catch((error: unknown) => error)
+
+    expect(rejection).toBeInstanceOf(StrategyBotRejectedError)
+    expect(rejection instanceof StrategyBotRejectedError && rejection.localizedMessage.in('en'))
+      .toBe('Leverage cannot be less than 1x')
   })
 
   it('清單只向後端要那一種', async () => {
@@ -277,9 +300,11 @@ describe('StrategyBotApplication.enableAutoOrder', () => {
     expect(result.strategyBot).toBeNull()
     expect(result.refusal).toEqual(expect.objectContaining({
       strategyBotId: 3,
-      message,
       offersBinanceTradingKeySettings: offersSettings,
     }))
+    // 後端的原話不翻：兩種語言都是它說的那一句。
+    expect(result.refusal?.message.in('zh-TW')).toBe(message)
+    expect(result.refusal?.message.in('en')).toBe(message)
   })
 
   it('其他失敗照樣往上拋', async () => {

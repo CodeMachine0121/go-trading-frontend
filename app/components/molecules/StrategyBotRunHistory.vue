@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 // 分子：一台機器人跑過的那幾輪，畫成一條由新到舊的時間軸。
@@ -10,7 +12,8 @@ import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } = defineProps<{
   runRecords: readonly StrategyBotRunRecordDto[]
   loading: boolean
-  failureMessage: string
+  /** 讀不到時要說的那一句；讀得到時 `null`。 */
+  failureMessage: LocalizedTextVo | null
   /**
    * 拿哪一個時區來說這些時間。
    *
@@ -19,8 +22,11 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
    */
   timeZoneIdentifier: string
   /** 紀錄底下的一句註腳——合約機器人用它說出「一排持有也可能是行情停了」。 */
-  note?: string | null
+  note?: LocalizedTextVo | null
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -29,15 +35,15 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
       v-if="loading"
       class="strategy-bot-run-history__notice"
     >
-      讀取中…
+      {{ t('strategyBot.common.loading') }}
     </p>
 
     <p
-      v-else-if="failureMessage !== ''"
+      v-else-if="failureMessage !== null"
       class="strategy-bot-run-history__notice strategy-bot-run-history__notice--failed"
       data-testid="run-history-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </p>
 
     <p
@@ -45,7 +51,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
       class="strategy-bot-run-history__notice"
       data-testid="run-history-empty"
     >
-      還沒跑過。啟動之後，每一輪的結果都會記在這裡。
+      {{ t('strategyBot.runHistory.empty') }}
     </p>
 
     <ol
@@ -70,12 +76,12 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
 
         <div class="strategy-bot-run-history__body">
           <div class="strategy-bot-run-history__headline">
-            <span class="strategy-bot-run-history__number">Run {{ runRecord.runNumber }}</span>
+            <span class="strategy-bot-run-history__number">{{ t('strategyBot.runHistory.runNumber', { number: runRecord.runNumber }) }}</span>
             <AppBadge
               :variant="runRecord.resultTone"
               data-testid="run-history-result"
             >
-              {{ runRecord.resultLabel }}
+              {{ localize(runRecord.resultLabel) }}
             </AppBadge>
             <span class="strategy-bot-run-history__moment">
               {{ formatDateTimeInTimeZone(runRecord.ranAt, timeZoneIdentifier) }}
@@ -92,7 +98,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
             class="strategy-bot-run-history__plan"
             data-testid="run-history-plan"
           >
-            {{ runRecord.suggestionText }}
+            {{ localize(runRecord.suggestionText) }}
           </p>
 
           <!--
@@ -104,7 +110,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
             class="strategy-bot-run-history__attention"
             data-testid="run-history-attention"
           >
-            買入與賣出同時成立，在改掉其中一邊之前它不會說話
+            {{ t('strategyBot.runHistory.conflictAttention') }}
           </p>
         </div>
       </li>
@@ -115,7 +121,7 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
       class="strategy-bot-run-history__note"
       data-testid="run-history-note"
     >
-      {{ note }}
+      {{ localize(note) }}
     </p>
   </div>
 </template>

@@ -8,16 +8,18 @@ import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function botDto(id: number, autoOrderEnabled: boolean) {
   return new StrategyBotDto(
     id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      true, false, false, '執行中', 'success', '', '買入', false, true, false, ''),
-    null, 'kCandle', 'BTCUSDT', null, `/strategy-bots/${id}`, autoOrderEnabled)
+      true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, new LocalizedTextVo('買入', 'Buy'), false, true, false, null),
+    null, 'kCandle', new UntranslatedTextVo('BTCUSDT'), null, `/strategy-bots/${id}`, autoOrderEnabled)
 }
 
-const NOT_CONFIGURED = new AutoOrderRefusalDto(3, '請先完成幣安交易金鑰設定，才能打開自動下單', true)
+const NOT_CONFIGURED = new AutoOrderRefusalDto(3, new UntranslatedTextVo('請先完成幣安交易金鑰設定，才能打開自動下單'), true)
 
 const strategyBotApplication = {
   enableAutoOrder: vi.fn(),
@@ -121,7 +123,20 @@ describe('useStrategyBotAutoOrder：其他失敗', () => {
     const switched = await autoOrder.switchAutoOrder(3, false)
 
     expect(switched).toBeNull()
-    expect(autoOrder.failureMessageFor(3)).toContain(expected)
+    expect(autoOrder.failureMessageFor(3)?.in('zh-TW')).toContain(expected)
     expect(autoOrder.failureMessageFor(4)).toBeNull()
+  })
+
+  it.each([
+    { error: 'not an error', expected: 'Auto-order could not be switched.' },
+    // 後端的原話不翻：換成英文時照樣是它說的那一句。
+    { error: new BackendRequestRejectedError('找不到這台策略機器人'), expected: '找不到這台策略機器人' },
+  ])('英文那一份：$expected', async ({ error, expected }) => {
+    strategyBotApplication.disableAutoOrder.mockRejectedValue(error)
+    const autoOrder = autoOrderUnderTest()
+
+    await autoOrder.switchAutoOrder(3, false)
+
+    expect(autoOrder.failureMessageFor(3)?.in('en')).toBe(expected)
   })
 })

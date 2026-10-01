@@ -50,7 +50,7 @@ describe('PositionPlanDomain', () => {
       '固定金額要大於零',
     ],
   ])('%s 就送不出去', (_name, overrides, expectedWords) => {
-    expect(aPositionPlan(overrides).rejection).toContain(expectedWords)
+    expect(aPositionPlan(overrides).rejection?.in('zh-TW')).toContain(expectedWords)
   })
 
   it.each([
@@ -59,7 +59,7 @@ describe('PositionPlanDomain', () => {
     ['停利距離是負的', { takeProfitPercentage: '-5' }, '停利距離不得為負'],
     ['停利距離超過一百', { takeProfitPercentage: '120' }, '停利距離不得超過 100%'],
   ])('%s 就送不出去', (_name, overrides, expectedWords) => {
-    expect(aPositionPlan(overrides).rejection).toContain(expectedWords)
+    expect(aPositionPlan(overrides).rejection?.in('zh-TW')).toContain(expectedWords)
   })
 
   it('一次只說一個理由', () => {
@@ -67,7 +67,7 @@ describe('PositionPlanDomain', () => {
     // 第一個反應是不知道要從哪裡開始。
     const rejection = aPositionPlan({
       sizingValue: '150', stopLossPercentage: '-3',
-    }).rejection
+    }).rejection?.in('zh-TW')
 
     expect(rejection).toContain('百分比要大於零且不超過一百')
     expect(rejection).not.toContain('停損')
@@ -92,6 +92,6 @@ describe('PositionPlanDomain 的槓桿倍數', () => {
     { name: '小於一擋下', leverage: '0.5', expected: '槓桿倍數不得小於 1 倍' },
     { name: '零也擋下', leverage: '0', expected: '槓桿倍數不得小於 1 倍' },
   ])('$name', ({ leverage, expected }) => {
-    expect(aPositionPlan({ leverage }).rejection).toBe(expected)
+    expect(aPositionPlan({ leverage }).rejection?.in('zh-TW') ?? null).toBe(expected)
   })
 })

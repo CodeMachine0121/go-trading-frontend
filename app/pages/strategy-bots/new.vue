@@ -3,8 +3,8 @@ import StrategyBotWorkbenchPage from '~/components/templates/StrategyBotWorkbenc
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨策略機器人',
-  consoleSubtitle: '挑一份交易策略，說它盯哪個市場、多久看一次。規則本身在交易策略那一頁調——同一份可以讓好幾台機器人一起用。',
+  consoleTitleKey: 'strategyBot.pages.spotWorkbench.title',
+  consoleSubtitleKey: 'strategyBot.pages.spotWorkbench.subtitle',
 })
 
 // 頁面只做接線：說出這一條路走的是「新拼一台現貨機器人」。

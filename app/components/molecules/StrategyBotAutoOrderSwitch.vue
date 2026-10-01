@@ -1,18 +1,23 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppSwitch from '~/components/atoms/AppSwitch.vue'
 import type { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const { enabled, switching = false, refusal = null, failureMessage = null } = defineProps<{
   enabled: boolean
   switching?: boolean
   refusal?: AutoOrderRefusalDto | null
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{
   switch: [enabled: boolean]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -21,19 +26,19 @@ const emit = defineEmits<{
     data-testid="auto-order"
   >
     <div class="strategy-bot-auto-order-switch__control">
-      <span class="strategy-bot-auto-order-switch__label">自動下單</span>
+      <span class="strategy-bot-auto-order-switch__label">{{ t('strategyBot.common.autoOrder') }}</span>
       <AppSwitch
         :model-value="enabled"
         :disabled="switching"
-        label="自動下單"
+        :label="t('strategyBot.common.autoOrder')"
         data-testid="auto-order-switch"
         @update:model-value="emit('switch', $event)"
       >
         <template #off>
-          關
+          {{ t('strategyBot.autoOrderSwitch.off') }}
         </template>
         <template #on>
-          開
+          {{ t('strategyBot.autoOrderSwitch.on') }}
         </template>
       </AppSwitch>
     </div>
@@ -42,7 +47,7 @@ const emit = defineEmits<{
       class="strategy-bot-auto-order-switch__notice"
       data-testid="auto-order-not-in-effect"
     >
-      尚未生效：目前機器人仍只送 Telegram 通知，不會下單
+      {{ t('strategyBot.autoOrderSwitch.notInEffect') }}
     </p>
 
     <AppAlert
@@ -50,7 +55,7 @@ const emit = defineEmits<{
       tone="warning"
       data-testid="auto-order-refusal"
     >
-      {{ refusal.message }}
+      {{ localize(refusal.message) }}
       <template
         v-if="refusal.offersBinanceTradingKeySettings"
         #action
@@ -59,7 +64,7 @@ const emit = defineEmits<{
           to="/settings#settings-binance-trading-key"
           data-testid="auto-order-settings-link"
         >
-          去設定
+          {{ t('strategyBot.common.goToSettings') }}
         </NuxtLink>
       </template>
     </AppAlert>
@@ -69,7 +74,7 @@ const emit = defineEmits<{
       tone="danger"
       data-testid="auto-order-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
   </div>
 </template>

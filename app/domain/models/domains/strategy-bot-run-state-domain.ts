@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
@@ -70,12 +71,14 @@ export class StrategyBotRunStateDomain {
   }
 
   /** 狀態標籤上的字。停擺時說的是停擺，因為那才是使用者要處理的那件事。 */
-  get statusLabel(): string {
+  get statusLabel(): LocalizedTextVo {
     if (this.isHalted) {
-      return '停擺'
+      return new LocalizedTextVo('停擺', 'Halted')
     }
 
-    return this.isRunning ? '執行中' : '已停止'
+    return this.isRunning
+      ? new LocalizedTextVo('執行中', 'Running')
+      : new LocalizedTextVo('已停止', 'Stopped')
   }
 
   /**
@@ -93,11 +96,11 @@ export class StrategyBotRunStateDomain {
     return this.isRunning ? 'success' : 'neutral'
   }
 
-  /** 停擺原因那一句。沒有停擺時是空字串。 */
-  get haltReasonLabel(): string {
+  /** 停擺原因那一句。沒有停擺時是 `null`。 */
+  get haltReasonLabel(): LocalizedTextVo | null {
     const haltReason = this.knownHaltReason
 
-    return haltReason === null ? '' : STRATEGY_BOT_HALT_REASON_LABELS[haltReason]
+    return haltReason === null ? null : STRATEGY_BOT_HALT_REASON_LABELS[haltReason]
   }
 
   /**
@@ -106,16 +109,16 @@ export class StrategyBotRunStateDomain {
    * 沒送過時給的是一句話而不是空白：空白在這份清單上讀起來像「這一欄壞了」，
    * 而「還沒送出過」是一個明確、而且完全正常的狀態。
    */
-  get lastSentSignalLabel(): string {
+  get lastSentSignalLabel(): LocalizedTextVo {
     switch (this.strategyBot.lastSentSignal) {
       case 'buy':
-        return '買入'
+        return new LocalizedTextVo('買入', 'Buy')
       case 'sell':
-        return '賣出'
+        return new LocalizedTextVo('賣出', 'Sell')
       case 'hold':
-        return '持有'
+        return new LocalizedTextVo('持有', 'Hold')
       default:
-        return '還沒送出過'
+        return new LocalizedTextVo('還沒送出過', 'None sent yet')
     }
   }
 
@@ -140,7 +143,9 @@ export class StrategyBotRunStateDomain {
   }
 
   /** 編輯不給按時要說的那一句。給得出理由，那顆灰掉的鍵才不是個謎。 */
-  get editBlockedReason(): string {
-    return this.canEdit ? '' : '這台機器人正在執行中，要先停止它才改得動'
+  get editBlockedReason(): LocalizedTextVo | null {
+    return this.canEdit
+      ? null
+      : new LocalizedTextVo('這台機器人正在執行中，要先停止它才改得動', 'This bot is running; stop it before editing')
   }
 }

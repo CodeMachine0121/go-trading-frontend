@@ -7,6 +7,8 @@ import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const strategyBotApplication = {
   getStrategyBot: vi.fn(),
@@ -21,10 +23,10 @@ function botDto(id: number, marketDataKind: MarketDataKind = 'kCandle') {
   return new StrategyBotDto(
     id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
     null,
     marketDataKind,
-    'BTCUSDT',
+    new UntranslatedTextVo('BTCUSDT'),
     null,
     marketDataKind === 'kCandle' ? `/strategy-bots/${id}` : `/contract-strategy-bots/${id}`,
   )
@@ -87,7 +89,7 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     await workbench.load()
 
     expect(workbench.tradingStrategyOptions.value).toHaveLength(0)
-    expect(workbench.failureMessage.value).toBe('')
+    expect(workbench.failureMessage.value).toBeNull()
   })
 
   it('那一台已經被刪掉時說找不到——它的下一步是回清單，不是重試', async () => {
@@ -108,7 +110,7 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     await workbench.load()
 
     expect(workbench.missing.value).toBe(false)
-    expect(workbench.failureMessage.value).toBe('連不上')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('連不上')
   })
 
   it('連不上後端時明說連不上', async () => {
@@ -117,7 +119,7 @@ describe('useStrategyBotWorkbench 讀一台進來', () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
   })
 })
 
@@ -126,10 +128,12 @@ describe('useStrategyBotWorkbench 存回去', () => {
     const { announcement } = useConsoleAnnouncement()
 
     await workbenchUnderTest(null, 'contractKCandle').save(aWriteDto(undefined))
-    expect(announcement.value).toBe('機器人建好了')
+    expect(announcement.value?.in('zh-TW')).toBe('機器人建好了')
+    expect(announcement.value?.in('en')).toBe('Bot created')
 
     await workbenchUnderTest(7, 'contractKCandle').save(aWriteDto(7))
-    expect(announcement.value).toBe('更改成功')
+    expect(announcement.value?.in('zh-TW')).toBe('更改成功')
+    expect(announcement.value?.in('en')).toBe('Changes saved')
   })
 
   it('存好了就說一聲——而且分得出剛剛是改一台還是拼了一台新的', async () => {
@@ -158,7 +162,7 @@ describe('useStrategyBotWorkbench 存回去', () => {
     await workbench.save(aWriteDto(7))
 
     expect(workbench.saved.value).toBe(false)
-    expect(workbench.failureMessage.value).toBe('名稱已經有人用了')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('名稱已經有人用了')
   })
 })
 

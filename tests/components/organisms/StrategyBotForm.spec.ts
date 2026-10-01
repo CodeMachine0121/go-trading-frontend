@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -13,12 +14,13 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 function aStoredBot(positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotDto(
     7, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
     positionPlan,
   )
 }
@@ -37,7 +39,7 @@ function mountForm(overrides: {
       tradingStrategyOptions: overrides.tradingStrategyOptions
         ?? [{ value: 9, label: '黃金交叉' }, { value: 10, label: '死亡交叉' }],
       saving: false,
-      failureMessage: '',
+      failureMessage: null,
     },
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
@@ -95,6 +97,22 @@ describe('StrategyBotForm 存得下去嗎', () => {
     expect(wrapper.find('[data-testid="bot-form-rejection"]').text()).toContain('挑一份交易策略')
     expect(wrapper.find('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
     expect(wrapper.emitted('save')).toBeUndefined()
+  })
+
+  it('切成英文時，欄位名稱、擋下來的那一句與一份都沒有的提示都換成英文', async () => {
+    const wrapper = mountForm({ editing: null, tradingStrategyOptions: [] })
+    await flushPromises()
+    await wrapper.find('[data-testid="bot-name-input"]').setValue('Morning breakout')
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Bot name')
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text())
+      .toBe('Pick a trading strategy so the bot knows what to judge by')
+    expect(wrapper.get('[data-testid="bot-no-trading-strategies"]').text())
+      .toContain('There is no K-candle trading strategy yet.')
+    expect(wrapper.get('[data-testid="bot-form-save"]').text()).toBe('Save')
   })
 
   it('四格填齊就交出這一刻表上的那一台', async () => {
@@ -298,8 +316,8 @@ function aContractBot(positionPlan: PositionPlanDto | null) {
   return new StrategyBotDto(
     7, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉',
     new StrategyBotRunStateDto(
-      false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
-    positionPlan, 'contractKCandle', 'BTCUSDT 永續合約', null, '/contract-strategy-bots/7')
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
+    positionPlan, 'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), null, '/contract-strategy-bots/7')
 }
 
 describe('StrategyBotForm 在合約那一頁', () => {
@@ -389,8 +407,8 @@ describe('StrategyBotForm 在合約那一頁', () => {
     const bot = new StrategyBotDto(
       7, '費率反轉', 'DOGEUSDT', 5, 11, '費率反轉',
       new StrategyBotRunStateDto(
-        false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, ''),
-      null, 'contractKCandle', 'DOGEUSDT 永續合約', null, '/contract-strategy-bots/7')
+        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
+      null, 'contractKCandle', new LocalizedTextVo('DOGEUSDT 永續合約', 'DOGEUSDT perpetual contract'), null, '/contract-strategy-bots/7')
     const wrapper = mountForm({
       editing: bot,
       marketDataKind: 'contractKCandle',
