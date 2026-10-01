@@ -872,7 +872,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             正是他看到「實際採用 24 根」卻要了 25 根的那一刻，不是他剛打開畫面的時候。
           -->
               <span data-testid="used-candle-count">
-                {{ t('strategyScript.indicatorCalculationPanel.result.usedCandleCount', { count: calculationRun.result.value.usedCandleCount }) }}
+                {{ t('strategyScript.indicatorCalculationPanel.result.usedCandleCount', { count: calculationRun.result.value.usedCandleCount }, calculationRun.result.value.usedCandleCount) }}
                 <AppBadge
                   variant="info"
                   data-testid="used-interval"

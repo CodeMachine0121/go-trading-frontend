@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import type { IChartApi, IPriceLine, ISeriesApi, ISeriesMarkersPluginApi, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, IPriceLine, ISeriesApi, ISeriesMarkersPluginApi, TickMarkType as TickMarkTypeValue, Time, UTCTimestamp } from 'lightweight-charts'
 import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+import { formatWallClockTickMark } from '~/utilities/chart-tick-mark-format'
 import { useThemeChange } from '~/composables/use-theme-change'
 
 const LINE_TONE_TOKENS = {
@@ -35,19 +36,11 @@ function readColor(tokenName: string): string {
   return chartHost.value === null ? '' : getComputedStyle(chartHost.value).getPropertyValue(tokenName).trim()
 }
 
-function drawPricePath(): void {
+function drawPriceLinesAndMarkers(): void {
   const series = seriesApi.value
   if (series === null) {
     return
   }
-
-  series.setData(pricePath.candles.map(candle => ({
-    time: wallClockSecondsOf(candle.openTime),
-    open: candle.open.toNumber(),
-    high: candle.high.toNumber(),
-    low: candle.low.toNumber(),
-    close: candle.close.toNumber(),
-  })))
 
   for (const priceLine of priceLines.value) {
     series.removePriceLine(priceLine)
@@ -67,7 +60,23 @@ function drawPricePath(): void {
     color: readColor(marker.kind === 'entry' ? '--color-success' : '--color-primary'),
     text: localize(marker.text),
   })))
+}
+
+/** 換一份資料時才重畫 K 線、重新對齊整段；線與標記另外畫，換語言、換主題都不必動到這一步。 */
+function drawCandles(): void {
+  seriesApi.value?.setData(pricePath.candles.map(candle => ({
+    time: wallClockSecondsOf(candle.openTime),
+    open: candle.open.toNumber(),
+    high: candle.high.toNumber(),
+    low: candle.low.toNumber(),
+    close: candle.close.toNumber(),
+  })))
   chartApi.value?.timeScale().fitContent()
+}
+
+function drawPricePath(): void {
+  drawCandles()
+  drawPriceLinesAndMarkers()
 }
 
 function paintWithCurrentTheme(): void {
@@ -90,11 +99,12 @@ function paintWithCurrentTheme(): void {
     wickDownColor: readColor('--color-danger'),
     borderVisible: false,
   })
-  drawPricePath()
+  // 換主題只換顏色，使用者縮放到哪裡就留在哪裡。
+  drawPriceLinesAndMarkers()
 }
 
 onMounted(async () => {
-  const { createChart, CandlestickSeries, createSeriesMarkers } = await import('lightweight-charts')
+  const { createChart, CandlestickSeries, createSeriesMarkers, TickMarkType } = await import('lightweight-charts')
   if (chartHost.value === null) {
     return
   }
@@ -102,7 +112,12 @@ onMounted(async () => {
   const createdChart = createChart(chartHost.value, {
     autoSize: true,
     layout: { fontSize: Number.parseFloat(getComputedStyle(chartHost.value).fontSize), attributionLogo: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
+    timeScale: {
+      timeVisible: true,
+      secondsVisible: false,
+      tickMarkFormatter: (time: Time, tickMarkType: TickMarkTypeValue) => formatWallClockTickMark(
+        time, tickMarkType, TickMarkType),
+    },
     localization: {
       timeFormatter: (time: Time) => formatDateTimeInTimeZone(new Date(Number(time) * 1000), 'UTC'),
     },
@@ -110,6 +125,7 @@ onMounted(async () => {
   chartApi.value = createdChart
   seriesApi.value = createdChart.addSeries(CandlestickSeries, { priceLineVisible: false, lastValueVisible: false })
   markersApi.value = createSeriesMarkers(seriesApi.value, [])
+  drawCandles()
   paintWithCurrentTheme()
 })
 
@@ -122,7 +138,9 @@ onBeforeUnmount(() => {
   markersApi.value = null
 })
 
-watch(() => [pricePath, timeZone, locale.value] as const, drawPricePath)
+watch(() => [pricePath, timeZone] as const, drawPricePath)
+// 換語言只換線上與標記上的字，不重畫整段——重畫會把使用者拉好的縮放還原。
+watch(locale, drawPriceLinesAndMarkers)
 </script>
 
 <template>
@@ -139,7 +157,7 @@ watch(() => [pricePath, timeZone, locale.value] as const, drawPricePath)
     >
       <li
         v-for="line in pricePath.lines"
-        :key="line.label.traditionalChinese"
+        :key="line.kind"
         class="trade-price-path-chart__legend-item"
         :class="`trade-price-path-chart__legend-item--${line.tone}`"
       >

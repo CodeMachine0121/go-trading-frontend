@@ -237,6 +237,18 @@ describe('useUserSession：送出那兩格', () => {
     expect(errorMessage.value?.in('zh-TW')).toMatch(/\d{1,2}:\d{2}/)
   })
 
+  it('兩種語言各用自己的寫法說那個時刻，不共用瀏覽器的那一種', async () => {
+    // 世界標準時間 08:00 在任何時區都還落在 9 月 11 或 12 日。
+    userSessionApplication.signIn.mockRejectedValue(
+      new SignInLockedError('已被鎖住', new Date('2026-09-12T08:00:00Z')))
+    const { errorMessage, submitCredentials } = sessionUnderTest()
+
+    await submitCredentials('james@example.com', 'correct horse', 'signIn')
+
+    expect(errorMessage.value?.in('zh-TW')).toMatch(/2026年9月1[12]日/)
+    expect(errorMessage.value?.in('en')).toMatch(/You can try again after Sep 1[12], 2026/)
+  })
+
   it('說不出時刻時仍然說他被鎖住，絕不退回去說帳密不正確', async () => {
     // 退回去的那一句會讓他繼續試密碼，而那正是這道鎖要終結的行為。
     userSessionApplication.signIn.mockRejectedValue(new SignInLockedError('已被鎖住', null))

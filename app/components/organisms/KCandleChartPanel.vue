@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { useI18n } from 'vue-i18n'
 import KCandleChart from '~/components/molecules/KCandleChart.vue'
 import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
@@ -26,7 +27,7 @@ import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-rang
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
@@ -200,7 +201,7 @@ const catchUpMessage = computed(() => {
     return t('marketData.kCandleChartPanel.upToDate')
   }
   if (outcome.collectedCount !== null) {
-    return t('marketData.kCandleChartPanel.backfilled', { count: outcome.collectedCount })
+    return t('marketData.kCandleChartPanel.backfilled', { count: outcome.collectedCount }, outcome.collectedCount)
   }
 
   return outcome.failureReason === null
@@ -328,7 +329,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      unreachableExplanation.value = error.explanation
+      unreachableExplanation.value = error.localizedMessage
     }
     else {
       unexpectedFailure.value = true
@@ -479,9 +480,9 @@ onMounted(async () => {
 /** 補不回來的原因：具名錯誤各自帶著要說的話，其餘只剩工程師的原文，原樣呈現。 */
 function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
   if (error instanceof BackendUnreachableError) {
-    return error.explanation
+    return error.localizedMessage
   }
-  if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+  if (error instanceof LocalizedError) {
     return error.localizedMessage
   }
 
@@ -681,7 +682,7 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
               startTime: timeZone.formatDateTime(chart.coveredStartTime),
               endTime: timeZone.formatDateTime(chart.coveredEndTime),
               cityName: localize(timeZone.cityName),
-            }) }}
+            }, chart.count) }}
           </span>
         </template>
       </AppPanel>

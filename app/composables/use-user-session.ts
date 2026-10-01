@@ -379,7 +379,7 @@ function messageFor(error: unknown): LocalizedTextVo {
   }
 
   if (error instanceof BackendUnreachableError) {
-    return error.explanation
+    return error.localizedMessage
   }
 
   return new LocalizedTextVo('登入時發生未預期的錯誤。', 'An unexpected error occurred while signing in.')
@@ -404,14 +404,15 @@ function signInLockedMessageFor(lockedUntil: Date | null): LocalizedTextVo {
     )
   }
 
-  // 時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
-  const readableMoment = new Intl.DateTimeFormat(undefined, {
+  // 寫法跟著每一種語言，時區不寫死——它取自使用者的瀏覽器，這正是「他自己的時間」的定義。
+  const readableMomentIn = (language: string) => new Intl.DateTimeFormat(language, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: undefined,
   }).format(lockedUntil)
 
   return new LocalizedTextVo(
-    `這個帳號因為連續登入失敗已被鎖住，${readableMoment} 之後才能再試。`,
-    `This account is locked after repeated failed sign-ins. You can try again after ${readableMoment}.`,
+    `這個帳號因為連續登入失敗已被鎖住，${readableMomentIn('zh-TW')} 之後才能再試。`,
+    `This account is locked after repeated failed sign-ins. You can try again after ${readableMomentIn('en')}.`,
   )
 }

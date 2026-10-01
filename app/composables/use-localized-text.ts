@@ -19,5 +19,5 @@ export function useLocalizedText() {
     return text === null || text === undefined ? '' : text.in(currentLanguage.value)
   }
 
-  return { localize }
+  return { currentLanguage, localize }
 }

@@ -1,4 +1,7 @@
 // @vitest-environment nuxt
+import { defineComponent, nextTick } from 'vue'
+import { mount } from '@vue/test-utils'
+import { useI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
 import { TestMessageResultDto } from '~/domain/models/dto/test-message-result-dto'
@@ -19,9 +22,24 @@ const telegramDeliveryApplication = {
   sendTestMessage: vi.fn(),
 }
 
+// 它照翻譯實例說的語言預填，所以要在元件的 setup 裡才問得到目前的語言。
+function mountTelegramDelivery() {
+  const Host = defineComponent({
+    setup() {
+      return {
+        telegramDelivery: useTelegramDelivery(
+          telegramDeliveryApplication as unknown as Parameters<typeof useTelegramDelivery>[0]),
+        translation: useI18n(),
+      }
+    },
+    render: () => null,
+  })
+
+  return mount(Host).vm
+}
+
 function telegramDeliveryUnderTest() {
-  return useTelegramDelivery(
-    telegramDeliveryApplication as unknown as Parameters<typeof useTelegramDelivery>[0])
+  return mountTelegramDelivery().telegramDelivery
 }
 
 beforeEach(() => {
@@ -94,6 +112,21 @@ describe('useTelegramDelivery：儲存與移除', () => {
 describe('useTelegramDelivery：試送一則訊息', () => {
   it('一開始就填好一句可以直接送的話', () => {
     expect(telegramDeliveryUnderTest().message.value).toBe('這是一則來自 go-trading 的測試訊息。')
+  })
+
+  it.each([
+    { situation: '沒動過預填的那一句', typed: null, expected: 'This is a test message from go-trading.' },
+    { situation: '已經改成自己的字', typed: '自己寫的一句', expected: '自己寫的一句' },
+  ])('換成英文時，$situation', async ({ typed, expected }) => {
+    const { telegramDelivery: { message }, translation } = mountTelegramDelivery()
+    if (typed !== null) {
+      message.value = typed
+    }
+
+    translation.locale.value = 'en'
+    await nextTick()
+
+    expect(message.value).toBe(expected)
   })
 
   it('還沒設定過就送不了', async () => {

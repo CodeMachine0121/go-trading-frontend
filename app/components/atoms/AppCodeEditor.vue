@@ -9,37 +9,41 @@
 // 編輯器在掛載後才動態載入，理由有兩個：它碰得到 document（伺服器端沒有），
 // 以及不讓它的體積擋在畫面第一次顯示的路上。載入完成前先呈現一個空的容器。
 import { useI18n } from 'vue-i18n'
+import type { CompletionContext } from '@codemirror/autocomplete'
 
 const { t } = useI18n()
 
 // 常用片段：走訪每一根 K 線、收集收盤價、加總平均、找極值。
 // 都是「怎麼寫程式」的協助，不是任何一段算式的內容——預填什麼由領域決定，這裡一個字也不碰。
-const SNIPPETS = [
-  {
-    label: 'forcandle',
-    detail: t('shell.codeEditor.forEachCandleSnippet'),
-    template: 'for _, candle := range data {\n\t${}\n}',
-  },
-  {
-    label: 'closes',
-    detail: t('shell.codeEditor.closePricesSnippet'),
-    template: 'closePrices := []float64{}\n'
-      + 'for _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n${}',
-  },
-  {
-    label: 'average',
-    detail: t('shell.codeEditor.averageSnippet'),
-    template: 'sum := 0.0\nfor _, candle := range data {\n\tsum += candle.${Close}\n}\n'
-      + 'average := sum / float64(len(data))\n${}',
-  },
-  {
-    label: 'extremes',
-    detail: t('shell.codeEditor.extremesSnippet'),
-    template: 'highest := data[0].High\nlowest := data[0].Low\n'
-      + 'for _, candle := range data {\n\thighest = math.Max(highest, candle.High)\n'
-      + '\tlowest = math.Min(lowest, candle.Low)\n}\n${}',
-  },
-]
+// 每次打開補齊清單才現問一次說明，換過語言後清單上的說明跟著換。
+function snippetList() {
+  return [
+    {
+      label: 'forcandle',
+      detail: t('shell.codeEditor.forEachCandleSnippet'),
+      template: 'for _, candle := range data {\n\t${}\n}',
+    },
+    {
+      label: 'closes',
+      detail: t('shell.codeEditor.closePricesSnippet'),
+      template: 'closePrices := []float64{}\n'
+        + 'for _, candle := range data {\n\tclosePrices = append(closePrices, candle.Close)\n}\n${}',
+    },
+    {
+      label: 'average',
+      detail: t('shell.codeEditor.averageSnippet'),
+      template: 'sum := 0.0\nfor _, candle := range data {\n\tsum += candle.${Close}\n}\n'
+        + 'average := sum / float64(len(data))\n${}',
+    },
+    {
+      label: 'extremes',
+      detail: t('shell.codeEditor.extremesSnippet'),
+      template: 'highest := data[0].High\nlowest := data[0].Low\n'
+        + 'for _, candle := range data {\n\thighest = math.Max(highest, candle.High)\n'
+        + '\tlowest = math.Min(lowest, candle.Low)\n}\n${}',
+    },
+  ]
+}
 
 const { invalid = false, readonly = false, indented = false } = defineProps<{
   invalid?: boolean
@@ -57,7 +61,7 @@ const editorView = shallowRef<import('@codemirror/view').EditorView | null>(null
 onMounted(async () => {
   const [{ EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection },
     { EditorState }, { indentWithTab, defaultKeymap, history, historyKeymap },
-    { indentUnit, bracketMatching, indentOnInput, syntaxHighlighting, HighlightStyle }, { autocompletion, completionKeymap, snippetCompletion },
+    { indentUnit, bracketMatching, indentOnInput, syntaxHighlighting, HighlightStyle }, { autocompletion, completionKeymap, snippetCompletion, completeFromList },
     { go, goLanguage }, { tags }] = await Promise.all([
     import('@codemirror/view'),
     import('@codemirror/state'),
@@ -72,14 +76,14 @@ onMounted(async () => {
     return
   }
 
-  const indicatorSnippets = SNIPPETS.map(
-    snippet => snippetCompletion(snippet.template, { label: snippet.label, detail: snippet.detail }))
+  const completeIndicatorSnippets = (context: CompletionContext) => completeFromList(snippetList().map(
+    snippet => snippetCompletion(snippet.template, { label: snippet.label, detail: snippet.detail })))(context)
 
   // 唯讀那一份不必帶編輯用的行李——歷史、補齊、快捷鍵對它都沒有意義。
   const writingExtensions = readonly
     ? [EditorState.readOnly.of(true), EditorView.editable.of(false)]
     : [
-        goLanguage.data.of({ autocomplete: indicatorSnippets }),
+        goLanguage.data.of({ autocomplete: completeIndicatorSnippets }),
         highlightActiveLine(),
         highlightActiveLineGutter(),
         drawSelection(),

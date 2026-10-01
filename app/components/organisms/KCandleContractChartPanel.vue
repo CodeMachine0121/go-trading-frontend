@@ -175,7 +175,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      unreachableExplanation.value = error.explanation
+      unreachableExplanation.value = error.localizedMessage
     }
     else {
       unexpectedFailure.value = true
@@ -476,7 +476,7 @@ onMounted(() => {
               startTime: timeZone.formatDateTime(chart.coveredStartTime),
               endTime: timeZone.formatDateTime(chart.coveredEndTime),
               cityName: localize(timeZone.cityName),
-            }) }}
+            }, chart.count) }}
           </span>
         </template>
       </AppPanel>

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, ISeriesApi, TickMarkType as TickMarkTypeValue, Time, UTCTimestamp } from 'lightweight-charts'
 import type { TradeChartPointDto } from '~/domain/models/dto/trade-chart-point-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
+import { formatWallClockTickMark } from '~/utilities/chart-tick-mark-format'
 import { useThemeChange } from '~/composables/use-theme-change'
 
 const { points, timeZone } = defineProps<{
@@ -43,7 +44,7 @@ function paintWithCurrentTheme(): void {
 }
 
 onMounted(async () => {
-  const { createChart, LineSeries } = await import('lightweight-charts')
+  const { createChart, LineSeries, TickMarkType } = await import('lightweight-charts')
   if (chartHost.value === null) {
     return
   }
@@ -51,7 +52,12 @@ onMounted(async () => {
   const createdChart = createChart(chartHost.value, {
     autoSize: true,
     layout: { fontSize: Number.parseFloat(getComputedStyle(chartHost.value).fontSize), attributionLogo: false },
-    timeScale: { timeVisible: true, secondsVisible: false },
+    timeScale: {
+      timeVisible: true,
+      secondsVisible: false,
+      tickMarkFormatter: (time: Time, tickMarkType: TickMarkTypeValue) => formatWallClockTickMark(
+        time, tickMarkType, TickMarkType),
+    },
     localization: {
       timeFormatter: (time: Time) => formatDateTimeInTimeZone(new Date(Number(time) * 1000), 'UTC'),
     },

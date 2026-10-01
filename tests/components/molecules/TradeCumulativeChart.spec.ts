@@ -16,7 +16,11 @@ const chartLibrary = vi.hoisted(() => {
   return { lineSeries, chart, createChart: vi.fn(() => chart) }
 })
 
-vi.mock('lightweight-charts', () => ({ createChart: chartLibrary.createChart, LineSeries: 'LineSeries' }))
+vi.mock('lightweight-charts', () => ({
+  createChart: chartLibrary.createChart,
+  LineSeries: 'LineSeries',
+  TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
+}))
 
 const SAME_MOMENT = new Date('2026-09-01T00:00:00Z')
 
@@ -62,6 +66,17 @@ describe('TradeCumulativeChart', () => {
 
     expect(chartLibrary.createChart).toHaveBeenCalled()
     delete document.documentElement.dataset.theme
+  })
+
+  it.each([
+    { name: '標年的那一格', tickMarkType: 0, expected: '2026' },
+    { name: '標日的那一格', tickMarkType: 2, expected: '09-01' },
+    { name: '標時分的那一格', tickMarkType: 3, expected: '00:00' },
+  ])('時間軸上$name寫成不分語言的數字', async ({ tickMarkType, expected }) => {
+    await mountChart([])
+    const options = chartLibrary.createChart.mock.calls[0] as unknown as [HTMLElement, { timeScale: { tickMarkFormatter: (time: number, tickMarkType: number) => string } }]
+
+    expect(options[1].timeScale.tickMarkFormatter(SAME_MOMENT.getTime() / 1000, tickMarkType)).toBe(expected)
   })
 
   it('時間標籤以當地讀數顯示；載完前離開不建立圖表', async () => {

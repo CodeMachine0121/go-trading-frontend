@@ -178,7 +178,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     },
     result: {
       title: 'Calculation result',
-      usedCandleCount: '{count} candles used',
+      usedCandleCount: '{count} candle used | {count} candles used',
       usedInterval: 'Each candle covers {interval}',
       closedCandlesOnly: 'Only completed bars are used; the bar still forming is left out because its numbers will still change.',
       empty: 'No indicators were calculated this time. A script may put nothing into the result; that is not a failure.',

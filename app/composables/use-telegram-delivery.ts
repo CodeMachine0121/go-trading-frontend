@@ -5,7 +5,7 @@ import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configu
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { DISPLAY_LANGUAGE_CODES } from '~/domain/models/vo/display-language-code-vo'
+import { useLocalizedText } from '~/composables/use-localized-text'
 
 /** 輸入框裡預先填好的那一句。預填是為了讓「按一下就知道通不通」真的只要按一下。 */
 export const DEFAULT_TEST_MESSAGE = new LocalizedTextVo(
@@ -33,10 +33,14 @@ export function useTelegramDelivery(
   const saving = ref(false)
   const saveErrorMessage = ref<LocalizedTextVo | null>(null)
 
-  // 預填的那一句一進來就是使用者手上的字，所以照當下的語言填一次；之後換語言不改他的字。
-  const { locale } = useNuxtApp().$globalTranslation
-  const message = ref(DEFAULT_TEST_MESSAGE.in(
-    DISPLAY_LANGUAGE_CODES.find(code => code === locale.value) ?? DISPLAY_LANGUAGE_CODES[0]))
+  const { currentLanguage } = useLocalizedText()
+  const message = ref(DEFAULT_TEST_MESSAGE.in(currentLanguage.value))
+  // 預填的那一句沒被動過就跟著換語言；動過了就是使用者自己的字，不碰。
+  watch(currentLanguage, (nextLanguage, previousLanguage) => {
+    if (message.value === DEFAULT_TEST_MESSAGE.in(previousLanguage)) {
+      message.value = DEFAULT_TEST_MESSAGE.in(nextLanguage)
+    }
+  })
   const sending = ref(false)
   const sendResultMessage = ref<LocalizedTextVo | null>(null)
   const sendSucceeded = ref(false)
@@ -236,7 +240,7 @@ function messageFor(error: unknown): LocalizedTextVo {
   }
 
   if (error instanceof BackendUnreachableError) {
-    return error.explanation
+    return error.localizedMessage
   }
 
   return new LocalizedTextVo(
