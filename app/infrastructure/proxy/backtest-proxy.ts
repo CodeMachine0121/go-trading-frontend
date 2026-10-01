@@ -23,6 +23,7 @@ import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-c
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import type { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const BACKTESTS_ENDPOINT = '/backtests'
 
@@ -43,8 +44,10 @@ const CONTRACT_BACKTESTS_ENDPOINT = '/contract-backtests'
 function exitLevelsBody(
   stopLossPercentage: Decimal, takeProfitPercentage: Decimal,
 ): Record<string, string> {
-  const stopLoss = new ExitDistanceDomain(stopLossPercentage, '止損距離')
-  const takeProfit = new ExitDistanceDomain(takeProfitPercentage, '止盈距離')
+  const stopLoss = new ExitDistanceDomain(
+    stopLossPercentage, new LocalizedTextVo('止損距離', 'Stop-loss distance'))
+  const takeProfit = new ExitDistanceDomain(
+    takeProfitPercentage, new LocalizedTextVo('止盈距離', 'Take-profit distance'))
 
   return {
     ...(stopLoss.isSet ? { stopLossPercentage: stopLossPercentage.toString() } : {}),
@@ -66,8 +69,10 @@ function exitLevelsBody(
 function transactionCostsBody(
   entryCostPercentage: Decimal, exitCostPercentage: Decimal,
 ): Record<string, string> {
-  const entryCost = new TransactionCostRateDomain(entryCostPercentage, '進場成本率')
-  const exitCost = new TransactionCostRateDomain(exitCostPercentage, '出場成本率')
+  const entryCost = new TransactionCostRateDomain(
+    entryCostPercentage, new LocalizedTextVo('進場成本率', 'Entry cost rate'))
+  const exitCost = new TransactionCostRateDomain(
+    exitCostPercentage, new LocalizedTextVo('出場成本率', 'Exit cost rate'))
 
   return {
     ...(entryCost.isSet ? { entryCostPercentage: entryCostPercentage.toString() } : {}),
@@ -553,7 +558,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
     if (error instanceof BackendRequestRejectedError && error.field !== undefined) {
       const field = BACKTEST_FIELD_TRANSLATIONS[error.field]
       if (field !== undefined) {
-        return new BacktestFieldError(field, error.message, { cause: error })
+        return new BacktestFieldError(field, error.localizedMessage, { cause: error })
       }
     }
 

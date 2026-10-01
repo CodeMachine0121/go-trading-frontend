@@ -1,5 +1,6 @@
 import type { ProfitTone } from '~/domain/models/vo/profit-tone-vo'
 import type { ContractClosedTradeDto } from '~/domain/models/dto/contract-closed-trade-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：交易明細裡的一列，已經可以直接畫。
@@ -9,7 +10,7 @@ import type { ContractClosedTradeDto } from '~/domain/models/dto/contract-closed
  */
 export class ClosedTradeDto {
   constructor(
-    public readonly directionLabel: string,
+    public readonly directionLabel: LocalizedTextVo,
     public readonly entryTime: Date,
     public readonly entryPrice: string,
     public readonly exitTime: Date,
@@ -18,7 +19,7 @@ export class ClosedTradeDto {
     public readonly profit: string,
     public readonly profitTone: ProfitTone,
     /** 這一筆怎麼出場的，已經是中文：訊號／止損／止盈。 */
-    public readonly exitReasonLabel: string,
+    public readonly exitReasonLabel: LocalizedTextVo,
     /** 這一筆兩端各付掉多少。沒收過錢的那一次重演裡它們都是 `'0.00'`。 */
     public readonly entryCost: string,
     public readonly exitCost: string,

@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import { TransactionCostRateDomain } from '~/domain/models/domains/transaction-cost-rate-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一次重演要付的那兩個費率。
@@ -34,9 +35,9 @@ export class BacktestTransactionCostsDomain {
   validate(): void {
     const rejection
       = new TransactionCostRateDomain(
-        this.entryCostPercentage, '進場成本率').validationMessage()
+        this.entryCostPercentage, new LocalizedTextVo('進場成本率', 'Entry cost rate')).validationMessage()
       ?? new TransactionCostRateDomain(
-        this.exitCostPercentage, '出場成本率').validationMessage()
+        this.exitCostPercentage, new LocalizedTextVo('出場成本率', 'Exit cost rate')).validationMessage()
 
     if (rejection !== null) {
       throw new BacktestFieldError('transactionCosts', rejection)

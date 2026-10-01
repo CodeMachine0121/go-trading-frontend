@@ -2,6 +2,7 @@ import type { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dt
 import type { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import type { EquityPointDto } from '~/domain/models/dto/equity-point-dto'
 import type { BacktestResultSectionDto } from '~/domain/models/dto/backtest-result-section-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：一次回測的結果形狀，也是畫面拿得到的唯一形狀。
@@ -14,7 +15,7 @@ export class BacktestResultDto {
   constructor(
     public readonly symbol: string,
     /** 這次**實際**採用的彙總刻度，已經是給人看的名字。 */
-    public readonly intervalLabel: string,
+    public readonly intervalLabel: LocalizedTextVo,
     public readonly startTime: Date,
     public readonly endTime: Date,
     public readonly usedCandleCount: number,

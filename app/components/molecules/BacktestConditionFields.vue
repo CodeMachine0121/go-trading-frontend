@@ -11,6 +11,7 @@ import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-s
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 import type { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option-dto'
+import { useI18n } from 'vue-i18n'
 
 // 分子：回測要問使用者的那幾件事。
 //
@@ -132,6 +133,9 @@ const selectedContractTradingMode = computed(
  */
 const selectedPositionSizingMode = computed(
   () => positionSizingModeOptions.find(option => option.value === positionSizingMode.value))
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -151,7 +155,7 @@ const selectedPositionSizingMode = computed(
     />
 
     <FormField
-      label="彙總刻度"
+      :label="t('backtest.conditionFields.aggregationInterval')"
     >
       <AppSelect
         v-if="!aggregationIntervalNote"
@@ -163,7 +167,7 @@ const selectedPositionSizingMode = computed(
           :key="intervalOption.value"
           :value="intervalOption.value"
         >
-          {{ intervalOption.label }}
+          {{ localize(intervalOption.label) }}
         </option>
       </AppSelect>
       <p
@@ -177,8 +181,8 @@ const selectedPositionSizingMode = computed(
 
     <!-- 起訖兩格共用一則說明：起點不能晚於終點是關於這一對，不是關於其中一格。 -->
     <FormField
-      label="從哪裡開始"
-      :hint="timeZone.cityLabel"
+      :label="t('backtest.conditionFields.startTime')"
+      :hint="localize(timeZone.cityName)"
       :error-message="timeRangeError"
     >
       <AppInput
@@ -190,8 +194,8 @@ const selectedPositionSizingMode = computed(
     </FormField>
 
     <FormField
-      label="到哪裡為止"
-      :hint="timeZone.cityLabel"
+      :label="t('backtest.conditionFields.endTime')"
+      :hint="localize(timeZone.cityName)"
     >
       <AppInput
         v-model="endTime"
@@ -205,8 +209,8 @@ const selectedPositionSizingMode = computed(
       驗證起點緊跟在起訖之後：它切的正是那一段，而它的規則（落在期間之內）也是關於那兩格。
     -->
     <FormField
-      label="驗證起點"
-      :hint="`${timeZone.cityLabel}。選填，留白就不切分；給了它，期間會切成調參段與驗證段，兩段各自從初始資金、空手重演，只有驗證段的成績單回答得了這支策略有沒有效`"
+      :label="t('backtest.conditionFields.validationStartTime')"
+      :hint="t('backtest.conditionFields.validationStartTimeHint', { cityName: localize(timeZone.cityName) })"
       :error-message="validationStartTimeError"
     >
       <AppInput
@@ -219,8 +223,8 @@ const selectedPositionSizingMode = computed(
 
     <FormField
       v-if="fillTimingOptions.length > 0"
-      label="成交時點"
-      :hint="selectedFillTiming?.description"
+      :label="t('backtest.conditionFields.fillTiming')"
+      :hint="selectedFillTiming ? localize(selectedFillTiming.description) : undefined"
       :error-message="fillTimingError"
     >
       <AppSelect
@@ -232,13 +236,13 @@ const selectedPositionSizingMode = computed(
           :key="fillTimingOption.value"
           :value="fillTimingOption.value"
         >
-          {{ fillTimingOption.label }}
+          {{ localize(fillTimingOption.label) }}
         </option>
       </AppSelect>
     </FormField>
 
     <FormField
-      label="一開始有多少錢"
+      :label="t('backtest.conditionFields.initialCapital')"
       :error-message="initialCapitalError"
     >
       <AppInput
@@ -250,7 +254,7 @@ const selectedPositionSizingMode = computed(
       />
     </FormField>
 
-    <FormField label="每次開倉押多少">
+    <FormField :label="t('backtest.conditionFields.positionSizingMode')">
       <AppSelect
         v-model="positionSizingMode"
         data-testid="backtest-position-sizing-mode-select"
@@ -260,14 +264,14 @@ const selectedPositionSizingMode = computed(
           :key="modeOption.value"
           :value="modeOption.value"
         >
-          {{ modeOption.label }}
+          {{ localize(modeOption.label) }}
         </option>
       </AppSelect>
     </FormField>
 
     <FormField
-      v-if="selectedPositionSizingMode?.requiresValue"
-      :label="selectedPositionSizingMode.valueLabel"
+      v-if="selectedPositionSizingMode?.requiresValue && selectedPositionSizingMode.valueLabel"
+      :label="localize(selectedPositionSizingMode.valueLabel)"
       :error-message="positionSizingValueError"
     >
       <AppInput
@@ -289,8 +293,8 @@ const selectedPositionSizingMode = computed(
     -->
     <template v-if="replaysOnContractAccount">
       <FormField
-        label="槓桿倍數"
-        hint="留白就是一倍"
+        :label="t('backtest.conditionFields.leverage')"
+        :hint="t('backtest.conditionFields.leverageHint')"
         :error-message="leverageError"
       >
         <AppInput
@@ -303,8 +307,8 @@ const selectedPositionSizingMode = computed(
       </FormField>
 
       <FormField
-        label="交易模式"
-        :hint="selectedContractTradingMode?.description"
+        :label="t('backtest.conditionFields.tradingMode')"
+        :hint="selectedContractTradingMode ? localize(selectedContractTradingMode.description) : undefined"
         :error-message="tradingModeError"
       >
         <AppSelect
@@ -317,7 +321,7 @@ const selectedPositionSizingMode = computed(
             :key="modeOption.value"
             :value="modeOption.value"
           >
-            {{ modeOption.label }}
+            {{ localize(modeOption.label) }}
           </option>
         </AppSelect>
         <p
@@ -330,8 +334,8 @@ const selectedPositionSizingMode = computed(
       </FormField>
 
       <FormField
-        label="滑點（%）"
-        hint="留白就不計。每一次成交往不利的方向偏這麼多"
+        :label="t('backtest.conditionFields.slippage')"
+        :hint="t('backtest.conditionFields.slippageHint')"
         :error-message="slippageError"
       >
         <AppInput
@@ -347,8 +351,7 @@ const selectedPositionSizingMode = computed(
         class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
         data-testid="backtest-contract-account-note"
       >
-        逐倉的合約帳戶：每一注最多賠光自己的保證金；強平看標記價格；帶著倉位走過的每一次資金費率結算都收付；
-        數量照交易所的下單規則取整，下不出去的單就不開。
+        {{ t('backtest.conditionFields.contractAccountNote') }}
       </p>
     </template>
 
@@ -357,8 +360,7 @@ const selectedPositionSizingMode = computed(
       class="backtest-condition-fields__note backtest-condition-fields__trading-mode"
       data-testid="backtest-trading-mode-note"
     >
-      只做現貨：買入時空手就開倉，賣出就平倉把錢收回來、之後空手等下一個買點；
-      空手時聽到賣出什麼都不做。借錢與做空是合約帳戶的事，這裡不做。
+      {{ t('backtest.conditionFields.spotTradingModeNote') }}
     </p>
 
     <!--
@@ -366,15 +368,15 @@ const selectedPositionSizingMode = computed(
       「留白就不模擬」那句話被摺成一疊時，就沒有人會讀它。
     -->
     <FormField
-      label="出場價位"
+      :label="t('backtest.conditionFields.exitLevels')"
       class="backtest-condition-fields__exit-levels"
-      hint="留白就不模擬。距離從進場價量起"
+      :hint="t('backtest.conditionFields.exitLevelsHint')"
       :error-message="exitLevelsError"
       grouped
     >
       <div class="backtest-condition-fields__paired-inputs">
         <label class="backtest-condition-fields__paired-input">
-          <span>止損距離（%）</span>
+          <span>{{ t('backtest.conditionFields.stopLossPercentage') }}</span>
           <AppInput
             v-model="stopLossPercentage"
             type="number"
@@ -384,7 +386,7 @@ const selectedPositionSizingMode = computed(
           />
         </label>
         <label class="backtest-condition-fields__paired-input">
-          <span>止盈距離（%）</span>
+          <span>{{ t('backtest.conditionFields.takeProfitPercentage') }}</span>
           <AppInput
             v-model="takeProfitPercentage"
             type="number"
@@ -402,15 +404,15 @@ const selectedPositionSizingMode = computed(
       被摺成一疊時就沒有人會讀它。
     -->
     <FormField
-      label="交易成本"
+      :label="t('backtest.conditionFields.transactionCosts')"
       class="backtest-condition-fields__transaction-costs"
-      hint="留白就不計。出場留白時跟進場一樣"
+      :hint="t('backtest.conditionFields.transactionCostsHint')"
       :error-message="transactionCostsError"
       grouped
     >
       <div class="backtest-condition-fields__paired-inputs">
         <label class="backtest-condition-fields__paired-input">
-          <span>進場成本率（%）</span>
+          <span>{{ t('backtest.conditionFields.entryCostPercentage') }}</span>
           <AppInput
             v-model="entryCostPercentage"
             type="number"
@@ -420,7 +422,7 @@ const selectedPositionSizingMode = computed(
           />
         </label>
         <label class="backtest-condition-fields__paired-input">
-          <span>出場成本率（%）</span>
+          <span>{{ t('backtest.conditionFields.exitCostPercentage') }}</span>
           <AppInput
             v-model="exitCostPercentage"
             type="number"
@@ -438,7 +440,7 @@ const selectedPositionSizingMode = computed(
       :disabled="running || disabled"
       data-testid="run-backtest-button"
     >
-      {{ running ? '回測中…' : '執行回測' }}
+      {{ running ? t('backtest.conditionFields.running') : t('backtest.conditionFields.run') }}
     </AppButton>
   </div>
 </template>

@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 費率的上限：整筆成交金額。正好一百允許——荒謬但算得出來。 */
 const WHOLE_NOTIONAL_PERCENTAGE = new Decimal(100)
@@ -24,21 +25,27 @@ export class TransactionCostRateDomain {
    */
   constructor(
     private readonly rate: Decimal,
-    private readonly name: string,
+    private readonly name: LocalizedTextVo,
   ) {}
 
   /** 講不通時說出理由；講得通時 `null`。 */
-  validationMessage(): string | null {
+  validationMessage(): LocalizedTextVo | null {
     if (this.rate.isNaN()) {
-      return `${this.name}請填一個數字`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}請填一個數字`,
+        `${this.name.english} must be a number`)
     }
 
     if (this.rate.isNegative()) {
-      return `${this.name}不得為負——負的成本等於交易就送錢`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}不得為負——負的成本等於交易就送錢`,
+        `${this.name.english} cannot be negative — a negative cost would mean every trade pays you`)
     }
 
     if (this.rate.greaterThan(WHOLE_NOTIONAL_PERCENTAGE)) {
-      return `${this.name}不得超過 100%——成本不會超過成交金額本身`
+      return new LocalizedTextVo(
+        `${this.name.traditionalChinese}不得超過 100%——成本不會超過成交金額本身`,
+        `${this.name.english} cannot exceed 100% — a cost cannot be more than the trade value itself`)
     }
 
     return null

@@ -4,6 +4,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 一種「這次拒絕是關於哪一格」的錯誤。
@@ -12,8 +13,8 @@ import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-a
  * 它的錯誤長什麼樣，那一格的名字也就跟著被型別擋住了——問一個不存在的欄位不會編譯過。
  */
 type FieldErrorType<TField extends string> = new (
-  field: TField, message: string, options?: { cause?: unknown },
-) => Error & { field: TField }
+  field: TField, localizedMessage: LocalizedTextVo, options?: { cause?: unknown },
+) => Error & { field: TField, localizedMessage: LocalizedTextVo }
 
 /**
  * 最近那一次送出去的事情：跑完了沒有、結果是什麼，以及**哪一種**失敗。
@@ -33,22 +34,22 @@ type FieldErrorType<TField extends string> = new (
  */
 export function useLatestRun<TResult, TField extends string>(
   fieldErrorType: FieldErrorType<TField>,
-  unexpectedMessage: string,
+  unexpectedMessage: LocalizedTextVo,
 ) {
   const running = ref(false)
   const result = ref<TResult | null>(null) as Ref<TResult | null>
-  const fieldError = ref<{ field: TField, message: string } | null>(null)
-  const requestRejectedMessage = ref<string | null>(null)
-  const scriptFailedMessage = ref<string | null>(null)
+  const fieldError = ref<{ field: TField, message: LocalizedTextVo } | null>(null)
+  const requestRejectedMessage = ref<LocalizedTextVo | null>(null)
+  const scriptFailedMessage = ref<LocalizedTextVo | null>(null)
   /** 算式取用了一個沒有宣告的旋鈕名字。它與「算式跑不動」是兩件事。 */
-  const parameterNotDeclaredMessage = ref<string | null>(null)
+  const parameterNotDeclaredMessage = ref<LocalizedTextVo | null>(null)
   const backendUnreachable = ref(false)
   /**
    * 一次重演沒在整次允許時間內跑完。它與算式跑不動分開，因為要改的不是算式，
    * 而是期間的長短或刻度的粗細。
    */
-  const timeAllowanceSpentMessage = ref<string | null>(null)
-  const serverErrorMessage = ref<string | null>(null)
+  const timeAllowanceSpentMessage = ref<LocalizedTextVo | null>(null)
+  const serverErrorMessage = ref<LocalizedTextVo | null>(null)
 
   /**
    * 把上一次留下的東西全部清掉。
@@ -68,7 +69,7 @@ export function useLatestRun<TResult, TField extends string>(
   }
 
   /** 這個欄位有沒有被指出問題——沒有就是 `null`。 */
-  function messageFor(field: TField): string | null {
+  function messageFor(field: TField): LocalizedTextVo | null {
     return fieldError.value?.field === field ? fieldError.value.message : null
   }
 
@@ -88,22 +89,22 @@ export function useLatestRun<TResult, TField extends string>(
     }
     catch (error: unknown) {
       if (error instanceof StrategyScriptParameterNotDeclaredError) {
-        parameterNotDeclaredMessage.value = error.message
+        parameterNotDeclaredMessage.value = error.localizedMessage
       }
       else if (error instanceof fieldErrorType) {
-        fieldError.value = { field: error.field, message: error.message }
+        fieldError.value = { field: error.field, message: error.localizedMessage }
       }
       else if (error instanceof BacktestTimeAllowanceSpentError) {
-        timeAllowanceSpentMessage.value = error.message
+        timeAllowanceSpentMessage.value = error.localizedMessage
       }
       else if (error instanceof IndicatorScriptFailedError) {
-        scriptFailedMessage.value = error.message
+        scriptFailedMessage.value = error.localizedMessage
       }
       else if (error instanceof BackendServerError) {
-        serverErrorMessage.value = error.message
+        serverErrorMessage.value = error.localizedMessage
       }
       else if (error instanceof BackendRequestRejectedError) {
-        requestRejectedMessage.value = error.message
+        requestRejectedMessage.value = error.localizedMessage
       }
       else if (error instanceof BackendUnreachableError) {
         backendUnreachable.value = true

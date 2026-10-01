@@ -1,5 +1,6 @@
 import { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 預設回看的天數：一個月夠看出一支策略腳本的脾氣，又不必等太久。 */
 const DEFAULT_LOOKBACK_DAYS = 30
@@ -43,11 +44,11 @@ export class BacktestTimeRangeDomain {
    */
   validate(): void {
     if (Number.isNaN(this.startTime.getTime()) || Number.isNaN(this.endTime.getTime())) {
-      throw new BacktestFieldError('timeRange', '請選一段有頭有尾的時間。')
+      throw new BacktestFieldError('timeRange', new LocalizedTextVo('請選一段有頭有尾的時間。', 'Pick a time range with both a start and an end.'))
     }
 
     if (this.startTime.getTime() > this.endTime.getTime()) {
-      throw new BacktestFieldError('timeRange', '起點不能晚於終點。')
+      throw new BacktestFieldError('timeRange', new LocalizedTextVo('起點不能晚於終點。', 'The start cannot be later than the end.'))
     }
   }
 }

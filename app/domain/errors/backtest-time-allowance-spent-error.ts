@@ -1,3 +1,5 @@
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：交易服務說這一次重演沒在整次允許時間內跑完。
  *
@@ -5,8 +7,12 @@
  * 是這一段太長或刻度太細。說成其中任何一種，都會讓人去改一個沒有問題的東西。
  */
 export class BacktestTimeAllowanceSpentError extends Error {
+  /** 後端說的原文，原樣呈現、不翻。 */
+  readonly localizedMessage: UntranslatedTextVo
+
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, { cause: options?.cause })
     this.name = 'BacktestTimeAllowanceSpentError'
+    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

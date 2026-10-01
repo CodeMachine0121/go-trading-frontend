@@ -1,22 +1,30 @@
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
 import { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 每一種交易模式的名字與它買入、賣出各是什麼意思。多一種是在這張表加一列。 */
 const CONTRACT_TRADING_MODE_DESCRIPTIONS: Readonly<
-  Record<ContractTradingMode, { label: string, description: string }>
+  Record<ContractTradingMode, { label: LocalizedTextVo, description: LocalizedTextVo }>
 > = {
   longShort: {
-    label: '多空反手',
-    description: '買入：空手開多、持空倉就平掉同一棒反手開多。賣出：空手開空、持多倉就平掉同一棒反手開空。',
+    label: new LocalizedTextVo('多空反手', 'Long & short'),
+    description: new LocalizedTextVo(
+      '買入：空手開多、持空倉就平掉同一棒反手開多。賣出：空手開空、持多倉就平掉同一棒反手開空。',
+      'Buy: open a long when flat; when short, close it and reverse into a long on the same candle. '
+      + 'Sell: open a short when flat; when long, close it and reverse into a short on the same candle.'),
   },
   longOnly: {
-    label: '只做多',
-    description: '買入：空手開多。賣出：持多倉就平掉，空手時什麼都不做。',
+    label: new LocalizedTextVo('只做多', 'Long only'),
+    description: new LocalizedTextVo(
+      '買入：空手開多。賣出：持多倉就平掉，空手時什麼都不做。',
+      'Buy: open a long when flat. Sell: close the long if holding one; do nothing when flat.'),
   },
   shortOnly: {
-    label: '只做空',
-    description: '賣出：空手開空。買入：持空倉就平掉，空手時什麼都不做。',
+    label: new LocalizedTextVo('只做空', 'Short only'),
+    description: new LocalizedTextVo(
+      '賣出：空手開空。買入：持空倉就平掉，空手時什麼都不做。',
+      'Sell: open a short when flat. Buy: close the short if holding one; do nothing when flat.'),
   },
 }
 
@@ -39,7 +47,7 @@ export class ContractTradingModeDomain {
       candidate => candidate.toLowerCase() === normalizedDeclaration) ?? DEFAULT_CONTRACT_TRADING_MODE
   }
 
-  label(): string {
+  label(): LocalizedTextVo {
     return CONTRACT_TRADING_MODE_DESCRIPTIONS[this.value].label
   }
 

@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import { describe, expect, it } from 'vitest'
 import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 describe('PositionSizingDomain', () => {
   describe('旁邊那一格要不要出現', () => {
@@ -19,16 +20,16 @@ describe('PositionSizingDomain', () => {
       const option = new PositionSizingDomain('allIn', new Decimal(0)).toOptionDto()
 
       expect(option.value).toBe('allIn')
-      expect(option.label).toBe('全押')
+      expect(option.label.in('zh-TW')).toBe('全押')
       expect(option.requiresValue).toBe(false)
-      expect(option.valueLabel).toBe('')
+      expect(option.valueLabel).toBeNull()
     })
 
     it('百分比帶著那一格的名字', () => {
       const option = new PositionSizingDomain('percentage', new Decimal(50)).toOptionDto()
 
       expect(option.requiresValue).toBe(true)
-      expect(option.valueLabel).toBe('百分比')
+      expect(option.valueLabel?.in('zh-TW')).toBe('百分比')
     })
   })
 
@@ -46,7 +47,7 @@ describe('PositionSizingDomain', () => {
 
     it.each([0, -1, 101, 150])('百分比 %s 被拒絕', (value) => {
       expect(() => new PositionSizingDomain('percentage', new Decimal(value)).validate())
-        .toThrow(new BacktestFieldError('positionSizingValue', '百分比要大於零且不超過一百。'))
+        .toThrow(new BacktestFieldError('positionSizingValue', new LocalizedTextVo('百分比要大於零且不超過一百。', 'The percentage must be greater than zero and no more than one hundred.')))
     })
 
     it('固定金額大於零就通過，多大都行', () => {
@@ -58,12 +59,12 @@ describe('PositionSizingDomain', () => {
 
     it.each([0, -1])('固定金額 %s 被拒絕', (value) => {
       expect(() => new PositionSizingDomain('fixedAmount', new Decimal(value)).validate())
-        .toThrow(new BacktestFieldError('positionSizingValue', '固定金額要大於零。'))
+        .toThrow(new BacktestFieldError('positionSizingValue', new LocalizedTextVo('固定金額要大於零。', 'The fixed amount must be greater than zero.')))
     })
 
     it('該填的那一格留白時說請填一個數字', () => {
       expect(() => new PositionSizingDomain('percentage', new Decimal(Number.NaN)).validate())
-        .toThrow(new BacktestFieldError('positionSizingValue', '請填一個數字。'))
+        .toThrow(new BacktestFieldError('positionSizingValue', new LocalizedTextVo('請填一個數字。', 'Enter a number.')))
     })
   })
 })

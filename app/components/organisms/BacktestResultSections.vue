@@ -6,6 +6,7 @@ import BacktestSummaryCard from '~/components/molecules/BacktestSummaryCard.vue'
 import BacktestTradeTable from '~/components/molecules/BacktestTradeTable.vue'
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { useI18n } from 'vue-i18n'
 
 // 有機體：一次回測的結果，一塊一塊畫出來。
 //
@@ -16,6 +17,9 @@ const { result, timeZone } = defineProps<{
   result: BacktestResultDto
   timeZone: TimeZoneDto
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -32,36 +36,37 @@ const { result, timeZone } = defineProps<{
         class="backtest-result-sections__header"
       >
         <h3 class="backtest-result-sections__title">
-          {{ section.title }}
+          {{ localize(section.title) }}
           <AppBadge
             v-if="section.emphasized"
             variant="success"
           >
-            以它為準
+            {{ t('backtest.resultSections.goByThis') }}
           </AppBadge>
         </h3>
         <p
+          v-if="section.note"
           class="backtest-result-sections__note"
           :data-testid="`backtest-result-section-${section.kind}-note`"
         >
-          {{ section.note }}
+          {{ localize(section.note) }}
         </p>
         <p class="backtest-result-sections__range">
-          {{ timeZone.formatDateTime(section.startTime) }} – {{ timeZone.formatDateTime(section.endTime) }}（{{ timeZone.cityLabel }}）
+          {{ t('backtest.resultSections.timeRange', { start: timeZone.formatDateTime(section.startTime), end: timeZone.formatDateTime(section.endTime), cityName: localize(timeZone.cityName) }) }}
         </p>
       </header>
 
       <!-- 三塊東西一起出現：成績單說結論，曲線說形狀，明細說每一筆。 -->
-      <AppPanel title="成績單">
+      <AppPanel :title="t('backtest.resultSections.scorecard')">
         <template #meta>
           <span
             :data-testid="section.title === null
               ? 'backtest-used-candle-count'
               : `backtest-used-candle-count-${section.kind}`"
           >
-            回測了 {{ section.usedCandleCount }} 根
+            {{ t('backtest.resultSections.usedCandleCount', { count: section.usedCandleCount }) }}
             <AppBadge variant="info">
-              每根涵蓋 {{ section.intervalLabel }}
+              {{ t('backtest.resultSections.intervalCoverage', { interval: localize(section.intervalLabel) }) }}
             </AppBadge>
           </span>
         </template>
@@ -73,7 +78,7 @@ const { result, timeZone } = defineProps<{
       </AppPanel>
 
       <AppPanel
-        title="資金曲線"
+        :title="t('backtest.resultSections.equityCurve')"
         flush
       >
         <BacktestEquityCurveChart
@@ -82,7 +87,7 @@ const { result, timeZone } = defineProps<{
         />
       </AppPanel>
 
-      <AppPanel title="交易明細">
+      <AppPanel :title="t('backtest.resultSections.trades')">
         <BacktestTradeTable
           :closed-trades="section.closedTrades"
           :time-zone="timeZone"

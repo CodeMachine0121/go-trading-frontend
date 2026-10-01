@@ -8,6 +8,7 @@ import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-res
 import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 重演只吃「一個信號」的算式。
@@ -50,7 +51,7 @@ export class BacktestRequestDomain {
   constructor(backtestRequestDto: BacktestRequestDto) {
     const normalizedSymbol = backtestRequestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new BacktestFieldError('symbol', '請指定交易標的')
+      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Choose a trading symbol'))
     }
 
     // 與指標預覽同一條規則：要嘛指名一支策略腳本，要嘛自帶一段算式，兩者只能挑一種。
@@ -59,10 +60,12 @@ export class BacktestRequestDomain {
     const carriesAnAlgorithm = backtestRequestDto.script.trim() !== ''
 
     if (namesAStrategyScript && carriesAnAlgorithm) {
-      throw new BacktestFieldError('script', '指名一支策略腳本與自帶一段算式只能挑一種')
+      throw new BacktestFieldError('script', new LocalizedTextVo(
+        '指名一支策略腳本與自帶一段算式只能挑一種',
+        'Either name a strategy script or bring your own script, not both'))
     }
     if (!namesAStrategyScript && !carriesAnAlgorithm) {
-      throw new BacktestFieldError('script', '請填寫算式內容')
+      throw new BacktestFieldError('script', new LocalizedTextVo('請填寫算式內容', 'Write the script body'))
     }
 
     // 兩種重演共有的那幾組條件，一句問完。
@@ -75,9 +78,13 @@ export class BacktestRequestDomain {
     if (resultType.value !== BACKTEST_RESULT_TYPE) {
       throw new BacktestFieldError(
         'script',
-        `回測只跑「一個信號」的算式：它一根 K 線問一次，每一次讀一個訊號——`
-        + `買入、賣出、還是持有。這支目前宣告的是「${resultType.label()}」，`
-        + `請把指標值種類改成「一個信號」。`)
+        new LocalizedTextVo(
+          `回測只跑「一個信號」的算式：它一根 K 線問一次，每一次讀一個訊號——`
+          + `買入、賣出、還是持有。這支目前宣告的是「${resultType.label().traditionalChinese}」，`
+          + `請把指標值種類改成「一個信號」。`,
+          `A backtest only runs scripts whose result is "A signal": it asks once per K-candle and reads one signal each time — `
+          + `buy, sell or hold. This script currently declares "${resultType.label().english}"; `
+          + `change the indicator value type to "A signal".`))
     }
 
     this.symbol = normalizedSymbol

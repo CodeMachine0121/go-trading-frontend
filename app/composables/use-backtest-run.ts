@@ -4,6 +4,7 @@ import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-back
 import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { useLatestRun } from '~/composables/use-latest-run'
 
 /**
@@ -15,7 +16,8 @@ import { useLatestRun } from '~/composables/use-latest-run'
  */
 export function useBacktestRun(backtestApplication: BacktestApplication) {
   const latestRun = useLatestRun<BacktestResultDto, BacktestField>(
-    BacktestFieldError, '執行回測時發生未預期的錯誤。')
+    BacktestFieldError,
+    new LocalizedTextVo('執行回測時發生未預期的錯誤。', 'An unexpected error occurred while running the backtest.'))
 
   return {
     ...latestRun,

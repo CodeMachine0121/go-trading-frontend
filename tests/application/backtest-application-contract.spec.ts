@@ -49,14 +49,14 @@ describe('BacktestApplication 的合約重演', () => {
   it('交易模式選單三種，第一個是多空反手', () => {
     const options = applicationWith(buildProxy()).listContractTradingModeOptions()
 
-    expect(options.map(option => option.label)).toEqual(['多空反手', '只做多', '只做空'])
+    expect(options.map(option => option.label.in('zh-TW'))).toEqual(['多空反手', '只做多', '只做空'])
   })
 
   it.each([
     { marketDataKind: 'kCandle' as const, mentions: '重演只做現貨' },
     { marketDataKind: 'contractKCandle' as const, mentions: '強平看標記價格' },
   ])('$marketDataKind 讀的是它自己那一份規則', ({ marketDataKind, mentions }) => {
-    const titles = applicationWith(buildProxy()).listBacktestRules(marketDataKind).map(rule => rule.title)
+    const titles = applicationWith(buildProxy()).listBacktestRules(marketDataKind).map(rule => rule.title.in('zh-TW'))
 
     expect(titles).toContain(mentions)
   })

@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import TradingStrategyBacktestPane from '~/components/organisms/TradingStrategyBacktestPane.vue'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
@@ -10,6 +11,7 @@ import { TradingSymbolApplication } from '~/application/trading-symbol-applicati
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(() => ({
@@ -54,7 +56,7 @@ function mountPane(proxy: IBacktestProxy, replaysOnContractAccount: boolean) {
       savedGeneration: 0,
       marketDataKind: replaysOnContractAccount ? 'contractKCandle' : 'kCandle',
       replaysOnContractAccount,
-      tradingModeLabel: replaysOnContractAccount ? '只做多' : null,
+      tradingModeLabel: replaysOnContractAccount ? new LocalizedTextVo('只做多', 'Long only') : null,
     },
   })
 }
@@ -99,5 +101,22 @@ describe('TradingStrategyBacktestPane 重演一份合約交易策略', () => {
     expect(wrapper.find('[data-testid="symbol-select"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="backtest-leverage-input"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="backtest-trading-mode-note"]').exists()).toBe(true)
+  })
+})
+
+describe('TradingStrategyBacktestPane 切成英文', () => {
+  it('交易模式那一句、彙總刻度那一句與規則說明的標題都說英文', async () => {
+    const wrapper = mountPane(buildProxy(), true)
+    await flushPromises()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="backtest-contract-trading-mode-note"]').text())
+      .toBe('Long only (set by this trading strategy; to change it, edit the trading strategy)')
+    expect(wrapper.get('[data-testid="backtest-aggregation-interval-note"]').text())
+      .toBe('Set by this trading strategy\'s signal sources — this version requires them to agree')
+    expect(wrapper.get('[data-testid="backtest-contract-account-note"]').text())
+      .toContain('An isolated-margin contract account')
   })
 })

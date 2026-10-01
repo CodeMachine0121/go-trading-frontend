@@ -2,21 +2,27 @@ import type Decimal from 'decimal.js'
 import type { ContractBacktestFigures } from '~/domain/models/entities/backtest'
 import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 import { ContractBacktestSummaryDto } from '~/domain/models/dto/contract-backtest-summary-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const AMOUNT_FRACTION_DIGITS = 2
 const WIN_RATE_FRACTION_DIGITS = 1
-const WIN_RATE_NOT_APPLICABLE = '不適用'
+const WIN_RATE_NOT_APPLICABLE = new LocalizedTextVo('不適用', 'N/A')
 
 /** 沒有完整分級時的那一種，也是認不得的依據的讀法：它是比較保守的那一句說明。 */
 const SMALLEST_TIER_BASIS = {
-  label: '最小那一級',
-  note: '這個標的沒有完整分級，每一種大小都照最小那一級算——大部位的強平價會被算得太遠。',
+  label: new LocalizedTextVo('最小那一級', 'Smallest tier'),
+  note: new LocalizedTextVo(
+    '這個標的沒有完整分級，每一種大小都照最小那一級算——大部位的強平價會被算得太遠。',
+    'This symbol has no full tier table, so every position size is treated as the smallest tier — '
+    + 'large positions get a liquidation price that is too far away.'),
 }
 
-const MAINTENANCE_MARGIN_BASES: Readonly<Record<string, { label: string, note: string }>> = {
+const MAINTENANCE_MARGIN_BASES: Readonly<Record<string, { label: LocalizedTextVo, note: LocalizedTextVo }>> = {
   tiers: {
-    label: '完整分級',
-    note: '分級沒有歷史：重演過去用的也是今天這一組。',
+    label: new LocalizedTextVo('完整分級', 'Full tiers'),
+    note: new LocalizedTextVo(
+      '分級沒有歷史：重演過去用的也是今天這一組。',
+      'Tiers have no history: replaying the past uses today\'s set too.'),
   },
   smallestTier: SMALLEST_TIER_BASIS,
 }
@@ -36,7 +42,8 @@ export class ContractBacktestFiguresDomain {
 
     return new ContractBacktestSummaryDto(
       new ContractTradingModeDomain(this.figures.tradingMode).label(),
-      `${this.figures.leverage.toString()} 倍`,
+      new LocalizedTextVo(
+        `${this.figures.leverage.toString()} 倍`, `${this.figures.leverage.toString()}x`),
       this.figures.liquidationExitCount,
       this.fundingFeeLabel(this.figures.totalFundingFee),
       this.figures.totalFundingFee.isZero()
@@ -53,19 +60,31 @@ export class ContractBacktestFiguresDomain {
     )
   }
 
-  private fundingFeeLabel(fundingFee: Decimal): string {
+  private fundingFeeLabel(fundingFee: Decimal): LocalizedTextVo {
     if (fundingFee.isZero()) {
-      return fundingFee.abs().toFixed(AMOUNT_FRACTION_DIGITS)
+      const amount = fundingFee.abs().toFixed(AMOUNT_FRACTION_DIGITS)
+
+      return new LocalizedTextVo(amount, amount)
     }
 
-    return fundingFee.isPositive()
-      ? `付出 ${fundingFee.toFixed(AMOUNT_FRACTION_DIGITS)}`
-      : `收到 ${fundingFee.abs().toFixed(AMOUNT_FRACTION_DIGITS)}`
+    if (fundingFee.isPositive()) {
+      const paid = fundingFee.toFixed(AMOUNT_FRACTION_DIGITS)
+
+      return new LocalizedTextVo(`付出 ${paid}`, `Paid ${paid}`)
+    }
+
+    const received = fundingFee.abs().toFixed(AMOUNT_FRACTION_DIGITS)
+
+    return new LocalizedTextVo(`收到 ${received}`, `Received ${received}`)
   }
 
-  private winRateLabel(winRate: number | null): string {
-    return winRate === null
-      ? WIN_RATE_NOT_APPLICABLE
-      : `${(winRate * 100).toFixed(WIN_RATE_FRACTION_DIGITS)}%`
+  private winRateLabel(winRate: number | null): LocalizedTextVo {
+    if (winRate === null) {
+      return WIN_RATE_NOT_APPLICABLE
+    }
+
+    const percentage = `${(winRate * 100).toFixed(WIN_RATE_FRACTION_DIGITS)}%`
+
+    return new LocalizedTextVo(percentage, percentage)
   }
 }

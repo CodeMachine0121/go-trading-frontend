@@ -86,7 +86,7 @@ describe('BacktestApplication', () => {
       expect(result.summary.totalReturnRate).toBe('+25.00%')
       expect(result.summary.totalReturnTone).toBe('positive')
       expect(result.closedTrades).toHaveLength(1)
-      expect(result.closedTrades[0]!.directionLabel).toBe('做多')
+      expect(result.closedTrades[0]!.directionLabel.in('zh-TW')).toBe('做多')
       expect(result.equityCurve).toHaveLength(1)
     })
 
@@ -184,6 +184,8 @@ describe('BacktestApplication', () => {
           expect(error.field).toBe('script')
           expect(error.message).toContain('一個信號')
           expect(error.message).toContain('一串數字')
+          expect(error.localizedMessage.in('en')).toContain('"A signal"')
+          expect(error.localizedMessage.in('en')).toContain('"A list of numbers"')
         })
       expect(proxy.runBacktest).not.toHaveBeenCalled()
     })

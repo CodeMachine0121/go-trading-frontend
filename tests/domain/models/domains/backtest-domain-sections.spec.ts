@@ -35,10 +35,12 @@ describe('BacktestDomain 結果畫成哪幾塊', () => {
     }).toDomain().toDto().sections
 
     expect(sections.map(section => section.kind)).toEqual(['validation', 'inSample', 'whole'])
-    expect(sections.map(section => section.title)).toEqual(['驗證段', '調參段', '整段'])
+    expect(sections.map(section => section.title?.in('zh-TW'))).toEqual(['驗證段', '調參段', '整段'])
+    expect(sections.map(section => section.title?.in('en')))
+      .toEqual(['Validation segment', 'Tuning segment', 'Whole period'])
     expect(sections[0]!.emphasized).toBe(true)
-    expect(sections[0]!.note).toBe('這一段是調參數時沒看過的行情，以它為準')
-    expect(sections[1]!.note).toBe('這一段是拿來調參數的，成績好看是應該的')
+    expect(sections[0]!.note?.in('zh-TW')).toBe('這一段是調參數時沒看過的行情，以它為準')
+    expect(sections[1]!.note?.in('zh-TW')).toBe('這一段是拿來調參數的，成績好看是應該的')
     expect(sections[0]!.startTime).toEqual(new Date('2026-01-21T00:00:00Z'))
     expect(sections[1]!.endTime).toEqual(new Date('2026-01-20T23:00:00Z'))
   })
@@ -47,9 +49,10 @@ describe('BacktestDomain 結果畫成哪幾塊', () => {
     const summary = replayOf('2026-01-01T00:00:00Z', '2026-01-31T23:00:00Z', null, 'nextOpen')
       .toDomain().toDto().summary
 
-    expect(summary.fillTimingLabel).toBe('下一格開盤成交')
-    expect(summary.tradeStatistics?.profitFactor).toBe('2.50')
-    expect(summary.tradeStatistics?.averageHoldingTime).toBe('2 小時 30 分')
+    expect(summary.fillTimingLabel?.in('zh-TW')).toBe('下一格開盤成交')
+    expect(summary.tradeStatistics?.profitFactor.in('zh-TW')).toBe('2.50')
+    expect(summary.tradeStatistics?.averageHoldingTime.in('zh-TW')).toBe('2 小時 30 分')
+    expect(summary.tradeStatistics?.averageHoldingTime.in('en')).toBe('2 h 30 min')
   })
   it('每一塊畫的是取樣過的曲線，成績單的數字仍照完整的結果', () => {
     const longCurve = Array.from({ length: 3000 }, (_, pointIndex) =>

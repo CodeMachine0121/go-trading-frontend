@@ -3,12 +3,14 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import BacktestTradeTable from '~/components/molecules/BacktestTradeTable.vue'
 import { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 function tradesOf(tradeCount: number): ClosedTradeDto[] {
   return Array.from({ length: tradeCount }, (_, tradeIndex) => new ClosedTradeDto(
-    '做多', new Date(tradeIndex * 60_000), '100', new Date(tradeIndex * 60_000 + 30_000), '101',
-    new Decimal(1).toFixed(2), 'positive', '訊號', '0.00', '0.00'))
+    new LocalizedTextVo('做多', 'Long'), new Date(tradeIndex * 60_000), '100',
+    new Date(tradeIndex * 60_000 + 30_000), '101',
+    new Decimal(1).toFixed(2), 'positive', new LocalizedTextVo('訊號', 'Signal'), '0.00', '0.00'))
 }
 
 describe('BacktestTradeTable 分批顯示', () => {

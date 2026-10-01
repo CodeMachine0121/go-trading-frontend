@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BacktestTimeRangeDomain } from '~/domain/models/domains/backtest-time-range-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 describe('BacktestTimeRangeDomain', () => {
   describe('一打開就有的那一段', () => {
@@ -61,7 +62,7 @@ describe('BacktestTimeRangeDomain', () => {
     it('起點晚於終點時說明是時間那一格', () => {
       expect(() => new BacktestTimeRangeDomain(
         new Date('2026-09-10T00:00:00Z'), new Date('2026-09-01T00:00:00Z')).validate())
-        .toThrow(new BacktestFieldError('timeRange', '起點不能晚於終點。'))
+        .toThrow(new BacktestFieldError('timeRange', new LocalizedTextVo('起點不能晚於終點。', 'The start cannot be later than the end.')))
     })
 
     it('時間沒填完整時也落在時間那一格', () => {

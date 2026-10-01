@@ -15,6 +15,8 @@ import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(() => ({
@@ -124,7 +126,7 @@ describe('短線回測條件（重演一支腳本）', () => {
   it('交易服務指名驗證起點時，那句話落在驗證起點那一格旁邊', async () => {
     const proxy = buildProxy()
     vi.mocked(proxy.runBacktest).mockRejectedValue(
-      new BacktestFieldError('validationStartTime', '驗證段湊不出任何一格'))
+      new BacktestFieldError('validationStartTime', new UntranslatedTextVo('驗證段湊不出任何一格')))
     const wrapper = mountScriptPane(proxy)
 
     await fillStretch(wrapper, '2026-01-31T23:00')
@@ -211,7 +213,7 @@ describe('短線回測條件（重演一份合約交易策略）', () => {
         savedGeneration: 0,
         marketDataKind: 'contractKCandle',
         replaysOnContractAccount: true,
-        tradingModeLabel: '只做多',
+        tradingModeLabel: new LocalizedTextVo('只做多', 'Long only'),
       },
     })
     await flushPromises()

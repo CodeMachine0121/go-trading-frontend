@@ -17,6 +17,9 @@ import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-s
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
+import { useI18n } from 'vue-i18n'
+import type { BacktestField } from '~/domain/errors/backtest-field-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：重演這一份交易策略。
 //
@@ -53,7 +56,7 @@ const {
   /** 這一份是合約交易策略：在合約帳戶上重演，多問槓桿與滑點。 */
   replaysOnContractAccount?: boolean
   /** 合約交易策略自己的交易模式，例如「只做多」。重演時不能另外挑。 */
-  tradingModeLabel?: string | null
+  tradingModeLabel?: LocalizedTextVo | null
 }>()
 
 const symbol = ref('')
@@ -62,6 +65,16 @@ const symbol = ref('')
 const aggregationInterval = ref('')
 
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+/** 這一格被指出的問題，照目前的語言說出來；沒有問題就是 `null`。 */
+function fieldMessage(field: BacktestField): string | null {
+  const message = backtestRun.messageFor(field)
+
+  return message === null ? null : localize(message)
+}
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
 
@@ -98,7 +111,9 @@ const fillTimingOptions = backtestApplication.listFillTimingOptions()
 const fillTiming = ref<string>(fillTimingOptions[0]?.value ?? 'close')
 const validationStartTime = ref('')
 const contractTradingModeNote = computed(
-  () => (tradingModeLabel === null ? null : `${tradingModeLabel}（由這份交易策略決定，要換請改交易策略）`))
+  () => (tradingModeLabel === null
+    ? null
+    : t('backtest.tradingStrategyBacktestPane.tradingModeNote', { tradingMode: localize(tradingModeLabel) })))
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -156,19 +171,19 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="info"
       data-testid="trading-strategy-backtest-unsaved"
     >
-      這一份還沒存過，所以還沒有東西可以拿去回測。先存起來，再回來這裡。
+      {{ t('backtest.tradingStrategyBacktestPane.unsaved') }}
     </AppAlert>
 
-    <AppPanel title="回測條件">
+    <AppPanel :title="t('backtest.common.conditionsTitle')">
       <template #meta>
         <AppBadge variant="info">
-          只影響這一次
+          {{ t('backtest.common.onlyThisRun') }}
         </AppBadge>
         <AppButton
           type="button"
           variant="ghost"
           size="small"
-          label="回測照什麼規則走"
+          :label="t('backtest.common.ruleGuideTitle')"
           data-testid="backtest-rule-guide-button"
           @click="ruleGuideOpen = true"
         >
@@ -193,27 +208,27 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
         v-model:fill-timing="fillTiming"
         v-model:validation-start-time="validationStartTime"
         :fill-timing-options="fillTimingOptions"
-        :fill-timing-error="backtestRun.messageFor('fillTiming')"
-        :validation-start-time-error="backtestRun.messageFor('validationStartTime')"
+        :fill-timing-error="fieldMessage('fillTiming')"
+        :validation-start-time-error="fieldMessage('validationStartTime')"
         :replays-on-contract-account="replaysOnContractAccount"
         :contract-trading-mode-note="contractTradingModeNote"
-        :leverage-error="backtestRun.messageFor('leverage')"
-        :trading-mode-error="backtestRun.messageFor('tradingMode')"
-        :slippage-error="backtestRun.messageFor('slippage')"
+        :leverage-error="fieldMessage('leverage')"
+        :trading-mode-error="fieldMessage('tradingMode')"
+        :slippage-error="fieldMessage('slippage')"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="[]"
-        :aggregation-interval-note="'由這份交易策略的訊號來源決定——這一版要求它們一致'"
+        :aggregation-interval-note="t('backtest.tradingStrategyBacktestPane.aggregationIntervalNote')"
         :position-sizing-mode-options="positionSizingModeOptions"
         :running="backtestRun.running.value"
         :disabled="tradingStrategyId === null
           || backendUnreachable || backtestRun.backendUnreachable.value"
-        :symbol-error="backtestRun.messageFor('symbol')"
-        :time-range-error="backtestRun.messageFor('timeRange')"
-        :initial-capital-error="backtestRun.messageFor('initialCapital')"
-        :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
-        :exit-levels-error="backtestRun.messageFor('exitLevels')"
-        :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
+        :symbol-error="fieldMessage('symbol')"
+        :time-range-error="fieldMessage('timeRange')"
+        :initial-capital-error="fieldMessage('initialCapital')"
+        :position-sizing-value-error="fieldMessage('positionSizingValue')"
+        :exit-levels-error="fieldMessage('exitLevels')"
+        :transaction-costs-error="fieldMessage('transactionCosts')"
       />
     </AppPanel>
 
@@ -226,7 +241,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="danger"
       data-testid="backtest-parameter-not-declared-alert"
     >
-      參數的問題（要改的是那個訊號來源填的值，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
+      {{ t('backtest.tradingStrategyBacktestPane.parameterNotDeclared', { message: localize(backtestRun.parameterNotDeclaredMessage.value) }) }}
     </AppAlert>
 
     <AppAlert
@@ -234,7 +249,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="danger"
       data-testid="backtest-script-failed-alert"
     >
-      算式的問題（要改的是那個訊號來源指名的策略腳本）：{{ backtestRun.scriptFailedMessage.value }}
+      {{ t('backtest.tradingStrategyBacktestPane.scriptFailed', { message: localize(backtestRun.scriptFailedMessage.value) }) }}
     </AppAlert>
 
     <AppAlert
@@ -242,7 +257,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="warning"
       data-testid="backtest-request-rejected-alert"
     >
-      請求的問題：{{ backtestRun.requestRejectedMessage.value }}
+      {{ t('backtest.common.requestRejected', { message: localize(backtestRun.requestRejectedMessage.value) }) }}
     </AppAlert>
 
     <!--
@@ -254,7 +269,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="warning"
       data-testid="backtest-time-allowance-spent-alert"
     >
-      這一次重演沒在允許時間內跑完，所以沒有成績單。請縮短期間，或改用粗一點的彙總刻度再試：{{ backtestRun.timeAllowanceSpentMessage.value }}
+      {{ t('backtest.common.timeAllowanceSpent', { message: localize(backtestRun.timeAllowanceSpentMessage.value) }) }}
     </AppAlert>
 
     <AppAlert
@@ -262,7 +277,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="danger"
       data-testid="backtest-server-error-alert"
     >
-      後端出錯了（不是你的請求有問題），請稍後重試：{{ backtestRun.serverErrorMessage.value }}
+      {{ t('backtest.common.serverError', { message: localize(backtestRun.serverErrorMessage.value) }) }}
       <template #action>
         <AppButton
           variant="secondary"
@@ -270,7 +285,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
           :disabled="backtestRun.running.value"
           @click="runBacktest"
         >
-          重試
+          {{ t('backtest.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -280,7 +295,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="danger"
       data-testid="backtest-unreachable-alert"
     >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      {{ t('backtest.common.unreachable') }}
     </AppAlert>
 
     <AppAlert
@@ -288,7 +303,7 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       tone="info"
       data-testid="backtest-running-alert"
     >
-      回測中…每一根 K 線上每個訊號來源都要各跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。
+      {{ t('backtest.tradingStrategyBacktestPane.runningNotice') }}
     </AppAlert>
 
     <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->

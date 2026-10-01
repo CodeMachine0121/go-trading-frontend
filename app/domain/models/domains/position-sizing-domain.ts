@@ -2,17 +2,24 @@ import Decimal from 'decimal.js'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 百分比的上限：押下全部可用資金，也就是與全押等價的那一點。 */
 const ONE_HUNDRED_PERCENT = new Decimal(100)
 
 /** 每一種模式怎麼稱呼、要不要填數字、那一格叫什麼。 */
 const POSITION_SIZING_DESCRIPTIONS: Readonly<
-  Record<PositionSizingMode, { label: string, valueLabel: string }>
+  Record<PositionSizingMode, { label: LocalizedTextVo, valueLabel: LocalizedTextVo | null }>
 > = {
-  allIn: { label: '全押', valueLabel: '' },
-  percentage: { label: '可用資金的百分比', valueLabel: '百分比' },
-  fixedAmount: { label: '固定金額', valueLabel: '金額' },
+  allIn: { label: new LocalizedTextVo('全押', 'All in'), valueLabel: null },
+  percentage: {
+    label: new LocalizedTextVo('可用資金的百分比', 'Percentage of available capital'),
+    valueLabel: new LocalizedTextVo('百分比', 'Percentage'),
+  },
+  fixedAmount: {
+    label: new LocalizedTextVo('固定金額', 'Fixed amount'),
+    valueLabel: new LocalizedTextVo('金額', 'Amount'),
+  },
 }
 
 /**
@@ -53,17 +60,18 @@ export class PositionSizingDomain {
     }
 
     if (this.value.isNaN()) {
-      throw new BacktestFieldError('positionSizingValue', '請填一個數字。')
+      throw new BacktestFieldError('positionSizingValue', new LocalizedTextVo('請填一個數字。', 'Enter a number.'))
     }
 
     if (this.mode === 'percentage'
       && (this.value.lessThanOrEqualTo(0) || this.value.greaterThan(ONE_HUNDRED_PERCENT))) {
       throw new BacktestFieldError(
-        'positionSizingValue', '百分比要大於零且不超過一百。')
+        'positionSizingValue',
+        new LocalizedTextVo('百分比要大於零且不超過一百。', 'The percentage must be greater than zero and no more than one hundred.'))
     }
 
     if (this.mode === 'fixedAmount' && this.value.lessThanOrEqualTo(0)) {
-      throw new BacktestFieldError('positionSizingValue', '固定金額要大於零。')
+      throw new BacktestFieldError('positionSizingValue', new LocalizedTextVo('固定金額要大於零。', 'The fixed amount must be greater than zero.'))
     }
   }
 }

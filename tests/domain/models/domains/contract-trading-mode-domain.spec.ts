@@ -12,13 +12,26 @@ describe('ContractTradingModeDomain', () => {
     const tradingMode = new ContractTradingModeDomain(declared)
 
     expect(tradingMode.value).toBe(value)
-    expect(tradingMode.label()).toBe(label)
+    expect(tradingMode.label().in('zh-TW')).toBe(label)
   })
 
   it('每一個選項都說得出它買入與賣出各是什麼意思', () => {
     const option = new ContractTradingModeDomain('shortOnly').toOptionDto()
 
-    expect(option.description).toContain('賣出：空手開空')
-    expect(option.description).toContain('買入：持空倉就平掉')
+    expect(option.description.in('zh-TW')).toContain('賣出：空手開空')
+    expect(option.description.in('zh-TW')).toContain('買入：持空倉就平掉')
+  })
+})
+
+describe('ContractTradingModeDomain 的英文說法', () => {
+  it.each([
+    ['longShort', 'Long & short', 'reverse into a short'],
+    ['longOnly', 'Long only', 'close the long'],
+    ['shortOnly', 'Short only', 'close the short'],
+  ])('%s 叫 %s，說明講得出賣出或買入的意思', (declared, expectedLabel, expectedPhrase) => {
+    const option = new ContractTradingModeDomain(declared).toOptionDto()
+
+    expect(option.label.in('en')).toBe(expectedLabel)
+    expect(option.description.in('en')).toContain(expectedPhrase)
   })
 })

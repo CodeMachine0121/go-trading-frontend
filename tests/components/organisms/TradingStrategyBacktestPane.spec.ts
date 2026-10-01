@@ -11,6 +11,7 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 const chartLibrary = vi.hoisted(() => {
@@ -198,7 +199,7 @@ describe('TradingStrategyBacktestPane', () => {
     it('來源刻度對不起來時，說明落在市場那一格旁邊', async () => {
       const wrapper = mountPane(buildProxy({
         runTradingStrategyBacktest: vi.fn().mockRejectedValue(
-          new BacktestFieldError('symbol', '這一份的信號來源用了不只一種彙總刻度')),
+          new BacktestFieldError('symbol', new UntranslatedTextVo('這一份的信號來源用了不只一種彙總刻度'))),
       }))
 
       await fillSymbolAndRun(wrapper)

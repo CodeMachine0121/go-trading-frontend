@@ -1,4 +1,5 @@
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：「每次開倉押多少」下拉選單上可以挑的一個。
@@ -9,9 +10,9 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 export class PositionSizingModeOptionDto {
   constructor(
     public readonly value: PositionSizingMode,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     public readonly requiresValue: boolean,
-    /** 旁邊那一格的標籤；不需要那一格時是空字串。 */
-    public readonly valueLabel: string,
+    /** 旁邊那一格的標籤；不需要那一格時是 `null`。 */
+    public readonly valueLabel: LocalizedTextVo | null,
   ) {}
 }

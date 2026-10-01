@@ -18,6 +18,7 @@ import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-sc
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const chartLibrary = vi.hoisted(() => ({
   createChart: vi.fn(() => ({
@@ -139,7 +140,7 @@ describe('StrategyScriptBacktestPane 在合約帳戶上重演', () => {
   it('交易服務指名槓桿時，那句話落在槓桿那一格旁邊', async () => {
     const proxy = buildProxy({
       runContractBacktest: vi.fn().mockRejectedValue(
-        new BacktestFieldError('leverage', '這個合約標的最高只能開 125 倍槓桿')),
+        new BacktestFieldError('leverage', new UntranslatedTextVo('這個合約標的最高只能開 125 倍槓桿'))),
     })
     const wrapper = mountPane(proxy, true)
 

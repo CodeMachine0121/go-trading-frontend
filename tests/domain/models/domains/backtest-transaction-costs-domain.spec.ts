@@ -63,3 +63,15 @@ describe('BacktestTransactionCostsDomain', () => {
       }))
   })
 })
+
+describe('BacktestTransactionCostsDomain 的英文說法', () => {
+  it.each([
+    ['-1', '0', 'Entry cost rate cannot be negative'],
+    ['0', '101', 'Exit cost rate cannot exceed 100%'],
+  ])('進場 %s、出場 %s 的拒絕說出是哪一個費率', (entryCost, exitCost, expectedWords) => {
+    expect(() => transactionCosts(entryCost, exitCost).validate())
+      .toThrow(expect.objectContaining({
+        localizedMessage: expect.objectContaining({ english: expect.stringContaining(expectedWords) }),
+      }))
+  })
+})
