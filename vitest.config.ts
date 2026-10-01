@@ -13,6 +13,7 @@ export default defineVitestConfig({
     // organism，元件測試因此不必啟動 Nuxt（見 .claude/rules/testing.md）。
     environment: 'happy-dom',
     include: ['tests/**/*.spec.ts'],
+    setupFiles: ['tests/setup/i18n.ts'],
     globals: true,
     coverage: {
       provider: 'v8',
