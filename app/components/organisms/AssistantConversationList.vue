@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：對話清單。只有整頁有它——420 像素的抽屜硬塞兩欄的結果是兩邊都難用。
 //
@@ -15,7 +17,7 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 const { conversations, activeConversationId, errorMessage, timeZone, showStartNew = true } = defineProps<{
   conversations: readonly ConversationSummaryDto[]
   activeConversationId: number | null
-  errorMessage: string | null
+  errorMessage: LocalizedTextVo | null
   timeZone: TimeZoneDto
   /**
    * 這份清單自己要不要帶「開新的」。
@@ -31,19 +33,22 @@ const emit = defineEmits<{
   startNew: []
   reload: []
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <div class="assistant-conversation-list">
     <div class="assistant-conversation-list__head">
-      <span class="assistant-conversation-list__title">對話</span>
+      <span class="assistant-conversation-list__title">{{ t('assistant.conversationList.title') }}</span>
 
       <AppButton
         v-if="showStartNew"
         variant="ghost"
         size="small"
         shape="pill"
-        label="開新對話"
+        :label="t('assistant.common.startNewConversation')"
         data-testid="assistant-list-start-new"
         @click="emit('startNew')"
       >
@@ -51,7 +56,7 @@ const emit = defineEmits<{
           name="new"
           size="small"
         />
-        開新的
+        {{ t('assistant.conversationList.startNew') }}
       </AppButton>
     </div>
 
@@ -62,7 +67,7 @@ const emit = defineEmits<{
       data-testid="assistant-list-error"
     >
       <p class="assistant-conversation-list__error-message">
-        {{ errorMessage }}
+        {{ localize(errorMessage) }}
       </p>
 
       <AppButton
@@ -76,7 +81,7 @@ const emit = defineEmits<{
           name="refresh"
           size="small"
         />
-        重新讀取
+        {{ t('assistant.conversationList.reload') }}
       </AppButton>
     </AppAlert>
 
@@ -85,7 +90,7 @@ const emit = defineEmits<{
       class="assistant-conversation-list__empty"
       data-testid="assistant-list-empty"
     >
-      還沒有任何對話。在右邊問一句就開始了。
+      {{ t('assistant.conversationList.empty') }}
     </p>
 
     <ul
@@ -110,7 +115,7 @@ const emit = defineEmits<{
             {{ timeZone.formatDateTime(conversation.lastActiveAt) }}
           </span>
           <span class="assistant-conversation-list__item-count">
-            {{ conversation.messageCountLabel }}
+            {{ localize(conversation.messageCountLabel) }}
           </span>
         </button>
       </li>

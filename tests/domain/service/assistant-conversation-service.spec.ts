@@ -80,7 +80,7 @@ describe('AssistantConversationService.listConversations', () => {
     const summaryDtos = await new AssistantConversationService(proxy).listConversations()
 
     expect(summaryDtos.map(summary => summary.id)).toEqual([2, 1])
-    expect(summaryDtos[0]?.messageCountLabel).toBe('4 則訊息')
+    expect(summaryDtos[0]?.messageCountLabel.in('zh-TW')).toBe('4 則訊息')
   })
 
   it('一段都沒有是空清單，不是錯誤', async () => {

@@ -1,11 +1,19 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import AssistantPendingRevisionCard from '~/components/molecules/AssistantPendingRevisionCard.vue'
 import { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-function revisionDtoOf(canResolve: boolean, statusLabel = canResolve ? '等你確認' : '已確認') {
+function revisionDtoOf(canResolve: boolean) {
+  const statusLabel = canResolve
+    ? new LocalizedTextVo('等你確認', 'Awaiting your confirmation')
+    : new LocalizedTextVo('已確認', 'Confirmed')
+
   return new AssistantPendingRevisionDto(
-    70, '策略腳本「二十根均線」', '{\n  "name": "六十根均線"\n}', statusLabel, canResolve,
+    70, new LocalizedTextVo('策略腳本「二十根均線」', 'Strategy script "二十根均線"'),
+    '{\n  "name": "六十根均線"\n}', statusLabel, canResolve,
     canResolve ? 'warning' : 'neutral', new Date('2026-09-26T08:00:00Z'))
 }
 
@@ -49,7 +57,7 @@ describe('AssistantPendingRevisionCard', () => {
 
   it('被擋下時就地說出後端那一句，沒有時什麼都不多', () => {
     const blocked = mount(AssistantPendingRevisionCard, {
-      props: { revision: revisionDtoOf(true), errorMessage: '這幾台機器人正在用它跑：早盤突破，請先停止它們' },
+      props: { revision: revisionDtoOf(true), errorMessage: new UntranslatedTextVo('這幾台機器人正在用它跑：早盤突破，請先停止它們') },
     })
     const clear = mount(AssistantPendingRevisionCard, { props: { revision: revisionDtoOf(true) } })
 
@@ -77,5 +85,21 @@ describe('AssistantPendingRevisionCard', () => {
 
     expect(document.activeElement).toBe(wrapper.get('[data-testid="assistant-pending-revision"]').element)
     wrapper.unmount()
+  })
+
+  it('英文畫面上種類、狀態與兩顆鍵說英文，改成的內容與後端那一句照原樣', async () => {
+    const wrapper = mount(AssistantPendingRevisionCard, {
+      props: { revision: revisionDtoOf(true), errorMessage: new UntranslatedTextVo('這筆修改已經處理過了') },
+    })
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="assistant-pending-revision-title"]').text()).toBe('Strategy script "二十根均線"')
+    expect(wrapper.get('[data-testid="assistant-pending-revision-status"]').text()).toBe('Awaiting your confirmation')
+    expect(wrapper.get('[data-testid="assistant-pending-revision-confirm"]').text()).toBe('Confirm')
+    expect(wrapper.get('[data-testid="assistant-pending-revision-reject"]').text()).toBe('Reject')
+    expect(wrapper.get('summary').text()).toBe('Proposed content')
+    expect(wrapper.get('[data-testid="assistant-pending-revision-content"]').text()).toContain('"name": "六十根均線"')
+    expect(wrapper.get('[data-testid="assistant-pending-revision-error"]').text()).toBe('這筆修改已經處理過了')
   })
 })

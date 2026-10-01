@@ -8,6 +8,7 @@ import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { buildConversation, buildMessage, buildNote } from '../fixtures/assistant-conversation'
 
 const MOMENT = new Date('2026-09-04T10:00:00.000Z')
@@ -116,7 +117,7 @@ describe('useAssistantConversation 問一句', () => {
 
     await ask('問一句')
 
-    expect(messages.value[1]?.note?.label).toBe('查了 2 次 · 份量 3184')
+    expect(messages.value[1]?.note?.label.in('zh-TW')).toBe('查了 2 次 · 份量 3184')
   })
 
   it('第一句問完就記住這一段是哪一段', async () => {
@@ -425,7 +426,7 @@ describe('useAssistantConversation 那一則壞掉時', () => {
 
     await ask('問一句')
 
-    expect(rejectionMessage.value).toBe('系統重新啟動時中斷了這則回答，請再問一次')
+    expect(rejectionMessage.value?.in('zh-TW')).toBe('系統重新啟動時中斷了這則回答，請再問一次')
   })
 
   it('提問留在對話串上——那句原因就長在它下面', async () => {
@@ -481,7 +482,7 @@ describe('useAssistantConversation 送不出去時', () => {
 
     await ask('問一句')
 
-    expect(rejectionMessage.value).toContain(expectedMessage)
+    expect(rejectionMessage.value?.in('zh-TW')).toContain(expectedMessage)
   })
 
   it('連錯誤都不是的東西也說得出一句話', async () => {
@@ -491,7 +492,7 @@ describe('useAssistantConversation 送不出去時', () => {
 
     await ask('問一句')
 
-    expect(rejectionMessage.value).toContain('未預期的錯誤')
+    expect(rejectionMessage.value?.in('zh-TW')).toContain('未預期的錯誤')
   })
 
   it('那一句回到輸入框，可以改一改再送', async () => {
@@ -620,7 +621,7 @@ describe('useAssistantConversation 換對話', () => {
 
     expect(conversationId.value).toBeNull()
     expect(messages.value).toEqual([])
-    expect(rejectionMessage.value).toContain('找不到這段對話')
+    expect(rejectionMessage.value?.in('zh-TW')).toContain('找不到這段對話')
   })
 
   it('開新對話把畫面清回起點，也忘掉記著的那一段', async () => {
@@ -659,19 +660,20 @@ describe('useAssistantConversation 對話清單', () => {
     await loadConversations()
 
     expect(conversations.value).toEqual([])
-    expect(conversationsErrorMessage.value).toContain('連不上後端')
+    expect(conversationsErrorMessage.value?.in('zh-TW')).toContain('連不上後端')
   })
 })
 
 /** 最後一則回答帶著一筆、狀態如其所述的待確認修改。 */
-function conversationWithRevision(statusLabel: string) {
+function conversationWithRevision(statusLabel: LocalizedTextVo) {
+  const awaitingConfirmation = statusLabel.traditionalChinese === '等你確認'
   const answer = buildMessage('answer', '已提出。')
 
   return buildConversation(7, [
     buildMessage('ask', '改一下'),
     new ConversationMessageDto(answer.role, answer.content, answer.blocks, answer.createdAt, answer.status,
       answer.note, answer.failureReason,
-      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', statusLabel, statusLabel === '等你確認', statusLabel === '等你確認' ? 'warning' : 'neutral', MOMENT)]),
+      [new AssistantPendingRevisionDto(70, new LocalizedTextVo('策略腳本「二十根均線」', 'Strategy script "二十根均線"'), '{}', statusLabel, awaitingConfirmation, awaitingConfirmation ? 'warning' : 'neutral', MOMENT)]),
   ])
 }
 
@@ -683,7 +685,9 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
     const conversation = conversationUnderTest()
     await conversation.selectConversation(7)
     applicationMock.getConversation.mockClear()
-    applicationMock.getConversation.mockResolvedValue(conversationWithRevision(resolution === 'confirm' ? '已確認' : '已拒絕'))
+    applicationMock.getConversation.mockResolvedValue(conversationWithRevision(resolution === 'confirm'
+      ? new LocalizedTextVo('已確認', 'Confirmed')
+      : new LocalizedTextVo('已拒絕', 'Rejected')))
 
     await (resolution === 'confirm'
       ? conversation.confirmPendingRevision(70)
@@ -695,7 +699,7 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
     expect(called).toHaveBeenCalledWith(70)
     expect(applicationMock.getConversation).toHaveBeenCalledWith(7)
     expect(conversation.resolvingPendingRevisionId.value).toBeNull()
-    expect(conversation.messages.value.at(-1)?.pendingRevisions[0]?.statusLabel)
+    expect(conversation.messages.value.at(-1)?.pendingRevisions[0]?.statusLabel.in('zh-TW'))
       .toBe(resolution === 'confirm' ? '已確認' : '已拒絕')
   })
 
@@ -735,7 +739,7 @@ describe('useAssistantConversation 確認與拒絕一筆待確認修改', () => 
 
     await conversation.confirmPendingRevision(70)
 
-    expect(conversation.pendingRevisionErrors.value[70]).toBe(expectedMessage)
+    expect(conversation.pendingRevisionErrors.value[70]?.in('zh-TW')).toBe(expectedMessage)
     expect(conversation.resolvingPendingRevisionId.value).toBeNull()
 
     await conversation.confirmPendingRevision(70)
@@ -753,7 +757,7 @@ describe('useAssistantConversation 一筆被擋下時留下的那一句', () => 
     applicationMock.confirmPendingRevision.mockRejectedValueOnce(new Error('這筆修改已經處理過了'))
     const conversation = conversationUnderTest()
     await conversation.confirmPendingRevision(70)
-    expect(conversation.pendingRevisionErrors.value[70]).toBe('這筆修改已經處理過了')
+    expect(conversation.pendingRevisionErrors.value[70]?.in('zh-TW')).toBe('這筆修改已經處理過了')
 
     await act(conversation)
 
@@ -772,6 +776,39 @@ describe('useAssistantConversation 一筆被擋下時留下的那一句', () => 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
 
     expect(applicationMock.refreshConversation).toHaveBeenCalled()
-    expect(conversation.pendingRevisionErrors.value[70]).toBe('這筆修改已經處理過了')
+    expect(conversation.pendingRevisionErrors.value[70]?.in('zh-TW')).toBe('這筆修改已經處理過了')
+  })
+})
+
+describe('useAssistantConversation 的英文說法', () => {
+  it('建議提問是操作台寫的話，有英文那一句', () => {
+    const { suggestedPrompts } = conversationUnderTest()
+
+    expect(suggestedPrompts.map(prompt => prompt.in('en'))).toEqual([
+      'Which trading symbols does the system know?',
+      'How has BTCUSDT moved hour by hour over the last day?',
+      'Which strategy scripts have I saved?',
+      'Use a 20-candle moving average to see where BTCUSDT stands now',
+    ])
+  })
+
+  it.each([
+    {
+      name: '那一段不在了是操作台說的，換成英文',
+      arrange: () => applicationMock.getConversation.mockRejectedValue(new ConversationNotFoundError('找不到')),
+      expectedMessage: 'This conversation could not be found; it may no longer exist. A new one has been started for you.',
+    },
+    {
+      name: '那一則壞掉的原因是後端說的，原樣不翻',
+      arrange: () => applicationMock.getConversation.mockResolvedValue(failedConversation(7, '系統重新啟動時中斷了這則回答')),
+      expectedMessage: '系統重新啟動時中斷了這則回答',
+    },
+  ])('$name', async ({ arrange, expectedMessage }) => {
+    arrange()
+    const { rejectionMessage, selectConversation } = conversationUnderTest()
+
+    await selectConversation(7)
+
+    expect(rejectionMessage.value?.in('en')).toBe(expectedMessage)
   })
 })

@@ -2,6 +2,7 @@
 // 訊息底下那顆複製鍵問的是組裝根注入的剪貼簿，所以這一份要跑在 Nuxt runtime 裡。
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import AssistantMessage from '~/components/molecules/AssistantMessage.vue'
 import { buildMessage, buildNote } from '../../fixtures/assistant-conversation'
 import { buildTimeZone } from '../../fixtures/time-zone'
@@ -128,5 +129,23 @@ describe('AssistantMessage', () => {
     })
 
     expect(wrapper.find('[data-testid="copy-text-button"]').exists()).toBe(false)
+  })
+})
+
+describe('AssistantMessage 的英文畫面', () => {
+  it('回答的內容照收到的原樣，只有它下面那一行說明換成英文', async () => {
+    // 回答是助手寫的，不翻；查了幾次、提早收尾那幾句是操作台寫的，跟著語言換。
+    const wrapper = mount(AssistantMessage, {
+      props: {
+        message: buildMessage('answer', 'BTCUSDT 目前在盤整。', buildNote(3, 3184, true)),
+        timeZone: buildTimeZone(),
+      },
+    })
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="assistant-answer-blocks"]').text()).toBe('BTCUSDT 目前在盤整。')
+    expect(wrapper.get('[data-testid="assistant-message-note"]').text()).toBe('3 lookups · Usage 3184')
+    expect(wrapper.get('[data-testid="assistant-message-limit"]').text()).toContain('lookup limit was reached')
   })
 })

@@ -61,7 +61,7 @@ describe('AssistantConversationApplication', () => {
     const summaryDtos = await application.listConversations()
 
     expect(summaryDtos).toHaveLength(1)
-    expect(summaryDtos[0]?.messageCountLabel).toBe('2 則訊息')
+    expect(summaryDtos[0]?.messageCountLabel.in('zh-TW')).toBe('2 則訊息')
   })
 
   it('讀一段對話拿回它的每一則,回答那一則帶著附註', async () => {
@@ -71,7 +71,7 @@ describe('AssistantConversationApplication', () => {
 
     expect(conversationDto.messages).toHaveLength(2)
     expect(conversationDto.messages[0]?.note).toBeNull()
-    expect(conversationDto.messages[1]?.note?.label).toBe('查了 2 次 · 份量 3184')
+    expect(conversationDto.messages[1]?.note?.label.in('zh-TW')).toBe('查了 2 次 · 份量 3184')
   })
 })
 
@@ -110,8 +110,8 @@ describe('AssistantConversationApplication 確認與拒絕一筆待確認修改'
 
     expect(resolution === 'confirm' ? proxy.confirmPendingRevision : proxy.rejectPendingRevision)
       .toHaveBeenCalledWith(70)
-    expect(revisionDto.title).toBe('交易策略「動能追蹤」')
-    expect(revisionDto.statusLabel).toBe(statusLabel)
+    expect(revisionDto.title.in('zh-TW')).toBe('交易策略「動能追蹤」')
+    expect(revisionDto.statusLabel.in('zh-TW')).toBe(statusLabel)
     expect(revisionDto.canResolve).toBe(false)
   })
 })

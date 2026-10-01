@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantComposer from '~/components/molecules/AssistantComposer.vue'
@@ -7,6 +8,7 @@ import AssistantConversationThread from '~/components/organisms/AssistantConvers
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：任何畫面都叫得出來的助手抽屜。
 //
@@ -25,14 +27,14 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
   open: boolean
   messages: readonly ConversationMessageDto[]
   pending: boolean
-  rejectionMessage: string | null
-  suggestedPrompts: readonly string[]
+  rejectionMessage: LocalizedTextVo | null
+  suggestedPrompts: readonly LocalizedTextVo[]
   timeZone: TimeZoneDto
   resolvingPendingRevisionId?: number | null
-  pendingRevisionErrors?: Readonly<Record<number, string>>
+  pendingRevisionErrors?: Readonly<Record<number, LocalizedTextVo>>
   conversations: readonly ConversationSummaryDto[]
   activeConversationId: number | null
-  conversationsErrorMessage: string | null
+  conversationsErrorMessage: LocalizedTextVo | null
   /**
    * 抽屜多寬（像素）。
    *
@@ -51,6 +53,8 @@ const { open, messages, pending, rejectionMessage, suggestedPrompts, timeZone } 
    */
   coversScreen: boolean
 }>()
+
+const { t } = useI18n()
 
 const draft = defineModel<string>('draft', { required: true })
 
@@ -130,7 +134,7 @@ watch(() => open, (isOpen) => {
         class="assistant-drawer__resize-handle"
         role="separator"
         aria-orientation="vertical"
-        aria-label="調整助手寬度"
+        :aria-label="t('assistant.drawer.resizeWidth')"
         data-testid="assistant-drawer-resize-handle"
         @pointerdown="onResizePointerDown"
       />
@@ -149,7 +153,7 @@ watch(() => open, (isOpen) => {
           <AppButton
             variant="ghost"
             size="small"
-            :label="historyOpen ? '收起歷史對話' : '歷史對話'"
+            :label="historyOpen ? t('assistant.common.collapseHistory') : t('assistant.drawer.history')"
             :aria-pressed="historyOpen"
             data-testid="assistant-drawer-history-toggle"
             @click="toggleHistory()"
@@ -163,7 +167,7 @@ watch(() => open, (isOpen) => {
           <AppButton
             variant="ghost"
             size="small"
-            label="開新對話"
+            :label="t('assistant.common.startNewConversation')"
             data-testid="assistant-drawer-start-new"
             @click="startNewConversation()"
           >
@@ -178,7 +182,7 @@ watch(() => open, (isOpen) => {
             to="/chat"
             variant="ghost"
             size="small"
-            label="展開成整頁"
+            :label="t('assistant.drawer.expandToFullPage')"
             data-testid="assistant-drawer-expand"
           >
             <AppIcon
@@ -190,7 +194,7 @@ watch(() => open, (isOpen) => {
           <AppButton
             variant="ghost"
             size="small"
-            label="收起助手"
+            :label="t('assistant.drawer.close')"
             data-testid="assistant-drawer-close"
             @click="emit('closeDrawer')"
           >

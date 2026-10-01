@@ -36,7 +36,7 @@ describe('ConversationDomain.toDto', () => {
     ]).toDomain().toDto()
 
     expect(conversationDto.messages[0]?.note).toBeNull()
-    expect(conversationDto.messages[1]?.note?.label).toBe('查了 2 次 · 份量 3184')
+    expect(conversationDto.messages[1]?.note?.label.in('zh-TW')).toBe('查了 2 次 · 份量 3184')
   })
 
   it('提早收尾的那一則說得出它是半個答案', () => {
@@ -44,7 +44,7 @@ describe('ConversationDomain.toDto', () => {
       new ConversationMessage('answer', '只查到這些', LAST_ACTIVE_AT, 'answered', '', 40, true, 12000),
     ]).toDomain().toDto()
 
-    expect(conversationDto.messages[0]?.note?.stoppedAtQueryLimitLabel)
+    expect(conversationDto.messages[0]?.note?.stoppedAtQueryLimitLabel?.in('zh-TW'))
       .toBe('已達查詢次數上限，這是助手就目前所得給出的回答')
   })
 
@@ -114,7 +114,7 @@ describe('ConversationSummaryDomain.toDto', () => {
 
     expect(summaryDto.id).toBe(7)
     expect(summaryDto.lastActiveAt).toBe(LAST_ACTIVE_AT)
-    expect(summaryDto.messageCountLabel).toBe('6 則訊息')
+    expect(summaryDto.messageCountLabel.in('zh-TW')).toBe('6 則訊息')
   })
 })
 
@@ -129,7 +129,7 @@ describe('ConversationDomain.toDto 帶著每一則的待確認修改', () => {
     ]).toDomain().toDto()
 
     expect(conversationDto.messages[0]!.pendingRevisions).toEqual([])
-    expect(conversationDto.messages[1]!.pendingRevisions.map(revisionDto => revisionDto.title))
+    expect(conversationDto.messages[1]!.pendingRevisions.map(revisionDto => revisionDto.title.in('zh-TW')))
       .toEqual(['策略腳本「二十根均線」'])
   })
 })

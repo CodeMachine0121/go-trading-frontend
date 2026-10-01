@@ -5,6 +5,8 @@ import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 空的對話上那幾句建議提問。
@@ -14,11 +16,11 @@ import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-a
  *
  * 寫在這裡而不是元件裡，因為抽屜與整頁都要給同一組——寫兩份就會有一天只改了一邊。
  */
-const SUGGESTED_PROMPTS: readonly string[] = [
-  '系統認得哪些交易標的？',
-  'BTCUSDT 最近一天每小時的走勢如何？',
-  '我有哪些已存的策略腳本？',
-  '用一條二十根的均線看看 BTCUSDT 現在的位置',
+const SUGGESTED_PROMPTS: readonly LocalizedTextVo[] = [
+  new LocalizedTextVo('系統認得哪些交易標的？', 'Which trading symbols does the system know?'),
+  new LocalizedTextVo('BTCUSDT 最近一天每小時的走勢如何？', 'How has BTCUSDT moved hour by hour over the last day?'),
+  new LocalizedTextVo('我有哪些已存的策略腳本？', 'Which strategy scripts have I saved?'),
+  new LocalizedTextVo('用一條二十根的均線看看 BTCUSDT 現在的位置', 'Use a 20-candle moving average to see where BTCUSDT stands now'),
 ]
 
 /**
@@ -62,7 +64,7 @@ export function useAssistantConversation(
   const messages = useState<ConversationMessageDto[]>('assistant-messages', () => [])
   const draft = useState('assistant-draft', () => '')
   const conversations = useState<ConversationSummaryDto[]>('assistant-conversations', () => [])
-  const conversationsErrorMessage = useState<string | null>('assistant-conversations-error', () => null)
+  const conversationsErrorMessage = useState<LocalizedTextVo | null>('assistant-conversations-error', () => null)
 
   /**
    * 送不出去那一類的說法：今日額度用盡、連不上後端、前一則還在寫。
@@ -70,7 +72,7 @@ export function useAssistantConversation(
    * **送出去了但沒寫完是另一回事**——那一則自己會帶著後端給的原因回來，
    * 見下面的 `rejectionMessage`。
    */
-  const sendRejectionMessage = useState<string | null>('assistant-send-rejection', () => null)
+  const sendRejectionMessage = useState<LocalizedTextVo | null>('assistant-send-rejection', () => null)
 
   /** 上一次送出的那一句。再試一次重送它，因此使用者不必重打。 */
   const lastQuestion = useState('assistant-last-question', () => '')
@@ -88,7 +90,7 @@ export function useAssistantConversation(
   const resolvingPendingRevisionId = useState<number | null>('assistant-resolving-pending-revision', () => null)
 
   /** 每一筆被擋下時後端說的那一句，只留在那一筆底下。 */
-  const pendingRevisionErrors = useState<Record<number, string>>('assistant-pending-revision-errors', () => ({}))
+  const pendingRevisionErrors = useState<Record<number, LocalizedTextVo>>('assistant-pending-revision-errors', () => ({}))
 
   function takeReadTicket(): number {
     latestReadTicket.value += 1
@@ -202,7 +204,10 @@ export function useAssistantConversation(
     catch (error: unknown) {
       if (error instanceof ConversationNotFoundError) {
         startNewConversation()
-        sendRejectionMessage.value = '找不到這段對話，可能已經不在了。已經替你開一段新的。'
+        sendRejectionMessage.value = new LocalizedTextVo(
+          '找不到這段對話，可能已經不在了。已經替你開一段新的。',
+          'This conversation could not be found; it may no longer exist. A new one has been started for you.',
+        )
         return
       }
 
@@ -418,11 +423,11 @@ export function useAssistantConversation(
     () => messages.value[messages.value.length - 1])
 
   /** 最後一則是壞掉的那一種時，後端給的那句原因；否則是 `null`。 */
-  const failedAnswerReason = computed<string | null>(() => {
+  const failedAnswerReason = computed<LocalizedTextVo | null>(() => {
     const message = lastMessage.value
 
     return message?.status === 'failed' && message.failureReason !== ''
-      ? message.failureReason
+      ? new UntranslatedTextVo(message.failureReason)
       : null
   })
 
@@ -502,20 +507,27 @@ export function useAssistantConversation(
    * 或這是個意外。這句話寫在這裡而不是元件上——抽屜與整頁都要說同一句，
    * 寫兩次就會有兩種說法。後端已經說明原因的那幾種一律如實轉達。
    */
-  function readableMessageOf(error: unknown): string {
+  function readableMessageOf(error: unknown): LocalizedTextVo {
     if (error instanceof DailyUsageAllowanceExhaustedError) {
-      return error.message
+      return error.localizedMessage
     }
 
     if (error instanceof AssistantAnswerInProgressError) {
-      return error.message
+      return error.localizedMessage
     }
 
     if (error instanceof BackendUnreachableError) {
-      return '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
+      return error.explanation
     }
 
-    return error instanceof Error ? error.message : '與助手對話時發生未預期的錯誤。'
+    // 後端如實轉達的那幾種（被拒絕、伺服器錯誤、已登出）各自帶著自己的說法。
+    if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+      return error.localizedMessage
+    }
+
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : new LocalizedTextVo('與助手對話時發生未預期的錯誤。', 'Something unexpected went wrong while talking to the assistant.')
   }
 
   return {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
 import AssistantAnswerLine from '~/components/molecules/AssistantAnswerLine.vue'
 import CopyTextButton from '~/components/molecules/CopyTextButton.vue'
@@ -21,6 +22,8 @@ import type { AnswerBlockVo } from '~/domain/models/vo/answer-block-vo'
 const { blocks } = defineProps<{
   blocks: readonly AnswerBlockVo[]
 }>()
+
+const { t } = useI18n()
 
 /** 照原樣的那一塊要顯示的原文。它刻意不拆行內片段——原樣的重點就是原樣。 */
 function rawTextOf(block: AnswerBlockVo): string {
@@ -94,7 +97,7 @@ function rawTextOf(block: AnswerBlockVo): string {
 
           <CopyTextButton
             :text="rawTextOf(block)"
-            label="複製這段程式碼"
+            :label="t('assistant.answerBlocks.copyCode')"
             class="assistant-answer-blocks__code-copy"
           />
         </div>

@@ -5,6 +5,7 @@ import { ConversationMessageDto } from '~/domain/models/dto/conversation-message
 import { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import type { AssistantTurnStatus } from '~/domain/models/entities/assistant-turn-status'
 import type { ConversationMessageRole } from '~/domain/models/entities/conversation-message'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export const MESSAGE_AT = new Date('2026-09-04T10:00:00.000Z')
 
@@ -57,4 +58,7 @@ export function buildSummary(
 }
 
 /** 空對話上那幾句建議提問。內容不重要，重要的是有幾句與點下去會發生什麼。 */
-export const SUGGESTED_PROMPTS: readonly string[] = ['系統認得哪些交易標的？', '我有哪些已存的策略腳本？']
+export const SUGGESTED_PROMPTS: readonly LocalizedTextVo[] = [
+  new LocalizedTextVo('系統認得哪些交易標的？', 'Which trading symbols does the system know?'),
+  new LocalizedTextVo('我有哪些已存的策略腳本？', 'Which strategy scripts have I saved?'),
+]

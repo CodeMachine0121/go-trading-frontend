@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantAnswerBlocks from '~/components/molecules/AssistantAnswerBlocks.vue'
 import CopyTextButton from '~/components/molecules/CopyTextButton.vue'
@@ -19,6 +20,9 @@ const { message, timeZone } = defineProps<{
   message: ConversationMessageDto
   timeZone: TimeZoneDto
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -51,7 +55,7 @@ const { message, timeZone } = defineProps<{
             name="info"
             size="small"
           />
-          {{ message.note.label }}
+          {{ localize(message.note.label) }}
         </p>
       </div>
 
@@ -60,7 +64,7 @@ const { message, timeZone } = defineProps<{
         class="assistant-message__limit"
         data-testid="assistant-message-limit"
       >
-        {{ message.note.stoppedAtQueryLimitLabel }}
+        {{ localize(message.note.stoppedAtQueryLimitLabel) }}
       </p>
 
       <div class="assistant-message__footer">
@@ -75,7 +79,7 @@ const { message, timeZone } = defineProps<{
         <CopyTextButton
           v-if="message.role === 'answer'"
           :text="message.content"
-          label="複製這則回答"
+          :label="t('assistant.message.copyAnswer')"
         />
       </div>
     </div>

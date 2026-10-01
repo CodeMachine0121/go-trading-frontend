@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AssistantMessage from '~/components/molecules/AssistantMessage.vue'
 import AssistantPendingNotice from '~/components/molecules/AssistantPendingNotice.vue'
@@ -7,6 +8,7 @@ import AssistantRejectionNotice from '~/components/molecules/AssistantRejectionN
 import AssistantSuggestedPrompts from '~/components/molecules/AssistantSuggestedPrompts.vue'
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：對話串一整塊。抽屜與整頁**共用這一個**——
 // 兩個地方的差別只有寬度與旁邊有沒有清單，不是兩套實作。
@@ -21,11 +23,11 @@ const {
 } = defineProps<{
   messages: readonly ConversationMessageDto[]
   pending: boolean
-  rejectionMessage: string | null
-  suggestedPrompts: readonly string[]
+  rejectionMessage: LocalizedTextVo | null
+  suggestedPrompts: readonly LocalizedTextVo[]
   timeZone: TimeZoneDto
   resolvingPendingRevisionId?: number | null
-  pendingRevisionErrors?: Readonly<Record<number, string>>
+  pendingRevisionErrors?: Readonly<Record<number, LocalizedTextVo>>
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +36,8 @@ const emit = defineEmits<{
   confirmPendingRevision: [id: number]
   rejectPendingRevision: [id: number]
 }>()
+
+const { t } = useI18n()
 
 const scroller = useTemplateRef<HTMLElement>('scroller')
 
@@ -77,7 +81,7 @@ onMounted(scrollToBottom)
       </span>
 
       <p class="assistant-conversation-thread__lead">
-        用日常講話的方式問行情就好。助手會自己去查交易標的、K 線、指標與策略腳本，再用一段話回答。
+        {{ t('assistant.conversationThread.emptyLead') }}
       </p>
     </div>
 

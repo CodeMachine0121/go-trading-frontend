@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 
 // 分子：送出之後、回答回來之前那一塊。
@@ -13,6 +14,8 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 const { patienceThresholdSeconds = 20 } = defineProps<{
   patienceThresholdSeconds?: number
 }>()
+
+const { t } = useI18n()
 
 const waitedLong = ref(false)
 
@@ -49,12 +52,12 @@ onMounted(() => {
       </span>
 
       <span class="assistant-pending-notice__label">
-        助手正在查…
+        {{ t('assistant.pendingNotice.searching') }}
         <span
           v-if="waitedLong"
           class="assistant-pending-notice__patience"
           data-testid="assistant-pending-patience"
-        >這一題查得比較久，最長會等兩分鐘。</span>
+        >{{ t('assistant.pendingNotice.patience') }}</span>
       </span>
     </span>
   </div>
