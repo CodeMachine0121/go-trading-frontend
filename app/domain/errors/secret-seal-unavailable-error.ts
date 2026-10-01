@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -7,13 +8,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 他貼的金鑰好得很，缺的是後端的一項設定。混在一般拒絕裡，他會把整串金鑰
  * 重貼三次，然後去重新產生一支。
  */
-export class SecretSealUnavailableError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class SecretSealUnavailableError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'SecretSealUnavailableError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

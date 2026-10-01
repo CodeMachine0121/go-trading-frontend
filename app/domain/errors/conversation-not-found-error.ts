@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -5,13 +6,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  *
  * 它自成一種，是因為使用者要做的事是**開一段新的**，而不是改輸入或等一等。
  */
-export class ConversationNotFoundError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class ConversationNotFoundError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'ConversationNotFoundError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

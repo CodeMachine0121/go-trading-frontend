@@ -100,7 +100,7 @@ export function usePasswordChange(
 /** 這一張卡對「不是某一格的錯」的那幾種失敗會說的話。 */
 function messageFor(error: unknown): LocalizedTextVo {
   if (error instanceof BackendUnreachableError) {
-    return error.explanation
+    return error.localizedMessage
   }
 
   return new LocalizedTextVo(

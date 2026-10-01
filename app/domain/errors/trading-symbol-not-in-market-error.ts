@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -7,13 +8,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 這一種是他打錯了，改一個字就好；那一種他改什麼都沒用，只能等一下再試。
  * 說成同一句話，等於讓一半的人在一個本來就正確的代號上反覆重打。
  */
-export class TradingSymbolNotInMarketError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class TradingSymbolNotInMarketError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'TradingSymbolNotInMarketError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

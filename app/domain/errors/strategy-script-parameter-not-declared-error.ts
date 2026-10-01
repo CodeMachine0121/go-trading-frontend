@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -8,18 +9,14 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 把前者說成後者，會讓人盯著一段其實沒有問題的程式碼看很久——
  * 而這個錯特別容易犯：改個名字很輕鬆，忘記算式裡還寫著舊的那一行也很輕鬆。
  */
-export class StrategyScriptParameterNotDeclaredError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class StrategyScriptParameterNotDeclaredError extends LocalizedError {
   constructor(
     /** 對不上的那個名字。它從回應的一個欄位來，不是從訊息文字裡撈出來的。 */
     public readonly parameterName: string,
     message: string,
     options?: ErrorOptions,
   ) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyScriptParameterNotDeclaredError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

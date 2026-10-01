@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -6,13 +7,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 它自成一種，是因為「找不到那一台」與「內容不合規則」是兩件不同的事：
  * 前者改內容沒有用，後者改了就能過。
  */
-export class StrategyBotNotFoundError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class StrategyBotNotFoundError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyBotNotFoundError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

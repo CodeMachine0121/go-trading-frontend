@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -7,13 +8,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 名稱衝突要**就地標在名稱欄旁邊、對話框不關閉、已填的字不清空**，
  * 讓使用者當場改一個名字再送一次。
  */
-export class StrategyScriptNameConflictError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class StrategyScriptNameConflictError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyScriptNameConflictError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

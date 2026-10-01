@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -5,13 +6,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  *
  * 這一種說「稍後再試」，而不是「你打錯了」：請求本身沒有任何問題。
  */
-export class MarketDataSourceUnavailableError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class MarketDataSourceUnavailableError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'MarketDataSourceUnavailableError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

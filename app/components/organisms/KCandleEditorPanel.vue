@@ -259,7 +259,7 @@ function reportFailure(error: unknown) {
     rejectedMessage.value = error.localizedMessage
   }
   else if (error instanceof BackendUnreachableError) {
-    unreachableExplanation.value = error.explanation
+    unreachableExplanation.value = error.localizedMessage
   }
   else {
     unexpectedFailure.value = true

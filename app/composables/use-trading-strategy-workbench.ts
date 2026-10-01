@@ -1,5 +1,5 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
@@ -232,12 +232,7 @@ export function useTradingStrategyWorkbench(
   }
 
   function messageOf(error: unknown): LocalizedTextVo {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
-    }
-
-    if (error instanceof Error && 'localizedMessage' in error
-      && error.localizedMessage instanceof LocalizedTextVo) {
+    if (error instanceof LocalizedError) {
       return error.localizedMessage
     }
 

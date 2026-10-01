@@ -1,7 +1,7 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
@@ -185,12 +185,7 @@ export function useStrategyBots(
   }
 
   function messageOf(error: unknown): LocalizedTextVo {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
-    }
-
-    if (error instanceof Error && 'localizedMessage' in error
-      && error.localizedMessage instanceof LocalizedTextVo) {
+    if (error instanceof LocalizedError) {
       return error.localizedMessage
     }
 

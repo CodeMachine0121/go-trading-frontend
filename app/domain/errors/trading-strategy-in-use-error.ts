@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -6,13 +7,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 與「有機器人在跑」分開，是因為要做的事不同：這一個要去改掉或刪掉那幾台機器人，
  * 那一個只要按停止。後端那句話裡有幾台在用，所以原樣講出來。
  */
-export class TradingStrategyInUseError extends Error {
-  /** 後端那一句的原文，不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class TradingStrategyInUseError extends LocalizedError {
   constructor(message: string, options?: ErrorOptions) {
-    super(message, options)
-    this.localizedMessage = new UntranslatedTextVo(message)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'TradingStrategyInUseError'
   }
 }

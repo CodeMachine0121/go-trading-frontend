@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
@@ -7,12 +8,9 @@ import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
  * 「使用者動作」。這幾種對使用者是同一件事——**這一次沒複製到**，
  * 而畫面必須說出來，否則他會帶著一個空的剪貼簿去貼上。
  */
-export class ClipboardWriteFailedError extends Error {
-  readonly localizedMessage: LocalizedTextVo
-
+export class ClipboardWriteFailedError extends LocalizedError {
   constructor(localizedMessage: LocalizedTextVo, options?: { cause?: unknown }) {
-    super(localizedMessage.traditionalChinese, options)
+    super(localizedMessage, options)
     this.name = 'ClipboardWriteFailedError'
-    this.localizedMessage = localizedMessage
   }
 }

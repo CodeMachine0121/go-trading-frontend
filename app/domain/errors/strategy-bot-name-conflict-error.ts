@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -6,13 +7,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 它自成一種，是因為它是**唯一一種改個名字就能過**的拒絕——
  * 與其他拒絕混在一起，使用者會去檢查每一個欄位，而其實只有一格要改。
  */
-export class StrategyBotNameConflictError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class StrategyBotNameConflictError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyBotNameConflictError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

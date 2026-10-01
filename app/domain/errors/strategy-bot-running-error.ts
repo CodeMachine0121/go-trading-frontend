@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -7,13 +8,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 「它在不在跑」的看法不一致——多半是別的分頁把它啟動了。這時要說的是
  * 「它現在在跑」，不是「你填錯了」。
  */
-export class StrategyBotRunningError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class StrategyBotRunningError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyBotRunningError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

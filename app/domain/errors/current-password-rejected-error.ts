@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -7,13 +8,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 「請重新登入」分得開：後端刻意用 403 而不是 401 說這件事，正是因為這個人的登入
  * 好得很，把他帶回登入畫面是最不該做的事。
  */
-export class CurrentPasswordRejectedError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class CurrentPasswordRejectedError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'CurrentPasswordRejectedError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

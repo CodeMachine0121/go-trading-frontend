@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -6,13 +7,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 這一種必須跟「帳密不正確」分開，因為使用者改什麼都沒用——他的密碼是對的。
  * 把它說成帳密錯，會讓人在一組本來就正確的密碼上重打一個小時。
  */
-export class AccessTokenUnavailableError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class AccessTokenUnavailableError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'AccessTokenUnavailableError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

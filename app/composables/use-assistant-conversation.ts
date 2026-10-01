@@ -1,8 +1,8 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { AssistantAskDto } from '~/domain/models/dto/assistant-ask-dto'
 import { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import { AssistantAnswerInProgressError } from '~/domain/errors/assistant-answer-in-progress-error'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ConversationNotFoundError } from '~/domain/errors/conversation-not-found-error'
 import { DailyUsageAllowanceExhaustedError } from '~/domain/errors/daily-usage-allowance-exhausted-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
@@ -516,12 +516,8 @@ export function useAssistantConversation(
       return error.localizedMessage
     }
 
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
-    }
-
     // 後端如實轉達的那幾種（被拒絕、伺服器錯誤、已登出）各自帶著自己的說法。
-    if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+    if (error instanceof LocalizedError) {
       return error.localizedMessage
     }
 

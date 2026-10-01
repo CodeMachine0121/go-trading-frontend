@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -9,13 +10,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 四種情況共用這一個型別，是因為它們對持有者是同一件事。訊息由後端說，這裡照抄——
  * 畫面不自己發明第二句話。
  */
-export class SignedOutError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class SignedOutError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, { cause: options?.cause })
+    super(new UntranslatedTextVo(message), { cause: options?.cause })
     this.name = 'SignedOutError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

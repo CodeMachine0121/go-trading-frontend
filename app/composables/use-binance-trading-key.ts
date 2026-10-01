@@ -149,7 +149,7 @@ function messageFor(error: unknown): LocalizedTextVo {
   }
 
   if (error instanceof BackendUnreachableError) {
-    return error.explanation
+    return error.localizedMessage
   }
 
   return new LocalizedTextVo(

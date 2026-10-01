@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
@@ -581,7 +582,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
       return new LocalizedTextVo('連不上後端，請確認它已經啟動。', 'Cannot reach the backend. Make sure it is running.')
     }
     // 具名錯誤各自帶著要說的話（算式的問題、後端拒絕的原文）；沒帶的錯誤只剩工程師的原文，原樣呈現。
-    if (error instanceof Error && 'localizedMessage' in error && error.localizedMessage instanceof LocalizedTextVo) {
+    if (error instanceof LocalizedError) {
       return error.localizedMessage
     }
     if (error instanceof Error) {

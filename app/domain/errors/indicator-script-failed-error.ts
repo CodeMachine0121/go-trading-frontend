@@ -1,3 +1,4 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -8,13 +9,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 這個要改的是算式，那個要改的是根數。讓畫面靠比對訊息字串去猜，
  * 後端改一句話畫面就壞。
  */
-export class IndicatorScriptFailedError extends Error {
-  /** 後端說的原文，原樣呈現、不翻。 */
-  readonly localizedMessage: UntranslatedTextVo
-
+export class IndicatorScriptFailedError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'IndicatorScriptFailedError'
-    this.localizedMessage = new UntranslatedTextVo(message)
   }
 }

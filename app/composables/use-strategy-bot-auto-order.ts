@@ -1,9 +1,9 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 
 export function useStrategyBotAutoOrder(strategyBotApplication: StrategyBotApplication) {
   const switchingStrategyBotId = ref<number | null>(null)
@@ -47,12 +47,7 @@ export function useStrategyBotAutoOrder(strategyBotApplication: StrategyBotAppli
   }
 
   function messageOf(error: unknown): LocalizedTextVo {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
-    }
-
-    if (error instanceof Error && 'localizedMessage' in error
-      && error.localizedMessage instanceof LocalizedTextVo) {
+    if (error instanceof LocalizedError) {
       return error.localizedMessage
     }
 

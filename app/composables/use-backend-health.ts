@@ -31,7 +31,7 @@ export function useBackendHealth() {
       // 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼。
       // 兩個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
       errorMessage.value = error instanceof BackendUnreachableError
-        ? error.explanation
+        ? error.localizedMessage
         : new LocalizedTextVo(
             '檢查後端狀態時發生未預期的錯誤。',
             'An unexpected error occurred while checking the backend status.',
