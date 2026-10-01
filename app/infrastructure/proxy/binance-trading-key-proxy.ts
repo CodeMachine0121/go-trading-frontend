@@ -43,38 +43,34 @@ export class BinanceTradingKeyProxy extends BackendApiProxy implements IBinanceT
         }))
     }
     catch (error: unknown) {
-      throw this.saveFailureOf(error)
+      if (!(error instanceof BackendRequestRejectedError || error instanceof BackendServerError)) {
+        throw error
+      }
+
+      const verificationFailure = TRADING_KEY_VERIFICATION_FAILURES
+        .find(failure => failure === error.reason)
+      if (verificationFailure !== undefined) {
+        throw new BinanceTradingKeyVerificationError(
+          error.message, verificationFailure, { cause: error })
+      }
+
+      if (error instanceof BackendServerError && error.status === SECRET_SEAL_UNAVAILABLE_STATUS) {
+        throw new SecretSealUnavailableError(error.message, { cause: error })
+      }
+
+      if (error instanceof BackendRequestRejectedError && error.status === FIELD_RULE_STATUS) {
+        const field = FIELD_NAMES_IN_MESSAGE
+          .find(([fieldName]) => error.message.includes(fieldName))?.[1] ?? null
+
+        throw new BinanceTradingKeyFieldError(error.message, field, { cause: error })
+      }
+
+      throw error
     }
   }
 
   async removeTradingKey(): Promise<void> {
     await this.requestBackend<null>(BINANCE_TRADING_KEY_ENDPOINT, { method: 'DELETE' })
-  }
-
-  private saveFailureOf(error: unknown): unknown {
-    if (!(error instanceof BackendRequestRejectedError || error instanceof BackendServerError)) {
-      return error
-    }
-
-    const verificationFailure = TRADING_KEY_VERIFICATION_FAILURES
-      .find(failure => failure === error.reason)
-    if (verificationFailure !== undefined) {
-      return new BinanceTradingKeyVerificationError(
-        error.message, verificationFailure, { cause: error })
-    }
-
-    if (error instanceof BackendServerError && error.status === SECRET_SEAL_UNAVAILABLE_STATUS) {
-      return new SecretSealUnavailableError(error.message, { cause: error })
-    }
-
-    if (error instanceof BackendRequestRejectedError && error.status === FIELD_RULE_STATUS) {
-      const field = FIELD_NAMES_IN_MESSAGE
-        .find(([fieldName]) => error.message.includes(fieldName))?.[1] ?? null
-
-      return new BinanceTradingKeyFieldError(error.message, field, { cause: error })
-    }
-
-    return error
   }
 
   private toBinanceTradingKey(wire: BinanceTradingKeyWire): BinanceTradingKey {
