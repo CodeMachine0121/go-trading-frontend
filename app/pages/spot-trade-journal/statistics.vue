@@ -4,8 +4,8 @@ import SpotTradeLiveComparisonPanel from '~/components/organisms/SpotTradeLiveCo
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨績效統計',
-  consoleSubtitle: '台股與加密貨幣分開看勝率、報酬率與失誤成本，以及同一份策略的實盤 vs 回測。',
+  consoleTitleKey: 'tradeJournal.pages.spotStatistics.title',
+  consoleSubtitleKey: 'tradeJournal.pages.spotStatistics.subtitle',
 })
 
 const { selectedTimeZone } = useSelectedTimeZone()

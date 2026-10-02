@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
@@ -14,23 +15,23 @@ export class StrategyBotPageDto {
     public readonly listPath: string,
     /** 拼一台這一種機器人的去處。 */
     public readonly newPath: string,
-    public readonly listTitle: string,
-    public readonly listSubtitle: string,
-    public readonly createTitle: string,
-    public readonly editTitle: string,
+    public readonly listTitle: LocalizedTextVo,
+    public readonly listSubtitle: LocalizedTextVo,
+    public readonly createTitle: LocalizedTextVo,
+    public readonly editTitle: LocalizedTextVo,
     /** 清單標頭那一顆拼一台的鍵上寫什麼。 */
-    public readonly createLabel: string,
+    public readonly createLabel: LocalizedTextVo,
     /** 一台都沒有時那一句。 */
-    public readonly emptyNotice: string,
+    public readonly emptyNotice: LocalizedTextVo,
     /** 標的從合約標的清單挑（而且只列合約追蹤名單上的），而不是現貨那一份。 */
     public readonly picksContractTradingSymbol: boolean,
     /** 建議部位多一格槓桿倍數。現貨機器人沒有——現貨沒有人借錢給你。 */
     public readonly takesLeverage: boolean,
     /** 這一種機器人跟得了的交易策略叫什麼：「K 線交易策略」或「合約交易策略」。 */
-    public readonly tradingStrategyLabel: string,
-    /** 一份都沒有時，去拼一份要多交代的那一句；不必交代時是空字串。 */
-    public readonly tradingStrategyCreateHint: string,
+    public readonly tradingStrategyLabel: LocalizedTextVo,
+    /** 一份都沒有時，去拼一份要多交代的那一句；不必交代時兩種說法都是空字串。 */
+    public readonly tradingStrategyCreateHint: LocalizedTextVo,
     /** 執行紀錄底下那一句註腳；這一種不需要時是 `null`。 */
-    public readonly runHistoryNote: string | null,
+    public readonly runHistoryNote: LocalizedTextVo | null,
   ) {}
 }

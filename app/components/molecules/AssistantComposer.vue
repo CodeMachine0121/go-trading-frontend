@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
@@ -18,6 +19,8 @@ const { pending = false, autofocus = false } = defineProps<{
   pending?: boolean
   autofocus?: boolean
 }>()
+
+const { t } = useI18n()
 
 const draft = defineModel<string>({ required: true })
 
@@ -62,20 +65,20 @@ onMounted(() => {
         ref="textarea"
         v-model="draft"
         bare
-        placeholder="問一句行情，例如：BTCUSDT 最近一天每小時的走勢如何？"
-        aria-label="問助手"
+        :placeholder="t('assistant.composer.placeholder')"
+        :aria-label="t('assistant.composer.inputLabel')"
         data-testid="assistant-composer-input"
         @keydown="onKeydown"
       />
 
       <div class="assistant-composer__bar">
-        <span class="assistant-composer__hint">Enter 送出 · Shift+Enter 換行</span>
+        <span class="assistant-composer__hint">{{ t('assistant.composer.keyboardHint') }}</span>
 
         <AppButton
           type="submit"
           size="small"
           :disabled="!canSend"
-          label="送出"
+          :label="t('assistant.composer.send')"
           class="assistant-composer__send"
           data-testid="assistant-composer-send"
         >
@@ -83,13 +86,13 @@ onMounted(() => {
             name="send"
             size="small"
           />
-          送出
+          {{ t('assistant.composer.send') }}
         </AppButton>
       </div>
     </div>
 
     <p class="assistant-composer__disclaimer">
-      助手可能會出錯。牽涉到下單決策的數字，請自行覆核。
+      {{ t('assistant.composer.disclaimer') }}
     </p>
   </form>
 </template>

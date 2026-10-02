@@ -4,6 +4,7 @@ import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strateg
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一份要存進去的交易策略，連同它送出前必須成立的每一條規則。
@@ -30,14 +31,17 @@ export class TradingStrategyWriteDomain {
    * 一次只說一個，而不是列出全部：使用者一次只改得動一格，
    * 而一張同時亮起五個紅字的表單，第一個反應是不知道要從哪裡開始。
    */
-  get rejection(): string | null {
+  get rejection(): LocalizedTextVo | null {
     const name = this.writeDto.name.trim()
     if (name === '') {
-      return '必須給交易策略取一個名稱'
+      return new LocalizedTextVo('必須給交易策略取一個名稱', 'Give the trading strategy a name')
     }
 
     if ([...name].length > STRATEGY_BOT_LIMITS.nameMaximumLength) {
-      return `交易策略名稱長度上限為 ${STRATEGY_BOT_LIMITS.nameMaximumLength} 個字`
+      return new LocalizedTextVo(
+        `交易策略名稱長度上限為 ${STRATEGY_BOT_LIMITS.nameMaximumLength} 個字`,
+        `A trading strategy name can be at most ${STRATEGY_BOT_LIMITS.nameMaximumLength} characters`,
+      )
     }
 
     return this.signalSourceRejection() ?? this.conditionRejection()
@@ -98,9 +102,9 @@ export class TradingStrategyWriteDomain {
     )
   }
 
-  private signalSourceRejection(): string | null {
+  private signalSourceRejection(): LocalizedTextVo | null {
     if (this.writeDto.signalSources.length === 0) {
-      return '一份交易策略至少要有一個訊號來源'
+      return new LocalizedTextVo('一份交易策略至少要有一個訊號來源', 'A trading strategy needs at least one signal source')
     }
 
     const takenLabels: string[] = []
@@ -109,17 +113,23 @@ export class TradingStrategyWriteDomain {
       const label = signalSource.label.trim()
 
       if (label === '') {
-        return '每一個訊號來源都要有一個代號'
+        return new LocalizedTextVo('每一個訊號來源都要有一個代號', 'Every signal source needs a label')
       }
 
       // 代號在畫面上是打字的（它是使用者自己取的名字），所以它是少數幾個
       // 真的擋不住、必須驗的欄位之一。
       if (takenLabels.includes(label)) {
-        return `訊號來源代號「${label}」重複了，同一份交易策略內的代號必須各不相同`
+        return new LocalizedTextVo(
+          `訊號來源代號「${label}」重複了，同一份交易策略內的代號必須各不相同`,
+          `The signal source label "${label}" is used twice; labels must be unique within a trading strategy`,
+        )
       }
 
       if (signalSource.strategyScriptId === 0) {
-        return `訊號來源「${label}」必須指名一支策略腳本`
+        return new LocalizedTextVo(
+          `訊號來源「${label}」必須指名一支策略腳本`,
+          `The signal source "${label}" must name a strategy script`,
+        )
       }
 
       takenLabels.push(label)
@@ -140,7 +150,7 @@ export class TradingStrategyWriteDomain {
    * 那句話**說出它現在有哪幾種**。只說「不一樣」的話，他得把每一塊零件的設定
    * 都打開一次才知道差在哪，而要做的事就是把它們調成同一個。
    */
-  private mixedCoarsenessRejection(): string | null {
+  private mixedCoarsenessRejection(): LocalizedTextVo | null {
     const coarsenesses = [...new Set(
       this.writeDto.signalSources.map(signalSource => signalSource.aggregationInterval))]
 
@@ -148,8 +158,12 @@ export class TradingStrategyWriteDomain {
       return null
     }
 
-    return `這幾塊零件看的 K 線粗細不一樣（${coarsenesses.join('、')}）。`
-      + '一份交易策略只看一種——請把每一塊都調成同一個。'
+    return new LocalizedTextVo(
+      `這幾塊零件看的 K 線粗細不一樣（${coarsenesses.join('、')}）。`
+      + '一份交易策略只看一種——請把每一塊都調成同一個。',
+      `These signal sources read K-candles of different intervals (${coarsenesses.join(', ')}). `
+      + 'A trading strategy reads only one — set them all to the same interval.',
+    )
   }
 
   /**
@@ -159,12 +173,15 @@ export class TradingStrategyWriteDomain {
    * 天生就是合法的——群組至少兩句、每一句都有信號，都是它產生方式的必然結果。
    * 去驗一個造不出反例的規則，是替一個不會發生的情況維護一段程式。
    */
-  private conditionRejection(): string | null {
+  private conditionRejection(): LocalizedTextVo | null {
     const buyCondition = new TradingStrategyConditionDomain(this.writeDto.buyCondition)
     const sellCondition = new TradingStrategyConditionDomain(this.writeDto.sellCondition)
 
     if (buyCondition.isEmpty || sellCondition.isEmpty) {
-      return '買入與賣出兩邊都要至少勾一格——少了任何一邊，這份交易策略就只會說一種話'
+      return new LocalizedTextVo(
+        '買入與賣出兩邊都要至少勾一格——少了任何一邊，這份交易策略就只會說一種話',
+        'Both the buy and sell sides need at least one condition — without either side, this trading strategy can only ever say one thing',
+      )
     }
 
     // 指到一個已經不在的代號，是唯一造得出來的壞條件：改代號時撞到別人用著的名字，
@@ -176,6 +193,9 @@ export class TradingStrategyWriteDomain {
 
     return orphan === undefined
       ? null
-      : `條件裡還指著「${orphan}」，但已經沒有這一支策略腳本了`
+      : new LocalizedTextVo(
+          `條件裡還指著「${orphan}」，但已經沒有這一支策略腳本了`,
+          `A condition still points at "${orphan}", but that strategy script is no longer here`,
+        )
   }
 }

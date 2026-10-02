@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SignInPanel from '~/components/organisms/SignInPanel.vue'
+import DisplayLanguageField from '~/components/molecules/DisplayLanguageField.vue'
 
 // 頁面只做接線：取用跨畫面共用的「現在是誰在用」，往下傳給那張卡片。
 //
@@ -21,10 +22,20 @@ const {
  * 它會再說一次一件早就過去的事。
  */
 const notice = ref(takeSignInNotice())
+
+const { selectableLanguages, selectedLanguageCode, selectLanguage } = useDisplayLanguage()
 </script>
 
 <template>
   <main class="login-page">
+    <div class="login-page__language">
+      <DisplayLanguageField
+        :model-value="selectedLanguageCode"
+        :selectable-languages="selectableLanguages"
+        @update:model-value="selectLanguage"
+      />
+    </div>
+
     <SignInPanel
       :notice="notice"
       :pending="pending"
@@ -41,6 +52,7 @@ const notice = ref(takeSignInNotice())
 .login-page {
   // 窄螢幕：卡片就是整個畫面，從上往下排；寬螢幕：一張置中的卡片。
   display: flex;
+  position: relative;
   justify-content: center;
   background-color: color('background');
   padding: spacing('2xl') spacing('xl') spacing('lg');
@@ -51,6 +63,13 @@ const notice = ref(takeSignInNotice())
   @include respond-to('md') {
     align-items: center;
     padding: spacing('lg');
+  }
+
+  // 還沒進門的人也要能先換語言：這一頁沒有頂列，所以選單自己掛在右上角。
+  &__language {
+    position: absolute;
+    top: spacing('md');
+    right: spacing('md');
   }
 }
 </style>

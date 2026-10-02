@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：對話清單上一列離開 domain 的唯一形狀。
  *
@@ -12,7 +14,10 @@ export class ConversationSummaryDto {
   ) {}
 
   /** 清單上說有幾則的那一句。 */
-  get messageCountLabel(): string {
-    return `${this.messageCount} 則訊息`
+  get messageCountLabel(): LocalizedTextVo {
+    return new LocalizedTextVo(
+      `${this.messageCount} 則訊息`,
+      this.messageCount === 1 ? '1 message' : `${this.messageCount} messages`,
+    )
   }
 }

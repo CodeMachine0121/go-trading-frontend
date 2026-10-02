@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { SpotTradeDraftFillInputDto } from '~/domain/models/dto/spot-trade-draft-fill-input-dto'
 import type { SpotTradeFillKind } from '~/domain/models/vo/spot-trade-fill-kind-vo'
 import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
-
-const CONFIRM_ACTUAL_FILL_HINT = '請改成實際成交'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const {
   prefilledFields = new Set<TradeFormField>(),
@@ -17,10 +17,13 @@ const {
 } = defineProps<{
   prefilledFields?: ReadonlySet<TradeFormField>
   rejectedField?: TradeFormField | null
-  rejectionMessage?: string | null
-  wholeSharesMessage?: string | null
+  rejectionMessage?: LocalizedTextVo | null
+  wholeSharesMessage?: LocalizedTextVo | null
   kinds?: readonly SpotTradeFillKind[]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const fills = defineModel<SpotTradeDraftFillInputDto[]>('fills', { required: true })
 
@@ -46,7 +49,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       :data-testid="`fill-${index}`"
     >
       <label class="spot-trade-fill-editor__field">
-        <span class="spot-trade-fill-editor__label">動作</span>
+        <span class="spot-trade-fill-editor__label">{{ t('tradeJournal.spotFillEditor.kindLabel') }}</span>
         <AppSelect
           v-model="fill.kind"
           data-testid="fill-kind"
@@ -56,13 +59,13 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
             :key="kind"
             :value="kind"
           >
-            {{ kind === 'buy' ? '買進' : '賣出' }}
+            {{ kind === 'buy' ? t('tradeJournal.common.buy') : t('tradeJournal.common.sell') }}
           </option>
         </AppSelect>
       </label>
 
       <label class="spot-trade-fill-editor__field">
-        <span class="spot-trade-fill-editor__label">時間</span>
+        <span class="spot-trade-fill-editor__label">{{ t('tradeJournal.spotFillEditor.timeLabel') }}</span>
         <AppInput
           v-model="fill.filledAtText"
           type="datetime-local"
@@ -72,7 +75,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       </label>
 
       <label class="spot-trade-fill-editor__field">
-        <span class="spot-trade-fill-editor__label">{{ fill.kind === 'buy' ? '買進價' : '賣出價' }}</span>
+        <span class="spot-trade-fill-editor__label">{{ fill.kind === 'buy' ? t('tradeJournal.spotFillEditor.buyPriceLabel') : t('tradeJournal.spotFillEditor.sellPriceLabel') }}</span>
         <AppInput
           v-model="fill.priceText"
           inputmode="decimal"
@@ -84,11 +87,11 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           v-if="index === 0 && prefilledFields.has('fillPrice')"
           class="spot-trade-fill-editor__confirm"
           data-testid="fill-price-confirm"
-        >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
+        >{{ t('tradeJournal.spotFillEditor.confirmActualFill') }}</span>
       </label>
 
       <label class="spot-trade-fill-editor__field">
-        <span class="spot-trade-fill-editor__label">數量</span>
+        <span class="spot-trade-fill-editor__label">{{ t('tradeJournal.spotFillEditor.quantityLabel') }}</span>
         <AppInput
           v-model="fill.quantityText"
           inputmode="decimal"
@@ -100,11 +103,11 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           v-if="index === 0 && prefilledFields.has('fillQuantity')"
           class="spot-trade-fill-editor__confirm"
           data-testid="fill-quantity-confirm"
-        >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
+        >{{ t('tradeJournal.spotFillEditor.confirmActualFill') }}</span>
       </label>
 
       <label class="spot-trade-fill-editor__field">
-        <span class="spot-trade-fill-editor__label">手續費</span>
+        <span class="spot-trade-fill-editor__label">{{ t('tradeJournal.spotFillEditor.feeLabel') }}</span>
         <AppInput
           v-model="fill.feeText"
           inputmode="decimal"
@@ -122,7 +125,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         data-testid="fill-remove"
         @click="emit('remove', fill.key)"
       >
-        移除
+        {{ t('tradeJournal.spotFillEditor.remove') }}
       </AppButton>
     </div>
 
@@ -131,18 +134,18 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       class="spot-trade-fill-editor__error"
       data-testid="fill-whole-shares"
     >
-      {{ wholeSharesMessage }}
+      {{ localize(wholeSharesMessage) }}
     </p>
     <p
-      v-else-if="rejectedField !== null && Object.values(FIELD_OF_COLUMN).flat().includes(rejectedField)"
+      v-else-if="rejectionMessage && rejectedField !== null && Object.values(FIELD_OF_COLUMN).flat().includes(rejectedField)"
       class="spot-trade-fill-editor__error"
       data-testid="fill-error"
     >
-      {{ rejectionMessage }}
+      {{ localize(rejectionMessage) }}
     </p>
 
     <p class="spot-trade-fill-editor__hint">
-      手續費每筆自己填，留白即 0；台股賣出的證交稅請併入手續費。
+      {{ t('tradeJournal.spotFillEditor.feeHint') }}
     </p>
 
     <div class="spot-trade-fill-editor__actions">
@@ -154,7 +157,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         :data-testid="`fill-add-${kind}`"
         @click="emit('add', kind)"
       >
-        ＋ 加一筆{{ kind === 'buy' ? '買進' : '賣出' }}
+        {{ kind === 'buy' ? t('tradeJournal.spotFillEditor.addBuy') : t('tradeJournal.spotFillEditor.addSell') }}
       </AppButton>
     </div>
   </div>

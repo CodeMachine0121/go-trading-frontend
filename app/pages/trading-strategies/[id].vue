@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
@@ -9,8 +10,8 @@ import { useTradingStrategyWorkbench } from '~/composables/use-trading-strategy-
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '交易策略',
-  consoleSubtitle: '由上往下：先挑訊號來源，再說什麼算買入、什麼算賣出。買入與賣出同時看得見——兩邊都成立的話，照它跑的機器人什麼都不會說。',
+  consoleTitleKey: 'tradingStrategy.pages.workbench.title',
+  consoleSubtitleKey: 'tradingStrategy.pages.workbench.subtitle',
 })
 
 // 頁面：拼一份新的（`/trading-strategies/new`）與改一份已存的（`/trading-strategies/:id`）
@@ -53,12 +54,14 @@ const {
  * 打開時停在拼規則，那是這一頁原本就在做的事。切換不清空任何東西——
  * 兩邊都還掛在畫面上，只是其中一邊此刻看得見，所以填到一半的回測條件不會掉。
  */
-const WORKBENCH_DESTINATIONS = [
-  { value: 'workbench', label: '拼規則' },
-  { value: 'backtest', label: '回測' },
-] as const
+const { t } = useI18n()
 
-const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
+const WORKBENCH_DESTINATIONS = computed(() => [
+  { value: 'workbench', label: t('tradingStrategy.pages.workbench.buildDestination') },
+  { value: 'backtest', label: t('tradingStrategy.pages.workbench.backtestDestination') },
+])
+
+const destination = ref<string>('workbench')
 
 const workbench = useTradingStrategyWorkbench(
   $tradingStrategyApplication, $strategyScriptApplication, tradingStrategyId.value)
@@ -115,8 +118,9 @@ const { layoutDensity } = useLayoutDensity()
  * 一個每次離開都攔人的頁面，第三次之後就沒有人會讀那句話了。
  */
 onBeforeRouteLeave(() => workbench.dirty.value
-  ? window.confirm('這一頁改過的東西還沒存，確定要離開嗎？')
+  ? window.confirm(t('tradingStrategy.pages.workbench.leaveConfirm'))
   : true)
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -126,7 +130,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
       class="trading-strategy-page__notice"
       data-testid="workbench-loading"
     >
-      讀取中…
+      {{ t('tradingStrategy.common.loading') }}
     </p>
 
     <AppAlert
@@ -134,11 +138,11 @@ onBeforeRouteLeave(() => workbench.dirty.value
       tone="danger"
       data-testid="workbench-missing"
     >
-      找不到這一份交易策略，它可能已經被刪掉了。
+      {{ t('tradingStrategy.pages.workbench.missing') }}
     </AppAlert>
 
     <template v-else>
-      <AppToast :message="workbench.announcement.value" />
+      <AppToast :message="localize(workbench.announcement.value)" />
 
       <!--
         回清單的出口擺在**分頁切換之上**，所以它與現在在哪一個分頁無關：
@@ -153,10 +157,12 @@ onBeforeRouteLeave(() => workbench.dirty.value
           data-testid="back-to-trading-strategies"
           @click="navigateTo(TRADING_STRATEGY_LIST)"
         >
-          ← 回交易策略列表
+          {{ t('tradingStrategy.pages.workbench.backToList') }}
         </AppButton>
         <span class="trading-strategy-page__mode">
-          {{ tradingStrategyId === null ? '拼一份交易策略' : '改一改這份交易策略' }}
+          {{ tradingStrategyId === null
+            ? t('tradingStrategy.pages.workbench.creatingMode')
+            : t('tradingStrategy.pages.workbench.editingMode') }}
         </span>
 
         <!-- 切換擺在工作檯上面：兩個去處問的是同一份規則的兩個問題。 -->

@@ -3,8 +3,8 @@ import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨 K 線圖表',
-  consoleSubtitle: '拉遠拉近就是在選要看多長；每根涵蓋多久會跟著換，時間一律照頂欄選定的時區呈現。',
+  consoleTitleKey: 'marketData.pages.spotKCandleChart.title',
+  consoleSubtitleKey: 'marketData.pages.spotKCandleChart.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。

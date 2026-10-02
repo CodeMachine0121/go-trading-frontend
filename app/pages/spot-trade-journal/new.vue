@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import SpotTradeForm from '~/components/organisms/SpotTradeForm.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '記一筆現貨交易',
-  consoleSubtitle: '填實際的買進價與數量；從機器人訊息的連結打開時，那一輪的建議已經預填好。',
+  consoleTitleKey: 'tradeJournal.pages.spotNew.title',
+  consoleSubtitleKey: 'tradeJournal.pages.spotNew.subtitle',
 })
 
+const { t } = useI18n()
 const route = useRoute()
 const { $spotTradeJournalApplication, $tradeJournalSettingApplication, $tradingStrategyApplication } = useNuxtApp()
 const { selectedTimeZone } = useSelectedTimeZone()
@@ -35,9 +37,9 @@ onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
     />
     <ConfirmDialog
       :open="leaveConfirmation.confirmationOpen.value"
-      title="還沒儲存"
-      message="還沒儲存，離開後這些內容會丟失"
-      confirm-label="離開"
+      :title="t('tradeJournal.leaveConfirmation.title')"
+      :message="t('tradeJournal.leaveConfirmation.message')"
+      :confirm-label="t('tradeJournal.leaveConfirmation.confirm')"
       variant="danger"
       @confirm="leaveConfirmation.leave"
       @cancel="leaveConfirmation.stay"

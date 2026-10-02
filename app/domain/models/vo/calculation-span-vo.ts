@@ -1,4 +1,5 @@
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 「多長」的單位。有限的三種，所以是字面量聯合而不是自由字串。 */
 export type CalculationSpanUnit = 'minute' | 'hour' | 'day'
@@ -54,9 +55,9 @@ export class CalculationSpanVo {
   }
 
   /** 這一段哪裡不對——沒有就是 `null`。 */
-  validationMessage(): string | null {
+  validationMessage(): LocalizedTextVo | null {
     if (!Number.isInteger(this.amount) || this.amount < 1) {
-      return '要看多長必須是大於零的整數'
+      return new LocalizedTextVo('要看多長必須是大於零的整數', 'The span must be a whole number greater than zero')
     }
 
     return null

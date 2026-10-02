@@ -7,8 +7,8 @@ import AssistantConsole from '~/components/organisms/AssistantConsole.vue'
 // 所以在抽屜問完展開過來，剛才那一則還在。差別只有這裡多一欄清單、寬得多。
 definePageMeta({
   layout: 'console',
-  consoleTitle: 'AI-Assistant',
-  consoleSubtitle: '用日常講話的方式問行情。助手會自己去查交易標的、K 線、指標與策略腳本。',
+  consoleTitleKey: 'assistant.pages.chat.title',
+  consoleSubtitleKey: 'assistant.pages.chat.subtitle',
   consoleFillsViewport: true,
 })
 

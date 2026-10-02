@@ -1,11 +1,13 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 一份交易策略聽得懂的唯一一種指標值種類。
@@ -30,6 +32,7 @@ export function useTradingStrategyWorkbench(
   strategyScriptApplication: StrategyScriptApplication,
   tradingStrategyId: number | null,
 ) {
+  const { translatedText } = useLocalizedText()
   // 存好了那一句現在要在**這一頁**上被看到，因為存完之後使用者留在原地。
   // 它仍然走跨頁的那一條，因為拼好一份新的會換一次網址（見 createdId）。
   const { announcement, announce } = useConsoleAnnouncement()
@@ -52,7 +55,7 @@ export function useTradingStrategyWorkbench(
    * 選單的值不在它的選項裡，瀏覽器就什麼都不顯示。而空白看起來像「還沒選」，
    * 於是使用者不知道自己正看著一個已經壞掉的訊號來源，也不知道它壞在哪裡。
    */
-  const unusableStrategyScriptsByKind = ref<Record<MarketDataKind, Record<number, string>>>({
+  const unusableStrategyScriptsByKind = ref<Record<MarketDataKind, Record<number, LocalizedTextVo>>>({
     kCandle: {}, contractKCandle: {},
   })
   /**
@@ -83,14 +86,14 @@ export function useTradingStrategyWorkbench(
    * 而表單裡的識別碼還是空的話，再按一次儲存就會建出第二份一模一樣的。
    */
   const createdId = ref<number | null>(null)
-  const failureMessage = ref('')
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   /** 讀不到那一份。與 `failureMessage` 分開，因為它的下一步是回清單，不是重試。 */
   const missing = ref(false)
   const dirty = ref(false)
 
   async function load() {
     loading.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       const [tradingStrategy, availableKCandle, availableContract] = await Promise.all([
@@ -149,7 +152,7 @@ export function useTradingStrategyWorkbench(
    */
   async function save(writeDto: TradingStrategyWriteDto) {
     saving.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       const savedTradingStrategy
@@ -157,7 +160,10 @@ export function useTradingStrategyWorkbench(
       dirty.value = false
       // 改一份與拼一份新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
-      announce(writeDto.id === undefined ? '交易策略拼好了' : '更改成功')
+      const savedNotice = writeDto.id === undefined
+        ? translatedText('tradingStrategy.workbench.createdNotice')
+        : translatedText('tradingStrategy.workbench.savedNotice')
+      announce(savedNotice)
       editing.value = savedTradingStrategy
       if (writeDto.id === undefined) {
         createdId.value = savedTradingStrategy.id
@@ -212,7 +218,7 @@ export function useTradingStrategyWorkbench(
       parameterNames: Object.fromEntries(
         options.map(option => [option.value, option.parameterNames])) as Record<number, readonly string[]>,
       unusable: Object.fromEntries(
-        unusable.map(([id, name]) => [id, `${name}（這支不吐訊號，當不了訊號來源）`])) as Record<number, string>,
+        unusable.map(([id, name]) => [id, translatedText('tradingStrategy.workbench.notSignalStrategyScript', { name })])) as Record<number, LocalizedTextVo>,
       shortage: options.length > 0
         ? null
         : (unusable.length === 0 ? 'noStrategyScripts' as const : 'noSignalStrategyScripts' as const),
@@ -223,12 +229,15 @@ export function useTradingStrategyWorkbench(
     dirty.value = changed
   }
 
-  function messageOf(error: unknown): string {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
+  function messageOf(error: unknown): LocalizedTextVo {
+    if (error instanceof LocalizedError) {
+      return error.localizedMessage
     }
 
-    return error instanceof Error ? error.message : '發生未知的錯誤'
+    // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : translatedText('tradingStrategy.workbench.unknownError')
   }
 
   return {

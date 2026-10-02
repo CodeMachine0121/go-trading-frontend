@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * VO：一個條件群組怎麼合併它裡面的那幾句。
  *
@@ -10,7 +12,7 @@ export const CONDITION_OPERATORS = ['and', 'or'] as const
 export type ConditionOperatorVo = typeof CONDITION_OPERATORS[number]
 
 /** 畫面上那個下拉選單要顯示的字。運算子管的是它裡面那幾句，所以說法要像連接詞。 */
-export const CONDITION_OPERATOR_LABELS: Readonly<Record<ConditionOperatorVo, string>> = {
-  and: '全部成立（且）',
-  or: '任一成立（或）',
+export const CONDITION_OPERATOR_LABELS: Readonly<Record<ConditionOperatorVo, LocalizedTextVo>> = {
+  and: new LocalizedTextVo('全部成立（且）', 'All true (and)'),
+  or: new LocalizedTextVo('任一成立（或）', 'Any true (or)'),
 }

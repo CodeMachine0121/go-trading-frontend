@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import SettingsSection from '~/components/molecules/SettingsSection.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：設定畫面上「更換密碼」那一段。
 //
@@ -18,10 +20,10 @@ const {
   newPasswordConfirmationError = null,
 } = defineProps<{
   pending?: boolean
-  errorMessage?: string | null
-  currentPasswordError?: string | null
-  newPasswordError?: string | null
-  newPasswordConfirmationError?: string | null
+  errorMessage?: LocalizedTextVo | null
+  currentPasswordError?: LocalizedTextVo | null
+  newPasswordError?: LocalizedTextVo | null
+  newPasswordConfirmationError?: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{
@@ -34,7 +36,11 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const newPasswordConfirmation = ref('')
 
-const submitLabel = computed(() => pending ? '更換中…' : '更換密碼')
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const submitLabel = computed(
+  () => pending ? t('settings.passwordChange.submitting') : t('settings.passwordChange.submit'))
 
 function submit(): void {
   // 送出中那顆鍵本來就按不下去，但表單還能靠 Enter 送出。這一行是那個保證的另一半：
@@ -50,16 +56,16 @@ function submit(): void {
 
 <template>
   <SettingsSection
-    title="更換密碼"
-    description="為了安全，換好之後你在每一台裝置上的登入都不再算數，包含這一台——會請你用新密碼重新登入一次。"
+    :title="t('settings.passwordChange.title')"
+    :description="t('settings.passwordChange.description')"
   >
     <form
       class="password-change-panel"
       @submit.prevent="submit"
     >
       <FormField
-        label="目前的密碼"
-        :error-message="currentPasswordError"
+        :label="t('settings.passwordChange.currentPasswordLabel')"
+        :error-message="currentPasswordError ? localize(currentPasswordError) : null"
       >
         <AppInput
           v-model="currentPassword"
@@ -72,9 +78,9 @@ function submit(): void {
       </FormField>
 
       <FormField
-        label="新的密碼"
-        hint="至少 8 個字元，上限 72 個位元組（中文字一個算三個）。"
-        :error-message="newPasswordError"
+        :label="t('settings.passwordChange.newPasswordLabel')"
+        :hint="t('settings.passwordChange.newPasswordHint')"
+        :error-message="newPasswordError ? localize(newPasswordError) : null"
       >
         <AppInput
           v-model="newPassword"
@@ -87,8 +93,8 @@ function submit(): void {
       </FormField>
 
       <FormField
-        label="再打一次新的密碼"
-        :error-message="newPasswordConfirmationError"
+        :label="t('settings.passwordChange.confirmationLabel')"
+        :error-message="newPasswordConfirmationError ? localize(newPasswordConfirmationError) : null"
       >
         <AppInput
           v-model="newPasswordConfirmation"
@@ -105,7 +111,7 @@ function submit(): void {
         tone="danger"
         data-testid="password-change-error"
       >
-        {{ errorMessage }}
+        {{ localize(errorMessage) }}
       </AppAlert>
 
       <div class="password-change-panel__actions">

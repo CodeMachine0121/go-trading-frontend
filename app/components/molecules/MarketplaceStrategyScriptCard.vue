@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { MarketplaceListingRowDto } from '~/domain/models/dto/marketplace-listing-row-dto'
@@ -20,6 +21,9 @@ const { row, busy = false } = defineProps<{
 const emit = defineEmits<{ adopt: [id: number] }>()
 
 const strategyScript = computed(() => row.strategyScript)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -33,7 +37,7 @@ const strategyScript = computed(() => row.strategyScript)
           {{ strategyScript.name }}
         </h3>
         <p class="marketplace-strategy-script-card__byline">
-          由 {{ strategyScript.publisherEmail }} 分享
+          {{ t('strategyScript.marketplaceStrategyScriptCard.byline', { publisherEmail: strategyScript.publisherEmail ?? '' }) }}
         </p>
       </div>
 
@@ -42,7 +46,7 @@ const strategyScript = computed(() => row.strategyScript)
         variant="info"
         :data-testid="`marketplace-strategy-script-mine-${strategyScript.id}`"
       >
-        我分享的
+        {{ t('strategyScript.marketplaceStrategyScriptCard.mineBadge') }}
       </AppBadge>
     </header>
 
@@ -50,27 +54,27 @@ const strategyScript = computed(() => row.strategyScript)
       沒寫說明時說一句話，而不是留一塊空白：算式看不到的時候，一塊空白會讓人以為卡壞了。
     -->
     <p class="marketplace-strategy-script-card__description">
-      {{ strategyScript.description === '' ? '分享的人沒有寫說明。' : strategyScript.description }}
+      {{ strategyScript.description === '' ? t('strategyScript.marketplaceStrategyScriptCard.noDescription') : strategyScript.description }}
     </p>
 
     <dl class="marketplace-strategy-script-card__facts">
       <div class="marketplace-strategy-script-card__fact">
-        <dt>算出來的是</dt>
-        <dd>{{ strategyScript.resultTypeLabel }}</dd>
+        <dt>{{ t('strategyScript.marketplaceStrategyScriptCard.resultTypeHeading') }}</dt>
+        <dd>{{ localize(strategyScript.resultTypeLabel) }}</dd>
       </div>
       <!-- 吃哪一種行情決定它能在哪一頁跑：加入之後，它只出現在那一種的策略腳本畫面上。 -->
       <div class="marketplace-strategy-script-card__fact">
-        <dt>吃的行情</dt>
+        <dt>{{ t('strategyScript.marketplaceStrategyScriptCard.marketDataKindHeading') }}</dt>
         <dd data-testid="marketplace-market-data-kind">
-          {{ strategyScript.marketDataKindLabel }}
+          {{ localize(strategyScript.marketDataKindLabel) }}
         </dd>
       </div>
       <div class="marketplace-strategy-script-card__fact marketplace-strategy-script-card__fact--wide">
-        <dt>可調的旋鈕</dt>
+        <dt>{{ t('strategyScript.marketplaceStrategyScriptCard.parametersHeading') }}</dt>
         <dd>
           {{ strategyScript.parameters.length === 0
-            ? '沒有旋鈕'
-            : strategyScript.parameters.map(parameter => parameter.name).join('、') }}
+            ? t('strategyScript.marketplaceStrategyScriptCard.noParameters')
+            : strategyScript.parameters.map(parameter => parameter.name).join(t('strategyScript.marketplaceStrategyScriptCard.parameterNameSeparator')) }}
         </dd>
       </div>
     </dl>
@@ -83,7 +87,7 @@ const strategyScript = computed(() => row.strategyScript)
       class="marketplace-strategy-script-card__caveat"
       :data-testid="`marketplace-strategy-script-undrawable-${strategyScript.id}`"
     >
-      這一種值畫不成線，它可以拿去算，但擺不到 K 線圖上。
+      {{ t('strategyScript.marketplaceStrategyScriptCard.undrawableCaveat') }}
     </p>
 
     <footer class="marketplace-strategy-script-card__actions">
@@ -95,14 +99,14 @@ const strategyScript = computed(() => row.strategyScript)
         :data-testid="`marketplace-adopt-${strategyScript.id}`"
         @click="emit('adopt', strategyScript.id)"
       >
-        加入
+        {{ t('strategyScript.marketplaceStrategyScriptCard.adopt') }}
       </AppButton>
 
       <p
         v-else
         class="marketplace-strategy-script-card__own"
       >
-        自己的策略腳本本來就在你的清單裡。
+        {{ t('strategyScript.marketplaceStrategyScriptCard.ownNotice') }}
       </p>
     </footer>
   </li>

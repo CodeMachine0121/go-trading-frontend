@@ -1,6 +1,9 @@
-export class TradeTagInUseError extends Error {
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
+export class TradeTagInUseError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'TradeTagInUseError'
   }
 }

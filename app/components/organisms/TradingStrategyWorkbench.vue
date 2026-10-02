@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -16,6 +17,7 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：拼一份交易策略的整個工作檯。
 //
@@ -53,7 +55,7 @@ const {
     /** 每一支策略腳本開得出來的那幾個參數名。 */
     parameterNamesByStrategyScriptId: Readonly<Record<number, readonly string[]>>
     /** 存在、但當不了訊號來源的那幾支，以及原因。一個指著它們的來源要說得出來。 */
-    unusableStrategyScriptsByKind: Readonly<Record<MarketDataKind, Readonly<Record<number, string>>>>
+    unusableStrategyScriptsByKind: Readonly<Record<MarketDataKind, Readonly<Record<number, LocalizedTextVo>>>>
     /** 一支都挑不到時，是哪一種挑不到。挑得到就是 `null`。 */
     shortageByKind: Readonly<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>
     /** 行情種類選單的選項。 */
@@ -62,7 +64,7 @@ const {
     contractTradingModeOptions: readonly ContractTradingModeOptionDto[]
     saving: boolean
     /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
-    failureMessage: string
+    failureMessage: LocalizedTextVo | null
     /** 這一份被成功存過幾次。每多一次，「打開時的樣子」就重新記一次。 */
     savedGeneration: number
     /**
@@ -80,6 +82,9 @@ const emit = defineEmits<{
   dirtyChange: [dirty: boolean]
 }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const form = useTradingStrategyForm(
   () => editing,
   () => strategyScriptOptionsByKind[form.marketDataKind.value],
@@ -92,8 +97,11 @@ const strategyScriptOptions = computed(() => strategyScriptOptionsByKind[form.ma
 const shortage = computed(() => shortageByKind[form.marketDataKind.value])
 
 /** 已存的那一份寫出它是哪一種行情；它換不了，所以是一句話，不是選單。 */
-const lockedMarketDataKindLabel = computed(
-  () => marketDataKindOptions.find(option => option.value === form.marketDataKind.value)?.label ?? '')
+const lockedMarketDataKindLabel = computed(() => {
+  const locked = marketDataKindOptions.find(option => option.value === form.marketDataKind.value)
+
+  return locked === undefined ? '' : localize(locked.label)
+})
 const selectedContractTradingMode = computed(
   () => contractTradingModeOptions.find(option => option.value === form.tradingMode.value))
 
@@ -141,13 +149,13 @@ function onSave() {
     -->
     <header class="workbench__identity">
       <FormField
-        label="交易策略名稱"
+        :label="t('tradingStrategy.workbench.nameLabel')"
         class="workbench__name"
       >
         <AppInput
           v-model="form.name.value"
           type="text"
-          placeholder="例如：突破＋動能確認"
+          :placeholder="t('tradingStrategy.workbench.namePlaceholder')"
           data-testid="trading-strategy-name-input"
         />
       </FormField>
@@ -158,7 +166,7 @@ function onSave() {
       -->
       <FormField
         v-if="!form.marketDataKindLocked.value"
-        label="行情種類"
+        :label="t('tradingStrategy.workbench.marketDataKindLabel')"
       >
         <AppSelect
           :model-value="form.marketDataKind.value"
@@ -170,7 +178,7 @@ function onSave() {
             :key="kindOption.value"
             :value="kindOption.value"
           >
-            {{ kindOption.label }}
+            {{ localize(kindOption.label) }}
           </option>
         </AppSelect>
       </FormField>
@@ -180,12 +188,12 @@ function onSave() {
         class="workbench__locked"
         data-testid="trading-strategy-market-data-kind-locked"
       >
-        {{ lockedMarketDataKindLabel }}（存過之後不能換）
+        {{ t('tradingStrategy.workbench.lockedMarketDataKind', { kind: lockedMarketDataKindLabel }) }}
       </AppBadge>
 
       <FormField
         v-if="form.replaysOnContractAccount.value"
-        label="交易模式"
+        :label="t('tradingStrategy.workbench.tradingModeLabel')"
       >
         <AppSelect
           :model-value="form.tradingMode.value"
@@ -197,7 +205,7 @@ function onSave() {
             :key="modeOption.value"
             :value="modeOption.value"
           >
-            {{ modeOption.label }}
+            {{ localize(modeOption.label) }}
           </option>
         </AppSelect>
       </FormField>
@@ -211,7 +219,7 @@ function onSave() {
         v-if="dirty"
         class="workbench__unsaved"
         data-testid="trading-strategy-unsaved"
-      >還沒存的改動</span>
+      >{{ t('tradingStrategy.workbench.unsaved') }}</span>
       <AppButton
         type="button"
         class="workbench__save"
@@ -219,7 +227,7 @@ function onSave() {
         data-testid="trading-strategy-form-save"
         @click="onSave"
       >
-        {{ saving ? '儲存中…' : '儲存' }}
+        {{ saving ? t('tradingStrategy.workbench.saving') : t('tradingStrategy.workbench.save') }}
       </AppButton>
     </header>
 
@@ -228,15 +236,15 @@ function onSave() {
       class="workbench__hint"
       data-testid="trading-strategy-trading-mode-description"
     >
-      {{ selectedContractTradingMode.description }}
+      {{ localize(selectedContractTradingMode.description) }}
     </p>
 
     <AppAlert
-      v-if="form.marketDataKindNotice.value !== ''"
+      v-if="form.marketDataKindNotice.value !== null"
       tone="info"
       data-testid="trading-strategy-market-data-kind-notice"
     >
-      {{ form.marketDataKindNotice.value }}
+      {{ localize(form.marketDataKindNotice.value) }}
     </AppAlert>
 
     <!-- 擋下來的原因貼著儲存鍵講，而不是在三張卡的最底下。 -->
@@ -245,15 +253,15 @@ function onSave() {
       tone="warning"
       data-testid="trading-strategy-form-rejection"
     >
-      {{ form.rejection.value }}
+      {{ localize(form.rejection.value) }}
     </AppAlert>
 
     <AppAlert
-      v-else-if="failureMessage !== ''"
+      v-else-if="failureMessage !== null"
       tone="danger"
       data-testid="trading-strategy-form-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
     </AppAlert>
 
     <div
@@ -293,13 +301,13 @@ function onSave() {
           aria-hidden="true"
         >
           <span class="workbench__connector-label">
-            {{ conditionSide.connectorWord }}
+            {{ localize(conditionSide.connectorWord) }}
           </span>
         </div>
 
         <TradingStrategyConditionCard
           :side="conditionSide.key"
-          :heading="conditionSide.heading"
+          :heading="localize(conditionSide.heading)"
           :tone="conditionSide.tone"
           :board="conditionSide.board.value"
           :source-labels="form.sourceLabels.value"

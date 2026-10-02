@@ -4,6 +4,7 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import { BacktestConditionsDomain } from '~/domain/models/domains/backtest-conditions-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一次交易策略回測的請求，建構當下即驗證。
@@ -40,12 +41,13 @@ export class TradingStrategyBacktestRequestDomain {
 
   constructor(requestDto: TradingStrategyBacktestRequestDto) {
     if (requestDto.tradingStrategyId === 0) {
-      throw new BacktestFieldError('symbol', '請先存下這一份交易策略，才能拿它重演')
+      throw new BacktestFieldError('symbol', new LocalizedTextVo(
+        '請先存下這一份交易策略，才能拿它重演', 'Save this trading strategy before replaying it'))
     }
 
     const normalizedSymbol = requestDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new BacktestFieldError('symbol', '請指定交易標的')
+      throw new BacktestFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     // 兩種重演共有的那六組條件，一句問完。交易模式傳 null——**這條路問不到它**：

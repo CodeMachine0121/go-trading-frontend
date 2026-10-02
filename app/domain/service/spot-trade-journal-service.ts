@@ -33,9 +33,10 @@ import { SpotTradePrefillDomain } from '~/domain/models/domains/spot-trade-prefi
 import { SpotTradePricePathDomain } from '~/domain/models/domains/spot-trade-price-path-domain'
 import { TradeStatisticsPeriodDomain } from '~/domain/models/domains/trade-statistics-period-domain'
 import { TradeFailureDomain } from '~/domain/models/domains/trade-failure-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const LIST_LIMIT = 200
-const UNREADABLE_FILL_MESSAGE = '價格與數量要填數字'
+const UNREADABLE_FILL_MESSAGE = new LocalizedTextVo('價格與數量要填數字', 'Price and quantity must be numbers')
 
 export class SpotTradeJournalService {
   constructor(
@@ -177,8 +178,12 @@ export class SpotTradeJournalService {
         const reason = new TradeFailureDomain(error).toDto().message
         throw new TradeRejectedError(
           recordedTradeId === null
-            ? `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason}`
-            : `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason}`,
+            ? new LocalizedTextVo(
+                `前 ${savedFillCount} 筆已存下，第 ${savedFillCount + 1} 筆沒有存成功：${reason.traditionalChinese}`,
+                `The first ${savedFillCount} ${savedFillCount === 1 ? 'fill was' : 'fills were'} saved, but fill ${savedFillCount + 1} was not: ${reason.english}`)
+            : new LocalizedTextVo(
+                `已建立 #${recordedTradeId}，但第 ${savedFillCount + 1} 筆沒有存成功：${reason.traditionalChinese}`,
+                `Created #${recordedTradeId}, but fill ${savedFillCount + 1} was not saved: ${reason.english}`),
           error instanceof TradeRejectedError ? error.formField : null,
           recordedTradeId,
           savedFillCount,

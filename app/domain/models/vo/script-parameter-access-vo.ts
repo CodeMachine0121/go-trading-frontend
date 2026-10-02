@@ -1,12 +1,13 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 
 /** VO：一種參數種類在算式裡的讀法。不可變、無行為。 */
 export class ScriptParameterAccessVo {
   constructor(
-    public readonly kindLabel: string,
+    public readonly kindLabel: LocalizedTextVo,
     public readonly returnType: string,
-    public readonly example: string,
-    public readonly usage: string,
+    public readonly example: LocalizedTextVo,
+    public readonly usage: LocalizedTextVo,
   ) {}
 
   toDto(): ScriptParameterAccessDto {
@@ -36,30 +37,51 @@ export class ScriptParameterAccessVo {
  */
 export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   new ScriptParameterAccessVo(
-    '回看根數',
+    new LocalizedTextVo('回看根數', 'Lookback count'),
     'int',
-    [
-      'period := indicator.LookbackCount("期數")',
-      'window := data[len(data)-period:]',
-    ].join('\n'),
-    '要往回看幾根。交出整數，可以直接拿去切片；系統也靠它決定要多拿幾根 K 線。',
+    new LocalizedTextVo(
+      [
+        'period := indicator.LookbackCount("期數")',
+        'window := data[len(data)-period:]',
+      ].join('\n'),
+      [
+        'period := indicator.LookbackCount("period")',
+        'window := data[len(data)-period:]',
+      ].join('\n')),
+    new LocalizedTextVo(
+      '要往回看幾根。交出整數，可以直接拿去切片；系統也靠它決定要多拿幾根 K 線。',
+      'How many candles to look back. It comes out as an integer you can slice with directly; the system also uses it to decide how many extra K-candles to fetch.'),
   ),
   new ScriptParameterAccessVo(
-    '數值',
+    new LocalizedTextVo('數值', 'Number'),
     'float64',
-    [
-      'factor := indicator.Number("倍數")',
-      'upper := data[len(data)-1].Close * (1 + factor)',
-    ].join('\n'),
-    '倍數、門檻、權重之類的任何一個數字。系統不解讀它的意思，原樣交給算式。',
+    new LocalizedTextVo(
+      [
+        'factor := indicator.Number("倍數")',
+        'upper := data[len(data)-1].Close * (1 + factor)',
+      ].join('\n'),
+      [
+        'factor := indicator.Number("factor")',
+        'upper := data[len(data)-1].Close * (1 + factor)',
+      ].join('\n')),
+    new LocalizedTextVo(
+      '倍數、門檻、權重之類的任何一個數字。系統不解讀它的意思，原樣交給算式。',
+      'Any single number, such as a multiplier, threshold or weight. The system does not interpret it and passes it to the script as is.'),
   ),
   new ScriptParameterAccessVo(
-    '是非',
+    new LocalizedTextVo('是非', 'True/false'),
     'bool',
-    [
-      'strictly := indicator.Boolean("只看多方")',
-      'if strictly && latest.Close < latest.Open { return nil }',
-    ].join('\n'),
-    '一個開關。讀出來就是 bool，可以直接寫進 if——不必自己約定「幾算是」。',
+    new LocalizedTextVo(
+      [
+        'strictly := indicator.Boolean("只看多方")',
+        'if strictly && latest.Close < latest.Open { return nil }',
+      ].join('\n'),
+      [
+        'strictly := indicator.Boolean("longOnly")',
+        'if strictly && latest.Close < latest.Open { return nil }',
+      ].join('\n')),
+    new LocalizedTextVo(
+      '一個開關。讀出來就是 bool，可以直接寫進 if——不必自己約定「幾算是」。',
+      'A switch. It reads as a bool you can put straight into an if, with no need to agree on which number means yes.'),
   ),
 ]

@@ -1,5 +1,6 @@
 import type { TelegramDelivery } from '~/domain/models/entities/telegram-delivery'
 import { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一份 Telegram 投遞設定在畫面上是什麼樣子。
@@ -23,7 +24,7 @@ export class TelegramDeliveryDomain {
     )
   }
 
-  private summary(): string | null {
+  private summary(): LocalizedTextVo | null {
     if (!this.telegramDelivery.configured) {
       return null
     }
@@ -31,9 +32,12 @@ export class TelegramDeliveryDomain {
     // 後端對短到遮不住的金鑰回一個空的結尾，而不是回整串。這裡跟著少說那半句，
     // 不自己補一個看起來像結尾的東西。
     if (this.telegramDelivery.botTokenTail === '') {
-      return '金鑰已設定'
+      return new LocalizedTextVo('金鑰已設定', 'Token configured')
     }
 
-    return `金鑰結尾 ${this.telegramDelivery.botTokenTail}`
+    return new LocalizedTextVo(
+      `金鑰結尾 ${this.telegramDelivery.botTokenTail}`,
+      `Token ending in ${this.telegramDelivery.botTokenTail}`,
+    )
   }
 }

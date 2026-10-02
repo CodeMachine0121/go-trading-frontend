@@ -13,8 +13,10 @@ import { useLatestRun } from '~/composables/use-latest-run'
  * 共用一份就代表切過去會看到別人的結果。
  */
 export function useTradingStrategyBacktestRun(backtestApplication: BacktestApplication) {
+  const { translatedText } = useLocalizedText()
   const latestRun = useLatestRun<BacktestResultDto, BacktestField>(
-    BacktestFieldError, '執行回測時發生未預期的錯誤。')
+    BacktestFieldError,
+    translatedText('backtest.tradingStrategyBacktestPane.unexpectedError'))
 
   return {
     ...latestRun,

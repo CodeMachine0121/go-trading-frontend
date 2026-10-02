@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatWallClockTickMark } from '~/utilities/chart-tick-mark-format'
 import type { IChartApi, IPriceLine, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
@@ -11,7 +12,6 @@ import { useThemeChange } from '~/composables/use-theme-change'
  * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
  * （它碰得到 document），所以型別在這裡先取出來，值等載完再拿。
  */
-type TickMarkTypes = typeof import('lightweight-charts').TickMarkType
 
 /** 同一批資料的兩種畫法。是同一個元件的兩個樣子，不是兩個元件。 */
 type KCandleChartDrawing = 'candlestick' | 'line'
@@ -56,24 +56,6 @@ function timeValueOf(time: Time): Date {
  */
 function wallClockSecondsOf(instant: Date, timeZone: TimeZoneDto): UTCTimestamp {
   return (timeZone.toWallClock(instant).getTime() / 1000) as UTCTimestamp
-}
-
-/**
- * 時間軸一格刻度要說到多細：年、月、日或時分。
- * 切的是當地時鐘讀數（`2026-08-30 12:00`），與分格用的是同一份讀數。
- */
-function sliceTickMark(
-  localDateTime: string, tickMarkType: TickMarkType, tickMarkTypes: TickMarkTypes): string {
-  switch (tickMarkType) {
-    case tickMarkTypes.Year:
-      return localDateTime.slice(0, 4)
-    case tickMarkTypes.Month:
-      return localDateTime.slice(0, 7)
-    case tickMarkTypes.DayOfMonth:
-      return localDateTime.slice(5, 10)
-    default:
-      return localDateTime.slice(11, 16)
-  }
 }
 
 const {
@@ -311,8 +293,8 @@ onMounted(async () => {
   applyTimeZoneFormatting.value = () => createdChart.applyOptions({
     localization: { timeFormatter: (time: Time) => readWallClock(time) },
     timeScale: {
-      tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => sliceTickMark(
-        readWallClock(time), tickMarkType, TickMarkType),
+      tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => formatWallClockTickMark(
+        time, tickMarkType, TickMarkType),
     },
   })
   applyTimeZoneFormatting.value()

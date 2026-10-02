@@ -11,21 +11,24 @@ import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-re
 import { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
 import { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-result-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function runningState() {
   return new StrategyBotRunStateDto(
-    true, false, false, '執行中', 'success', '', '買入', false, true, false,
-    '這台機器人正在執行中，要先停止它才改得動')
+    true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, new LocalizedTextVo('買入', 'Buy'), false, true, false,
+    new LocalizedTextVo('這台機器人正在執行中，要先停止它才改得動', 'This bot is running; stop it before editing'))
 }
 
 function stoppedState() {
   return new StrategyBotRunStateDto(
-    false, false, false, '已停止', 'neutral', '', '還沒送出過', true, false, true, '')
+    false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null)
 }
 
 function haltedState() {
   return new StrategyBotRunStateDto(
-    false, true, false, '停擺', 'danger', '機器人金鑰不被接受', '買入', true, false, true, '')
+    false, true, false, new LocalizedTextVo('停擺', 'Halted'), 'danger',
+    new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'), new LocalizedTextVo('買入', 'Buy'), true, false, true, null)
 }
 
 function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
@@ -325,10 +328,22 @@ describe('StrategyBotListPanel 上那一句「存好了」', () => {
 
     expect(wrapper.find('[data-testid="app-toast"]').exists()).toBe(false)
 
-    announce('更改成功')
+    announce(new LocalizedTextVo('更改成功', 'Changes saved'))
     await flushPromises()
 
     expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('更改成功')
+  })
+
+  it('換成英文時，已經掛在畫面上的那一句跟著換', async () => {
+    const { announce } = useConsoleAnnouncement()
+    const { wrapper } = mountPanel()
+    await flushPromises()
+
+    announce(new LocalizedTextVo('更改成功', 'Changes saved'))
+    wrapper.vm.$i18n.locale = 'en'
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="app-toast"]').text()).toBe('Changes saved')
   })
 
   it('一列由上往下讀：叫什麼與跑著沒有同一行，其餘往下疊', async () => {
@@ -350,10 +365,10 @@ describe('StrategyBotListPanel 上那一句「存好了」', () => {
 })
 
 describe('StrategyBotListPanel 在合約那一頁', () => {
-  function contractBot(leverageLabel: string | null) {
+  function contractBot(leverageLabel: LocalizedTextVo | null) {
     return new StrategyBotDto(
       8, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉', stoppedState(), null,
-      'contractKCandle', 'BTCUSDT 永續合約', leverageLabel, '/contract-strategy-bots/8')
+      'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), leverageLabel, '/contract-strategy-bots/8')
   }
 
   it('只向後端要合約機器人', async () => {
@@ -364,7 +379,7 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
   })
 
   it.each([
-    { leverageLabel: '5 倍', expected: 'BTCUSDT 永續合約 · 每 5 分鐘 · 5 倍' },
+    { leverageLabel: new LocalizedTextVo('5 倍', '5x'), expected: 'BTCUSDT 永續合約 · 每 5 分鐘 · 5 倍' },
     { leverageLabel: null, expected: 'BTCUSDT 永續合約 · 每 5 分鐘' },
   ])('一列寫著「$expected」', async ({ leverageLabel, expected }) => {
     const { wrapper } = mountPanel(
@@ -373,6 +388,23 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
 
     expect(wrapper.get('[data-testid="bot-row"]').text()).toContain(expected)
     expect(wrapper.get('[data-testid="bot-edit"]').attributes('href')).toBe('/contract-strategy-bots/8')
+  })
+
+  it('切成英文時，那一列、狀態與按鈕都換成英文', async () => {
+    const { wrapper } = mountPanel(
+      { listStrategyBots: vi.fn().mockResolvedValue([contractBot(new LocalizedTextVo('5 倍', '5x'))]) },
+      'contractKCandle')
+    await flushPromises()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await flushPromises()
+
+    const row = wrapper.get('[data-testid="bot-row"]')
+    expect(row.text()).toContain('BTCUSDT perpetual contract · every 5 min · 5x')
+    expect(row.get('[data-testid="bot-status-badge"]').text()).toBe('Stopped')
+    expect(row.get('[data-testid="bot-last-sent-signal"]').text()).toBe('Last signal: None sent yet')
+    expect(row.get('[data-testid="bot-start"]').text()).toBe('Start')
+    expect(row.get('[data-testid="bot-run-now"]').text()).toBe('Run now')
   })
 
   it('一台都沒有時說還沒有合約機器人，拼一台的入口是合約那一條', async () => {
@@ -390,7 +422,8 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     const { wrapper } = mountPanel({
       listStrategyBots: vi.fn().mockResolvedValue([contractBot(null)]),
       listRunRecords: vi.fn().mockResolvedValue([
-        new StrategyBotRunRecordDto(1, new Date('2026-09-24T05:00:00Z'), '持有', 'neutral', false, null)]),
+        new StrategyBotRunRecordDto(
+          1, new Date('2026-09-24T05:00:00Z'), new LocalizedTextVo('持有', 'Hold'), 'neutral', false, null)]),
     }, marketDataKind)
     await flushPromises()
 
@@ -469,7 +502,7 @@ describe('StrategyBotListPanel 的自動下單', () => {
   function botWithAutoOrder(id: number, name: string, autoOrderEnabled: boolean, runState = runningState()) {
     return new StrategyBotDto(
       id, name, 'BTCUSDT', 5, 9, '黃金交叉', runState, null,
-      'kCandle', 'BTCUSDT', null, `/strategy-bots/${id}`, autoOrderEnabled)
+      'kCandle', new UntranslatedTextVo('BTCUSDT'), null, `/strategy-bots/${id}`, autoOrderEnabled)
   }
 
   async function mountWithSelected(
@@ -527,7 +560,7 @@ describe('StrategyBotListPanel 的自動下單', () => {
 
   it('沒有金鑰而被拒時開關停在關閉，並給一條前往設定畫面的路', async () => {
     const enableAutoOrder = vi.fn().mockResolvedValue(new AutoOrderSwitchResultDto(
-      null, new AutoOrderRefusalDto(1, '請先完成幣安交易金鑰設定，才能打開自動下單', true)))
+      null, new AutoOrderRefusalDto(1, new UntranslatedTextVo('請先完成幣安交易金鑰設定，才能打開自動下單'), true)))
     const { wrapper } = await mountWithSelected(
       [botWithAutoOrder(1, '早盤突破', false)], { enableAutoOrder })
 

@@ -21,6 +21,45 @@ describe('TimeZoneService', () => {
       expect(selectableTimeZones.map(timeZone => timeZone.identifier)).toContain('Asia/Taipei')
     })
 
+    it('布里斯本排在新加坡之後、倫敦之前', () => {
+      const timeZoneService = new TimeZoneService(buildProxy())
+
+      const identifiers = timeZoneService.listSelectableTimeZones().map(timeZone => timeZone.identifier)
+
+      expect(identifiers.slice(identifiers.indexOf('Asia/Singapore'), identifiers.indexOf('Europe/London') + 1))
+        .toEqual(['Asia/Singapore', 'Australia/Brisbane', 'Europe/London'])
+    })
+
+    it.each([
+      { language: 'zh-TW' as const, expected: '布里斯本（UTC+10:00）' },
+      { language: 'en' as const, expected: 'Brisbane (UTC+10:00)' },
+    ])('布里斯本在 $language 的選單上說成 $expected', ({ language, expected }) => {
+      const timeZoneService = new TimeZoneService(buildProxy())
+
+      const brisbane = timeZoneService.listSelectableTimeZones()
+        .find(timeZone => timeZone.identifier === 'Australia/Brisbane')
+
+      expect(brisbane?.label.in(language)).toBe(expected)
+    })
+
+    it('每一個城市名都有兩種說法', () => {
+      const timeZoneService = new TimeZoneService(buildProxy())
+
+      const cityNames = timeZoneService.listSelectableTimeZones()
+        .map(timeZone => [timeZone.cityName.in('zh-TW'), timeZone.cityName.in('en')])
+
+      expect(cityNames).toEqual([
+        ['世界標準時間', 'UTC'],
+        ['台北', 'Taipei'],
+        ['東京', 'Tokyo'],
+        ['香港', 'Hong Kong'],
+        ['新加坡', 'Singapore'],
+        ['布里斯本', 'Brisbane'],
+        ['倫敦', 'London'],
+        ['紐約', 'New York'],
+      ])
+    })
+
     it('每一個都標出目前的位移', () => {
       const timeZoneService = new TimeZoneService(buildProxy())
 
@@ -43,13 +82,19 @@ describe('TimeZoneService', () => {
       expect(timeZoneService.restoreSelectedTimeZone().identifier).toBe('UTC')
     })
 
+    it('記住的是布里斯本時仍是布里斯本', () => {
+      const timeZoneService = new TimeZoneService(buildProxy('Australia/Brisbane'))
+
+      expect(timeZoneService.restoreSelectedTimeZone().identifier).toBe('Australia/Brisbane')
+    })
+
     it('記住的在清單上時就是它', () => {
       const timeZoneService = new TimeZoneService(buildProxy('Asia/Taipei'))
 
       const selectedTimeZone = timeZoneService.restoreSelectedTimeZone()
 
       expect(selectedTimeZone.identifier).toBe('Asia/Taipei')
-      expect(selectedTimeZone.cityLabel).toBe('台北')
+      expect(selectedTimeZone.cityName.in('zh-TW')).toBe('台北')
     })
   })
 
@@ -81,7 +126,7 @@ describe('TimeZoneService', () => {
       const timeZonePreferenceProxy = buildProxy()
       const timeZoneService = new TimeZoneService(timeZonePreferenceProxy)
 
-      expect(timeZoneService.findTimeZone('Asia/Taipei').cityLabel).toBe('台北')
+      expect(timeZoneService.findTimeZone('Asia/Taipei').cityName.in('zh-TW')).toBe('台北')
       expect(timeZonePreferenceProxy.writeSelectedTimeZoneIdentifier).not.toHaveBeenCalled()
     })
 

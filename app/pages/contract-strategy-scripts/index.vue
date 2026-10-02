@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import IndicatorCalculationPanel from '~/components/organisms/IndicatorCalculationPanel.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '合約策略腳本',
-  consoleSubtitle: '寫一支吃永續合約行情的算式：每一格除了成交價，還帶著標記價格、資金費率與持倉統計。試跑、存起來，並在逐倉合約帳戶上回測。算式一律送到後端沙箱執行。',
+  consoleTitleKey: 'strategyScript.pages.contractStrategyScripts.title',
+  consoleSubtitleKey: 'strategyScript.pages.contractStrategyScripts.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
@@ -20,11 +21,13 @@ const {
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectedTimeZone } = useSelectedTimeZone()
 
+const { t } = useI18n()
+
 const panel = ref<InstanceType<typeof IndicatorCalculationPanel> | null>(null)
 
 // 寫到一半想離開（包括按現貨／合約開關）就先問過；什麼都沒改時不問。
 onBeforeRouteLeave(() => panel.value?.hasUnsavedDraft() === true
-  ? window.confirm('這一頁改過的東西還沒存，確定要離開嗎？')
+  ? window.confirm(t('strategyScript.pages.unsavedLeaveConfirmation'))
   : true)
 </script>
 

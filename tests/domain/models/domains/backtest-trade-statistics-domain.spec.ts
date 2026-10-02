@@ -8,22 +8,22 @@ describe('BacktestTradeStatisticsDomain', () => {
     const statistics = new BacktestTradeStatisticsDomain(new BacktestTradeStatistics(
       2.5, new Decimal(75), 9000, 1, 0.25)).toDto()
 
-    expect(statistics.profitFactor).toBe('2.50')
-    expect(statistics.expectancy).toBe('75.00')
-    expect(statistics.averageHoldingTime).toBe('2 小時 30 分')
-    expect(statistics.maximumConsecutiveLossCount).toBe('1 筆')
-    expect(statistics.costToGrossProfitRatio).toBe('25.00%')
+    expect(statistics.profitFactor.in('zh-TW')).toBe('2.50')
+    expect(statistics.expectancy.in('zh-TW')).toBe('75.00')
+    expect(statistics.averageHoldingTime.in('zh-TW')).toBe('2 小時 30 分')
+    expect(statistics.maximumConsecutiveLossCount.in('zh-TW')).toBe('1 筆')
+    expect(statistics.costToGrossProfitRatio.in('zh-TW')).toBe('25.00%')
   })
 
   it('不適用的四格寫「不適用」，連虧零筆照寫', () => {
     const statistics = new BacktestTradeStatisticsDomain(
       new BacktestTradeStatistics(null, null, null, 0, null)).toDto()
 
-    expect(statistics.profitFactor).toBe('不適用')
-    expect(statistics.expectancy).toBe('不適用')
-    expect(statistics.averageHoldingTime).toBe('不適用')
-    expect(statistics.costToGrossProfitRatio).toBe('不適用')
-    expect(statistics.maximumConsecutiveLossCount).toBe('0 筆')
+    expect(statistics.profitFactor.in('zh-TW')).toBe('不適用')
+    expect(statistics.expectancy.in('zh-TW')).toBe('不適用')
+    expect(statistics.averageHoldingTime.in('zh-TW')).toBe('不適用')
+    expect(statistics.costToGrossProfitRatio.in('zh-TW')).toBe('不適用')
+    expect(statistics.maximumConsecutiveLossCount.in('zh-TW')).toBe('0 筆')
   })
 
   it.each([
@@ -36,6 +36,31 @@ describe('BacktestTradeStatisticsDomain', () => {
     const statistics = new BacktestTradeStatisticsDomain(new BacktestTradeStatistics(
       null, null, averageHoldingSeconds, 0, null)).toDto()
 
-    expect(statistics.averageHoldingTime).toBe(expected)
+    expect(statistics.averageHoldingTime.in('zh-TW')).toBe(expected)
+  })
+})
+
+describe('BacktestTradeStatisticsDomain 的英文說法', () => {
+  it.each([
+    [45, '45 s'],
+    [273600, '3 d 4 h'],
+    [90, '1 m 30 s'],
+    [0, '0 s'],
+  ])('平均持倉 %d 秒寫成「%s」', (averageHoldingSeconds, expected) => {
+    const statistics = new BacktestTradeStatisticsDomain(new BacktestTradeStatistics(
+      null, null, averageHoldingSeconds, 0, null)).toDto()
+
+    expect(statistics.averageHoldingTime.in('en')).toBe(expected)
+  })
+
+  it.each([
+    [1, '1 trade'],
+    [3, '3 trades'],
+  ])('最大連續虧損 %d 筆寫成「%s」，不適用寫 N/A', (maximumConsecutiveLossCount, expected) => {
+    const statistics = new BacktestTradeStatisticsDomain(new BacktestTradeStatistics(
+      null, null, null, maximumConsecutiveLossCount, null)).toDto()
+
+    expect(statistics.maximumConsecutiveLossCount.in('en')).toBe(expected)
+    expect(statistics.profitFactor.in('en')).toBe('N/A')
   })
 })

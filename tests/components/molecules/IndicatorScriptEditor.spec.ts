@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import IndicatorScriptEditor from '~/components/molecules/IndicatorScriptEditor.vue'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const WHOLE_SCRIPT = [
   'package main',
@@ -17,7 +19,7 @@ const WHOLE_SCRIPT = [
 ].join('\n')
 
 async function mountEditor(
-  overrides: { errorMessage?: string | null, modelValue?: string, concealed?: boolean } = {},
+  overrides: { errorMessage?: LocalizedTextVo | null, modelValue?: string, concealed?: boolean } = {},
 ) {
   const wrapper = mount(IndicatorScriptEditor, {
     // 掛到真正的文件上：這一份裡有一條驗的是游標落在哪裡，而沒進文件的元素收不到焦點。
@@ -85,9 +87,19 @@ describe('IndicatorScriptEditor', () => {
   })
 
   it('內容出錯時把訊息標在算式旁邊', async () => {
-    const wrapper = await mountEditor({ errorMessage: '請填寫算式內容' })
+    const wrapper = await mountEditor({ errorMessage: new LocalizedTextVo('請填寫算式內容', 'Enter the script') })
 
     expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請填寫算式內容')
+  })
+
+  it('換成英文時，已經標著的那句訊息與提示跟著換', async () => {
+    const wrapper = await mountEditor({ errorMessage: new LocalizedTextVo('請填寫算式內容', 'Enter the script') })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('Enter the script')
+    expect(wrapper.text()).toContain('The whole file is editable')
   })
 
   it('沒有錯誤時不擺錯誤訊息', async () => {

@@ -20,6 +20,8 @@ import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mo
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
+import { useI18n } from 'vue-i18n'
+import type { BacktestField } from '~/domain/errors/backtest-field-error'
 
 // 有機體：回測這一整個去處。
 //
@@ -81,6 +83,16 @@ const symbol = defineModel<string>('symbol', { required: true })
 const aggregationInterval = defineModel<string>('aggregationInterval', { required: true })
 
 const backtestRun = useBacktestRun(backtestApplication)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+/** 這一格被指出的問題，照目前的語言說出來；沒有問題就是 `null`。 */
+function fieldMessage(field: BacktestField): string | null {
+  const message = backtestRun.messageFor(field)
+
+  return message === null ? null : localize(message)
+}
 
 const positionSizingModeOptions = backtestApplication.listPositionSizingModeOptions()
 
@@ -195,12 +207,12 @@ function buildRequest(): BacktestRequestDto {
     @submit.prevent="runBacktest"
   >
     <AppPanel
-      title="回測條件"
+      :title="t('backtest.common.conditionsTitle')"
       class="strategy-script-backtest-pane__conditions"
     >
       <template #meta>
         <AppBadge variant="info">
-          只影響這一次
+          {{ t('backtest.common.onlyThisRun') }}
         </AppBadge>
         <!--
           規則擺在一顆鍵後面而不是攤在版面上：使用者會想讀它的時刻只有兩個——
@@ -210,7 +222,7 @@ function buildRequest(): BacktestRequestDto {
           type="button"
           variant="ghost"
           size="small"
-          label="回測照什麼規則走"
+          :label="t('backtest.common.ruleGuideTitle')"
           data-testid="backtest-rule-guide-button"
           @click="ruleGuideOpen = true"
         >
@@ -236,25 +248,25 @@ function buildRequest(): BacktestRequestDto {
         v-model:fill-timing="fillTiming"
         v-model:validation-start-time="validationStartTime"
         :fill-timing-options="fillTimingOptions"
-        :fill-timing-error="backtestRun.messageFor('fillTiming')"
-        :validation-start-time-error="backtestRun.messageFor('validationStartTime')"
+        :fill-timing-error="fieldMessage('fillTiming')"
+        :validation-start-time-error="fieldMessage('validationStartTime')"
         :replays-on-contract-account="replaysOnContractAccount"
         :contract-trading-mode-options="contractTradingModeOptions"
-        :leverage-error="backtestRun.messageFor('leverage')"
-        :trading-mode-error="backtestRun.messageFor('tradingMode')"
-        :slippage-error="backtestRun.messageFor('slippage')"
+        :leverage-error="fieldMessage('leverage')"
+        :trading-mode-error="fieldMessage('tradingMode')"
+        :slippage-error="fieldMessage('slippage')"
         :trading-symbol-application="tradingSymbolApplication"
         :time-zone="timeZone"
         :aggregation-interval-options="aggregationIntervalOptions"
         :position-sizing-mode-options="positionSizingModeOptions"
         :running="backtestRun.running.value"
         :disabled="backendUnreachable || backtestRun.backendUnreachable.value"
-        :symbol-error="backtestRun.messageFor('symbol')"
-        :time-range-error="backtestRun.messageFor('timeRange')"
-        :initial-capital-error="backtestRun.messageFor('initialCapital')"
-        :position-sizing-value-error="backtestRun.messageFor('positionSizingValue')"
-        :exit-levels-error="backtestRun.messageFor('exitLevels')"
-        :transaction-costs-error="backtestRun.messageFor('transactionCosts')"
+        :symbol-error="fieldMessage('symbol')"
+        :time-range-error="fieldMessage('timeRange')"
+        :initial-capital-error="fieldMessage('initialCapital')"
+        :position-sizing-value-error="fieldMessage('positionSizingValue')"
+        :exit-levels-error="fieldMessage('exitLevels')"
+        :transaction-costs-error="fieldMessage('transactionCosts')"
       />
 
       <p
@@ -262,7 +274,7 @@ function buildRequest(): BacktestRequestDto {
         class="strategy-script-backtest-pane__script-error"
         data-testid="backtest-script-error"
       >
-        {{ backtestRun.messageFor('script') }}
+        {{ fieldMessage('script') }}
       </p>
     </AppPanel>
 
@@ -272,7 +284,7 @@ function buildRequest(): BacktestRequestDto {
         class="strategy-script-backtest-pane__placeholder"
         data-testid="backtest-placeholder"
       >
-        按「執行回測」，成績單、資金曲線與交易明細會出現在這裡。
+        {{ t('backtest.strategyScriptBacktestPane.placeholder') }}
       </p>
 
       <!--
@@ -284,7 +296,7 @@ function buildRequest(): BacktestRequestDto {
         tone="danger"
         data-testid="backtest-parameter-not-declared-alert"
       >
-        參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ backtestRun.parameterNotDeclaredMessage.value }}
+        {{ t('backtest.strategyScriptBacktestPane.parameterNotDeclared', { message: localize(backtestRun.parameterNotDeclaredMessage.value) }) }}
       </AppAlert>
 
       <AppAlert
@@ -292,7 +304,7 @@ function buildRequest(): BacktestRequestDto {
         tone="danger"
         data-testid="backtest-script-failed-alert"
       >
-        算式的問題（要改的是算式）：{{ backtestRun.scriptFailedMessage.value }}
+        {{ t('backtest.strategyScriptBacktestPane.scriptFailed', { message: localize(backtestRun.scriptFailedMessage.value) }) }}
       </AppAlert>
 
       <AppAlert
@@ -300,7 +312,7 @@ function buildRequest(): BacktestRequestDto {
         tone="warning"
         data-testid="backtest-request-rejected-alert"
       >
-        請求的問題：{{ backtestRun.requestRejectedMessage.value }}
+        {{ t('backtest.common.requestRejected', { message: localize(backtestRun.requestRejectedMessage.value) }) }}
       </AppAlert>
 
       <!--
@@ -312,7 +324,7 @@ function buildRequest(): BacktestRequestDto {
         tone="warning"
         data-testid="backtest-time-allowance-spent-alert"
       >
-        這一次重演沒在允許時間內跑完，所以沒有成績單。請縮短期間，或改用粗一點的彙總刻度再試：{{ backtestRun.timeAllowanceSpentMessage.value }}
+        {{ t('backtest.common.timeAllowanceSpent', { message: localize(backtestRun.timeAllowanceSpentMessage.value) }) }}
       </AppAlert>
 
       <AppAlert
@@ -320,7 +332,7 @@ function buildRequest(): BacktestRequestDto {
         tone="danger"
         data-testid="backtest-server-error-alert"
       >
-        後端出錯了（不是你的請求有問題），請稍後重試：{{ backtestRun.serverErrorMessage.value }}
+        {{ t('backtest.common.serverError', { message: localize(backtestRun.serverErrorMessage.value) }) }}
         <template #action>
           <AppButton
             variant="secondary"
@@ -328,7 +340,7 @@ function buildRequest(): BacktestRequestDto {
             :disabled="backtestRun.running.value"
             @click="runBacktest"
           >
-            重試
+            {{ t('backtest.common.retry') }}
           </AppButton>
         </template>
       </AppAlert>
@@ -338,7 +350,7 @@ function buildRequest(): BacktestRequestDto {
         tone="danger"
         data-testid="backtest-unreachable-alert"
       >
-        連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+        {{ t('backtest.common.unreachable') }}
       </AppAlert>
 
       <AppAlert
@@ -346,7 +358,7 @@ function buildRequest(): BacktestRequestDto {
         tone="info"
         data-testid="backtest-running-alert"
       >
-        回測中…每一根 K 線都要跑一次算式，一段長期間可能要等上數十秒；超過九十秒交易服務會中止這一次。
+        {{ t('backtest.strategyScriptBacktestPane.runningNotice') }}
       </AppAlert>
 
       <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->

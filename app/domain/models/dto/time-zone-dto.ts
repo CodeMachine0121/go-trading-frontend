@@ -5,6 +5,7 @@ import {
   shiftToWallClock,
   unshiftFromWallClock,
 } from '~/utilities/time-zone-format'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：選定的時區交給 application 與畫面的唯一形狀，**並帶著雙向換算**。
@@ -16,14 +17,11 @@ import {
 export class TimeZoneDto {
   constructor(
     public readonly identifier: string,
-    public readonly cityLabel: string,
+    public readonly cityName: LocalizedTextVo,
     public readonly offsetLabel: string,
+    /** 選單上的說法：`台北（UTC+08:00）`／`Taipei (UTC+08:00)`。 */
+    public readonly label: LocalizedTextVo,
   ) {}
-
-  /** 選單上的說法：`台北（UTC+08:00）`。 */
-  get label(): string {
-    return `${this.cityLabel}（${this.offsetLabel}）`
-  }
 
   /** 畫面上呈現一個瞬間：`2026-08-30 12:00`。 */
   formatDateTime(instant: Date): string {

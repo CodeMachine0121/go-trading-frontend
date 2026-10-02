@@ -42,7 +42,7 @@ describe('IndicatorScriptDomain.exampleScript', () => {
     { resultType: 'bool', expectedReturn: 'return map[string]bool{' },
     { resultType: 'boolList', expectedReturn: 'return map[string][]bool{' },
   ])('$resultType 的範例算式是開頭那幾行加一整個 Calculate 函式', ({ resultType, expectedReturn }) => {
-    const exampleScript = scriptOf(resultType).exampleScript()
+    const exampleScript = scriptOf(resultType).exampleScript().in('zh-TW')
 
     expect(exampleScript.startsWith(`${PREAMBLE}\n\nfunc Calculate(data []indicator.KCandle) `)).toBe(true)
     expect(exampleScript.endsWith('\n}')).toBe(true)
@@ -50,7 +50,7 @@ describe('IndicatorScriptDomain.exampleScript', () => {
   })
 
   it('信號種類的範例算式用系統提供的方式選一個信號', () => {
-    const exampleScript = scriptOf('signal').exampleScript()
+    const exampleScript = scriptOf('signal').exampleScript().in('zh-TW')
 
     expect(exampleScript).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
     expect(exampleScript).toContain('\treturn indicator.Buy')
@@ -62,7 +62,7 @@ describe('IndicatorScriptDomain.exampleScript', () => {
     const scriptDomain = scriptOf('signal')
 
     expect(scriptDomain.blankScript().startsWith(PREAMBLE)).toBe(true)
-    expect(scriptDomain.exampleScript().startsWith(PREAMBLE)).toBe(true)
+    expect(scriptDomain.exampleScript().in('zh-TW').startsWith(PREAMBLE)).toBe(true)
   })
 })
 
@@ -149,14 +149,25 @@ describe('IndicatorScriptDomain 吃合約行情的算式', () => {
     { resultType: 'boolList', reads: 'candle.FundingSettledInBar' },
     { resultType: 'signal', reads: 'last.FundingRate' },
   ])('$resultType 的範例收合約行情格，而且讀了合約才有的 $reads', ({ resultType, reads }) => {
-    const example = contractScriptOf(resultType).exampleScript()
+    const example = contractScriptOf(resultType).exampleScript().in('zh-TW')
 
     expect(example).toContain('func Calculate(data []indicator.ContractKCandle)')
     expect(example).toContain(reads)
   })
 
   it('K 線那一種的範例照舊讀收盤價', () => {
-    expect(scriptOf('float').exampleScript()).toContain('candle.Close')
-    expect(scriptOf('float').exampleScript()).toContain('[]indicator.KCandle')
+    expect(scriptOf('float').exampleScript().in('zh-TW')).toContain('candle.Close')
+    expect(scriptOf('float').exampleScript().in('zh-TW')).toContain('[]indicator.KCandle')
+  })
+
+  it.each([
+    { scriptDomain: scriptOf('float'), chineseName: '"均價"', englishName: '"Average price"' },
+    { scriptDomain: contractScriptOf('boolList'), chineseName: '"這一格有結算"', englishName: '"Settled in this candle"' },
+  ])('英文畫面帶入的範例用英文的指標名稱 $englishName，程式碼與中文那一份一字不差', ({ scriptDomain, chineseName, englishName }) => {
+    const example = scriptDomain.exampleScript()
+
+    expect(example.in('en')).toContain(englishName)
+    expect(example.in('en')).not.toContain(chineseName)
+    expect(example.in('en').replace(englishName, chineseName)).toBe(example.in('zh-TW'))
   })
 })

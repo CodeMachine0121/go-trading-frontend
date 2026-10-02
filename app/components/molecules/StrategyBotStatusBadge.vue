@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 
@@ -7,6 +8,9 @@ import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-ru
 // 語氣與字都是問領域模型要的，這裡不判斷任何狀態字串——
 // 「停擺要比已停止更醒目」是規則，不是配色偏好。
 defineProps<{ runState: StrategyBotRunStateDto }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -15,7 +19,7 @@ defineProps<{ runState: StrategyBotRunStateDto }>()
       :variant="runState.statusTone"
       data-testid="bot-status-badge"
     >
-      {{ runState.statusLabel }}
+      {{ localize(runState.statusLabel) }}
     </AppBadge>
 
     <!--
@@ -27,16 +31,16 @@ defineProps<{ runState: StrategyBotRunStateDto }>()
       variant="warning"
       data-testid="bot-conflicting-badge"
     >
-      規則打架了
+      {{ t('strategyBot.statusBadge.conflicting') }}
     </AppBadge>
 
     <!-- 停擺原因是使用者要去處理的那一句，所以它跟著標籤走、不必點開才看得到。 -->
     <p
-      v-if="runState.isHalted"
+      v-if="runState.isHalted && runState.haltReasonLabel !== null"
       class="strategy-bot-status__reason"
       data-testid="bot-halt-reason"
     >
-      {{ runState.haltReasonLabel }}
+      {{ localize(runState.haltReasonLabel) }}
     </p>
   </div>
 </template>

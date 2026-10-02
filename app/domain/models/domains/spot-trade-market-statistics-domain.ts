@@ -1,6 +1,8 @@
 import Decimal from 'decimal.js'
 import type { SpotTradeMarketStatistics } from '~/domain/models/entities/spot-trade-market-statistics'
 import type { SpotTradeSourceGroup } from '~/domain/models/entities/spot-trade-source-group'
+import type { SpotTradeMarket } from '~/domain/models/vo/spot-trade-market-vo'
+import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
 import { SpotTradeMarketStatisticsDto } from '~/domain/models/dto/spot-trade-market-statistics-dto'
 import { SpotTradeMistakeCostRowDto } from '~/domain/models/dto/spot-trade-mistake-cost-row-dto'
 import { SpotTradeSourceComparisonRowDto } from '~/domain/models/dto/spot-trade-source-comparison-row-dto'
@@ -9,11 +11,17 @@ import { TradeDistributionBarDto } from '~/domain/models/dto/trade-distribution-
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
 import { SpotTradeMarketDomain } from '~/domain/models/domains/spot-trade-market-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const NOT_APPLICABLE_TEXT = '不適用'
-const NO_CLOSED_TRADES_MESSAGE = '這段期間沒有已平倉交易'
-const NO_LINKED_TRADES_TEXT = '沒有來自機器人連結的交易'
-const PROFIT_FACTOR_NOTE = '總賺 ÷ 總賠'
+const NOT_APPLICABLE_TEXT = new LocalizedTextVo('不適用', 'N/A')
+const NO_CLOSED_TRADES_MESSAGE = new LocalizedTextVo('這段期間沒有已平倉交易', 'No closed trades in this period')
+const NO_LINKED_TRADES_TEXT = new LocalizedTextVo('沒有來自機器人連結的交易', 'No trades from bot links')
+const PROFIT_FACTOR_NOTE = new LocalizedTextVo('總賺 ÷ 總賠', 'Gross profit ÷ gross loss')
+const AVERAGE_ENTRY_SLIPPAGE_LABEL = new LocalizedTextVo('平均進場滑點', 'Avg entry slippage')
+const AVERAGE_RETURN_RATE_LABEL = new LocalizedTextVo('平均報酬率', 'Avg return')
+const PROFIT_FACTOR_LABEL = new LocalizedTextVo('獲利因子', 'Profit factor')
+const AVERAGE_R_MULTIPLE_LABEL = new LocalizedTextVo('平均 R', 'Avg R')
 const RATIO_FRACTION_DIGITS = 0
 const RETURN_RATE_FRACTION_DIGITS = 2
 const FACTOR_FRACTION_DIGITS = 2
@@ -23,7 +31,11 @@ const PERCENT = 100
 export class SpotTradeMarketStatisticsDomain {
   constructor(private readonly statistics: SpotTradeMarketStatistics) {}
 
-  get marketLabel(): string {
+  get market(): SpotTradeMarket {
+    return this.statistics.market
+  }
+
+  get marketLabel(): LocalizedTextVo {
     return new SpotTradeMarketDomain(this.statistics.market).label
   }
 
@@ -41,10 +53,11 @@ export class SpotTradeMarketStatisticsDomain {
   }
 
   toDto(): SpotTradeMarketStatisticsDto {
-    const closedTradeCountText = `已平倉 ${this.statistics.closedTradeCount} 筆`
+    const closedTradeCountText = new LocalizedTextVo(
+      `已平倉 ${this.statistics.closedTradeCount} 筆`, `${this.statistics.closedTradeCount} closed`)
     if (this.statistics.closedTradeCount === 0) {
       return new SpotTradeMarketStatisticsDto(
-        this.marketLabel, closedTradeCountText, NO_CLOSED_TRADES_MESSAGE, [], null, [], null, [], [], [])
+        this.market, this.marketLabel, closedTradeCountText, NO_CLOSED_TRADES_MESSAGE, [], null, [], null, [], [], [])
     }
 
     const slippage = this.statistics.averageEntrySlippagePercentage
@@ -53,6 +66,7 @@ export class SpotTradeMarketStatisticsDomain {
     const lastCumulativePoint = this.statistics.cumulativeProfit.at(-1)
 
     return new SpotTradeMarketStatisticsDto(
+      this.market,
       this.marketLabel,
       closedTradeCountText,
       null,
@@ -60,23 +74,29 @@ export class SpotTradeMarketStatisticsDomain {
         ...this.summaryFigures(),
         this.averageRMultipleFigure(),
         slippage === null || this.statistics.entrySlippageTradeCount === 0
-          ? new TradeFigureVo('平均進場滑點', NO_LINKED_TRADES_TEXT, 'muted')
+          ? new TradeFigureVo('averageEntrySlippagePercentage', AVERAGE_ENTRY_SLIPPAGE_LABEL, NO_LINKED_TRADES_TEXT, 'muted')
           : new TradeFigureVo(
-              '平均進場滑點',
-              new JournalNumberDomain(slippage).percentage(SLIPPAGE_FRACTION_DIGITS),
+              'averageEntrySlippagePercentage',
+              AVERAGE_ENTRY_SLIPPAGE_LABEL,
+              new UntranslatedTextVo(new JournalNumberDomain(slippage).percentage(SLIPPAGE_FRACTION_DIGITS)),
               'neutral',
-              `${this.statistics.entrySlippageTradeCount} 筆來自機器人連結`),
+              new LocalizedTextVo(
+                `${this.statistics.entrySlippageTradeCount} 筆來自機器人連結`,
+                `${this.statistics.entrySlippageTradeCount} from bot links`)),
       ],
       this.statistics.rTradeCount === this.statistics.closedTradeCount
         ? null
-        : `平均 R 以 ${this.statistics.rTradeCount} 筆計（有計畫止損的交易）`,
+        : new LocalizedTextVo(
+            `平均 R 以 ${this.statistics.rTradeCount} 筆計（有計畫止損的交易）`,
+            `Avg R is based on ${this.statistics.rTradeCount} ${this.statistics.rTradeCount === 1 ? 'trade' : 'trades'} (those with a planned stop loss)`),
       this.statistics.cumulativeProfit.map(point => new TradeChartPointDto(
         point.closedAt, point.cumulativeNetProfit.toNumber())),
       lastCumulativePoint === undefined
         ? null
         : new TradeFigureVo(
-            '累積損益',
-            new JournalNumberDomain(lastCumulativePoint.cumulativeNetProfit).signedAmount(),
+            'cumulativeNetProfit',
+            new LocalizedTextVo('累積損益', 'Cumulative P&L'),
+            new UntranslatedTextVo(new JournalNumberDomain(lastCumulativePoint.cumulativeNetProfit).signedAmount()),
             new JournalNumberDomain(lastCumulativePoint.cumulativeNetProfit).tone()),
       this.statistics.returnDistribution.map(bucket => new TradeDistributionBarDto(
         bucket.label,
@@ -85,7 +105,7 @@ export class SpotTradeMarketStatisticsDomain {
         (bucket.count / largestBucketCount) * PERCENT)),
       this.statistics.mistakeCosts.map(mistakeCost => new SpotTradeMistakeCostRowDto(
         mistakeCost.tagName,
-        `${mistakeCost.tradeCount} 筆`,
+        this.tradeCountText(mistakeCost.tradeCount),
         new JournalNumberDomain(mistakeCost.totalNetProfit).signedAmount(),
         this.returnRateText(mistakeCost.averageReturnRate),
         new JournalNumberDomain(mistakeCost.totalNetProfit).tone(),
@@ -93,76 +113,106 @@ export class SpotTradeMarketStatisticsDomain {
           ? 0
           : mistakeCost.totalNetProfit.abs().dividedBy(largestMistakeCost).times(PERCENT).toNumber())),
       [
-        this.sourceComparisonRow('有關聯策略', this.statistics.linkedGroup),
-        this.sourceComparisonRow('自行判斷', this.statistics.selfJudgedGroup),
+        this.sourceComparisonRow('linked', new LocalizedTextVo('有關聯策略', 'Linked strategy'), this.statistics.linkedGroup),
+        this.sourceComparisonRow('selfJudged', new LocalizedTextVo('自行判斷', 'Self-judged'), this.statistics.selfJudgedGroup),
       ],
     )
   }
 
   private netProfitFigure(): TradeFigureVo {
     return new TradeFigureVo(
-      '淨損益',
-      new JournalNumberDomain(this.statistics.netProfit).signedAmount(),
+      'netProfit',
+      new LocalizedTextVo('淨損益', 'Net P&L'),
+      new UntranslatedTextVo(new JournalNumberDomain(this.statistics.netProfit).signedAmount()),
       new JournalNumberDomain(this.statistics.netProfit).tone(),
-      `${this.statistics.currency}，已扣手續費`)
+      new LocalizedTextVo(`${this.statistics.currency}，已扣手續費`, `${this.statistics.currency}, after fees`))
   }
 
   private winRateFigure(): TradeFigureVo {
     return new TradeFigureVo(
-      '勝率',
+      'winRate',
+      new LocalizedTextVo('勝率', 'Win rate'),
       this.ratioText(this.statistics.winRate),
       'neutral',
-      `${this.statistics.winCount} 勝 ${this.statistics.closedTradeCount - this.statistics.winCount} 敗`)
+      new LocalizedTextVo(
+        `${this.statistics.winCount} 勝 ${this.statistics.closedTradeCount - this.statistics.winCount} 敗`,
+        `${this.statistics.winCount} W ${this.statistics.closedTradeCount - this.statistics.winCount} L`))
   }
 
   private averageReturnRateFigure(): TradeFigureVo {
     const averageReturnRate = this.statistics.averageReturnRate
 
     return averageReturnRate === null
-      ? new TradeFigureVo('平均報酬率', NOT_APPLICABLE_TEXT, 'muted')
+      ? new TradeFigureVo('averageReturnRate', AVERAGE_RETURN_RATE_LABEL, NOT_APPLICABLE_TEXT, 'muted')
       : new TradeFigureVo(
-          '平均報酬率',
+          'averageReturnRate',
+          AVERAGE_RETURN_RATE_LABEL,
           this.returnRateText(averageReturnRate),
           new JournalNumberDomain(new Decimal(averageReturnRate)).tone(),
-          '每筆淨損益 ÷ 買進成本')
+          new LocalizedTextVo('每筆淨損益 ÷ 買進成本', 'Net P&L per trade ÷ buy cost'))
   }
 
   private profitFactorFigure(): TradeFigureVo {
     const profitFactor = this.statistics.profitFactor
 
     return profitFactor === null
-      ? new TradeFigureVo('獲利因子', NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
-      : new TradeFigureVo('獲利因子', profitFactor.toFixed(FACTOR_FRACTION_DIGITS), 'neutral', PROFIT_FACTOR_NOTE)
+      ? new TradeFigureVo('profitFactor', PROFIT_FACTOR_LABEL, NOT_APPLICABLE_TEXT, 'muted', PROFIT_FACTOR_NOTE)
+      : new TradeFigureVo(
+          'profitFactor',
+          PROFIT_FACTOR_LABEL,
+          new UntranslatedTextVo(profitFactor.toFixed(FACTOR_FRACTION_DIGITS)),
+          'neutral',
+          PROFIT_FACTOR_NOTE)
   }
 
   private averageRMultipleFigure(): TradeFigureVo {
     const averageRMultiple = this.statistics.averageRMultiple
 
     return averageRMultiple === null
-      ? new TradeFigureVo('平均 R', NOT_APPLICABLE_TEXT, 'muted', '沒有設計畫止損的交易')
+      ? new TradeFigureVo(
+          'averageRMultiple',
+          AVERAGE_R_MULTIPLE_LABEL,
+          NOT_APPLICABLE_TEXT,
+          'muted',
+          new LocalizedTextVo('沒有設計畫止損的交易', 'No trades with a planned stop loss'))
       : new TradeFigureVo(
-          '平均 R',
-          new JournalNumberDomain(averageRMultiple).rMultiple(),
+          'averageRMultiple',
+          AVERAGE_R_MULTIPLE_LABEL,
+          new UntranslatedTextVo(new JournalNumberDomain(averageRMultiple).rMultiple()),
           new JournalNumberDomain(averageRMultiple).tone(),
-          `以 ${this.statistics.rTradeCount} 筆計`)
+          new LocalizedTextVo(
+            `以 ${this.statistics.rTradeCount} 筆計`,
+            `Based on ${this.statistics.rTradeCount} ${this.statistics.rTradeCount === 1 ? 'trade' : 'trades'}`))
   }
 
-  private sourceComparisonRow(label: string, group: SpotTradeSourceGroup): SpotTradeSourceComparisonRowDto {
+  private sourceComparisonRow(
+    source: Exclude<TradeSourceFilter, 'all'>,
+    label: LocalizedTextVo,
+    group: SpotTradeSourceGroup,
+  ): SpotTradeSourceComparisonRowDto {
     return new SpotTradeSourceComparisonRowDto(
+      source,
       label,
-      `${group.tradeCount} 筆`,
+      this.tradeCountText(group.tradeCount),
       this.ratioText(group.winRate),
       this.returnRateText(group.averageReturnRate),
     )
   }
 
-  private returnRateText(returnRate: number | null): string {
-    return returnRate === null
-      ? NOT_APPLICABLE_TEXT
-      : new JournalNumberDomain(new Decimal(returnRate).times(PERCENT)).signedPercentage(RETURN_RATE_FRACTION_DIGITS)
+  private tradeCountText(tradeCount: number): LocalizedTextVo {
+    return new LocalizedTextVo(`${tradeCount} 筆`, `${tradeCount} ${tradeCount === 1 ? 'trade' : 'trades'}`)
   }
 
-  private ratioText(ratio: number | null): string {
-    return ratio === null ? NOT_APPLICABLE_TEXT : `${(ratio * PERCENT).toFixed(RATIO_FRACTION_DIGITS)}%`
+  private returnRateText(returnRate: number | null): LocalizedTextVo {
+    return returnRate === null
+      ? NOT_APPLICABLE_TEXT
+      : new UntranslatedTextVo(
+          new JournalNumberDomain(new Decimal(returnRate).times(PERCENT)).signedPercentage(RETURN_RATE_FRACTION_DIGITS))
+  }
+
+  private ratioText(ratio: number | null): LocalizedTextVo {
+    return ratio === null
+      ? NOT_APPLICABLE_TEXT
+      : new UntranslatedTextVo(`${(ratio * PERCENT).toFixed(RATIO_FRACTION_DIGITS)}%`)
   }
 }

@@ -2,6 +2,7 @@
 import type { ScriptInputGuideDto } from '~/domain/models/dto/script-input-guide-dto'
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
+import { useI18n } from 'vue-i18n'
 
 /**
  * 分子：寫算式時會查的三件事——**每一根 K 線有什麼**、**參數怎麼讀**，
@@ -24,6 +25,9 @@ defineProps<{
   /** 「一個信號」種類之下，算式能回傳的三個值。 */
   signalReadings: readonly SignalReadingDto[]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -33,7 +37,7 @@ defineProps<{
         class="indicator-script-guide__heading"
         data-testid="script-input-heading"
       >
-        {{ guide.heading }}
+        {{ localize(guide.heading) }}
       </h3>
 
       <pre
@@ -56,33 +60,76 @@ defineProps<{
             {{ field.type }}
           </dd>
           <dd class="indicator-script-guide__meaning">
-            {{ field.label }}
+            {{ localize(field.label) }}
           </dd>
         </template>
       </dl>
 
       <!-- 最容易寫錯的幾件事都在這裡：它不是資料庫那張表。 -->
       <div class="indicator-script-guide__caveat">
-        <p class="indicator-script-guide__caveat-title">
-          這是<strong>算式看得到的</strong>形狀，不是資料庫那張表
-        </p>
+        <i18n-t
+          keypath="strategyScript.indicatorScriptGuide.shapeCaveat.title"
+          tag="p"
+          class="indicator-script-guide__caveat-title"
+        >
+          <template #emphasis>
+            <strong>{{ t('strategyScript.indicatorScriptGuide.shapeCaveat.titleEmphasis') }}</strong>
+          </template>
+        </i18n-t>
         <ul class="indicator-script-guide__caveat-list">
-          <li>沒有 <code>ID</code>。</li>
-          <li>時間是 Unix 秒的整數，不是 <code>time.Time</code>。</li>
+          <i18n-t
+            keypath="strategyScript.indicatorScriptGuide.shapeCaveat.noId"
+            tag="li"
+          >
+            <template #id>
+              <code>ID</code>
+            </template>
+          </i18n-t>
+          <i18n-t
+            keypath="strategyScript.indicatorScriptGuide.shapeCaveat.unixSeconds"
+            tag="li"
+          >
+            <template #timeType>
+              <code>time.Time</code>
+            </template>
+          </i18n-t>
           <li data-testid="script-value-type-note">
-            {{ guide.valueTypeNote }}
+            {{ localize(guide.valueTypeNote) }}
           </li>
-          <li>只開放 <code>math</code> 與 <code>sort</code>，開新的空白算式時已經先幫你匯入。</li>
-          <li>只能做<strong>純運算</strong>，碰不到檔案、網路與時間。</li>
-          <li data-testid="script-concurrency-note">
-            不能用 <code>go</code> 開 goroutine，也不能用 channel；寫了的算式會直接被拒絕。
-          </li>
+          <i18n-t
+            keypath="strategyScript.indicatorScriptGuide.shapeCaveat.packages"
+            tag="li"
+          >
+            <template #math>
+              <code>math</code>
+            </template>
+            <template #sort>
+              <code>sort</code>
+            </template>
+          </i18n-t>
+          <i18n-t
+            keypath="strategyScript.indicatorScriptGuide.shapeCaveat.pureComputation"
+            tag="li"
+          >
+            <template #emphasis>
+              <strong>{{ t('strategyScript.indicatorScriptGuide.shapeCaveat.pureComputationEmphasis') }}</strong>
+            </template>
+          </i18n-t>
+          <i18n-t
+            keypath="strategyScript.indicatorScriptGuide.shapeCaveat.noConcurrency"
+            tag="li"
+            data-testid="script-concurrency-note"
+          >
+            <template #go>
+              <code>go</code>
+            </template>
+          </i18n-t>
           <li
-            v-for="note in guide.notes"
-            :key="note"
+            v-for="(note, noteIndex) in guide.notes"
+            :key="noteIndex"
             data-testid="script-input-note"
           >
-            {{ note }}
+            {{ localize(note) }}
           </li>
         </ul>
       </div>
@@ -90,62 +137,91 @@ defineProps<{
 
     <section class="indicator-script-guide__section">
       <h3 class="indicator-script-guide__heading">
-        參數怎麼設、怎麼讀
+        {{ t('strategyScript.indicatorScriptGuide.parameters.heading') }}
       </h3>
 
       <ol class="indicator-script-guide__steps">
-        <li>在「參數」那一區按<strong>新增參數</strong>，取一個名字、挑一種種類、填一個預設值。</li>
-        <li>在算式裡用<strong>同一個名字</strong>把它讀出來。</li>
-        <li>
-          參數跟著策略腳本一起存。在 K 線圖表上套用這支策略腳本時，可以替<strong>那一次</strong>
-          另外調一個值，而這裡填的預設值不會被動到。
-        </li>
+        <i18n-t
+          keypath="strategyScript.indicatorScriptGuide.parameters.addStep"
+          tag="li"
+        >
+          <template #emphasis>
+            <strong>{{ t('strategyScript.indicatorScriptGuide.parameters.addStepEmphasis') }}</strong>
+          </template>
+        </i18n-t>
+        <i18n-t
+          keypath="strategyScript.indicatorScriptGuide.parameters.readStep"
+          tag="li"
+        >
+          <template #emphasis>
+            <strong>{{ t('strategyScript.indicatorScriptGuide.parameters.readStepEmphasis') }}</strong>
+          </template>
+        </i18n-t>
+        <i18n-t
+          keypath="strategyScript.indicatorScriptGuide.parameters.overrideStep"
+          tag="li"
+        >
+          <template #emphasis>
+            <strong>{{ t('strategyScript.indicatorScriptGuide.parameters.overrideStepEmphasis') }}</strong>
+          </template>
+        </i18n-t>
       </ol>
 
       <div
         v-for="access in parameterAccesses"
-        :key="access.kindLabel"
+        :key="access.returnType"
         class="indicator-script-guide__kind"
         data-testid="script-parameter-access"
       >
         <p class="indicator-script-guide__kind-title">
-          {{ access.kindLabel }}
-          <span class="indicator-script-guide__type">讀出來是 {{ access.returnType }}</span>
+          {{ localize(access.kindLabel) }}
+          <span class="indicator-script-guide__type">{{ t('strategyScript.indicatorScriptGuide.parameters.returnType', { returnType: access.returnType }) }}</span>
         </p>
-        <pre class="indicator-script-guide__code"><code>{{ access.example }}</code></pre>
+        <pre class="indicator-script-guide__code"><code>{{ localize(access.example) }}</code></pre>
         <p class="indicator-script-guide__kind-usage">
-          {{ access.usage }}
+          {{ localize(access.usage) }}
         </p>
       </div>
 
       <div class="indicator-script-guide__caveat">
-        <p class="indicator-script-guide__caveat-title">
-          名字打錯時會<strong>失敗並指名</strong>，不會安靜地拿到零
-        </p>
+        <i18n-t
+          keypath="strategyScript.indicatorScriptGuide.parameters.misnamedTitle"
+          tag="p"
+          class="indicator-script-guide__caveat-title"
+        >
+          <template #emphasis>
+            <strong>{{ t('strategyScript.indicatorScriptGuide.parameters.misnamedTitleEmphasis') }}</strong>
+          </template>
+        </i18n-t>
         <ul class="indicator-script-guide__caveat-list">
-          <li>零是一個合法的數字，看起來會像算式寫錯，而錯的其實是名字。</li>
+          <li>{{ t('strategyScript.indicatorScriptGuide.parameters.misnamedReason') }}</li>
         </ul>
       </div>
     </section>
 
     <section class="indicator-script-guide__section">
       <h3 class="indicator-script-guide__heading">
-        說出這一棒的意見（種類選「一個信號」時）
+        {{ t('strategyScript.indicatorScriptGuide.signal.heading') }}
       </h3>
 
-      <p class="indicator-script-guide__kind-usage">
-        指標值種類挑「一個信號」時，進入點回傳一個訊號。用系統提供的三個值選一個
-        <code>return</code> 出去，沒有第四種、也不能自己組一個。回測讀的就是它。
-      </p>
+      <i18n-t
+        keypath="strategyScript.indicatorScriptGuide.signal.explanation"
+        tag="p"
+        class="indicator-script-guide__kind-usage"
+      >
+        <template #return>
+          <code>return</code>
+        </template>
+      </i18n-t>
 
       <table class="indicator-script-guide__signals">
         <thead>
           <tr>
             <th scope="col">
-              算式回傳
+              {{ t('strategyScript.indicatorScriptGuide.signal.returnedHeading') }}
             </th>
             <th scope="col">
-              意思
+              {{ t('strategyScript.indicatorScriptGuide.signal.meaningHeading') }}
             </th>
           </tr>
         </thead>
@@ -159,7 +235,7 @@ defineProps<{
               {{ reading.value }}
             </td>
             <td class="indicator-script-guide__meaning">
-              {{ reading.meaning }}
+              {{ localize(reading.meaning) }}
             </td>
           </tr>
         </tbody>

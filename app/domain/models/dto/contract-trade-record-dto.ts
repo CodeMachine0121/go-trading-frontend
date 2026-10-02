@@ -8,28 +8,29 @@ import type { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import type { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
 import type { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export class ContractTradeRecordDto {
   constructor(
     public readonly id: number,
-    public readonly title: string,
+    public readonly title: LocalizedTextVo,
     public readonly symbol: string,
     public readonly direction: ContractTradeDirection,
-    public readonly directionLabel: string,
+    public readonly directionLabel: LocalizedTextVo,
     public readonly directionTone: TradeBadgeTone,
     public readonly leverage: Decimal,
     public readonly status: TradeStatus,
-    public readonly statusLabel: string,
+    public readonly statusLabel: LocalizedTextVo,
     public readonly statusTone: TradeBadgeTone,
-    public readonly sourceLabel: string,
+    public readonly sourceLabel: LocalizedTextVo,
     public readonly planLocked: boolean,
     public readonly canEditFills: boolean,
     public readonly canWriteReview: boolean,
-    public readonly reviewUnavailableMessage: string | null,
+    public readonly reviewUnavailableMessage: LocalizedTextVo | null,
     public readonly plannedStopLossPrice: Decimal | null,
     public readonly plannedTakeProfitPrice: Decimal | null,
-    public readonly plannedStopLossText: string,
-    public readonly plannedTakeProfitText: string,
+    public readonly plannedStopLossText: LocalizedTextVo,
+    public readonly plannedTakeProfitText: LocalizedTextVo,
     public readonly entryReason: string,
     public readonly confidence: number | null,
     public readonly tradingStrategyId: number | null,
@@ -46,9 +47,9 @@ export class ContractTradeRecordDto {
     public readonly outcome: TradeOutcomeDto,
     public readonly maximumAdversePrice: Decimal | null,
     public readonly maximumFavorablePrice: Decimal | null,
-    public readonly holdingDurationText: string | null,
-    public readonly originLabel: string,
+    public readonly holdingDurationText: LocalizedTextVo | null,
+    public readonly originLabel: LocalizedTextVo,
     public readonly quantityUnit: string,
-    public readonly feeWarningMessage: string | null,
+    public readonly feeWarningMessage: LocalizedTextVo | null,
   ) {}
 }

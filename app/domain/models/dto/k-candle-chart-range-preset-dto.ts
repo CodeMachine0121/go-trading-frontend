@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
@@ -15,7 +16,7 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
  */
 export class KCandleChartRangePresetDto {
   constructor(
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     public readonly spanMilliseconds: number,
   ) {}
 

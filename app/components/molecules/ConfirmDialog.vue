@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/atoms/AppModal.vue'
 
 // 分子：「這件事要再問一次」。刪掉一支策略腳本與放棄還沒存的內容共用同一個——
 // 它們是同一個 UI 概念，長相的差別由使用端以 confirmLabel / variant 決定。
-const { open, title, message, confirmLabel = '確定', variant = 'primary' } = defineProps<{
+const { open, title, message, confirmLabel, variant = 'primary' } = defineProps<{
   open: boolean
   title: string
   message: string
@@ -13,6 +14,8 @@ const { open, title, message, confirmLabel = '確定', variant = 'primary' } = d
 }>()
 
 const emit = defineEmits<{ confirm: [], cancel: [] }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -30,13 +33,13 @@ const emit = defineEmits<{ confirm: [], cancel: [] }>()
         variant="secondary"
         @click="emit('cancel')"
       >
-        取消
+        {{ t('common.cancel') }}
       </AppButton>
       <AppButton
         :variant="variant"
         @click="emit('confirm')"
       >
-        {{ confirmLabel }}
+        {{ confirmLabel ?? t('common.confirm') }}
       </AppButton>
     </template>
   </AppModal>

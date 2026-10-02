@@ -1,3 +1,5 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { PasswordChangeFieldErrorsDto } from '~/domain/models/dto/password-change-field-errors-dto'
 
 /**
@@ -6,11 +8,12 @@ import type { PasswordChangeFieldErrorsDto } from '~/domain/models/dto/password-
  * 它帶著**每一格各自的原因**而不是一句話，因為那些話要寫在出問題的那一格底下。
  * 比照登入那一份。它沒有 cause——這一次根本沒有送出去，沒有任何下層的失敗可以包。
  */
-export class PasswordChangeFieldError extends Error {
+export class PasswordChangeFieldError extends LocalizedError {
   readonly fieldErrors: PasswordChangeFieldErrorsDto
 
   constructor(fieldErrors: PasswordChangeFieldErrorsDto) {
-    super('換密碼的內容有欄位需要修正')
+    const localizedMessage = new LocalizedTextVo('換密碼的內容有欄位需要修正', 'Some password change fields need correcting')
+    super(localizedMessage)
     this.name = 'PasswordChangeFieldError'
     this.fieldErrors = fieldErrors
   }

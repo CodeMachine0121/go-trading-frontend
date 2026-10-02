@@ -350,6 +350,17 @@ describe('要的太多了：這一則要落在使用者改得動的那一格旁�
     expect((failure as Error).message).not.toContain('細')
   })
 
+  it('英文畫面上照樣原文轉達系統的那句話，再接上英文的兩條出路', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(
+      400, 'window too large', { field: 'startTime' })))
+
+    const failure = await calculationFailure()
+
+    expect(failure).toBeInstanceOf(IndicatorCalculationFieldError)
+    expect((failure as IndicatorCalculationFieldError).localizedMessage.in('en')).toBe(
+      'window too large. Shorten the span to view, or pick a coarser aggregation interval.')
+  })
+
   it('沒有指名任何一格的拒絕照舊，不會被說成是哪一格的問題', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       rejectionOf(400, '這一段沒有足夠的 K 線')))

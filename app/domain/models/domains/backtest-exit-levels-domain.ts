@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import { ExitDistanceDomain } from '~/domain/models/domains/exit-distance-domain'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一次重演要模擬的那兩個出場距離。
@@ -36,8 +37,10 @@ export class BacktestExitLevelsDomain {
    */
   validate(): void {
     const rejection
-      = new ExitDistanceDomain(this.stopLossPercentage, '止損距離').validationMessage()
-        ?? new ExitDistanceDomain(this.takeProfitPercentage, '止盈距離').validationMessage()
+      = new ExitDistanceDomain(
+        this.stopLossPercentage, new LocalizedTextVo('止損距離', 'Stop-loss distance')).validationMessage()
+      ?? new ExitDistanceDomain(
+        this.takeProfitPercentage, new LocalizedTextVo('止盈距離', 'Take-profit distance')).validationMessage()
 
     if (rejection !== null) {
       throw new BacktestFieldError('exitLevels', rejection)

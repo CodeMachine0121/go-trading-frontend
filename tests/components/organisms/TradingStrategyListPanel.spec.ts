@@ -1,11 +1,13 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import TradingStrategyListPanel from '~/components/organisms/TradingStrategyListPanel.vue'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyInUseError } from '~/domain/errors/trading-strategy-in-use-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 function tradingStrategyDto(id: number, name: string, sourceCount = 1) {
   return new TradingStrategyDto(
@@ -140,8 +142,9 @@ describe('TradingStrategyListPanel 標出每一份吃的行情', () => {
     const { wrapper } = mountPanel({
       listTradingStrategies: vi.fn().mockResolvedValue([
         new TradingStrategyDto(
-          1, '黃金交叉', [], null, null, marketDataKind, label,
-          tradingModeLabel === null ? null : 'longOnly', tradingModeLabel,
+          1, '黃金交叉', [], null, null, marketDataKind, new LocalizedTextVo(label, label),
+          tradingModeLabel === null ? null : 'longOnly',
+          tradingModeLabel === null ? null : new LocalizedTextVo(tradingModeLabel, 'Long only'),
           marketDataKind === 'contractKCandle'),
       ]),
     })
@@ -151,5 +154,25 @@ describe('TradingStrategyListPanel 標出每一份吃的行情', () => {
     if (tradingModeLabel !== null) {
       expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain(tradingModeLabel)
     }
+  })
+})
+
+describe('TradingStrategyListPanel 換成英文', () => {
+  it.each([
+    { sourceCount: 1, expected: '1 strategy script' },
+    { sourceCount: 3, expected: '3 strategy scripts' },
+  ])('每一份用了幾支策略腳本照英文的單複數說（$sourceCount）', async ({ sourceCount, expected }) => {
+    const { wrapper } = mountPanel({
+      listTradingStrategies: vi.fn().mockResolvedValue([tradingStrategyDto(1, '黃金交叉', sourceCount)]),
+    })
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain(expected)
+    expect(wrapper.get('[data-testid="trading-strategy-market-data-kind"]').text()).toBe('K-candle')
+    expect(wrapper.get('[data-testid="trading-strategy-edit"]').text()).toBe('Edit')
+    // 名字是使用者自己取的，不跟著語言換。
+    expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain('黃金交叉')
   })
 })

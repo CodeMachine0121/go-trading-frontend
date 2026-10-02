@@ -1,4 +1,7 @@
 // @vitest-environment nuxt
+import { defineComponent, nextTick } from 'vue'
+import { mount } from '@vue/test-utils'
+import { useI18n } from 'vue-i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
 import { TestMessageResultDto } from '~/domain/models/dto/test-message-result-dto'
@@ -6,9 +9,10 @@ import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configu
 import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavailable-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const CONFIGURED = new TelegramDeliveryDto(
-  true, '987654', '1234', '已設定，結尾 1234；要更換請重新填入整串金鑰。')
+  true, '987654', '1234', new UntranslatedTextVo('已設定，結尾 1234；要更換請重新填入整串金鑰。'))
 const UNCONFIGURED = new TelegramDeliveryDto(false, '', '', null)
 
 const telegramDeliveryApplication = {
@@ -18,9 +22,24 @@ const telegramDeliveryApplication = {
   sendTestMessage: vi.fn(),
 }
 
+// 它照翻譯實例說的語言預填，所以要在元件的 setup 裡才問得到目前的語言。
+function mountTelegramDelivery() {
+  const Host = defineComponent({
+    setup() {
+      return {
+        telegramDelivery: useTelegramDelivery(
+          telegramDeliveryApplication as unknown as Parameters<typeof useTelegramDelivery>[0]),
+        translation: useI18n(),
+      }
+    },
+    render: () => null,
+  })
+
+  return mount(Host).vm
+}
+
 function telegramDeliveryUnderTest() {
-  return useTelegramDelivery(
-    telegramDeliveryApplication as unknown as Parameters<typeof useTelegramDelivery>[0])
+  return mountTelegramDelivery().telegramDelivery
 }
 
 beforeEach(() => {
@@ -51,7 +70,7 @@ describe('useTelegramDelivery：讀回目前的設定', () => {
 
     await loadDeliverySetting()
 
-    expect(loadErrorMessage.value).toContain('連不上後端 go-trading API')
+    expect(loadErrorMessage.value?.in('zh-TW')).toContain('連不上後端 go-trading API')
   })
 })
 
@@ -75,8 +94,8 @@ describe('useTelegramDelivery：儲存與移除', () => {
 
     await saveDeliverySetting()
 
-    expect(saveErrorMessage.value).toContain('SECRET_SEAL_KEY')
-    expect(saveErrorMessage.value).toContain('不是你填錯了什麼')
+    expect(saveErrorMessage.value?.in('zh-TW')).toContain('SECRET_SEAL_KEY')
+    expect(saveErrorMessage.value?.in('zh-TW')).toContain('不是你填錯了什麼')
   })
 
   it('移除之後回到「還沒設定」的樣子', async () => {
@@ -93,6 +112,21 @@ describe('useTelegramDelivery：儲存與移除', () => {
 describe('useTelegramDelivery：試送一則訊息', () => {
   it('一開始就填好一句可以直接送的話', () => {
     expect(telegramDeliveryUnderTest().message.value).toBe('這是一則來自 go-trading 的測試訊息。')
+  })
+
+  it.each([
+    { situation: '沒動過預填的那一句', typed: null, expected: 'This is a test message from go-trading.' },
+    { situation: '已經改成自己的字', typed: '自己寫的一句', expected: '自己寫的一句' },
+  ])('換成英文時，$situation', async ({ typed, expected }) => {
+    const { telegramDelivery: { message }, translation } = mountTelegramDelivery()
+    if (typed !== null) {
+      message.value = typed
+    }
+
+    translation.locale.value = 'en'
+    await nextTick()
+
+    expect(message.value).toBe(expected)
   })
 
   it('還沒設定過就送不了', async () => {
@@ -112,21 +146,21 @@ describe('useTelegramDelivery：試送一則訊息', () => {
     await fixture.sendTestMessage()
 
     expect(fixture.sendSucceeded.value).toBe(true)
-    expect(fixture.sendResultMessage.value).toContain('送出成功')
+    expect(fixture.sendResultMessage.value?.in('zh-TW')).toContain('送出成功')
   })
 
   it('送不成時把領域備好的那一句原樣說出來', async () => {
     // 這顆鍵的全部價值就在於它會說出是哪一格填錯。
     telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
     telegramDeliveryApplication.sendTestMessage.mockResolvedValue(
-      new TestMessageResultDto(false, 'Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。'))
+      new TestMessageResultDto(false, new UntranslatedTextVo('Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。')))
     const fixture = telegramDeliveryUnderTest()
     await fixture.loadDeliverySetting()
 
     await fixture.sendTestMessage()
 
     expect(fixture.sendSucceeded.value).toBe(false)
-    expect(fixture.sendResultMessage.value).toBe('Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。')
+    expect(fixture.sendResultMessage.value?.in('zh-TW')).toBe('Telegram 送不到這個聊天室。確認聊天室代號，並確認你已經在 Telegram 對這個 bot 按過 Start——它不能主動私訊沒找過它的人。')
   })
 
   it('後端說還沒設定過時，把人指向上面那張卡', async () => {
@@ -138,7 +172,7 @@ describe('useTelegramDelivery：試送一則訊息', () => {
 
     await fixture.sendTestMessage()
 
-    expect(fixture.sendResultMessage.value).toContain('請先在上面完成 Telegram 設定')
+    expect(fixture.sendResultMessage.value?.in('zh-TW')).toContain('請先在上面完成 Telegram 設定')
   })
 
   it.each([
@@ -150,7 +184,7 @@ describe('useTelegramDelivery：試送一則訊息', () => {
     await fixture.loadDeliverySetting()
     fixture.message.value = message
 
-    expect(fixture.messageError.value).toBe(expectedError)
+    expect(fixture.messageError.value?.in('zh-TW')).toBe(expectedError)
     expect(fixture.canSendTestMessage.value).toBe(false)
 
     await fixture.sendTestMessage()
@@ -226,7 +260,7 @@ describe('useTelegramDelivery：一次只做一件事，而且失敗說得出口
 
     await removeDeliverySetting()
 
-    expect(saveErrorMessage.value).toContain('連不上後端 go-trading API')
+    expect(saveErrorMessage.value?.in('zh-TW')).toContain('連不上後端 go-trading API')
   })
 
   it('後端以業務規則拒絕時原樣轉述它那句話', async () => {
@@ -236,7 +270,7 @@ describe('useTelegramDelivery：一次只做一件事，而且失敗說得出口
 
     await saveDeliverySetting()
 
-    expect(saveErrorMessage.value).toBe('必須給一組機器人金鑰')
+    expect(saveErrorMessage.value?.in('zh-TW')).toBe('必須給一組機器人金鑰')
   })
 
   it('沒見過的失敗也說得出一句話，不是一片空白', async () => {
@@ -245,7 +279,7 @@ describe('useTelegramDelivery：一次只做一件事，而且失敗說得出口
 
     await saveDeliverySetting()
 
-    expect(saveErrorMessage.value).toBe('與 Telegram 設定往來時發生未預期的錯誤。')
+    expect(saveErrorMessage.value?.in('zh-TW')).toBe('與 Telegram 設定往來時發生未預期的錯誤。')
   })
 })
 
@@ -323,7 +357,7 @@ describe('useTelegramDelivery：那兩格什麼時候攤開', () => {
     await fixture.saveDeliverySetting()
 
     expect(fixture.formVisible.value).toBe(true)
-    expect(fixture.saveErrorMessage.value).toContain('SECRET_SEAL_KEY')
+    expect(fixture.saveErrorMessage.value?.in('zh-TW')).toContain('SECRET_SEAL_KEY')
   })
 
   it('移除之後回到「還沒設定」，兩格清空並攤開', async () => {
@@ -338,5 +372,30 @@ describe('useTelegramDelivery：那兩格什麼時候攤開', () => {
     expect(fixture.configured.value).toBe(false)
     expect(fixture.formVisible.value).toBe(true)
     expect(fixture.chatId.value).toBe('')
+  })
+})
+
+describe('useTelegramDelivery：英文畫面上的說法', () => {
+  it('後端還沒設定過時用英文把人指向上面那張卡', async () => {
+    telegramDeliveryApplication.loadDeliverySetting.mockResolvedValue(CONFIGURED)
+    telegramDeliveryApplication.sendTestMessage.mockRejectedValue(
+      new TelegramNotConfiguredError('尚未完成 Telegram 設定'))
+    const fixture = telegramDeliveryUnderTest()
+    await fixture.loadDeliverySetting()
+
+    await fixture.sendTestMessage()
+
+    expect(fixture.sendResultMessage.value?.in('en'))
+      .toBe('Finish the Telegram setup above before sending a test message.')
+  })
+
+  it('連不上後端時說的是同一句英文說明', async () => {
+    telegramDeliveryApplication.loadDeliverySetting.mockRejectedValue(
+      new BackendUnreachableError('http://localhost:8080/users/me/telegram-delivery'))
+    const { loadDeliverySetting, loadErrorMessage } = telegramDeliveryUnderTest()
+
+    await loadDeliverySetting()
+
+    expect(loadErrorMessage.value?.in('en')).toContain('Cannot reach the go-trading API')
   })
 })

@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { StrategyScriptParameterDto, type StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
 
@@ -78,7 +79,7 @@ export class StrategyScriptParametersDomain {
     })
   }
 
-  validationMessage(): string | null {
+  validationMessage(): LocalizedTextVo | null {
     for (const parameter of this.parameters) {
       const message = new StrategyScriptParameterDomain(parameter).validationMessage()
       if (message !== null) {
@@ -89,12 +90,14 @@ export class StrategyScriptParametersDomain {
     return this.duplicateNameMessage()
   }
 
-  private duplicateNameMessage(): string | null {
+  private duplicateNameMessage(): LocalizedTextVo | null {
     const seenNames = new Set<string>()
     for (const parameter of this.parameters) {
       const name = parameter.name.trim()
       if (seenNames.has(name)) {
-        return `參數名稱 ${name} 重複了，同一支策略腳本內不得重複`
+        return new LocalizedTextVo(
+          `參數名稱 ${name} 重複了，同一支策略腳本內不得重複`,
+          `The parameter name ${name} is used more than once; names must be unique within a strategy script`)
       }
       seenNames.add(name)
     }

@@ -1,9 +1,12 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ContractTradeFillEditor from '~/components/molecules/ContractTradeFillEditor.vue'
 import { ContractTradeDraftFillInputDto } from '~/domain/models/dto/contract-trade-draft-fill-input-dto'
 import { ContractTradeDraftFeePreviewDto } from '~/domain/models/dto/contract-trade-draft-fee-preview-dto'
 import { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/contract-trade-draft-fill-size-preview-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function fillInput(key: number, priceText = '97850', quantityText = '0.051') {
   return new ContractTradeDraftFillInputDto(key, 'entry', '2026-09-25T06:03', priceText, quantityText, 'taker', '')
@@ -28,9 +31,9 @@ describe('ContractTradeFillEditor', () => {
     const wrapper = mount(ContractTradeFillEditor, {
       props: {
         fills: [fillInput(1)],
-        fees: [new ContractTradeDraftFeePreviewDto('0.00', '尚未設定手續費率')],
+        fees: [new ContractTradeDraftFeePreviewDto('0.00', new LocalizedTextVo('尚未設定手續費率', 'Fee rates not set yet'))],
         rejectedField: 'exitQuantity',
-        rejectionMessage: '出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易',
+        rejectionMessage: new UntranslatedTextVo('出場數量超過目前持倉 0.031，要反手請先平倉再新增一筆反方向的交易'),
       },
     })
 
@@ -41,7 +44,7 @@ describe('ContractTradeFillEditor', () => {
 
   it('不是成交欄的拒絕不寫在這裡', () => {
     const wrapper = mount(ContractTradeFillEditor, {
-      props: { fills: [fillInput(1)], fees: [], rejectedField: 'plannedStopLossPrice', rejectionMessage: 'x' },
+      props: { fills: [fillInput(1)], fees: [], rejectedField: 'plannedStopLossPrice', rejectionMessage: new UntranslatedTextVo('x') },
     })
 
     expect(wrapper.find('[data-testid="fill-error"]').exists()).toBe(false)
@@ -81,8 +84,10 @@ describe('ContractTradeFillEditor', () => {
       props: {
         fills,
         fees: [],
-        quantityLabel: '數量（BTC）',
-        fillSizes: [new ContractTradeDraftFillSizePreviewDto('名目 84,780.90・保證金 42,390.45', '手續費約佔名目 0.000059%')],
+        quantityLabel: new LocalizedTextVo('數量（BTC）', 'Quantity (BTC)'),
+        fillSizes: [new ContractTradeDraftFillSizePreviewDto(
+          new LocalizedTextVo('名目 84,780.90・保證金 42,390.45', 'Notional 84,780.90 · Margin 42,390.45'),
+          new LocalizedTextVo('手續費約佔名目 0.000059%', 'Fee is about 0.000059% of notional'))],
       },
     })
 
@@ -95,5 +100,29 @@ describe('ContractTradeFillEditor', () => {
     expect(fills[0]?.sizeMode).toBe('margin')
     expect(wrapper.get('[data-testid="fill-quantity"]').attributes('aria-labelledby')).toBe('fill-size-label-1 fill-size-mode-1')
     expect(wrapper.get('#fill-size-label-1').text()).toBe('數量（BTC）')
+  })
+
+  it('換成英文時欄位、數量單位、預覽與費率提示都說英文，後端的原話不翻', async () => {
+    const wrapper = mount(ContractTradeFillEditor, {
+      props: {
+        fills: [fillInput(1, '84780.9', '1')],
+        fees: [new ContractTradeDraftFeePreviewDto('0.00', new LocalizedTextVo('尚未設定手續費率', 'Fee rates not set yet'))],
+        quantityLabel: new LocalizedTextVo('數量（BTC）', 'Quantity (BTC)'),
+        fillSizes: [new ContractTradeDraftFillSizePreviewDto(
+          new LocalizedTextVo('名目 84,780.90・保證金 42,390.45', 'Notional 84,780.90 · Margin 42,390.45'), null)],
+        rejectedField: 'exitQuantity',
+        rejectionMessage: new UntranslatedTextVo('出場數量超過目前持倉 0.031'),
+      },
+    })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('#fill-size-label-1').text()).toBe('Quantity (BTC)')
+    expect(wrapper.get('[data-testid="fill-fee-note"]').text()).toBe('Fee rates not set yet')
+    expect(wrapper.get('[data-testid="fill-size-preview"]').text()).toBe('Notional 84,780.90 · Margin 42,390.45')
+    expect(wrapper.get('[data-testid="fill-error"]').text()).toBe('出場數量超過目前持倉 0.031')
+    expect(wrapper.text()).toContain('Entry / add')
+    expect(wrapper.get('[data-testid="fill-add-exit"]').text()).toBe('+ Reduce')
   })
 })

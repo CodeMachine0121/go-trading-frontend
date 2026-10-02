@@ -25,7 +25,7 @@ mockNuxtImport('navigateTo', () => navigateToSpy)
 mockNuxtImport('onBeforeRouteLeave', () => (guard: () => boolean) => {
   leaveGuards.push(guard)
 })
-mockNuxtImport('useConsoleAnnouncement', () => () => ({ announce: () => {}, announcement: { value: '' } }))
+mockNuxtImport('useConsoleAnnouncement', () => () => ({ announce: () => {}, announcement: { value: null } }))
 mockNuxtImport('useNuxtApp', () => () => ({
   $strategyBotApplication: new StrategyBotApplication(new StrategyBotService(
     { getStrategyBot, createStrategyBot, enableAutoOrder, disableAutoOrder } as unknown as IStrategyBotProxy)),
@@ -107,6 +107,22 @@ describe('StrategyBotWorkbenchPage 接的是這一頁那一種', () => {
     await flushPromises()
 
     expect(navigateToSpy).toHaveBeenCalledWith('/contract-strategy-bots')
+  })
+})
+
+describe('StrategyBotWorkbenchPage 切成英文', () => {
+  it('標題、回清單與找不到那一台的那一句都換成英文', async () => {
+    getStrategyBot.mockRejectedValue(new Error('找不到這台策略機器人'))
+    const wrapper = mountPage(7, 'contractKCandle')
+    await flushPromises()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="workbench-title"]').text()).toBe('Edit this contract bot')
+    expect(wrapper.get('[data-testid="workbench-back"]').text()).toBe('‹ Back to list')
+    expect(wrapper.get('[data-testid="workbench-missing"]').text())
+      .toBe('This bot cannot be found. It may have been deleted.')
   })
 })
 

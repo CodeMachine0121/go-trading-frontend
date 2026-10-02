@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppButton from '~/components/atoms/AppButton.vue'
+import { useI18n } from 'vue-i18n'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 
 // 分子：把一段文字複製走。
@@ -13,20 +14,26 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 //
 // 複製失敗不靜靜失敗：瀏覽器在非安全連線或權限被拒時會拒絕，
 // 使用者若不知道，他會帶著一個空的剪貼簿去貼上，然後以為是貼上的地方壞了。
-const { text, label = '複製' } = defineProps<{
+const { text, label } = defineProps<{
   text: string
   /** 這一顆複製的是什麼，說給讀螢幕的人與滑鼠停留的提示聽。 */
   label?: string
 }>()
 
 const { state, failureMessage, copyText } = useCopyText()
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const currentLabel = computed(() => {
   if (state.value === 'copied') {
-    return '已複製'
+    return t('shell.copyText.copied')
   }
 
-  return state.value === 'failed' ? (failureMessage.value ?? '複製失敗') : label
+  if (state.value === 'failed') {
+    return failureMessage.value === null ? t('shell.copyText.failed') : localize(failureMessage.value)
+  }
+
+  return label ?? t('shell.copyText.copy')
 })
 </script>
 

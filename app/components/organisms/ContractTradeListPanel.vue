@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -10,24 +11,28 @@ import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
 import type { ContractTradeListDto } from '~/domain/models/dto/contract-trade-list-dto'
 import type { TradeStatusFilter } from '~/domain/models/vo/trade-status-filter-vo'
 import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: '全部' },
-  { value: 'open', label: '持倉中' },
-  { value: 'closed', label: '已平倉' },
-  { value: 'reviewed', label: '已檢討' },
-] as const
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
-const SOURCE_OPTIONS = [
-  { value: 'all', label: '全部來源' },
-  { value: 'linked', label: '有關聯策略' },
-  { value: 'selfJudged', label: '自行判斷' },
-] as const
+const statusOptions = computed(() => [
+  { value: 'all', label: t('contractTradeJournal.list.statusOptions.all') },
+  { value: 'open', label: t('contractTradeJournal.list.statusOptions.open') },
+  { value: 'closed', label: t('contractTradeJournal.list.statusOptions.closed') },
+  { value: 'reviewed', label: t('contractTradeJournal.list.statusOptions.reviewed') },
+])
+
+const sourceOptions = computed(() => [
+  { value: 'all', label: t('contractTradeJournal.list.sourceOptions.all') },
+  { value: 'linked', label: t('contractTradeJournal.list.sourceOptions.linked') },
+  { value: 'selfJudged', label: t('contractTradeJournal.list.sourceOptions.selfJudged') },
+])
 
 const { list = null, loading = false, failureMessage = null } = defineProps<{
   list?: ContractTradeListDto | null
   loading?: boolean
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
 }>()
 
 const statusFilter = defineModel<TradeStatusFilter>('statusFilter', { required: true })
@@ -59,7 +64,7 @@ const sourceTab = computed({
         class="contract-trade-list-panel__counts"
         data-testid="trade-list-counts"
       >
-        {{ list.periodLabel }}・{{ list.tradeCountsLabel }}
+        {{ localize(list.periodLabel) }}{{ t('contractTradeJournal.common.separator') }}{{ localize(list.tradeCountsLabel) }}
       </p>
       <AppButton
         v-if="list && list.pendingReviewCount > 0"
@@ -67,20 +72,20 @@ const sourceTab = computed({
         data-testid="pending-review"
         @click="emit('showPendingReview')"
       >
-        待檢討 <span class="contract-trade-list-panel__pending-count">{{ list.pendingReviewCount }}</span>
+        {{ t('contractTradeJournal.list.pendingReview') }} <span class="contract-trade-list-panel__pending-count">{{ list.pendingReviewCount }}</span>
       </AppButton>
       <AppButton
         variant="secondary"
         to="/contract-trade-journal/statistics"
         data-testid="open-statistics"
       >
-        績效統計
+        {{ t('contractTradeJournal.list.statistics') }}
       </AppButton>
       <AppButton
         to="/contract-trade-journal/new"
         data-testid="record-trade"
       >
-        ＋ 記一筆
+        {{ t('contractTradeJournal.list.recordTrade') }}
       </AppButton>
     </header>
 
@@ -89,7 +94,7 @@ const sourceTab = computed({
       class="contract-trade-list-panel__state"
       data-testid="trade-list-loading"
     >
-      讀取中…
+      {{ t('contractTradeJournal.common.loading') }}
     </p>
 
     <AppAlert
@@ -97,14 +102,14 @@ const sourceTab = computed({
       tone="danger"
       data-testid="trade-list-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
       <template #action>
         <AppButton
           variant="ghost"
           data-testid="trade-list-retry"
           @click="emit('retry')"
         >
-          再試一次
+          {{ t('contractTradeJournal.list.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -119,13 +124,13 @@ const sourceTab = computed({
       <div class="contract-trade-list-panel__filters">
         <AppTabs
           v-model="statusTab"
-          :options="STATUS_OPTIONS"
+          :options="statusOptions"
           variant="segmented"
           data-testid="status-filter"
         />
         <AppTabs
           v-model="sourceTab"
-          :options="SOURCE_OPTIONS"
+          :options="sourceOptions"
           variant="segmented"
           data-testid="source-filter"
         />
@@ -135,7 +140,7 @@ const sourceTab = computed({
           data-testid="symbol-filter"
         >
           <option value="">
-            全部合約標的
+            {{ t('contractTradeJournal.list.allSymbols') }}
           </option>
           <option
             v-for="symbol in list.symbolOptions"
@@ -153,7 +158,7 @@ const sourceTab = computed({
           class="contract-trade-list-panel__empty"
           data-testid="trade-list-empty"
         >
-          {{ list.emptyMessage }}
+          {{ localize(list.emptyMessage) }}
         </p>
         <div
           v-else
@@ -163,15 +168,15 @@ const sourceTab = computed({
             <thead>
               <tr>
                 <th>#</th>
-                <th>標的</th>
-                <th>方向</th>
-                <th>狀態</th>
-                <th>來源</th>
-                <th>開倉均價</th>
-                <th>平倉均價</th>
-                <th>淨損益</th>
+                <th>{{ t('contractTradeJournal.list.columns.symbol') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.direction') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.status') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.source') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.averageEntry') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.averageExit') }}</th>
+                <th>{{ t('contractTradeJournal.list.columns.netProfit') }}</th>
                 <th>R</th>
-                <th>標籤</th>
+                <th>{{ t('contractTradeJournal.list.columns.tags') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -198,30 +203,30 @@ const sourceTab = computed({
                 </td>
                 <td>
                   <TradeStatusBadge
-                    :label="row.directionLabel"
+                    :label="localize(row.directionLabel)"
                     :tone="row.directionTone"
                   />
                 </td>
                 <td>
                   <TradeStatusBadge
-                    :label="row.statusLabel"
+                    :label="localize(row.statusLabel)"
                     :tone="row.statusTone"
                   />
                   <span
                     v-if="row.pendingReview"
                     class="contract-trade-list-panel__flag"
-                  >待檢討</span>
+                  >{{ t('contractTradeJournal.list.pendingReview') }}</span>
                 </td>
                 <td class="contract-trade-list-panel__text">
-                  {{ row.sourceLabel }}
+                  {{ localize(row.sourceLabel) }}
                 </td>
                 <td>{{ row.averageEntryPriceText }}</td>
                 <td>{{ row.averageExitPriceText }}</td>
                 <td :class="`contract-trade-list-panel__tone--${row.profit.tone}`">
-                  {{ row.profit.text }}
-                  <small v-if="row.profit.note">{{ row.profit.note }}</small>
+                  {{ localize(row.profit.text) }}
+                  <small v-if="row.profit.note">{{ localize(row.profit.note) }}</small>
                 </td>
-                <td>{{ row.rMultipleText }}</td>
+                <td>{{ localize(row.rMultipleText) }}</td>
                 <td class="contract-trade-list-panel__text">
                   <span class="contract-trade-list-panel__tags">
                     <AppBadge

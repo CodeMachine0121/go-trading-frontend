@@ -5,17 +5,17 @@ import { ConnectorAuthorizationRequestExpiredError } from '~/domain/errors/conne
 import { ConnectorReturnAddressRejectedError } from '~/domain/errors/connector-return-address-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { SignedOutError } from '~/domain/errors/signed-out-error'
-
-const UNREACHABLE_MESSAGE = '連不上交易服務（go-trading API），請確認它已啟動後再試一次。'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useConnectorAuthorization(
   connectorAuthorizationApplication = useNuxtApp().$connectorAuthorizationApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const stage = ref<ConnectorAuthorizationStageVo>('loading')
   const authorizationRequest = ref<ConnectorAuthorizationRequestDto | null>(null)
   const pendingDecision = ref<ConnectorAuthorizationDecisionVo | null>(null)
-  const loadErrorMessage = ref<string | null>(null)
-  const decisionErrorMessage = ref<string | null>(null)
+  const loadErrorMessage = ref<LocalizedTextVo | null>(null)
+  const decisionErrorMessage = ref<LocalizedTextVo | null>(null)
   const requestId = ref('')
 
   async function load(targetRequestId: string): Promise<void> {
@@ -35,8 +35,8 @@ export function useConnectorAuthorization(
       }
 
       loadErrorMessage.value = error instanceof BackendUnreachableError
-        ? UNREACHABLE_MESSAGE
-        : '讀取授權請求時發生未預期的錯誤，請再試一次。'
+        ? translatedText('shell.connectorAuthorization.unreachable')
+        : translatedText('shell.connectorAuthorization.loadFailed')
       stage.value = 'loadFailed'
     }
   }
@@ -67,8 +67,8 @@ export function useConnectorAuthorization(
       }
       else if (!(error instanceof SignedOutError)) {
         decisionErrorMessage.value = error instanceof BackendUnreachableError
-          ? UNREACHABLE_MESSAGE
-          : '交易服務沒有接受這次決定，請再試一次。'
+          ? translatedText('shell.connectorAuthorization.unreachable')
+          : translatedText('shell.connectorAuthorization.decisionRejected')
       }
     }
     finally {

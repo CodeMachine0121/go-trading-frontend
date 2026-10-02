@@ -1,18 +1,21 @@
 // @vitest-environment nuxt
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import TradingStrategySignalSourceCard from '~/components/organisms/TradingStrategySignalSourceCard.vue'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountCard(sources: TradingStrategySignalSourceDto[]) {
   return mount(TradingStrategySignalSourceCard, {
     props: {
       sources,
       strategyScriptOptions: [{ value: 9, label: 'MACD' }],
-      strategyScriptLabels: sources.map(() => 'MACD'),
+      strategyScriptLabels: sources.map(() => new UntranslatedTextVo('MACD')),
       parameterSummaries: sources.map(() => ''),
       parameterInputs: sources.map(() => ({})),
-      intervalOptions: [{ value: '5m', label: '五分鐘' }],
+      intervalOptions: [{ value: '5m', label: new LocalizedTextVo('五分鐘', '5 minutes') }],
       canAdd: true,
       signalSourceLimit: 5,
       shortage: null,
@@ -57,5 +60,18 @@ describe('TradingStrategySignalSourceCard：設定認得自己開的是哪一個
 
     expect(wrapper.emitted('remove')?.at(-1)).toEqual([0])
     expect(wrapper.find('[data-testid="strategy-script-settings-panel"]').exists()).toBe(false)
+  })
+})
+
+describe('TradingStrategySignalSourceCard 換成英文', () => {
+  it.each([
+    { testId: 'signal-source-突破', expected: 'MACD · 5 minutes' },
+    { testId: 'strategy-script-add', expected: 'Add a signal source' },
+  ])('「$testId」說英文', async ({ testId, expected }) => {
+    const wrapper = mountCard([new TradingStrategySignalSourceDto('突破', 9, '5m', [])])
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get(`[data-testid="${testId}"]`).text()).toBe(expected)
   })
 })

@@ -32,7 +32,7 @@ describe('TelegramDeliveryApplication.loadDeliverySetting', () => {
 
     expect(setting.configured).toBe(true)
     expect(setting.chatId).toBe('987654')
-    expect(setting.summary).toContain('結尾 1234')
+    expect(setting.summary?.in('zh-TW')).toContain('結尾 1234')
   })
 
   it('還沒設定過不是錯誤', async () => {
@@ -90,7 +90,7 @@ describe('TelegramDeliveryApplication.sendTestMessage', () => {
     const result = await application.sendTestMessage('哈囉')
 
     expect(result.delivered).toBe(false)
-    expect(result.failureSentence).toContain(expectedFragment)
+    expect(result.failureSentence?.in('zh-TW')).toContain(expectedFragment)
   })
 
   it.each([
@@ -102,7 +102,7 @@ describe('TelegramDeliveryApplication.sendTestMessage', () => {
     const result = await application.sendTestMessage(message)
 
     expect(result.delivered).toBe(false)
-    expect(result.failureSentence).toBe(expectedSentence)
+    expect(result.failureSentence?.in('zh-TW')).toBe(expectedSentence)
     expect(telegramDeliveryProxy.sendTestMessage).not.toHaveBeenCalled()
   })
 

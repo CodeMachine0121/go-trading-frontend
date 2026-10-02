@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import AssistantConversationList from '~/components/organisms/AssistantConversationList.vue'
 import { buildSummary } from '../../fixtures/assistant-conversation'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountList(props: {
   conversations?: ReturnType<typeof buildSummary>[]
@@ -14,7 +15,9 @@ function mountList(props: {
     props: {
       conversations: props.conversations ?? [],
       activeConversationId: props.activeConversationId ?? null,
-      errorMessage: props.errorMessage ?? null,
+      errorMessage: props.errorMessage === undefined || props.errorMessage === null
+        ? null
+        : new UntranslatedTextVo(props.errorMessage),
       timeZone: buildTimeZone(),
       showStartNew: props.showStartNew ?? true,
     },

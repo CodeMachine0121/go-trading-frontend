@@ -5,21 +5,23 @@ import { BinanceTradingKeyVerificationError } from '~/domain/errors/binance-trad
 import { SecretSealUnavailableError } from '~/domain/errors/secret-seal-unavailable-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useBinanceTradingKey(
   binanceTradingKeyApplication = useNuxtApp().$binanceTradingKeyApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const setting = ref<BinanceTradingKeyDto | null>(null)
   const loading = ref(false)
-  const loadErrorMessage = ref<string | null>(null)
+  const loadErrorMessage = ref<LocalizedTextVo | null>(null)
 
   const apiKey = ref('')
   const secretKey = ref('')
   const editing = ref(false)
   const saving = ref(false)
-  const saveErrorMessage = ref<string | null>(null)
-  const apiKeyError = ref<string | null>(null)
-  const secretKeyError = ref<string | null>(null)
+  const saveErrorMessage = ref<LocalizedTextVo | null>(null)
+  const apiKeyError = ref<LocalizedTextVo | null>(null)
+  const secretKeyError = ref<LocalizedTextVo | null>(null)
 
   const configured = computed(() => setting.value?.configured ?? false)
   const formVisible = computed(() => !configured.value || editing.value)
@@ -76,10 +78,10 @@ export function useBinanceTradingKey(
     }
     catch (error: unknown) {
       if (error instanceof BinanceTradingKeyFieldError && error.field === 'apiKey') {
-        apiKeyError.value = error.message
+        apiKeyError.value = error.localizedMessage
       }
       else if (error instanceof BinanceTradingKeyFieldError && error.field === 'secretKey') {
-        secretKeyError.value = error.message
+        secretKeyError.value = error.localizedMessage
       }
       else {
         saveErrorMessage.value = messageFor(error)
@@ -112,6 +114,24 @@ export function useBinanceTradingKey(
     }
   }
 
+  function messageFor(error: unknown): LocalizedTextVo {
+    if (error instanceof SecretSealUnavailableError) {
+      return translatedText('settings.binanceTradingKey.secretSealUnavailable', { message: error.message })
+    }
+
+    if (error instanceof BinanceTradingKeyVerificationError
+      || error instanceof BinanceTradingKeyFieldError
+      || error instanceof BackendRequestRejectedError) {
+      return error.localizedMessage
+    }
+
+    if (error instanceof BackendUnreachableError) {
+      return error.localizedMessage
+    }
+
+    return translatedText('settings.binanceTradingKey.unexpectedError')
+  }
+
   return {
     setting,
     configured,
@@ -131,22 +151,4 @@ export function useBinanceTradingKey(
     saveTradingKey,
     removeTradingKey,
   }
-}
-
-function messageFor(error: unknown): string {
-  if (error instanceof SecretSealUnavailableError) {
-    return `${error.message}（這不是你填錯了什麼。）`
-  }
-
-  if (error instanceof BinanceTradingKeyVerificationError
-    || error instanceof BinanceTradingKeyFieldError
-    || error instanceof BackendRequestRejectedError) {
-    return error.message
-  }
-
-  if (error instanceof BackendUnreachableError) {
-    return error.explanation
-  }
-
-  return '與幣安交易金鑰設定往來時發生未預期的錯誤。'
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AccountActivationPanel from '~/components/organisms/AccountActivationPanel.vue'
+import DisplayLanguageField from '~/components/molecules/DisplayLanguageField.vue'
 
 // 頁面只做接線：取用跨畫面共用的「現在是誰在用」，往下傳給那張卡片。
 //
@@ -9,10 +10,20 @@ import AccountActivationPanel from '~/components/organisms/AccountActivationPane
 // 這一頁沒有自己的把關。誰看得到它、誰看不到，全部由全域中介層決定——
 // 在這裡再判一次，就是同一條規則寫兩遍，而兩遍總有一天會不一致。
 const { currentUser, activationInstruction, pending, recheckActivation, signOut } = useUserSession()
+
+const { selectableLanguages, selectedLanguageCode, selectLanguage } = useDisplayLanguage()
 </script>
 
 <template>
   <main class="pending-approval-page">
+    <div class="pending-approval-page__language">
+      <DisplayLanguageField
+        :model-value="selectedLanguageCode"
+        :selectable-languages="selectableLanguages"
+        @update:model-value="selectLanguage"
+      />
+    </div>
+
     <AccountActivationPanel
       :instruction="activationInstruction"
       :email="currentUser?.email ?? ''"
@@ -27,6 +38,7 @@ const { currentUser, activationInstruction, pending, recheckActivation, signOut 
 .pending-approval-page {
   // 與登入頁同一個版面：窄螢幕上卡片就是整個畫面，寬螢幕上置中。
   display: flex;
+  position: relative;
   justify-content: center;
   background-color: color('background');
   padding: spacing('2xl') spacing('xl') spacing('lg');
@@ -37,6 +49,13 @@ const { currentUser, activationInstruction, pending, recheckActivation, signOut 
   @include respond-to('md') {
     align-items: center;
     padding: spacing('lg');
+  }
+
+  // 還沒進門的人也要能先換語言：這一頁沒有頂列，所以選單自己掛在右上角。
+  &__language {
+    position: absolute;
+    top: spacing('md');
+    right: spacing('md');
   }
 }
 </style>

@@ -1,11 +1,12 @@
 import { KCandleFieldDto } from '~/domain/models/dto/k-candle-field-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** VO：沙箱裡那個 K 線型別的其中一個欄位。不可變、無行為。 */
 export class KCandleFieldVo {
   constructor(
     public readonly name: string,
     public readonly type: string,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
   ) {}
 
   toDto(): KCandleFieldDto {
@@ -31,16 +32,16 @@ export class KCandleFieldVo {
  * 後端哪天改了 `vo.KCandleVo`，要改的就是這一份清單。
  */
 export const K_CANDLE_FIELDS: KCandleFieldVo[] = [
-  new KCandleFieldVo('Symbol', 'string', '交易標的'),
-  new KCandleFieldVo('OpenTimeUnixSeconds', 'int64', '起始時間（Unix 秒）'),
-  new KCandleFieldVo('Open', 'float64', '開盤價'),
-  new KCandleFieldVo('High', 'float64', '最高價'),
-  new KCandleFieldVo('Low', 'float64', '最低價'),
-  new KCandleFieldVo('Close', 'float64', '收盤價'),
-  new KCandleFieldVo('Volume', 'float64', '成交量'),
-  new KCandleFieldVo('QuoteVolume', 'float64', '成交額'),
-  new KCandleFieldVo('TakerBuyBaseVolume', 'float64', '主動買入量'),
-  new KCandleFieldVo('TakerBuyQuoteVolume', 'float64', '主動買入額'),
+  new KCandleFieldVo('Symbol', 'string', new LocalizedTextVo('交易標的', 'Symbol')),
+  new KCandleFieldVo('OpenTimeUnixSeconds', 'int64', new LocalizedTextVo('起始時間（Unix 秒）', 'Open time (Unix seconds)')),
+  new KCandleFieldVo('Open', 'float64', new LocalizedTextVo('開盤價', 'Open price')),
+  new KCandleFieldVo('High', 'float64', new LocalizedTextVo('最高價', 'High price')),
+  new KCandleFieldVo('Low', 'float64', new LocalizedTextVo('最低價', 'Low price')),
+  new KCandleFieldVo('Close', 'float64', new LocalizedTextVo('收盤價', 'Close price')),
+  new KCandleFieldVo('Volume', 'float64', new LocalizedTextVo('成交量', 'Volume')),
+  new KCandleFieldVo('QuoteVolume', 'float64', new LocalizedTextVo('成交額', 'Quote volume')),
+  new KCandleFieldVo('TakerBuyBaseVolume', 'float64', new LocalizedTextVo('主動買入量', 'Taker buy volume')),
+  new KCandleFieldVo('TakerBuyQuoteVolume', 'float64', new LocalizedTextVo('主動買入額', 'Taker buy quote volume')),
 ]
 
 /**
@@ -54,19 +55,19 @@ export const K_CANDLE_FIELDS: KCandleFieldVo[] = [
  */
 export const CONTRACT_K_CANDLE_FIELDS: KCandleFieldVo[] = [
   ...K_CANDLE_FIELDS,
-  new KCandleFieldVo('TradeCount', 'int64', '成交筆數'),
-  new KCandleFieldVo('Mark', 'indicator.PriceLine', '標記價格的開高低收'),
-  new KCandleFieldVo('Index', 'indicator.PriceLine', '指數價格的開高低收'),
-  new KCandleFieldVo('PremiumIndex', 'indicator.PriceLine', '溢價指數的開高低收（可以是負的）'),
-  new KCandleFieldVo('FundingRate', 'float64', '這一格收盤時現行的資金費率'),
-  new KCandleFieldVo('FundingSettledInBar', 'bool', '這一格內有沒有資金費率結算'),
-  new KCandleFieldVo('OpenInterest', 'float64', '持倉量'),
-  new KCandleFieldVo('OpenInterestValue', 'float64', '持倉價值'),
-  new KCandleFieldVo('AccountLongShare', 'float64', '多空人數比：多方佔比'),
-  new KCandleFieldVo('AccountShortShare', 'float64', '多空人數比：空方佔比'),
-  new KCandleFieldVo('AccountLongShortRatio', 'float64', '多空人數比：比值'),
-  new KCandleFieldVo('TopTraderPositionLongShare', 'float64', '大戶多空持倉比：多方佔比'),
-  new KCandleFieldVo('TopTraderPositionShortShare', 'float64', '大戶多空持倉比：空方佔比'),
-  new KCandleFieldVo('TopTraderPositionLongShortRatio', 'float64', '大戶多空持倉比：比值'),
-  new KCandleFieldVo('KCandleVo', 'indicator.KCandle', '內嵌的那一根現貨形狀，可以整根交給吃 indicator.KCandle 的函式'),
+  new KCandleFieldVo('TradeCount', 'int64', new LocalizedTextVo('成交筆數', 'Trade count')),
+  new KCandleFieldVo('Mark', 'indicator.PriceLine', new LocalizedTextVo('標記價格的開高低收', 'Mark price open/high/low/close')),
+  new KCandleFieldVo('Index', 'indicator.PriceLine', new LocalizedTextVo('指數價格的開高低收', 'Index price open/high/low/close')),
+  new KCandleFieldVo('PremiumIndex', 'indicator.PriceLine', new LocalizedTextVo('溢價指數的開高低收（可以是負的）', 'Premium index open/high/low/close (can be negative)')),
+  new KCandleFieldVo('FundingRate', 'float64', new LocalizedTextVo('這一格收盤時現行的資金費率', 'Funding rate in effect at the close of this K-candle')),
+  new KCandleFieldVo('FundingSettledInBar', 'bool', new LocalizedTextVo('這一格內有沒有資金費率結算', 'Whether a funding settlement happened within this K-candle')),
+  new KCandleFieldVo('OpenInterest', 'float64', new LocalizedTextVo('持倉量', 'Open interest')),
+  new KCandleFieldVo('OpenInterestValue', 'float64', new LocalizedTextVo('持倉價值', 'Open interest value')),
+  new KCandleFieldVo('AccountLongShare', 'float64', new LocalizedTextVo('多空人數比：多方佔比', 'Account long/short ratio: long share')),
+  new KCandleFieldVo('AccountShortShare', 'float64', new LocalizedTextVo('多空人數比：空方佔比', 'Account long/short ratio: short share')),
+  new KCandleFieldVo('AccountLongShortRatio', 'float64', new LocalizedTextVo('多空人數比：比值', 'Account long/short ratio: ratio')),
+  new KCandleFieldVo('TopTraderPositionLongShare', 'float64', new LocalizedTextVo('大戶多空持倉比：多方佔比', 'Top trader position long/short ratio: long share')),
+  new KCandleFieldVo('TopTraderPositionShortShare', 'float64', new LocalizedTextVo('大戶多空持倉比：空方佔比', 'Top trader position long/short ratio: short share')),
+  new KCandleFieldVo('TopTraderPositionLongShortRatio', 'float64', new LocalizedTextVo('大戶多空持倉比：比值', 'Top trader position long/short ratio: ratio')),
+  new KCandleFieldVo('KCandleVo', 'indicator.KCandle', new LocalizedTextVo('內嵌的那一根現貨形狀，可以整根交給吃 indicator.KCandle 的函式', 'The embedded spot-shaped K-candle; pass it whole to any function that takes indicator.KCandle')),
 ]

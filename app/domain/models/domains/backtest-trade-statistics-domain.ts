@@ -1,7 +1,9 @@
 import type { BacktestTradeStatistics } from '~/domain/models/entities/backtest'
 import { BacktestTradeStatisticsDto } from '~/domain/models/dto/backtest-trade-statistics-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const NOT_APPLICABLE = '不適用'
+const NOT_APPLICABLE = new LocalizedTextVo('不適用', 'N/A')
 
 const RATIO_FRACTION_DIGITS = 2
 
@@ -10,11 +12,11 @@ const AMOUNT_FRACTION_DIGITS = 2
 const PERCENTAGE_FRACTION_DIGITS = 2
 
 /** 由大到小的時間單位，平均持倉時間取其中最大的兩個。 */
-const HOLDING_TIME_UNITS: readonly { seconds: number, label: string }[] = [
-  { seconds: 86400, label: '天' },
-  { seconds: 3600, label: '小時' },
-  { seconds: 60, label: '分' },
-  { seconds: 1, label: '秒' },
+const HOLDING_TIME_UNITS: readonly { seconds: number, label: LocalizedTextVo }[] = [
+  { seconds: 86400, label: new LocalizedTextVo('天', 'd') },
+  { seconds: 3600, label: new LocalizedTextVo('小時', 'h') },
+  { seconds: 60, label: new LocalizedTextVo('分', 'm') },
+  { seconds: 1, label: new LocalizedTextVo('秒', 's') },
 ]
 
 /**
@@ -30,23 +32,29 @@ export class BacktestTradeStatisticsDomain {
     const statistics = this.tradeStatistics
 
     return new BacktestTradeStatisticsDto(
-      statistics.profitFactor === null ? NOT_APPLICABLE : statistics.profitFactor.toFixed(RATIO_FRACTION_DIGITS),
-      statistics.expectancy === null ? NOT_APPLICABLE : statistics.expectancy.toFixed(AMOUNT_FRACTION_DIGITS),
+      statistics.profitFactor === null
+        ? NOT_APPLICABLE
+        : new UntranslatedTextVo(statistics.profitFactor.toFixed(RATIO_FRACTION_DIGITS)),
+      statistics.expectancy === null
+        ? NOT_APPLICABLE
+        : new UntranslatedTextVo(statistics.expectancy.toFixed(AMOUNT_FRACTION_DIGITS)),
       statistics.averageHoldingSeconds === null
         ? NOT_APPLICABLE
         : this.holdingTime(statistics.averageHoldingSeconds),
-      `${statistics.maximumConsecutiveLossCount} 筆`,
+      new LocalizedTextVo(
+        `${statistics.maximumConsecutiveLossCount} 筆`,
+        `${statistics.maximumConsecutiveLossCount} ${statistics.maximumConsecutiveLossCount === 1 ? 'trade' : 'trades'}`),
       statistics.costToGrossProfitRatio === null
         ? NOT_APPLICABLE
-        : `${(statistics.costToGrossProfitRatio * 100).toFixed(PERCENTAGE_FRACTION_DIGITS)}%`,
+        : new UntranslatedTextVo(`${(statistics.costToGrossProfitRatio * 100).toFixed(PERCENTAGE_FRACTION_DIGITS)}%`),
     )
   }
 
-  private holdingTime(averageHoldingSeconds: number): string {
+  private holdingTime(averageHoldingSeconds: number): LocalizedTextVo {
     const totalSeconds = Math.max(0, Math.round(averageHoldingSeconds))
     const largestIndex = HOLDING_TIME_UNITS.findIndex(unit => totalSeconds >= unit.seconds)
     if (largestIndex === -1) {
-      return '0 秒'
+      return new LocalizedTextVo('0 秒', '0 s')
     }
 
     const largest = HOLDING_TIME_UNITS[largestIndex]!
@@ -56,7 +64,11 @@ export class BacktestTradeStatisticsDomain {
 
     // 第二個單位是零時就不寫它：「1 小時」而不是「1 小時 0 分」。
     return next === undefined || nextCount === 0
-      ? `${largestCount} ${largest.label}`
-      : `${largestCount} ${largest.label} ${nextCount} ${next.label}`
+      ? new LocalizedTextVo(
+          `${largestCount} ${largest.label.traditionalChinese}`,
+          `${largestCount} ${largest.label.english}`)
+      : new LocalizedTextVo(
+          `${largestCount} ${largest.label.traditionalChinese} ${nextCount} ${next.label.traditionalChinese}`,
+          `${largestCount} ${largest.label.english} ${nextCount} ${next.label.english}`)
   }
 }

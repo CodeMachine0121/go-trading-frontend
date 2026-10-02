@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
@@ -13,12 +14,12 @@ import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregati
 // 看哪一檔不在這一條上：它是「看什麼」的一部分，擺在旁邊那一欄；
 // 這一條只管同一檔要怎麼看，所以現貨與合約兩條線一模一樣。
 const {
-  presets, activePresetLabel = null,
+  presets, activePreset = null,
   aggregationIntervalChoices, activeAggregationIntervalChoice,
   drawing, loading = false,
 } = defineProps<{
   presets: KCandleChartRangePresetDto[]
-  activePresetLabel?: string | null
+  activePreset?: KCandleChartRangePresetDto | null
   aggregationIntervalChoices: AggregationIntervalChoiceDto[]
   activeAggregationIntervalChoice: AggregationIntervalChoiceDto
   drawing: 'candlestick' | 'line'
@@ -30,6 +31,9 @@ const emit = defineEmits<{
   'selectAggregationIntervalChoice': [choice: AggregationIntervalChoiceDto]
   'update:drawing': [drawing: 'candlestick' | 'line']
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 /**
  * 下拉選單認得的是字串，而上一層要的是那個選擇本身。
@@ -51,10 +55,15 @@ const selectedAggregationIntervalValue = computed({
   },
 })
 
-const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
-  { value: 'candlestick', label: '蠟燭' },
-  { value: 'line', label: '曲線' },
-]
+const drawings = computed<{ value: 'candlestick' | 'line', label: string }[]>(() => [
+  { value: 'candlestick', label: t('marketData.kCandleChartToolbar.candlestickDrawing') },
+  { value: 'line', label: t('marketData.kCandleChartToolbar.lineDrawing') },
+])
+
+/** 幾個長度彼此不重複，所以長度本身就認得出是哪一個——說法會跟著顯示語言換，認不得。 */
+function isActivePreset(preset: KCandleChartRangePresetDto): boolean {
+  return preset.spanMilliseconds === activePreset?.spanMilliseconds
+}
 </script>
 
 <template>
@@ -66,19 +75,19 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
     <div
       class="k-candle-chart-toolbar__rail k-candle-chart-toolbar__rail--presets"
       role="group"
-      aria-label="看多長"
+      :aria-label="t('marketData.kCandleChartToolbar.rangeGroupLabel')"
     >
       <AppButton
         v-for="preset in presets"
-        :key="preset.label"
-        :variant="preset.label === activePresetLabel ? 'primary' : 'ghost'"
+        :key="preset.spanMilliseconds"
+        :variant="isActivePreset(preset) ? 'primary' : 'ghost'"
         size="small"
         :disabled="loading"
-        :aria-pressed="preset.label === activePresetLabel"
+        :aria-pressed="isActivePreset(preset)"
         data-testid="range-preset-button"
         @click="emit('selectPreset', preset)"
       >
-        {{ preset.label }}
+        {{ localize(preset.label) }}
       </AppButton>
     </div>
 
@@ -95,7 +104,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
       「每根涵蓋」才會成為它的名字（讀螢幕的人聽得到，點那四個字也能打開它）。
     -->
     <label class="k-candle-chart-toolbar__field">
-      <span class="k-candle-chart-toolbar__field-label">每根涵蓋</span>
+      <span class="k-candle-chart-toolbar__field-label">{{ t('marketData.kCandleChartToolbar.aggregationIntervalLabel') }}</span>
       <AppSelect
         v-model="selectedAggregationIntervalValue"
         class="k-candle-chart-toolbar__interval"
@@ -107,7 +116,7 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
           :key="choice.value"
           :value="choice.value"
         >
-          {{ choice.label }}
+          {{ localize(choice.label) }}
         </option>
       </AppSelect>
     </label>
@@ -115,10 +124,10 @@ const DRAWINGS: { value: 'candlestick' | 'line', label: string }[] = [
     <div
       class="k-candle-chart-toolbar__rail"
       role="group"
-      aria-label="畫法"
+      :aria-label="t('marketData.kCandleChartToolbar.drawingGroupLabel')"
     >
       <AppButton
-        v-for="option in DRAWINGS"
+        v-for="option in drawings"
         :key="option.value"
         :variant="option.value === drawing ? 'primary' : 'ghost'"
         size="small"

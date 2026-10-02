@@ -1,10 +1,11 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 
 /** VO：信號的一種讀法。不可變、無行為。 */
 export class SignalReadingVo {
   constructor(
     public readonly value: string,
-    public readonly meaning: string,
+    public readonly meaning: LocalizedTextVo,
   ) {}
 
   toDto(): SignalReadingDto {
@@ -21,7 +22,7 @@ export class SignalReadingVo {
  * 順序照「會發生什麼」由強到弱排：先講兩種會動作的，再講不動作的那一種。
  */
 export const SIGNAL_READINGS: SignalReadingVo[] = [
-  new SignalReadingVo('return indicator.Buy', '買入'),
-  new SignalReadingVo('return indicator.Sell', '賣出'),
-  new SignalReadingVo('return indicator.Hold', '持有，倉位不動'),
+  new SignalReadingVo('return indicator.Buy', new LocalizedTextVo('買入', 'Buy')),
+  new SignalReadingVo('return indicator.Sell', new LocalizedTextVo('賣出', 'Sell')),
+  new SignalReadingVo('return indicator.Hold', new LocalizedTextVo('持有，倉位不動', 'Hold; the position stays as it is')),
 ]

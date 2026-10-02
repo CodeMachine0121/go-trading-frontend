@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { IndicatorCalculationService } from '~/domain/service/indicator-calculation-service'
 import type { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
 import type { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
@@ -27,7 +28,7 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.calculateIndicator(indicatorCalculationRequestDto)
   }
 
-  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): string {
+  describeExampleScript(resultType: string, marketDataKind: MarketDataKind = 'kCandle'): LocalizedTextVo {
     return this.indicatorCalculationService.describeExampleScript(resultType, marketDataKind)
   }
 

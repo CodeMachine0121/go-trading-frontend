@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
@@ -32,6 +33,9 @@ const { strategyBotApplication, page, timeZoneIdentifier, showsDetailInline = fa
    */
   showsDetailInline?: boolean
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const bots = useStrategyBots(strategyBotApplication, page.marketDataKind)
 const autoOrder = useStrategyBotAutoOrder(strategyBotApplication)
@@ -74,15 +78,15 @@ onMounted(() => {
         data-testid="bot-summary"
       >
         <div class="strategy-bot-list__figure">
-          <dt>全部</dt>
+          <dt>{{ t('strategyBot.listPanel.summaryTotal') }}</dt>
           <dd>{{ bots.strategyBots.value.length }}</dd>
         </div>
         <div class="strategy-bot-list__figure strategy-bot-list__figure--running">
-          <dt>執行中</dt>
+          <dt>{{ t('strategyBot.listPanel.summaryRunning') }}</dt>
           <dd>{{ runningCount }}</dd>
         </div>
         <div class="strategy-bot-list__figure strategy-bot-list__figure--halted">
-          <dt>停擺</dt>
+          <dt>{{ t('strategyBot.listPanel.summaryHalted') }}</dt>
           <dd>{{ haltedCount }}</dd>
         </div>
       </dl>
@@ -101,16 +105,16 @@ onMounted(() => {
         :to="page.newPath"
         data-testid="bot-create"
       >
-        {{ page.createLabel }}
+        {{ localize(page.createLabel) }}
       </AppButton>
     </header>
 
     <AppAlert
-      v-if="bots.failureMessage.value !== ''"
+      v-if="bots.failureMessage.value !== null"
       tone="danger"
       data-testid="bot-list-failure"
     >
-      {{ bots.failureMessage.value }}
+      {{ localize(bots.failureMessage.value) }}
       <template #action>
         <AppButton
           type="button"
@@ -118,7 +122,7 @@ onMounted(() => {
           data-testid="bot-list-retry"
           @click="bots.load"
         >
-          再試一次
+          {{ t('strategyBot.listPanel.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -132,13 +136,13 @@ onMounted(() => {
       tone="warning"
       data-testid="bot-delivery-not-configured"
     >
-      要先完成 Telegram 設定，機器人才送得出訊息。
+      {{ t('strategyBot.listPanel.deliveryNotConfigured') }}
       <template #action>
         <NuxtLink
           to="/settings"
           data-testid="bot-delivery-settings-link"
         >
-          去設定
+          {{ t('strategyBot.common.goToSettings') }}
         </NuxtLink>
       </template>
     </AppAlert>
@@ -147,7 +151,7 @@ onMounted(() => {
       v-if="bots.loading.value"
       class="strategy-bot-list__notice"
     >
-      讀取中…
+      {{ t('strategyBot.common.loading') }}
     </p>
 
     <p
@@ -155,7 +159,7 @@ onMounted(() => {
       class="strategy-bot-list__notice strategy-bot-list__notice--empty"
       data-testid="bot-list-empty"
     >
-      {{ page.emptyNotice }}
+      {{ localize(page.emptyNotice) }}
     </p>
 
     <div
@@ -172,9 +176,9 @@ onMounted(() => {
           class="strategy-bot-list__columns"
           aria-hidden="true"
         >
-          <span>名稱 · 狀態</span>
-          <span>標的 · 交易策略</span>
-          <span>上次訊號</span>
+          <span>{{ t('strategyBot.listPanel.nameAndStatusColumn') }}</span>
+          <span>{{ t('strategyBot.listPanel.symbolAndTradingStrategyColumn') }}</span>
+          <span>{{ t('strategyBot.listPanel.lastSignalColumn') }}</span>
           <span />
         </div>
 
@@ -201,13 +205,13 @@ onMounted(() => {
                 variant="accent"
                 data-testid="bot-auto-order-badge"
               >
-                自動下單
+                {{ t('strategyBot.common.autoOrder') }}
               </AppBadge>
             </div>
 
             <div class="strategy-bot-list__identity">
               <span class="strategy-bot-list__meta strategy-bot-list__meta--market">
-                {{ strategyBot.symbolLabel }} · 每 {{ strategyBot.triggerIntervalMinutes }} 分鐘<template v-if="strategyBot.leverageLabel !== null"> · {{ strategyBot.leverageLabel }}</template>
+                {{ localize(strategyBot.symbolLabel) }} · {{ t('strategyBot.common.everyMinutes', { minutes: strategyBot.triggerIntervalMinutes }) }}<template v-if="strategyBot.leverageLabel !== null"> · {{ localize(strategyBot.leverageLabel) }}</template>
               </span>
               <!--
                 它照哪一套規則跑。做成連結而不是一行字：一個看得到卻點不進去的名字，
@@ -218,7 +222,7 @@ onMounted(() => {
                 :to="`/trading-strategies/${strategyBot.tradingStrategyId}`"
                 data-testid="bot-trading-strategy"
               >
-                {{ strategyBot.tradingStrategyName === '' ? '（未知的交易策略）' : strategyBot.tradingStrategyName }}
+                {{ strategyBot.tradingStrategyName === '' ? t('strategyBot.listPanel.unknownTradingStrategy') : strategyBot.tradingStrategyName }}
               </NuxtLink>
             </div>
 
@@ -226,7 +230,7 @@ onMounted(() => {
               class="strategy-bot-list__signal"
               data-testid="bot-last-sent-signal"
             >
-              <span class="strategy-bot-list__signal-label">上次訊號：</span>{{ strategyBot.runState.lastSentSignalLabel }}
+              <span class="strategy-bot-list__signal-label">{{ t('strategyBot.listPanel.lastSignalLabel') }}</span>{{ localize(strategyBot.runState.lastSentSignalLabel) }}
             </span>
 
             <div class="strategy-bot-list__actions">
@@ -241,7 +245,7 @@ onMounted(() => {
                 variant="secondary"
                 size="small"
                 :disabled="bots.busyId.value === strategyBot.id"
-                title="啟動這台機器人"
+                :title="t('strategyBot.listPanel.startTitle')"
                 data-testid="bot-start"
                 @click="bots.start(strategyBot.id)"
               >
@@ -249,7 +253,7 @@ onMounted(() => {
                   name="power"
                   size="small"
                 />
-                啟動
+                {{ t('strategyBot.listPanel.start') }}
               </AppButton>
               <AppButton
                 v-else
@@ -257,7 +261,7 @@ onMounted(() => {
                 variant="danger-ghost"
                 size="small"
                 :disabled="bots.busyId.value === strategyBot.id"
-                title="停止這台機器人"
+                :title="t('strategyBot.listPanel.stopTitle')"
                 data-testid="bot-stop"
                 @click="bots.stop(strategyBot.id)"
               >
@@ -265,7 +269,7 @@ onMounted(() => {
                   name="power"
                   size="small"
                 />
-                停止
+                {{ t('strategyBot.listPanel.stop') }}
               </AppButton>
 
               <!--
@@ -277,11 +281,11 @@ onMounted(() => {
                 variant="secondary"
                 size="small"
                 :disabled="bots.busyId.value === strategyBot.id"
-                title="不等排程，現在就跑一輪"
+                :title="t('strategyBot.listPanel.runNowTitle')"
                 data-testid="bot-run-now"
                 @click="bots.runNow(strategyBot.id)"
               >
-                立即運算
+                {{ t('strategyBot.listPanel.runNow') }}
               </AppButton>
 
               <AppButton
@@ -292,7 +296,7 @@ onMounted(() => {
                 data-testid="bot-history-toggle"
                 @click="bots.toggleRunHistory(strategyBot.id)"
               >
-                {{ bots.expandedBotId.value === strategyBot.id ? '收起紀錄' : '執行紀錄' }}
+                {{ bots.expandedBotId.value === strategyBot.id ? t('strategyBot.listPanel.collapseRunHistory') : t('strategyBot.listPanel.runHistory') }}
               </AppButton>
 
               <!--
@@ -308,7 +312,7 @@ onMounted(() => {
                 size="small"
                 data-testid="bot-edit"
               >
-                編輯
+                {{ t('strategyBot.listPanel.edit') }}
               </AppButton>
               <AppButton
                 v-else
@@ -316,10 +320,10 @@ onMounted(() => {
                 variant="ghost"
                 size="small"
                 disabled
-                :title="strategyBot.runState.editBlockedReason"
+                :title="strategyBot.runState.editBlockedReason === null ? undefined : localize(strategyBot.runState.editBlockedReason)"
                 data-testid="bot-edit"
               >
-                編輯
+                {{ t('strategyBot.listPanel.edit') }}
               </AppButton>
 
               <AppButton
@@ -329,7 +333,7 @@ onMounted(() => {
                 data-testid="bot-delete"
                 @click="bots.askToDelete(strategyBot)"
               >
-                刪除
+                {{ t('strategyBot.listPanel.delete') }}
               </AppButton>
             </div>
 
@@ -368,7 +372,7 @@ onMounted(() => {
       >
         <template #meta>
           <span class="strategy-bot-list__meta">
-            {{ selectedBot.symbolLabel }} · 每 {{ selectedBot.triggerIntervalMinutes }} 分鐘<template v-if="selectedBot.leverageLabel !== null"> · {{ selectedBot.leverageLabel }}</template>
+            {{ localize(selectedBot.symbolLabel) }} · {{ t('strategyBot.common.everyMinutes', { minutes: selectedBot.triggerIntervalMinutes }) }}<template v-if="selectedBot.leverageLabel !== null"> · {{ localize(selectedBot.leverageLabel) }}</template>
           </span>
         </template>
         <template #actions>
@@ -376,7 +380,7 @@ onMounted(() => {
             type="button"
             variant="ghost"
             size="small"
-            label="收起執行紀錄"
+            :label="t('strategyBot.listPanel.closeRunHistory')"
             data-testid="bot-detail-close"
             @click="bots.toggleRunHistory(selectedBot.id)"
           >
@@ -397,7 +401,7 @@ onMounted(() => {
         />
 
         <h3 class="strategy-bot-list__detail-heading">
-          執行紀錄
+          {{ t('strategyBot.listPanel.runHistory') }}
         </h3>
         <StrategyBotRunHistory
           :run-records="bots.runRecords.value"
@@ -412,13 +416,13 @@ onMounted(() => {
     <!--
       「存好了」那一句由工作台說，在這一頁看到——存完之後使用者已經被送回來了。
     -->
-    <AppToast :message="bots.announcement.value" />
+    <AppToast :message="localize(bots.announcement.value)" />
 
     <ConfirmDialog
       :open="bots.deleting.value !== null"
-      title="刪掉這台機器人？"
-      :message="`「${bots.deleting.value?.name ?? ''}」刪掉就沒了，正在跑的話也會一起停下來。`"
-      confirm-label="刪掉"
+      :title="t('strategyBot.listPanel.deleteTitle')"
+      :message="t('strategyBot.listPanel.deleteMessage', { name: bots.deleting.value?.name ?? '' })"
+      :confirm-label="t('strategyBot.listPanel.deleteConfirm')"
       variant="danger"
       data-testid="bot-delete-confirm"
       @confirm="bots.confirmDelete"

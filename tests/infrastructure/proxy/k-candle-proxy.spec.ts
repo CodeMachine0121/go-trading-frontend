@@ -182,7 +182,7 @@ describe('KCandleProxy', () => {
     expect(kCandleSeries.kCandles[0]?.openTime.toISOString()).toBe('2026-08-30T10:00:00.000Z')
     expect(kCandleSeries.kCandles[0]?.open.toString()).toBe('100.5')
     expect(kCandleSeries.interval.value).toBe('1h')
-    expect(kCandleSeries.interval.label).toBe('一小時')
+    expect(kCandleSeries.interval.label.in('zh-TW')).toBe('一小時')
   })
 
   it('系統回報一個認不得的刻度時退回最細的那一種，不讓畫面壞掉', async () => {

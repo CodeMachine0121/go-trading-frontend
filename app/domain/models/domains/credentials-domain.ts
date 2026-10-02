@@ -1,5 +1,6 @@
 import type { CredentialsDto } from '~/domain/models/dto/credentials-dto'
 import { CredentialsFieldErrorsDto } from '~/domain/models/dto/credentials-field-errors-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 建立帳號時密碼的兩道長度規則。它們與後端的那兩條是同一組數字，
@@ -56,13 +57,13 @@ export class CredentialsDomain {
     return this.password
   }
 
-  private emailError(): string | null {
-    return this.email === '' ? '請填入電子郵件' : null
+  private emailError(): LocalizedTextVo | null {
+    return this.email === '' ? new LocalizedTextVo('請填入電子郵件', 'Enter your email') : null
   }
 
-  private passwordError(lengthRulesApply: boolean): string | null {
+  private passwordError(lengthRulesApply: boolean): LocalizedTextVo | null {
     if (this.password === '') {
-      return '請填入密碼'
+      return new LocalizedTextVo('請填入密碼', 'Enter your password')
     }
 
     if (!lengthRulesApply) {
@@ -70,13 +71,19 @@ export class CredentialsDomain {
     }
 
     if ([...this.password].length < PASSWORD_MINIMUM_LENGTH) {
-      return `密碼至少要 ${PASSWORD_MINIMUM_LENGTH} 個字元`
+      return new LocalizedTextVo(
+        `密碼至少要 ${PASSWORD_MINIMUM_LENGTH} 個字元`,
+        `Password must be at least ${PASSWORD_MINIMUM_LENGTH} characters`,
+      )
     }
 
     // 長度上限數的是位元組而不是字元，因為後端存放密碼證明的方式就數到那裡為止。
     // 中文字一個算三個，所以二十五個字就超過了。
     if (new TextEncoder().encode(this.password).length > PASSWORD_MAXIMUM_BYTE_LENGTH) {
-      return `密碼長度上限為 ${PASSWORD_MAXIMUM_BYTE_LENGTH} 個位元組（中文字一個算三個）`
+      return new LocalizedTextVo(
+        `密碼長度上限為 ${PASSWORD_MAXIMUM_BYTE_LENGTH} 個位元組（中文字一個算三個）`,
+        `Password can be at most ${PASSWORD_MAXIMUM_BYTE_LENGTH} bytes (a Chinese character counts as three)`,
+      )
     }
 
     return null

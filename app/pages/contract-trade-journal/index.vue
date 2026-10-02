@@ -3,8 +3,8 @@ import ContractTradeListPanel from '~/components/organisms/ContractTradeListPane
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '合約交易日誌',
-  consoleSubtitle: '收到信號、在交易所下單之後，把這筆交易記下來；損益、R 與統計由交易服務算好。',
+  consoleTitleKey: 'contractTradeJournal.pages.index.title',
+  consoleSubtitleKey: 'contractTradeJournal.pages.index.subtitle',
 })
 
 const journal = useContractTradeJournal()

@@ -40,8 +40,9 @@ describe('useSpotTradeStatistics', () => {
     await loadStatistics()
 
     expect(period.value).toBe('30d')
-    expect(periodOptions.map(option => option.label)).toEqual(['最近 7 天', '最近 30 天', '最近 90 天', '全部期間'])
-    expect(statistics.value?.periodLabel).toBe('最近 30 天')
+    expect(periodOptions.map(option => option.label.in('zh-TW'))).toEqual(['最近 7 天', '最近 30 天', '最近 90 天', '全部期間'])
+    expect(periodOptions.map(option => option.label.in('en'))).toEqual(['Last 7 days', 'Last 30 days', 'Last 90 days', 'All time'])
+    expect(statistics.value?.periodLabel.in('zh-TW')).toBe('最近 30 天')
   })
 
   it('換期間就重讀', async () => {
@@ -60,7 +61,7 @@ describe('useSpotTradeStatistics', () => {
     await loadStatistics()
 
     expect(statistics.value).toBeNull()
-    expect(failureMessage.value).toContain('連不上')
+    expect(failureMessage.value?.in('zh-TW')).toContain('連不上')
   })
 
   it('挑了策略才重演，重演中看得出來', async () => {
@@ -76,7 +77,7 @@ describe('useSpotTradeStatistics', () => {
 
     finishReplay(new SpotTradeLiveComparison('台股均線', false, [], null, 0))
     await vi.waitFor(() => expect(replaying.value).toBe(false))
-    expect(comparison.value?.notice).toBe('還沒有已平倉的實單可以對照')
+    expect(comparison.value?.notice?.in('zh-TW')).toBe('還沒有已平倉的實單可以對照')
   })
 
   it('重演回來時已經改挑別份策略，就不拿舊結果蓋掉', async () => {
@@ -101,7 +102,7 @@ describe('useSpotTradeStatistics', () => {
     const { selectedTradingStrategyId, comparison, comparisonFailureMessage } = statisticsUnderTest()
 
     selectedTradingStrategyId.value = 9
-    await vi.waitFor(() => expect(comparisonFailureMessage.value).toBe('找不到識別碼為 9 的交易策略'))
+    await vi.waitFor(() => expect(comparisonFailureMessage.value?.in('zh-TW')).toBe('找不到識別碼為 9 的交易策略'))
     selectedTradingStrategyId.value = null
     await nextTick()
 
@@ -116,6 +117,6 @@ describe('useSpotTradeStatistics', () => {
     tradingStrategyProxy.listTradingStrategies.mockRejectedValue(new BackendUnreachableError('http://x'))
     await loadTradingStrategies()
 
-    expect(comparisonFailureMessage.value).toContain('連不上')
+    expect(comparisonFailureMessage.value?.in('zh-TW')).toContain('連不上')
   })
 })

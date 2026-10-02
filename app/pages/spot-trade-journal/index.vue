@@ -3,8 +3,8 @@ import SpotTradeListPanel from '~/components/organisms/SpotTradeListPanel.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨交易日誌',
-  consoleSubtitle: '台股與加密貨幣現貨：買進、賣出之後記下來；損益、報酬率與統計由交易服務算好。',
+  consoleTitleKey: 'tradeJournal.pages.spotList.title',
+  consoleSubtitleKey: 'tradeJournal.pages.spotList.subtitle',
 })
 
 const journal = useSpotTradeJournal()

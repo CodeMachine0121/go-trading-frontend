@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import StrategyScriptMarketplacePanel from '~/components/organisms/StrategyScriptMarketplacePanel.vue'
 import type { IStrategyScriptMarketplaceProxy } from '~/domain/interface/i-strategy-script-marketplace-proxy'
 import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-proxy'
@@ -130,6 +131,22 @@ describe('StrategyScriptMarketplacePanel', () => {
     expect(browseMarketplace.mock.calls.length).toBeGreaterThan(1)
     // 我的策略腳本也重讀一次，副本才會出現在清單上。
     expect(listAvailableStrategyScripts.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it('已經說出來的那一句，換成英文時跟著換；卡上的標籤也是英文', async () => {
+    const wrapper = await mountPanel({ adoptStrategyScript: vi.fn().mockResolvedValue(undefined) })
+
+    await wrapper.get('[data-testid="marketplace-adopt-9"]').trigger('click')
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="marketplace-notice"]').text())
+      .toBe('Copied to your strategy scripts. Whatever the author changes later will not affect your copy.')
+    const card = wrapper.get('[data-testid="marketplace-strategy-script-9"]')
+    expect(card.text()).toContain('Shared by someone@example.com')
+    expect(card.text()).toContain('A list of numbers')
+    expect(wrapper.get('[data-testid="marketplace-market-data-kind"]').text()).toBe('K-candle')
   })
 
   it('加入被拒時說出後端那一句', async () => {

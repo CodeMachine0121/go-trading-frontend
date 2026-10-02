@@ -131,7 +131,7 @@ export class KCandleService {
     }
     catch (error: unknown) {
       if (error instanceof KCandleFieldError) {
-        return new KCandleDraftIssueDto(error.field, error.message)
+        return new KCandleDraftIssueDto(error.field, error.localizedMessage)
       }
 
       throw error

@@ -25,6 +25,15 @@ describe('TimeZoneField', () => {
     expect(options[1]?.text()).toBe('台北（UTC+08:00）')
   })
 
+  it('換成 English 時城市名與括號都改用英文的寫法', async () => {
+    const wrapper = mountField()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('option')[1]?.text()).toBe('Taipei (UTC+08:00)')
+  })
+
   it('目前選的是哪一個看得出來', () => {
     const wrapper = mountField('Asia/Taipei')
 

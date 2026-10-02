@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
@@ -31,10 +32,10 @@ export class PublishedStrategyScriptDto {
      * 它在這裡而不是由畫面查一張表：那張表已經有一個地方在維護了，而畫面看不到那裡。
      * 交出來的是話而不是代號，多一種種類的時候市集上就不會冒出一個沒人看得懂的字。
      */
-    public readonly resultTypeLabel: string,
+    public readonly resultTypeLabel: LocalizedTextVo,
     public readonly marketDataKind: MarketDataKind = 'kCandle',
     /** 給人看的行情種類：「K 線」或「合約行情」。市集上每一張卡都標著它。 */
-    public readonly marketDataKindLabel: string = 'K 線',
+    public readonly marketDataKindLabel: LocalizedTextVo = new LocalizedTextVo('K 線', 'K-candle'),
   ) {}
 
   /**

@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 
 /**
@@ -8,6 +9,6 @@ import type { KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 export class KCandleDraftIssueDto {
   constructor(
     public readonly field: KCandleWriteField,
-    public readonly message: string,
+    public readonly message: LocalizedTextVo,
   ) {}
 }

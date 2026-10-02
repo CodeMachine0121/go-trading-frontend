@@ -2,9 +2,16 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import BinanceTradingKeyPanel from '~/components/organisms/BinanceTradingKeyPanel.vue'
 import { BinanceTradingKeyDto } from '~/domain/models/dto/binance-trading-key-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const STORED = new BinanceTradingKeyDto(true, '結尾 a1b2', '現貨', new Date('2026-10-01T08:00:00Z'))
-const UNCONFIGURED = new BinanceTradingKeyDto(false, null, '', null)
+const STORED = new BinanceTradingKeyDto(
+  true,
+  new LocalizedTextVo('結尾 a1b2', 'Ending in a1b2'),
+  new LocalizedTextVo('現貨', 'Spot'),
+  new Date('2026-10-01T08:00:00Z'),
+)
+const UNCONFIGURED = new BinanceTradingKeyDto(false, null, new UntranslatedTextVo(''), null)
 
 function mountPanel(props: Record<string, unknown> = {}) {
   return mount(BinanceTradingKeyPanel, {
@@ -24,7 +31,7 @@ function mountStored(props: Record<string, unknown> = {}) {
 
 describe('BinanceTradingKeyPanel：目前的狀態', () => {
   it('讀不到設定時不顯示「還沒有設定」', () => {
-    const wrapper = mountPanel({ loadErrorMessage: '連不上後端 go-trading API' })
+    const wrapper = mountPanel({ loadErrorMessage: new UntranslatedTextVo('連不上後端 go-trading API') })
 
     expect(wrapper.get('[data-testid="binance-trading-key-load-error"]').text()).toContain('連不上後端')
     expect(wrapper.find('[data-testid="binance-trading-key-unconfigured"]').exists()).toBe(false)
@@ -78,7 +85,7 @@ describe('BinanceTradingKeyPanel：存入', () => {
   })
 
   it('存不成的原因照原話顯示在兩格底下', () => {
-    const wrapper = mountPanel({ setting: UNCONFIGURED, saveErrorMessage: '連不上幣安，請稍後再試' })
+    const wrapper = mountPanel({ setting: UNCONFIGURED, saveErrorMessage: new UntranslatedTextVo('連不上幣安，請稍後再試') })
 
     expect(wrapper.get('[data-testid="binance-trading-key-save-error"]').text()).toBe('連不上幣安，請稍後再試')
   })
@@ -87,7 +94,7 @@ describe('BinanceTradingKeyPanel：存入', () => {
     { field: 'apiKeyError', inputTestId: 'binance-api-key-input', message: '必須給 API Key' },
     { field: 'secretKeyError', inputTestId: 'binance-secret-key-input', message: '必須給 Secret Key' },
   ])('$message 掛在那一格底下', ({ field, inputTestId, message }) => {
-    const wrapper = mountPanel({ setting: UNCONFIGURED, [field]: message })
+    const wrapper = mountPanel({ setting: UNCONFIGURED, [field]: new UntranslatedTextVo(message) })
 
     const fieldErrors = wrapper.findAll('[data-testid="field-error"]')
     expect(fieldErrors).toHaveLength(1)
@@ -108,7 +115,7 @@ describe('BinanceTradingKeyPanel：存入', () => {
     const wrapper = mountStored({
       formVisible: true,
       editing: true,
-      saveErrorMessage: '幣安不接受這組金鑰，請確認 API Key 與 Secret Key 後重新填寫',
+      saveErrorMessage: new UntranslatedTextVo('幣安不接受這組金鑰，請確認 API Key 與 Secret Key 後重新填寫'),
     })
 
     expect(wrapper.get('[data-testid="binance-trading-key-api-key"]').text()).toBe('結尾 a1b2')
@@ -158,7 +165,7 @@ describe('BinanceTradingKeyPanel：移除', () => {
   })
 
   it('移除失敗時在已存那一組旁邊說原因', () => {
-    const wrapper = mountStored({ saveErrorMessage: '移除失敗' })
+    const wrapper = mountStored({ saveErrorMessage: new UntranslatedTextVo('移除失敗') })
 
     expect(wrapper.get('[data-testid="binance-trading-key-save-error"]').text()).toBe('移除失敗')
   })

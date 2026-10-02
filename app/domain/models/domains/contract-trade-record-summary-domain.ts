@@ -7,10 +7,12 @@ import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain
 import { TradeLinkedStrategyDomain } from '~/domain/models/domains/trade-linked-strategy-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { TradeTagChipVo } from '~/domain/models/vo/trade-tag-chip-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const FLOATING_NOTE = '浮'
+const FLOATING_NOTE = new LocalizedTextVo('浮', 'unrealized')
 const NOT_APPLICABLE_TEXT = '—'
-const PROFIT_LABEL = '損益'
+const PROFIT_LABEL = new LocalizedTextVo('損益', 'P&L')
 
 export class ContractTradeRecordSummaryDomain {
   constructor(private readonly summary: ContractTradeRecordSummary) {}
@@ -34,21 +36,28 @@ export class ContractTradeRecordSummaryDomain {
           this.summary.tradingStrategyId,
           this.summary.tradingStrategyName,
           this.summary.tradingStrategyDeleted).label
-        : `${this.summary.source.strategyBotName} #${this.summary.source.runNumber}`,
+        : new UntranslatedTextVo(`${this.summary.source.strategyBotName} #${this.summary.source.runNumber}`),
       new JournalNumberDomain(this.summary.averageEntryPrice).price(),
       this.summary.averageExitPrice === null
         ? NOT_APPLICABLE_TEXT
         : new JournalNumberDomain(this.summary.averageExitPrice).price(),
       status.isOpen || netProfit === null
         ? new TradeMeasureDomain(this.summary.floatingProfit).toFigure(
+            'floatingProfit',
             PROFIT_LABEL,
-            value => new JournalNumberDomain(value).signedAmount(),
+            value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
             value => new JournalNumberDomain(value).tone(),
             FLOATING_NOTE)
         : new TradeFigureVo(
-            PROFIT_LABEL, new JournalNumberDomain(netProfit).signedAmount(), new JournalNumberDomain(netProfit).tone()),
+            'netProfit',
+            PROFIT_LABEL,
+            new UntranslatedTextVo(new JournalNumberDomain(netProfit).signedAmount()),
+            new JournalNumberDomain(netProfit).tone()),
       new TradeMeasureDomain(this.summary.rMultiple).toFigure(
-        'R', value => new JournalNumberDomain(value).rMultiple(), () => 'neutral').text,
+        'rMultiple',
+        new UntranslatedTextVo('R'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
+        () => 'neutral').text,
       this.summary.tags.map(tag => new TradeTagChipVo(tag.name, tag.kind === 'mistake' ? 'danger' : 'neutral')),
     )
   }

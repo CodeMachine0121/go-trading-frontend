@@ -1,5 +1,6 @@
 import type { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 全站共用的「後端還活著嗎」。
@@ -13,10 +14,11 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
  */
 export function useBackendHealth() {
   const { $backendHealthApplication } = useNuxtApp()
+  const { translatedText } = useLocalizedText()
 
   const health = useState<BackendHealthDto | null>('backend-health', () => null)
   const checking = useState('backend-health-checking', () => false)
-  const errorMessage = useState<string | null>('backend-health-error', () => null)
+  const errorMessage = useState<LocalizedTextVo | null>('backend-health-error', () => null)
   const checked = useState('backend-health-checked', () => false)
 
   async function checkBackendHealth() {
@@ -30,8 +32,8 @@ export function useBackendHealth() {
       // 哨兵錯誤分流：等同後端 controller 把領域錯誤對映成狀態碼。
       // 兩個取用它的地方要說同一句話，所以這句話寫在這裡，不寫在畫面上。
       errorMessage.value = error instanceof BackendUnreachableError
-        ? '連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。'
-        : '檢查後端狀態時發生未預期的錯誤。'
+        ? error.localizedMessage
+        : translatedText('shell.backendStatus.unexpectedError')
       health.value = null
     }
     finally {

@@ -26,7 +26,7 @@ describe('AppliedIndicatorDto：清單上怎麼分辨同一支的好幾筆', () 
   it('把這一次的值攤成一句話', () => {
     const applied = appliedWith([new StrategyScriptParameterDto('期數', 'lookbackCount', 60)])
 
-    expect(applied.parameterSummary).toBe('期數 60')
+    expect(applied.parameterSummary.in('zh-TW')).toBe('期數 60')
   })
 
   it('好幾個旋鈕就都攤出來', () => {
@@ -35,11 +35,13 @@ describe('AppliedIndicatorDto：清單上怎麼分辨同一支的好幾筆', () 
       new StrategyScriptParameterDto('倍數', 'number', 2),
     ])
 
-    expect(applied.parameterSummary).toBe('期數 20、倍數 2')
+    expect(applied.parameterSummary.in('zh-TW')).toBe('期數 20、倍數 2')
+    // 英文的列舉用逗號——頓號是中文的標點，名字與值本身照原樣。
+    expect(applied.parameterSummary.in('en')).toBe('期數 20, 倍數 2')
   })
 
   it('沒有旋鈕的就沒有東西可標——它們靠名稱本身分辨', () => {
-    expect(appliedWith([]).parameterSummary).toBe('')
+    expect(appliedWith([]).parameterSummary.in('zh-TW')).toBe('')
   })
 })
 

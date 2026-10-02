@@ -36,8 +36,10 @@ describe('要看多長：哪裡不對', () => {
     { name: '負數', amount: -3 },
     { name: '小數', amount: 2.5 },
   ])('$name 時說出來', ({ amount }) => {
-    expect(new CalculationSpanVo(amount, 'hour').validationMessage())
-      .toBe('要看多長必須是大於零的整數')
+    const message = new CalculationSpanVo(amount, 'hour').validationMessage()
+
+    expect(message?.in('zh-TW')).toBe('要看多長必須是大於零的整數')
+    expect(message?.in('en')).toBe('The span must be a whole number greater than zero')
   })
 
   it('正整數沒有話說', () => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import KCandleForm from '~/components/molecules/KCandleForm.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -14,6 +15,7 @@ import { KCandleFieldError, type KCandleWriteField } from '~/domain/errors/k-can
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：一次 K 線維護的互動。
 // editingKCandle 為 null 代表新增，否則代表修改那一根（身分唯讀）。
@@ -34,6 +36,9 @@ const {
 
 const emit = defineEmits<{ changed: [], cancel: [], busyChange: [boolean] }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const symbol = ref('')
 const openTime = ref('')
 const open = ref('')
@@ -46,17 +51,34 @@ const takerBuyBaseVolume = ref('')
 const takerBuyQuoteVolume = ref('')
 
 const submitting = ref(false)
-const fieldError = ref<{ field: KCandleWriteField, message: string } | null>(null)
-const rejectedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
-const successMessage = ref<string | null>(null)
+const fieldError = ref<{ field: KCandleWriteField, message: LocalizedTextVo } | null>(null)
+const rejectedMessage = ref<LocalizedTextVo | null>(null)
+const unexpectedFailure = ref(false)
+const unreachableExplanation = ref<LocalizedTextVo | null>(null)
+const serverErrorMessage = ref<LocalizedTextVo | null>(null)
+const succeededAction = ref<'created' | 'updated' | 'deleted' | null>(null)
 const confirmingDelete = ref(false)
 // 刪除成功後這根 K 線就不存在了，表單不能再留著讓人按下儲存。
 const deleted = ref(false)
 
 const editing = computed(() => editingKCandle !== null)
-const title = computed(() => editing.value ? '修改 K 線' : '新增 K 線')
+const title = computed(() => editing.value
+  ? t('marketData.kCandleEditorPanel.editTitle')
+  : t('marketData.kCandleEditorPanel.createTitle'))
+
+/** 存的是做成了哪一件事，不是那一句話——換語言時已經顯示的那一句才跟著換。 */
+const successMessage = computed(() => {
+  switch (succeededAction.value) {
+    case 'created':
+      return t('marketData.kCandleEditorPanel.created')
+    case 'updated':
+      return t('marketData.kCandleEditorPanel.updated')
+    case 'deleted':
+      return t('marketData.kCandleEditorPanel.deleted')
+    default:
+      return null
+  }
+})
 
 /**
  * 照寫入規則即時檢查這份草稿：每改一格就重看一次，與按下儲存時被擋下的是同一套規則、同一句話。
@@ -176,11 +198,11 @@ async function submitKCandle() {
   try {
     if (editing.value) {
       await kCandleApplication.updateKCandle(writeDto)
-      finishRequest('已更新這根 K 線')
+      finishRequest('updated')
     }
     else {
       await kCandleApplication.saveKCandle(writeDto)
-      finishRequest('已新增這根 K 線')
+      finishRequest('created')
     }
   }
   catch (error: unknown) {
@@ -196,7 +218,7 @@ async function deleteKCandle() {
     await kCandleApplication.deleteKCandle(new KCandleIdentityDto(
       symbol.value, timeZone.parseMinuteInput(openTime.value)))
     deleted.value = true
-    finishRequest('已刪除這根 K 線')
+    finishRequest('deleted')
   }
   catch (error: unknown) {
     reportFailure(error)
@@ -209,14 +231,15 @@ function startRequest() {
   emit('busyChange', true)
   fieldError.value = null
   rejectedMessage.value = null
-  backendUnreachable.value = false
+  unexpectedFailure.value = false
+  unreachableExplanation.value = null
   serverErrorMessage.value = null
-  successMessage.value = null
+  succeededAction.value = null
 }
 
-function finishRequest(message: string) {
+function finishRequest(action: 'created' | 'updated' | 'deleted') {
   submitting.value = false
-  successMessage.value = message
+  succeededAction.value = action
   emit('busyChange', false)
   emit('changed')
 }
@@ -227,19 +250,19 @@ function reportFailure(error: unknown) {
   emit('busyChange', false)
 
   if (error instanceof KCandleFieldError) {
-    fieldError.value = { field: error.field, message: error.message }
+    fieldError.value = { field: error.field, message: error.localizedMessage }
   }
   else if (error instanceof BackendServerError) {
-    serverErrorMessage.value = error.message
+    serverErrorMessage.value = error.localizedMessage
   }
   else if (error instanceof BackendRequestRejectedError) {
-    rejectedMessage.value = error.message
+    rejectedMessage.value = error.localizedMessage
   }
   else if (error instanceof BackendUnreachableError) {
-    backendUnreachable.value = true
+    unreachableExplanation.value = error.localizedMessage
   }
   else {
-    rejectedMessage.value = '維護這根 K 線時發生未預期的錯誤。'
+    unexpectedFailure.value = true
   }
 }
 </script>
@@ -271,7 +294,7 @@ function reportFailure(error: unknown) {
       <AppButton
         variant="ghost"
         size="small"
-        label="關閉"
+        :label="t('marketData.kCandleEditorPanel.close')"
         :disabled="submitting"
         data-testid="editor-dismiss"
         @click="requestClose"
@@ -297,7 +320,9 @@ function reportFailure(error: unknown) {
       :submitting="submitting"
       :field-error="shownFieldError"
       :savable="draftIssue === null"
-      :submit-label="editing ? '儲存變更' : '新增'"
+      :submit-label="editing
+        ? t('marketData.kCandleEditorPanel.saveChanges')
+        : t('marketData.kCandleEditorPanel.create')"
       @submit="submitKCandle"
       @touch="touchField"
       @cancel="emit('cancel')"
@@ -313,7 +338,7 @@ function reportFailure(error: unknown) {
           data-testid="delete-button"
           @click="confirmingDelete = true"
         >
-          刪除
+          {{ t('marketData.kCandleEditorPanel.delete') }}
         </AppButton>
       </template>
     </KCandleForm>
@@ -323,7 +348,7 @@ function reportFailure(error: unknown) {
       tone="warning"
       data-testid="delete-confirm"
     >
-      確定刪除這根 K 線嗎？刪掉之後就找不回來了。
+      {{ t('marketData.kCandleEditorPanel.deleteConfirm') }}
       <template #action>
         <span class="k-candle-editor-panel__confirm-actions">
           <AppButton
@@ -333,7 +358,7 @@ function reportFailure(error: unknown) {
             :disabled="submitting"
             @click="deleteKCandle"
           >
-            確定刪除
+            {{ t('marketData.kCandleEditorPanel.deleteConfirmYes') }}
           </AppButton>
           <AppButton
             variant="secondary"
@@ -342,7 +367,7 @@ function reportFailure(error: unknown) {
             data-testid="delete-confirm-no"
             @click="confirmingDelete = false"
           >
-            取消
+            {{ t('marketData.common.cancel') }}
           </AppButton>
         </span>
       </template>
@@ -364,17 +389,17 @@ function reportFailure(error: unknown) {
           data-testid="editor-close"
           @click="emit('cancel')"
         >
-          關閉
+          {{ t('marketData.kCandleEditorPanel.close') }}
         </AppButton>
       </template>
     </AppAlert>
 
     <AppAlert
-      v-if="rejectedMessage"
+      v-if="rejectedMessage || unexpectedFailure"
       tone="danger"
       data-testid="editor-rejected"
     >
-      {{ rejectedMessage }}
+      {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.kCandleEditorPanel.unexpectedFailure') }}
     </AppAlert>
 
     <AppAlert
@@ -382,15 +407,15 @@ function reportFailure(error: unknown) {
       tone="danger"
       data-testid="editor-server-error"
     >
-      後端出錯了（不是你填的內容有問題），請稍後再送出一次：{{ serverErrorMessage }}
+      {{ t('marketData.kCandleEditorPanel.serverError', { message: localize(serverErrorMessage) }) }}
     </AppAlert>
 
     <AppAlert
-      v-else-if="backendUnreachable"
+      v-else-if="unreachableExplanation"
       tone="danger"
       data-testid="editor-unreachable"
     >
-      連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+      {{ localize(unreachableExplanation) }}
     </AppAlert>
   </component>
 </template>

@@ -13,14 +13,18 @@ import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import { DecimalInputDomain } from '~/domain/models/domains/decimal-input-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { SpotTradeMarketDomain } from '~/domain/models/domains/spot-trade-market-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const PERCENT = 100
 const DISTANCE_FRACTION_DIGITS = 2
 const SLIPPAGE_FRACTION_DIGITS = 2
-const MISSING_SYMBOL_MESSAGE = '請填標的'
-const MISSING_BUY_MESSAGE = '至少要有一筆填好買進價與數量的買進'
-const MISSING_FILL_MESSAGE = '至少要有一筆填好價格與數量的買進或賣出'
-const WHOLE_SHARES_MESSAGE = '台股數量以股計，必須是整數'
+const MISSING_SYMBOL_MESSAGE = new LocalizedTextVo('請填標的', 'Enter a symbol')
+const MISSING_BUY_MESSAGE = new LocalizedTextVo(
+  '至少要有一筆填好買進價與數量的買進', 'Add at least one buy with a price and quantity')
+const MISSING_FILL_MESSAGE = new LocalizedTextVo(
+  '至少要有一筆填好價格與數量的買進或賣出', 'Add at least one buy or sell with a price and quantity')
+const WHOLE_SHARES_MESSAGE = new LocalizedTextVo(
+  '台股數量以股計，必須是整數', 'Taiwan stock quantities are in shares and must be whole numbers')
 
 export class SpotTradeDraftDomain {
   constructor(
@@ -50,10 +54,18 @@ export class SpotTradeDraftDomain {
     const plannedStopLoss = new DecimalInputDomain(this.draft.plannedStopLossText).value
     const plannedTakeProfit = new DecimalInputDomain(this.draft.plannedTakeProfitText).value
     const referencePrice = this.draft.referencePrice
-    const distanceText = (level: Decimal | null) => averageBuyPrice === null || level === null
-      ? null
-      : `${level.greaterThanOrEqualTo(averageBuyPrice) ? '往上' : '往下'} ${new JournalNumberDomain(
-        level.minus(averageBuyPrice).abs().dividedBy(averageBuyPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)}`
+    const distanceText = (level: Decimal | null): LocalizedTextVo | null => {
+      if (averageBuyPrice === null || level === null) {
+        return null
+      }
+
+      const distance = new JournalNumberDomain(
+        level.minus(averageBuyPrice).abs().dividedBy(averageBuyPrice).times(PERCENT)).percentage(DISTANCE_FRACTION_DIGITS)
+
+      return level.greaterThanOrEqualTo(averageBuyPrice)
+        ? new LocalizedTextVo(`往上 ${distance}`, `${distance} above`)
+        : new LocalizedTextVo(`往下 ${distance}`, `${distance} below`)
+    }
     const wholeSharesOnly = this.draft.market !== null && new SpotTradeMarketDomain(this.draft.market).wholeSharesOnly
     const fractionalShares = wholeSharesOnly
       && this.draft.fills.some(fill => !(new DecimalInputDomain(fill.quantityText).value?.isInteger() ?? true))
@@ -68,8 +80,7 @@ export class SpotTradeDraftDomain {
       distanceText(plannedTakeProfit),
       this.existingFills !== null || averageBuyPrice === null || referencePrice === null || referencePrice.isZero()
         ? null
-        : `比參考價${averageBuyPrice.greaterThanOrEqualTo(referencePrice) ? '高' : '低'} ${new JournalNumberDomain(
-          averageBuyPrice.minus(referencePrice).abs().dividedBy(referencePrice).times(PERCENT)).percentage(SLIPPAGE_FRACTION_DIGITS)}（滑點）`,
+        : this.slippageText(averageBuyPrice, referencePrice),
       fractionalShares ? WHOLE_SHARES_MESSAGE : null,
       this.missingFieldMessage(),
     )
@@ -149,14 +160,25 @@ export class SpotTradeDraftDomain {
     return JSON.stringify(this.draft) !== JSON.stringify(initialDraft)
   }
 
-  private missingFieldMessage(): string | null {
+  private slippageText(averageBuyPrice: Decimal, referencePrice: Decimal): LocalizedTextVo {
+    const slippage = new JournalNumberDomain(
+      averageBuyPrice.minus(referencePrice).abs().dividedBy(referencePrice).times(PERCENT)).percentage(SLIPPAGE_FRACTION_DIGITS)
+
+    return averageBuyPrice.greaterThanOrEqualTo(referencePrice)
+      ? new LocalizedTextVo(`比參考價高 ${slippage}（滑點）`, `${slippage} above the reference price (slippage)`)
+      : new LocalizedTextVo(`比參考價低 ${slippage}（滑點）`, `${slippage} below the reference price (slippage)`)
+  }
+
+  private missingFieldMessage(): LocalizedTextVo | null {
     if (this.existingFills === null && this.draft.symbol.trim() === '') {
       return MISSING_SYMBOL_MESSAGE
     }
 
     const unreadableIndex = this.draft.fills.findIndex(fill => this.toFillWriteDto(fill) === null)
     if (unreadableIndex !== -1) {
-      return `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`
+      return new LocalizedTextVo(
+        `第 ${unreadableIndex + 1} 筆的價格與數量要填大於零的數字`,
+        `Row ${unreadableIndex + 1} needs a price and quantity greater than zero`)
     }
 
     const hasBuy = (this.existingFills ?? []).some(fill => fill.kind === 'buy')

@@ -82,7 +82,7 @@ describe('IndicatorCalculationService', () => {
     { resultType: 'boolList', valueShape: 'map[string][]bool' },
   ])('$resultType 的範例算式是一整份，帶對應的簽章', ({ resultType, valueShape }) => {
     const exampleScript = new IndicatorCalculationService(buildProxy())
-      .describeExampleScript(resultType)
+      .describeExampleScript(resultType).in('zh-TW')
 
     expect(exampleScript).toContain(PREAMBLE)
     expect(exampleScript).toContain(`func Calculate(data []indicator.KCandle) ${valueShape} {`)
@@ -111,12 +111,14 @@ describe('IndicatorCalculationService', () => {
 
     expect(optionDtos.map(optionDto => optionDto.value))
       .toEqual(['float', 'floatList', 'bool', 'boolList', 'signal'])
-    expect(optionDtos.map(optionDto => optionDto.label))
+    expect(optionDtos.map(optionDto => optionDto.label.in('zh-TW')))
       .toEqual(['一個數字', '一串數字', '一個是非', '一串是非', '一個信號'])
+    expect(optionDtos.map(optionDto => optionDto.label.in('en')))
+      .toEqual(['A number', 'A list of numbers', 'A true/false', 'A list of true/false', 'A signal'])
   })
 
   it('信號種類的範例算式回傳一個信號，用系統提供的方式選一個', () => {
-    const exampleScript = new IndicatorCalculationService(buildProxy()).describeExampleScript('signal')
+    const exampleScript = new IndicatorCalculationService(buildProxy()).describeExampleScript('signal').in('zh-TW')
 
     expect(exampleScript).toContain('func Calculate(data []indicator.KCandle) indicator.Signal {')
     expect(exampleScript).toContain('\treturn indicator.Buy')
@@ -128,7 +130,9 @@ describe('IndicatorCalculationService', () => {
 
     expect(readings.map(reading => reading.value))
       .toEqual(['return indicator.Buy', 'return indicator.Sell', 'return indicator.Hold'])
-    expect(readings.map(reading => reading.meaning)).toEqual(['買入', '賣出', '持有，倉位不動'])
+    expect(readings.map(reading => reading.meaning.in('zh-TW'))).toEqual(['買入', '賣出', '持有，倉位不動'])
+    expect(readings.map(reading => reading.meaning.in('en')))
+      .toEqual(['Buy', 'Sell', 'Hold; the position stays as it is'])
   })
 })
 
@@ -173,8 +177,8 @@ describe('IndicatorCalculationService 交出的 K 線欄位說明', () => {
 
     const fields = indicatorCalculationService.describeScriptInputGuide().fields
 
-    expect(fields.every(field => field.label.trim() !== '')).toBe(true)
-    expect(fields.find(field => field.name === 'Close')?.label).toBe('收盤價')
+    expect(fields.every(field => field.label.in('zh-TW').trim() !== '')).toBe(true)
+    expect(fields.find(field => field.name === 'Close')?.label.in('zh-TW')).toBe('收盤價')
   })
 })
 
@@ -184,7 +188,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
       .listAggregationIntervalOptions()
 
     expect(options.map(option => option.value)).toEqual(['1m', '5m', '15m', '1h', '4h', '1d'])
-    expect(options.map(option => option.label))
+    expect(options.map(option => option.label.in('zh-TW')))
       .toEqual(['一分鐘', '五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
   })
 
@@ -216,7 +220,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
       .calculateIndicator(
         new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
-    expect(resultDto.intervalLabel).toBe('五分鐘')
+    expect(resultDto.intervalLabel.in('zh-TW')).toBe('五分鐘')
   })
 
   it('一個指標都沒算出來時照樣說得出這次用的刻度', async () => {
@@ -228,7 +232,7 @@ describe('IndicatorCalculationService 的執行設定', () => {
         new IndicatorCalculationRequestDto('BTCUSDT', '1h', OBSERVATION_WINDOW, WHOLE_SCRIPT, 'float'))
 
     expect(resultDto.isEmpty).toBe(true)
-    expect(resultDto.intervalLabel).toBe('一小時')
+    expect(resultDto.intervalLabel.in('zh-TW')).toBe('一小時')
   })
 })
 
@@ -266,6 +270,7 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
     expect(accesses.map(access => access.kindLabel))
       .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
         .map(option => option.label))
+    expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false'])
   })
 
   it.each([
@@ -275,9 +280,10 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
   ])('$kindLabel 讀出來是 $returnType', ({ kindLabel, call, returnType }) => {
     // 三種讀出來的型別不同，而那正是分種類的理由：回看根數幾乎總是拿去切片
     // （Go 不讓浮點數當索引），是非要直接寫進 if。
-    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+    const access = accesses.find(candidate => candidate.kindLabel.in('zh-TW') === kindLabel)
 
-    expect(access?.example).toContain(call)
+    expect(access?.example.in('zh-TW')).toContain(call)
+    expect(access?.example.in('en')).toContain(call)
     expect(access?.returnType).toBe(returnType)
   })
 
@@ -288,10 +294,11 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
   ])('$kindLabel 的範例還說出讀出來之後拿它做什麼', ({ kindLabel, secondLine }) => {
     // 一個孤零零的函式簽章答不出「然後呢」。第二行才是會卡住的地方——
     // 回看根數拿去切片（而那正是它必須是整數的原因），數值拿去跟價格算。
-    const access = accesses.find(candidate => candidate.kindLabel === kindLabel)
+    const access = accesses.find(candidate => candidate.kindLabel.in('zh-TW') === kindLabel)
 
-    expect(access?.example).toContain(secondLine)
-    expect(access?.example.split('\n')).toHaveLength(2)
+    expect(access?.example.in('zh-TW')).toContain(secondLine)
+    expect(access?.example.in('zh-TW').split('\n')).toHaveLength(2)
+    expect(access?.example.in('en')).toContain(secondLine)
   })
 })
 

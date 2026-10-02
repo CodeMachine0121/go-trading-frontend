@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyScriptBacktestPane from '~/components/organisms/StrategyScriptBacktestPane.vue'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
@@ -766,5 +767,48 @@ describe('StrategyScriptBacktestPane 指名一支我加入的策略腳本', () =
     const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
     expect(sent.strategyScriptId).toBe(9)
     expect(sent.script).toBe('')
+  })
+})
+
+describe('StrategyScriptBacktestPane 切成英文', () => {
+  async function inEnglish(wrapper: ReturnType<typeof mountPane>) {
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+  }
+
+  it('條件那一塊、執行鍵與還沒跑過時那一句都說英文', async () => {
+    const wrapper = mountPane(buildProxy())
+
+    await inEnglish(wrapper)
+
+    expect(wrapper.text()).toContain('Backtest conditions')
+    expect(wrapper.text()).toContain('Initial capital')
+    expect(wrapper.text()).toContain('Stop-loss distance (%)')
+    expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('Run backtest')
+    expect(wrapper.get('[data-testid="backtest-placeholder"]').text())
+      .toBe('Press "Run backtest" and the scorecard, equity curve and trades will appear here.')
+  })
+
+  it('已經標在那一組旁邊的拒絕，換語言時跟著換', async () => {
+    const wrapper = mountPane(buildProxy())
+
+    await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('-2')
+    await runBacktest(wrapper)
+    await inEnglish(wrapper)
+
+    expect(wrapper.get('.backtest-condition-fields__exit-levels [data-testid="field-error"]').text())
+      .toBe('Stop-loss distance cannot be negative')
+  })
+
+  it('成績單、資金曲線與交易明細的標題與明細都說英文', async () => {
+    const wrapper = mountPane(buildProxy())
+
+    await runBacktest(wrapper)
+    await inEnglish(wrapper)
+
+    expect(wrapper.text()).toContain('Scorecard')
+    expect(wrapper.text()).toContain('Equity curve')
+    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('3 candles backtested')
+    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Signal')
   })
 })

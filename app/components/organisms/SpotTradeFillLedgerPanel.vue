@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
@@ -17,6 +18,9 @@ const emit = defineEmits<{
   removeFill: [fillId: number]
 }>()
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const editingFillId = ref<number | null>(null)
 const fillPriceText = ref('')
 const fillQuantityText = ref('')
@@ -28,7 +32,7 @@ watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt,
 </script>
 
 <template>
-  <AppPanel title="買進與賣出紀錄">
+  <AppPanel :title="t('tradeJournal.spotFillLedger.title')">
     <ul class="spot-trade-fill-ledger-panel__fills">
       <li
         v-for="fill in fills"
@@ -58,7 +62,7 @@ watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt,
             data-testid="detail-fill-save"
             @click="emit('amendFill', fill, fillPriceText, fillQuantityText, fillFeeText)"
           >
-            儲存
+            {{ t('tradeJournal.common.save') }}
           </AppButton>
           <AppButton
             size="small"
@@ -66,17 +70,17 @@ watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt,
             data-testid="detail-fill-cancel"
             @click="editingFillId = null"
           >
-            取消
+            {{ t('tradeJournal.common.cancel') }}
           </AppButton>
         </template>
         <template v-else>
           <span
             class="spot-trade-fill-ledger-panel__kind"
             :class="`spot-trade-fill-ledger-panel__kind--${fill.kind}`"
-          >{{ fill.kindLabel }}</span>
+          >{{ localize(fill.kindLabel) }}</span>
           <span>{{ formatDateTimeInTimeZone(fill.filledAt, timeZoneIdentifier) }}</span>
           <span class="spot-trade-fill-ledger-panel__number">{{ fill.priceText }} × {{ fill.quantityText }}</span>
-          <span class="spot-trade-fill-ledger-panel__number">手續費 {{ fill.feeText }}</span>
+          <span class="spot-trade-fill-ledger-panel__number">{{ t('tradeJournal.spotFillLedger.fee', { fee: fill.feeText }) }}</span>
           <template v-if="canEditFills">
             <AppButton
               size="small"
@@ -85,7 +89,7 @@ watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt,
               data-testid="detail-fill-edit"
               @click="editingFillId = fill.id; fillPriceText = fill.price.toString(); fillQuantityText = fill.quantity.toString(); fillFeeText = fill.fee.toString()"
             >
-              修改
+              {{ t('tradeJournal.common.edit') }}
             </AppButton>
             <AppButton
               size="small"
@@ -94,7 +98,7 @@ watch(() => JSON.stringify(fills.map(fill => [fill.id, fill.kind, fill.filledAt,
               data-testid="detail-fill-remove"
               @click="emit('removeFill', fill.id)"
             >
-              刪除
+              {{ t('tradeJournal.common.delete') }}
             </AppButton>
           </template>
         </template>

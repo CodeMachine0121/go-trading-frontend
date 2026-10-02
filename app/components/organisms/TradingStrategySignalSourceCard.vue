@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
@@ -8,6 +9,7 @@ import StepCard from '~/components/molecules/StepCard.vue'
 import StepSettingsPanel from '~/components/molecules/StepSettingsPanel.vue'
 import type { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { readNumberInput } from '~/utilities/number-input-reading'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：步驟卡一——這份交易策略用哪幾支策略腳本讀盤。
 //
@@ -32,12 +34,12 @@ const {
    */
   strategyScriptOptions: readonly { value: number, label: string }[]
   /** 每一個來源用的那一支叫什麼（與 `sources` 同一個順序）；挑不得或認不得的那一句也在這裡。 */
-  strategyScriptLabels: readonly string[]
+  strategyScriptLabels: readonly LocalizedTextVo[]
   /** 每一個來源調過的參數讀成的那一行；沒調過的是空字串。 */
   parameterSummaries: readonly string[]
   /** 每一個來源的每一個參數欄該填著什麼；沒填過的是空白。 */
   parameterInputs: readonly Readonly<Record<string, string>>[]
-  intervalOptions: readonly { value: string, label: string }[]
+  intervalOptions: readonly { value: string, label: LocalizedTextVo }[]
   /** 還加不加得動——到了上限時新增鍵**不存在**，而不是按了才被拒。 */
   canAdd: boolean
   signalSourceLimit: number
@@ -49,12 +51,15 @@ const {
    */
   shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
   /** 哪幾個來源被條件用著（以它在清單上的位置記），刪之前先說一聲。 */
-  usageWarnings: Readonly<Record<number, string>>
+  usageWarnings: Readonly<Record<number, LocalizedTextVo>>
   /** 這張卡現在被選著——它的設定正開著。 */
   selected: boolean
   /** 設定擺在卡旁邊，還是從下方拉出。 */
   settingsPlacement: 'beside' | 'sheet'
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const emit = defineEmits<{
   select: []
@@ -91,10 +96,21 @@ const tuningParameterInputs = computed(
 const strayOption = computed(() => (tuning.value === null || tuningIndex.value === null
   || strategyScriptOptions.some(option => option.value === tuning.value?.strategyScriptId)
   ? null
-  : { value: tuning.value.strategyScriptId, label: strategyScriptLabels[tuningIndex.value] ?? '' }))
+  : {
+      value: tuning.value.strategyScriptId,
+      label: strategyScriptLabelOf(tuningIndex.value),
+    }))
+
+function strategyScriptLabelOf(index: number): string {
+  const label = strategyScriptLabels[index]
+
+  return label === undefined ? '' : localize(label)
+}
 
 function intervalLabelOf(interval: string): string {
-  return intervalOptions.find(option => option.value === interval)?.label ?? interval
+  const option = intervalOptions.find(candidate => candidate.value === interval)
+
+  return option === undefined ? interval : localize(option.label)
 }
 
 function tune(index: number) {
@@ -136,8 +152,8 @@ function onParameterInput(name: string, raw: string | number) {
 <template>
   <StepCard
     class="signal-source-card"
-    kicker="訊號來源"
-    title="用哪幾支策略腳本讀盤"
+    :kicker="t('tradingStrategy.signalSourceCard.kicker')"
+    :title="t('tradingStrategy.signalSourceCard.title')"
     tone="accent"
     :selected="selected"
     :beside="settingsPlacement === 'beside'"
@@ -159,23 +175,21 @@ function onParameterInput(name: string, raw: string | number) {
       class="signal-source-card__note"
       data-testid="no-strategy-scripts"
     >
-      還沒有任何策略腳本。先去策略腳本庫建一支。
+      {{ t('tradingStrategy.signalSourceCard.noStrategyScripts') }}
     </p>
     <p
       v-else-if="shortage === 'noSignalStrategyScripts'"
       class="signal-source-card__note"
       data-testid="no-signal-strategy-scripts"
     >
-      你有策略腳本，但沒有一支吐訊號，所以一支都挑不到。
-      條件比對的是買入／賣出／持有，只有指標值種類是「一個信號」的腳本說得出那三個值——
-      去策略腳本庫把要用的那幾支改成「一個信號」（算式要回傳 indicator.Signal）。
+      {{ t('tradingStrategy.signalSourceCard.noSignalStrategyScripts') }}
     </p>
     <p
       v-else-if="sources.length === 0"
       class="signal-source-card__note"
       data-testid="no-sources"
     >
-      還沒有訊號來源。加一個，底下兩張卡就能拿它來判斷買入與賣出。
+      {{ t('tradingStrategy.signalSourceCard.noSources') }}
     </p>
 
     <ul class="signal-source-card__rows">
@@ -197,7 +211,7 @@ function onParameterInput(name: string, raw: string | number) {
             class="signal-source-card__meta"
             :data-testid="`signal-source-${source.label}`"
           >
-            {{ strategyScriptLabels[index] }} · {{ intervalLabelOf(source.aggregationInterval) }}
+            {{ strategyScriptLabelOf(index) }} · {{ intervalLabelOf(source.aggregationInterval) }}
           </span>
           <span
             v-if="parameterSummaries[index]"
@@ -209,7 +223,7 @@ function onParameterInput(name: string, raw: string | number) {
           type="button"
           variant="danger-ghost"
           size="small"
-          :label="`刪掉「${source.label}」`"
+          :label="t('tradingStrategy.signalSourceCard.removeSource', { label: source.label })"
           data-testid="strategy-script-remove"
           @click="remove(index)"
         >
@@ -234,20 +248,22 @@ function onParameterInput(name: string, raw: string | number) {
         name="plus"
         size="small"
       />
-      加一個訊號來源
+      {{ t('tradingStrategy.signalSourceCard.addSource') }}
     </AppButton>
     <p
       v-else-if="shortage === null"
       class="signal-source-card__note"
       data-testid="signal-source-limit"
     >
-      一份交易策略最多 {{ signalSourceLimit }} 個訊號來源
+      {{ t('tradingStrategy.signalSourceCard.sourceLimit', { limit: signalSourceLimit }) }}
     </p>
 
     <template #settings>
       <StepSettingsPanel
         :open="selected"
-        :title="tuning === null ? '訊號來源' : `「${tuning.label}」這個訊號來源`"
+        :title="tuning === null
+          ? t('tradingStrategy.signalSourceCard.settingsTitle')
+          : t('tradingStrategy.signalSourceCard.namedSettingsTitle', { label: tuning.label })"
         :placement="settingsPlacement"
         @close="close"
       >
@@ -256,7 +272,7 @@ function onParameterInput(name: string, raw: string | number) {
           class="signal-source-card__settings"
           data-testid="strategy-script-settings-panel"
         >
-          <FormField label="代號（條件裡叫它什麼）">
+          <FormField :label="t('tradingStrategy.signalSourceCard.labelField')">
             <AppInput
               :model-value="tuning.label"
               type="text"
@@ -265,7 +281,7 @@ function onParameterInput(name: string, raw: string | number) {
             />
           </FormField>
 
-          <FormField label="用哪一支策略腳本">
+          <FormField :label="t('tradingStrategy.signalSourceCard.strategyScriptField')">
             <AppSelect
               :model-value="String(tuning.strategyScriptId)"
               :invalid="strayOption !== null"
@@ -292,10 +308,10 @@ function onParameterInput(name: string, raw: string | number) {
               v-if="strayOption !== null"
               class="signal-source-card__warning"
               data-testid="strategy-script-stray-note"
-            >這個來源現在用的那一支挑不得，換一支才存得起來。</span>
+            >{{ t('tradingStrategy.signalSourceCard.strayStrategyScriptNote') }}</span>
           </FormField>
 
-          <FormField label="看多粗的 K 線">
+          <FormField :label="t('tradingStrategy.signalSourceCard.intervalField')">
             <AppSelect
               :model-value="tuning.aggregationInterval"
               data-testid="strategy-script-interval-select"
@@ -306,7 +322,7 @@ function onParameterInput(name: string, raw: string | number) {
                 :key="intervalOption.value"
                 :value="intervalOption.value"
               >
-                {{ intervalOption.label }}
+                {{ localize(intervalOption.label) }}
               </option>
             </AppSelect>
           </FormField>
@@ -320,7 +336,7 @@ function onParameterInput(name: string, raw: string | number) {
               :model-value="parameterInput"
               type="number"
               inputmode="decimal"
-              placeholder="用它的預設值"
+              :placeholder="t('tradingStrategy.signalSourceCard.parameterPlaceholder')"
               data-testid="strategy-script-parameter-input"
               @update:model-value="onParameterInput(name, $event)"
             />
@@ -331,7 +347,7 @@ function onParameterInput(name: string, raw: string | number) {
             class="signal-source-card__warning"
             data-testid="strategy-script-usage-warning"
           >
-            {{ usageWarnings[tuningIndex] }}
+            {{ localize(usageWarnings[tuningIndex]) }}
           </p>
 
           <AppButton
@@ -341,7 +357,7 @@ function onParameterInput(name: string, raw: string | number) {
             data-testid="strategy-script-settings-remove"
             @click="remove(tuningIndex)"
           >
-            刪掉這個訊號來源
+            {{ t('tradingStrategy.signalSourceCard.removeThisSource') }}
           </AppButton>
         </div>
 
@@ -349,7 +365,7 @@ function onParameterInput(name: string, raw: string | number) {
           v-else
           class="signal-source-card__note"
         >
-          點卡上的一個訊號來源，這裡就能改它的代號、策略腳本、刻度與參數。
+          {{ t('tradingStrategy.signalSourceCard.settingsHint') }}
         </p>
 
         <template #actions>
@@ -358,7 +374,7 @@ function onParameterInput(name: string, raw: string | number) {
             data-testid="strategy-script-settings-done"
             @click="close"
           >
-            好了
+            {{ t('tradingStrategy.common.done') }}
           </AppButton>
         </template>
       </StepSettingsPanel>

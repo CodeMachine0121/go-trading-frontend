@@ -3,12 +3,16 @@ import type { ContractTradeOutcome } from '~/domain/models/entities/contract-tra
 import { TradeMeasure } from '~/domain/models/entities/trade-measure'
 import { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import { TradeFigureVo } from '~/domain/models/vo/trade-figure-vo'
+import type { TradeFigureKind } from '~/domain/models/vo/trade-figure-vo'
 import { TradeMeasureDomain } from '~/domain/models/domains/trade-measure-domain'
 import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-const ESTIMATE_NOTE = '估算'
-const FEE_RATE_MISSING_NOTE = '未設定費率'
-const EXCLUDES_FUNDING_NOTE = '未含資金費用'
+const ESTIMATE_NOTE = new LocalizedTextVo('估算', 'Estimate')
+const FEE_RATE_MISSING_NOTE = new LocalizedTextVo('未設定費率', 'Fee rate not set')
+const EXCLUDES_FUNDING_NOTE = new LocalizedTextVo('未含資金費用', 'Excludes funding fees')
+const NO_MARKET_DATA_MESSAGE = new LocalizedTextVo('沒有行情資料，無法計算', 'No market data, cannot be calculated')
 const SLIPPAGE_FRACTION_DIGITS = 2
 const CAPTURE_RATE_FRACTION_DIGITS = 0
 const RETURN_ON_MARGIN_FRACTION_DIGITS = 2
@@ -24,75 +28,95 @@ export class ContractTradeOutcomeDomain {
   toDto(): TradeOutcomeDto {
     const costFigures = [
       new TradeMeasureDomain(this.outcome.entryNotional).toFigure(
-        '名目', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
+        'entryNotional', new LocalizedTextVo('名目', 'Notional'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
       new TradeMeasureDomain(this.outcome.entryMargin).toFigure(
-        '保證金', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
-      this.signedFigure('毛損益', this.outcome.grossProfit),
+        'entryMargin', new LocalizedTextVo('保證金', 'Margin'), value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()), () => 'neutral'),
+      this.signedFigure('grossProfit', new LocalizedTextVo('毛損益', 'Gross P&L'), this.outcome.grossProfit),
       new TradeFigureVo(
-        '手續費',
-        new JournalNumberDomain(this.outcome.totalFee).amount(),
+        'totalFee',
+        new LocalizedTextVo('手續費', 'Fees'),
+        new UntranslatedTextVo(new JournalNumberDomain(this.outcome.totalFee).amount()),
         'neutral',
         this.outcome.feeRateMissing ? FEE_RATE_MISSING_NOTE : null),
       new TradeMeasureDomain(this.outcome.fundingFee).toFigure(
-        '資金費用',
+        'fundingFee',
+        new LocalizedTextVo('資金費用', 'Funding fees'),
         (value) => {
           const amount = new JournalNumberDomain(value.abs()).amount()
           if (value.isZero()) {
-            return amount
+            return new UntranslatedTextVo(amount)
           }
 
-          return value.isNegative() ? `付出 ${amount}` : `收到 ${amount}`
+          return value.isNegative()
+            ? new LocalizedTextVo(`付出 ${amount}`, `Paid ${amount}`)
+            : new LocalizedTextVo(`收到 ${amount}`, `Received ${amount}`)
         },
         value => new JournalNumberDomain(value).tone()),
     ]
     const riskFigures = [
       this.signedFigure(
-        this.open ? '已實現淨損益' : '淨損益',
+        'netProfit',
+        this.open
+          ? new LocalizedTextVo('已實現淨損益', 'Realized net P&L')
+          : new LocalizedTextVo('淨損益', 'Net P&L'),
         this.outcome.netProfit,
         this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
       new TradeMeasureDomain(this.open ? new TradeMeasure(null, 'notClosed') : this.outcome.returnOnMarginPercentage).toFigure(
-        '保證金報酬率',
-        value => new JournalNumberDomain(value).signedPercentage(RETURN_ON_MARGIN_FRACTION_DIGITS),
+        'returnOnMarginPercentage',
+        new LocalizedTextVo('保證金報酬率', 'Return on margin'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).signedPercentage(RETURN_ON_MARGIN_FRACTION_DIGITS)),
         value => new JournalNumberDomain(value).tone(),
         this.outcome.netProfitExcludesFunding ? EXCLUDES_FUNDING_NOTE : null),
       new TradeMeasureDomain(this.outcome.plannedRisk).toFigure(
-        '計畫風險', value => new JournalNumberDomain(value).amount(), () => 'neutral'),
+        'plannedRisk',
+        new LocalizedTextVo('計畫風險', 'Planned risk'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).amount()),
+        () => 'neutral'),
       new TradeMeasureDomain(this.outcome.rMultiple).toFigure(
-        'R 倍數', value => new JournalNumberDomain(value).rMultiple(), value => new JournalNumberDomain(value).tone()),
+        'rMultiple',
+        new LocalizedTextVo('R 倍數', 'R multiple'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
+        value => new JournalNumberDomain(value).tone()),
     ]
     const excursionFigures = [
       new TradeMeasureDomain(this.outcome.maximumAdverseExcursion).toFigure(
-        '最大不利',
-        value => new JournalNumberDomain(value).rMultiple(),
+        'maximumAdverseExcursion',
+        new LocalizedTextVo('最大不利', 'Max adverse'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         () => 'danger',
         this.priceNote(this.outcome.maximumAdversePrice)),
       new TradeMeasureDomain(this.outcome.maximumFavorableExcursion).toFigure(
-        '最大有利',
-        value => new JournalNumberDomain(value).rMultiple(),
+        'maximumFavorableExcursion',
+        new LocalizedTextVo('最大有利', 'Max favorable'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value).rMultiple()),
         () => 'success',
         this.priceNote(this.outcome.maximumFavorablePrice)),
       new TradeMeasureDomain(this.outcome.profitCaptureRate).toFigure(
-        '利潤捕捉率',
-        value => new JournalNumberDomain(value.times(PERCENT)).percentage(CAPTURE_RATE_FRACTION_DIGITS),
+        'profitCaptureRate',
+        new LocalizedTextVo('利潤捕捉率', 'Profit capture'),
+        value => new UntranslatedTextVo(new JournalNumberDomain(value.times(PERCENT)).percentage(CAPTURE_RATE_FRACTION_DIGITS)),
         () => 'neutral'),
       ...(this.open
         ? [
             new TradeMeasureDomain(this.outcome.floatingProfit).toFigure(
-              '浮動損益',
-              value => new JournalNumberDomain(value).signedAmount(),
+              'floatingProfit',
+              new LocalizedTextVo('浮動損益', 'Unrealized P&L'),
+              value => new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()),
               value => new JournalNumberDomain(value).tone(),
               ESTIMATE_NOTE),
             new TradeMeasureDomain(this.outcome.estimatedLiquidationPrice).toFigure(
-              '預估強平價',
-              value => new JournalNumberDomain(value).price(),
+              'estimatedLiquidationPrice',
+              new LocalizedTextVo('預估強平價', 'Est. liquidation price'),
+              value => new UntranslatedTextVo(new JournalNumberDomain(value).price()),
               () => 'neutral',
               ESTIMATE_NOTE),
           ]
         : []),
       ...(this.fromJournalLink
         ? [new TradeMeasureDomain(this.outcome.entrySlippagePercentage).toFigure(
-            '進場滑點',
-            value => new JournalNumberDomain(value).percentage(SLIPPAGE_FRACTION_DIGITS),
+            'entrySlippagePercentage',
+            new LocalizedTextVo('進場滑點', 'Entry slippage'),
+            value => new UntranslatedTextVo(new JournalNumberDomain(value).percentage(SLIPPAGE_FRACTION_DIGITS)),
             value => value.greaterThan(0) ? 'danger' : 'neutral')]
         : []),
     ]
@@ -104,16 +128,21 @@ export class ContractTradeOutcomeDomain {
 
     return new TradeOutcomeDto(
       [costFigures, riskFigures, excursionFigures],
-      excursionReasons.includes('noMarketData') ? '沒有行情資料，無法計算' : null,
+      excursionReasons.includes('noMarketData') ? NO_MARKET_DATA_MESSAGE : null,
     )
   }
 
-  private signedFigure(label: string, value: Decimal, note: string | null = null): TradeFigureVo {
+  private signedFigure(
+    kind: TradeFigureKind,
+    label: LocalizedTextVo,
+    value: Decimal,
+    note: LocalizedTextVo | null = null,
+  ): TradeFigureVo {
     return new TradeFigureVo(
-      label, new JournalNumberDomain(value).signedAmount(), new JournalNumberDomain(value).tone(), note)
+      kind, label, new UntranslatedTextVo(new JournalNumberDomain(value).signedAmount()), new JournalNumberDomain(value).tone(), note)
   }
 
-  private priceNote(price: Decimal | null): string | null {
-    return price === null ? null : new JournalNumberDomain(price).price()
+  private priceNote(price: Decimal | null): LocalizedTextVo | null {
+    return price === null ? null : new UntranslatedTextVo(new JournalNumberDomain(price).price())
   }
 }

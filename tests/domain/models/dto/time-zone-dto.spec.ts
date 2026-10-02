@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const INSTANT = new Date('2026-08-30T04:00:00.000Z')
 
-function buildTimeZone(identifier: string, cityLabel = '某地', offsetLabel = 'UTC+00:00'): TimeZoneDto {
-  return new TimeZoneDto(identifier, cityLabel, offsetLabel)
+function buildTimeZone(identifier: string): TimeZoneDto {
+  const cityName = new LocalizedTextVo('某地', 'Somewhere')
+
+  return new TimeZoneDto(identifier, cityName, 'UTC+00:00', cityName)
 }
 
 describe('TimeZoneDto', () => {
@@ -13,8 +16,16 @@ describe('TimeZoneDto', () => {
     { identifier: 'Asia/Taipei', expected: '2026-08-30 12:00' },
     { identifier: 'Asia/Tokyo', expected: '2026-08-30 13:00' },
     { identifier: 'America/New_York', expected: '2026-08-30 00:00' },
+    { identifier: 'Australia/Brisbane', expected: '2026-08-30 14:00' },
   ])('同一個瞬間在 $identifier 說成 $expected', ({ identifier, expected }) => {
     expect(buildTimeZone(identifier).formatDateTime(INSTANT)).toBe(expected)
+  })
+
+  it.each([
+    { season: '南半球夏季', instant: '2026-01-15T02:00:00.000Z', expected: '2026-01-15 12:00' },
+    { season: '南半球冬季', instant: '2026-07-15T02:00:00.000Z', expected: '2026-07-15 12:00' },
+  ])('布里斯本在$season一樣加十小時', ({ instant, expected }) => {
+    expect(buildTimeZone('Australia/Brisbane').formatDateTime(new Date(instant))).toBe(expected)
   })
 
   it('分鐘精度輸入的值用的是同一個說法', () => {
@@ -25,6 +36,7 @@ describe('TimeZoneDto', () => {
     { identifier: 'UTC', inputValue: '2026-08-30T12:00', expected: '2026-08-30T12:00:00.000Z' },
     { identifier: 'Asia/Taipei', inputValue: '2026-08-30T12:00', expected: '2026-08-30T04:00:00.000Z' },
     { identifier: 'Europe/London', inputValue: '2026-08-30T12:00', expected: '2026-08-30T11:00:00.000Z' },
+    { identifier: 'Australia/Brisbane', inputValue: '2026-08-30T00:00', expected: '2026-08-29T14:00:00.000Z' },
   ])('$identifier 填的 $inputValue 讀回 $expected', ({ identifier, inputValue, expected }) => {
     expect(buildTimeZone(identifier).parseMinuteInput(inputValue).toISOString()).toBe(expected)
   })
@@ -42,9 +54,5 @@ describe('TimeZoneDto', () => {
     { description: '只填一半', inputValue: '2026-08-30' },
   ])('值 $description 時讀回一個無效的時間值', ({ inputValue }) => {
     expect(Number.isNaN(buildTimeZone('Asia/Taipei').parseMinuteInput(inputValue).getTime())).toBe(true)
-  })
-
-  it('選單上的說法是城市名加上目前的位移', () => {
-    expect(buildTimeZone('Asia/Taipei', '台北', 'UTC+08:00').label).toBe('台北（UTC+08:00）')
   })
 })

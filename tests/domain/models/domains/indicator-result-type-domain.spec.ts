@@ -3,16 +3,17 @@ import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-res
 
 describe('IndicatorResultTypeDomain', () => {
   it.each([
-    { declared: 'float', label: '一個數字', isList: false, holdsNumbers: true, isSignal: false },
-    { declared: 'floatList', label: '一串數字', isList: true, holdsNumbers: true, isSignal: false },
-    { declared: 'bool', label: '一個是非', isList: false, holdsNumbers: false, isSignal: false },
-    { declared: 'boolList', label: '一串是非', isList: true, holdsNumbers: false, isSignal: false },
-    { declared: 'signal', label: '一個信號', isList: false, holdsNumbers: false, isSignal: true },
-  ])('$declared 是「$label」', ({ declared, label, isList, holdsNumbers, isSignal }) => {
+    { declared: 'float', label: '一個數字', englishLabel: 'A number', isList: false, holdsNumbers: true, isSignal: false },
+    { declared: 'floatList', label: '一串數字', englishLabel: 'A list of numbers', isList: true, holdsNumbers: true, isSignal: false },
+    { declared: 'bool', label: '一個是非', englishLabel: 'A true/false', isList: false, holdsNumbers: false, isSignal: false },
+    { declared: 'boolList', label: '一串是非', englishLabel: 'A list of true/false', isList: true, holdsNumbers: false, isSignal: false },
+    { declared: 'signal', label: '一個信號', englishLabel: 'A signal', isList: false, holdsNumbers: false, isSignal: true },
+  ])('$declared 是「$label」', ({ declared, label, englishLabel, isList, holdsNumbers, isSignal }) => {
     const resultType = new IndicatorResultTypeDomain(declared)
 
     expect(resultType.value).toBe(declared)
-    expect(resultType.label()).toBe(label)
+    expect(resultType.label().in('zh-TW')).toBe(label)
+    expect(resultType.label().in('en')).toBe(englishLabel)
     expect(resultType.isList()).toBe(isList)
     expect(resultType.holdsNumbers()).toBe(holdsNumbers)
     expect(resultType.isSignal()).toBe(isSignal)
@@ -26,7 +27,7 @@ describe('IndicatorResultTypeDomain', () => {
     const resultType = new IndicatorResultTypeDomain(declared)
 
     expect(resultType.value).toBe('float')
-    expect(resultType.label()).toBe('一個數字')
+    expect(resultType.label().in('zh-TW')).toBe('一個數字')
   })
 
   it('前後空白與大小寫都不影響解讀', () => {
@@ -38,6 +39,6 @@ describe('IndicatorResultTypeDomain', () => {
     const optionDto = new IndicatorResultTypeDomain('boolList').toOptionDto()
 
     expect(optionDto.value).toBe('boolList')
-    expect(optionDto.label).toBe('一串是非')
+    expect(optionDto.label.in('zh-TW')).toBe('一串是非')
   })
 })

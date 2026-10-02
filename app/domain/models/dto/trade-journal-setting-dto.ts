@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type Decimal from 'decimal.js'
 
 export class TradeJournalSettingDto {
@@ -5,7 +6,7 @@ export class TradeJournalSettingDto {
     public readonly makerFeeRate: Decimal | null,
     public readonly takerFeeRate: Decimal | null,
     public readonly configured: boolean,
-    public readonly summary: string,
+    public readonly summary: LocalizedTextVo,
   ) {}
 
   get summaryTone(): 'success' | 'neutral' {

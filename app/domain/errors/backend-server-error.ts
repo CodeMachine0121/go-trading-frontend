@@ -1,3 +1,6 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：後端自己出了問題（例如讀不到資料庫），不是使用者的輸入有問題。
  *
@@ -5,7 +8,7 @@
  * 那個要改輸入，這個改什麼都沒用，只能稍後重試。
  * 把後端的故障說成「請求的問題」，會讓使用者一直修一份從來沒錯的請求。
  */
-export class BackendServerError extends Error {
+export class BackendServerError extends LocalizedError {
   /**
    * 後端回應的狀態碼。它只在 infrastructure 層被解讀——
    * proxy 據以把某些故障翻譯成更精確的領域錯誤（例如「後端活著，但它後面那位助手不在」）。
@@ -19,7 +22,7 @@ export class BackendServerError extends Error {
   readonly reason: string | undefined
 
   constructor(message: string, options?: { cause?: unknown, status?: number, reason?: string }) {
-    super(message, { cause: options?.cause })
+    super(new UntranslatedTextVo(message), { cause: options?.cause })
     this.name = 'BackendServerError'
     this.status = options?.status
     this.reason = options?.reason

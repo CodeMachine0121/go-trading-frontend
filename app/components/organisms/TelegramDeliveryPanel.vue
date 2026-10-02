@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { TelegramDeliveryDto } from '~/domain/models/dto/telegram-delivery-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -40,19 +42,19 @@ const {
 } = defineProps<{
   setting?: TelegramDeliveryDto | null
   loading?: boolean
-  loadErrorMessage?: string | null
+  loadErrorMessage?: LocalizedTextVo | null
   /** 那兩格現在攤開著嗎。還沒設定過時一律攤開，設定過之後只在要更換時攤開。 */
   formVisible?: boolean
   /** 攤開的原因是「要換一組」而不是「還沒設定過」——差別在於能不能取消。 */
   editing?: boolean
   saving?: boolean
-  saveErrorMessage?: string | null
-  messageError?: string | null
+  saveErrorMessage?: LocalizedTextVo | null
+  messageError?: LocalizedTextVo | null
   characterCount?: number
   maximumCharacterCount?: number
   sending?: boolean
   canSendTestMessage?: boolean
-  sendResultMessage?: string | null
+  sendResultMessage?: LocalizedTextVo | null
   sendSucceeded?: boolean
 }>()
 
@@ -76,10 +78,20 @@ const message = defineModel<string>('message', { required: true })
  */
 const removeConfirmationOpen = ref(false)
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const configured = computed(() => setting?.configured ?? false)
 const savable = computed(() => !saving && botToken.value.trim() !== '' && chatId.value.trim() !== '')
-const saveLabel = computed(() => saving ? '儲存中…' : (editing ? '更換設定' : '儲存設定'))
-const sendLabel = computed(() => sending ? '送出中…' : '送出測試訊息')
+const saveLabel = computed(() => {
+  if (saving) {
+    return t('settings.telegramDelivery.saving')
+  }
+
+  return editing ? t('settings.telegramDelivery.replaceSetting') : t('settings.telegramDelivery.saveSetting')
+})
+const sendLabel = computed(
+  () => sending ? t('settings.telegramDelivery.sending') : t('settings.telegramDelivery.sendTestMessage'))
 
 function confirmRemoval(): void {
   removeConfirmationOpen.value = false
@@ -89,8 +101,8 @@ function confirmRemoval(): void {
 
 <template>
   <SettingsSection
-    title="Telegram 投遞"
-    description="留下一組機器人金鑰與一個聊天室代號，這台系統就送得出訊息到你的 Telegram。金鑰存進去之後拿不回來，只看得到最後四個字。"
+    :title="t('settings.telegramDelivery.title')"
+    :description="t('settings.telegramDelivery.description')"
   >
     <template
       v-if="!loading && !loadErrorMessage && configured"
@@ -100,7 +112,7 @@ function confirmRemoval(): void {
         variant="success"
         data-testid="telegram-connected"
       >
-        已連線
+        {{ t('settings.telegramDelivery.connected') }}
       </AppBadge>
     </template>
 
@@ -109,7 +121,7 @@ function confirmRemoval(): void {
       class="telegram-delivery-panel__state"
       data-testid="telegram-loading"
     >
-      讀取目前的設定…
+      {{ t('settings.common.loading') }}
     </p>
 
     <AppAlert
@@ -117,7 +129,7 @@ function confirmRemoval(): void {
       tone="danger"
       data-testid="telegram-load-error"
     >
-      {{ loadErrorMessage }}
+      {{ localize(loadErrorMessage) }}
     </AppAlert>
 
     <!-- 存好的那一組讀起來像幾列紀錄。它不重複下面任何東西，因為下面那兩格這時候是收起來的。 -->
@@ -128,7 +140,7 @@ function confirmRemoval(): void {
     >
       <div class="telegram-delivery-panel__row">
         <dt class="telegram-delivery-panel__label">
-          聊天室代號
+          {{ t('settings.telegramDelivery.chatIdLabel') }}
         </dt>
         <dd class="telegram-delivery-panel__value">
           <span class="telegram-delivery-panel__secret">{{ setting?.chatId }}</span>
@@ -137,11 +149,11 @@ function confirmRemoval(): void {
 
       <div class="telegram-delivery-panel__row">
         <dt class="telegram-delivery-panel__label">
-          機器人金鑰
-          <span class="telegram-delivery-panel__hint">只看得到最後四個字</span>
+          {{ t('settings.telegramDelivery.botTokenLabel') }}
+          <span class="telegram-delivery-panel__hint">{{ t('settings.telegramDelivery.botTokenTailHint') }}</span>
         </dt>
         <dd class="telegram-delivery-panel__value">
-          <span class="telegram-delivery-panel__secret">{{ setting?.summary }}</span>
+          <span class="telegram-delivery-panel__secret">{{ localize(setting?.summary) }}</span>
           <AppButton
             variant="secondary"
             size="small"
@@ -149,7 +161,7 @@ function confirmRemoval(): void {
             data-testid="telegram-edit"
             @click="emit('startEditing')"
           >
-            更換金鑰
+            {{ t('settings.telegramDelivery.replaceToken') }}
           </AppButton>
         </dd>
       </div>
@@ -160,7 +172,7 @@ function confirmRemoval(): void {
       -->
       <div class="telegram-delivery-panel__row">
         <dt class="telegram-delivery-panel__label">
-          移除設定
+          {{ t('settings.telegramDelivery.removeLabel') }}
         </dt>
         <dd class="telegram-delivery-panel__value">
           <AppButton
@@ -170,7 +182,7 @@ function confirmRemoval(): void {
             data-testid="telegram-remove"
             @click="removeConfirmationOpen = true"
           >
-            移除
+            {{ t('settings.telegramDelivery.remove') }}
           </AppButton>
         </dd>
       </div>
@@ -182,7 +194,7 @@ function confirmRemoval(): void {
       class="telegram-delivery-panel__state"
       data-testid="telegram-unconfigured"
     >
-      還沒有設定。填好下面兩格並儲存，就能試送一則訊息。
+      {{ t('settings.telegramDelivery.unconfigured') }}
     </p>
 
     <div
@@ -190,8 +202,8 @@ function confirmRemoval(): void {
       class="telegram-delivery-panel__form"
     >
       <FormField
-        label="機器人金鑰"
-        hint="要更換請填入整串——存進去之後就拿不回來了，畫面只留得下最後四個字。"
+        :label="t('settings.telegramDelivery.botTokenLabel')"
+        :hint="t('settings.telegramDelivery.botTokenHint')"
       >
         <AppInput
           v-model="botToken"
@@ -203,8 +215,8 @@ function confirmRemoval(): void {
       </FormField>
 
       <FormField
-        label="聊天室代號"
-        hint="數字的聊天室代號，或以 @ 開頭的頻道名稱。"
+        :label="t('settings.telegramDelivery.chatIdLabel')"
+        :hint="t('settings.telegramDelivery.chatIdHint')"
       >
         <AppInput
           v-model="chatId"
@@ -220,7 +232,7 @@ function confirmRemoval(): void {
         tone="danger"
         data-testid="telegram-save-error"
       >
-        {{ saveErrorMessage }}
+        {{ localize(saveErrorMessage) }}
       </AppAlert>
 
       <div class="telegram-delivery-panel__actions">
@@ -238,16 +250,16 @@ function confirmRemoval(): void {
           data-testid="telegram-cancel"
           @click="emit('cancelEditing')"
         >
-          取消
+          {{ t('common.cancel') }}
         </AppButton>
       </div>
     </div>
 
     <ConfirmDialog
       :open="removeConfirmationOpen"
-      title="移除 Telegram 設定"
-      message="移除之後這台系統就找不到你了。要再用的話，得重新填入整串機器人金鑰——它已經拿不回來了。"
-      confirm-label="移除"
+      :title="t('settings.telegramDelivery.removeConfirmationTitle')"
+      :message="t('settings.telegramDelivery.removeConfirmationMessage')"
+      :confirm-label="t('settings.telegramDelivery.remove')"
       variant="danger"
       @confirm="confirmRemoval"
       @cancel="removeConfirmationOpen = false"
@@ -255,13 +267,13 @@ function confirmRemoval(): void {
   </SettingsSection>
 
   <SettingsSection
-    title="試送一則訊息"
-    description="按一下，看它有沒有真的出現在你的 Telegram。送不出去時會說是哪一件事出了問題。"
+    :title="t('settings.telegramDelivery.testTitle')"
+    :description="t('settings.telegramDelivery.testDescription')"
   >
     <div class="telegram-delivery-panel__form">
       <FormField
-        label="測試訊息"
-        :error-message="messageError"
+        :label="t('settings.telegramDelivery.testMessageLabel')"
+        :error-message="messageError ? localize(messageError) : null"
       >
         <AppTextarea
           v-model="message"
@@ -271,7 +283,7 @@ function confirmRemoval(): void {
       </FormField>
 
       <p class="telegram-delivery-panel__counter">
-        {{ characterCount }} / {{ maximumCharacterCount }} 個字
+        {{ t('settings.telegramDelivery.characterCounter', { count: characterCount, maximum: maximumCharacterCount }) }}
       </p>
     </div>
 
@@ -280,7 +292,7 @@ function confirmRemoval(): void {
       class="telegram-delivery-panel__state"
       data-testid="test-message-blocked"
     >
-      先完成上面的 Telegram 設定，才送得出測試訊息。
+      {{ t('settings.telegramDelivery.testBlocked') }}
     </p>
 
     <!--
@@ -303,7 +315,7 @@ function confirmRemoval(): void {
         :tone="sendSucceeded ? 'success' : 'danger'"
         data-testid="test-message-result"
       >
-        {{ sendResultMessage }}
+        {{ localize(sendResultMessage) }}
       </AppAlert>
     </div>
   </SettingsSection>

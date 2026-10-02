@@ -10,6 +10,7 @@ import { SpotTradeMistakeCost } from '~/domain/models/entities/spot-trade-mistak
 import { TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/trade-statistics-period-vo'
 import { spotMarketStatistics, spotStatistics } from '../../fixtures/spot-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const PERIOD_OPTIONS = TRADE_STATISTICS_PERIODS.map(period => new TradeStatisticsPeriodDomain(period).toOptionDto())
 const STUBS = { TradeCumulativeChart: true }
@@ -34,14 +35,14 @@ describe('SpotTradeStatisticsPanel', () => {
 
     const wrapper = mountPanel({ statistics })
 
-    const taiwanStock = wrapper.get('[data-testid="statistics-market-台股"]')
+    const taiwanStock = wrapper.get('[data-testid="statistics-market-taiwanStock"]')
     expect(taiwanStock.text()).toContain('已平倉 10 筆')
     expect(taiwanStock.get('[data-testid="statistics-r-note"]').text()).toBe('平均 R 以 3 筆計（有計畫止損的交易）')
     expect(taiwanStock.get('[data-testid="statistics-total-profit"]').text()).toBe('+120,000.00')
     expect(taiwanStock.get('[data-testid="return-distribution"]').text()).toContain('0%~5%')
     expect(taiwanStock.get('[data-testid="mistake-costs"]').text()).toContain('追價進場')
     expect(taiwanStock.get('[data-testid="source-comparison"]').text()).toContain('+5.00%')
-    expect(wrapper.get('[data-testid="statistics-market-加密貨幣"] [data-testid="statistics-empty"]').text()).toBe('這段期間沒有已平倉交易')
+    expect(wrapper.get('[data-testid="statistics-market-crypto"] [data-testid="statistics-empty"]').text()).toBe('這段期間沒有已平倉交易')
   })
 
   it('沒有失誤標籤時說明；換期間交給上層', async () => {
@@ -55,6 +56,6 @@ describe('SpotTradeStatisticsPanel', () => {
 
   it('讀取中與讀不到時各說一句', () => {
     expect(mountPanel({ loading: true }).find('[data-testid="statistics-loading"]').exists()).toBe(true)
-    expect(mountPanel({ failureMessage: '連不上' }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
+    expect(mountPanel({ failureMessage: new UntranslatedTextVo('連不上') }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
   })
 })

@@ -11,6 +11,8 @@ import type { ConditionBoardItemDto } from '~/domain/models/dto/condition-board-
 const { item } = defineProps<{
   item: ConditionBoardItemDto
 }>()
+
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -18,7 +20,7 @@ const { item } = defineProps<{
     <span
       class="condition-clause-sentence__read-out"
       data-testid="condition-clause-sentence"
-    >{{ item.sentence }}</span>
+    >{{ localize(item.sentence) }}</span>
 
     <span
       class="condition-clause-sentence__parts"
@@ -31,13 +33,13 @@ const { item } = defineProps<{
         <span
           v-if="position > 0"
           class="condition-clause-sentence__joiner"
-        >{{ item.joinerWord }}</span>
+        >{{ localize(item.joinerWord) }}</span>
         <span class="condition-clause-sentence__source">{{ piece.sourceLabel }}</span>
-        <span class="condition-clause-sentence__relation">{{ piece.relationWord }}</span>
+        <span class="condition-clause-sentence__relation">{{ localize(piece.relationWord) }}</span>
         <span
           class="condition-clause-sentence__signal"
           :class="{ 'condition-clause-sentence__signal--undecided': piece.isUndecided }"
-        >{{ piece.signalWords }}</span>
+        >{{ localize(piece.signalWords) }}</span>
       </template>
     </span>
   </span>

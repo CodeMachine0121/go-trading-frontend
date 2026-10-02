@@ -1,3 +1,6 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個名稱已經被別的策略腳本用了。
  *
@@ -5,9 +8,9 @@
  * 名稱衝突要**就地標在名稱欄旁邊、對話框不關閉、已填的字不清空**，
  * 讓使用者當場改一個名字再送一次。
  */
-export class StrategyScriptNameConflictError extends Error {
+export class StrategyScriptNameConflictError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'StrategyScriptNameConflictError'
   }
 }

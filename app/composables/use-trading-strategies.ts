@@ -1,6 +1,8 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
  * 交易策略清單這一整塊的狀態與動作。
@@ -10,11 +12,12 @@ import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dt
  * 而那個數字救不了任何一次操作。
  */
 export function useTradingStrategies(tradingStrategyApplication: TradingStrategyApplication) {
+  const { translatedText } = useLocalizedText()
   const tradingStrategies = ref<TradingStrategyDto[]>([])
 
   const loading = ref(false)
   const busyId = ref<number | null>(null)
-  const failureMessage = ref('')
+  const failureMessage = ref<LocalizedTextVo | null>(null)
 
   const deleting = ref<TradingStrategyDto | null>(null)
 
@@ -24,7 +27,7 @@ export function useTradingStrategies(tradingStrategyApplication: TradingStrategy
 
   async function load() {
     loading.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       tradingStrategies.value = await tradingStrategyApplication.listTradingStrategies()
@@ -59,7 +62,7 @@ export function useTradingStrategies(tradingStrategyApplication: TradingStrategy
     }
 
     busyId.value = target.id
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       await tradingStrategyApplication.deleteTradingStrategy(target.id)
@@ -77,12 +80,15 @@ export function useTradingStrategies(tradingStrategyApplication: TradingStrategy
     }
   }
 
-  function messageOf(error: unknown): string {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
+  function messageOf(error: unknown): LocalizedTextVo {
+    if (error instanceof LocalizedError) {
+      return error.localizedMessage
     }
 
-    return error instanceof Error ? error.message : '發生未知的錯誤'
+    // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : translatedText('tradingStrategy.listPanel.unknownError')
   }
 
   return {

@@ -1,6 +1,7 @@
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：圖上**一次套用**——清單上獨立的一筆。
@@ -54,10 +55,10 @@ export class AppliedIndicatorDto {
    * 沒有旋鈕的策略腳本沒有東西可標——它們靠名稱本身分辨，而兩筆一模一樣時
    * 使用者一眼看得出是同一支擺了兩次。
    */
-  get parameterSummary(): string {
-    return this.parameters
-      .map(parameter => `${parameter.name} ${parameter.value}`)
-      .join('、')
+  get parameterSummary(): LocalizedTextVo {
+    const parameterParts = this.parameters.map(parameter => `${parameter.name} ${parameter.value}`)
+
+    return new LocalizedTextVo(parameterParts.join('、'), parameterParts.join(', '))
   }
 
   /**

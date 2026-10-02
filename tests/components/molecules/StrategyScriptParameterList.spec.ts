@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest'
 import StrategyScriptParameterList from '~/components/molecules/StrategyScriptParameterList.vue'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
+import { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const KIND_OPTIONS = [{ value: 'lookbackCount' as const, label: '回看根數' }]
+const KIND_OPTIONS = [
+  new StrategyScriptParameterKindOptionDto('lookbackCount', new LocalizedTextVo('回看根數', 'Lookback count')),
+]
 
 function mountList(readOnly: boolean) {
   return mount(StrategyScriptParameterList, {

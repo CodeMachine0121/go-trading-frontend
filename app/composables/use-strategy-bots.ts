@@ -1,5 +1,7 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
@@ -16,11 +18,12 @@ export function useStrategyBots(
   /** 這一頁列的是哪一種機器人：現貨的畫面看不到合約機器人，反之亦然。 */
   marketDataKind: MarketDataKind,
 ) {
+  const { translatedText } = useLocalizedText()
   const strategyBots = ref<StrategyBotDto[]>([])
 
   const loading = ref(false)
   const busyId = ref<number | null>(null)
-  const failureMessage = ref('')
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   /**
    * 啟動被「還沒設定 Telegram」擋下來過。
    *
@@ -38,7 +41,7 @@ export function useStrategyBots(
   const expandedBotId = ref<number | null>(null)
   const runRecords = ref<StrategyBotRunRecordDto[]>([])
   const runRecordsLoading = ref(false)
-  const runRecordsFailureMessage = ref('')
+  const runRecordsFailureMessage = ref<LocalizedTextVo | null>(null)
 
   const deleting = ref<StrategyBotDto | null>(null)
 
@@ -48,7 +51,7 @@ export function useStrategyBots(
 
   async function load() {
     loading.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       strategyBots.value = await strategyBotApplication.listStrategyBots(marketDataKind)
@@ -76,7 +79,7 @@ export function useStrategyBots(
 
     expandedBotId.value = strategyBotId
     runRecords.value = []
-    runRecordsFailureMessage.value = ''
+    runRecordsFailureMessage.value = null
     runRecordsLoading.value = true
 
     try {
@@ -119,7 +122,7 @@ export function useStrategyBots(
     deliveryNotConfigured.value = false
     await runOnBot(id, () => strategyBotApplication.runRoundNow(id))
 
-    if (failureMessage.value !== '') {
+    if (failureMessage.value !== null) {
       return
     }
 
@@ -163,7 +166,7 @@ export function useStrategyBots(
    */
   async function runOnBot(id: number, action: () => Promise<unknown>) {
     busyId.value = id
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       await action()
@@ -182,12 +185,15 @@ export function useStrategyBots(
     }
   }
 
-  function messageOf(error: unknown): string {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
+  function messageOf(error: unknown): LocalizedTextVo {
+    if (error instanceof LocalizedError) {
+      return error.localizedMessage
     }
 
-    return error instanceof Error ? error.message : '發生了一個說不出原因的錯誤'
+    // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : translatedText('strategyBot.listPanel.unknownError')
   }
 
   return {

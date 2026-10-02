@@ -5,7 +5,11 @@
 // 進度是**不定**的：沒有人知道一發請求還要多久，畫一個走到 70% 的條只是在編一個數字。
 //
 // 它不佔版面、不擋點擊：等待期間其他東西照樣看得到、按得到。
+import { useI18n } from 'vue-i18n'
+
 const { active = false } = defineProps<{ active?: boolean }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -14,7 +18,7 @@ const { active = false } = defineProps<{ active?: boolean }>()
       v-if="active"
       class="app-progress-bar"
       role="progressbar"
-      aria-label="載入中"
+      :aria-label="t('common.loading')"
       aria-busy="true"
     >
       <span class="app-progress-bar__runner" />

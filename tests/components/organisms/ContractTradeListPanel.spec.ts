@@ -1,9 +1,11 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ContractTradeListPanel from '~/components/organisms/ContractTradeListPanel.vue'
 import { ContractTradeListDomain } from '~/domain/models/domains/contract-trade-list-domain'
 import { ContractTradeListFilterDto } from '~/domain/models/dto/contract-trade-list-filter-dto'
 import { buildStatistics, buildSummary, measured } from '../../fixtures/contract-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const STUBS = { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } }
 
@@ -54,7 +56,7 @@ describe('ContractTradeListPanel', () => {
   })
 
   it('連不上時整塊說明並提供重試，不呈現空狀態', async () => {
-    const wrapper = mountPanel({ list: null, failureMessage: '連不上交易服務' })
+    const wrapper = mountPanel({ list: null, failureMessage: new UntranslatedTextVo('連不上交易服務') })
 
     await wrapper.get('[data-testid="trade-list-retry"]').trigger('click')
 
@@ -72,5 +74,19 @@ describe('ContractTradeListPanel', () => {
     expect(wrapper.emitted('update:statusFilter')).toEqual([['open']])
     expect(wrapper.emitted('update:sourceFilter')).toEqual([['selfJudged']])
     expect(wrapper.emitted('update:symbolFilter')).toEqual([['BTCUSDT']])
+  })
+
+  it('換成英文時期間、筆數、欄名、篩選與每一列的方向狀態都說英文', async () => {
+    const wrapper = mountPanel()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="trade-list-counts"]').text()).toBe('Last 30 days · 30 closed · 1 open')
+    expect(wrapper.get('[data-testid="status-filter"]').text()).toContain('Reviewed')
+    expect(wrapper.get('[data-testid="source-filter"]').text()).toContain('Self-judged')
+    expect(wrapper.get('thead').text()).toContain('Avg entry')
+    expect(wrapper.get('[data-testid="trade-row-27"]').text()).toContain('Long 10x')
+    expect(wrapper.get('[data-testid="trade-row-32"]').text()).toContain('unrealized')
   })
 })

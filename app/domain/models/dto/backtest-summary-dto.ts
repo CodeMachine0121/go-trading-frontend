@@ -1,6 +1,7 @@
 import type { ProfitTone } from '~/domain/models/vo/profit-tone-vo'
 import type { ContractBacktestSummaryDto } from '~/domain/models/dto/contract-backtest-summary-dto'
 import type { BacktestTradeStatisticsDto } from '~/domain/models/dto/backtest-trade-statistics-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * DTO：一次回測的成績單，**已經可以直接畫**。
@@ -18,7 +19,7 @@ export class BacktestSummaryDto {
     /** 回撤永遠是壞消息，所以它不帶色調——標成紅的只是重覆說了一次它是什麼。 */
     public readonly maximumDrawdown: string,
     /** 一筆都沒平倉時是「不適用」，不是 `'0%'`。 */
-    public readonly winRate: string,
+    public readonly winRate: LocalizedTextVo,
     /**
      * 實際開成幾個倉。**一律顯示**，與交易次數並排。
      *
@@ -69,6 +70,6 @@ export class BacktestSummaryDto {
     /** 只算已平倉交易的五格。 */
     public readonly tradeStatistics: BacktestTradeStatisticsDto | null = null,
     /** 這一次的成交時點，例如「下一格開盤成交」。 */
-    public readonly fillTimingLabel: string | null = null,
+    public readonly fillTimingLabel: LocalizedTextVo | null = null,
   ) {}
 }

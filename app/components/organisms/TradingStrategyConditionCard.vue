@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -12,6 +13,7 @@ import type { ConditionBoardDto } from '~/domain/models/dto/condition-board-dto'
 import { CONDITION_OPERATORS, CONDITION_OPERATOR_LABELS } from '~/domain/models/vo/condition-operator-vo'
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：步驟卡二／三——一邊的條件板：什麼算買入，或什麼算賣出。
 //
@@ -35,7 +37,7 @@ const { side, heading, board, sourceLabels, signalOptions } = defineProps<{
   /** 這一刻宣告了的來源代號——加一條時挑得到的就是這幾個。 */
   sourceLabels: readonly string[]
   /** 一條比對挑得到的三個信號。 */
-  signalOptions: readonly { value: string, label: string }[]
+  signalOptions: readonly { value: string, label: LocalizedTextVo }[]
   /** 這張卡現在被選著——它的設定正開著。 */
   selected: boolean
   /** 設定擺在卡旁邊，還是從下方拉出。 */
@@ -57,10 +59,13 @@ const emit = defineEmits<{
   placeAt: [sourceLabel: string, position: number]
 }>()
 
-const operatorOptions = CONDITION_OPERATORS.map(operator => ({
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const operatorOptions = computed(() => CONDITION_OPERATORS.map(operator => ({
   value: operator,
-  label: CONDITION_OPERATOR_LABELS[operator],
-}))
+  label: localize(CONDITION_OPERATOR_LABELS[operator]),
+})))
 
 /**
  * 正在調的那一格，用它裡面某一條的來源代號記。
@@ -148,7 +153,7 @@ function close() {
 <template>
   <StepCard
     class="condition-card"
-    kicker="條件"
+    :kicker="t('tradingStrategy.conditionCard.kicker')"
     :title="heading"
     :tone="tone"
     :selected="selected"
@@ -177,8 +182,7 @@ function close() {
       tone="warning"
       :data-testid="`board-unrepresentable-${side}`"
     >
-      「{{ heading }}」存的是一個且與或交錯的條件，這張卡排不出它。
-      在這裡重排一次會換掉原本那一個。
+      {{ t('tradingStrategy.conditionCard.unrepresentable', { heading }) }}
     </AppAlert>
 
     <p
@@ -186,7 +190,7 @@ function close() {
       class="condition-card__note"
       :data-testid="`board-empty-${side}`"
     >
-      這張卡還是空的，加一條條件吧。
+      {{ t('tradingStrategy.conditionCard.empty') }}
     </p>
 
     <ol
@@ -201,7 +205,7 @@ function close() {
         <span
           v-if="position > 0"
           class="condition-card__joiner"
-        >{{ board.joinerWord }}</span>
+        >{{ localize(board.joinerWord) }}</span>
 
         <button
           type="button"
@@ -216,7 +220,7 @@ function close() {
           <span
             v-if="item.isBundle"
             class="condition-card__bundle-tag"
-          >一組</span>
+          >{{ t('tradingStrategy.conditionCard.bundleTag') }}</span>
           <ConditionClauseSentence :item="item" />
         </button>
       </li>
@@ -234,7 +238,7 @@ function close() {
         name="plus"
         size="small"
       />
-      加一條條件
+      {{ t('tradingStrategy.conditionCard.addCondition') }}
     </AppButton>
 
     <template #settings>
@@ -248,7 +252,7 @@ function close() {
           class="condition-card__read-out"
           :data-testid="`board-sentence-${side}`"
         >
-          {{ board.readOut }}
+          {{ localize(board.readOut) }}
         </p>
 
         <!-- 正在調的那一格：一條，或扣在一起的一組。 -->
@@ -262,7 +266,7 @@ function close() {
             class="condition-card__bundle-head"
           >
             <FormField
-              label="這一組裡面"
+              :label="t('tradingStrategy.conditionCard.withinBundle')"
               grouped
             >
               <AppTabs
@@ -284,7 +288,7 @@ function close() {
           >
             <div class="condition-card__piece-head">
               <span class="condition-card__piece-name">{{ piece.sourceLabel }}</span>
-              <span class="condition-card__piece-relation">{{ piece.relationWord }}</span>
+              <span class="condition-card__piece-relation">{{ localize(piece.relationWord) }}</span>
               <AppButton
                 v-if="focusedItem.isBundle"
                 type="button"
@@ -293,7 +297,7 @@ function close() {
                 :data-testid="`unbundle-${side}-${piece.sourceLabel}`"
                 @click="emit('unbundle', piece.sourceLabel)"
               >
-                拆出來
+                {{ t('tradingStrategy.conditionCard.unbundle') }}
               </AppButton>
               <AppButton
                 type="button"
@@ -302,7 +306,7 @@ function close() {
                 :data-testid="`take-off-${side}-${piece.sourceLabel}`"
                 @click="takeOff(piece.sourceLabel)"
               >
-                拿掉
+                {{ t('tradingStrategy.conditionCard.takeOff') }}
               </AppButton>
             </div>
 
@@ -313,7 +317,7 @@ function close() {
             <div
               class="condition-card__chips"
               role="group"
-              :aria-label="`${piece.sourceLabel} 只要是這幾個其中之一`"
+              :aria-label="t('tradingStrategy.conditionCard.signalChoices', { label: piece.sourceLabel })"
             >
               <button
                 v-for="signalOption in signalOptions"
@@ -325,15 +329,15 @@ function close() {
                 :data-testid="`chip-${side}-${piece.sourceLabel}-${signalOption.value}`"
                 @click="emit('toggleSignal', piece.sourceLabel, signalOption.value)"
               >
-                {{ signalOption.label }}
+                {{ localize(signalOption.label) }}
               </button>
             </div>
 
             <span
-              v-if="piece.plainWords !== ''"
+              v-if="piece.plainWords !== null"
               class="condition-card__plain-words"
               :data-testid="`plain-words-${side}-${piece.sourceLabel}`"
-            >↳ {{ piece.plainWords }}</span>
+            >↳ {{ localize(piece.plainWords) }}</span>
           </div>
 
           <!-- 單獨一條：可以換位置，也可以跟另一格扣成一組。 -->
@@ -350,7 +354,7 @@ function close() {
                 :data-testid="`move-earlier-${side}-${focusedItem.key}`"
                 @click="emit('placeAt', focusedItem.holdsLabels[0] ?? '', focusedPosition - 1)"
               >
-                往前一格
+                {{ t('tradingStrategy.conditionCard.moveEarlier') }}
               </AppButton>
               <AppButton
                 type="button"
@@ -360,13 +364,13 @@ function close() {
                 :data-testid="`move-later-${side}-${focusedItem.key}`"
                 @click="emit('placeAt', focusedItem.holdsLabels[0] ?? '', focusedPosition + 1)"
               >
-                往後一格
+                {{ t('tradingStrategy.conditionCard.moveLater') }}
               </AppButton>
             </div>
 
             <FormField
               v-if="otherItems.length > 0"
-              label="和另一格扣成一組"
+              :label="t('tradingStrategy.conditionCard.bundleWith')"
             >
               <AppSelect
                 model-value=""
@@ -374,14 +378,14 @@ function close() {
                 @update:model-value="targetKey => emit('bundleWith', focusedItem?.holdsLabels[0] ?? '', targetKey)"
               >
                 <option value="">
-                  挑一格…
+                  {{ t('tradingStrategy.conditionCard.pickItem') }}
                 </option>
                 <option
                   v-for="other in otherItems"
                   :key="other.key"
                   :value="other.key"
                 >
-                  {{ other.sentence }}
+                  {{ localize(other.sentence) }}
                 </option>
               </AppSelect>
             </FormField>
@@ -391,7 +395,7 @@ function close() {
           <template v-else>
             <FormField
               v-if="otherItems.some(other => !other.isBundle)"
-              label="把另一條加進這一組"
+              :label="t('tradingStrategy.conditionCard.bundleInto')"
             >
               <AppSelect
                 model-value=""
@@ -399,14 +403,14 @@ function close() {
                 @update:model-value="joining => onBundleInto(focusedItem?.holdsLabels[0] ?? '', joining)"
               >
                 <option value="">
-                  挑一條…
+                  {{ t('tradingStrategy.conditionCard.pickClause') }}
                 </option>
                 <option
                   v-for="other in otherItems.filter(candidate => !candidate.isBundle)"
                   :key="other.key"
                   :value="other.holdsLabels[0]"
                 >
-                  {{ other.sentence }}
+                  {{ localize(other.sentence) }}
                 </option>
               </AppSelect>
             </FormField>
@@ -418,7 +422,7 @@ function close() {
               :data-testid="`split-${side}-${focusedItem.key}`"
               @click="emit('splitBundle', focusedItem.key)"
             >
-              拆開這一組
+              {{ t('tradingStrategy.conditionCard.splitBundle') }}
             </AppButton>
           </template>
         </section>
@@ -429,27 +433,27 @@ function close() {
           :data-testid="`clause-adder-${side}`"
         >
           <h4 class="condition-card__adder-title">
-            加一條條件
+            {{ t('tradingStrategy.conditionCard.addCondition') }}
           </h4>
 
           <p
             v-if="sourceLabels.length === 0"
             class="condition-card__note"
           >
-            先在訊號來源那張卡加一個，這裡才挑得到。
+            {{ t('tradingStrategy.conditionCard.needsSignalSource') }}
           </p>
           <p
             v-else-if="unplacedLabels.length === 0"
             class="condition-card__note"
           >
-            每個訊號來源都已經在這張卡上了——一個來源在同一張卡上只出現一次。
+            {{ t('tradingStrategy.conditionCard.everySourcePlaced') }}
           </p>
 
           <div
             v-else
             class="condition-card__adder-fields"
           >
-            <FormField label="來源">
+            <FormField :label="t('tradingStrategy.conditionCard.sourceField')">
               <AppSelect
                 :model-value="addingSource"
                 :data-testid="`clause-source-${side}`"
@@ -465,9 +469,9 @@ function close() {
               </AppSelect>
             </FormField>
 
-            <span class="condition-card__adder-relation">{{ board.relationWord }}</span>
+            <span class="condition-card__adder-relation">{{ localize(board.relationWord) }}</span>
 
-            <FormField label="信號">
+            <FormField :label="t('tradingStrategy.conditionCard.signalField')">
               <AppSelect
                 v-model="chosenSignal"
                 :data-testid="`clause-signal-${side}`"
@@ -477,7 +481,7 @@ function close() {
                   :key="signalOption.value"
                   :value="signalOption.value"
                 >
-                  {{ signalOption.label }}
+                  {{ localize(signalOption.label) }}
                 </option>
               </AppSelect>
             </FormField>
@@ -489,7 +493,7 @@ function close() {
               :data-testid="`clause-confirm-${side}`"
               @click="addClause"
             >
-              加上去
+              {{ t('tradingStrategy.conditionCard.confirmAdd') }}
             </AppButton>
           </div>
         </section>
@@ -500,7 +504,7 @@ function close() {
             :data-testid="`condition-settings-done-${side}`"
             @click="close"
           >
-            好了
+            {{ t('tradingStrategy.common.done') }}
           </AppButton>
         </template>
       </StepSettingsPanel>

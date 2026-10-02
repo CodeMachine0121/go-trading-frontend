@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import TradingStrategyConditionCard from '~/components/organisms/TradingStrategyConditionCard.vue'
 import { ConditionBoardDomain } from '~/domain/models/domains/condition-board-domain'
@@ -8,6 +9,8 @@ import {
   ConditionBoardItemDto,
   ConditionBoardPieceDto,
 } from '~/domain/models/dto/condition-board-dto'
+import { SignalDomain } from '~/domain/models/domains/signal-domain'
+import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 
 function piece(sourceLabel: string) {
   return new ConditionBoardPieceDto(sourceLabel, ['buy'])
@@ -26,11 +29,7 @@ function aBoardWithABundle(representable = true) {
   ], representable))
 }
 
-const SIGNAL_OPTIONS = [
-  { value: 'buy', label: '買入' },
-  { value: 'sell', label: '賣出' },
-  { value: 'hold', label: '持有' },
-]
+const SIGNAL_OPTIONS = SIGNAL_VALUES.map(signal => ({ value: signal, label: new SignalDomain(signal).label() }))
 
 function mountCard(board = aBoardWithABundle(), sourceLabels = ['MACD', 'ATR', 'RSI', 'KD']) {
   return mount(TradingStrategyConditionCard, {
@@ -56,6 +55,19 @@ describe('TradingStrategyConditionCard：卡上讀成一句話', () => {
 
     expect(wrapper.get(`[data-testid="item-buy-${itemKey}"] [data-testid="condition-clause-sentence"]`).text())
       .toBe(expected)
+  })
+
+  it.each([
+    { itemKey: 'MACD+ATR', expected: 'MACD is Buy or ATR is Buy' },
+    { itemKey: 'RSI', expected: 'RSI is Buy' },
+  ])('換成英文時「$itemKey」那一格照英文語序讀成「$expected」', async ({ itemKey, expected }) => {
+    const wrapper = mountCard()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get(`[data-testid="item-buy-${itemKey}"] [data-testid="condition-clause-sentence"]`).text())
+      .toBe(expected)
+    expect(wrapper.get('[data-testid="clause-add-buy"]').text()).toBe('Add a condition')
   })
 
   it('排不出來的舊條件照實說，不默默壓平', () => {

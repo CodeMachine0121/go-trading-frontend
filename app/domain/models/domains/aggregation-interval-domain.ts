@@ -1,6 +1,7 @@
 import type { AggregationIntervalValue, AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { AGGREGATION_INTERVALS, FINEST_AGGREGATION_INTERVAL } from '~/domain/models/vo/aggregation-interval-vo'
 import { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一種彙總刻度，以及其他人需要知道的關於它的一切。
@@ -29,7 +30,7 @@ export class AggregationIntervalDomain {
   }
 
   /** 給使用者看的名字。畫面不自己翻譯刻度。 */
-  label(): string {
+  label(): LocalizedTextVo {
     return this.interval.label
   }
 

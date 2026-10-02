@@ -58,7 +58,7 @@ describe('TradingSymbolApplication 把四件事一路帶到畫面', () => {
 
     const tradingSymbols = await tradingSymbolApplication.listTradingSymbols()
 
-    expect(tradingSymbols[0]!.market.label).toBe('台股')
+    expect(tradingSymbols[0]!.market.label.in('zh-TW')).toBe('台股')
     expect(tradingSymbols[0]!.isWatched).toBe(false)
     expect(tradingSymbols[0]!.isWithinTradingSession).toBe(false)
     expect(tradingSymbols[0]!.hasLiveUpdates).toBe(false)

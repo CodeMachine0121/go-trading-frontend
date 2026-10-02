@@ -27,7 +27,7 @@ describe('StrategyBotRunStateDomain', () => {
 
     expect(running.canStop).toBe(true)
     expect(running.canStart).toBe(false)
-    expect(running.statusLabel).toBe('執行中')
+    expect(running.statusLabel.in('zh-TW')).toBe('執行中')
     expect(running.statusTone).toBe('success')
   })
 
@@ -36,7 +36,7 @@ describe('StrategyBotRunStateDomain', () => {
 
     expect(stopped.canStart).toBe(true)
     expect(stopped.canStop).toBe(false)
-    expect(stopped.statusLabel).toBe('已停止')
+    expect(stopped.statusLabel.in('zh-TW')).toBe('已停止')
     expect(stopped.statusTone).toBe('neutral')
   })
 
@@ -45,9 +45,9 @@ describe('StrategyBotRunStateDomain', () => {
     const halted = aBot({ haltReason: 'credentialRejected' }).toDto()
 
     expect(halted.isHalted).toBe(true)
-    expect(halted.statusLabel).toBe('停擺')
+    expect(halted.statusLabel.in('zh-TW')).toBe('停擺')
     expect(halted.statusTone).toBe('danger')
-    expect(halted.haltReasonLabel).toBe('機器人金鑰不被接受')
+    expect(halted.haltReasonLabel?.in('zh-TW')).toBe('機器人金鑰不被接受')
   })
 
   it.each([
@@ -57,7 +57,7 @@ describe('StrategyBotRunStateDomain', () => {
     ['destinationNotFound', '找不到這個聊天室'],
   ])('四種停擺原因各自說得出是哪一種（%s）', (haltReason, expectedLabel) => {
     // 四者要做的事完全不同：換一支策略腳本、修算式、重填金鑰、重填代號。
-    expect(aBot({ haltReason: haltReason as StrategyBotHaltReasonVo }).toDto().haltReasonLabel)
+    expect(aBot({ haltReason: haltReason as StrategyBotHaltReasonVo }).toDto().haltReasonLabel?.in('zh-TW'))
       .toBe(expectedLabel)
   })
 
@@ -66,7 +66,7 @@ describe('StrategyBotRunStateDomain', () => {
     const unknown = aBot({ haltReason: 'somethingNew' as StrategyBotHaltReasonVo }).toDto()
 
     expect(unknown.isHalted).toBe(false)
-    expect(unknown.haltReasonLabel).toBe('')
+    expect(unknown.haltReasonLabel).toBeNull()
   })
 
   it('規則打架與執行中並列，不是取代它', () => {
@@ -75,7 +75,7 @@ describe('StrategyBotRunStateDomain', () => {
 
     expect(conflicting.isRunning).toBe(true)
     expect(conflicting.isConflicting).toBe(true)
-    expect(conflicting.statusLabel).toBe('執行中')
+    expect(conflicting.statusLabel.in('zh-TW')).toBe('執行中')
   })
 
   it.each([
@@ -83,12 +83,12 @@ describe('StrategyBotRunStateDomain', () => {
     ['sell', '賣出'],
     ['hold', '持有'],
   ])('上次訊號 %s 講成人話', (lastSentSignal, expectedLabel) => {
-    expect(aBot({ lastSentSignal }).toDto().lastSentSignalLabel).toBe(expectedLabel)
+    expect(aBot({ lastSentSignal }).toDto().lastSentSignalLabel.in('zh-TW')).toBe(expectedLabel)
   })
 
   it('沒送過任何訊號是一種狀態，不是空白', () => {
     // 空白讀起來像「這一欄壞了」，而「還沒送出過」是一個完全正常的狀態。
-    expect(aBot().toDto().lastSentSignalLabel).toBe('還沒送出過')
+    expect(aBot().toDto().lastSentSignalLabel.in('zh-TW')).toBe('還沒送出過')
   })
 
   it('執行中時編輯不給按，並說得出為什麼', () => {
@@ -96,13 +96,33 @@ describe('StrategyBotRunStateDomain', () => {
     const running = aBot({ runState: 'running' }).toDto()
 
     expect(running.canEdit).toBe(false)
-    expect(running.editBlockedReason).toContain('要先停止')
+    expect(running.editBlockedReason?.in('zh-TW')).toContain('要先停止')
   })
 
   it('停下來就編輯得動了', () => {
     const stopped = aBot().toDto()
 
     expect(stopped.canEdit).toBe(true)
-    expect(stopped.editBlockedReason).toBe('')
+    expect(stopped.editBlockedReason).toBeNull()
+  })
+})
+
+describe('StrategyBotRunStateDomain 的英文那一份', () => {
+  it.each([
+    { name: '停擺', bot: () => aBot({ haltReason: 'credentialRejected' }), status: 'Halted', reason: 'The bot token was not accepted' },
+    { name: '執行中', bot: () => aBot({ runState: 'running' }), status: 'Running', reason: undefined },
+    { name: '已停止', bot: () => aBot(), status: 'Stopped', reason: undefined },
+  ])('$name說得出英文的狀態與停擺原因', ({ bot, status, reason }) => {
+    const runState = bot().toDto()
+
+    expect(runState.statusLabel.in('en')).toBe(status)
+    expect(runState.haltReasonLabel?.in('en')).toBe(reason)
+  })
+
+  it('上次訊號與編輯不給按的理由也說得出英文', () => {
+    expect(aBot().toDto().lastSentSignalLabel.in('en')).toBe('None sent yet')
+    expect(aBot({ runState: 'running', lastSentSignal: 'sell' }).toDto().lastSentSignalLabel.in('en')).toBe('Sell')
+    expect(aBot({ runState: 'running' }).toDto().editBlockedReason?.in('en'))
+      .toBe('This bot is running; stop it before editing')
   })
 })

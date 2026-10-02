@@ -51,7 +51,7 @@ describe('useConnectorAuthorization：讀取授權請求', () => {
     const { stage, authorizationRequest } = await loadedConsent()
 
     expect(stage.value).toBe('awaitingDecision')
-    expect(authorizationRequest.value?.clientName).toBe('Claude Code')
+    expect(authorizationRequest.value?.clientName?.in('zh-TW')).toBe('Claude Code')
     expect(connectorAuthorizationProxy.fetchAuthorizationRequest).toHaveBeenCalledWith('abc')
   })
 
@@ -97,7 +97,7 @@ describe('useConnectorAuthorization：讀取授權請求', () => {
     const { stage, loadErrorMessage } = await loadedConsent()
 
     expect(stage.value).toBe('loadFailed')
-    expect(loadErrorMessage.value).toBe(UNREACHABLE_MESSAGE)
+    expect(loadErrorMessage.value?.in('zh-TW')).toBe(UNREACHABLE_MESSAGE)
   })
 
   it('交易服務自己壞掉時也給再試一次', async () => {
@@ -107,7 +107,7 @@ describe('useConnectorAuthorization：讀取授權請求', () => {
     const { stage, loadErrorMessage } = await loadedConsent()
 
     expect(stage.value).toBe('loadFailed')
-    expect(loadErrorMessage.value).toBe('讀取授權請求時發生未預期的錯誤，請再試一次。')
+    expect(loadErrorMessage.value?.in('zh-TW')).toBe('讀取授權請求時發生未預期的錯誤，請再試一次。')
   })
 
   it('再試一次重新讀取同一張請求，讀到了就等他決定', async () => {
@@ -235,7 +235,7 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
 
     expect(stage.value).toBe('awaitingDecision')
     expect(pendingDecision.value).toBeNull()
-    expect(decisionErrorMessage.value).toBe(UNREACHABLE_MESSAGE)
+    expect(decisionErrorMessage.value?.in('zh-TW')).toBe(UNREACHABLE_MESSAGE)
     expect(externalNavigationProxy.leaveFor).not.toHaveBeenCalled()
   })
 
@@ -247,7 +247,7 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
     await deny()
 
     expect(stage.value).toBe('awaitingDecision')
-    expect(decisionErrorMessage.value).toBe('交易服務沒有接受這次決定，請再試一次。')
+    expect(decisionErrorMessage.value?.in('zh-TW')).toBe('交易服務沒有接受這次決定，請再試一次。')
   })
 
   it('再決定一次時先清掉上一次的失敗說明', async () => {
@@ -260,5 +260,17 @@ describe('useConnectorAuthorization：允許與拒絕', () => {
 
     expect(decisionErrorMessage.value).toBeNull()
     expect(stage.value).toBe('handedBack')
+  })
+})
+
+describe('useConnectorAuthorization：英文畫面上的說法', () => {
+  it('連不上時用英文說連不上', async () => {
+    connectorAuthorizationProxy.fetchAuthorizationRequest
+      .mockRejectedValue(new BackendUnreachableError('http://localhost:8080'))
+
+    const { loadErrorMessage } = await loadedConsent()
+
+    expect(loadErrorMessage.value?.in('en'))
+      .toBe('Cannot reach the trading service (go-trading API). Make sure it is running, then try again.')
   })
 })

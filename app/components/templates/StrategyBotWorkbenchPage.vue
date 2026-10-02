@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
@@ -21,6 +22,9 @@ const { strategyBotId, marketDataKind } = defineProps<{
 
 const { $strategyBotApplication, $tradingStrategyApplication, $tradingSymbolApplication }
   = useNuxtApp()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const workbench = useStrategyBotWorkbench(
   $strategyBotApplication, $tradingStrategyApplication, strategyBotId, marketDataKind)
@@ -51,7 +55,7 @@ watch(() => workbench.redirectPath.value, (path) => {
 
 /** 改到一半想離開就先問過。什麼都沒改時不問。 */
 onBeforeRouteLeave(() => workbench.dirty.value
-  ? window.confirm('這一頁改過的東西還沒存，確定要離開嗎？')
+  ? window.confirm(t('strategyBot.workbenchPage.leaveConfirm'))
   : true)
 </script>
 
@@ -64,13 +68,13 @@ onBeforeRouteLeave(() => workbench.dirty.value
         :to="page.listPath"
         data-testid="workbench-back"
       >
-        ‹ 回清單
+        {{ t('strategyBot.workbenchPage.backToList') }}
       </AppButton>
       <h2
         class="strategy-bot-workbench__title"
         data-testid="workbench-title"
       >
-        {{ strategyBotId === null ? page.createTitle : page.editTitle }}
+        {{ localize(strategyBotId === null ? page.createTitle : page.editTitle) }}
       </h2>
     </header>
 
@@ -80,7 +84,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
       class="strategy-bot-workbench__notice"
       data-testid="workbench-loading"
     >
-      讀取中…
+      {{ t('strategyBot.common.loading') }}
     </p>
 
     <AppAlert
@@ -88,7 +92,7 @@ onBeforeRouteLeave(() => workbench.dirty.value
       tone="danger"
       data-testid="workbench-missing"
     >
-      找不到這一台機器人，它可能已經被刪掉了。
+      {{ t('strategyBot.workbenchPage.missing') }}
     </AppAlert>
 
     <template v-else>

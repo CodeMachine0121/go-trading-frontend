@@ -1,5 +1,6 @@
 import type { PasswordChangeDto } from '~/domain/models/dto/password-change-dto'
 import { PasswordChangeFieldErrorsDto } from '~/domain/models/dto/password-change-field-errors-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 新密碼的兩道長度規則。它們與後端那兩條是同一組數字，而且**這一份不是規則的所在地**
@@ -66,39 +67,50 @@ export class PasswordChangeDomain {
    * 套用的話，一位密碼確實比較短的既有使用者會被告知自己格式填錯，
    * 而他打的其實完全正確——只有後端說得出這一格對不對。
    */
-  private currentPasswordError(): string | null {
-    return this.currentPassword === '' ? '請填入目前的密碼' : null
+  private currentPasswordError(): LocalizedTextVo | null {
+    return this.currentPassword === ''
+      ? new LocalizedTextVo('請填入目前的密碼', 'Enter your current password')
+      : null
   }
 
-  private newPasswordError(): string | null {
+  private newPasswordError(): LocalizedTextVo | null {
     if (this.newPassword === '') {
-      return '請填入新的密碼'
+      return new LocalizedTextVo('請填入新的密碼', 'Enter a new password')
     }
 
     if ([...this.newPassword].length < PASSWORD_MINIMUM_LENGTH) {
-      return `密碼至少要 ${PASSWORD_MINIMUM_LENGTH} 個字元`
+      return new LocalizedTextVo(
+        `密碼至少要 ${PASSWORD_MINIMUM_LENGTH} 個字元`,
+        `Password must be at least ${PASSWORD_MINIMUM_LENGTH} characters`,
+      )
     }
 
     // 長度上限數的是位元組而不是字元，因為後端存放密碼證明的方式就數到那裡為止。
     // 中文字一個算三個，所以二十五個字就超過了。
     if (new TextEncoder().encode(this.newPassword).length > PASSWORD_MAXIMUM_BYTE_LENGTH) {
-      return `密碼長度上限為 ${PASSWORD_MAXIMUM_BYTE_LENGTH} 個位元組（中文字一個算三個）`
+      return new LocalizedTextVo(
+        `密碼長度上限為 ${PASSWORD_MAXIMUM_BYTE_LENGTH} 個位元組（中文字一個算三個）`,
+        `Password can be at most ${PASSWORD_MAXIMUM_BYTE_LENGTH} bytes (a Chinese character counts as three)`,
+      )
     }
 
     // 換一組一模一樣的密碼是一次什麼都沒發生的操作，而使用者會以為自己換過了。
     // 這一條後端也判，但這裡判得起——兩組密碼都在手上——所以不必等一趟來回。
     if (this.newPassword === this.currentPassword) {
-      return '新密碼不得與目前的密碼相同'
+      return new LocalizedTextVo(
+        '新密碼不得與目前的密碼相同', 'The new password must differ from the current one')
     }
 
     return null
   }
 
-  private confirmationError(): string | null {
+  private confirmationError(): LocalizedTextVo | null {
     if (this.newPasswordConfirmation === '') {
-      return '請再打一次新的密碼'
+      return new LocalizedTextVo('請再打一次新的密碼', 'Type the new password again')
     }
 
-    return this.newPasswordConfirmation === this.newPassword ? null : '兩次輸入的新密碼不一致'
+    return this.newPasswordConfirmation === this.newPassword
+      ? null
+      : new LocalizedTextVo('兩次輸入的新密碼不一致', 'The two new passwords do not match')
   }
 }

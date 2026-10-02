@@ -39,8 +39,8 @@ describe('合約成績單', () => {
   it('交易模式、槓桿、強平與被擋下的開倉照實寫出', () => {
     const contract = summaryOf(figuresOf())
 
-    expect(contract.tradingModeLabel).toBe('只做多')
-    expect(contract.leverageLabel).toBe('5 倍')
+    expect(contract.tradingModeLabel.in('zh-TW')).toBe('只做多')
+    expect(contract.leverageLabel.in('zh-TW')).toBe('5 倍')
     expect(contract.liquidationExitCount).toBe(1)
     expect(contract.blockedOpeningCount).toBe(2)
   })
@@ -52,39 +52,56 @@ describe('合約成績單', () => {
   ])('累計資金費用 $totalFundingFee 寫成「$label」', ({ totalFundingFee, label, tone }) => {
     const contract = summaryOf(figuresOf({ totalFundingFee }))
 
-    expect(contract.totalFundingFee).toBe(label)
+    expect(contract.totalFundingFee.in('zh-TW')).toBe(label)
     expect(contract.totalFundingFeeTone).toBe(tone)
+  })
+
+  it.each([
+    { totalFundingFee: '18', label: 'Paid 18.00' },
+    { totalFundingFee: '-5', label: 'Received 5.00' },
+    { totalFundingFee: '0', label: '0.00' },
+  ])('累計資金費用 $totalFundingFee 的英文寫成「$label」', ({ totalFundingFee, label }) => {
+    expect(summaryOf(figuresOf({ totalFundingFee })).totalFundingFee.in('en')).toBe(label)
+  })
+
+  it('交易模式、槓桿與維持保證金依據的英文說法', () => {
+    const contract = summaryOf(figuresOf({ maintenanceMarginBasisKind: 'smallestTier', shortWinRate: null }))
+
+    expect(contract.tradingModeLabel.in('en')).toBe('Long only')
+    expect(contract.leverageLabel.in('en')).toBe('5x')
+    expect(contract.shortWinRate.in('en')).toBe('N/A')
+    expect(contract.maintenanceMarginBasisLabel.in('en')).toBe('Smallest tier')
   })
 
   it('做多做空各自的筆數與勝率；沒有空單的那一邊勝率不適用', () => {
     const contract = summaryOf(figuresOf())
 
     expect(contract.longTradeCount).toBe(3)
-    expect(contract.longWinRate).toBe('66.7%')
+    expect(contract.longWinRate.in('zh-TW')).toBe('66.7%')
     expect(contract.shortTradeCount).toBe(0)
-    expect(contract.shortWinRate).toBe('不適用')
+    expect(contract.shortWinRate.in('zh-TW')).toBe('不適用')
   })
 
   it('完整分級帶著確認時間，並說明用的是今天那一組', () => {
     const contract = summaryOf(figuresOf())
 
-    expect(contract.maintenanceMarginBasisLabel).toBe('完整分級')
+    expect(contract.maintenanceMarginBasisLabel.in('zh-TW')).toBe('完整分級')
     expect(contract.maintenanceMarginConfirmedAt?.toISOString()).toBe('2026-09-01T00:00:00.000Z')
-    expect(contract.maintenanceMarginBasisNote).toContain('今天這一組')
+    expect(contract.maintenanceMarginBasisNote.in('zh-TW')).toContain('今天這一組')
   })
 
   it('最小那一級說明大部位的強平價會被算得太遠', () => {
     const contract = summaryOf(figuresOf({ maintenanceMarginBasisKind: 'smallestTier', confirmedAt: null }))
 
-    expect(contract.maintenanceMarginBasisLabel).toBe('最小那一級')
+    expect(contract.maintenanceMarginBasisLabel.in('zh-TW')).toBe('最小那一級')
     expect(contract.maintenanceMarginConfirmedAt).toBeNull()
-    expect(contract.maintenanceMarginBasisNote).toContain('強平價會被算得太遠')
+    expect(contract.maintenanceMarginBasisNote.in('zh-TW')).toContain('強平價會被算得太遠')
   })
 
   it('認不得的依據讀成比較保守的那一句：最小那一級', () => {
     const contract = summaryOf(figuresOf({ maintenanceMarginBasisKind: 'somethingNew', confirmedAt: null }))
 
-    expect(contract.maintenanceMarginBasisLabel).toBe('最小那一級')
+    expect(contract.maintenanceMarginBasisLabel.in('zh-TW')).toBe('最小那一級')
   })
 
   it('現貨重演的成績單沒有合約那一段', () => {
@@ -101,9 +118,9 @@ describe('合約交易明細', () => {
 
     const tradeDto = backtestWith(figuresOf(), [closedTrade]).toDomain().toDto().closedTrades[0]!
 
-    expect(tradeDto.directionLabel).toBe('做空')
-    expect(tradeDto.exitReasonLabel).toBe('強平')
-    expect(tradeDto.contract?.leverageLabel).toBe('5 倍')
+    expect(tradeDto.directionLabel.in('zh-TW')).toBe('做空')
+    expect(tradeDto.exitReasonLabel.in('zh-TW')).toBe('強平')
+    expect(tradeDto.contract?.leverageLabel.in('zh-TW')).toBe('5 倍')
     expect(tradeDto.contract?.quantity).toBe('500')
     expect(tradeDto.contract?.margin).toBe('10000.00')
     expect(tradeDto.contract?.fundingFee).toBe('5.00')

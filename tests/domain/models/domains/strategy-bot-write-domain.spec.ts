@@ -39,7 +39,7 @@ describe('StrategyBotWriteDomain', () => {
     const writeDomain = aBotWrite(overrides)
 
     expect(writeDomain.isSendable).toBe(false)
-    expect(writeDomain.rejection).toContain(expectedMessage)
+    expect(writeDomain.rejection?.in('zh-TW')).toContain(expectedMessage)
   })
 
   it('一次只說一個理由', () => {
@@ -47,7 +47,7 @@ describe('StrategyBotWriteDomain', () => {
     // 第一個反應是不知道要從哪裡開始。
     const writeDomain = aBotWrite({ name: '', symbol: '', triggerIntervalMinutes: 0 })
 
-    expect(writeDomain.rejection).toBe('必須給機器人取一個名稱')
+    expect(writeDomain.rejection?.in('zh-TW')).toBe('必須給機器人取一個名稱')
   })
 
   // 一台機器人不會有自己的一份規則複本——它指名一份，而那正是好幾台共用一份的前提。
@@ -78,7 +78,7 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
 
     // 押多少那一條由回測那一列已經在用的模型答，所以兩張表單對同一個 150
     // 講的是同一句話。
-    expect(botWrite.rejection).toContain('百分比要大於零且不超過一百')
+    expect(botWrite.rejection?.in('zh-TW')).toContain('百分比要大於零且不超過一百')
   })
 
   it('四格的理由先講完，才輪到部位規劃', () => {
@@ -90,8 +90,8 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
         new Decimal('-1'), new Decimal(5)),
     })
 
-    expect(botWrite.rejection).toContain('名稱')
-    expect(botWrite.rejection).not.toContain('停損距離')
+    expect(botWrite.rejection?.in('zh-TW')).toContain('名稱')
+    expect(botWrite.rejection?.in('zh-TW')).not.toContain('停損距離')
   })
 
   it('交出去的那一份原樣帶著那一組', () => {
@@ -100,5 +100,16 @@ describe('StrategyBotWriteDomain 的部位規劃', () => {
       new Decimal(3), new Decimal(0))
 
     expect(aBotWrite({ positionPlan }).sendable.positionPlan).toBe(positionPlan)
+  })
+})
+
+describe('StrategyBotWriteDomain 的英文那一份', () => {
+  it.each([
+    [{ name: '   ' }, 'Give the bot a name'],
+    [{ name: '名'.repeat(129) }, 'The bot name can be at most 128 characters'],
+    [{ tradingStrategyId: 0 }, 'Pick a trading strategy so the bot knows what to judge by'],
+    [{ triggerIntervalMinutes: 1441 }, 'The trigger interval can be at most 1440 minutes'],
+  ])('%o 擋下來時說英文：%s', (overrides, expected) => {
+    expect(aBotWrite(overrides).rejection?.in('en')).toBe(expected)
   })
 })

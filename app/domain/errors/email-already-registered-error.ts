@@ -1,3 +1,6 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這個電子郵件已經有人用了。
  *
@@ -5,9 +8,9 @@
  * 只是這個位址被佔用了——**兩格的內容都要留著**，讓人改一個位址再送一次，
  * 或是直接切到登入。
  */
-export class EmailAlreadyRegisteredError extends Error {
+export class EmailAlreadyRegisteredError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options)
+    super(new UntranslatedTextVo(message), options)
     this.name = 'EmailAlreadyRegisteredError'
   }
 }

@@ -1,10 +1,11 @@
 import type { TradeStatus } from '~/domain/models/vo/trade-status-vo'
 import type { TradeBadgeTone } from '~/domain/models/vo/trade-badge-tone-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const STATUS_LABELS: Readonly<Record<TradeStatus, string>> = {
-  open: '持倉中',
-  closed: '已平倉',
-  reviewed: '已檢討',
+const STATUS_LABELS: Readonly<Record<TradeStatus, LocalizedTextVo>> = {
+  open: new LocalizedTextVo('持倉中', 'Open'),
+  closed: new LocalizedTextVo('已平倉', 'Closed'),
+  reviewed: new LocalizedTextVo('已檢討', 'Reviewed'),
 }
 
 const STATUS_TONES: Readonly<Record<TradeStatus, TradeBadgeTone>> = {
@@ -16,7 +17,7 @@ const STATUS_TONES: Readonly<Record<TradeStatus, TradeBadgeTone>> = {
 export class ContractTradeStatusDomain {
   constructor(private readonly status: TradeStatus) {}
 
-  get label(): string {
+  get label(): LocalizedTextVo {
     return STATUS_LABELS[this.status]
   }
 

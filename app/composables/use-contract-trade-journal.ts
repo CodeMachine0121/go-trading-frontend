@@ -2,13 +2,14 @@ import type { ContractTradeListDto } from '~/domain/models/dto/contract-trade-li
 import { ContractTradeListFilterDto } from '~/domain/models/dto/contract-trade-list-filter-dto'
 import type { TradeStatusFilter } from '~/domain/models/vo/trade-status-filter-vo'
 import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useContractTradeJournal(
   contractTradeJournalApplication = useNuxtApp().$contractTradeJournalApplication,
 ) {
   const list = ref<ContractTradeListDto | null>(null)
   const loading = ref(false)
-  const failureMessage = ref<string | null>(null)
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   const statusFilter = ref<TradeStatusFilter>('all')
   const sourceFilter = ref<TradeSourceFilter>('all')
   const symbolFilter = ref('')

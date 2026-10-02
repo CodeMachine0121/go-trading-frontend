@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：留著的每一支策略腳本，一支一列。
 //
@@ -27,7 +29,7 @@ const {
    * 這一列上也沒有任何會改動它的動作——只有「刪掉這份副本」。
    */
   adoptedStrategyScripts: PublishedStrategyScriptDto[]
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
   activeStrategyScriptId?: number | null
   /** 工作區裡正在用（唯讀）的那一支加入的。 */
   activeAdoptedStrategyScriptId?: number | null
@@ -39,6 +41,9 @@ const emit = defineEmits<{
   remove: [id: number]
   deleteAdopted: [id: number]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -48,7 +53,7 @@ const emit = defineEmits<{
       class="strategy-script-library-list__message strategy-script-library-list__message--error"
       data-testid="strategy-script-library-error"
     >
-      {{ errorMessage }}
+      {{ localize(errorMessage) }}
     </p>
 
     <p
@@ -56,12 +61,12 @@ const emit = defineEmits<{
       class="strategy-script-library-list__message"
       data-testid="strategy-script-library-empty"
     >
-      還沒有任何策略腳本。到 Marketplace 看看別人分享了什麼，或自己存一支。
+      {{ t('strategyScript.strategyScriptLibraryList.empty') }}
     </p>
 
     <template v-if="strategyScripts.length > 0">
       <h3 class="strategy-script-library-list__section">
-        我的策略腳本
+        {{ t('strategyScript.strategyScriptLibraryList.mineSection') }}
       </h3>
 
       <ul class="strategy-script-library-list__rows">
@@ -76,7 +81,7 @@ const emit = defineEmits<{
           <button
             type="button"
             class="strategy-script-library-list__pick"
-            :aria-label="`載入「${strategyScript.name}」`"
+            :aria-label="t('strategyScript.strategyScriptLibraryList.loadLabel', { name: strategyScript.name })"
             :aria-current="strategyScript.id === activeStrategyScriptId ? 'true' : undefined"
             :data-testid="`strategy-script-library-load-${strategyScript.id}`"
             @click="emit('load', strategyScript.id)"
@@ -87,7 +92,7 @@ const emit = defineEmits<{
                 v-if="strategyScript.id === activeStrategyScriptId"
                 variant="accent"
               >
-                使用中
+                {{ t('strategyScript.strategyScriptLibraryList.activeBadge') }}
               </AppBadge>
               <!--
                 分享與收回在編輯器那一排（想分享的幾乎總是眼前那一支），
@@ -99,7 +104,7 @@ const emit = defineEmits<{
                 variant="success"
                 :data-testid="`strategy-script-library-shared-${strategyScript.id}`"
               >
-                已分享
+                {{ t('strategyScript.strategyScriptLibraryList.sharedBadge') }}
               </AppBadge>
             </span>
             <span
@@ -112,7 +117,7 @@ const emit = defineEmits<{
             variant="danger-ghost"
             size="small"
             class="strategy-script-library-list__action"
-            :label="`刪除「${strategyScript.name}」`"
+            :label="t('strategyScript.strategyScriptLibraryList.deleteLabel', { name: strategyScript.name })"
             :data-testid="`strategy-script-library-delete-${strategyScript.id}`"
             @click="emit('remove', strategyScript.id)"
           >
@@ -134,7 +139,7 @@ const emit = defineEmits<{
         class="strategy-script-library-list__section"
         data-testid="strategy-script-library-adopted-section"
       >
-        我加入的
+        {{ t('strategyScript.strategyScriptLibraryList.adoptedSection') }}
       </h3>
 
       <ul class="strategy-script-library-list__rows">
@@ -148,7 +153,7 @@ const emit = defineEmits<{
           <button
             type="button"
             class="strategy-script-library-list__pick"
-            :aria-label="`使用「${adopted.name}」（唯讀）`"
+            :aria-label="t('strategyScript.strategyScriptLibraryList.useAdoptedLabel', { name: adopted.name })"
             :aria-current="adopted.id === activeAdoptedStrategyScriptId ? 'true' : undefined"
             :data-testid="`strategy-script-library-adopted-load-${adopted.id}`"
             @click="emit('load', adopted.id)"
@@ -156,10 +161,10 @@ const emit = defineEmits<{
             <span class="strategy-script-library-list__heading">
               <span class="strategy-script-library-list__name">{{ adopted.name }}</span>
               <AppBadge variant="info">
-                市集取得
+                {{ t('strategyScript.strategyScriptLibraryList.marketplaceBadge') }}
               </AppBadge>
             </span>
-            <span class="strategy-script-library-list__detail">從市集加入</span>
+            <span class="strategy-script-library-list__detail">{{ t('strategyScript.strategyScriptLibraryList.adoptedDetail') }}</span>
           </button>
 
           <!--
@@ -170,11 +175,11 @@ const emit = defineEmits<{
             variant="danger-ghost"
             size="small"
             class="strategy-script-library-list__action"
-            :label="`刪掉「${adopted.name}」這份副本`"
+            :label="t('strategyScript.strategyScriptLibraryList.deleteAdoptedLabel', { name: adopted.name })"
             :data-testid="`strategy-script-library-delete-adopted-${adopted.id}`"
             @click="emit('deleteAdopted', adopted.id)"
           >
-            移除
+            {{ t('strategyScript.strategyScriptLibraryList.removeAdopted') }}
           </AppButton>
         </li>
       </ul>

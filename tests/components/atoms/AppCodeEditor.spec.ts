@@ -1,5 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { EditorView } from '@codemirror/view'
+import { currentCompletions, startCompletion } from '@codemirror/autocomplete'
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
 
 // 編輯區只驗它作為「輸入元件」的兩件事：把拿到的內容顯示出來、把使用者的改動送回去。
@@ -72,5 +74,21 @@ describe('AppCodeEditor', () => {
     await settle()
 
     expect(host.querySelector('.cm-editor')).toBeNull()
+  })
+
+  it.each([
+    { language: 'zh-TW', expected: '走訪每一根 K 線' },
+    { language: 'en', expected: 'Loop over every K-candle' },
+  ])('補齊清單上片段的說明照打開當下的語言（$language）說', async ({ language, expected }) => {
+    const wrapper = await mountEditor('forcandle')
+    const view = EditorView.findFromDOM(wrapper.element.querySelector('.cm-editor') as HTMLElement)!
+
+    wrapper.vm.$i18n.locale = language
+    view.dispatch({ selection: { anchor: view.state.doc.length } })
+    startCompletion(view)
+
+    // 補齊清單是非同步打開的，等它真的開出來再看。
+    await vi.waitFor(() => expect(
+      currentCompletions(view.state).map(completion => completion.detail)).toContain(expected))
   })
 })

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppearanceToggle from '~/components/molecules/AppearanceToggle.vue'
 import SettingsSection from '~/components/molecules/SettingsSection.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
+import DisplayLanguageField from '~/components/molecules/DisplayLanguageField.vue'
 import BinanceTradingKeyPanel from '~/components/organisms/BinanceTradingKeyPanel.vue'
 import AccountProfilePanel from '~/components/organisms/AccountProfilePanel.vue'
 import PasswordChangePanel from '~/components/organisms/PasswordChangePanel.vue'
@@ -13,8 +15,8 @@ import TradeJournalSettingsPanel from '~/components/organisms/TradeJournalSettin
 // 幾份狀態而不是一份，是刻意的：一段讀不到資料，不該讓其他段看起來也壞了。
 definePageMeta({
   layout: 'console',
-  consoleTitle: '設定',
-  consoleSubtitle: '這裡是關於你自己的東西：帳號、密碼，以及這台系統要怎麼找到你。',
+  consoleTitleKey: 'settings.pages.settings.title',
+  consoleSubtitleKey: 'settings.pages.settings.subtitle',
 })
 
 const { currentUser, signOut } = useUserSession()
@@ -23,20 +25,23 @@ const telegramDelivery = useTelegramDelivery()
 const binanceTradingKey = useBinanceTradingKey()
 const tradeJournalSettings = useTradeJournalSettings()
 
-// 顯示那一段：時區與外觀。頂列上也有這兩個（窄螢幕上頂列收掉了它們），
+// 顯示那一段：語言、時區與外觀。頂列上也有這三個（窄螢幕上頂列收掉了它們），
 // 兩處取用的是同一份共用狀態，所以在頂列選了深色，這裡就是深色。
+const { selectableLanguages, selectedLanguageCode, selectLanguage } = useDisplayLanguage()
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
 const { appearance, selectAppearance } = useAppearance()
 
+const { t } = useI18n()
+
 /** 左邊那一條段落導覽：只在寬螢幕上出現，點一下捲到那一段。 */
-const SECTIONS = [
-  { anchor: 'settings-account', label: '帳號' },
-  { anchor: 'settings-password', label: '密碼' },
-  { anchor: 'settings-telegram', label: 'Telegram 投遞' },
-  { anchor: 'settings-binance-trading-key', label: '幣安交易金鑰' },
-  { anchor: 'settings-trade-journal', label: '交易日誌' },
-  { anchor: 'settings-display', label: '顯示' },
-] as const
+const sections = computed(() => [
+  { anchor: 'settings-account', label: t('settings.navigation.account') },
+  { anchor: 'settings-password', label: t('settings.navigation.password') },
+  { anchor: 'settings-telegram', label: t('settings.navigation.telegram') },
+  { anchor: 'settings-binance-trading-key', label: t('settings.navigation.binanceTradingKey') },
+  { anchor: 'settings-trade-journal', label: t('settings.navigation.tradeJournal') },
+  { anchor: 'settings-display', label: t('settings.navigation.display') },
+])
 
 // 這一頁掛載之後才取得資料：身分記在這台瀏覽器裡，而這一份設定是屬於那個人的。
 onMounted(() => {
@@ -50,10 +55,10 @@ onMounted(() => {
   <div class="settings-page">
     <nav
       class="settings-page__nav"
-      aria-label="設定段落"
+      :aria-label="t('settings.navigation.label')"
     >
       <a
-        v-for="section in SECTIONS"
+        v-for="section in sections"
         :key="section.anchor"
         :href="`#${section.anchor}`"
         class="settings-page__nav-link"
@@ -154,13 +159,26 @@ onMounted(() => {
 
       <SettingsSection
         id="settings-display"
-        title="顯示"
-        description="這個介面怎麼顯示。只記在這台瀏覽器裡。"
+        :title="t('settings.display.title')"
+        :description="t('settings.display.description')"
       >
         <div class="settings-page__row">
           <div class="settings-page__row-label">
-            <span>顯示時區</span>
-            <span class="settings-page__row-hint">只影響畫面上的時間；送往後端一律是世界標準時間</span>
+            <span>{{ t('shell.displayLanguage.fieldLabel') }}</span>
+            <span class="settings-page__row-hint">{{ t('settings.display.languageHint') }}</span>
+          </div>
+          <DisplayLanguageField
+            class="settings-page__row-control"
+            :model-value="selectedLanguageCode"
+            :selectable-languages="selectableLanguages"
+            @update:model-value="selectLanguage"
+          />
+        </div>
+
+        <div class="settings-page__row">
+          <div class="settings-page__row-label">
+            <span>{{ t('shell.timeZone.fieldLabel') }}</span>
+            <span class="settings-page__row-hint">{{ t('settings.display.timeZoneHint') }}</span>
           </div>
           <TimeZoneField
             class="settings-page__row-control"
@@ -172,8 +190,8 @@ onMounted(() => {
 
         <div class="settings-page__row">
           <div class="settings-page__row-label">
-            <span>外觀</span>
-            <span class="settings-page__row-hint">預設跟隨系統</span>
+            <span>{{ t('settings.display.appearanceLabel') }}</span>
+            <span class="settings-page__row-hint">{{ t('settings.display.appearanceHint') }}</span>
           </div>
           <AppearanceToggle
             v-if="appearance"

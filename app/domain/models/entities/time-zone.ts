@@ -1,4 +1,5 @@
 import { TimeZoneDomain } from '~/domain/models/domains/time-zone-domain'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Entity：一個可選時區在 domain 內的本體形狀，只有欄位、沒有業務邏輯。
@@ -7,7 +8,7 @@ import { TimeZoneDomain } from '~/domain/models/domains/time-zone-domain'
 export class TimeZone {
   constructor(
     public readonly identifier: string,
-    public readonly cityLabel: string,
+    public readonly cityName: LocalizedTextVo,
   ) {}
 
   toDomain(): TimeZoneDomain {

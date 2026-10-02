@@ -3,6 +3,7 @@ import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 系統一次答得出幾根。最粗的彙總刻度是一天一根，所以拉到最遠時它同時也是「幾天」。
@@ -73,7 +74,8 @@ export class KCandleChartViewportDomain {
   constructor(kCandleChartViewportDto: KCandleChartViewportDto) {
     const normalizedSymbol = kCandleChartViewportDto.symbol.trim()
     if (normalizedSymbol === '') {
-      throw new KCandleQueryValidationError('symbol', '請指定交易標的')
+      throw new KCandleQueryValidationError(
+        'symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     const maximumSpanMilliseconds = MAXIMUM_VISIBLE_DAYS * MILLISECONDS_PER_DAY

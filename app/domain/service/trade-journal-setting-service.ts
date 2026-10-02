@@ -9,6 +9,7 @@ import { TradeJournalSettingDomain } from '~/domain/models/domains/trade-journal
 import { TradeTagDomain } from '~/domain/models/domains/trade-tag-domain'
 import type { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
 import { TradeFailureDomain } from '~/domain/models/domains/trade-failure-domain'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export class TradeJournalSettingService {
   constructor(
@@ -31,7 +32,7 @@ export class TradeJournalSettingService {
     return new TradeJournalSettingDomain(await this.tradeJournalSettingProxy.saveFeeRates(writeDto)).toDto()
   }
 
-  rateInputHint(rateText: string): string | null {
+  rateInputHint(rateText: string): LocalizedTextVo | null {
     return new TradeJournalSettingDomain(new TradeJournalSetting(null, null)).rateInputHint(rateText)
   }
 

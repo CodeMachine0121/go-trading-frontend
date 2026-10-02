@@ -5,6 +5,7 @@ import type { ContractTradeLiveComparisonDto } from '~/domain/models/dto/contrac
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradeStatisticsPeriod } from '~/domain/models/vo/trade-statistics-period-vo'
 import { DEFAULT_TRADE_STATISTICS_PERIOD } from '~/domain/models/vo/trade-statistics-period-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useContractTradeStatistics(
   contractTradeJournalApplication: ContractTradeJournalApplication = useNuxtApp().$contractTradeJournalApplication,
@@ -14,13 +15,13 @@ export function useContractTradeStatistics(
   const period = ref<TradeStatisticsPeriod>(DEFAULT_TRADE_STATISTICS_PERIOD)
   const statistics = ref<ContractTradeStatisticsDto | null>(null)
   const loading = ref(false)
-  const failureMessage = ref<string | null>(null)
+  const failureMessage = ref<LocalizedTextVo | null>(null)
 
   const tradingStrategies = ref<TradingStrategyDto[]>([])
   const selectedTradingStrategyId = ref<number | null>(null)
   const comparison = ref<ContractTradeLiveComparisonDto | null>(null)
   const replaying = ref(false)
-  const comparisonFailureMessage = ref<string | null>(null)
+  const comparisonFailureMessage = ref<LocalizedTextVo | null>(null)
 
   async function loadStatistics(): Promise<void> {
     loading.value = true

@@ -139,7 +139,7 @@ describe('BacktestDomain', () => {
       closedTrades: [closedTradeOf('long', '1000', '100', '110', exitReason)],
     }).toDomain().toDto()
 
-    expect(resultDto.closedTrades[0]!.exitReasonLabel).toBe(expectedLabel)
+    expect(resultDto.closedTrades[0]!.exitReasonLabel.in('zh-TW')).toBe(expectedLabel)
   })
 
   describe('成績單', () => {
@@ -150,7 +150,7 @@ describe('BacktestDomain', () => {
       expect(summary.finalEquity).toBe('12500.00')
       expect(summary.totalReturnRate).toBe('+25.00%')
       expect(summary.maximumDrawdown).toBe('10.00%')
-      expect(summary.winRate).toBe('75.0%')
+      expect(summary.winRate.in('zh-TW')).toBe('75.0%')
       expect(summary.tradeCount).toBe(0)
     })
 
@@ -195,13 +195,13 @@ describe('BacktestDomain', () => {
       // 沒有交易與每一筆都賠光是兩件不同的事。
       const summary = backtestOf({ winRate: null }).toDomain().toDto().summary
 
-      expect(summary.winRate).toBe('不適用')
+      expect(summary.winRate.in('zh-TW')).toBe('不適用')
     })
 
     it('勝率為零與勝率不適用不一樣', () => {
       const summary = backtestOf({ winRate: 0 }).toDomain().toDto().summary
 
-      expect(summary.winRate).toBe('0.0%')
+      expect(summary.winRate.in('zh-TW')).toBe('0.0%')
     })
 
     it('交易次數數的是已平倉的那幾筆', () => {
@@ -221,8 +221,8 @@ describe('BacktestDomain', () => {
         closedTrades: [closedTradeOf('long', '100'), closedTradeOf('short', '-50')],
       }).toDomain().toDto()
 
-      expect(result.closedTrades[0]!.directionLabel).toBe('做多')
-      expect(result.closedTrades[1]!.directionLabel).toBe('做空')
+      expect(result.closedTrades[0]!.directionLabel.in('zh-TW')).toBe('做多')
+      expect(result.closedTrades[1]!.directionLabel.in('zh-TW')).toBe('做空')
     })
 
     it('賺的那一筆是綠的、賠的那一筆是紅的', () => {
@@ -297,7 +297,7 @@ describe('BacktestDomain', () => {
       const result = backtestOf().toDomain().toDto()
 
       expect(result.symbol).toBe('BTCUSDT')
-      expect(result.intervalLabel).toBe('一小時')
+      expect(result.intervalLabel.in('zh-TW')).toBe('一小時')
       expect(result.startTime).toEqual(REPLAY_START)
       expect(result.endTime).toEqual(new Date('2026-09-05T00:00:00Z'))
       expect(result.usedCandleCount).toBe(5)

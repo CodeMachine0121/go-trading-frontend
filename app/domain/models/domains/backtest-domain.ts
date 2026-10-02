@@ -15,6 +15,8 @@ import { EquityCurveSamplingDomain } from '~/domain/models/domains/equity-curve-
 import { FillTimingDomain } from '~/domain/models/domains/fill-timing-domain'
 import type { BacktestResultSectionKind } from '~/domain/models/dto/backtest-result-section-dto'
 import { BacktestResultSectionDto } from '~/domain/models/dto/backtest-result-section-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 比率寫到小數點後兩位：再細一位對「這支策略腳本好不好」沒有任何幫助。 */
 const RATE_FRACTION_DIGITS = 2
@@ -43,11 +45,11 @@ const PRICE_FRACTION_DIGITS = 8
 const WIN_RATE_FRACTION_DIGITS = 1
 
 /** 一筆都沒平倉時勝率的說法。它不是 0%——那句話宣稱每一筆都輸。 */
-const WIN_RATE_NOT_APPLICABLE = '不適用'
+const WIN_RATE_NOT_APPLICABLE = new LocalizedTextVo('不適用', 'N/A')
 
-const POSITION_DIRECTION_LABELS: Readonly<Record<PositionDirection, string>> = {
-  long: '做多',
-  short: '做空',
+const POSITION_DIRECTION_LABELS: Readonly<Record<PositionDirection, LocalizedTextVo>> = {
+  long: new LocalizedTextVo('做多', 'Long'),
+  short: new LocalizedTextVo('做空', 'Short'),
 }
 
 /**
@@ -56,11 +58,11 @@ const POSITION_DIRECTION_LABELS: Readonly<Record<PositionDirection, string>> = {
  * 與方向那一組並排，同一條規則：畫面一旦開始判断「這個值該寫成什麼字」，
  * 同一個判断就會出現在每一個顯示它的地方。
  */
-const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, string>> = {
-  signal: '訊號',
-  stopLoss: '止損',
-  takeProfit: '止盈',
-  liquidation: '強平',
+const TRADE_EXIT_REASON_LABELS: Readonly<Record<TradeExitReason, LocalizedTextVo>> = {
+  signal: new LocalizedTextVo('訊號', 'Signal'),
+  stopLoss: new LocalizedTextVo('止損', 'Stop loss'),
+  takeProfit: new LocalizedTextVo('止盈', 'Take profit'),
+  liquidation: new LocalizedTextVo('強平', 'Liquidation'),
 }
 
 /**
@@ -102,16 +104,35 @@ export class BacktestDomain {
 
     return [
       validation.toDomain().toSectionDto(
-        'validation', '驗證段', '這一段是調參數時沒看過的行情，以它為準', true),
+        'validation',
+        new LocalizedTextVo('驗證段', 'Validation segment'),
+        new LocalizedTextVo(
+          '這一段是調參數時沒看過的行情，以它為準',
+          'This segment is market data the tuning never saw — trust this one'),
+        true),
       inSample.toDomain().toSectionDto(
-        'inSample', '調參段', '這一段是拿來調參數的，成績好看是應該的', false),
-      this.toSectionDto('whole', '整段', '從起點一路走到終點的那一次，只供對照', false),
+        'inSample',
+        new LocalizedTextVo('調參段', 'Tuning segment'),
+        new LocalizedTextVo(
+          '這一段是拿來調參數的，成績好看是應該的',
+          'This segment was used to tune the parameters, so a good score here is expected'),
+        false),
+      this.toSectionDto(
+        'whole',
+        new LocalizedTextVo('整段', 'Whole period'),
+        new LocalizedTextVo(
+          '從起點一路走到終點的那一次，只供對照',
+          'The single run from start to end, for comparison only'),
+        false),
     ]
   }
 
   /** 這一次結果當成結果畫面上的一塊。分段的那兩次各自是一個 Backtest，所以由它們自己回答。 */
   toSectionDto(
-    kind: BacktestResultSectionKind, title: string | null, note: string | null, emphasized: boolean,
+    kind: BacktestResultSectionKind,
+    title: LocalizedTextVo | null,
+    note: LocalizedTextVo | null,
+    emphasized: boolean,
   ): BacktestResultSectionDto {
     return new BacktestResultSectionDto(
       kind,
@@ -146,7 +167,7 @@ export class BacktestDomain {
       this.percentage(this.backtest.maximumDrawdown, RATE_FRACTION_DIGITS),
       this.backtest.winRate === null
         ? WIN_RATE_NOT_APPLICABLE
-        : this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS),
+        : new UntranslatedTextVo(this.percentage(this.backtest.winRate, WIN_RATE_FRACTION_DIGITS)),
       this.backtest.positionOpenCount,
       this.backtest.closedTrades.length,
       this.backtest.conflictedCandleCount,
@@ -183,7 +204,9 @@ export class BacktestDomain {
       closedTrade.contractFigures === null
         ? null
         : new ContractClosedTradeDto(
-            `${closedTrade.contractFigures.leverage.toString()} 倍`,
+            new LocalizedTextVo(
+              `${closedTrade.contractFigures.leverage.toString()} 倍`,
+              `${closedTrade.contractFigures.leverage.toString()}x`),
             this.price(closedTrade.contractFigures.quantity),
             this.amount(closedTrade.stake),
             this.amount(closedTrade.contractFigures.fundingFee)),

@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleSearchPanel from '~/components/organisms/KCandleSearchPanel.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
@@ -114,6 +115,26 @@ describe('KCandleSearchPanel', () => {
     expectQueriedUntilSubmissionTime(kCandleProxy)
     expect(wrapper.findAll('[data-testid="k-candle-row"]')).toHaveLength(2)
     expect(wrapper.get('[data-testid="result-count"]').text()).toBe('共 2 根')
+  })
+
+  it('換成英文時畫面的話都改說英文，查到的 K 線與時間寫法原封不動、也不重新查詢', async () => {
+    const kCandleProxy = buildProxy({
+      findKCandlesInRange: vi.fn().mockResolvedValue([buildKCandle('2026-08-30T04:00:00.000Z')]),
+    })
+    const wrapper = await mountPanel(kCandleProxy, 'Asia/Taipei')
+    await wrapper.get('[data-testid="start-time-input"]').setValue('2026-08-30T10:00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="submit-button"]').text()).toBe('Search')
+    expect(wrapper.get('[data-testid="result-count"]').text()).toBe('1 K-candle')
+    expect(wrapper.get('[data-testid="k-candle-row"]').text()).toContain('2026-08-30 12:00')
+    expect(wrapper.get<HTMLInputElement>('[data-testid="start-time-input"]').element.value)
+      .toBe('2026-08-30T10:00')
+    expect(kCandleProxy.findKCandlesInRange).toHaveBeenCalledTimes(1)
   })
 
   it('查無資料時顯示查無 K 線而不是錯誤', async () => {

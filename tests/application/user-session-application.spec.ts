@@ -174,7 +174,7 @@ describe('UserSessionApplication.registerUser', () => {
 
     await fixture.application.registerUser(credentials('1234567', 'register')).catch((error: unknown) => {
       expect(error).toBeInstanceOf(CredentialsFieldError)
-      expect((error as CredentialsFieldError).fieldErrors.password).toContain('8')
+      expect((error as CredentialsFieldError).fieldErrors.password?.in('zh-TW')).toContain('8')
       expect((error as CredentialsFieldError).fieldErrors.email).toBeNull()
     })
 

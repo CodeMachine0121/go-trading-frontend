@@ -1,14 +1,22 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import BacktestSummaryCard from '~/components/molecules/BacktestSummaryCard.vue'
+import { nextTick } from 'vue'
 import { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
+import { ContractBacktestSummaryDto } from '~/domain/models/dto/contract-backtest-summary-dto'
+import { BacktestTradeStatisticsDto } from '~/domain/models/dto/backtest-trade-statistics-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
+/** 勝率不適用時領域給的那一句。 */
+const NOT_APPLICABLE = new LocalizedTextVo('不適用', 'N/A')
 
 function mountCard(summary: BacktestSummaryDto) {
   return mount(BacktestSummaryCard, { props: { summary } })
 }
 
 const SUMMARY = new BacktestSummaryDto(
-  '10000', '12500', '+25.00%', 'positive', '10.00%', '75.0%', 4, 4, 0, 0, 0, null, false)
+  '10000', '12500', '+25.00%', 'positive', '10.00%', new UntranslatedTextVo('75.0%'), 4, 4, 0, 0, 0, null, false)
 
 describe('BacktestSummaryCard', () => {
   it('交代六件事，每一件都照 DTO 已經決定好的樣子寫', () => {
@@ -40,7 +48,7 @@ describe('BacktestSummaryCard', () => {
     ['neutral', '--neutral'],
   ] as const)('總報酬率的色調 %s 照 DTO 說的來', (tone, expectedSuffix) => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '12500', '+25.00%', tone, '10.00%', '75.0%', 4, 4, 0, 0, 0, null, false))
+      '10000', '12500', '+25.00%', tone, '10.00%', new UntranslatedTextVo('75.0%'), 4, 4, 0, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-total-return-rate"]').classes()
       .some(name => name.endsWith(expectedSuffix))).toBe(true)
@@ -48,7 +56,7 @@ describe('BacktestSummaryCard', () => {
 
   it('勝率不適用時原樣寫出來，不擅自換成 0%', () => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0, 0, null, false))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', NOT_APPLICABLE, 0, 0, 0, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-win-rate"]').text()).toBe('不適用')
   })
@@ -60,7 +68,7 @@ describe('BacktestSummaryCard', () => {
     // 使用者照樣讀得到一個這個系統做不到的概念。
     // 被掃出場過的那一張，因為那正是強平那一格從前會出現的場合。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '9800', '-2.00%', 'negative', '2.00%', '0.0%', 3, 3, 0, 2, 1, null, false))
+      '10000', '9800', '-2.00%', 'negative', '2.00%', new UntranslatedTextVo('0.0%'), 3, 3, 0, 2, 1, null, false))
 
     expect(wrapper.text()).not.toContain('強平')
     // 同一張卡上還在的那兩格照樣寫著它們的名字，
@@ -73,7 +81,7 @@ describe('BacktestSummaryCard', () => {
     // 同一個報酬率，兩個完全不同的故事：十次出場八次靡停損的策略，
     // 與十次都靡訊號的，報酬率可以一模一樣。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '9800', '-2.00%', 'negative', '2.00%', '0.0%', 3, 3, 0, 2, 1, null, false))
+      '10000', '9800', '-2.00%', 'negative', '2.00%', new UntranslatedTextVo('0.0%'), 3, 3, 0, 2, 1, null, false))
 
     expect(wrapper.get('[data-testid="summary-stop-loss-exit-count"]').text()).toBe('2')
     expect(wrapper.get('[data-testid="summary-take-profit-exit-count"]').text()).toBe('1')
@@ -92,7 +100,7 @@ describe('BacktestSummaryCard', () => {
     // 它與下面那幾格「有才出現」的數字不同：等於零本身就是資訊，
     // 而它與交易次數不相等時，那個差就是「現在還抱著一注」。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '11010.28', '+10.10%', 'positive', '8.55%', '不適用',
+      '10000', '11010.28', '+10.10%', 'positive', '8.55%', NOT_APPLICABLE,
       1, 0, 0, 0, 0, '99.01', true))
 
     expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
@@ -101,7 +109,7 @@ describe('BacktestSummaryCard', () => {
 
   it('一次都沒開倉時那一格寫零，而不是消失', () => {
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 0, 0, 0, null, false))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', NOT_APPLICABLE, 0, 0, 0, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('0')
   })
@@ -110,7 +118,7 @@ describe('BacktestSummaryCard', () => {
     // 判斷讀的是 null 而不是零：到了這裡它已經是一個字串，而「有沒有收過錢」
     // 是領域知識，所以那個判斷留在領域模型裡。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10100', '10890', '+7.82%', 'positive', '0.99%', '100.0%', 1, 1, 0, 0, 0, '210.00', false))
+      '10100', '10890', '+7.82%', 'positive', '0.99%', new UntranslatedTextVo('100.0%'), 1, 1, 0, 0, 0, '210.00', false))
 
     expect(wrapper.get('[data-testid="summary-total-transaction-cost"]').text())
       .toBe('210.00')
@@ -127,7 +135,7 @@ describe('BacktestSummaryCard', () => {
   it('打架過才多一格，說出幾棒', () => {
     // 一份一直在打架的交易策略幾乎不進場，那張漂亮的成績單會被讀成「很穩」。
     const wrapper = mountCard(new BacktestSummaryDto(
-      '10000', '10000', '0.00%', 'neutral', '0.00%', '不適用', 0, 0, 180, 0, 0, null, false))
+      '10000', '10000', '0.00%', 'neutral', '0.00%', NOT_APPLICABLE, 0, 0, 180, 0, 0, null, false))
 
     expect(wrapper.get('[data-testid="summary-conflicted-candle-count"]').text()).toBe('180')
     expect(wrapper.text()).toContain('規則打架的棒數')
@@ -138,5 +146,36 @@ describe('BacktestSummaryCard', () => {
     const wrapper = mountCard(SUMMARY)
 
     expect(wrapper.find('[data-testid="summary-conflicted-candle-count"]').exists()).toBe(false)
+  })
+})
+
+describe('BacktestSummaryCard 切成英文', () => {
+  it('每一格的名字與領域給的字都換成英文，數字不變', async () => {
+    const wrapper = mountCard(new BacktestSummaryDto(
+      '10000', '9800', '-2.00%', 'negative', '2.00%', NOT_APPLICABLE, 1, 1, 0, 0, 0, null, false,
+      new ContractBacktestSummaryDto(
+        new LocalizedTextVo('只做多', 'Long only'), new LocalizedTextVo('5 倍', '5x'), 1,
+        new LocalizedTextVo('付出 18.00', 'Paid 18.00'), 'negative',
+        1, new UntranslatedTextVo('0.0%'), 0, NOT_APPLICABLE, 0,
+        new LocalizedTextVo('最小那一級', 'Smallest tier'), new LocalizedTextVo('照最小那一級算', 'Treated as the smallest tier'),
+        null),
+      new BacktestTradeStatisticsDto(
+        NOT_APPLICABLE, new UntranslatedTextVo('-200.00'), new LocalizedTextVo('2 小時 30 分', '2 h 30 min'),
+        new LocalizedTextVo('1 筆', '1 trade'), NOT_APPLICABLE)))
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Initial capital')
+    expect(wrapper.text()).toContain('Maximum drawdown')
+    expect(wrapper.get('[data-testid="summary-win-rate"]').text()).toBe('N/A')
+    expect(wrapper.get('[data-testid="summary-average-holding-time"]').text()).toBe('2 h 30 min')
+    expect(wrapper.get('[data-testid="summary-maximum-consecutive-loss-count"]').text()).toBe('1 trade')
+    expect(wrapper.get('[data-testid="summary-contract-trading-mode"]').text()).toBe('Long only')
+    expect(wrapper.get('[data-testid="summary-contract-leverage"]').text()).toBe('5x')
+    expect(wrapper.get('[data-testid="summary-total-funding-fee"]').text()).toBe('Paid 18.00')
+    expect(wrapper.get('[data-testid="summary-long-trades"]').text()).toBe('1 / 0.0%')
+    expect(wrapper.get('[data-testid="summary-short-trades"]').text()).toBe('0 / N/A')
+    expect(wrapper.get('[data-testid="summary-maintenance-margin-basis"]').text()).toBe('Smallest tier')
   })
 })

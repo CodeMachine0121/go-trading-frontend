@@ -1,20 +1,24 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import SignedInUserBadge from '~/components/molecules/SignedInUserBadge.vue'
 import TimeZoneField from '~/components/molecules/TimeZoneField.vue'
+import DisplayLanguageField from '~/components/molecules/DisplayLanguageField.vue'
 import MarketSwitch from '~/components/molecules/MarketSwitch.vue'
 import AppearanceToggle from '~/components/molecules/AppearanceToggle.vue'
 
 // 操作台的版型：每一頁共用的那一圈（連線燈、帳號、時區、現貨／合約開關、外觀、助手鍵）
-// 只在這裡接一次線。頁面只宣告自己的標題（definePageMeta 的 consoleTitle / consoleSubtitle）
+// 只在這裡接一次線。頁面只宣告自己的標題（definePageMeta 的 consoleTitleKey / consoleSubtitleKey）
 // 與自己的內容——以前每一頁各自接這一圈，同一段接線抄了十幾份。
 const route = useRoute()
 const { $marketCounterpartApplication } = useNuxtApp()
 
 const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
+const { selectableLanguages, selectedLanguageCode, selectLanguage } = useDisplayLanguage()
+const { t } = useI18n()
 const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
 const { currentUser, signOut } = useUserSession()
 const { appearance, selectAppearance } = useAppearance()
@@ -29,8 +33,12 @@ watch(() => route.path, followPath, { immediate: true })
 const SIDE_AWARE_DESTINATIONS = ['/k-candles/chart', '/k-candles', '/strategy-scripts', '/strategy-bots', '/spot-trade-journal']
 const destinationPaths = computed(
   () => Object.fromEntries(SIDE_AWARE_DESTINATIONS.map(path => [path, pathOnMarketSide(path)])))
-const title = computed(() => route.meta.consoleTitle ?? '')
-const subtitle = computed(() => route.meta.consoleSubtitle)
+const title = computed(() => route.meta.consoleTitleKey === undefined ? '' : t(route.meta.consoleTitleKey))
+const subtitle = computed(
+  () => route.meta.consoleSubtitleKey === undefined ? undefined : t(route.meta.consoleSubtitleKey))
+
+// 瀏覽器分頁上的標題也是這一頁的標題，跟著語言換。
+useHead({ title })
 </script>
 
 <template>
@@ -44,6 +52,14 @@ const subtitle = computed(() => route.meta.consoleSubtitle)
       <MarketSwitch
         :counterpart="counterpart"
         @navigate="path => navigateTo(path)"
+      />
+    </template>
+
+    <template #language>
+      <DisplayLanguageField
+        :model-value="selectedLanguageCode"
+        :selectable-languages="selectableLanguages"
+        @update:model-value="selectLanguage"
       />
     </template>
 
@@ -74,7 +90,7 @@ const subtitle = computed(() => route.meta.consoleSubtitle)
           name="sparkle"
           size="small"
         />
-        AI 助手
+        {{ t('shell.navigation.openAssistant') }}
       </AppButton>
     </template>
 

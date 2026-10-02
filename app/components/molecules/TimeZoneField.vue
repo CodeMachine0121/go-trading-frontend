@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 
@@ -7,13 +8,16 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 defineProps<{ selectableTimeZones: TimeZoneDto[] }>()
 
 const selectedIdentifier = defineModel<string>({ required: true })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <AppSelect
     v-model="selectedIdentifier"
     class="time-zone-field"
-    aria-label="顯示時區"
+    :aria-label="t('shell.timeZone.fieldLabel')"
     data-testid="time-zone-select"
   >
     <option
@@ -21,7 +25,7 @@ const selectedIdentifier = defineModel<string>({ required: true })
       :key="timeZone.identifier"
       :value="timeZone.identifier"
     >
-      {{ timeZone.label }}
+      {{ localize(timeZone.label) }}
     </option>
   </AppSelect>
 </template>

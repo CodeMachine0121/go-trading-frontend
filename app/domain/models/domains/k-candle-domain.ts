@@ -2,6 +2,7 @@ import type Decimal from 'decimal.js'
 import type { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：解讀一根 K 線。
@@ -32,12 +33,12 @@ export class KCandleDomain {
     const priceChange = this.priceChange()
 
     if (priceChange.isPositive() && !priceChange.isZero()) {
-      return new KCandleTrendVo('up', '上漲', 'success')
+      return new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')
     }
     if (priceChange.isNegative()) {
-      return new KCandleTrendVo('down', '下跌', 'danger')
+      return new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger')
     }
-    return new KCandleTrendVo('flat', '持平', 'neutral')
+    return new KCandleTrendVo('flat', new LocalizedTextVo('持平', 'Flat'), 'neutral')
   }
 
   toDto(): KCandleDto {

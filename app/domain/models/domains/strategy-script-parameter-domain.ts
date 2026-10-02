@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { StrategyScriptParameterDto, type StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParameterValueOptionDto } from '~/domain/models/dto/strategy-script-parameter-value-option-dto'
 
@@ -53,9 +54,9 @@ export class StrategyScriptParameterDomain {
    * 「它是整數」只由種類保證、不由型別保證，所以這裡**真的檢查**而不是假設：
    * 一個 20.5 的回看根數在型別上完全合法，拿去數 K 線卻不是一件東西。
    */
-  validationMessage(): string | null {
+  validationMessage(): LocalizedTextVo | null {
     if (this.parameter.name.trim() === '') {
-      return '參數名稱不得為空白'
+      return new LocalizedTextVo('參數名稱不得為空白', 'The parameter name cannot be blank')
     }
 
     if (this.parameter.kind !== 'lookbackCount') {
@@ -63,7 +64,7 @@ export class StrategyScriptParameterDomain {
     }
 
     if (this.parameter.value < 1 || !Number.isInteger(this.parameter.value)) {
-      return '回看根數必須是大於零的整數'
+      return new LocalizedTextVo('回看根數必須是大於零的整數', 'The lookback count must be a whole number greater than zero')
     }
 
     return null

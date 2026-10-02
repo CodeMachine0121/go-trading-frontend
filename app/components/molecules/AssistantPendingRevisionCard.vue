@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pending-revision-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：助手提出、等使用者決定的一筆修改。內容要讀過才確認得下去，所以收在一個可展開的區塊裡。
 const { revision, busy = false, errorMessage = null } = defineProps<{
   revision: AssistantPendingRevisionDto
   /** 這一筆的結果還沒回來，兩顆鍵都不給按。 */
   busy?: boolean
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const emit = defineEmits<{
   confirm: [id: number]
@@ -41,7 +46,7 @@ watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
         class="assistant-pending-revision-card__title"
         data-testid="assistant-pending-revision-title"
       >
-        {{ revision.title }}
+        {{ localize(revision.title) }}
       </span>
 
       <AppBadge
@@ -49,12 +54,12 @@ watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
         role="status"
         data-testid="assistant-pending-revision-status"
       >
-        {{ revision.statusLabel }}
+        {{ localize(revision.statusLabel) }}
       </AppBadge>
     </header>
 
     <details class="assistant-pending-revision-card__details">
-      <summary>改成的內容</summary>
+      <summary>{{ t('assistant.pendingRevisionCard.contentSummary') }}</summary>
       <pre
         class="assistant-pending-revision-card__content"
         data-testid="assistant-pending-revision-content"
@@ -72,7 +77,7 @@ watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
         data-testid="assistant-pending-revision-confirm"
         @click="emit('confirm', revision.id)"
       >
-        確認
+        {{ t('assistant.pendingRevisionCard.confirm') }}
       </AppButton>
 
       <AppButton
@@ -83,7 +88,7 @@ watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
         data-testid="assistant-pending-revision-reject"
         @click="emit('reject', revision.id)"
       >
-        拒絕
+        {{ t('assistant.pendingRevisionCard.reject') }}
       </AppButton>
     </div>
 
@@ -93,7 +98,7 @@ watch(() => revision.canResolve, (canResolveNow, couldResolveBefore) => {
       role="alert"
       data-testid="assistant-pending-revision-error"
     >
-      {{ errorMessage }}
+      {{ localize(errorMessage) }}
     </p>
   </section>
 </template>

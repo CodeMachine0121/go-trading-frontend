@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：換密碼被擋下來的原因，**一格一則**。
  *
@@ -9,8 +11,8 @@
  */
 export class PasswordChangeFieldErrorsDto {
   constructor(
-    public readonly currentPassword: string | null,
-    public readonly newPassword: string | null,
-    public readonly newPasswordConfirmation: string | null,
+    public readonly currentPassword: LocalizedTextVo | null,
+    public readonly newPassword: LocalizedTextVo | null,
+    public readonly newPasswordConfirmation: LocalizedTextVo | null,
   ) {}
 }

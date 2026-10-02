@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
@@ -8,13 +9,12 @@ import type { ContractTradeDraftFillSizePreviewDto } from '~/domain/models/dto/c
 import type { ContractTradeSizeMode } from '~/domain/models/vo/contract-trade-size-mode-vo'
 import type { ContractTradeFillKind } from '~/domain/models/vo/contract-trade-fill-kind-vo'
 import type { TradeFormField } from '~/domain/models/vo/trade-form-field-vo'
-
-const CONFIRM_ACTUAL_FILL_HINT = '請改成實際開倉的價格與數量'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const {
   fees,
   fillSizes = [],
-  quantityLabel = '數量',
+  quantityLabel = null,
   prefilledFields = new Set<TradeFormField>(),
   rejectedField = null,
   rejectionMessage = null,
@@ -22,10 +22,10 @@ const {
 } = defineProps<{
   fees: readonly ContractTradeDraftFeePreviewDto[]
   fillSizes?: readonly ContractTradeDraftFillSizePreviewDto[]
-  quantityLabel?: string
+  quantityLabel?: LocalizedTextVo | null
   prefilledFields?: ReadonlySet<TradeFormField>
   rejectedField?: TradeFormField | null
-  rejectionMessage?: string | null
+  rejectionMessage?: LocalizedTextVo | null
   kinds?: readonly ContractTradeFillKind[]
 }>()
 
@@ -36,11 +36,21 @@ const emit = defineEmits<{
   remove: [key: number]
 }>()
 
-const SIZE_MODE_LABELS: Readonly<Record<ContractTradeSizeMode, string>> = {
-  quantity: '數量',
-  notional: '名目 USDT',
-  margin: '保證金 USDT',
-}
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const sizeModeLabels = computed<Readonly<Record<ContractTradeSizeMode, string>>>(() => ({
+  quantity: t('contractTradeJournal.fillEditor.sizeModes.quantity'),
+  notional: t('contractTradeJournal.fillEditor.sizeModes.notional'),
+  margin: t('contractTradeJournal.fillEditor.sizeModes.margin'),
+}))
+
+const feeNotes = computed(() => fees.map(fee => localize(fee.note)))
+
+const sizePreviews = computed(() => fillSizes.map(fillSize => ({
+  sizeText: localize(fillSize.sizeText),
+  feeShareText: localize(fillSize.feeShareText),
+})))
 
 const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', readonly TradeFormField[]>> = {
   price: ['fillPrice'],
@@ -59,7 +69,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       :data-testid="`fill-${index}`"
     >
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">動作</span>
+        <span class="contract-trade-fill-editor__label">{{ t('contractTradeJournal.fillEditor.action') }}</span>
         <AppSelect
           v-model="fill.kind"
           data-testid="fill-kind"
@@ -69,13 +79,13 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
             :key="kind"
             :value="kind"
           >
-            {{ kind === 'entry' ? '開倉／加倉' : '減倉／平倉' }}
+            {{ kind === 'entry' ? t('contractTradeJournal.fillEditor.entryKind') : t('contractTradeJournal.fillEditor.exitKind') }}
           </option>
         </AppSelect>
       </label>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">時間</span>
+        <span class="contract-trade-fill-editor__label">{{ t('contractTradeJournal.fillEditor.time') }}</span>
         <AppInput
           v-model="fill.filledAtText"
           type="datetime-local"
@@ -85,7 +95,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       </label>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">{{ fill.kind === 'entry' ? '開倉價' : '平倉價' }}</span>
+        <span class="contract-trade-fill-editor__label">{{ fill.kind === 'entry' ? t('contractTradeJournal.fillEditor.entryPrice') : t('contractTradeJournal.fillEditor.exitPrice') }}</span>
         <AppInput
           v-model="fill.priceText"
           inputmode="decimal"
@@ -97,23 +107,23 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           v-if="index === 0 && prefilledFields.has('fillPrice')"
           class="contract-trade-fill-editor__confirm"
           data-testid="fill-price-confirm"
-        >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
+        >{{ t('contractTradeJournal.fillEditor.confirmActualFill') }}</span>
       </label>
 
       <div class="contract-trade-fill-editor__field">
         <span
           :id="`fill-size-label-${fill.key}`"
           class="contract-trade-fill-editor__label"
-        >{{ quantityLabel }}</span>
+        >{{ quantityLabel === null ? t('contractTradeJournal.fillEditor.sizeModes.quantity') : localize(quantityLabel) }}</span>
         <span class="contract-trade-fill-editor__size">
           <AppSelect
             :id="`fill-size-mode-${fill.key}`"
             v-model="fill.sizeMode"
-            aria-label="輸入方式"
+            :aria-label="t('contractTradeJournal.fillEditor.sizeMode')"
             data-testid="fill-size-mode"
           >
             <option
-              v-for="(label, sizeMode) in SIZE_MODE_LABELS"
+              v-for="(label, sizeMode) in sizeModeLabels"
               :key="sizeMode"
               :value="sizeMode"
             >
@@ -133,22 +143,22 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           v-if="index === 0 && prefilledFields.has('fillQuantity')"
           class="contract-trade-fill-editor__confirm"
           data-testid="fill-quantity-confirm"
-        >{{ CONFIRM_ACTUAL_FILL_HINT }}</span>
+        >{{ t('contractTradeJournal.fillEditor.confirmActualFill') }}</span>
       </div>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">掛單／吃單</span>
+        <span class="contract-trade-fill-editor__label">{{ t('contractTradeJournal.fillEditor.liquidity') }}</span>
         <AppSelect
           v-model="fill.liquidity"
           data-testid="fill-liquidity"
         >
-          <option value="taker">吃單</option>
-          <option value="maker">掛單</option>
+          <option value="taker">{{ t('contractTradeJournal.fillEditor.taker') }}</option>
+          <option value="maker">{{ t('contractTradeJournal.fillEditor.maker') }}</option>
         </AppSelect>
       </label>
 
       <label class="contract-trade-fill-editor__field">
-        <span class="contract-trade-fill-editor__label">手續費</span>
+        <span class="contract-trade-fill-editor__label">{{ t('contractTradeJournal.fillEditor.fee') }}</span>
         <AppInput
           v-model="fill.feeText"
           inputmode="decimal"
@@ -157,20 +167,20 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
           data-testid="fill-fee"
         />
         <span
-          v-if="fees[index]?.note"
+          v-if="feeNotes[index]"
           class="contract-trade-fill-editor__note"
           data-testid="fill-fee-note"
-        >{{ fees[index]?.note }}</span>
+        >{{ feeNotes[index] }}</span>
       </label>
 
       <p
-        v-if="fillSizes[index]?.sizeText"
+        v-if="sizePreviews[index]?.sizeText"
         class="contract-trade-fill-editor__size-preview"
         data-testid="fill-size-preview"
       >
-        {{ fillSizes[index]?.sizeText }}
-        <template v-if="fillSizes[index]?.feeShareText">
-          ・<span data-testid="fill-fee-share">{{ fillSizes[index]?.feeShareText }}</span>
+        {{ sizePreviews[index]?.sizeText }}
+        <template v-if="sizePreviews[index]?.feeShareText">
+          {{ t('contractTradeJournal.common.separator') }}<span data-testid="fill-fee-share">{{ sizePreviews[index]?.feeShareText }}</span>
         </template>
       </p>
 
@@ -182,7 +192,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         data-testid="fill-remove"
         @click="emit('remove', fill.key)"
       >
-        移除
+        {{ t('contractTradeJournal.fillEditor.remove') }}
       </AppButton>
     </div>
 
@@ -191,7 +201,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
       class="contract-trade-fill-editor__error"
       data-testid="fill-error"
     >
-      {{ rejectionMessage }}
+      {{ localize(rejectionMessage) }}
     </p>
 
     <div class="contract-trade-fill-editor__actions">
@@ -203,7 +213,7 @@ const FIELD_OF_COLUMN: Readonly<Record<'price' | 'quantity' | 'time' | 'fee', re
         :data-testid="`fill-add-${kind}`"
         @click="emit('add', kind)"
       >
-        ＋ {{ kind === 'entry' ? '加倉' : '減倉' }}
+        {{ kind === 'entry' ? t('contractTradeJournal.fillEditor.addEntry') : t('contractTradeJournal.fillEditor.addExit') }}
       </AppButton>
     </div>
   </div>

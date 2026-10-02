@@ -6,6 +6,7 @@ import AssistantDrawer from '~/components/organisms/AssistantDrawer.vue'
 import type { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import { SUGGESTED_PROMPTS, buildMessage, buildNote, buildSummary } from '../../fixtures/assistant-conversation'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountDrawer(props: {
   open: boolean
@@ -30,7 +31,9 @@ function mountDrawer(props: {
       draft: props.draft ?? '',
       conversations: props.conversations ?? [],
       activeConversationId: props.activeConversationId ?? null,
-      conversationsErrorMessage: props.conversationsErrorMessage ?? null,
+      conversationsErrorMessage: props.conversationsErrorMessage === undefined || props.conversationsErrorMessage === null
+        ? null
+        : new UntranslatedTextVo(props.conversationsErrorMessage),
       width: props.width ?? 420,
       coversScreen: props.coversScreen ?? false,
       resizing: props.resizing ?? false,
@@ -104,7 +107,7 @@ describe('AssistantDrawer 打開的時候', () => {
 
     await wrapper.findAll('[data-testid="assistant-suggested-prompt"]')[0]?.trigger('click')
 
-    expect(wrapper.emitted('send')).toEqual([[SUGGESTED_PROMPTS[0]]])
+    expect(wrapper.emitted('send')).toEqual([[SUGGESTED_PROMPTS[0]?.traditionalChinese]])
   })
 
   it('等待中鎖住的是送出，不是輸入框', () => {
@@ -222,7 +225,7 @@ describe('AssistantDrawer 把裡面那兩塊的事件接出去', () => {
         open: true,
         messages: [buildMessage('ask', '問一句')],
         pending: false,
-        rejectionMessage: '助手目前沒有回應',
+        rejectionMessage: new UntranslatedTextVo('助手目前沒有回應'),
         suggestedPrompts: SUGGESTED_PROMPTS,
         timeZone: buildTimeZone(),
         draft: '',

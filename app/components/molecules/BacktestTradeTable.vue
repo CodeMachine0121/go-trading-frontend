@@ -2,6 +2,7 @@
 import AppButton from '~/components/atoms/AppButton.vue'
 import type { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { useI18n } from 'vue-i18n'
 
 // 分子：交易明細，一筆一列。
 //
@@ -45,6 +46,9 @@ const shownTrades = computed(() => closedTrades.slice(0, shownTradeCount.value))
 watch(() => closedTrades, () => {
   shownTradeCount.value = TRADE_BATCH_SIZE
 })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -65,8 +69,8 @@ watch(() => closedTrades, () => {
       三元寫在插值裡而不是拆成兩行文字——文字節點裡的換行會渲染成一個空格。
     -->
     {{ showTransactionCosts
-      ? '開了倉但還沒平掉，所以這張明細是空的。那一注的市值算進了「最後剩多少」，已付的進場成本算進了「交易成本」——只有還沒發生的出場成本沒算。'
-      : '開了倉但還沒平掉，所以這張明細是空的。那一注的市值算進了「最後剩多少」，用最後一棒的收盤價估。' }}
+      ? t('backtest.tradeTable.openPositionWithCosts')
+      : t('backtest.tradeTable.openPosition') }}
   </p>
 
   <p
@@ -74,7 +78,7 @@ watch(() => closedTrades, () => {
     class="backtest-trade-table__empty"
     data-testid="no-trades"
   >
-    這段期間沒有觸發任何交易。算式可以從頭到尾都說持平，這不算失敗。
+    {{ t('backtest.tradeTable.noTrades') }}
   </p>
 
   <div
@@ -85,65 +89,65 @@ watch(() => closedTrades, () => {
       <thead>
         <tr>
           <th scope="col">
-            方向
+            {{ t('backtest.tradeTable.direction') }}
           </th>
           <th scope="col">
-            進場（{{ timeZone.cityLabel }}）
+            {{ t('backtest.tradeTable.entryTime', { cityName: localize(timeZone.cityName) }) }}
           </th>
           <th scope="col">
-            進場價
+            {{ t('backtest.tradeTable.entryPrice') }}
           </th>
           <th scope="col">
-            出場（{{ timeZone.cityLabel }}）
+            {{ t('backtest.tradeTable.exitTime', { cityName: localize(timeZone.cityName) }) }}
           </th>
           <th scope="col">
-            出場價
+            {{ t('backtest.tradeTable.exitPrice') }}
           </th>
           <!-- 合約那四欄擺在價格之後：先看它借了幾倍、押了多少，再看它怎麼結束。 -->
           <th
             v-if="showContractFigures"
             scope="col"
           >
-            槓桿
+            {{ t('backtest.tradeTable.leverage') }}
           </th>
           <th
             v-if="showContractFigures"
             scope="col"
           >
-            數量
+            {{ t('backtest.tradeTable.quantity') }}
           </th>
           <th
             v-if="showContractFigures"
             scope="col"
           >
-            保證金
+            {{ t('backtest.tradeTable.margin') }}
           </th>
           <th
             v-if="showContractFigures"
             scope="col"
           >
-            資金費用
+            {{ t('backtest.tradeTable.fundingFee') }}
           </th>
           <!-- 擺在出場價之後、賺賠之前：它說的是**那一次出場**的事。 -->
           <th scope="col">
-            怎麼出場
+            {{ t('backtest.tradeTable.exitReason') }}
           </th>
           <!-- 擺在賺賠之前：先看付了多少，再看剩下多少。 -->
           <th
             v-if="showTransactionCosts"
             scope="col"
           >
-            進場成本
+            {{ t('backtest.tradeTable.entryCost') }}
           </th>
           <th
             v-if="showTransactionCosts"
             scope="col"
           >
-            出場成本
+            {{ t('backtest.tradeTable.exitCost') }}
           </th>
           <!-- 說明它是淨額，否則有人會拿進出場價自己心算然後對不起來。 -->
           <th scope="col">
-            {{ showTransactionCosts ? '賺賠（已扣成本）' : '賺賠' }}
+            {{ showTransactionCosts ? t('backtest.tradeTable.profitAfterCosts') : t('backtest.tradeTable.profit') }}
           </th>
         </tr>
       </thead>
@@ -153,7 +157,7 @@ watch(() => closedTrades, () => {
           :key="index"
           data-testid="trade-row"
         >
-          <td>{{ closedTrade.directionLabel }}</td>
+          <td>{{ localize(closedTrade.directionLabel) }}</td>
           <td>{{ timeZone.formatDateTime(closedTrade.entryTime) }}</td>
           <td class="backtest-trade-table__number">
             {{ closedTrade.entryPrice }}
@@ -164,7 +168,7 @@ watch(() => closedTrades, () => {
           </td>
           <template v-if="showContractFigures && closedTrade.contract">
             <td data-testid="trade-leverage">
-              {{ closedTrade.contract.leverageLabel }}
+              {{ localize(closedTrade.contract.leverageLabel) }}
             </td>
             <td
               class="backtest-trade-table__number"
@@ -186,7 +190,7 @@ watch(() => closedTrades, () => {
             </td>
           </template>
           <td data-testid="trade-exit-reason">
-            {{ closedTrade.exitReasonLabel }}
+            {{ localize(closedTrade.exitReasonLabel) }}
           </td>
           <td
             v-if="showTransactionCosts"
@@ -220,7 +224,7 @@ watch(() => closedTrades, () => {
     class="backtest-trade-table__more"
   >
     <span data-testid="shown-trade-count">
-      顯示 {{ shownTrades.length }} 筆，共 {{ closedTrades.length }} 筆
+      {{ t('backtest.tradeTable.shownTradeCount', { shown: shownTrades.length, total: closedTrades.length }) }}
     </span>
     <AppButton
       v-if="shownTrades.length < closedTrades.length"
@@ -230,7 +234,7 @@ watch(() => closedTrades, () => {
       data-testid="show-more-trades-button"
       @click="shownTradeCount += TRADE_BATCH_SIZE"
     >
-      再顯示更多
+      {{ t('backtest.tradeTable.showMore') }}
     </AppButton>
   </div>
 </template>

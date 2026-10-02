@@ -14,17 +14,26 @@ describe('MarketDataKindDomain', () => {
   })
 
   it.each([
-    { declared: 'kCandle', label: 'K 線' },
-    { declared: 'contractKCandle', label: '合約行情' },
-  ])('$declared 給人看的名字是「$label」', ({ declared, label }) => {
-    expect(new MarketDataKindDomain(declared).label()).toBe(label)
+    { declared: 'kCandle', label: 'K 線', englishLabel: 'K-candle' },
+    { declared: 'contractKCandle', label: '合約行情', englishLabel: 'Contract market data' },
+  ])('$declared 給人看的名字是「$label」', ({ declared, label, englishLabel }) => {
+    expect(new MarketDataKindDomain(declared).label().in('zh-TW')).toBe(label)
+    expect(new MarketDataKindDomain(declared).label().in('en')).toBe(englishLabel)
+  })
+
+  it.each([
+    { declared: 'kCandle', language: 'zh-TW' as const, expected: 'BTCUSDT' },
+    { declared: 'contractKCandle', language: 'zh-TW' as const, expected: 'BTCUSDT 永續合約' },
+    { declared: 'contractKCandle', language: 'en' as const, expected: 'BTCUSDT perpetual contract' },
+  ])('$declared 的機器人標的在 $language 說成「$expected」', ({ declared, language, expected }) => {
+    expect(new MarketDataKindDomain(declared).strategyBotSymbolLabel('BTCUSDT').in(language)).toBe(expected)
   })
 
   it('合約行情的說明說的是合約行情格：進入點、每一項與「沒有值的一律是零」', () => {
     const guide = new MarketDataKindDomain('contractKCandle').toScriptInputGuideDto()
 
     expect(guide.entryPoint).toBe('func Calculate(data []indicator.ContractKCandle)')
-    expect(guide.heading).toBe('每一格合約行情有什麼')
+    expect(guide.heading.in('zh-TW')).toBe('每一格合約行情有什麼')
     const fieldNames = guide.fields.map(field => field.name)
     // 現貨那十項原樣在最前面——`candle.Close` 兩邊都寫得出來。
     expect(fieldNames.slice(0, 10)).toEqual([
@@ -39,25 +48,27 @@ describe('MarketDataKindDomain', () => {
     ]))
     expect(guide.fields.find(field => field.name === 'Mark')?.type).toBe('indicator.PriceLine')
     expect(guide.fields.find(field => field.name === 'FundingSettledInBar')?.type).toBe('bool')
-    expect(guide.notes.some(note => note.includes('沒有值的一律是零'))).toBe(true)
+    expect(guide.notes.some(note => note.in('zh-TW').includes('沒有值的一律是零'))).toBe(true)
+    expect(guide.notes.some(note => note.in('en').includes('Missing values are always zero'))).toBe(true)
   })
 
   it('合約行情的說明不說「價量一律是 float64」，而是點出不是 float64 的那幾項', () => {
     const guide = new MarketDataKindDomain('contractKCandle').toScriptInputGuideDto()
 
-    expect(guide.valueTypeNote).not.toContain('一律是 float64')
-    expect(guide.valueTypeNote).toContain('TradeCount 是 int64')
-    expect(guide.valueTypeNote).toContain('indicator.PriceLine')
-    expect(guide.valueTypeNote).toContain('FundingSettledInBar 是 bool')
+    expect(guide.valueTypeNote.in('zh-TW')).not.toContain('一律是 float64')
+    expect(guide.valueTypeNote.in('zh-TW')).toContain('TradeCount 是 int64')
+    expect(guide.valueTypeNote.in('zh-TW')).toContain('indicator.PriceLine')
+    expect(guide.valueTypeNote.in('zh-TW')).toContain('FundingSettledInBar 是 bool')
+    expect(guide.valueTypeNote.in('en')).toContain('TradeCount is int64')
   })
 
   it('K 線的說明與這一刀之前一字不差：只列十項、沒有額外提醒', () => {
     const guide = new MarketDataKindDomain('kCandle').toScriptInputGuideDto()
 
     expect(guide.entryPoint).toBe('func Calculate(data []indicator.KCandle)')
-    expect(guide.heading).toBe('每一根 K 線有什麼')
+    expect(guide.heading.in('zh-TW')).toBe('每一根 K 線有什麼')
     expect(guide.fields).toHaveLength(10)
-    expect(guide.valueTypeNote).toBe('價量一律是 float64，直接算就好。')
+    expect(guide.valueTypeNote.in('zh-TW')).toBe('價量一律是 float64，直接算就好。')
     expect(guide.notes).toEqual([])
   })
 

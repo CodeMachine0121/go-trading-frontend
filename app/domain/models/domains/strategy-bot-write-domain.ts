@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { PositionPlanDomain } from '~/domain/models/domains/position-plan-domain'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
@@ -25,31 +26,37 @@ export class StrategyBotWriteDomain {
    * 一次只說一個，而不是列出全部：使用者一次只改得動一格，
    * 而一張同時亮起五個紅字的表單，第一個反應是不知道要從哪裡開始。
    */
-  get rejection(): string | null {
+  get rejection(): LocalizedTextVo | null {
     const name = this.writeDto.name.trim()
     if (name === '') {
-      return '必須給機器人取一個名稱'
+      return new LocalizedTextVo('必須給機器人取一個名稱', 'Give the bot a name')
     }
 
     if ([...name].length > STRATEGY_BOT_LIMITS.nameMaximumLength) {
-      return `機器人名稱長度上限為 ${STRATEGY_BOT_LIMITS.nameMaximumLength} 個字`
+      return new LocalizedTextVo(
+        `機器人名稱長度上限為 ${STRATEGY_BOT_LIMITS.nameMaximumLength} 個字`,
+        `The bot name can be at most ${STRATEGY_BOT_LIMITS.nameMaximumLength} characters`)
     }
 
     // 一台沒有規則的機器人不是一台機器人，只是一台不知道要做什麼的機器。
     if (this.writeDto.tradingStrategyId === 0) {
-      return '必須挑一份交易策略，這台機器人才知道要照什麼判斷'
+      return new LocalizedTextVo(
+        '必須挑一份交易策略，這台機器人才知道要照什麼判斷',
+        'Pick a trading strategy so the bot knows what to judge by')
     }
 
     if (this.writeDto.symbol.trim() === '') {
-      return '必須指定這台機器人要盯哪一個交易標的'
+      return new LocalizedTextVo('必須指定這台機器人要盯哪一個交易標的', 'Choose which trading symbol the bot watches')
     }
 
     if (this.writeDto.triggerIntervalMinutes < STRATEGY_BOT_LIMITS.triggerIntervalMinimumMinutes) {
-      return '觸發間隔必須大於零'
+      return new LocalizedTextVo('觸發間隔必須大於零', 'The trigger interval must be greater than zero')
     }
 
     if (this.writeDto.triggerIntervalMinutes > STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes) {
-      return `觸發間隔上限是 ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} 分鐘`
+      return new LocalizedTextVo(
+        `觸發間隔上限是 ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} 分鐘`,
+        `The trigger interval can be at most ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} minutes`)
     }
 
     // 問在最後，因為前面那四格是必填的：一台連名字都沒有的機器人，

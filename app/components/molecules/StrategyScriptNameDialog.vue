@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：問一個策略腳本的名稱與說明。
 //
@@ -29,7 +31,7 @@ const {
   initialName?: string
   /** 說明那一格打開時先放什麼。**可以留空**——沒有說明是一個合法的答案。 */
   initialDescription?: string
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
   submitting?: boolean
 }>()
 
@@ -37,25 +39,35 @@ const emit = defineEmits<{ submit: [name: string, description: string], cancel: 
 
 const name = ref(initialName)
 const description = ref(initialDescription)
-const missingNameMessage = ref<string | null>(null)
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const missingName = ref(false)
+const nameErrorMessage = computed(() => {
+  if (missingName.value) {
+    return t('strategyScript.strategyScriptNameDialog.missingName')
+  }
+
+  return errorMessage === null ? null : localize(errorMessage)
+})
 
 // 每次打開都重新從「這一次該有的起點」開始；上一次留下的字對這一次沒有意義。
 watch(() => open, (isOpen) => {
   if (isOpen) {
     name.value = initialName
     description.value = initialDescription
-    missingNameMessage.value = null
+    missingName.value = false
   }
 })
 
 function submitName() {
   const trimmedName = name.value.trim()
   if (trimmedName === '') {
-    missingNameMessage.value = '請填寫策略腳本名稱'
+    missingName.value = true
     return
   }
 
-  missingNameMessage.value = null
+  missingName.value = false
   // 說明不在這裡驗長度：那是後端的規則，抄一份下來，等那邊改了這邊沒跟著改，
   // 畫面就會擋掉其實存得下的東西。
   emit('submit', trimmedName, description.value)
@@ -73,15 +85,15 @@ function submitName() {
       @submit.prevent="submitName"
     >
       <FormField
-        label="策略腳本名稱"
+        :label="t('strategyScript.strategyScriptNameDialog.nameLabel')"
         :hint="hint"
-        :error-message="missingNameMessage ?? errorMessage"
+        :error-message="nameErrorMessage"
       >
         <AppInput
           v-model="name"
-          :invalid="Boolean(missingNameMessage ?? errorMessage)"
+          :invalid="Boolean(nameErrorMessage)"
           data-testid="strategy-script-name-input"
-          placeholder="例如：二十根均線"
+          :placeholder="t('strategyScript.strategyScriptNameDialog.namePlaceholder')"
         />
       </FormField>
 
@@ -90,13 +102,13 @@ function submitName() {
         分成兩步只會讓大部分人跳過第二步——而分享出去之後，那一步是別人唯一的介紹。
       -->
       <FormField
-        label="說明（選填）"
-        hint="這支策略腳本在做什麼。分享到市集之後，別人看不到算式，只看得到這一段。"
+        :label="t('strategyScript.strategyScriptNameDialog.descriptionLabel')"
+        :hint="t('strategyScript.strategyScriptNameDialog.descriptionHint')"
       >
         <AppTextarea
           v-model="description"
           data-testid="strategy-script-description-input"
-          placeholder="例如：用五分鐘 K 線抓短線轉折"
+          :placeholder="t('strategyScript.strategyScriptNameDialog.descriptionPlaceholder')"
         />
       </FormField>
     </form>
@@ -106,14 +118,14 @@ function submitName() {
         variant="secondary"
         @click="emit('cancel')"
       >
-        取消
+        {{ t('strategyScript.strategyScriptNameDialog.cancel') }}
       </AppButton>
       <AppButton
         :disabled="submitting"
         data-testid="strategy-script-name-submit"
         @click="submitName"
       >
-        {{ submitting ? '儲存中…' : '儲存' }}
+        {{ submitting ? t('strategyScript.strategyScriptNameDialog.saving') : t('strategyScript.strategyScriptNameDialog.save') }}
       </AppButton>
     </template>
   </AppModal>

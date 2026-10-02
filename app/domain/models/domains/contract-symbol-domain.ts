@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 const QUOTE_ASSETS = ['FDUSD', 'USDT', 'USDC', 'BUSD']
 
 export class ContractSymbolDomain {
@@ -17,7 +19,9 @@ export class ContractSymbolDomain {
     return quoteAsset === null ? null : this.symbol.slice(0, -quoteAsset.length)
   }
 
-  get quantityLabel(): string {
-    return this.baseAsset === null ? '數量' : `數量（${this.baseAsset}）`
+  get quantityLabel(): LocalizedTextVo {
+    return this.baseAsset === null
+      ? new LocalizedTextVo('數量', 'Quantity')
+      : new LocalizedTextVo(`數量（${this.baseAsset}）`, `Quantity (${this.baseAsset})`)
   }
 }

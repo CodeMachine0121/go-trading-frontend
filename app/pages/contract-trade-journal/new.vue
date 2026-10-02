@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import ConfirmDialog from '~/components/molecules/ConfirmDialog.vue'
 import ContractTradeForm from '~/components/organisms/ContractTradeForm.vue'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '記一筆合約交易',
-  consoleSubtitle: '填實際的開倉價與數量；從機器人訊息的連結打開時，那一輪的建議已經預填好。',
+  consoleTitleKey: 'contractTradeJournal.pages.new.title',
+  consoleSubtitleKey: 'contractTradeJournal.pages.new.subtitle',
 })
 
+const { t } = useI18n()
 const route = useRoute()
 const { $contractTradeJournalApplication, $tradeJournalSettingApplication, $tradingStrategyApplication } = useNuxtApp()
 const { selectedTimeZone } = useSelectedTimeZone()
@@ -35,9 +37,9 @@ onBeforeRouteLeave(to => leaveConfirmation.shouldLeave(to.fullPath))
     />
     <ConfirmDialog
       :open="leaveConfirmation.confirmationOpen.value"
-      title="還沒儲存"
-      message="還沒儲存，離開後這些內容會丟失"
-      confirm-label="離開"
+      :title="t('contractTradeJournal.common.unsavedTitle')"
+      :message="t('contractTradeJournal.common.unsavedMessage')"
+      :confirm-label="t('contractTradeJournal.common.leave')"
       variant="danger"
       @confirm="leaveConfirmation.leave"
       @cancel="leaveConfirmation.stay"

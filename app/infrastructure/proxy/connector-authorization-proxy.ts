@@ -49,7 +49,7 @@ export class ConnectorAuthorizationProxy extends BackendApiProxy implements ICon
     }
     catch (error: unknown) {
       if (error instanceof BackendRequestRejectedError && error.status === NOT_FOUND_STATUS) {
-        throw new ConnectorAuthorizationRequestExpiredError(error.message, { cause: error })
+        throw new ConnectorAuthorizationRequestExpiredError({ cause: error })
       }
 
       throw error

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { KCandleWriteField } from '~/domain/errors/k-candle-field-error'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：一根 K 線的輸入表單。
 // 欄位合不合法是業務規則，這裡只負責把外部傳進來的錯誤標在對應欄位旁。
@@ -15,7 +17,7 @@ const {
   /** 修改既有的 K 線時，交易標的與起始時間不得更換。 */
   identityReadonly?: boolean
   submitting?: boolean
-  fieldError?: { field: KCandleWriteField, message: string } | null
+  fieldError?: { field: KCandleWriteField, message: LocalizedTextVo } | null
   /** 這份內容此刻存不存得進去。存不進去時儲存鍵是灰的——是哪一條規則由使用端判斷。 */
   savable?: boolean
   submitLabel: string
@@ -35,67 +37,70 @@ const quoteVolume = defineModel<string>('quoteVolume', { required: true })
 const takerBuyBaseVolume = defineModel<string>('takerBuyBaseVolume', { required: true })
 const takerBuyQuoteVolume = defineModel<string>('takerBuyQuoteVolume', { required: true })
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 /**
  * 不是每個市場都報這三項。留白就是「這個市場沒有這一項」，存進去仍然是沒有。
  * 說出來是必要的：欄位空著而不解釋，看的人只會以為自己漏填了。
  */
-const OPTIONAL_FIGURE_HINT = '這個市場不報就留白'
-
-/**
- * 身分唯讀時的說明。兩格一起說一次，而不是各自掛一句「不得更換」——
- * 看的人要知道的不只是改不動，還有真的要改的話該怎麼做。
- */
-const IDENTITY_READONLY_HINT = '交易標的與起始時間是這根 K 線的身分，不能改；要改請刪掉重建。'
+const optionalFigureHint = computed(() => t('marketData.kCandleForm.optionalFigureHint'))
 
 /**
  * 八個價量欄位長得一模一樣，逐欄複製一份 template 只會讓加欄位變成八處修改。
  * 它們分成兩組：開高低收是讀一根 K 線時第一眼要看、也最常要改的；成交量那一組次之。
  */
-const FIGURE_FIELDS: {
+const figureFields = computed<{
   field: KCandleWriteField
   label: string
   model: Ref<string>
   group: 'price' | 'volume'
   hint?: string
-}[] = [
-  { field: 'open', label: '開盤價', model: open, group: 'price' },
-  { field: 'high', label: '最高價', model: high, group: 'price' },
-  { field: 'low', label: '最低價', model: low, group: 'price' },
-  { field: 'close', label: '收盤價', model: close, group: 'price' },
-  { field: 'volume', label: '成交量', model: volume, group: 'volume' },
+}[]>(() => [
+  { field: 'open', label: t('marketData.kCandleForm.openLabel'), model: open, group: 'price' },
+  { field: 'high', label: t('marketData.kCandleForm.highLabel'), model: high, group: 'price' },
+  { field: 'low', label: t('marketData.kCandleForm.lowLabel'), model: low, group: 'price' },
+  { field: 'close', label: t('marketData.kCandleForm.closeLabel'), model: close, group: 'price' },
+  { field: 'volume', label: t('marketData.kCandleForm.volumeLabel'), model: volume, group: 'volume' },
   {
     field: 'quoteVolume',
-    label: '成交額',
+    label: t('marketData.kCandleForm.quoteVolumeLabel'),
     model: quoteVolume,
     group: 'volume',
-    hint: OPTIONAL_FIGURE_HINT,
+    hint: optionalFigureHint.value,
   },
   {
     field: 'takerBuyBaseVolume',
-    label: '主動買入量',
+    label: t('marketData.kCandleForm.takerBuyBaseVolumeLabel'),
     model: takerBuyBaseVolume,
     group: 'volume',
-    hint: OPTIONAL_FIGURE_HINT,
+    hint: optionalFigureHint.value,
   },
   {
     field: 'takerBuyQuoteVolume',
-    label: '主動買入額',
+    label: t('marketData.kCandleForm.takerBuyQuoteVolumeLabel'),
     model: takerBuyQuoteVolume,
     group: 'volume',
-    hint: OPTIONAL_FIGURE_HINT,
+    hint: optionalFigureHint.value,
   },
-]
+])
 
-const FIGURE_GROUPS = [
-  { title: '價格', fields: FIGURE_FIELDS.filter(figureField => figureField.group === 'price') },
+const figureGroups = computed(() => [
   {
-    title: '成交量與主動買入',
-    fields: FIGURE_FIELDS.filter(figureField => figureField.group === 'volume'),
+    group: 'price',
+    title: t('marketData.kCandleForm.priceGroupTitle'),
+    fields: figureFields.value.filter(figureField => figureField.group === 'price'),
   },
-]
+  {
+    group: 'volume',
+    title: t('marketData.kCandleForm.volumeGroupTitle'),
+    fields: figureFields.value.filter(figureField => figureField.group === 'volume'),
+  },
+])
 
+/** 訊息在渲染當下才挑語言，所以換語言時已經標在那一格的說明跟著換。 */
 function messageFor(field: KCandleWriteField): string | null {
-  return fieldError?.field === field ? fieldError.message : null
+  return fieldError?.field === field ? localize(fieldError.message) : null
 }
 </script>
 
@@ -109,14 +114,14 @@ function messageFor(field: KCandleWriteField): string | null {
       class="k-candle-form__notice"
       data-testid="overwrite-notice"
     >
-      相同的交易標的與起始時間會覆蓋既有的那一根 K 線，不會多出第二根。
+      {{ t('marketData.kCandleForm.overwriteNotice') }}
     </p>
 
     <div class="k-candle-form__group">
       <div class="k-candle-form__grid">
         <FormField
-          label="交易標的"
-          :hint="identityReadonly ? undefined : '例如 BTCUSDT'"
+          :label="t('marketData.kCandleForm.symbolLabel')"
+          :hint="identityReadonly ? undefined : t('marketData.kCandleForm.symbolHint')"
           :error-message="messageFor('symbol')"
         >
           <AppInput
@@ -130,8 +135,8 @@ function messageFor(field: KCandleWriteField): string | null {
         </FormField>
 
         <FormField
-          :label="`起始時間（${timeZone.cityLabel}）`"
-          :hint="identityReadonly ? undefined : '須落在一分鐘刻度'"
+          :label="t('marketData.kCandleForm.openTimeLabel', { cityName: localize(timeZone.cityName) })"
+          :hint="identityReadonly ? undefined : t('marketData.kCandleForm.openTimeHint')"
           :error-message="messageFor('openTime')"
         >
           <AppInput
@@ -145,18 +150,22 @@ function messageFor(field: KCandleWriteField): string | null {
         </FormField>
       </div>
 
+      <!--
+        身分唯讀時的說明。兩格一起說一次，而不是各自掛一句「不得更換」——
+        看的人要知道的不只是改不動，還有真的要改的話該怎麼做。
+      -->
       <p
         v-if="identityReadonly"
         class="k-candle-form__notice"
         data-testid="identity-readonly-hint"
       >
-        {{ IDENTITY_READONLY_HINT }}
+        {{ t('marketData.kCandleForm.identityReadonlyHint') }}
       </p>
     </div>
 
     <fieldset
-      v-for="figureGroup in FIGURE_GROUPS"
-      :key="figureGroup.title"
+      v-for="figureGroup in figureGroups"
+      :key="figureGroup.group"
       class="k-candle-form__group"
     >
       <legend class="k-candle-form__group-title">
@@ -194,14 +203,14 @@ function messageFor(field: KCandleWriteField): string | null {
         data-testid="form-cancel"
         @click="emit('cancel')"
       >
-        取消
+        {{ t('marketData.common.cancel') }}
       </AppButton>
       <AppButton
         type="submit"
         :disabled="submitting || !savable"
         data-testid="form-submit"
       >
-        {{ submitting ? '處理中…' : submitLabel }}
+        {{ submitting ? t('marketData.kCandleForm.submitting') : submitLabel }}
       </AppButton>
     </div>
   </form>

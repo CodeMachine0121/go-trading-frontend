@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：在算式裡讀一個參數的寫法——一種參數種類一則。
  *
@@ -8,12 +10,12 @@
 export class ScriptParameterAccessDto {
   constructor(
     /** 這一則講的是哪一種參數，給人看的說法。 */
-    public readonly kindLabel: string,
+    public readonly kindLabel: LocalizedTextVo,
     /** 讀出來是什麼 Go 型別，例如 `int`。 */
     public readonly returnType: string,
     /** 照抄就能用的那幾行（以換行分隔）——包含讀出來之後拿它做什麼。 */
-    public readonly example: string,
+    public readonly example: LocalizedTextVo,
     /** 這一種適合拿來做什麼——一句話。 */
-    public readonly usage: string,
+    public readonly usage: LocalizedTextVo,
   ) {}
 }

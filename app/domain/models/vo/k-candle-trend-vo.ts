@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * VO：一根 K 線的漲跌語氣。不可變、無行為。
  *
@@ -7,7 +9,7 @@
 export class KCandleTrendVo {
   constructor(
     public readonly value: 'up' | 'down' | 'flat',
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     public readonly tone: 'success' | 'danger' | 'neutral',
   ) {}
 }

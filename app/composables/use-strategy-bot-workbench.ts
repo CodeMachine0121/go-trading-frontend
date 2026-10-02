@@ -1,5 +1,7 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { TradingStrategyApplication } from '~/application/trading-strategy-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
@@ -21,6 +23,7 @@ export function useStrategyBotWorkbench(
   strategyBotId: number | null,
   marketDataKind: MarketDataKind,
 ) {
+  const { translatedText } = useLocalizedText()
   /** 這一種機器人的畫面：標題、清單在哪、標的從哪挑、收不收槓桿。 */
   const page = strategyBotApplication.pageFor(marketDataKind)
 
@@ -33,7 +36,7 @@ export function useStrategyBotWorkbench(
   const loading = ref(true)
   const saving = ref(false)
   const saved = ref(false)
-  const failureMessage = ref('')
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   /** 讀不到那一台。與 `failureMessage` 分開，因為它的下一步是回清單，不是重試。 */
   const missing = ref(false)
   const dirty = ref(false)
@@ -66,7 +69,7 @@ export function useStrategyBotWorkbench(
 
   async function load() {
     loading.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       const [bot, tradingStrategies] = await Promise.all([
@@ -110,14 +113,16 @@ export function useStrategyBotWorkbench(
    */
   async function save(writeDto: StrategyBotWriteDto) {
     saving.value = true
-    failureMessage.value = ''
+    failureMessage.value = null
 
     try {
       await strategyBotApplication.saveStrategyBot(writeDto)
       dirty.value = false
       // 改一台與拼一台新的說的不是同一句：按下儲存之後畫面上唯一改變的就是這一句，
       // 它是使用者判斷「剛剛那下到底做了什麼」的全部依據。
-      announce(writeDto.id === undefined ? '機器人建好了' : '更改成功')
+      announce(writeDto.id === undefined
+        ? translatedText('strategyBot.workbenchPage.createdNotice')
+        : translatedText('strategyBot.workbenchPage.savedNotice'))
       saved.value = true
     }
     catch (error: unknown) {
@@ -132,12 +137,15 @@ export function useStrategyBotWorkbench(
     dirty.value = changed
   }
 
-  function messageOf(error: unknown): string {
-    if (error instanceof BackendUnreachableError) {
-      return error.explanation
+  function messageOf(error: unknown): LocalizedTextVo {
+    if (error instanceof LocalizedError) {
+      return error.localizedMessage
     }
 
-    return error instanceof Error ? error.message : '發生未知的錯誤'
+    // 認不得的錯誤帶的是別人說的原文，照抄、不翻。
+    return error instanceof Error
+      ? new UntranslatedTextVo(error.message)
+      : translatedText('strategyBot.workbenchPage.unknownError')
   }
 
   return {

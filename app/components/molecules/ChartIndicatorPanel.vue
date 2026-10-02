@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -11,6 +12,7 @@ import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicat
 import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import AppliedIndicatorParameterFields from '~/components/molecules/AppliedIndicatorParameterFields.vue'
 import AppliedIndicatorDialog from '~/components/molecules/AppliedIndicatorDialog.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * 分子：圖表上「已套用的指標」這一塊——挑一支、調它的旋鈕、加進來、
@@ -31,7 +33,7 @@ const { selectableStrategyScripts, appliedIndicatorRows, colorOptions } = define
   /** 還沒上圖、正在調的那一筆。沒有就是 null。 */
   pendingAppliedIndicator: AppliedIndicatorDto | null
   pendingParameterFields: readonly StrategyScriptParameterFieldDto[]
-  pendingParametersMessage: string | null
+  pendingParametersMessage: LocalizedTextVo | null
 }>()
 
 const emit = defineEmits<{
@@ -44,6 +46,9 @@ const emit = defineEmits<{
   remove: [appliedIndicatorId: number]
   changeLineColor: [lineKey: string, colorToken: string]
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 /** 選單永遠停在「挑一支加進來」——挑完就加進去了，它不代表任何持續的狀態。 */
 const pickerValue = ref('')
@@ -79,14 +84,14 @@ function applyPicked(value: string) {
 <template>
   <div class="chart-indicator-panel">
     <label class="chart-indicator-panel__picker">
-      <span class="chart-indicator-panel__label">指標</span>
+      <span class="chart-indicator-panel__label">{{ t('marketData.chartIndicatorPanel.indicatorLabel') }}</span>
 
       <p
         v-if="selectableStrategyScripts.length === 0"
         class="chart-indicator-panel__empty"
         data-testid="chart-indicator-empty"
       >
-        還沒有任何策略腳本。到策略腳本畫面寫一支存起來，就能套到圖上。
+        {{ t('marketData.chartIndicatorPanel.noStrategyScripts') }}
       </p>
 
       <AppSelect
@@ -96,7 +101,7 @@ function applyPicked(value: string) {
         @update:model-value="applyPicked"
       >
         <option value="">
-          套用一支策略腳本…
+          {{ t('marketData.chartIndicatorPanel.pickerPlaceholder') }}
         </option>
         <!-- 畫不成線的那幾支照樣列出來但挑不到：直接消失會讓使用者以為策略腳本不見了。 -->
         <option
@@ -105,7 +110,9 @@ function applyPicked(value: string) {
           :value="String(strategyScript.id)"
           :disabled="!strategyScript.drawableOnChart"
         >
-          {{ strategyScript.drawableOnChart ? strategyScript.name : `${strategyScript.name}（畫不成線）` }}
+          {{ strategyScript.drawableOnChart
+            ? strategyScript.name
+            : t('marketData.chartIndicatorPanel.notDrawable', { name: strategyScript.name }) }}
         </option>
       </AppSelect>
     </label>
@@ -131,7 +138,7 @@ function applyPicked(value: string) {
         tone="danger"
         data-testid="pending-parameters-alert"
       >
-        {{ pendingParametersMessage }}
+        {{ localize(pendingParametersMessage) }}
       </AppAlert>
 
       <div class="chart-indicator-panel__pending-actions">
@@ -142,7 +149,7 @@ function applyPicked(value: string) {
           data-testid="confirm-pending-indicator"
           @click="emit('confirmPending')"
         >
-          加進來
+          {{ t('marketData.chartIndicatorPanel.addToChart') }}
         </AppButton>
         <AppButton
           type="button"
@@ -151,7 +158,7 @@ function applyPicked(value: string) {
           data-testid="cancel-pending-indicator"
           @click="emit('cancelPending')"
         >
-          取消
+          {{ t('marketData.common.cancel') }}
         </AppButton>
       </div>
     </section>
@@ -181,7 +188,9 @@ function applyPicked(value: string) {
             type="button"
             variant="ghost"
             size="small"
-            :label="row.isVisible ? '在圖上收起來' : '畫回圖上'"
+            :label="row.isVisible
+              ? t('marketData.chartIndicatorPanel.hideFromChart')
+              : t('marketData.chartIndicatorPanel.showOnChart')"
             :data-testid="`toggle-indicator-visibility-${row.appliedIndicator.id}`"
             @click="emit('toggleVisibility', row.appliedIndicator.id)"
           >
@@ -211,17 +220,17 @@ function applyPicked(value: string) {
               {{ row.appliedIndicator.strategyScript.name }}
               <!-- 同一支擺好幾筆時靠這一句分辨：值本身就是它們唯一的差別。 -->
               <span
-                v-if="row.appliedIndicator.parameterSummary"
+                v-if="row.appliedIndicator.parameters.length > 0"
                 class="chart-indicator-panel__summary"
                 data-testid="applied-indicator-summary"
-              >{{ row.appliedIndicator.parameterSummary }}</span>
+              >{{ localize(row.appliedIndicator.parameterSummary) }}</span>
             </span>
 
             <AppBadge
               v-if="row.isCalculating"
               variant="info"
             >
-              計算中
+              {{ t('marketData.chartIndicatorPanel.calculatingBadge') }}
             </AppBadge>
           </button>
 
@@ -229,7 +238,7 @@ function applyPicked(value: string) {
             type="button"
             variant="ghost"
             size="small"
-            label="移除"
+            :label="t('marketData.chartIndicatorPanel.remove')"
             :data-testid="`remove-indicator-${row.appliedIndicator.id}`"
             @click="emit('remove', row.appliedIndicator.id)"
           >
@@ -251,7 +260,7 @@ function applyPicked(value: string) {
           class="chart-indicator-panel__item-alert"
           :data-testid="`indicator-parameters-error-${row.appliedIndicator.id}`"
         >
-          {{ row.parameterMessage }}
+          {{ localize(row.parameterMessage) }}
         </AppAlert>
 
         <p
@@ -259,7 +268,7 @@ function applyPicked(value: string) {
           class="chart-indicator-panel__note"
           data-testid="indicator-calculating"
         >
-          計算中…
+          {{ t('marketData.chartIndicatorPanel.calculatingNote') }}
         </p>
 
         <AppAlert
@@ -268,7 +277,7 @@ function applyPicked(value: string) {
           class="chart-indicator-panel__item-alert"
           :data-testid="`indicator-error-${row.appliedIndicator.id}`"
         >
-          {{ row.failureMessage }}
+          {{ localize(row.failureMessage) }}
         </AppAlert>
 
         <p
@@ -276,7 +285,7 @@ function applyPicked(value: string) {
           class="chart-indicator-panel__note"
           data-testid="indicator-draws-nothing"
         >
-          算完了，但這支算式沒有放進任何指標，所以圖上沒有線。
+          {{ t('marketData.chartIndicatorPanel.drawsNothing') }}
         </p>
       </li>
     </ul>

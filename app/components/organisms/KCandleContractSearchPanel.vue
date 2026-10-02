@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import KCandleQueryForm from '~/components/molecules/KCandleQueryForm.vue'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import KCandleContractTable from '~/components/organisms/KCandleContractTable.vue'
@@ -13,6 +14,7 @@ import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-vali
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** 進入畫面時預先帶入的合約標的，只是省一次挑選，不在清單上就會被換掉。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
@@ -32,11 +34,15 @@ const startTime = ref('')
 
 const loading = ref(false)
 const result = ref<KCandleContractSearchResultDto | null>(null)
-const symbolError = ref<string | null>(null)
-const startTimeError = ref<string | null>(null)
-const rejectedMessage = ref<string | null>(null)
-const backendUnreachable = ref(false)
-const serverErrorMessage = ref<string | null>(null)
+const symbolError = ref<LocalizedTextVo | null>(null)
+const startTimeError = ref<LocalizedTextVo | null>(null)
+const rejectedMessage = ref<LocalizedTextVo | null>(null)
+const unexpectedFailure = ref(false)
+const unreachableExplanation = ref<LocalizedTextVo | null>(null)
+const serverErrorMessage = ref<LocalizedTextVo | null>(null)
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 // 預設開始時間在進入畫面時才取——與現貨那一塊同一個預設，由同一個地方說。
 onMounted(() => {
@@ -60,7 +66,8 @@ async function searchKCandleContracts() {
   symbolError.value = null
   startTimeError.value = null
   rejectedMessage.value = null
-  backendUnreachable.value = false
+  unexpectedFailure.value = false
+  unreachableExplanation.value = null
   serverErrorMessage.value = null
   result.value = null
 
@@ -74,23 +81,23 @@ async function searchKCandleContracts() {
     // 哨兵錯誤分流：使用者可自行修正的標在欄位旁，其餘整塊呈現。
     if (error instanceof KCandleQueryValidationError) {
       if (error.field === 'symbol') {
-        symbolError.value = error.message
+        symbolError.value = error.localizedMessage
       }
       else {
-        startTimeError.value = error.message
+        startTimeError.value = error.localizedMessage
       }
     }
     else if (error instanceof BackendServerError) {
-      serverErrorMessage.value = error.message
+      serverErrorMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendRequestRejectedError) {
-      rejectedMessage.value = error.message
+      rejectedMessage.value = error.localizedMessage
     }
     else if (error instanceof BackendUnreachableError) {
-      backendUnreachable.value = true
+      unreachableExplanation.value = error.localizedMessage
     }
     else {
-      rejectedMessage.value = '查詢時發生未預期的錯誤。'
+      unexpectedFailure.value = true
     }
   }
   finally {
@@ -111,24 +118,24 @@ async function searchKCandleContracts() {
           v-model:start-time="startTime"
           :time-zone="timeZone"
           :loading="loading"
-          :start-time-error="startTimeError"
+          :start-time-error="startTimeError ? localize(startTimeError) : null"
           @submit="searchKCandleContracts"
         >
           <template #symbol>
             <ContractSymbolField
               v-model="symbol"
               :trading-symbol-application="tradingSymbolApplication"
-              :error-message="symbolError"
+              :error-message="symbolError ? localize(symbolError) : null"
             />
           </template>
         </KCandleQueryForm>
 
         <AppAlert
-          v-if="rejectedMessage"
+          v-if="rejectedMessage || unexpectedFailure"
           tone="danger"
           data-testid="rejected-alert"
         >
-          {{ rejectedMessage }}
+          {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedSearchFailure') }}
         </AppAlert>
 
         <AppAlert
@@ -136,7 +143,7 @@ async function searchKCandleContracts() {
           tone="danger"
           data-testid="server-error-alert"
         >
-          後端出錯了（不是你的查詢條件有問題），請稍後重試：{{ serverErrorMessage }}
+          {{ t('marketData.common.searchServerError', { message: localize(serverErrorMessage) }) }}
           <template #action>
             <AppButton
               variant="secondary"
@@ -144,17 +151,17 @@ async function searchKCandleContracts() {
               :disabled="loading"
               @click="searchKCandleContracts"
             >
-              重試
+              {{ t('marketData.common.retry') }}
             </AppButton>
           </template>
         </AppAlert>
 
         <AppAlert
-          v-else-if="backendUnreachable"
+          v-else-if="unreachableExplanation"
           tone="danger"
           data-testid="unreachable-alert"
         >
-          連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+          {{ localize(unreachableExplanation) }}
           <template #action>
             <AppButton
               variant="secondary"
@@ -162,7 +169,7 @@ async function searchKCandleContracts() {
               :disabled="loading"
               @click="searchKCandleContracts"
             >
-              重試
+              {{ t('marketData.common.retry') }}
             </AppButton>
           </template>
         </AppAlert>
@@ -172,7 +179,7 @@ async function searchKCandleContracts() {
           tone="info"
           data-testid="loading-alert"
         >
-          查詢中…
+          {{ t('marketData.common.searching') }}
         </AppAlert>
       </template>
     </KCandleContractTable>

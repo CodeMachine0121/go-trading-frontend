@@ -8,6 +8,7 @@ import type { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import type { TradeReviewDto } from '~/domain/models/dto/trade-review-dto'
 import type { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export class SpotTradeRecordDto {
   constructor(
@@ -15,27 +16,27 @@ export class SpotTradeRecordDto {
     public readonly title: string,
     public readonly symbol: string,
     public readonly market: SpotTradeMarket,
-    public readonly marketLabel: string,
+    public readonly marketLabel: LocalizedTextVo,
     public readonly currency: string,
     public readonly wholeSharesOnly: boolean,
     public readonly status: TradeStatus,
-    public readonly statusLabel: string,
+    public readonly statusLabel: LocalizedTextVo,
     public readonly statusTone: TradeBadgeTone,
     public readonly planLocked: boolean,
     public readonly canEditFills: boolean,
     public readonly canWriteReview: boolean,
-    public readonly reviewUnavailableMessage: string | null,
+    public readonly reviewUnavailableMessage: LocalizedTextVo | null,
     public readonly plannedStopLossPrice: Decimal | null,
     public readonly plannedTakeProfitPrice: Decimal | null,
-    public readonly plannedStopLossText: string,
-    public readonly plannedTakeProfitText: string,
+    public readonly plannedStopLossText: LocalizedTextVo,
+    public readonly plannedTakeProfitText: LocalizedTextVo,
     public readonly entryReason: string,
     public readonly confidence: number | null,
     public readonly tradingStrategyId: number | null,
     public readonly openedAt: Date,
     public readonly closedAt: Date | null,
     public readonly holding: Decimal,
-    public readonly holdingText: string,
+    public readonly holdingText: LocalizedTextVo,
     public readonly averageBuyPrice: Decimal,
     public readonly fills: readonly SpotTradeFillDto[],
     public readonly notes: readonly TradeNoteDto[],
@@ -46,7 +47,7 @@ export class SpotTradeRecordDto {
     public readonly outcome: TradeOutcomeDto,
     public readonly maximumAdversePrice: Decimal | null,
     public readonly maximumFavorablePrice: Decimal | null,
-    public readonly holdingDurationText: string | null,
-    public readonly originLabel: string,
+    public readonly holdingDurationText: LocalizedTextVo | null,
+    public readonly originLabel: LocalizedTextVo,
   ) {}
 }

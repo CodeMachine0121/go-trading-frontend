@@ -3,8 +3,8 @@ import KCandleContractSearchPanel from '~/components/organisms/KCandleContractSe
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '合約 K 線瀏覽',
-  consoleSubtitle: '挑一個合約與開始時間查詢，查到送出當下為止，結果由新到舊列出，每根帶著標記價格、指數價格與溢價指數；時間一律照頂欄選定的時區呈現。',
+  consoleTitleKey: 'marketData.pages.contractKCandles.title',
+  consoleSubtitleKey: 'marketData.pages.contractKCandles.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。

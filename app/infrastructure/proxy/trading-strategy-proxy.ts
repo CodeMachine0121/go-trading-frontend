@@ -36,6 +36,7 @@ const CONFLICT_STATUS = 409
  * 靠訊息內容認它，是因為後端把它與撞名歸在同一個狀態碼下——而這兩種要做的事
  * 完全不同：一個去改名字，一個去處理那幾台機器人。
  */
+// translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
 const IN_USE_HINT = '台機器人正在用它'
 
 /**
@@ -44,6 +45,7 @@ const IN_USE_HINT = '台機器人正在用它'
  * 它與上面那一句**都說得出「機器人正在用它」**，所以認的是後半段：
  * 一句要他去按停止，一句要他去改掉或刪掉那幾台。
  */
+// translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
 const BOT_RUNNING_HINT = '請先停止'
 
 /** 後端回來的一個信號來源。**它沒有 script**——那不是漏了，是那一欄不存在。 */
@@ -247,6 +249,7 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
     if (error.status === NOT_FOUND_STATUS) {
       // 指名一支看不到的策略腳本，後端也回這一個狀態碼。兩者靠訊息分開，
       // 因為要做的事不同：一個去挑別的腳本，一個是這一份根本不在了。
+      // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
       return error.message.includes('策略腳本')
         ? new StrategyScriptNotFoundError(error.message, { cause: error })
         : new TradingStrategyNotFoundError(error.message, { cause: error })

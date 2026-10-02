@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleEditorPanel from '~/components/organisms/KCandleEditorPanel.vue'
 import { KCandleApplication } from '~/application/k-candle-application'
@@ -13,6 +14,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-08-30T12:07:00.000Z')
@@ -45,7 +47,7 @@ function buildEditingKCandleDto(reportsEveryFigure = true): KCandleDto {
     'BTCUSDT', EDITING_OPEN_TIME,
     new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
     new Decimal('11'), optional('1200'), optional('5'), optional('600'),
-    new KCandleTrendVo('up', '上漲', 'success'),
+    new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success'),
     new Decimal('10'),
     new Decimal('10'),
   )
@@ -245,7 +247,7 @@ describe('KCandleEditorPanel', () => {
         'BTCUSDT', EDITING_OPEN_TIME,
         new Decimal('100'), new Decimal('90'), new Decimal('95'), new Decimal('92'),
         new Decimal('11'), null, null, null,
-        new KCandleTrendVo('down', '下跌', 'danger'),
+        new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger'),
         new Decimal('-8'),
         new Decimal('-8'),
       )
@@ -558,5 +560,45 @@ describe('修改一根這個市場不報那三項的 K 線', () => {
     expect(kCandleWriteDomain.takerBuyBaseVolume).toBeNull()
     expect(kCandleWriteDomain.takerBuyQuoteVolume).toBeNull()
     expect(kCandleWriteDomain.volume.toString()).toBe('11')
+  })
+})
+
+describe('KCandleEditorPanel 換顯示語言', () => {
+  it.each([
+    { name: '已經顯示的說明跟著換成英文', switchesBeforeSubmitting: false },
+    { name: '選了 English 之後送出，直接以英文說明', switchesBeforeSubmitting: true },
+  ])('$name', async ({ switchesBeforeSubmitting }) => {
+    const kCandleProxy = buildProxy()
+    const wrapper = await mountPanel(kCandleProxy)
+    const switchToEnglish = async () => {
+      wrapper.vm.$i18n.locale = 'en'
+      await nextTick()
+    }
+
+    if (switchesBeforeSubmitting) {
+      await switchToEnglish()
+    }
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    if (!switchesBeforeSubmitting) {
+      expect(wrapper.get('[data-testid="field-error"]').text()).toBe('請填寫開盤價')
+      await switchToEnglish()
+    }
+
+    expect(wrapper.get('[data-testid="field-error"]').text()).toBe('Open price is required')
+    expect(wrapper.get('[data-testid="overwrite-notice"]').text())
+      .toBe('A K-candle with the same symbol and open time overwrites the existing one instead of adding a second.')
+    expect(kCandleProxy.saveKCandle).not.toHaveBeenCalled()
+  })
+
+  it('換語言不丟掉已經填的欄位', async () => {
+    const wrapper = await mountPanel(buildProxy())
+    await fillFigures(wrapper)
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="form-open"]').element.value).toBe('100')
+    expect(wrapper.get('[data-testid="form-submit"]').text()).toBe('Add')
   })
 })

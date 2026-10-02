@@ -1,5 +1,6 @@
 import type { BackendHealth } from '~/domain/models/entities/backend-health'
 import { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /** go-trading 的健康檢查在一切正常時回傳的狀態值（大小寫與前後空白由建構子正規化）。 */
 const HEALTHY_STATUS = 'healthy'
@@ -25,7 +26,7 @@ export class BackendHealthDomain {
 
   toDto(): BackendHealthDto {
     return this.isHealthy()
-      ? new BackendHealthDto(true, this.status, this.checkedAt, '正常', 'success')
-      : new BackendHealthDto(false, this.status, this.checkedAt, '異常', 'danger')
+      ? new BackendHealthDto(true, this.status, this.checkedAt, new LocalizedTextVo('正常', 'Healthy'), 'success')
+      : new BackendHealthDto(false, this.status, this.checkedAt, new LocalizedTextVo('異常', 'Unhealthy'), 'danger')
   }
 }

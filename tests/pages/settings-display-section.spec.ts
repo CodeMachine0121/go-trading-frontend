@@ -20,6 +20,11 @@ mockNuxtImport('useSelectedTimeZone', () => () => ({
   selectedTimeZone: computed(() => ({ identifier: 'UTC' })),
   selectTimeZone,
 }))
+mockNuxtImport('useDisplayLanguage', () => () => ({
+  selectableLanguages: [],
+  selectedLanguageCode: computed(() => 'zh-TW'),
+  selectLanguage: vi.fn(),
+}))
 mockNuxtImport('useUserSession', () => () => ({ currentUser: ref(null), signOut: vi.fn() }))
 // 密碼與 Telegram 那兩段在這裡被換成替身，它們的狀態只要「每一格都在」就夠了。
 function stateWithEveryFieldEmpty() {

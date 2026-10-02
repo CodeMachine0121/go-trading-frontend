@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -19,19 +20,21 @@ const { email, activated = false } = defineProps<{
 
 const emit = defineEmits<{ signOut: [] }>()
 
+const { t } = useI18n()
+
 /** 遮住的位數是固定的。跟著真實長度走，等於把密碼有幾個字說出去。 */
 const MASKED_PASSWORD = '••••••••'
 </script>
 
 <template>
   <SettingsSection
-    title="帳號"
-    description="你用來登入的那組身分。電子郵件就是帳號本身，目前不能更換；密碼不會顯示，只能更換——系統從來沒有留著它。"
+    :title="t('settings.accountProfile.title')"
+    :description="t('settings.accountProfile.description')"
   >
     <dl class="account-profile-panel">
       <div class="account-profile-panel__row">
         <dt class="account-profile-panel__label">
-          電子郵件
+          {{ t('settings.accountProfile.emailLabel') }}
         </dt>
         <dd class="account-profile-panel__value account-profile-panel__value--inline">
           <span data-testid="account-email">{{ email ?? '—' }}</span>
@@ -40,14 +43,14 @@ const MASKED_PASSWORD = '••••••••'
             variant="success"
             data-testid="account-activated"
           >
-            已開通
+            {{ t('settings.accountProfile.activated') }}
           </AppBadge>
         </dd>
       </div>
 
       <div class="account-profile-panel__row">
         <dt class="account-profile-panel__label">
-          密碼
+          {{ t('settings.accountProfile.passwordLabel') }}
         </dt>
         <dd class="account-profile-panel__value">
           <span
@@ -59,7 +62,7 @@ const MASKED_PASSWORD = '••••••••'
 
       <div class="account-profile-panel__row">
         <dt class="account-profile-panel__label">
-          登出
+          {{ t('settings.accountProfile.signOutLabel') }}
         </dt>
         <dd class="account-profile-panel__value">
           <AppButton
@@ -72,7 +75,7 @@ const MASKED_PASSWORD = '••••••••'
               name="sign-out"
               size="small"
             />
-            登出
+            {{ t('settings.accountProfile.signOut') }}
           </AppButton>
         </dd>
       </div>

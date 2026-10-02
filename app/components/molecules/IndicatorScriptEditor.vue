@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：一整塊「就是一份 Go 檔案」的編輯區。
 //
@@ -14,7 +16,7 @@ import AppCodeEditor from '~/components/atoms/AppCodeEditor.vue'
 // （actions 插槽）；底下一條細帶放寫的時候會調的東西（toolbar 插槽）。
 // 三個插槽裝什麼由使用端決定，這裡只管它們擺在哪。
 const { concealed = false, fileName = 'indicator.go' } = defineProps<{
-  errorMessage?: string | null
+  errorMessage?: LocalizedTextVo | null
   /**
    * 標頭上那個檔名。工作區載入了哪一支，這裡就寫那一支的名字；
    * 一支都還沒有時是一份沒有名字的新檔。
@@ -30,6 +32,9 @@ const { concealed = false, fileName = 'indicator.go' } = defineProps<{
 }>()
 
 const script = defineModel<string>({ required: true })
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const scriptEditor = useTemplateRef('scriptEditor')
 
@@ -63,13 +68,13 @@ function continueWriting() {
         v-if="concealed"
         class="indicator-script-editor__hint"
       >
-        從市集加入的，只能用、不能改
+        {{ t('strategyScript.indicatorScriptEditor.concealedHint') }}
       </span>
       <span
         v-else
         class="indicator-script-editor__hint"
       >
-        整份都改得動，至少要有一個 Calculate 進入點；換指標值種類會改它的回傳型別
+        {{ t('strategyScript.indicatorScriptEditor.editableHint') }}
       </span>
       <div class="indicator-script-editor__tools">
         <slot name="toolbar" />
@@ -81,7 +86,7 @@ function continueWriting() {
       class="indicator-script-editor__concealed"
       data-testid="script-concealed"
     >
-      這支策略腳本的算式不公開
+      {{ t('strategyScript.indicatorScriptEditor.concealedNotice') }}
     </p>
 
     <div
@@ -107,7 +112,7 @@ function continueWriting() {
       class="indicator-script-editor__error"
       data-testid="field-error"
     >
-      {{ errorMessage }}
+      {{ localize(errorMessage) }}
     </p>
   </section>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { SpotTradeRecordDto } from '~/domain/models/dto/spot-trade-record-dto'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
@@ -16,9 +17,12 @@ import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '現貨交易',
-  consoleSubtitle: '結果、價格路徑、進場時的計畫與檢討。',
+  consoleTitleKey: 'tradeJournal.pages.spotDetail.title',
+  consoleSubtitleKey: 'tradeJournal.pages.spotDetail.subtitle',
 })
+
+const { t } = useI18n()
+const { localize, translatedText } = useLocalizedText()
 
 const route = useRoute()
 const { $spotTradeJournalApplication, $tradeJournalSettingApplication, $tradingStrategyApplication } = useNuxtApp()
@@ -49,7 +53,9 @@ function adoptSavedFills(savedRecord: SpotTradeRecordDto): void {
   addingFills.value = false
   addFillDirty.value = false
   closedJustNow.value = savedRecord.status !== 'open'
-  announce(savedRecord.status === 'open' ? '已記下' : '這筆已平倉')
+  announce(savedRecord.status === 'open'
+    ? translatedText('tradeJournal.spotDetail.savedNotice')
+    : translatedText('tradeJournal.spotDetail.closedJustNow'))
   // The bot-link round is used up once saved; leaving it in the address would prefill it again on reload.
   journalLinkIdentifier.value = null
   void navigateTo({ path: route.path }, { replace: true })
@@ -66,20 +72,20 @@ onMounted(() => {
       v-if="detail.loading.value && !detail.record.value"
       class="spot-trade-page__state"
     >
-      讀取中…
+      {{ t('tradeJournal.common.loading') }}
     </p>
 
     <AppAlert
       v-else-if="detail.failureMessage.value && !detail.record.value"
       tone="danger"
     >
-      {{ detail.notFound.value ? '找不到這筆交易' : detail.failureMessage.value }}
+      {{ detail.notFound.value ? t('tradeJournal.spotDetail.notFound') : localize(detail.failureMessage.value) }}
       <template #action>
         <AppButton
           variant="ghost"
           to="/spot-trade-journal"
         >
-          回交易日誌
+          {{ t('tradeJournal.spotDetail.backToJournal') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -96,22 +102,25 @@ onMounted(() => {
           >
             {{ formatDateTimeInTimeZone(detail.record.value.openedAt, selectedTimeZone.identifier) }}
             <template v-if="detail.record.value.closedAt">
-              → {{ formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier) }}・{{ detail.record.value.holdingDurationText }}
+              → {{ t('tradeJournal.common.joined', {
+                first: formatDateTimeInTimeZone(detail.record.value.closedAt, selectedTimeZone.identifier),
+                second: localize(detail.record.value.holdingDurationText),
+              }) }}
             </template>
             <template v-else>
-              起・持有中
+              {{ t('tradeJournal.spotDetail.openSince') }}
             </template>
           </p>
         </div>
         <TradeStatusBadge
-          :label="detail.record.value.statusLabel"
+          :label="localize(detail.record.value.statusLabel)"
           :tone="detail.record.value.statusTone"
         />
         <AppBadge
           variant="accent"
           data-testid="trade-origin"
         >
-          {{ detail.record.value.originLabel }}
+          {{ localize(detail.record.value.originLabel) }}
         </AppBadge>
         <div class="spot-trade-page__actions">
           <AppButton
@@ -119,14 +128,14 @@ onMounted(() => {
             variant="secondary"
             @click="addingFills = true"
           >
-            ＋ 加一筆買進／賣出
+            {{ t('tradeJournal.spotDetail.addFill') }}
           </AppButton>
           <AppButton
             variant="danger-ghost"
             :disabled="detail.busy.value"
             @click="deleteConfirmationOpen = true"
           >
-            刪除
+            {{ t('tradeJournal.common.delete') }}
           </AppButton>
         </div>
       </header>
@@ -135,20 +144,20 @@ onMounted(() => {
         v-if="detail.notFound.value"
         tone="danger"
       >
-        找不到這筆交易，可能已經被刪除。
+        {{ t('tradeJournal.spotDetail.notFoundMaybeDeleted') }}
         <template #action>
           <AppButton
             variant="ghost"
             to="/spot-trade-journal"
           >
-            回交易日誌
+            {{ t('tradeJournal.spotDetail.backToJournal') }}
           </AppButton>
         </template>
       </AppAlert>
 
       <AppPanel
         v-if="addingFills && detail.record.value.canEditFills"
-        title="加一筆買進或賣出"
+        :title="t('tradeJournal.spotDetail.addFillTitle')"
       >
         <SpotTradeForm
           :existing-record="detail.record.value"
@@ -167,13 +176,13 @@ onMounted(() => {
         v-if="closedJustNow"
         tone="success"
       >
-        這筆已平倉
+        {{ t('tradeJournal.spotDetail.closedJustNow') }}
         <template #action>
           <AppButton
             variant="ghost"
             @click="closedJustNow = false; reviewPanel?.$el?.scrollIntoView?.({ behavior: 'smooth' })"
           >
-            去寫檢討
+            {{ t('tradeJournal.spotDetail.goWriteReview') }}
           </AppButton>
         </template>
       </AppAlert>
@@ -192,7 +201,7 @@ onMounted(() => {
         tone="danger"
         data-testid="detail-action-failure"
       >
-        {{ detail.actionFailureMessage.value }}
+        {{ localize(detail.actionFailureMessage.value) }}
       </AppAlert>
 
       <div class="spot-trade-page__columns">
@@ -243,18 +252,18 @@ onMounted(() => {
 
     <ConfirmDialog
       :open="deleteConfirmationOpen"
-      title="刪除這筆交易"
-      message="刪除後，這筆交易的買進賣出紀錄、附註、檢討都會一併刪除，無法復原"
-      confirm-label="刪除"
+      :title="t('tradeJournal.spotDetail.deleteTitle')"
+      :message="t('tradeJournal.spotDetail.deleteMessage')"
+      :confirm-label="t('tradeJournal.common.delete')"
       variant="danger"
-      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(`已刪除 #${tradeId}`); leaveConfirmation.allowLeaving(); navigateTo('/spot-trade-journal') } })"
+      @confirm="deleteConfirmationOpen = false; detail.deleteTrade().then(deleted => { if (deleted) { announce(translatedText('tradeJournal.spotDetail.deletedNotice', { id: tradeId })); leaveConfirmation.allowLeaving(); navigateTo('/spot-trade-journal') } })"
       @cancel="deleteConfirmationOpen = false"
     />
     <ConfirmDialog
       :open="leaveConfirmation.confirmationOpen.value"
-      title="還沒儲存"
-      message="還沒儲存，離開後這些內容會丟失"
-      confirm-label="離開"
+      :title="t('tradeJournal.leaveConfirmation.title')"
+      :message="t('tradeJournal.leaveConfirmation.message')"
+      :confirm-label="t('tradeJournal.leaveConfirmation.confirm')"
       variant="danger"
       @confirm="leaveConfirmation.leave"
       @cancel="leaveConfirmation.stay"

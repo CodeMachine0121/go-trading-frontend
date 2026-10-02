@@ -14,8 +14,10 @@ import { useLatestRun } from '~/composables/use-latest-run'
 export function useIndicatorCalculationRun(
   indicatorCalculationApplication: IndicatorCalculationApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const latestRun = useLatestRun<IndicatorCalculationResultDto, IndicatorCalculationField>(
-    IndicatorCalculationFieldError, '執行計算時發生未預期的錯誤。')
+    IndicatorCalculationFieldError,
+    translatedText('strategyScript.indicatorCalculationPanel.unexpectedCalculationError'))
 
   return {
     ...latestRun,

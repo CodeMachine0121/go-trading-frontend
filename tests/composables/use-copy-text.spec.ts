@@ -4,6 +4,7 @@ import { ClipboardApplication } from '~/application/clipboard-application'
 import { ClipboardService } from '~/domain/service/clipboard-service'
 import { ClipboardWriteFailedError } from '~/domain/errors/clipboard-write-failed-error'
 import type { IClipboardProxy } from '~/domain/interface/i-clipboard-proxy'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const clipboardProxy: IClipboardProxy = { writeText: vi.fn() }
 
@@ -61,7 +62,8 @@ describe('useCopyText', () => {
   it('複製失敗時說出瀏覽器拒絕的那句話', async () => {
     // 靜靜失敗的話，使用者會帶著一個空的剪貼簿去貼上，然後以為是貼上的地方壞了。
     vi.mocked(clipboardProxy.writeText)
-      .mockRejectedValue(new ClipboardWriteFailedError('這個瀏覽器不讓網頁碰剪貼簿。'))
+      .mockRejectedValue(new ClipboardWriteFailedError(
+        new LocalizedTextVo('這個瀏覽器不讓網頁碰剪貼簿。', 'This browser does not let pages use the clipboard.')))
     const copy = copyUnderTest()
 
     await copy.copyText('sum := 0.0')
@@ -69,7 +71,7 @@ describe('useCopyText', () => {
     expect(copy.state.value).toBe('failed')
     // 說的是剪貼簿那一側傳回來的理由，不是這裡自己寫的那句罐頭話——
     // 兩者相同的話，這一條就分不出有沒有在聽。
-    expect(copy.failureMessage.value).toBe('這個瀏覽器不讓網頁碰剪貼簿。')
+    expect(copy.failureMessage.value?.in('zh-TW')).toBe('這個瀏覽器不讓網頁碰剪貼簿。')
   })
 
   it('連拒絕的理由都沒有時還是說一句話', async () => {
@@ -79,7 +81,7 @@ describe('useCopyText', () => {
     await copy.copyText('sum := 0.0')
 
     expect(copy.state.value).toBe('failed')
-    expect(copy.failureMessage.value).toBe('複製失敗，請手動選取這段內容。')
+    expect(copy.failureMessage.value?.in('zh-TW')).toBe('複製失敗，請手動選取這段內容。')
   })
 
   it('失敗那句話也會自己退掉', async () => {

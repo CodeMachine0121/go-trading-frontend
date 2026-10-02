@@ -3,7 +3,7 @@ import { MarketClosedThroughoutDomain } from '~/domain/models/domains/market-clo
 
 describe('要看的那一段裡市場根本沒開過時該說的那一句話', () => {
   function message(): string {
-    return new MarketClosedThroughoutDomain().message()
+    return new MarketClosedThroughoutDomain().message().in('zh-TW')
   }
 
   it('說出發生了什麼事：這一段時間市場沒有交易', () => {

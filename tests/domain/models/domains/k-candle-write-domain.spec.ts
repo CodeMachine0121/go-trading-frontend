@@ -201,3 +201,26 @@ describe('KCandleWriteDomain', () => {
     expect(kCandleWriteDomain.volume.isNegative()).toBe(false)
   })
 })
+
+describe('KCandleWriteDomain：擋下時的兩種說法', () => {
+  it.each([
+    { name: '開盤價沒填', overrides: { open: '' }, chinese: '請填寫開盤價', english: 'Open price is required' },
+    { name: '成交額不是數字', overrides: { quoteVolume: '很多' }, chinese: '成交額必須是數字', english: 'Quote volume must be a number' },
+    { name: '價量為負', overrides: { close: '-1' }, chinese: '價格與成交數字不得為負數', english: 'Prices and volumes must not be negative' },
+    { name: '最高價低於最低價', overrides: { high: '80' }, chinese: '最高價不得低於最低價', english: 'High price must not be below low price' },
+    { name: '交易標的沒填', overrides: { symbol: ' ' }, chinese: '請指定交易標的', english: 'Symbol is required' },
+    {
+      name: '起始時間指向未來',
+      overrides: { openTime: new Date('2026-08-30T13:00:00.000Z') },
+      chinese: '起始時間不得指向未來',
+      english: 'Open time must not be in the future',
+    },
+  ])('$name：繁體中文與英文各說一次', ({ overrides, chinese, english }) => {
+    const fieldError = fieldErrorOf(() => new KCandleWriteDomain(buildWriteDto(overrides)))
+
+    // `message` 仍是繁體中文——那是給工程師看的；畫面說的是 `localizedMessage`。
+    expect(fieldError.message).toBe(chinese)
+    expect(fieldError.localizedMessage.in('zh-TW')).toBe(chinese)
+    expect(fieldError.localizedMessage.in('en')).toBe(english)
+  })
+})

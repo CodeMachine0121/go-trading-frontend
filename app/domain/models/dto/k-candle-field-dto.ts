@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：沙箱裡那個 K 線型別的其中一個欄位——算式寫得出 `candle.{name}` 的那些。
  *
@@ -12,6 +14,6 @@ export class KCandleFieldDto {
     /** 那個欄位在沙箱裡的 Go 型別，例如 `float64`。 */
     public readonly type: string,
     /** 給人看的名字，與 K 線瀏覽的欄位標題同一套說法。 */
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
   ) {}
 }

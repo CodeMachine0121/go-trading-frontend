@@ -1,3 +1,5 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-coverage-shortfall-vo'
 
 /**
@@ -6,7 +8,7 @@ import type { CandleCoverageShortfallVo } from '~/domain/models/vo/candle-covera
  * 與 BackendUnreachableError 的差別在於使用者該做什麼：
  * 這個錯誤要如實轉達後端給的原因，讓使用者調整輸入；那個錯誤要請使用者去把後端啟動起來。
  */
-export class BackendRequestRejectedError extends Error {
+export class BackendRequestRejectedError extends LocalizedError {
   /**
    * 後端回應的狀態碼。它只在 infrastructure 層被解讀——
    * proxy 據以把某些拒絕翻譯成更精確的領域錯誤（例如「算式的問題」）。
@@ -81,7 +83,7 @@ export class BackendRequestRejectedError extends Error {
       reason?: string
     },
   ) {
-    super(message, { cause: options?.cause })
+    super(new UntranslatedTextVo(message), { cause: options?.cause })
     this.name = 'BackendRequestRejectedError'
     this.status = options?.status
     this.parameterName = options?.parameterName

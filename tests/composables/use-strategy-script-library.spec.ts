@@ -141,7 +141,8 @@ describe('useStrategyScriptLibrary 挑到我加入的那一支', () => {
     // 副本是自己的策略腳本，刪掉它走的就是刪除策略腳本那一條路；重讀之後它就不在清單上了。
     expect(deleteStrategyScript).toHaveBeenCalledWith(9)
     expect(library.adoptedStrategyScripts.value.map(adopted => adopted.id)).not.toContain(9)
-    expect(library.noticeMessage.value).toBe('已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。')
+    expect(library.noticeMessage.value?.in('zh-TW')).toBe('已刪掉這份副本；原本那一支不受影響，要的話到市集再加一次。')
+    expect(library.noticeMessage.value?.in('en')).toBe('Deleted this copy. The original is unaffected; adopt it again from the marketplace if you want it back.')
     expect(library.readOnly.value).toBe(false)
     expect(library.namedStrategyScriptId.value).toBeUndefined()
     expect(applyContent).toHaveBeenLastCalledWith(BLANK)

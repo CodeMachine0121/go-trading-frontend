@@ -14,8 +14,10 @@ import { useLatestRun } from '~/composables/use-latest-run'
  * 不是那一次執行本身。
  */
 export function useBacktestRun(backtestApplication: BacktestApplication) {
+  const { translatedText } = useLocalizedText()
   const latestRun = useLatestRun<BacktestResultDto, BacktestField>(
-    BacktestFieldError, '執行回測時發生未預期的錯誤。')
+    BacktestFieldError,
+    translatedText('backtest.strategyScriptBacktestPane.unexpectedError'))
 
   return {
     ...latestRun,

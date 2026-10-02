@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
+import { BACKTEST_RULES, CONTRACT_BACKTEST_RULES } from '~/domain/models/vo/backtest-rule-vo'
 
 /** 整份說明攤成一段文字，因為讀的人也是一次讀完它。 */
 function guideText(): string {
-  return BACKTEST_RULES.map(rule => `${rule.title} ${rule.description}`).join('\n')
+  return BACKTEST_RULES.map(rule => `${rule.title.in('zh-TW')} ${rule.description.in('zh-TW')}`).join('\n')
 }
 
 describe('回測照什麼規則走', () => {
@@ -66,5 +66,26 @@ describe('回測照什麼規則走', () => {
 
     expect(text).toContain('手續費')
     expect(text).toContain('滑點')
+  })
+})
+
+describe('回測規則的英文說法', () => {
+  // 英文那一份也是掛在同一顆鍵後面的散文：它說錯話的代價與中文那一份一樣。
+  it.each([
+    ['現貨', BACKTEST_RULES],
+    ['合約', CONTRACT_BACKTEST_RULES],
+  ])('%s那一份每一條都有英文標題與說明，而且不夾中文', (_kind, rules) => {
+    for (const rule of rules) {
+      expect(rule.title.in('en')).not.toBe('')
+      expect(rule.description.in('en')).not.toMatch(/[\u4e00-\u9fff]/)
+    }
+  })
+
+  it('英文的現貨規則同樣說得出這裡只做現貨、出場價位留白就不模擬', () => {
+    const text = BACKTEST_RULES.map(rule => `${rule.title.in('en')} ${rule.description.in('en')}`).join('\n')
+
+    expect(text).toContain('The replay trades spot only')
+    expect(text).toContain('Left blank, nothing is simulated at all')
+    expect(text).toContain('it always counts as the stop loss')
   })
 })

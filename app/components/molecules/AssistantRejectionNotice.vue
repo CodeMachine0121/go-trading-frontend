@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：一次問答被拒絕時，長在**回答該出現的位置**的那一塊。
 //
@@ -11,12 +13,15 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 // 說的是哪一句話由使用端決定（四種拒絕四種說法，那句話寫在共用狀態裡），
 // 這裡只負責把它擺對位置並提供再試一次。
 const { message, retryable = true } = defineProps<{
-  message: string
+  message: LocalizedTextVo
   /** 有些拒絕重試沒有意義（例如那一段對話已經不在了）。 */
   retryable?: boolean
 }>()
 
 const emit = defineEmits<{ retry: [] }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -29,7 +34,7 @@ const emit = defineEmits<{ retry: [] }>()
       class="assistant-rejection-notice__message"
       data-testid="assistant-rejection-message"
     >
-      {{ message }}
+      {{ localize(message) }}
     </p>
 
     <AppButton
@@ -44,7 +49,7 @@ const emit = defineEmits<{ retry: [] }>()
         name="refresh"
         size="small"
       />
-      再試一次
+      {{ t('assistant.rejectionNotice.retry') }}
     </AppButton>
   </AppAlert>
 </template>

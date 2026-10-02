@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { BinanceTradingKeyDto } from '~/domain/models/dto/binance-trading-key-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -23,13 +25,13 @@ const {
 } = defineProps<{
   setting?: BinanceTradingKeyDto | null
   loading?: boolean
-  loadErrorMessage?: string | null
+  loadErrorMessage?: LocalizedTextVo | null
   formVisible?: boolean
   editing?: boolean
   saving?: boolean
-  saveErrorMessage?: string | null
-  apiKeyError?: string | null
-  secretKeyError?: string | null
+  saveErrorMessage?: LocalizedTextVo | null
+  apiKeyError?: LocalizedTextVo | null
+  secretKeyError?: LocalizedTextVo | null
   timeZoneIdentifier: string
 }>()
 
@@ -45,6 +47,9 @@ const secretKey = defineModel<string>('secretKey', { required: true })
 
 const removeConfirmationOpen = ref(false)
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const configured = computed(() => setting?.configured ?? false)
 
 function confirmRemoval(): void {
@@ -55,8 +60,8 @@ function confirmRemoval(): void {
 
 <template>
   <SettingsSection
-    title="幣安交易金鑰"
-    description="留下一組幣安 API 金鑰，將來機器人下單時用它。Secret Key 存進去之後一個字都看不到，API Key 只看得到最後四個字。可交易市場只記存入當下的狀態——在幣安改了權限，要回來重存一次。"
+    :title="t('settings.binanceTradingKey.title')"
+    :description="t('settings.binanceTradingKey.description')"
   >
     <template
       v-if="!loading && !loadErrorMessage && configured"
@@ -66,7 +71,7 @@ function confirmRemoval(): void {
         variant="success"
         data-testid="binance-trading-key-configured"
       >
-        已設定
+        {{ t('settings.binanceTradingKey.configured') }}
       </AppBadge>
     </template>
 
@@ -75,7 +80,7 @@ function confirmRemoval(): void {
       class="binance-trading-key-panel__state"
       data-testid="binance-trading-key-loading"
     >
-      讀取目前的設定…
+      {{ t('settings.common.loading') }}
     </p>
 
     <AppAlert
@@ -83,7 +88,7 @@ function confirmRemoval(): void {
       tone="danger"
       data-testid="binance-trading-key-load-error"
     >
-      {{ loadErrorMessage }}
+      {{ localize(loadErrorMessage) }}
     </AppAlert>
 
     <dl
@@ -94,13 +99,13 @@ function confirmRemoval(): void {
       <div class="binance-trading-key-panel__row">
         <dt class="binance-trading-key-panel__label">
           API Key
-          <span class="binance-trading-key-panel__hint">只看得到最後四個字</span>
+          <span class="binance-trading-key-panel__hint">{{ t('settings.binanceTradingKey.apiKeyHint') }}</span>
         </dt>
         <dd class="binance-trading-key-panel__value">
           <span
             class="binance-trading-key-panel__secret"
             data-testid="binance-trading-key-api-key"
-          >{{ setting?.apiKeySummary }}</span>
+          >{{ localize(setting?.apiKeySummary) }}</span>
           <AppButton
             v-if="!editing"
             variant="secondary"
@@ -109,26 +114,26 @@ function confirmRemoval(): void {
             data-testid="binance-trading-key-edit"
             @click="emit('startEditing')"
           >
-            換一組
+            {{ t('settings.binanceTradingKey.replace') }}
           </AppButton>
         </dd>
       </div>
 
       <div class="binance-trading-key-panel__row">
         <dt class="binance-trading-key-panel__label">
-          可交易市場
+          {{ t('settings.binanceTradingKey.tradableMarketsLabel') }}
         </dt>
         <dd
           class="binance-trading-key-panel__value"
           data-testid="binance-trading-key-tradable-markets"
         >
-          {{ setting?.tradableMarketsLabel }}
+          {{ localize(setting?.tradableMarketsLabel) }}
         </dd>
       </div>
 
       <div class="binance-trading-key-panel__row">
         <dt class="binance-trading-key-panel__label">
-          設定時刻
+          {{ t('settings.binanceTradingKey.configuredAtLabel') }}
         </dt>
         <dd
           class="binance-trading-key-panel__value"
@@ -143,7 +148,7 @@ function confirmRemoval(): void {
         class="binance-trading-key-panel__row"
       >
         <dt class="binance-trading-key-panel__label">
-          移除金鑰
+          {{ t('settings.binanceTradingKey.removeLabel') }}
         </dt>
         <dd class="binance-trading-key-panel__value">
           <AppButton
@@ -153,7 +158,7 @@ function confirmRemoval(): void {
             data-testid="binance-trading-key-remove"
             @click="removeConfirmationOpen = true"
           >
-            移除
+            {{ t('settings.binanceTradingKey.remove') }}
           </AppButton>
         </dd>
       </div>
@@ -164,7 +169,7 @@ function confirmRemoval(): void {
       class="binance-trading-key-panel__state"
       data-testid="binance-trading-key-unconfigured"
     >
-      還沒有設定。填好下面兩格並存入，系統會先向幣安確認這組金鑰。
+      {{ t('settings.binanceTradingKey.unconfigured') }}
     </p>
 
     <AppAlert
@@ -172,7 +177,7 @@ function confirmRemoval(): void {
       tone="danger"
       data-testid="binance-trading-key-save-error"
     >
-      {{ saveErrorMessage }}
+      {{ localize(saveErrorMessage) }}
     </AppAlert>
 
     <div
@@ -181,7 +186,7 @@ function confirmRemoval(): void {
     >
       <FormField
         label="API Key"
-        :error-message="apiKeyError"
+        :error-message="apiKeyError ? localize(apiKeyError) : null"
       >
         <AppInput
           v-model="apiKey"
@@ -195,8 +200,8 @@ function confirmRemoval(): void {
 
       <FormField
         label="Secret Key"
-        hint="存進去之後就拿不回來，畫面上一個字都不會顯示。"
-        :error-message="secretKeyError"
+        :hint="t('settings.binanceTradingKey.secretKeyHint')"
+        :error-message="secretKeyError ? localize(secretKeyError) : null"
       >
         <AppInput
           v-model="secretKey"
@@ -214,7 +219,7 @@ function confirmRemoval(): void {
         tone="danger"
         data-testid="binance-trading-key-save-error"
       >
-        {{ saveErrorMessage }}
+        {{ localize(saveErrorMessage) }}
       </AppAlert>
 
       <p
@@ -223,7 +228,7 @@ function confirmRemoval(): void {
         role="status"
         data-testid="binance-trading-key-verifying"
       >
-        正在向幣安確認這組金鑰，最久可能要等十秒。
+        {{ t('settings.binanceTradingKey.verifying') }}
       </p>
 
       <div class="binance-trading-key-panel__actions">
@@ -233,7 +238,7 @@ function confirmRemoval(): void {
           data-testid="binance-trading-key-save"
           @click="emit('save')"
         >
-          {{ saving ? '向幣安確認中…' : '存入' }}
+          {{ saving ? t('settings.binanceTradingKey.saving') : t('settings.binanceTradingKey.save') }}
         </AppButton>
         <AppButton
           v-if="editing"
@@ -242,16 +247,16 @@ function confirmRemoval(): void {
           data-testid="binance-trading-key-cancel"
           @click="emit('cancelEditing')"
         >
-          取消
+          {{ t('common.cancel') }}
         </AppButton>
       </div>
     </div>
 
     <ConfirmDialog
       :open="removeConfirmationOpen"
-      title="移除幣安交易金鑰"
-      message="移除之後，所有開著自動下單的機器人會一併被關掉。要再用的話，得重新填入 API Key 與 Secret Key。"
-      confirm-label="移除"
+      :title="t('settings.binanceTradingKey.removeConfirmationTitle')"
+      :message="t('settings.binanceTradingKey.removeConfirmationMessage')"
+      :confirm-label="t('settings.binanceTradingKey.remove')"
       variant="danger"
       @confirm="confirmRemoval"
       @cancel="removeConfirmationOpen = false"

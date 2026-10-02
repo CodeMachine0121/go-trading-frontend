@@ -6,6 +6,7 @@ import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { KCandleSearchResultDto } from '~/domain/models/dto/k-candle-search-result-dto'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 function buildKCandleDto(
   openTime: string, trend: KCandleTrendVo, reportsEveryFigure = true,
@@ -30,8 +31,8 @@ function buildKCandleDto(
   )
 }
 
-const UP_TREND = new KCandleTrendVo('up', '上漲', 'success')
-const DOWN_TREND = new KCandleTrendVo('down', '下跌', 'danger')
+const UP_TREND = new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success')
+const DOWN_TREND = new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger')
 
 describe('KCandleTable', () => {
   it.each([
@@ -125,7 +126,7 @@ describe('KCandleTable', () => {
         timeZone: buildTimeZone(),
       },
       slots: {
-        'row-actions': '<button data-testid="row-action">{{ params.kCandle.trend.label }}</button>',
+        'row-actions': '<button data-testid="row-action">{{ params.kCandle.trend.label.traditionalChinese }}</button>',
       },
     })
 

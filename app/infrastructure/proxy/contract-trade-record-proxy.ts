@@ -38,6 +38,7 @@ import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import type { BackendRequestBody, BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const CONTRACT_TRADE_RECORDS_ENDPOINT = '/contract-trade-records'
 const BAD_REQUEST_STATUS = 400
@@ -60,19 +61,33 @@ const FIELD_OF_BACKEND_FIELD: Readonly<Record<string, TradeFormField>> = {
 }
 
 const FIELD_OF_MESSAGE_HINT: readonly (readonly [string, TradeFormField])[] = [
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['超過目前持倉', 'exitQuantity'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['止損', 'plannedStopLossPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['止盈', 'plannedTakeProfitPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['槓桿', 'leverage'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['合約標的', 'symbol'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['成交時間', 'fillTime'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['開倉價', 'fillPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['平倉價', 'fillPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['出場不能早於', 'fillTime'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['成交價', 'fillPrice'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['數量', 'fillQuantity'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['信心', 'confidence'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['評分', 'executionScore'],
+  // translation-exempt: 比對後端回覆原文裡的字，不是畫面上的話
   ['交易策略', 'tradingStrategy'],
 ]
 
@@ -418,7 +433,7 @@ export class ContractTradeRecordProxy extends BackendApiProxy implements IContra
       const formField = fieldFromBackend ?? fieldFromMessage
 
       return new TradeRejectedError(
-        error.message,
+        new UntranslatedTextVo(error.message),
         formField === undefined ? null : new TradeFormFieldVo(formField),
         null,
         0,

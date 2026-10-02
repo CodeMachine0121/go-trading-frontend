@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 分子：空的對話上那幾句可直接點的範例提問。
 //
@@ -12,10 +14,14 @@ import AppButton from '~/components/atoms/AppButton.vue'
 // 外形是膠囊：一句可以點的話是一枚籌碼，方形會讓它看起來像四顆按鈕排在那裡，
 // 而按鈕讀起來是「動作」，籌碼讀起來是「選一個」。
 const { prompts } = defineProps<{
-  prompts: readonly string[]
+  prompts: readonly LocalizedTextVo[]
 }>()
 
+/** 送出的是畫面上看到的那一句：英文畫面點下去問的就是英文那一句。 */
 const emit = defineEmits<{ select: [prompt: string] }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -24,22 +30,22 @@ const emit = defineEmits<{ select: [prompt: string] }>()
     data-testid="assistant-suggested-prompts"
   >
     <p class="assistant-suggested-prompts__title">
-      可以這樣問
+      {{ t('assistant.suggestedPrompts.title') }}
     </p>
 
     <ul class="assistant-suggested-prompts__list">
       <li
-        v-for="prompt in prompts"
-        :key="prompt"
+        v-for="(prompt, promptIndex) in prompts"
+        :key="promptIndex"
       >
         <AppButton
           variant="secondary"
           size="small"
           shape="pill"
           data-testid="assistant-suggested-prompt"
-          @click="emit('select', prompt)"
+          @click="emit('select', localize(prompt))"
         >
-          {{ prompt }}
+          {{ localize(prompt) }}
         </AppButton>
       </li>
     </ul>

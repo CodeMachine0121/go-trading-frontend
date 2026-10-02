@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import PasswordChangePanel from '~/components/organisms/PasswordChangePanel.vue'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountPanel(props: Record<string, unknown> = {}) {
   return mount(PasswordChangePanel, { props })
@@ -56,14 +57,14 @@ describe('PasswordChangePanel', () => {
     ['newPasswordConfirmationError', 'new-password-confirmation-input', '兩次輸入的新密碼不一致'],
   ])('%s 的說明畫在那一格底下', (propName, inputTestId, message) => {
     // 一句籠統的紅字等於要使用者自己猜是哪一格。
-    const wrapper = mountPanel({ [propName]: message })
+    const wrapper = mountPanel({ [propName]: new UntranslatedTextVo(message) })
 
     expect(wrapper.text()).toContain(message)
     expect(wrapper.get(`[data-testid="${inputTestId}"]`).attributes('aria-invalid')).toBe('true')
   })
 
   it('不是某一格的錯時才用整張卡的訊息', () => {
-    const wrapper = mountPanel({ errorMessage: '連不上後端 go-trading API' })
+    const wrapper = mountPanel({ errorMessage: new UntranslatedTextVo('連不上後端 go-trading API') })
 
     expect(wrapper.get('[data-testid="password-change-error"]').text())
       .toContain('連不上後端 go-trading API')

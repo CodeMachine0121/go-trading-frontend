@@ -2,6 +2,7 @@
 import AppModal from '~/components/atoms/AppModal.vue'
 import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
+import { useI18n } from 'vue-i18n'
 
 /**
  * 分子：回測照什麼規則走。
@@ -20,18 +21,21 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ close: [] }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <AppModal
     :open="open"
-    title="回測照什麼規則走"
+    :title="t('backtest.common.ruleGuideTitle')"
     @close="emit('close')"
   >
     <div class="backtest-rule-guide-dialog">
       <section class="backtest-rule-guide-dialog__section">
         <h3 class="backtest-rule-guide-dialog__heading">
-          算式怎麼說出這一棒的意見
+          {{ t('backtest.ruleGuideDialog.signalHeading') }}
         </h3>
 
         <pre class="backtest-rule-guide-dialog__code"><code>return indicator.Buy</code></pre>
@@ -40,10 +44,10 @@ const emit = defineEmits<{ close: [] }>()
           <thead>
             <tr>
               <th scope="col">
-                算式回傳
+                {{ t('backtest.ruleGuideDialog.returnsHeading') }}
               </th>
               <th scope="col">
-                意思
+                {{ t('backtest.ruleGuideDialog.meaningHeading') }}
               </th>
             </tr>
           </thead>
@@ -56,7 +60,7 @@ const emit = defineEmits<{ close: [] }>()
               <td class="backtest-rule-guide-dialog__value">
                 {{ reading.value }}
               </td>
-              <td>{{ reading.meaning }}</td>
+              <td>{{ localize(reading.meaning) }}</td>
             </tr>
           </tbody>
         </table>
@@ -64,18 +68,18 @@ const emit = defineEmits<{ close: [] }>()
 
       <section class="backtest-rule-guide-dialog__section">
         <h3 class="backtest-rule-guide-dialog__heading">
-          按下去之後
+          {{ t('backtest.ruleGuideDialog.afterRunHeading') }}
         </h3>
 
         <dl class="backtest-rule-guide-dialog__rules">
           <template
-            v-for="rule in rules"
-            :key="rule.title"
+            v-for="(rule, ruleIndex) in rules"
+            :key="ruleIndex"
           >
             <dt data-testid="backtest-rule-title">
-              {{ rule.title }}
+              {{ localize(rule.title) }}
             </dt>
-            <dd>{{ rule.description }}</dd>
+            <dd>{{ localize(rule.description) }}</dd>
           </template>
         </dl>
       </section>

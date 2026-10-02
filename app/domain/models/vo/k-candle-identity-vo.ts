@@ -1,4 +1,5 @@
 import { KCandleFieldError } from '~/domain/errors/k-candle-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * VO：一根 K 線的身分——交易標的 + 起始時間，兩者一起才指得出唯一一根。
@@ -11,11 +12,11 @@ export class KCandleIdentityVo {
   constructor(symbol: string, openTime: Date) {
     const normalizedSymbol = symbol.trim()
     if (normalizedSymbol === '') {
-      throw new KCandleFieldError('symbol', '請指定交易標的')
+      throw new KCandleFieldError('symbol', new LocalizedTextVo('請指定交易標的', 'Symbol is required'))
     }
 
     if (Number.isNaN(openTime.getTime())) {
-      throw new KCandleFieldError('openTime', '請填寫起始時間')
+      throw new KCandleFieldError('openTime', new LocalizedTextVo('請填寫起始時間', 'Open time is required'))
     }
 
     this.symbol = normalizedSymbol

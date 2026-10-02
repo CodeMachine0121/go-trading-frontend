@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：回測的一條規則——標題加一句說明。
  *
@@ -6,7 +8,7 @@
  */
 export class BacktestRuleDto {
   constructor(
-    public readonly title: string,
-    public readonly description: string,
+    public readonly title: LocalizedTextVo,
+    public readonly description: LocalizedTextVo,
   ) {}
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import TradeSummaryStrip from '~/components/molecules/TradeSummaryStrip.vue'
 import TradePricePathChart from '~/components/molecules/TradePricePathChart.vue'
@@ -6,6 +7,7 @@ import type { TradeOutcomeDto } from '~/domain/models/dto/trade-outcome-dto'
 import type { TradeSourceDto } from '~/domain/models/dto/trade-source-dto'
 import type { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const {
   outcome,
@@ -19,9 +21,12 @@ const {
   source?: TradeSourceDto | null
   pricePath?: TradePricePathDto | null
   pricePathLoading?: boolean
-  pricePathFailureMessage?: string | null
+  pricePathFailureMessage?: LocalizedTextVo | null
   timeZone: TimeZoneDto
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const pricePathMessage = computed(() => outcome.pricePathUnavailableMessage
   ?? pricePathFailureMessage
@@ -31,20 +36,20 @@ const pricePathMessage = computed(() => outcome.pricePathUnavailableMessage
 
 <template>
   <div class="trade-outcome-panel">
-    <AppPanel title="價格路徑">
+    <AppPanel :title="t('tradeJournal.outcomePanel.pricePathTitle')">
       <p
         v-if="pricePathMessage"
         class="trade-outcome-panel__state"
         data-testid="price-path-message"
       >
-        {{ pricePathMessage }}
+        {{ localize(pricePathMessage) }}
       </p>
       <p
         v-else-if="pricePathLoading || pricePath === null"
         class="trade-outcome-panel__state"
         data-testid="price-path-loading"
       >
-        讀取行情…
+        {{ t('tradeJournal.outcomePanel.loadingMarketData') }}
       </p>
       <TradePricePathChart
         v-else
@@ -53,7 +58,7 @@ const pricePathMessage = computed(() => outcome.pricePathUnavailableMessage
       />
     </AppPanel>
 
-    <AppPanel title="結果">
+    <AppPanel :title="t('tradeJournal.outcomePanel.resultTitle')">
       <div class="trade-outcome-panel__result">
         <TradeSummaryStrip
           v-for="(group, index) in outcome.figureGroups"
@@ -67,10 +72,10 @@ const pricePathMessage = computed(() => outcome.pricePathUnavailableMessage
           class="trade-outcome-panel__source"
           data-testid="trade-source"
         >
-          <dt>{{ source.label }}</dt>
-          <dd>參考價 {{ source.referencePriceText }}</dd>
-          <dd>建議止損 {{ source.suggestedStopLossPriceText }}</dd>
-          <dd>建議止盈 {{ source.suggestedTakeProfitPriceText }}</dd>
+          <dt>{{ localize(source.label) }}</dt>
+          <dd>{{ t('tradeJournal.outcomePanel.referencePrice', { price: localize(source.referencePriceText) }) }}</dd>
+          <dd>{{ t('tradeJournal.outcomePanel.suggestedStopLoss', { price: localize(source.suggestedStopLossPriceText) }) }}</dd>
+          <dd>{{ t('tradeJournal.outcomePanel.suggestedTakeProfit', { price: localize(source.suggestedTakeProfitPriceText) }) }}</dd>
         </dl>
       </div>
     </AppPanel>

@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：剛收到那一則回答下方那一行低調的說明。
  *
@@ -18,12 +20,15 @@ export class AssistantAnswerNoteDto {
    * 一行的說法。**一次都沒查時不講「查了 0 次」**——那是一句沒有資訊的話，
    * 而且會讓人以為查詢失敗了。
    */
-  get label(): string {
-    const usageLabel = `份量 ${this.usage}`
+  get label(): LocalizedTextVo {
+    const usageLabel = new LocalizedTextVo(`份量 ${this.usage}`, `Usage ${this.usage}`)
 
     return this.queryCount === 0
       ? usageLabel
-      : `查了 ${this.queryCount} 次 · ${usageLabel}`
+      : new LocalizedTextVo(
+          `查了 ${this.queryCount} 次 · ${usageLabel.traditionalChinese}`,
+          `${this.queryCount === 1 ? '1 lookup' : `${this.queryCount} lookups`} · ${usageLabel.english}`,
+        )
   }
 
   /**
@@ -32,9 +37,12 @@ export class AssistantAnswerNoteDto {
    * 語氣是提醒而不是錯誤：半個誠實的答案比沒有答案有用，
    * 但使用者得知道它是半個，否則會把它當成完整的結論用。
    */
-  get stoppedAtQueryLimitLabel(): string | null {
+  get stoppedAtQueryLimitLabel(): LocalizedTextVo | null {
     return this.stoppedAtQueryLimit
-      ? '已達查詢次數上限，這是助手就目前所得給出的回答'
+      ? new LocalizedTextVo(
+          '已達查詢次數上限，這是助手就目前所得給出的回答',
+          'The lookup limit was reached; this is the assistant\'s answer from what it found so far',
+        )
       : null
   }
 }

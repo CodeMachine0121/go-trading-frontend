@@ -249,7 +249,7 @@ describe('KCandleApplication', () => {
       const result = await kCandleApplication.searchKCandleContracts(
         new KCandleQueryDto('BTCUSDT', START_TIME))
 
-      expect(result.kCandleContracts.map(kCandleContract => kCandleContract.trend.label))
+      expect(result.kCandleContracts.map(kCandleContract => kCandleContract.trend.label.in('zh-TW')))
         .toEqual(['下跌', '上漲', '持平'])
       expect(result.kCandleContracts[0]?.priceChange.toString()).toBe('-10')
       expect(result.kCandleContracts[0]?.priceChangePercent?.toString()).toBe('-10')
@@ -337,7 +337,7 @@ describe('KCandleApplication 送出前檢查一份草稿', () => {
 
     const inspected = kCandleApplication.inspectKCandleDraft(draft(open, high, low))
 
-    expect(inspected === null ? null : { field: inspected.field, message: inspected.message }).toEqual(issue)
+    expect(inspected === null ? null : { field: inspected.field, message: inspected.message.in('zh-TW') }).toEqual(issue)
   })
 
   it('檢查草稿不送出任何東西', () => {

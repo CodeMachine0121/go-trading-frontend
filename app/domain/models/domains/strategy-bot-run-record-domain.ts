@@ -1,3 +1,4 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 
@@ -29,18 +30,18 @@ export class StrategyBotRunRecordDomain {
     )
   }
 
-  private get resultLabel(): string {
+  private get resultLabel(): LocalizedTextVo {
     switch (this.runRecord.result) {
       case 'buy':
-        return '買入'
+        return new LocalizedTextVo('買入', 'Buy')
       case 'sell':
-        return '賣出'
+        return new LocalizedTextVo('賣出', 'Sell')
       case 'conflict':
-        return '衝突'
+        return new LocalizedTextVo('衝突', 'Conflict')
       default:
         // 後端只會吐這四個，而認不得的那一個當成持有——
         // 一格空白在一排紀錄裡讀起來像「這一列壞了」。
-        return '持有'
+        return new LocalizedTextVo('持有', 'Hold')
     }
   }
 

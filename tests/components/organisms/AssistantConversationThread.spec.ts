@@ -7,6 +7,8 @@ import { AssistantPendingRevisionDto } from '~/domain/models/dto/assistant-pendi
 import { ConversationMessageDto } from '~/domain/models/dto/conversation-message-dto'
 import { SUGGESTED_PROMPTS, buildMessage, buildNote } from '../../fixtures/assistant-conversation'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountThread(props: {
   messages?: ConversationMessageDto[]
@@ -17,7 +19,9 @@ function mountThread(props: {
     props: {
       messages: props.messages ?? [],
       pending: props.pending ?? false,
-      rejectionMessage: props.rejectionMessage ?? null,
+      rejectionMessage: props.rejectionMessage === undefined || props.rejectionMessage === null
+        ? null
+        : new UntranslatedTextVo(props.rejectionMessage),
       suggestedPrompts: SUGGESTED_PROMPTS,
       timeZone: buildTimeZone(),
     },
@@ -39,7 +43,7 @@ describe('AssistantConversationThread 空的時候', () => {
 
     await wrapper.findAll('[data-testid="assistant-suggested-prompt"]')[0]?.trigger('click')
 
-    expect(wrapper.emitted('selectPrompt')).toEqual([[SUGGESTED_PROMPTS[0]]])
+    expect(wrapper.emitted('selectPrompt')).toEqual([[SUGGESTED_PROMPTS[0]?.traditionalChinese]])
   })
 
   it('已經送出而還在等時，建議提問就收起來了', () => {
@@ -185,7 +189,7 @@ describe('AssistantConversationThread 的待確認修改', () => {
 
     return new ConversationMessageDto(
       answer.role, answer.content, answer.blocks, answer.createdAt, answer.status, answer.note, answer.failureReason,
-      [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '{}', '等你確認', true, 'warning', answer.createdAt)])
+      [new AssistantPendingRevisionDto(70, new LocalizedTextVo('策略腳本「二十根均線」', 'Strategy script "二十根均線"'), '{}', new LocalizedTextVo('等你確認', 'Awaiting your confirmation'), true, 'warning', answer.createdAt)])
   }
 
   it('每一筆接在它所屬的那一則下面，按下的那一筆往上交', async () => {
@@ -196,7 +200,7 @@ describe('AssistantConversationThread 的待確認修改', () => {
         rejectionMessage: null,
         suggestedPrompts: SUGGESTED_PROMPTS,
         timeZone: buildTimeZone(),
-        pendingRevisionErrors: { 70: '這幾台機器人正在用它跑：早盤突破，請先停止它們' },
+        pendingRevisionErrors: { 70: new UntranslatedTextVo('這幾台機器人正在用它跑：早盤突破，請先停止它們') },
       },
     })
 
@@ -235,7 +239,7 @@ describe('AssistantConversationThread 沒寫完的問答', () => {
         messages: [new ConversationMessageDto(
           failedAsk.role, failedAsk.content, failedAsk.blocks, failedAsk.createdAt, failedAsk.status,
           failedAsk.note, failedAsk.failureReason,
-          [new AssistantPendingRevisionDto(70, '策略腳本「二十根均線」', '<img src=x onerror=alert(1)>', '等你確認', true, 'warning', failedAsk.createdAt)])],
+          [new AssistantPendingRevisionDto(70, new LocalizedTextVo('策略腳本「二十根均線」', 'Strategy script "二十根均線"'), '<img src=x onerror=alert(1)>', new LocalizedTextVo('等你確認', 'Awaiting your confirmation'), true, 'warning', failedAsk.createdAt)])],
         pending: false,
         rejectionMessage: null,
         suggestedPrompts: SUGGESTED_PROMPTS,

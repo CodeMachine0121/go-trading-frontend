@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AssistantComposer from '~/components/molecules/AssistantComposer.vue'
 import AssistantConversationList from '~/components/organisms/AssistantConversationList.vue'
@@ -7,6 +8,7 @@ import type { ConversationMessageDto } from '~/domain/models/dto/conversation-me
 import type { ConversationSummaryDto } from '~/domain/models/dto/conversation-summary-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 有機體：助手整頁——左邊一欄歷史對話，右邊那一段對話與輸入。
 //
@@ -20,17 +22,19 @@ import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 const { conversations, layoutDensity } = defineProps<{
   conversations: readonly ConversationSummaryDto[]
   activeConversationId: number | null
-  conversationsErrorMessage: string | null
+  conversationsErrorMessage: LocalizedTextVo | null
   messages: readonly ConversationMessageDto[]
   pending: boolean
-  rejectionMessage: string | null
-  suggestedPrompts: readonly string[]
+  rejectionMessage: LocalizedTextVo | null
+  suggestedPrompts: readonly LocalizedTextVo[]
   timeZone: TimeZoneDto
   resolvingPendingRevisionId?: number | null
-  pendingRevisionErrors?: Readonly<Record<number, string>>
+  pendingRevisionErrors?: Readonly<Record<number, LocalizedTextVo>>
   /** 現在這個寬度代表什麼。這裡用到的是「助手是不是佔滿整個畫面」。 */
   layoutDensity: LayoutDensityDto
 }>()
+
+const { t } = useI18n()
 
 const draft = defineModel<string>('draft', { required: true })
 
@@ -80,7 +84,9 @@ function startNewConversation() {
       data-testid="toggle-conversation-list"
       @click="conversationListOpen = !conversationListOpen"
     >
-      {{ conversationListOpen ? '收起歷史對話' : `歷史對話（${conversations.length}）` }}
+      {{ conversationListOpen
+        ? t('assistant.common.collapseHistory')
+        : t('assistant.console.historyWithCount', { count: conversations.length }) }}
     </AppButton>
 
     <AssistantConversationList

@@ -1,21 +1,27 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import BacktestTradeTable from '~/components/molecules/BacktestTradeTable.vue'
+import { nextTick } from 'vue'
 import { ClosedTradeDto } from '~/domain/models/dto/closed-trade-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
 const ENTRY_TIME = new Date('2026-09-01T04:00:00Z')
 const EXIT_TIME = new Date('2026-09-02T04:00:00Z')
+const LONG = new LocalizedTextVo('做多', 'Long')
+const SIGNAL_EXIT = new LocalizedTextVo('訊號', 'Signal')
+const STOP_LOSS_EXIT = new LocalizedTextVo('止損', 'Stop loss')
+const TAKE_PROFIT_EXIT = new LocalizedTextVo('止盈', 'Take profit')
 
 function tradeOf(
   profit: string,
   tone: 'positive' | 'negative' | 'neutral',
-  exitReasonLabel = '訊號',
+  exitReasonLabel = SIGNAL_EXIT,
   entryCost = '0.00',
   exitCost = '0.00',
 ): ClosedTradeDto {
   return new ClosedTradeDto(
-    '做多', ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone, exitReasonLabel,
+    LONG, ENTRY_TIME, '100', EXIT_TIME, '110', profit, tone, exitReasonLabel,
     entryCost, exitCost)
 }
 
@@ -98,7 +104,7 @@ describe('BacktestTradeTable 空表格的兩種原因', () => {
 describe('BacktestTradeTable 的成本欄', () => {
   it('收過錢才多那兩欄，每一列說出自己付了多少', () => {
     const wrapper = mountTable(
-      [tradeOf('790', 'positive', '訊號', '100.00', '110.00')], 'UTC', true)
+      [tradeOf('790', 'positive', SIGNAL_EXIT, '100.00', '110.00')], 'UTC', true)
 
     expect(wrapper.get('[data-testid="trade-entry-cost"]').text()).toBe('100.00')
     expect(wrapper.get('[data-testid="trade-exit-cost"]').text()).toBe('110.00')
@@ -131,13 +137,13 @@ describe('BacktestTradeTable', () => {
   })
 
   it.each([
-    ['被停損掃出場的那一筆', '止損'],
-    ['被停利帶走的那一筆', '止盈'],
-    ['靡訊號出場的那一筆', '訊號'],
-  ])('%s 自己說出來', (_name, expectedLabel) => {
+    ['被停損掃出場的那一筆', STOP_LOSS_EXIT, '止損'],
+    ['被停利帶走的那一筆', TAKE_PROFIT_EXIT, '止盈'],
+    ['靡訊號出場的那一筆', SIGNAL_EXIT, '訊號'],
+  ])('%s 自己說出來', (_name, exitReasonLabel, expectedLabel) => {
     // 總數答得出「有幾筆」、答不出「是哪幾筆」——
     // 而看這張明細的人問的正是後者。
-    const wrapper = mountTable([tradeOf('1000', 'positive', expectedLabel)])
+    const wrapper = mountTable([tradeOf('1000', 'positive', exitReasonLabel)])
 
     expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe(expectedLabel)
   })
@@ -173,5 +179,35 @@ describe('BacktestTradeTable', () => {
     expect(wrapper.get('[data-testid="no-trades"]').text())
       .toContain('這段期間沒有觸發任何交易')
     expect(wrapper.find('table').exists()).toBe(false)
+  })
+})
+
+describe('BacktestTradeTable 切成英文', () => {
+  it('表頭、每一列的方向與出場原因都換成英文', async () => {
+    const wrapper = mountTable([tradeOf('790', 'positive', STOP_LOSS_EXIT)], 'UTC', true)
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    const headings = wrapper.findAll('th').map(heading => heading.text())
+    expect(headings).toEqual([
+      'Direction', 'Entry (UTC)', 'Entry price', 'Exit (UTC)', 'Exit price', 'Exit reason',
+      'Entry cost', 'Exit cost', 'Profit (after costs)'])
+    expect(wrapper.findAll('[data-testid="trade-row"] td')[0]!.text()).toBe('Long')
+    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Stop loss')
+  })
+
+  it.each([
+    [true, 'no-closed-trades-yet', 'A position was opened but not yet closed, so this list is empty.'],
+    [false, 'no-trades', 'No trades were triggered in this period.'],
+  ])('空表格說英文（還抱著一注＝%s）', async (hasOpenPosition, testId, expectedOpening) => {
+    const wrapper = mount(BacktestTradeTable, {
+      props: { closedTrades: [], timeZone: buildTimeZone('UTC'), hasOpenPosition },
+    })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get(`[data-testid="${testId}"]`).text()).toContain(expectedOpening)
   })
 })

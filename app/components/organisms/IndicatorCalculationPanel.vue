@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -33,6 +34,7 @@ import { readNumberInput } from '~/utilities/number-input-reading'
 import { useStrategyScriptParameters } from '~/composables/use-strategy-script-parameters'
 import { useIndicatorCalculationRun } from '~/composables/use-indicator-calculation-run'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { IndicatorCalculationField } from '~/domain/errors/indicator-calculation-field-error'
 
 // 有機體：策略腳本那一頁的整塊工作區。Application 由頁面注入。
 //
@@ -82,10 +84,13 @@ const {
  * 打開時停在指標預覽，那是這一頁原本就在做的事。切換不清空任何東西：
  * 兩邊都還掛在畫面上，只是其中一邊此刻看得見——填到一半的回測條件因此不會掉。
  */
-const WORKBENCH_DESTINATIONS = [
-  { value: 'indicatorPreview', label: '指標預覽' },
-  { value: 'backtest', label: '回測' },
-] as const
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const workbenchDestinations = computed(() => [
+  { value: 'indicatorPreview', label: t('strategyScript.indicatorCalculationPanel.destinations.indicatorPreview') },
+  { value: 'backtest', label: t('strategyScript.indicatorCalculationPanel.destinations.backtest') },
+])
 
 /**
  * 這一頁有沒有回測可以跑，由這一種行情說。沒有的時候那個分頁整個不出現，
@@ -93,7 +98,7 @@ const WORKBENCH_DESTINATIONS = [
  */
 const workbench = indicatorCalculationApplication.describeStrategyScriptWorkbench(marketDataKind)
 
-const destination = ref<string>(WORKBENCH_DESTINATIONS[0].value)
+const destination = ref<string>('indicatorPreview')
 
 /**
  * 工作區被整份換掉了幾次。
@@ -166,9 +171,13 @@ const guideOpen = ref(false)
  */
 const compactSection = ref<string>('code')
 const compactSectionOptions = computed(() => [
-  { value: 'code', label: '程式碼' },
-  { value: 'parameters', label: `參數 ${strategyScriptParameters.fields.value.length}` },
-  { value: 'guide', label: '說明' },
+  { value: 'code', label: t('strategyScript.indicatorCalculationPanel.compactSections.code') },
+  {
+    value: 'parameters',
+    label: t('strategyScript.indicatorCalculationPanel.compactSections.parameters',
+      { count: strategyScriptParameters.fields.value.length }),
+  },
+  { value: 'guide', label: t('strategyScript.indicatorCalculationPanel.compactSections.guide') },
 ])
 /** 這個種類之下，按「帶入範例內容」會填進來的那一整份。 */
 const exampleScript = computed(
@@ -233,7 +242,9 @@ const indicatorPreviewQuiet = computed(() => calculationRun.result.value === nul
 const indicatorPreviewFormId = useId()
 const backtestFormId = useId()
 const backtestPane = useTemplateRef<InstanceType<typeof StrategyScriptBacktestPane>>('backtestPane')
-const compactRunLabel = computed(() => (destination.value === 'backtest' ? '執行回測' : '執行計算'))
+const compactRunLabel = computed(() => (destination.value === 'backtest'
+  ? t('strategyScript.indicatorCalculationPanel.runBacktest')
+  : t('strategyScript.indicatorCalculationPanel.runCalculation')))
 const compactRunning = computed<boolean>(() => (destination.value === 'backtest'
   ? backtestPane.value?.running ?? false
   : calculationRun.calculating.value))
@@ -250,8 +261,16 @@ function changeSpanUnit(unit: string) {
   span.value = new CalculationSpanDto(span.value.amount, unit as CalculationSpanUnit)
 }
 
+// 範例照目前的顯示語言帶入：帶進來之後它就是使用者的算式，之後換語言也不會跟著變。
 function fillExampleScript() {
-  script.value = exampleScript.value
+  script.value = localize(exampleScript.value)
+}
+
+/** 這一格輸入被指出的問題，照目前的語言說出來；沒有問題就是 `null`。 */
+function fieldMessage(field: IndicatorCalculationField): string | null {
+  const message = calculationRun.messageFor(field)
+
+  return message === null ? null : localize(message)
 }
 
 /**
@@ -321,7 +340,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       窄一點放不下第三欄，同一份清單改收在編輯器那一排的「策略腳本清單」鍵後面。
     -->
     <AppPanel
-      title="腳本庫"
+      :title="t('strategyScript.indicatorCalculationPanel.library.title')"
       flush
       class="indicator-calculation-panel__library"
     >
@@ -337,7 +356,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             name="plus"
             size="small"
           />
-          新腳本
+          {{ t('strategyScript.indicatorCalculationPanel.library.newScript') }}
         </AppButton>
       </template>
 
@@ -386,7 +405,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         tone="info"
         data-testid="adopted-read-only-notice"
       >
-        這份是從市集加入的副本：算式是作者寫的，看不到也改不動——可以拿來試跑、回測與組交易策略。
+        {{ t('strategyScript.indicatorCalculationPanel.readOnlyNotice') }}
       </AppAlert>
 
       <p
@@ -394,14 +413,14 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         class="indicator-calculation-panel__strategy-script-notice"
         data-testid="strategy-script-notice"
       >
-        {{ strategyScriptLibrary.noticeMessage.value }}
+        {{ localize(strategyScriptLibrary.noticeMessage.value) }}
       </p>
       <p
         v-if="strategyScriptLibrary.errorMessage.value"
         class="indicator-calculation-panel__strategy-script-error"
         data-testid="strategy-script-error"
       >
-        {{ strategyScriptLibrary.errorMessage.value }}
+        {{ localize(strategyScriptLibrary.errorMessage.value) }}
       </p>
 
       <IndicatorScriptEditor
@@ -418,13 +437,13 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             而這一頁只有這一個分別需要記住。
           -->
           <AppBadge variant="success">
-            跟著策略腳本存
+            {{ t('strategyScript.indicatorCalculationPanel.editor.savedWithScriptBadge') }}
           </AppBadge>
           <AppBadge
             v-if="strategyScriptLibrary.activeStrategyScript.value?.published"
             variant="info"
           >
-            已分享
+            {{ t('strategyScript.indicatorCalculationPanel.editor.sharedBadge') }}
           </AppBadge>
         </template>
 
@@ -438,7 +457,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             variant="ghost"
             size="small"
             class="indicator-calculation-panel__until-library"
-            label="新的空白策略腳本"
+            :label="t('strategyScript.indicatorCalculationPanel.editor.newBlankLabel')"
             data-testid="new-strategy-script-button"
             @click="strategyScriptLibrary.startBlankStrategyScript"
           >
@@ -449,7 +468,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             variant="ghost"
             size="small"
             class="indicator-calculation-panel__until-library"
-            label="策略腳本清單"
+            :label="t('strategyScript.indicatorCalculationPanel.editor.libraryLabel')"
             data-testid="open-library-button"
             @click="strategyScriptLibrary.openLibrary"
           >
@@ -460,7 +479,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             variant="ghost"
             size="small"
             :disabled="readOnly"
-            label="另存為新的一支"
+            :label="t('strategyScript.indicatorCalculationPanel.editor.saveAsLabel')"
             data-testid="save-as-strategy-script-button"
             @click="strategyScriptLibrary.openNameDialog"
           >
@@ -472,7 +491,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             variant="ghost"
             size="small"
             :disabled="strategyScriptLibrary.activeStrategyScript.value === null"
-            label="重新命名與撰寫說明"
+            :label="t('strategyScript.indicatorCalculationPanel.editor.renameLabel')"
             data-testid="rename-strategy-script-button"
             @click="strategyScriptLibrary.openRenameDialog"
           >
@@ -482,7 +501,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             type="button"
             variant="ghost"
             size="small"
-            label="算式裡可以用什麼"
+            :label="t('strategyScript.indicatorCalculationPanel.editor.guideLabel')"
             data-testid="script-guide-button"
             @click="guideOpen = true"
           >
@@ -507,7 +526,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               name="share"
               size="small"
             />
-            分享到市集
+            {{ t('strategyScript.indicatorCalculationPanel.editor.share') }}
           </AppButton>
           <AppButton
             v-else
@@ -522,7 +541,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               name="unshare"
               size="small"
             />
-            從市集收回
+            {{ t('strategyScript.indicatorCalculationPanel.editor.withdraw') }}
           </AppButton>
           <!-- 手機上「儲存」釘在畫面最底下那一條，這裡那一顆只在寬螢幕出現。 -->
           <AppButton
@@ -538,7 +557,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               name="save"
               size="small"
             />
-            儲存
+            {{ t('strategyScript.indicatorCalculationPanel.editor.save') }}
           </AppButton>
         </template>
 
@@ -547,7 +566,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             :model-value="resultType"
             :disabled="readOnly"
             class="indicator-calculation-panel__result-type"
-            aria-label="指標值種類"
+            :aria-label="t('strategyScript.indicatorCalculationPanel.editor.resultTypeLabel')"
             data-testid="result-type-select"
             @update:model-value="retargetResultType"
           >
@@ -556,7 +575,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               :key="resultTypeOption.value"
               :value="resultTypeOption.value"
             >
-              {{ resultTypeOption.label }}
+              {{ localize(resultTypeOption.label) }}
             </option>
           </AppSelect>
           <AppButton
@@ -571,7 +590,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               name="example"
               size="small"
             />
-            帶入範例
+            {{ t('strategyScript.indicatorCalculationPanel.editor.fillExample') }}
           </AppButton>
         </template>
       </IndicatorScriptEditor>
@@ -585,7 +604,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       class="indicator-calculation-panel__region indicator-calculation-panel__parameters"
       :class="{ 'indicator-calculation-panel__region--folded': compactSection !== 'parameters' }"
     >
-      <AppPanel title="參數">
+      <AppPanel :title="t('strategyScript.indicatorCalculationPanel.parameters.title')">
         <template #meta>
           <AppBadge
             :variant="calculationRun.messageFor('parameters') ? 'danger' : 'neutral'"
@@ -597,8 +616,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
 
         <div class="indicator-calculation-panel__parameter-body">
           <p class="indicator-calculation-panel__lead">
-            算式以名字取用它們，它們跟著這支策略腳本一起存。
-            在 K 線圖表上套用時可以替那一次另外調一個值，這裡填的預設值不會被動到。
+            {{ t('strategyScript.indicatorCalculationPanel.parameters.lead') }}
           </p>
 
           <StrategyScriptParameterList
@@ -617,7 +635,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="danger"
             data-testid="parameters-alert"
           >
-            {{ calculationRun.messageFor('parameters') }}
+            {{ fieldMessage('parameters') }}
           </AppAlert>
         </div>
       </AppPanel>
@@ -626,7 +644,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
     <!-- 手機上「說明」那一段。寬螢幕上同一份在工具列那顆 ⓘ 後面的對話框裡。 -->
     <AppPanel
       v-if="compactSection === 'guide'"
-      title="算式裡可以用什麼"
+      :title="t('strategyScript.indicatorCalculationPanel.guideTitle')"
       class="indicator-calculation-panel__compact-guide"
     >
       <IndicatorScriptGuide
@@ -644,7 +662,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       v-if="workbench.offersBacktest"
       v-model="destination"
       class="indicator-calculation-panel__destinations"
-      :options="WORKBENCH_DESTINATIONS"
+      :options="workbenchDestinations"
     />
 
     <!--
@@ -664,12 +682,12 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
           改成兩個對照的標記：短到會被讀完，而且兩邊擺在一起才看得出是一組。
         -->
         <AppPanel
-          title="執行條件"
+          :title="t('strategyScript.indicatorCalculationPanel.runConditions.title')"
           class="indicator-calculation-panel__run"
         >
           <template #meta>
             <AppBadge variant="info">
-              只影響這一次
+              {{ t('strategyScript.indicatorCalculationPanel.runConditions.thisRunOnlyBadge') }}
             </AppBadge>
           </template>
 
@@ -679,18 +697,18 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               v-if="!workbench.picksContractTradingSymbol"
               v-model="symbol"
               :trading-symbol-application="tradingSymbolApplication"
-              :error-message="calculationRun.messageFor('symbol')"
+              :error-message="fieldMessage('symbol')"
             />
             <ContractSymbolField
               v-else
               v-model="symbol"
               :trading-symbol-application="tradingSymbolApplication"
-              :error-message="calculationRun.messageFor('symbol')"
+              :error-message="fieldMessage('symbol')"
             />
 
             <FormField
-              label="要看多長"
-              :error-message="calculationRun.messageFor('span')"
+              :label="t('strategyScript.indicatorCalculationPanel.runConditions.spanLabel')"
+              :error-message="fieldMessage('span')"
             >
               <div class="indicator-calculation-panel__span">
                 <AppInput
@@ -711,13 +729,13 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                     :key="unitOption.value"
                     :value="unitOption.value"
                   >
-                    {{ unitOption.label }}
+                    {{ localize(unitOption.label) }}
                   </option>
                 </AppSelect>
               </div>
             </FormField>
 
-            <FormField label="彙總刻度">
+            <FormField :label="t('strategyScript.indicatorCalculationPanel.runConditions.aggregationIntervalLabel')">
               <AppSelect
                 v-model="aggregationInterval"
                 data-testid="aggregation-interval-select"
@@ -727,7 +745,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                   :key="intervalOption.value"
                   :value="intervalOption.value"
                 >
-                  {{ intervalOption.label }}
+                  {{ localize(intervalOption.label) }}
                 </option>
               </AppSelect>
             </FormField>
@@ -738,7 +756,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               :disabled="calculationRun.calculating.value"
               data-testid="calculate-button"
             >
-              {{ calculationRun.calculating.value ? '計算中…' : '執行計算' }}
+              {{ calculationRun.calculating.value ? t('strategyScript.indicatorCalculationPanel.calculating') : t('strategyScript.indicatorCalculationPanel.runCalculation') }}
             </AppButton>
           </div>
         </AppPanel>
@@ -750,7 +768,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             class="indicator-calculation-panel__placeholder"
             data-testid="indicator-preview-placeholder"
           >
-            按「執行計算」，這支算式在這一段行情上算出的指標值會出現在這裡。
+            {{ t('strategyScript.indicatorCalculationPanel.findings.placeholder') }}
           </p>
 
           <AppAlert
@@ -758,7 +776,8 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="danger"
             data-testid="parameter-not-declared-alert"
           >
-            參數的問題（要改的是參數那一列的名字，或算式裡取用它的那一行）：{{ calculationRun.parameterNotDeclaredMessage.value }}
+            {{ t('strategyScript.indicatorCalculationPanel.findings.parameterNotDeclared',
+                 { message: localize(calculationRun.parameterNotDeclaredMessage.value) }) }}
           </AppAlert>
 
           <AppAlert
@@ -766,7 +785,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="danger"
             data-testid="script-failed-alert"
           >
-            算式的問題（要改的是算式）：{{ calculationRun.scriptFailedMessage.value }}
+            {{ t('strategyScript.indicatorCalculationPanel.findings.scriptFailed', { message: localize(calculationRun.scriptFailedMessage.value) }) }}
             <!--
           「沙箱裡沒有這個名字」是這一則最常見的原因，而訊息只說得出少了什麼，
           說不出有什麼——那份清單在工具列那顆 ⓘ 後面。
@@ -780,7 +799,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                 data-testid="script-failed-guide-button"
                 @click="guideOpen = true"
               >
-                算式裡可以用什麼
+                {{ t('strategyScript.indicatorCalculationPanel.findings.scriptFailedGuide') }}
               </AppButton>
             </template>
           </AppAlert>
@@ -790,7 +809,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="warning"
             data-testid="request-rejected-alert"
           >
-            請求的問題：{{ calculationRun.requestRejectedMessage.value }}
+            {{ t('strategyScript.indicatorCalculationPanel.findings.requestRejected', { message: localize(calculationRun.requestRejectedMessage.value) }) }}
           </AppAlert>
 
           <AppAlert
@@ -798,7 +817,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="danger"
             data-testid="server-error-alert"
           >
-            後端出錯了（不是你的請求有問題），請稍後重試：{{ calculationRun.serverErrorMessage.value }}
+            {{ t('strategyScript.indicatorCalculationPanel.findings.serverError', { message: localize(calculationRun.serverErrorMessage.value) }) }}
             <template #action>
               <AppButton
                 variant="secondary"
@@ -806,7 +825,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                 :disabled="calculationRun.calculating.value"
                 @click="calculateIndicator"
               >
-                重試
+                {{ t('strategyScript.indicatorCalculationPanel.findings.retry') }}
               </AppButton>
             </template>
           </AppAlert>
@@ -816,7 +835,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="danger"
             data-testid="unreachable-alert"
           >
-            連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。
+            {{ t('strategyScript.indicatorCalculationPanel.findings.unreachable') }}
             <template #action>
               <AppButton
                 variant="secondary"
@@ -824,7 +843,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                 :disabled="calculationRun.calculating.value"
                 @click="calculateIndicator"
               >
-                重試
+                {{ t('strategyScript.indicatorCalculationPanel.findings.retry') }}
               </AppButton>
             </template>
           </AppAlert>
@@ -834,12 +853,12 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             tone="info"
             data-testid="calculating-alert"
           >
-            計算中…算式最長可能跑上數十秒。
+            {{ t('strategyScript.indicatorCalculationPanel.findings.calculatingNotice') }}
           </AppAlert>
 
           <AppPanel
             v-if="calculationRun.result.value"
-            title="計算結果"
+            :title="t('strategyScript.indicatorCalculationPanel.result.title')"
             flush
             class="indicator-calculation-panel__result"
           >
@@ -853,20 +872,20 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
             正是他看到「實際採用 24 根」卻要了 25 根的那一刻，不是他剛打開畫面的時候。
           -->
               <span data-testid="used-candle-count">
-                實際採用 {{ calculationRun.result.value.usedCandleCount }} 根
+                {{ t('strategyScript.indicatorCalculationPanel.result.usedCandleCount', { count: calculationRun.result.value.usedCandleCount }, calculationRun.result.value.usedCandleCount) }}
                 <AppBadge
                   variant="info"
                   data-testid="used-interval"
                 >
-                  每根涵蓋 {{ calculationRun.result.value.intervalLabel }}
+                  {{ t('strategyScript.indicatorCalculationPanel.result.usedInterval', { interval: localize(calculationRun.result.value.intervalLabel) }) }}
                 </AppBadge>
                 <AppBadge variant="info">
-                  {{ calculationRun.result.value.resultTypeLabel }}
+                  {{ localize(calculationRun.result.value.resultTypeLabel) }}
                 </AppBadge>
                 <span
                   class="indicator-calculation-panel__notice"
                   data-testid="calculation-notice"
-                >只採用已經走完的那幾格——還在走的那一格不算，它的數字還會變。</span>
+                >{{ t('strategyScript.indicatorCalculationPanel.result.closedCandlesOnly') }}</span>
               </span>
             </template>
 
@@ -882,7 +901,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               tone="warning"
               data-testid="short-coverage-alert"
             >
-              {{ calculationRun.result.value.shortCoverageMessage }}
+              {{ localize(calculationRun.result.value.shortCoverageMessage) }}
             </AppAlert>
 
             <p
@@ -890,7 +909,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               class="indicator-calculation-panel__empty"
               data-testid="empty-result"
             >
-              這次沒有算出任何指標。算式可以什麼都不放進結果，這不算失敗。
+              {{ t('strategyScript.indicatorCalculationPanel.result.empty') }}
             </p>
 
             <p
@@ -899,7 +918,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
               :class="`indicator-calculation-panel__signal--${calculationRun.result.value.signalTone}`"
               data-testid="signal-verdict"
             >
-              {{ calculationRun.result.value.signalLabel }}
+              {{ localize(calculationRun.result.value.signalLabel) }}
             </p>
 
             <div
@@ -910,10 +929,10 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                 <thead>
                   <tr>
                     <th scope="col">
-                      指標名稱
+                      {{ t('strategyScript.indicatorCalculationPanel.result.indicatorNameHeading') }}
                     </th>
                     <th scope="col">
-                      數值
+                      {{ t('strategyScript.indicatorCalculationPanel.result.valueHeading') }}
                     </th>
                   </tr>
                 </thead>
@@ -931,7 +950,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                         v-if="indicatorValue.isEmptySeries"
                         class="indicator-calculation-panel__empty-series"
                         data-testid="empty-series"
-                      >空的一串</span>
+                      >{{ t('strategyScript.indicatorCalculationPanel.result.emptySeries') }}</span>
                       <ol
                         v-else-if="indicatorValue.isSeries"
                         class="indicator-calculation-panel__series"
@@ -942,13 +961,13 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
                           class="indicator-calculation-panel__series-item"
                           data-testid="series-item"
                         >
-                          {{ displayValue }}
+                          {{ localize(displayValue) }}
                         </li>
                       </ol>
                       <span
                         v-else
                         class="indicator-calculation-panel__value"
-                      >{{ indicatorValue.displayValues[0] }}</span>
+                      >{{ indicatorValue.displayValues[0] === undefined ? '' : localize(indicatorValue.displayValues[0]) }}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -992,7 +1011,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         data-testid="dock-save-button"
         @click="strategyScriptLibrary.saveStrategyScript"
       >
-        儲存
+        {{ t('strategyScript.indicatorCalculationPanel.dock.save') }}
       </AppButton>
       <AppButton
         type="submit"
@@ -1030,8 +1049,8 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
 
     <StrategyScriptNameDialog
       :open="strategyScriptLibrary.openDialog.value === 'name'"
-      title="另存為新策略腳本"
-      hint="其餘內容取自畫面上目前的算式、指標值種類與參數。"
+      :title="t('strategyScript.indicatorCalculationPanel.saveAsDialog.title')"
+      :hint="t('strategyScript.indicatorCalculationPanel.saveAsDialog.hint')"
       :error-message="strategyScriptLibrary.nameErrorMessage.value"
       :submitting="strategyScriptLibrary.saving.value"
       @submit="strategyScriptLibrary.createStrategyScript"
@@ -1040,8 +1059,8 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
 
     <StrategyScriptNameDialog
       :open="strategyScriptLibrary.openDialog.value === 'rename'"
-      title="重新命名"
-      hint="只換名字與說明，這一支記著的算式與其餘設定都不會被動到。"
+      :title="t('strategyScript.indicatorCalculationPanel.renameDialog.title')"
+      :hint="t('strategyScript.indicatorCalculationPanel.renameDialog.hint')"
       :initial-name="strategyScriptLibrary.activeStrategyScript.value?.name ?? ''"
       :initial-description="strategyScriptLibrary.activeStrategyScript.value?.description ?? ''"
       :error-message="strategyScriptLibrary.nameErrorMessage.value"
@@ -1053,18 +1072,18 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
 
     <ConfirmDialog
       :open="strategyScriptLibrary.openDialog.value === 'discard'"
-      title="放棄尚未儲存的變更？"
-      message="編輯區的內容已經改過而且還沒存。接下來這個動作會蓋掉它。"
-      confirm-label="放棄並繼續"
+      :title="t('strategyScript.indicatorCalculationPanel.discardDialog.title')"
+      :message="t('strategyScript.indicatorCalculationPanel.discardDialog.message')"
+      :confirm-label="t('strategyScript.indicatorCalculationPanel.discardDialog.confirm')"
       @confirm="strategyScriptLibrary.confirmDiscard"
       @cancel="strategyScriptLibrary.closeDialog"
     />
 
     <ConfirmDialog
       :open="strategyScriptLibrary.openDialog.value === 'delete'"
-      title="刪除這支策略腳本？"
-      message="刪掉就沒了，救不回來。編輯區的內容會留著。"
-      confirm-label="刪除"
+      :title="t('strategyScript.indicatorCalculationPanel.deleteDialog.title')"
+      :message="t('strategyScript.indicatorCalculationPanel.deleteDialog.message')"
+      :confirm-label="t('strategyScript.indicatorCalculationPanel.deleteDialog.confirm')"
       variant="danger"
       @confirm="strategyScriptLibrary.confirmDelete"
       @cancel="strategyScriptLibrary.closeDialog"
@@ -1076,9 +1095,9 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
     -->
     <ConfirmDialog
       :open="strategyScriptLibrary.openDialog.value === 'withdraw'"
-      title="從市集收回這一支？"
-      message="收回之後，所有把它加進自己清單的人都會失去它，而且你不會知道有誰。重新分享也不會讓他們自動回來。"
-      confirm-label="收回"
+      :title="t('strategyScript.indicatorCalculationPanel.withdrawDialog.title')"
+      :message="t('strategyScript.indicatorCalculationPanel.withdrawDialog.message')"
+      :confirm-label="t('strategyScript.indicatorCalculationPanel.withdrawDialog.confirm')"
       variant="danger"
       @confirm="strategyScriptLibrary.confirmWithdraw"
       @cancel="strategyScriptLibrary.closeDialog"

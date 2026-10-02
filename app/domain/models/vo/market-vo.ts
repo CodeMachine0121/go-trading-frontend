@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /** 目前認得的兩個市場，與後端同名。 */
 export type MarketValue = 'taiwanStock' | 'crypto'
 
@@ -11,7 +13,7 @@ export type MarketValue = 'taiwanStock' | 'crypto'
 export class MarketVo {
   constructor(
     public readonly value: MarketValue,
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
   ) {}
 }
 
@@ -19,8 +21,8 @@ export class MarketVo {
  * 認得的每一個市場。順序是**篩選鍵上呈現的順序**，所以多一個市場就是在這裡多一列。
  */
 export const MARKETS: MarketVo[] = [
-  new MarketVo('taiwanStock', '台股'),
-  new MarketVo('crypto', '加密貨幣'),
+  new MarketVo('taiwanStock', new LocalizedTextVo('台股', 'Taiwan stocks')),
+  new MarketVo('crypto', new LocalizedTextVo('加密貨幣', 'Crypto')),
 ]
 
 /**

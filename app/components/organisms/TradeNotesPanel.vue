@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
@@ -13,6 +14,8 @@ const { notes, busy = false, timeZoneIdentifier } = defineProps<{
 
 const emit = defineEmits<{ addNote: [content: string] }>()
 
+const { t } = useI18n()
+
 const noteText = ref('')
 
 watch(() => notes.map(note => note.id).join(','), () => {
@@ -21,7 +24,7 @@ watch(() => notes.map(note => note.id).join(','), () => {
 </script>
 
 <template>
-  <AppPanel title="附註">
+  <AppPanel :title="t('tradeJournal.notesPanel.title')">
     <div class="trade-notes-panel">
       <ol
         v-if="notes.length > 0"
@@ -42,7 +45,7 @@ watch(() => notes.map(note => note.id).join(','), () => {
       <div class="trade-notes-panel__add">
         <AppTextarea
           v-model="noteText"
-          placeholder="加一則附註"
+          :placeholder="t('tradeJournal.notesPanel.placeholder')"
           data-testid="note-input"
         />
         <AppButton
@@ -52,7 +55,7 @@ watch(() => notes.map(note => note.id).join(','), () => {
           data-testid="note-add"
           @click="emit('addNote', noteText)"
         >
-          加附註
+          {{ t('tradeJournal.notesPanel.add') }}
         </AppButton>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SpotTradeForm from '~/components/organisms/SpotTradeForm.vue'
 import { SpotTradeJournalApplication } from '~/application/spot-trade-journal-application'
@@ -22,6 +23,7 @@ import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { tradingStrategyProxyMock } from '../../fixtures/contract-trade-journal'
 import { buildSpotRecord, kCandleProxyMock, spotTradeRecordProxyMock } from '../../fixtures/spot-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const recordProxy = spotTradeRecordProxyMock()
 const tradingStrategyProxy = tradingStrategyProxyMock()
@@ -108,7 +110,7 @@ describe('SpotTradeForm：記一筆', () => {
 
   it('第一筆存好但後面的沒存成功：說已建立哪一筆並提供前往', async () => {
     recordProxy.recordTrade.mockResolvedValue(buildSpotRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new TradeRejectedError('賣出超過持有 1000', null))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('賣出超過持有 1000'), null))
     const wrapper = mountForm()
     await flushPromises()
 
@@ -129,7 +131,7 @@ describe('SpotTradeForm：記一筆', () => {
   })
 
   it('台股數量不是整數時交易服務的拒絕寫在數量旁', async () => {
-    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError('台股數量以股計，必須是整數', new TradeFormFieldVo('fillQuantity')))
+    recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('台股數量以股計，必須是整數'), new TradeFormFieldVo('fillQuantity')))
     const wrapper = mountForm()
     await flushPromises()
 
@@ -141,6 +143,29 @@ describe('SpotTradeForm：記一筆', () => {
 
     expect(wrapper.get('[data-testid="fill-error"]').text()).toBe('台股數量以股計，必須是整數')
     expect(wrapper.find('[data-testid="form-rejection"]').exists()).toBe(false)
+  })
+})
+
+describe('SpotTradeForm：英文', () => {
+  it('表單自己擋下的話跟著顯示語言換；已顯示的那句換語言時也換', async () => {
+    const wrapper = mountForm()
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    await wrapper.get('[data-testid="fill-price"]').setValue('1050')
+    await wrapper.get('[data-testid="fill-quantity"]').setValue('1000')
+    await wrapper.get('[data-testid="spot-trade-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="trade-save"]').text()).toBe('Save (open)')
+    expect(wrapper.get('[data-testid="form-rejection"]').text()).toBe('Enter a symbol')
+
+    wrapper.vm.$i18n.locale = 'zh-TW'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="form-rejection"]').text()).toBe('請填標的')
+    expect(recordProxy.recordTrade).not.toHaveBeenCalled()
   })
 })
 
@@ -188,7 +213,7 @@ describe('SpotTradeForm：計畫與關聯', () => {
   })
 
   it('加一筆賣出再移除；新增標籤重名時寫在表單上方', async () => {
-    tagProxy.createTag.mockRejectedValue(new TradeRejectedError('已有同名的型態標籤', null))
+    tagProxy.createTag.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('已有同名的型態標籤'), null))
     const wrapper = mountForm()
     await flushPromises()
 
@@ -205,7 +230,7 @@ describe('SpotTradeForm：計畫與關聯', () => {
   })
 
   it('讀不到策略與標籤時提醒；改過內容通知上層', async () => {
-    tradingStrategyProxy.listTradingStrategies.mockRejectedValue(new TradeRejectedError('讀不到交易策略', null))
+    tradingStrategyProxy.listTradingStrategies.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('讀不到交易策略'), null))
     const wrapper = mountForm()
     await flushPromises()
 

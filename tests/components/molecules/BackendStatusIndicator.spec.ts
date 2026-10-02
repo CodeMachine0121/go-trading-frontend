@@ -1,10 +1,13 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import BackendStatusIndicator from '~/components/molecules/BackendStatusIndicator.vue'
 import { BackendHealthDto } from '~/domain/models/dto/backend-health-dto'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const CHECKED_AT = new Date('2026-08-30T00:00:00.000Z')
-const AVAILABLE = new BackendHealthDto(true, 'healthy', CHECKED_AT, '可用', 'success')
+const AVAILABLE = new BackendHealthDto(
+  true, 'healthy', CHECKED_AT, new LocalizedTextVo('可用', 'Available'), 'success')
 
 describe('BackendStatusIndicator', () => {
   it.each([
@@ -14,7 +17,7 @@ describe('BackendStatusIndicator', () => {
       props: {
         health: null as BackendHealthDto | null,
         checking: false,
-        errorMessage: null as string | null,
+        errorMessage: null as LocalizedTextVo | null,
       },
       期望: '尚未檢查',
     },
@@ -25,7 +28,7 @@ describe('BackendStatusIndicator', () => {
     },
     {
       名稱: '連不上與不健康是兩件事，下一步也不一樣',
-      props: { health: null, checking: false, errorMessage: '連不上後端' },
+      props: { health: null, checking: false, errorMessage: new LocalizedTextVo('連不上後端', 'Backend unreachable') },
       期望: '連不上',
     },
     {
@@ -56,5 +59,17 @@ describe('BackendStatusIndicator', () => {
 
     expect(wrapper.get('[data-testid="backend-status-recheck"]').attributes('disabled'))
       .toBeDefined()
+  })
+
+  it.each([
+    { name: '問到了', props: { health: AVAILABLE as BackendHealthDto | null, checking: false, errorMessage: null }, expected: 'Available' },
+    { name: '還沒問過', props: { health: null, checking: false, errorMessage: null }, expected: 'Not checked' },
+  ])('英文畫面上$name時說「$expected」', async ({ props, expected }) => {
+    const wrapper = mount(BackendStatusIndicator, { props })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="backend-status"]').text()).toBe(expected)
   })
 })

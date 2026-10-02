@@ -1,10 +1,16 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 
 /** 後端的方向拼法對到畫面上的詞。認不得的不在這裡——不猜。 */
-const DIRECTION_WORDS: Readonly<Record<string, string>> = {
-  long: '做多',
-  short: '做空',
+const DIRECTION_WORDS: Readonly<Record<string, LocalizedTextVo>> = {
+  long: new LocalizedTextVo('做多', 'Long'),
+  short: new LocalizedTextVo('做空', 'Short'),
 }
+
+/** 一句話的每一段之間用什麼隔開，兩種語言都一樣。 */
+const PART_SEPARATOR = new UntranslatedTextVo(' · ')
+const WORD_SEPARATOR = new UntranslatedTextVo(' ')
 
 /**
  * Domain Model：一輪建議過的部位，寫成一句話的規則。
@@ -20,7 +26,7 @@ const DIRECTION_WORDS: Readonly<Record<string, string>> = {
 export class StrategyBotRunSuggestionDomain {
   constructor(private readonly runRecord: StrategyBotRunRecord) {}
 
-  toText(): string | null {
+  toText(): LocalizedTextVo | null {
     const stake = this.runRecord.suggestedStake
     if (stake === null) {
       return null
@@ -29,10 +35,14 @@ export class StrategyBotRunSuggestionDomain {
     const exitParts = [
       this.runRecord.suggestedStopLossPrice === null
         ? null
-        : `停損 ${this.runRecord.suggestedStopLossPrice.toString()}`,
+        : new LocalizedTextVo(
+            `停損 ${this.runRecord.suggestedStopLossPrice.toString()}`,
+            `Stop loss ${this.runRecord.suggestedStopLossPrice.toString()}`),
       this.runRecord.suggestedTakeProfitPrice === null
         ? null
-        : `停利 ${this.runRecord.suggestedTakeProfitPrice.toString()}`,
+        : new LocalizedTextVo(
+            `停利 ${this.runRecord.suggestedTakeProfitPrice.toString()}`,
+            `Take profit ${this.runRecord.suggestedTakeProfitPrice.toString()}`),
     ]
 
     const isContractRound = this.runRecord.suggestedDirection !== null
@@ -40,31 +50,36 @@ export class StrategyBotRunSuggestionDomain {
       || this.runRecord.suggestedNotional !== null
 
     if (!isContractRound) {
-      return [`押 ${stake.toString()}`, ...exitParts]
-        .filter(part => part !== null)
-        .join(' · ')
+      return PART_SEPARATOR.join([
+        new LocalizedTextVo(`押 ${stake.toString()}`, `Stake ${stake.toString()}`),
+        ...exitParts,
+      ])
     }
 
     // 只認這張表自己的鍵：沿著原型找到的 `constructor`、`toString` 不是方向。
     const direction = this.runRecord.suggestedDirection
     const directionWords = direction !== null && Object.hasOwn(DIRECTION_WORDS, direction)
-      ? DIRECTION_WORDS[direction]
+      ? DIRECTION_WORDS[direction] ?? null
       : null
 
-    const directionAndLeverage = [
+    const directionAndLeverage = WORD_SEPARATOR.join([
       directionWords,
       this.runRecord.suggestedLeverage === null
         ? null
-        : `${this.runRecord.suggestedLeverage.toString()} 倍`,
-    ].filter(part => part !== null).join(' ')
+        : new LocalizedTextVo(
+            `${this.runRecord.suggestedLeverage.toString()} 倍`,
+            `${this.runRecord.suggestedLeverage.toString()}x`),
+    ])
 
-    return [
-      directionAndLeverage === '' ? null : directionAndLeverage,
-      `保證金 ${stake.toString()}`,
+    return PART_SEPARATOR.join([
+      directionAndLeverage.traditionalChinese === '' ? null : directionAndLeverage,
+      new LocalizedTextVo(`保證金 ${stake.toString()}`, `Margin ${stake.toString()}`),
       this.runRecord.suggestedNotional === null
         ? null
-        : `名目 ${this.runRecord.suggestedNotional.toString()}`,
+        : new LocalizedTextVo(
+            `名目 ${this.runRecord.suggestedNotional.toString()}`,
+            `Notional ${this.runRecord.suggestedNotional.toString()}`),
       ...exitParts,
-    ].filter(part => part !== null).join(' · ')
+    ])
   }
 }

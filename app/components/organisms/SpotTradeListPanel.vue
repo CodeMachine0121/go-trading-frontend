@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -11,31 +12,35 @@ import type { SpotTradeListDto } from '~/domain/models/dto/spot-trade-list-dto'
 import type { TradeStatusFilter } from '~/domain/models/vo/trade-status-filter-vo'
 import type { TradeSourceFilter } from '~/domain/models/vo/trade-source-filter-vo'
 import type { SpotTradeMarketFilter } from '~/domain/models/vo/spot-trade-market-filter-vo'
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: '全部' },
-  { value: 'open', label: '持有中' },
-  { value: 'closed', label: '已平倉' },
-  { value: 'reviewed', label: '已檢討' },
-] as const
-
-const SOURCE_OPTIONS = [
-  { value: 'all', label: '全部來源' },
-  { value: 'linked', label: '有關聯策略' },
-  { value: 'selfJudged', label: '自行判斷' },
-] as const
-
-const MARKET_OPTIONS = [
-  { value: 'all', label: '全部市場' },
-  { value: 'taiwanStock', label: '台股' },
-  { value: 'crypto', label: '加密貨幣' },
-] as const
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const { list = null, loading = false, failureMessage = null } = defineProps<{
   list?: SpotTradeListDto | null
   loading?: boolean
-  failureMessage?: string | null
+  failureMessage?: LocalizedTextVo | null
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const statusOptions = computed(() => [
+  { value: 'all', label: t('tradeJournal.spotList.statusAll') },
+  { value: 'open', label: t('tradeJournal.spotList.statusOpen') },
+  { value: 'closed', label: t('tradeJournal.spotList.statusClosed') },
+  { value: 'reviewed', label: t('tradeJournal.spotList.statusReviewed') },
+])
+
+const sourceOptions = computed(() => [
+  { value: 'all', label: t('tradeJournal.spotList.sourceAll') },
+  { value: 'linked', label: t('tradeJournal.spotList.sourceLinked') },
+  { value: 'selfJudged', label: t('tradeJournal.spotList.sourceSelfJudged') },
+])
+
+const marketOptions = computed(() => [
+  { value: 'all', label: t('tradeJournal.spotList.marketAll') },
+  { value: 'taiwanStock', label: t('tradeJournal.spotList.marketTaiwanStock') },
+  { value: 'crypto', label: t('tradeJournal.spotList.marketCrypto') },
+])
 
 const statusFilter = defineModel<TradeStatusFilter>('statusFilter', { required: true })
 const sourceFilter = defineModel<TradeSourceFilter>('sourceFilter', { required: true })
@@ -74,7 +79,7 @@ const marketTab = computed({
         class="spot-trade-list-panel__counts"
         data-testid="trade-list-counts"
       >
-        {{ list.periodLabel }}・{{ list.tradeCountsLabel }}
+        {{ t('tradeJournal.common.joined', { first: localize(list.periodLabel), second: localize(list.tradeCountsLabel) }) }}
       </p>
       <AppButton
         v-if="list && list.pendingReviewCount > 0"
@@ -82,20 +87,20 @@ const marketTab = computed({
         data-testid="pending-review"
         @click="emit('showPendingReview')"
       >
-        待檢討 <span class="spot-trade-list-panel__pending-count">{{ list.pendingReviewCount }}</span>
+        {{ t('tradeJournal.spotList.pendingReview') }} <span class="spot-trade-list-panel__pending-count">{{ list.pendingReviewCount }}</span>
       </AppButton>
       <AppButton
         variant="secondary"
         to="/spot-trade-journal/statistics"
         data-testid="open-statistics"
       >
-        績效統計
+        {{ t('tradeJournal.spotList.openStatistics') }}
       </AppButton>
       <AppButton
         to="/spot-trade-journal/new"
         data-testid="record-trade"
       >
-        ＋ 記一筆
+        {{ t('tradeJournal.spotList.recordTrade') }}
       </AppButton>
     </header>
 
@@ -104,7 +109,7 @@ const marketTab = computed({
       class="spot-trade-list-panel__state"
       data-testid="trade-list-loading"
     >
-      讀取中…
+      {{ t('tradeJournal.common.loading') }}
     </p>
 
     <AppAlert
@@ -112,14 +117,14 @@ const marketTab = computed({
       tone="danger"
       data-testid="trade-list-failure"
     >
-      {{ failureMessage }}
+      {{ localize(failureMessage) }}
       <template #action>
         <AppButton
           variant="ghost"
           data-testid="trade-list-retry"
           @click="emit('retry')"
         >
-          再試一次
+          {{ t('tradeJournal.common.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -127,12 +132,12 @@ const marketTab = computed({
     <template v-else-if="list">
       <section
         v-for="summary in list.marketSummaries"
-        :key="summary.marketLabel"
+        :key="summary.market"
         class="spot-trade-list-panel__market"
-        :data-testid="`trade-list-summary-${summary.marketLabel}`"
+        :data-testid="`trade-list-summary-${summary.market}`"
       >
         <h3 class="spot-trade-list-panel__market-label">
-          {{ summary.marketLabel }}
+          {{ localize(summary.marketLabel) }}
         </h3>
         <TradeSummaryStrip :figures="summary.figures" />
       </section>
@@ -140,19 +145,19 @@ const marketTab = computed({
       <div class="spot-trade-list-panel__filters">
         <AppTabs
           v-model="statusTab"
-          :options="STATUS_OPTIONS"
+          :options="statusOptions"
           variant="segmented"
           data-testid="status-filter"
         />
         <AppTabs
           v-model="sourceTab"
-          :options="SOURCE_OPTIONS"
+          :options="sourceOptions"
           variant="segmented"
           data-testid="source-filter"
         />
         <AppTabs
           v-model="marketTab"
-          :options="MARKET_OPTIONS"
+          :options="marketOptions"
           variant="segmented"
           data-testid="market-filter"
         />
@@ -162,7 +167,7 @@ const marketTab = computed({
           data-testid="symbol-filter"
         >
           <option value="">
-            全部標的
+            {{ t('tradeJournal.spotList.symbolAll') }}
           </option>
           <option
             v-for="symbol in list.symbolOptions"
@@ -180,7 +185,7 @@ const marketTab = computed({
           class="spot-trade-list-panel__empty"
           data-testid="trade-list-empty"
         >
-          {{ list.emptyMessage }}
+          {{ localize(list.emptyMessage) }}
         </p>
         <div
           v-else
@@ -190,15 +195,15 @@ const marketTab = computed({
             <thead>
               <tr>
                 <th>#</th>
-                <th>標的</th>
-                <th>市場</th>
-                <th>狀態</th>
-                <th>來源</th>
-                <th>買進均價</th>
-                <th>賣出均價</th>
-                <th>淨損益</th>
-                <th>報酬率</th>
-                <th>標籤</th>
+                <th>{{ t('tradeJournal.spotList.headings.symbol') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.market') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.status') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.source') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.averageBuyPrice') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.averageSellPrice') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.netProfit') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.returnRate') }}</th>
+                <th>{{ t('tradeJournal.spotList.headings.tags') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -224,29 +229,29 @@ const marketTab = computed({
                   </NuxtLink>
                 </td>
                 <td class="spot-trade-list-panel__text">
-                  {{ row.marketLabel }}
+                  {{ localize(row.marketLabel) }}
                 </td>
                 <td>
                   <TradeStatusBadge
-                    :label="row.statusLabel"
+                    :label="localize(row.statusLabel)"
                     :tone="row.statusTone"
                   />
                   <span
                     v-if="row.pendingReview"
                     class="spot-trade-list-panel__flag"
-                  >待檢討</span>
+                  >{{ t('tradeJournal.spotList.pendingReview') }}</span>
                 </td>
                 <td class="spot-trade-list-panel__text">
-                  {{ row.sourceLabel }}
+                  {{ localize(row.sourceLabel) }}
                 </td>
                 <td>{{ row.averageBuyPriceText }}</td>
                 <td>{{ row.averageSellPriceText }}</td>
                 <td :class="`spot-trade-list-panel__tone--${row.profit.tone}`">
-                  {{ row.profit.text }}
-                  <small v-if="row.profit.note">{{ row.profit.note }}</small>
+                  {{ localize(row.profit.text) }}
+                  <small v-if="row.profit.note">{{ localize(row.profit.note) }}</small>
                 </td>
                 <td :class="`spot-trade-list-panel__tone--${row.returnRate.tone}`">
-                  {{ row.returnRate.text }}
+                  {{ localize(row.returnRate.text) }}
                 </td>
                 <td class="spot-trade-list-panel__text">
                   <span class="spot-trade-list-panel__tags">

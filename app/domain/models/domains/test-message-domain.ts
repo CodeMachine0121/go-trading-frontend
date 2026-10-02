@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * 一則訊息的字數上限，與 Telegram 一則訊息容得下的量相同。後端也守著它；
  * 這裡有一份，是為了讓貼太多的人當場就知道，而不是按了鍵、等了一趟才知道。
@@ -37,13 +39,16 @@ export class TestMessageDomain {
   }
 
   /** 送不出去的原因，送得出去時是 null。 */
-  error(): string | null {
+  error(): LocalizedTextVo | null {
     if (this.trimmedMessage === '') {
-      return '訊息不得為空白'
+      return new LocalizedTextVo('訊息不得為空白', 'The message cannot be blank')
     }
 
     if (this.characterCount() > TEST_MESSAGE_MAXIMUM_LENGTH) {
-      return `一則訊息上限為 ${TEST_MESSAGE_MAXIMUM_LENGTH} 個字元，目前有 ${this.characterCount()} 個`
+      return new LocalizedTextVo(
+        `一則訊息上限為 ${TEST_MESSAGE_MAXIMUM_LENGTH} 個字元，目前有 ${this.characterCount()} 個`,
+        `A message can be at most ${TEST_MESSAGE_MAXIMUM_LENGTH} characters; this one has ${this.characterCount()}`,
+      )
     }
 
     return null

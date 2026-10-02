@@ -1,3 +1,6 @@
+import { LocalizedError } from '~/domain/errors/localized-error'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+
 /**
  * 哨兵錯誤：這一次請求沒有帶著有效的身分——沒帶、被改過、過期，或它指向的人已經不在。
  *
@@ -7,9 +10,9 @@
  * 四種情況共用這一個型別，是因為它們對持有者是同一件事。訊息由後端說，這裡照抄——
  * 畫面不自己發明第二句話。
  */
-export class SignedOutError extends Error {
+export class SignedOutError extends LocalizedError {
   constructor(message: string, options?: { cause?: unknown }) {
-    super(message, { cause: options?.cause })
+    super(new UntranslatedTextVo(message), { cause: options?.cause })
     this.name = 'SignedOutError'
   }
 }

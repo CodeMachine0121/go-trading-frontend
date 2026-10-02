@@ -8,6 +8,8 @@ import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strateg
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 import { TradingStrategyConditionNodeIdVo } from '~/domain/models/vo/trading-strategy-condition-node-id-vo'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /** 剛加上條件卡的一條先收下買入——什麼都不收的一條是一句永遠不成立的話。 */
 const DEFAULT_ACCEPTED_SIGNAL = 'buy'
@@ -18,22 +20,28 @@ const DEFAULT_ACCEPTED_SIGNAL = 'buy'
  * 它與選單上的「全部成立（且）」是同一件事的短說法：選單要說清楚它管什麼，
  * 句子裡只要一個連接詞——讀成「突破 等於 買入 或 動能 等於 買入」。
  */
-const OPERATOR_WORDS: Readonly<Record<ConditionOperatorVo, string>> = {
-  and: '且',
-  or: '或',
+const OPERATOR_WORDS: Readonly<Record<ConditionOperatorVo, LocalizedTextVo>> = {
+  and: new LocalizedTextVo('且', 'and'),
+  or: new LocalizedTextVo('或', 'or'),
 }
 
+/** 信號與信號之間的那個「或」。中文緊貼著寫，英文要空格。 */
+const SIGNAL_SEPARATOR = new LocalizedTextVo('或', ' or ')
+
 /** 信號比對只有一種關係，而它是固定的。 */
-const RELATION_WORD = '等於'
+const RELATION_WORD = new LocalizedTextVo('等於', 'is')
 
 /** 一條什麼都不收的條件——它說不出任何一句話，所以照實說它還沒決定。 */
-const NO_SIGNAL_WORDS = '（還沒選信號）'
+const NO_SIGNAL_WORDS = new LocalizedTextVo('（還沒選信號）', '(no signal chosen yet)')
 
 /** 三個信號全收時，那一條其實在說的話。 */
-const EVERY_SIGNAL_WORDS = '也就是「不管它說什麼都算」'
+const EVERY_SIGNAL_WORDS = new LocalizedTextVo('也就是「不管它說什麼都算」', 'i.e. "counts no matter what it says"')
 
 /** 一張空的條件卡讀出來的那一行——空的不是一句話，所以照實說還沒有。 */
-const EMPTY_READ_OUT = '還沒有任何條件。'
+const EMPTY_READ_OUT = new LocalizedTextVo('還沒有任何條件。', 'No conditions yet.')
+
+/** 單獨一條沒有連接詞。 */
+const NO_WORDS = new UntranslatedTextVo('')
 
 /**
  * Domain Model：一張條件卡上有哪幾條條件，以及所有改得動它的操作。
@@ -59,45 +67,55 @@ export class ConditionBoardDomain {
    * 一組旁邊還有別的格時才加的括號、一條都沒有時那一行說什麼。畫面只把這些字排出來。
    */
   toDto(): ConditionBoardDto {
+    const spaced = (word: LocalizedTextVo) => new LocalizedTextVo(
+      ` ${word.traditionalChinese} `, ` ${word.english} `)
+
     const items = this.board.items.map((item) => {
       const pieces = item.pieces.map((piece) => {
         const isUndecided = piece.acceptedSignals.length === 0
         const signalWords = isUndecided
           ? NO_SIGNAL_WORDS
           // 幾個信號之間是「其中之一」，所以連起來的字是「或」。
-          : piece.acceptedSignals.map(signal => new SignalDomain(signal).label()).join('或')
+          : SIGNAL_SEPARATOR.join(piece.acceptedSignals.map(signal => new SignalDomain(signal).label()))
         const excluded = SIGNAL_VALUES.find(signal => !piece.acceptedSignals.includes(signal))
+        const excludedWords = excluded === undefined ? NO_WORDS : new SignalDomain(excluded).label()
         // **一支策略腳本同一時間只吐一個信號**，所以收了兩個以上時是「其中之一」，
         // 不是「而且」——而並排的開關看起來就像「而且」。使用者會盯著一條「賣出或持有」，
         // 想不通一支策略腳本怎麼可能同時是兩者；翻成「不是買入」他就懂了。
         // 只收一個（或一個都沒收）時沒有任何東西需要解釋。
         const plainWords = piece.acceptedSignals.length < 2
-          ? ''
+          ? null
           : piece.acceptedSignals.length === SIGNAL_VALUES.length
             ? EVERY_SIGNAL_WORDS
-            : `也就是「不是${excluded === undefined ? '' : new SignalDomain(excluded).label()}」`
+            : new LocalizedTextVo(
+                `也就是「不是${excludedWords.traditionalChinese}」`,
+                `i.e. "not ${excludedWords.english}"`,
+              )
+        const sourceWords = new UntranslatedTextVo(piece.sourceLabel)
 
         return new ConditionBoardPieceDto(
           piece.sourceLabel,
           piece.acceptedSignals,
           RELATION_WORD,
           signalWords,
-          `${piece.sourceLabel} ${RELATION_WORD} ${signalWords}`,
+          new UntranslatedTextVo(' ').join([sourceWords, RELATION_WORD, signalWords]),
           plainWords,
           isUndecided,
         )
       })
-      const joinerWord = item.operator === null ? '' : OPERATOR_WORDS[item.operator]
+      const joinerWord = item.operator === null ? NO_WORDS : OPERATOR_WORDS[item.operator]
 
       return new ConditionBoardItemDto(
-        item.operator, pieces, joinerWord, pieces.map(piece => piece.sentence).join(` ${joinerWord} `))
+        item.operator, pieces, joinerWord, spaced(joinerWord).join(pieces.map(piece => piece.sentence)))
     })
     const joinerWord = OPERATOR_WORDS[this.board.operator]
     // 一組只有在**旁邊還有別的格**時才加上括號：「A 等於 買入 且（B 等於 買入 或 C 等於 買入）」。
     // 整張只有那一組時，括號什麼都沒有分開，只會讓一句話多兩個符號。
-    const sentence = items
-      .map(item => (item.isBundle && items.length > 1 ? `（${item.sentence}）` : item.sentence))
-      .join(` ${joinerWord} `)
+    const sentence = spaced(joinerWord).join(
+      items.map(item => (item.isBundle && items.length > 1
+        ? new LocalizedTextVo(`（${item.sentence.traditionalChinese}）`, `(${item.sentence.english})`)
+        : item.sentence)),
+    )
 
     return new ConditionBoardDto(
       this.board.operator,

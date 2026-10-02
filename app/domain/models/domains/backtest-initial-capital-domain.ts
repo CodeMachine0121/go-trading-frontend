@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：一次重演一開始有多少錢。
@@ -16,7 +17,7 @@ export class BacktestInitialCapitalDomain {
   /** 不合法就當場說在本金那一格旁邊。 */
   validate(): void {
     if (this.amount.isNaN() || this.amount.lessThanOrEqualTo(0)) {
-      throw new BacktestFieldError('initialCapital', '請填一個大於零的數。')
+      throw new BacktestFieldError('initialCapital', new LocalizedTextVo('請填一個大於零的數。', 'Enter a number greater than zero.'))
     }
   }
 }

@@ -1,4 +1,5 @@
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
  * Domain Model：驗證起點——期間裡切出調參段與驗證段的那一刻。
@@ -23,7 +24,10 @@ export class BacktestValidationStartDomain {
       || validationStart <= this.startTime.getTime()
       || validationStart >= this.endTime.getTime()) {
       throw new BacktestFieldError(
-        'validationStartTime', '驗證起點必須落在期間之內（晚於起點、早於終點）')
+        'validationStartTime',
+        new LocalizedTextVo(
+          '驗證起點必須落在期間之內（晚於起點、早於終點）',
+          'The validation start must fall within the period (after the start, before the end)'))
     }
   }
 }

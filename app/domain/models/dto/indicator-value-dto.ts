@@ -1,3 +1,5 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
  * DTO：一個指標的值交給畫面的形狀。
  *
@@ -7,7 +9,7 @@
 export class IndicatorValueDto {
   constructor(
     public readonly name: string,
-    public readonly displayValues: readonly string[],
+    public readonly displayValues: readonly LocalizedTextVo[],
     public readonly isSeries: boolean,
   ) {}
 

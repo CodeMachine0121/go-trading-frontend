@@ -9,6 +9,7 @@ import { TradeReviewWriteDto } from '~/domain/models/dto/trade-review-write-dto'
 import { SpotTradeFillAmendmentDto } from '~/domain/models/dto/spot-trade-fill-amendment-dto'
 import { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import { TradeRecordNotFoundError } from '~/domain/errors/trade-record-not-found-error'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export function useSpotTradeDetail(
   tradeId: () => number,
@@ -17,12 +18,12 @@ export function useSpotTradeDetail(
 ) {
   const record = ref<SpotTradeRecordDto | null>(null)
   const loading = ref(false)
-  const failureMessage = ref<string | null>(null)
+  const failureMessage = ref<LocalizedTextVo | null>(null)
   const notFound = ref(false)
   const pricePath = ref<TradePricePathDto | null>(null)
   const pricePathLoading = ref(false)
-  const pricePathFailureMessage = ref<string | null>(null)
-  const actionFailureMessage = ref<string | null>(null)
+  const pricePathFailureMessage = ref<LocalizedTextVo | null>(null)
+  const actionFailureMessage = ref<LocalizedTextVo | null>(null)
   const busy = ref(false)
   const mistakeTags = ref<TradeTagDto[]>([])
   const setupTags = ref<TradeTagDto[]>([])

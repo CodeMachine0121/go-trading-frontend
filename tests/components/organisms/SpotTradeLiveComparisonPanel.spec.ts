@@ -7,6 +7,7 @@ import { SpotTradeLiveComparison } from '~/domain/models/entities/spot-trade-liv
 import { SpotTradeLiveComparisonRow } from '~/domain/models/entities/spot-trade-live-comparison-row'
 import { SpotTradePerformance } from '~/domain/models/entities/spot-trade-performance'
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function comparison() {
   return new SpotTradeLiveComparisonDomain(new SpotTradeLiveComparison('台股均線', false, [
@@ -41,7 +42,7 @@ describe('SpotTradeLiveComparisonPanel', () => {
     expect(wrapper.emitted('update:selectedTradingStrategyId')).toEqual([[7], [null]])
     expect(mountPanel({ replaying: true }).get('[data-testid="comparison-strategy"]').attributes('disabled')).toBeDefined()
     expect(mountPanel({ replaying: true }).find('[data-testid="comparison-replaying"]').exists()).toBe(true)
-    expect(mountPanel({ failureMessage: '找不到' }).get('[data-testid="comparison-failure"]').text()).toBe('找不到')
+    expect(mountPanel({ failureMessage: new UntranslatedTextVo('找不到') }).get('[data-testid="comparison-failure"]').text()).toBe('找不到')
   })
 
   it('沒有已平倉實單時只說明', () => {

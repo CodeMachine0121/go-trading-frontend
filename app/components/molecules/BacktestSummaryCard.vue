@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { BacktestSummaryDto } from '~/domain/models/dto/backtest-summary-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
+import { useI18n } from 'vue-i18n'
 
 // 分子：成績單那幾個數字。
 //
@@ -13,24 +14,27 @@ const { summary, timeZone = null } = defineProps<{
   summary: BacktestSummaryDto
   timeZone?: TimeZoneDto | null
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
   <dl class="backtest-summary-card">
     <div class="backtest-summary-card__item">
-      <dt>一開始有多少錢</dt>
+      <dt>{{ t('backtest.summaryCard.initialCapital') }}</dt>
       <dd data-testid="summary-initial-capital">
         {{ summary.initialCapital }}
       </dd>
     </div>
     <div class="backtest-summary-card__item">
-      <dt>最後剩多少</dt>
+      <dt>{{ t('backtest.summaryCard.finalEquity') }}</dt>
       <dd data-testid="summary-final-equity">
         {{ summary.finalEquity }}
       </dd>
     </div>
     <div class="backtest-summary-card__item">
-      <dt>總報酬率</dt>
+      <dt>{{ t('backtest.summaryCard.totalReturnRate') }}</dt>
       <!-- 這一格是整張成績單的第一眼：賺是綠的、賠是紅的，
            掃過去不必先讀數字再判斷正負。 -->
       <dd
@@ -41,16 +45,16 @@ const { summary, timeZone = null } = defineProps<{
       </dd>
     </div>
     <div class="backtest-summary-card__item">
-      <dt>最大回撤</dt>
+      <dt>{{ t('backtest.summaryCard.maximumDrawdown') }}</dt>
       <!-- 回撤永遠是壞消息，所以它不上色——標成紅的只是把它是什麼再說一次。 -->
       <dd data-testid="summary-maximum-drawdown">
         {{ summary.maximumDrawdown }}
       </dd>
     </div>
     <div class="backtest-summary-card__item">
-      <dt>勝率</dt>
+      <dt>{{ t('backtest.summaryCard.winRate') }}</dt>
       <dd data-testid="summary-win-rate">
-        {{ summary.winRate }}
+        {{ localize(summary.winRate) }}
       </dd>
     </div>
     <!--
@@ -59,13 +63,13 @@ const { summary, timeZone = null } = defineProps<{
       唯一說得通的另一種原因。少了左邊這一格，那件事在畫面上完全看不出來。
     -->
     <div class="backtest-summary-card__item">
-      <dt>開倉次數</dt>
+      <dt>{{ t('backtest.summaryCard.positionOpenCount') }}</dt>
       <dd data-testid="summary-position-open-count">
         {{ summary.positionOpenCount }}
       </dd>
     </div>
     <div class="backtest-summary-card__item">
-      <dt>交易次數</dt>
+      <dt>{{ t('backtest.summaryCard.tradeCount') }}</dt>
       <dd data-testid="summary-trade-count">
         {{ summary.tradeCount }}
       </dd>
@@ -80,7 +84,7 @@ const { summary, timeZone = null } = defineProps<{
       v-if="summary.conflictedCandleCount > 0"
       class="backtest-summary-card__item backtest-summary-card__item--warning"
     >
-      <dt>規則打架的棒數</dt>
+      <dt>{{ t('backtest.summaryCard.conflictedCandleCount') }}</dt>
       <dd data-testid="summary-conflicted-candle-count">
         {{ summary.conflictedCandleCount }}
       </dd>
@@ -95,7 +99,7 @@ const { summary, timeZone = null } = defineProps<{
       v-if="summary.stopLossExitCount > 0"
       class="backtest-summary-card__item"
     >
-      <dt>止損出場</dt>
+      <dt>{{ t('backtest.summaryCard.stopLossExitCount') }}</dt>
       <dd data-testid="summary-stop-loss-exit-count">
         {{ summary.stopLossExitCount }}
       </dd>
@@ -104,7 +108,7 @@ const { summary, timeZone = null } = defineProps<{
       v-if="summary.takeProfitExitCount > 0"
       class="backtest-summary-card__item"
     >
-      <dt>止盈出場</dt>
+      <dt>{{ t('backtest.summaryCard.takeProfitExitCount') }}</dt>
       <dd data-testid="summary-take-profit-exit-count">
         {{ summary.takeProfitExitCount }}
       </dd>
@@ -121,7 +125,7 @@ const { summary, timeZone = null } = defineProps<{
       v-if="summary.totalTransactionCost !== null"
       class="backtest-summary-card__item"
     >
-      <dt>交易成本</dt>
+      <dt>{{ t('backtest.summaryCard.totalTransactionCost') }}</dt>
       <dd data-testid="summary-total-transaction-cost">
         {{ summary.totalTransactionCost }}
       </dd>
@@ -130,9 +134,9 @@ const { summary, timeZone = null } = defineProps<{
       v-if="summary.fillTimingLabel"
       class="backtest-summary-card__item"
     >
-      <dt>成交時點</dt>
+      <dt>{{ t('backtest.summaryCard.fillTiming') }}</dt>
       <dd data-testid="summary-fill-timing">
-        {{ summary.fillTimingLabel }}
+        {{ localize(summary.fillTimingLabel) }}
       </dd>
     </div>
     <!--
@@ -141,103 +145,103 @@ const { summary, timeZone = null } = defineProps<{
     -->
     <template v-if="summary.tradeStatistics">
       <div class="backtest-summary-card__item">
-        <dt>獲利因子</dt>
+        <dt>{{ t('backtest.summaryCard.profitFactor') }}</dt>
         <dd data-testid="summary-profit-factor">
-          {{ summary.tradeStatistics.profitFactor }}
+          {{ localize(summary.tradeStatistics.profitFactor) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>每筆期望值</dt>
+        <dt>{{ t('backtest.summaryCard.expectancy') }}</dt>
         <dd data-testid="summary-expectancy">
-          {{ summary.tradeStatistics.expectancy }}
+          {{ localize(summary.tradeStatistics.expectancy) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>平均持倉時間</dt>
+        <dt>{{ t('backtest.summaryCard.averageHoldingTime') }}</dt>
         <dd data-testid="summary-average-holding-time">
-          {{ summary.tradeStatistics.averageHoldingTime }}
+          {{ localize(summary.tradeStatistics.averageHoldingTime) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>最大連續虧損</dt>
+        <dt>{{ t('backtest.summaryCard.maximumConsecutiveLossCount') }}</dt>
         <dd data-testid="summary-maximum-consecutive-loss-count">
-          {{ summary.tradeStatistics.maximumConsecutiveLossCount }}
+          {{ localize(summary.tradeStatistics.maximumConsecutiveLossCount) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>成本佔毛利</dt>
+        <dt>{{ t('backtest.summaryCard.costToGrossProfitRatio') }}</dt>
         <dd data-testid="summary-cost-to-gross-profit-ratio">
-          {{ summary.tradeStatistics.costToGrossProfitRatio }}
+          {{ localize(summary.tradeStatistics.costToGrossProfitRatio) }}
         </dd>
       </div>
       <p
         class="backtest-summary-card__note backtest-summary-card__item--wide"
         data-testid="summary-trade-statistics-note"
       >
-        獲利因子、每筆期望值、平均持倉時間、最大連續虧損、成本佔毛利只算已平倉的交易；結束時還開著的那一注不算。
+        {{ t('backtest.summaryCard.tradeStatisticsNote') }}
       </p>
     </template>
     <template v-if="summary.contract">
       <div class="backtest-summary-card__item">
-        <dt>交易模式</dt>
+        <dt>{{ t('backtest.summaryCard.tradingMode') }}</dt>
         <dd data-testid="summary-contract-trading-mode">
-          {{ summary.contract.tradingModeLabel }}
+          {{ localize(summary.contract.tradingModeLabel) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>槓桿</dt>
+        <dt>{{ t('backtest.summaryCard.leverage') }}</dt>
         <dd data-testid="summary-contract-leverage">
-          {{ summary.contract.leverageLabel }}
+          {{ localize(summary.contract.leverageLabel) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>強平出場</dt>
+        <dt>{{ t('backtest.summaryCard.liquidationExitCount') }}</dt>
         <dd data-testid="summary-liquidation-exit-count">
           {{ summary.contract.liquidationExitCount }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>資金費用</dt>
+        <dt>{{ t('backtest.summaryCard.totalFundingFee') }}</dt>
         <dd
           :class="`backtest-summary-card__value--${summary.contract.totalFundingFeeTone}`"
           data-testid="summary-total-funding-fee"
         >
-          {{ summary.contract.totalFundingFee }}
+          {{ localize(summary.contract.totalFundingFee) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>做多（筆／勝率）</dt>
+        <dt>{{ t('backtest.summaryCard.longTrades') }}</dt>
         <dd data-testid="summary-long-trades">
-          {{ summary.contract.longTradeCount }}／{{ summary.contract.longWinRate }}
+          {{ t('backtest.summaryCard.tradesAndWinRate', { count: summary.contract.longTradeCount, winRate: localize(summary.contract.longWinRate) }) }}
         </dd>
       </div>
       <div class="backtest-summary-card__item">
-        <dt>做空（筆／勝率）</dt>
+        <dt>{{ t('backtest.summaryCard.shortTrades') }}</dt>
         <dd data-testid="summary-short-trades">
-          {{ summary.contract.shortTradeCount }}／{{ summary.contract.shortWinRate }}
+          {{ t('backtest.summaryCard.tradesAndWinRate', { count: summary.contract.shortTradeCount, winRate: localize(summary.contract.shortWinRate) }) }}
         </dd>
       </div>
       <!-- 零也照寫：那正是「交易所讓不讓他下這張單」的答案。 -->
       <div class="backtest-summary-card__item">
-        <dt>被交易規則擋下的開倉</dt>
+        <dt>{{ t('backtest.summaryCard.blockedOpeningCount') }}</dt>
         <dd data-testid="summary-blocked-opening-count">
           {{ summary.contract.blockedOpeningCount }}
         </dd>
       </div>
       <div class="backtest-summary-card__item backtest-summary-card__item--wide">
-        <dt>維持保證金依據</dt>
+        <dt>{{ t('backtest.summaryCard.maintenanceMarginBasis') }}</dt>
         <dd data-testid="summary-maintenance-margin-basis">
-          {{ summary.contract.maintenanceMarginBasisLabel }}
+          {{ localize(summary.contract.maintenanceMarginBasisLabel) }}
           <span
             v-if="summary.contract.maintenanceMarginConfirmedAt && timeZone"
             data-testid="summary-maintenance-margin-confirmed-at"
-          >（確認於 {{ timeZone.formatDateTime(summary.contract.maintenanceMarginConfirmedAt) }}）</span>
+          >{{ t('backtest.summaryCard.maintenanceMarginConfirmedAt', { time: timeZone.formatDateTime(summary.contract.maintenanceMarginConfirmedAt) }) }}</span>
         </dd>
         <p
           class="backtest-summary-card__note"
           data-testid="summary-maintenance-margin-basis-note"
         >
-          {{ summary.contract.maintenanceMarginBasisNote }}
+          {{ localize(summary.contract.maintenanceMarginBasisNote) }}
         </p>
       </div>
     </template>

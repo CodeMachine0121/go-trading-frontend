@@ -3,6 +3,7 @@ import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-back
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const NO_BORROWING = new Decimal(1)
 const WHOLE_PRICE_PERCENTAGE = new Decimal(100)
@@ -21,24 +22,30 @@ export class ContractBacktestTermsDomain {
 
   constructor(termsDto: ContractBacktestTermsDto) {
     if (termsDto.leverage.isNaN()) {
-      throw new BacktestFieldError('leverage', '槓桿倍數請填一個數字')
+      throw new BacktestFieldError('leverage', new LocalizedTextVo('槓桿倍數請填一個數字', 'Leverage must be a number'))
     }
     if (!termsDto.leverage.isZero() && termsDto.leverage.lessThan(NO_BORROWING)) {
-      throw new BacktestFieldError('leverage', '槓桿倍數不得小於 1 倍')
+      throw new BacktestFieldError('leverage', new LocalizedTextVo('槓桿倍數不得小於 1 倍', 'Leverage cannot be less than 1x'))
     }
 
     if (termsDto.slippagePercentage.isNaN()) {
-      throw new BacktestFieldError('slippage', '滑點請填一個數字')
+      throw new BacktestFieldError('slippage', new LocalizedTextVo('滑點請填一個數字', 'Slippage must be a number'))
     }
     if (termsDto.slippagePercentage.isNegative()) {
-      throw new BacktestFieldError('slippage', '滑點不得為負——負的滑點等於每一筆都成交得比市價好')
+      throw new BacktestFieldError('slippage', new LocalizedTextVo(
+        '滑點不得為負——負的滑點等於每一筆都成交得比市價好',
+        'Slippage cannot be negative — negative slippage would fill every trade better than the market price'))
     }
     if (termsDto.slippagePercentage.greaterThan(WHOLE_PRICE_PERCENTAGE)) {
-      throw new BacktestFieldError('slippage', '滑點不得超過 100%——那會讓賣出的成交價變成負數')
+      throw new BacktestFieldError('slippage', new LocalizedTextVo(
+        '滑點不得超過 100%——那會讓賣出的成交價變成負數',
+        'Slippage cannot exceed 100% — that would make the sell fill price negative'))
     }
 
     if (termsDto.tradingMode !== null && !CONTRACT_TRADING_MODES.includes(termsDto.tradingMode)) {
-      throw new BacktestFieldError('tradingMode', '合約的交易模式只有多空反手、只做多、只做空三種')
+      throw new BacktestFieldError('tradingMode', new LocalizedTextVo(
+        '合約的交易模式只有多空反手、只做多、只做空三種',
+        'A contract trading mode is one of three: Long & short, Long only, or Short only'))
     }
 
     this.leverage = termsDto.leverage

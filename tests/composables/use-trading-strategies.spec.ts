@@ -38,7 +38,7 @@ describe('useTradingStrategies 讀清單', () => {
     await tradingStrategies.load()
 
     expect(tradingStrategies.tradingStrategies.value).toHaveLength(2)
-    expect(tradingStrategies.failureMessage.value).toBe('')
+    expect(tradingStrategies.failureMessage.value).toBeNull()
   })
 
   it('一份都沒有是空清單，不是錯誤', async () => {
@@ -48,7 +48,7 @@ describe('useTradingStrategies 讀清單', () => {
     await tradingStrategies.load()
 
     expect(tradingStrategies.tradingStrategies.value).toEqual([])
-    expect(tradingStrategies.failureMessage.value).toBe('')
+    expect(tradingStrategies.failureMessage.value).toBeNull()
   })
 
   it('讀不到時說得出原因，而不是交出一份空清單', async () => {
@@ -58,7 +58,7 @@ describe('useTradingStrategies 讀清單', () => {
     const tradingStrategies = underTest()
     await tradingStrategies.load()
 
-    expect(tradingStrategies.failureMessage.value).toBe('連不上')
+    expect(tradingStrategies.failureMessage.value?.in('zh-TW')).toBe('連不上')
   })
 
   it('連不上後端時明說連不上，而不是一串內部的端點路徑', async () => {
@@ -67,7 +67,8 @@ describe('useTradingStrategies 讀清單', () => {
     const tradingStrategies = underTest()
     await tradingStrategies.load()
 
-    expect(tradingStrategies.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+    expect(tradingStrategies.failureMessage.value?.in('zh-TW')).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+    expect(tradingStrategies.failureMessage.value?.in('en')).toContain('Cannot reach the go-trading API')
   })
 })
 
@@ -115,7 +116,7 @@ describe('useTradingStrategies 刪一份', () => {
     tradingStrategies.askToDelete(tradingStrategyDto(1, '黃金交叉'))
     await tradingStrategies.confirmDelete()
 
-    expect(tradingStrategies.failureMessage.value).toContain('2 台')
+    expect(tradingStrategies.failureMessage.value?.in('zh-TW')).toContain('2 台')
     expect(tradingStrategies.tradingStrategies.value).toHaveLength(2)
     // 對話框關掉：那句拒絕要做的事不在這個框裡做得完。
     expect(tradingStrategies.deleting.value).toBeNull()

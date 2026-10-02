@@ -1,20 +1,30 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { DisplayLanguageCodeVo } from '~/domain/models/vo/display-language-code-vo'
 import type { IndicatorResultType } from '~/domain/models/vo/indicator-result-type'
 import type { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
+ * 範例裡的一行。帶著給人看的名字（指標名稱、說明註解）的那幾行兩種語言各寫一份，
+ * 其餘是不分語言的程式碼。
+ */
+type ExampleLine = string | LocalizedTextVo
+
+/**
  * 每個種類一段可直接執行的範例——`Calculate` 內部那幾行。開頭、簽章與收尾由
  * `exampleScript` 補上，進入點的長相因此只寫在這個檔案的一個地方。
  */
-const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly string[]>> = {
+const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly ExampleLine[]>> = {
   float: [
     'sum := 0.0',
     'for _, candle := range data {',
     '\tsum += candle.Close',
     '}',
     '',
-    'return map[string]float64{"均價": sum / float64(len(data))}',
+    new LocalizedTextVo(
+      'return map[string]float64{"均價": sum / float64(len(data))}',
+      'return map[string]float64{"Average price": sum / float64(len(data))}'),
   ],
   floatList: [
     'closePrices := []float64{}',
@@ -22,13 +32,17 @@ const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readon
     '\tclosePrices = append(closePrices, candle.Close)',
     '}',
     '',
-    'return map[string][]float64{"收盤價": closePrices}',
+    new LocalizedTextVo(
+      'return map[string][]float64{"收盤價": closePrices}',
+      'return map[string][]float64{"Close price": closePrices}'),
   ],
   bool: [
     'first := data[0].Close',
     'last := data[len(data)-1].Close',
     '',
-    'return map[string]bool{"上漲": last > first}',
+    new LocalizedTextVo(
+      'return map[string]bool{"上漲": last > first}',
+      'return map[string]bool{"Rising": last > first}'),
   ],
   boolList: [
     'answers := []bool{}',
@@ -36,7 +50,9 @@ const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readon
     '\tanswers = append(answers, candle.Close > candle.Open)',
     '}',
     '',
-    'return map[string][]bool{"收紅": answers}',
+    new LocalizedTextVo(
+      'return map[string][]bool{"收紅": answers}',
+      'return map[string][]bool{"Closed up": answers}'),
   ],
   signal: [
     'first := data[0].Close',
@@ -53,14 +69,16 @@ const EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readon
  * 合約行情種類的範例：同樣五種，但每一段都讀了**合約才有的東西**——資金費率、
  * 這一格內有沒有結算、持倉量、標記價格——否則使用者看不出這一頁與現貨那一頁差在哪。
  */
-const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly string[]>> = {
+const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultType, readonly ExampleLine[]>> = {
   float: [
     'sum := 0.0',
     'for _, candle := range data {',
     '\tsum += candle.FundingRate',
     '}',
     '',
-    'return map[string]float64{"平均資金費率": sum / float64(len(data))}',
+    new LocalizedTextVo(
+      'return map[string]float64{"平均資金費率": sum / float64(len(data))}',
+      'return map[string]float64{"Average funding rate": sum / float64(len(data))}'),
   ],
   floatList: [
     'openInterests := []float64{}',
@@ -68,12 +86,16 @@ const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultTyp
     '\topenInterests = append(openInterests, candle.OpenInterest)',
     '}',
     '',
-    'return map[string][]float64{"持倉量": openInterests}',
+    new LocalizedTextVo(
+      'return map[string][]float64{"持倉量": openInterests}',
+      'return map[string][]float64{"Open interest": openInterests}'),
   ],
   bool: [
     'last := data[len(data)-1]',
     '',
-    'return map[string]bool{"標記價高於成交價": last.Mark.Close > last.Close}',
+    new LocalizedTextVo(
+      'return map[string]bool{"標記價高於成交價": last.Mark.Close > last.Close}',
+      'return map[string]bool{"Mark price above last price": last.Mark.Close > last.Close}'),
   ],
   boolList: [
     'answers := []bool{}',
@@ -81,13 +103,17 @@ const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultTyp
     '\tanswers = append(answers, candle.FundingSettledInBar)',
     '}',
     '',
-    'return map[string][]bool{"這一格有結算": answers}',
+    new LocalizedTextVo(
+      'return map[string][]bool{"這一格有結算": answers}',
+      'return map[string][]bool{"Settled in this candle": answers}'),
   ],
   signal: [
     'first := data[0]',
     'last := data[len(data)-1]',
     '',
-    '// 費率轉負而持倉量增加：空方擁擠，找反彈。沒有資料的項目是零，先確認有值。',
+    new LocalizedTextVo(
+      '// 費率轉負而持倉量增加：空方擁擠，找反彈。沒有資料的項目是零，先確認有值。',
+      '// Funding turns negative while open interest grows: shorts are crowded, look for a bounce. Missing fields are zero, so check for a value first.'),
     'if last.OpenInterest > 0 && last.FundingRate < 0 && last.OpenInterest > first.OpenInterest {',
     '\treturn indicator.Buy',
     '}',
@@ -97,7 +123,7 @@ const CONTRACT_EXAMPLE_CALCULATE_INNER_LINES: Readonly<Record<IndicatorResultTyp
 
 /** 每一種行情用哪一組範例。 */
 const EXAMPLE_CALCULATE_INNER_LINES_BY_MARKET_DATA_KIND: Readonly<
-  Record<MarketDataKind, Readonly<Record<IndicatorResultType, readonly string[]>>>
+  Record<MarketDataKind, Readonly<Record<IndicatorResultType, readonly ExampleLine[]>>>
 > = {
   kCandle: EXAMPLE_CALCULATE_INNER_LINES,
   contractKCandle: CONTRACT_EXAMPLE_CALCULATE_INNER_LINES,
@@ -177,11 +203,17 @@ export class IndicatorScriptDomain {
    *
    * 它與 `blankScript()` 是一對相互對照的東西——「什麼都還沒寫」與「寫好了長這樣」。
    */
-  exampleScript(): string {
-    const innerLines = EXAMPLE_CALCULATE_INNER_LINES_BY_MARKET_DATA_KIND[this.marketDataKind.value][this.resultType.value]
-      .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
+  exampleScript(): LocalizedTextVo {
+    const exampleLines = EXAMPLE_CALCULATE_INNER_LINES_BY_MARKET_DATA_KIND[this.marketDataKind.value][this.resultType.value]
+    const scriptIn = (language: DisplayLanguageCodeVo): string => {
+      const innerLines = exampleLines
+        .map(line => (typeof line === 'string' ? line : line.in(language)))
+        .map(line => (line === '' ? '' : `${BODY_INDENT}${line}`))
 
-    return [SCRIPT_PREAMBLE, '', this.calculateSignature(), ...innerLines, '}'].join('\n')
+      return [SCRIPT_PREAMBLE, '', this.calculateSignature(), ...innerLines, '}'].join('\n')
+    }
+
+    return new LocalizedTextVo(scriptIn('zh-TW'), scriptIn('en'))
   }
 
   /**

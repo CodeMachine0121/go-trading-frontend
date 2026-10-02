@@ -5,6 +5,8 @@ const { figures, layout = 'strip' } = defineProps<{
   figures: readonly TradeFigureVo[]
   layout?: 'strip' | 'list'
 }>()
+
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -14,22 +16,22 @@ const { figures, layout = 'strip' } = defineProps<{
   >
     <div
       v-for="figure in figures"
-      :key="figure.label"
+      :key="figure.kind"
       class="trade-summary-strip__figure"
-      :data-testid="`figure-${figure.label}`"
+      :data-testid="`figure-${figure.kind}`"
     >
       <dt class="trade-summary-strip__label">
-        {{ figure.label }}
+        {{ localize(figure.label) }}
       </dt>
       <dd
         class="trade-summary-strip__value"
         :class="`trade-summary-strip__value--${figure.tone}`"
       >
-        {{ figure.text }}
+        {{ localize(figure.text) }}
         <small
           v-if="figure.note"
           class="trade-summary-strip__note"
-        >{{ figure.note }}</small>
+        >{{ localize(figure.note) }}</small>
       </dd>
     </div>
   </dl>

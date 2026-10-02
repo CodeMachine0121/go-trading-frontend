@@ -33,7 +33,7 @@ describe('PasswordChangeDomain', () => {
     const passwordChangeDomain = passwordChange(currentPassword, 'battery staple')
 
     expect(passwordChangeDomain.isSubmittable()).toBe(false)
-    expect(passwordChangeDomain.fieldErrors().currentPassword).toBe(expectedMessage)
+    expect(passwordChangeDomain.fieldErrors().currentPassword?.in('zh-TW')).toBe(expectedMessage)
   })
 
   it('目前的密碼不套用長度規則', () => {
@@ -53,7 +53,7 @@ describe('PasswordChangeDomain', () => {
     const passwordChangeDomain = passwordChange('correct horse', newPassword)
 
     expect(passwordChangeDomain.isSubmittable()).toBe(false)
-    expect(passwordChangeDomain.fieldErrors().newPassword).toBe(expectedMessage)
+    expect(passwordChangeDomain.fieldErrors().newPassword?.in('zh-TW')).toBe(expectedMessage)
   })
 
   it.each([
@@ -68,7 +68,7 @@ describe('PasswordChangeDomain', () => {
     const passwordChangeDomain = passwordChange('correct horse', 'correct horse')
 
     expect(passwordChangeDomain.isSubmittable()).toBe(false)
-    expect(passwordChangeDomain.fieldErrors().newPassword).toBe('新密碼不得與目前的密碼相同')
+    expect(passwordChangeDomain.fieldErrors().newPassword?.in('zh-TW')).toBe('新密碼不得與目前的密碼相同')
   })
 
   it('只差一個大寫就是另一組密碼', () => {
@@ -79,7 +79,7 @@ describe('PasswordChangeDomain', () => {
     // 兩個都要改的時候，先說那個不論如何都得改的。
     const passwordChangeDomain = passwordChange('short', 'short')
 
-    expect(passwordChangeDomain.fieldErrors().newPassword).toBe('密碼至少要 8 個字元')
+    expect(passwordChangeDomain.fieldErrors().newPassword?.in('zh-TW')).toBe('密碼至少要 8 個字元')
   })
 
   it.each([
@@ -90,7 +90,7 @@ describe('PasswordChangeDomain', () => {
     const passwordChangeDomain = passwordChange('correct horse', 'battery staple', confirmation)
 
     expect(passwordChangeDomain.isSubmittable()).toBe(false)
-    expect(passwordChangeDomain.fieldErrors().newPasswordConfirmation).toBe(expectedMessage)
+    expect(passwordChangeDomain.fieldErrors().newPasswordConfirmation?.in('zh-TW')).toBe(expectedMessage)
   })
 
   it('三格都不對時一次說完三則，不是改好一格再被念一次', () => {
@@ -99,5 +99,16 @@ describe('PasswordChangeDomain', () => {
     expect(fieldErrors.currentPassword).not.toBeNull()
     expect(fieldErrors.newPassword).not.toBeNull()
     expect(fieldErrors.newPasswordConfirmation).not.toBeNull()
+  })
+})
+
+describe('PasswordChangeDomain：英文畫面上的說明', () => {
+  it.each([
+    { name: '目前的密碼沒填', currentPassword: '', newPassword: 'new horse battery', field: 'currentPassword' as const, expected: 'Enter your current password' },
+    { name: '新密碼與目前相同', currentPassword: 'correct horse', newPassword: 'correct horse', field: 'newPassword' as const, expected: 'The new password must differ from the current one' },
+  ])('$name 時說「$expected」', ({ currentPassword, newPassword, field, expected }) => {
+    const passwordChangeDomain = passwordChange(currentPassword, newPassword)
+
+    expect(passwordChangeDomain.fieldErrors()[field]?.in('en')).toBe(expected)
   })
 })

@@ -4,6 +4,7 @@ import type { TradeTagDto } from '~/domain/models/dto/trade-tag-dto'
 import type { TradeTagGroupDto } from '~/domain/models/dto/trade-tag-group-dto'
 import type { TradeTagWriteDto } from '~/domain/models/dto/trade-tag-write-dto'
 import type { TradeFailureDto } from '~/domain/models/dto/trade-failure-dto'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export class TradeJournalSettingApplication {
   constructor(private readonly tradeJournalSettingService: TradeJournalSettingService) {}
@@ -20,7 +21,7 @@ export class TradeJournalSettingApplication {
     return this.tradeJournalSettingService.saveFeeRates(makerRateText, takerRateText)
   }
 
-  rateInputHint(rateText: string): string | null {
+  rateInputHint(rateText: string): LocalizedTextVo | null {
     return this.tradeJournalSettingService.rateInputHint(rateText)
   }
 

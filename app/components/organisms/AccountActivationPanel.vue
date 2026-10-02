@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AccountActivationInstructionDto } from '~/domain/models/dto/account-activation-instruction-dto'
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -30,13 +31,19 @@ const emit = defineEmits<{
 const mailboxCopy = useCopyText()
 const subjectCopy = useCopyText()
 
-function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+function labelFor(state: 'idle' | 'copied' | 'failed'): string {
   if (state === 'copied') {
-    return '已複製'
+    return t('shell.copyText.copied')
   }
 
-  return state === 'failed' ? '複製失敗' : idle
+  return state === 'failed' ? t('shell.copyText.failed') : t('shell.copyText.copy')
 }
+
+const copyFailureMessage = computed(
+  () => subjectCopy.failureMessage.value ?? mailboxCopy.failureMessage.value)
 </script>
 
 <template>
@@ -50,17 +57,22 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
 
     <div class="account-activation-panel__heading">
       <h1 class="account-activation-panel__title">
-        等待開通
+        {{ t('shell.accountActivation.title') }}
       </h1>
-      <p class="account-activation-panel__caption">
-        <strong>{{ email }}</strong> 這個帳號已經建立好了，但還沒有被開通。
-        寄一封信提出申請，開通之後回到這一頁按「重新檢查」就進得去。
-      </p>
+      <i18n-t
+        keypath="shell.accountActivation.caption"
+        tag="p"
+        class="account-activation-panel__caption"
+      >
+        <template #email>
+          <strong>{{ email }}</strong>
+        </template>
+      </i18n-t>
     </div>
 
     <template v-if="instruction">
       <div class="account-activation-panel__field">
-        <span class="account-activation-panel__label">寄到這個信箱</span>
+        <span class="account-activation-panel__label">{{ t('shell.accountActivation.mailboxLabel') }}</span>
         <div class="account-activation-panel__value-row">
           <code
             class="account-activation-panel__value"
@@ -72,13 +84,13 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
             data-testid="copy-mailbox"
             @click="mailboxCopy.copyText(instruction.requestMailbox)"
           >
-            {{ labelFor(mailboxCopy.state.value, '複製') }}
+            {{ labelFor(mailboxCopy.state.value) }}
           </AppButton>
         </div>
       </div>
 
       <div class="account-activation-panel__field">
-        <span class="account-activation-panel__label">主旨照抄這一串</span>
+        <span class="account-activation-panel__label">{{ t('shell.accountActivation.subjectLabel') }}</span>
         <div class="account-activation-panel__value-row">
           <!--
             等寬字、可換行、整段選得起來：主旨裡有他自己的電子郵件，可能很長，
@@ -95,17 +107,17 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
             data-testid="copy-subject"
             @click="subjectCopy.copyText(instruction.subject)"
           >
-            {{ labelFor(subjectCopy.state.value, '複製') }}
+            {{ labelFor(subjectCopy.state.value) }}
           </AppButton>
         </div>
       </div>
 
       <AppAlert
-        v-if="subjectCopy.failureMessage.value || mailboxCopy.failureMessage.value"
+        v-if="copyFailureMessage"
         tone="danger"
         data-testid="copy-failure"
       >
-        {{ subjectCopy.failureMessage.value ?? mailboxCopy.failureMessage.value }}
+        {{ localize(copyFailureMessage) }}
       </AppAlert>
 
       <a
@@ -113,7 +125,7 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
         :href="instruction.toMailtoHref()"
         data-testid="open-mail"
       >
-        寄出申請
+        {{ t('shell.accountActivation.sendRequest') }}
       </a>
     </template>
 
@@ -122,7 +134,7 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
       tone="info"
       data-testid="no-instruction"
     >
-      這個帳號還沒有被開通。請聯絡這台操作台的管理者。
+      {{ t('shell.accountActivation.noInstruction') }}
     </AppAlert>
 
     <div class="account-activation-panel__actions">
@@ -134,7 +146,7 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
         data-testid="recheck"
         @click="emit('recheck')"
       >
-        {{ rechecking ? '檢查中…' : '重新檢查' }}
+        {{ rechecking ? t('shell.accountActivation.rechecking') : t('shell.accountActivation.recheck') }}
       </AppButton>
 
       <!--
@@ -147,7 +159,7 @@ function labelFor(state: 'idle' | 'copied' | 'failed', idle: string): string {
         data-testid="sign-out"
         @click="emit('signOut')"
       >
-        登出
+        {{ t('shell.signedInUser.signOut') }}
       </AppButton>
     </div>
   </section>

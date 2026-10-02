@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
+import { useI18n } from 'vue-i18n'
 import type { AppearanceDto } from '~/domain/models/dto/appearance-dto'
 import type { AppearanceChoiceVo } from '~/domain/models/vo/appearance-choice-vo'
 
@@ -19,6 +20,12 @@ const emit = defineEmits<{ select: [choice: AppearanceChoiceVo] }>()
 
 const ICONS = { light: 'sun', system: 'monitor', dark: 'moon' } as const
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
+const labelledOptions = computed(() => appearance.options.map(
+  option => ({ value: option.value, label: localize(option.label) })))
+
 const selected = computed({
   get: () => appearance.choice,
   set: (choice: string) => {
@@ -35,7 +42,7 @@ const selected = computed({
     v-if="variant === 'compact'"
     class="appearance-toggle"
     role="radiogroup"
-    aria-label="外觀"
+    :aria-label="t('shell.appearance.label')"
     data-testid="appearance-toggle"
   >
     <button
@@ -46,8 +53,8 @@ const selected = computed({
       class="appearance-toggle__option"
       :class="{ 'appearance-toggle__option--selected': option.value === appearance.choice }"
       :aria-checked="option.value === appearance.choice"
-      :aria-label="option.label"
-      :title="option.label"
+      :aria-label="localize(option.label)"
+      :title="localize(option.label)"
       :data-testid="`appearance-${option.value}`"
       @click="selected = option.value"
     >
@@ -62,7 +69,7 @@ const selected = computed({
     v-else
     v-model="selected"
     variant="segmented"
-    :options="appearance.options"
+    :options="labelledOptions"
     data-testid="appearance-toggle"
   />
 </template>

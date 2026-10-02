@@ -2,7 +2,10 @@
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
+import { useI18n } from 'vue-i18n'
 import { useLayoutDensity } from '~/composables/use-layout-density'
+
+const { t } = useI18n()
 
 /**
  * 樣板：操作台的骨架。
@@ -15,30 +18,31 @@ import { useLayoutDensity } from '~/composables/use-layout-density'
  * （使用者最後停留的那一邊），人在合約 K 線圖表上時「行情圖表」照樣亮著——
  * 現貨與合約之間靠頂列的開關移動，不在導覽上各佔一格。
  */
-const DESTINATIONS = [
-  { to: '/k-candles/chart', label: '行情圖表', icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
-  { to: '/k-candles', label: 'K 線資料', icon: 'table', paths: ['/k-candles', '/contract-k-candles'], nested: false },
-  { to: '/strategy-scripts', label: '策略腳本', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
-  { to: '/trading-strategies', label: '交易策略', icon: 'flow', paths: ['/trading-strategies'], nested: true },
-  { to: '/strategy-bots', label: '策略機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
-  { to: '/spot-trade-journal', label: '交易日誌', icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
+const destinations = computed(() => [
+  { to: '/k-candles/chart', label: t('shell.navigation.chart'), icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
+  { to: '/k-candles', label: t('shell.navigation.kCandleData'), icon: 'table', paths: ['/k-candles', '/contract-k-candles'], nested: false },
+  { to: '/strategy-scripts', label: t('shell.navigation.strategyScripts'), icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
+  { to: '/trading-strategies', label: t('shell.navigation.tradingStrategies'), icon: 'flow', paths: ['/trading-strategies'], nested: true },
+  { to: '/strategy-bots', label: t('shell.navigation.strategyBots'), icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
+  { to: '/spot-trade-journal', label: t('shell.navigation.tradeJournal'), icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
-] as const
+] as const)
 
-const SETTINGS_DESTINATION = { to: '/settings', label: '設定', icon: 'settings', paths: ['/settings'], nested: false } as const
+const settingsDestination = computed(() => (
+  { to: '/settings', label: t('shell.navigation.settings'), icon: 'settings', paths: ['/settings'], nested: false } as const))
 
 /** 窄螢幕底部直接露出來的四格（第五格是「更多」）。 */
-const TAB_DESTINATIONS = [
-  { to: '/k-candles/chart', label: '行情', icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
-  { to: '/strategy-scripts', label: '策略', icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
-  { to: '/strategy-bots', label: '機器人', icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
-  { to: '/chat', label: '助手', icon: 'sparkle', paths: ['/chat'], nested: false },
-] as const
+const tabDestinations = computed(() => [
+  { to: '/k-candles/chart', label: t('shell.navigation.chartTab'), icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
+  { to: '/strategy-scripts', label: t('shell.navigation.strategyTab'), icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
+  { to: '/strategy-bots', label: t('shell.navigation.botTab'), icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
+  { to: '/chat', label: t('shell.navigation.assistantTab'), icon: 'sparkle', paths: ['/chat'], nested: false },
+] as const)
 
 /** 收在「更多」裡的去處。 */
-const MORE_DESTINATIONS = [
-  DESTINATIONS[1], DESTINATIONS[3], DESTINATIONS[5], DESTINATIONS[6], SETTINGS_DESTINATION,
-] as const
+const moreDestinations = computed(() => [
+  destinations.value[1], destinations.value[3], destinations.value[5], destinations.value[6], settingsDestination.value,
+] as const)
 
 const { destinationPaths = {} } = defineProps<{
   title: string
@@ -73,7 +77,7 @@ function isCurrent(destination: { paths: readonly string[], nested: boolean }): 
 }
 
 /** 人在「更多」裡的畫面時，「更多」那一格自己亮——否則整排全暗，讀起來像哪裡都不在。 */
-const insideMore = computed(() => MORE_DESTINATIONS.some(destination => isCurrent(destination)))
+const insideMore = computed(() => moreDestinations.value.some(destination => isCurrent(destination)))
 
 watch(() => route.fullPath, () => {
   moreOpen.value = false
@@ -98,7 +102,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     <nav
       v-if="!layoutDensity.usesBottomNavigation"
       class="console-layout__rail"
-      aria-label="操作台"
+      :aria-label="t('shell.navigation.consoleLabel')"
     >
       <div class="console-layout__brand">
         <span class="console-layout__brand-mark">
@@ -113,7 +117,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           variant="ghost"
           size="small"
           class="console-layout__stow"
-          :label="railStowed ? '展開側欄' : '收起側欄'"
+          :label="railStowed ? t('shell.navigation.expandRail') : t('shell.navigation.stowRail')"
           data-testid="toggle-rail"
           @click="railStowed = !railStowed"
         >
@@ -127,7 +131,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
 
       <ul class="console-layout__destinations">
         <li
-          v-for="destination in DESTINATIONS"
+          v-for="destination in destinations"
           :key="destination.to"
         >
           <NuxtLink
@@ -150,19 +154,19 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
 
       <div class="console-layout__rail-foot">
         <NuxtLink
-          :to="SETTINGS_DESTINATION.to"
+          :to="settingsDestination.to"
           class="console-layout__link"
-          :class="{ 'console-layout__link--current': isCurrent(SETTINGS_DESTINATION) }"
-          :aria-current="isCurrent(SETTINGS_DESTINATION) ? 'page' : undefined"
-          :title="SETTINGS_DESTINATION.label"
-          :data-testid="`destination-${SETTINGS_DESTINATION.to}`"
+          :class="{ 'console-layout__link--current': isCurrent(settingsDestination) }"
+          :aria-current="isCurrent(settingsDestination) ? 'page' : undefined"
+          :title="settingsDestination.label"
+          :data-testid="`destination-${settingsDestination.to}`"
         >
           <AppIcon
-            :name="SETTINGS_DESTINATION.icon"
+            :name="settingsDestination.icon"
             size="small"
             class="console-layout__link-icon"
           />
-          <span class="console-layout__link-label">{{ SETTINGS_DESTINATION.label }}</span>
+          <span class="console-layout__link-label">{{ settingsDestination.label }}</span>
         </NuxtLink>
 
         <div class="console-layout__status">
@@ -197,6 +201,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           v-if="!layoutDensity.usesBottomNavigation"
           class="console-layout__tools"
         >
+          <slot name="language" />
           <slot name="timezone" />
           <slot name="appearance" />
           <slot name="assistant" />
@@ -211,10 +216,10 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
     <nav
       v-if="layoutDensity.usesBottomNavigation"
       class="console-layout__tabs"
-      aria-label="操作台"
+      :aria-label="t('shell.navigation.consoleLabel')"
     >
       <NuxtLink
-        v-for="destination in TAB_DESTINATIONS"
+        v-for="destination in tabDestinations"
         :key="destination.to"
         :to="pathOf(destination)"
         class="console-layout__tab"
@@ -241,19 +246,19 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
           name="menu"
           class="console-layout__tab-icon"
         />
-        <span class="console-layout__tab-label">更多</span>
+        <span class="console-layout__tab-label">{{ t('shell.navigation.more') }}</span>
       </button>
     </nav>
 
     <AppModal
       v-if="layoutDensity.usesBottomNavigation"
       :open="moreOpen"
-      title="更多"
+      :title="t('shell.navigation.more')"
       @close="moreOpen = false"
     >
       <ul class="console-layout__more-list">
         <li
-          v-for="destination in MORE_DESTINATIONS"
+          v-for="destination in moreDestinations"
           :key="destination.to"
         >
           <NuxtLink
@@ -276,6 +281,7 @@ watch(() => layoutDensity.value.usesBottomNavigation, (usesBottomNavigation) => 
       </ul>
 
       <div class="console-layout__more-tools">
+        <slot name="language" />
         <slot name="timezone" />
         <slot name="appearance" />
       </div>

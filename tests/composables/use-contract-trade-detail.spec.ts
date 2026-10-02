@@ -17,6 +17,7 @@ import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { TradeTagNameConflictError } from '~/domain/errors/trade-tag-name-conflict-error'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../fixtures/contract-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const recordProxy = contractTradeRecordProxyMock()
 const kCandleContractProxy = kCandleContractProxyMock()
@@ -52,7 +53,7 @@ describe('useContractTradeDetail：讀取', () => {
     expect(detail.mistakeTags.value.map(tag => tag.name)).toEqual(['提早出場'])
     expect(detail.setupTags.value.map(tag => tag.name)).toEqual(['突破'])
     expect(detail.loading.value).toBe(false)
-    await vi.waitFor(() => expect(detail.pricePath.value?.emptyMessage).toBe('沒有行情資料，無法計算'))
+    await vi.waitFor(() => expect(detail.pricePath.value?.emptyMessage?.in('zh-TW')).toBe('沒有行情資料，無法計算'))
   })
 
   it('價格路徑讀不到只影響圖', async () => {
@@ -61,7 +62,7 @@ describe('useContractTradeDetail：讀取', () => {
 
     await detail.loadTrade()
 
-    await vi.waitFor(() => expect(detail.pricePathFailureMessage.value).toContain('連不上'))
+    await vi.waitFor(() => expect(detail.pricePathFailureMessage.value?.in('zh-TW')).toContain('連不上'))
     expect(detail.record.value).not.toBeNull()
     expect(detail.pricePath.value).toBeNull()
   })
@@ -73,7 +74,7 @@ describe('useContractTradeDetail：讀取', () => {
     await detail.loadTrade()
 
     expect(detail.notFound.value).toBe(true)
-    expect(detail.failureMessage.value).toBe('找不到這筆交易')
+    expect(detail.failureMessage.value?.in('zh-TW')).toBe('找不到這筆交易')
     expect(detail.record.value).toBeNull()
   })
 })
@@ -88,11 +89,11 @@ describe('useContractTradeDetail：寫入', () => {
   })
 
   it('平倉後修改計畫的拒絕原話呈現', async () => {
-    recordProxy.amendPlan.mockRejectedValue(new TradeRejectedError('平倉後計畫已鎖定，可以加附註', null))
+    recordProxy.amendPlan.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('平倉後計畫已鎖定，可以加附註'), null))
     const detail = detailUnderTest()
 
     expect(await detail.savePlan('', '', '', null)).toBe(false)
-    expect(detail.actionFailureMessage.value).toBe('平倉後計畫已鎖定，可以加附註')
+    expect(detail.actionFailureMessage.value?.in('zh-TW')).toBe('平倉後計畫已鎖定，可以加附註')
   })
 
   it('加附註；空白不送', async () => {
@@ -110,7 +111,7 @@ describe('useContractTradeDetail：寫入', () => {
 
     expect(await detail.writeReview('照計畫', '提早出場', '讓止盈成交', 4, [2])).toBe(true)
     expect(recordProxy.writeReview).toHaveBeenCalledWith(27, expect.objectContaining({ executionScore: 4, mistakeTagIds: [2] }))
-    expect(detail.record.value?.statusLabel).toBe('已檢討')
+    expect(detail.record.value?.statusLabel.in('zh-TW')).toBe('已檢討')
   })
 
   it('貼型態標籤；就地新增的標籤建好後一起貼上', async () => {
@@ -132,7 +133,7 @@ describe('useContractTradeDetail：寫入', () => {
 
     await detail.createSetupTag('突破')
 
-    expect(detail.actionFailureMessage.value).toBe('已有同名的型態標籤')
+    expect(detail.actionFailureMessage.value?.in('zh-TW')).toBe('已有同名的型態標籤')
     expect(recordProxy.assignSetupTags).not.toHaveBeenCalled()
   })
 
@@ -153,18 +154,18 @@ describe('useContractTradeDetail：寫入', () => {
     const fill = detail.record.value!.fills[0]!
 
     expect(await detail.amendFill(fill, 'abc', '0.03', '')).toBe(false)
-    expect(detail.actionFailureMessage.value).toBe('價格與數量要填數字')
+    expect(detail.actionFailureMessage.value?.in('zh-TW')).toBe('價格與數量要填數字')
     expect(await detail.amendFill(fill, '97906', '0.03', '1.2')).toBe(true)
   })
 
   it('刪除成交；刪到沒有進場成交時原話呈現', async () => {
     recordProxy.removeFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
-    recordProxy.removeFill.mockRejectedValueOnce(new TradeRejectedError('一筆交易至少要有一筆進場成交；要整筆放棄請刪除交易', null))
+    recordProxy.removeFill.mockRejectedValueOnce(new TradeRejectedError(new UntranslatedTextVo('一筆交易至少要有一筆進場成交；要整筆放棄請刪除交易'), null))
     const detail = detailUnderTest()
 
     expect(await detail.removeFill(3)).toBe(true)
     expect(await detail.removeFill(1)).toBe(false)
-    expect(detail.actionFailureMessage.value).toContain('至少要有一筆進場成交')
+    expect(detail.actionFailureMessage.value?.in('zh-TW')).toContain('至少要有一筆進場成交')
   })
 
   it('動作進行中不接受下一個', async () => {
@@ -194,7 +195,7 @@ describe('useContractTradeDetail：寫入', () => {
 
     expect(await detail.deleteTrade()).toBe(true)
     expect(await detail.deleteTrade()).toBe(false)
-    expect(detail.actionFailureMessage.value).toContain('連不上')
+    expect(detail.actionFailureMessage.value?.in('zh-TW')).toContain('連不上')
   })
 
   it('從加成交表單存好的那一筆直接換上，並重讀價格路徑', async () => {
@@ -202,7 +203,7 @@ describe('useContractTradeDetail：寫入', () => {
 
     detail.adoptSavedRecord(buildRecord({ status: 'closed', leverage: new Decimal(5) }).toDomain().toDto())
 
-    expect(detail.record.value?.statusLabel).toBe('已平倉')
+    expect(detail.record.value?.statusLabel.in('zh-TW')).toBe('已平倉')
     await vi.waitFor(() => expect(kCandleContractProxy.findKCandleContractSeries).toHaveBeenCalled())
   })
 })

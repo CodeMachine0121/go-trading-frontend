@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -18,6 +19,9 @@ import { useTradingStrategies } from '~/composables/use-trading-strategies'
 const { tradingStrategyApplication } = defineProps<{
   tradingStrategyApplication: TradingStrategyApplication
 }>()
+
+const { t } = useI18n()
+const { localize } = useLocalizedText()
 
 const tradingStrategies = useTradingStrategies(tradingStrategyApplication)
 
@@ -39,7 +43,7 @@ onMounted(() => {
         size="small"
         data-testid="trading-strategy-bots-link"
       >
-        現貨機器人
+        {{ t('tradingStrategy.listPanel.spotBotsLink') }}
       </AppButton>
       <AppButton
         to="/contract-strategy-bots"
@@ -47,7 +51,7 @@ onMounted(() => {
         size="small"
         data-testid="trading-strategy-contract-bots-link"
       >
-        合約機器人
+        {{ t('tradingStrategy.listPanel.contractBotsLink') }}
       </AppButton>
       <AppButton
         to="/trading-strategies/new"
@@ -58,18 +62,18 @@ onMounted(() => {
           name="plus"
           size="small"
         />
-        拼一份交易策略
+        {{ t('tradingStrategy.listPanel.create') }}
       </AppButton>
     </header>
 
-    <AppToast :message="tradingStrategies.announcement.value" />
+    <AppToast :message="localize(tradingStrategies.announcement.value)" />
 
     <AppAlert
-      v-if="tradingStrategies.failureMessage.value !== ''"
+      v-if="tradingStrategies.failureMessage.value !== null"
       tone="danger"
       data-testid="trading-strategy-list-failure"
     >
-      {{ tradingStrategies.failureMessage.value }}
+      {{ localize(tradingStrategies.failureMessage.value) }}
       <template #action>
         <AppButton
           type="button"
@@ -77,7 +81,7 @@ onMounted(() => {
           data-testid="trading-strategy-list-retry"
           @click="tradingStrategies.load"
         >
-          再試一次
+          {{ t('tradingStrategy.listPanel.retry') }}
         </AppButton>
       </template>
     </AppAlert>
@@ -86,7 +90,7 @@ onMounted(() => {
       v-if="tradingStrategies.loading.value"
       class="trading-strategy-list__notice"
     >
-      讀取中…
+      {{ t('tradingStrategy.common.loading') }}
     </p>
 
     <!--
@@ -94,12 +98,12 @@ onMounted(() => {
       說成同一句，他會把一次連不上讀成自己什麼都沒有。
     -->
     <p
-      v-else-if="tradingStrategies.failureMessage.value === ''
+      v-else-if="tradingStrategies.failureMessage.value === null
         && tradingStrategies.tradingStrategies.value.length === 0"
       class="trading-strategy-list__notice trading-strategy-list__notice--empty"
       data-testid="trading-strategy-list-empty"
     >
-      還沒有任何交易策略。拼一份之後，就能讓好幾台機器人一起照它判斷。
+      {{ t('tradingStrategy.listPanel.empty') }}
     </p>
 
     <AppPanel
@@ -111,8 +115,8 @@ onMounted(() => {
         class="trading-strategy-list__columns"
         aria-hidden="true"
       >
-        <span>名稱</span>
-        <span>行情 · 訊號來源</span>
+        <span>{{ t('tradingStrategy.listPanel.nameColumn') }}</span>
+        <span>{{ t('tradingStrategy.listPanel.marketDataAndSourcesColumn') }}</span>
         <span />
       </div>
 
@@ -129,12 +133,12 @@ onMounted(() => {
             <AppBadge
               variant="neutral"
               data-testid="trading-strategy-market-data-kind"
-            >{{ tradingStrategy.marketDataKindLabel }}</AppBadge>
+            >{{ localize(tradingStrategy.marketDataKindLabel) }}</AppBadge>
             <AppBadge
-              v-if="tradingStrategy.tradingModeLabel"
+              v-if="tradingStrategy.tradingModeLabel !== null"
               variant="accent"
-            >{{ tradingStrategy.tradingModeLabel }}</AppBadge>
-            <span class="trading-strategy-list__count">{{ tradingStrategy.signalSources.length }} 支策略腳本</span>
+            >{{ localize(tradingStrategy.tradingModeLabel) }}</AppBadge>
+            <span class="trading-strategy-list__count">{{ t('tradingStrategy.listPanel.strategyScriptCount', { count: tradingStrategy.signalSources.length }, tradingStrategy.signalSources.length) }}</span>
           </span>
 
           <span class="trading-strategy-list__actions">
@@ -144,7 +148,7 @@ onMounted(() => {
               size="small"
               data-testid="trading-strategy-edit"
             >
-              改一改
+              {{ t('tradingStrategy.listPanel.edit') }}
             </AppButton>
             <AppButton
               type="button"
@@ -154,7 +158,7 @@ onMounted(() => {
               data-testid="trading-strategy-delete"
               @click="tradingStrategies.askToDelete(tradingStrategy)"
             >
-              刪掉
+              {{ t('tradingStrategy.listPanel.delete') }}
             </AppButton>
           </span>
         </li>
@@ -164,9 +168,9 @@ onMounted(() => {
     <!-- 刪除不可逆，而它是花時間拼出來的。 -->
     <ConfirmDialog
       :open="tradingStrategies.deleting.value !== null"
-      title="刪掉這一份交易策略？"
-      :message="`「${tradingStrategies.deleting.value?.name ?? ''}」刪掉就沒了。還有機器人在用它的話，這一步會被擋下來。`"
-      confirm-label="刪掉"
+      :title="t('tradingStrategy.listPanel.deleteTitle')"
+      :message="t('tradingStrategy.listPanel.deleteMessage', { name: tradingStrategies.deleting.value?.name ?? '' })"
+      :confirm-label="t('tradingStrategy.listPanel.delete')"
       data-testid="trading-strategy-delete-confirm"
       @confirm="tradingStrategies.confirmDelete"
       @cancel="tradingStrategies.cancelDelete"

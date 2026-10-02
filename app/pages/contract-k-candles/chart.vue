@@ -3,8 +3,8 @@ import KCandleContractChartPanel from '~/components/organisms/KCandleContractCha
 
 definePageMeta({
   layout: 'console',
-  consoleTitle: '合約 K 線圖表',
-  consoleSubtitle: '永續合約的成交價走勢。拉遠拉近就是在選要看多長；每根涵蓋多久會跟著換，時間一律照頂欄選定的時區呈現。',
+  consoleTitleKey: 'marketData.pages.contractKCandleChart.title',
+  consoleSubtitleKey: 'marketData.pages.contractKCandleChart.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。

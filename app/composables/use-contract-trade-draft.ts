@@ -17,8 +17,8 @@ import { TradeRejectedError } from '~/domain/errors/trade-rejected-error'
 import { TradeAlreadyOpenError } from '~/domain/errors/trade-already-open-error'
 import { JournalLinkNotFoundError } from '~/domain/errors/journal-link-not-found-error'
 import { formatMinuteInputInTimeZone, parseMinuteInputInTimeZone } from '~/utilities/time-zone-format'
-
-const JOURNAL_LINK_NOT_FOUND_MESSAGE = '找不到這一輪。這一輪的建議已不在紀錄中，請手動填寫。'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 export function useContractTradeDraft(
   options: {
@@ -29,13 +29,14 @@ export function useContractTradeDraft(
   tradeJournalSettingApplication: TradeJournalSettingApplication = useNuxtApp().$tradeJournalSettingApplication,
   tradingStrategyApplication: TradingStrategyApplication = useNuxtApp().$tradingStrategyApplication,
 ) {
+  const { translatedText } = useLocalizedText()
   const existingRecord = options.existingRecord
   let nextFillKey = 0
 
-  const setting = ref(new TradeJournalSettingDto(null, null, false, ''))
+  const setting = ref(new TradeJournalSettingDto(null, null, false, new UntranslatedTextVo('')))
   const tradingStrategies = ref<TradingStrategyDto[]>([])
   const setupTags = ref<TradeTagDto[]>([])
-  const referenceFailureMessage = ref<string | null>(null)
+  const referenceFailureMessage = ref<LocalizedTextVo | null>(null)
 
   const symbol = ref('')
   const direction = ref<ContractTradeDirection>('long')
@@ -51,12 +52,12 @@ export function useContractTradeDraft(
 
   const prefill = ref<ContractTradePrefillDto | null>(null)
   const prefillLoading = ref(false)
-  const prefillMessage = ref<string | null>(null)
+  const prefillMessage = ref<LocalizedTextVo | null>(null)
   const prefillFailed = ref(false)
   const prefillNotFound = ref(false)
 
   const saving = ref(false)
-  const rejectionMessage = ref<string | null>(null)
+  const rejectionMessage = ref<LocalizedTextVo | null>(null)
   const rejectedField = ref<TradeFormField | null>(null)
   const conflictingTradeId = ref<number | null>(null)
   const recordedTradeId = ref<number | null>(null)
@@ -164,7 +165,7 @@ export function useContractTradeDraft(
       prefillFailed.value = failure.unreachable
       prefillNotFound.value = error instanceof JournalLinkNotFoundError
       prefillMessage.value = prefillNotFound.value
-        ? JOURNAL_LINK_NOT_FOUND_MESSAGE
+        ? translatedText('contractTradeJournal.form.journalLinkNotFound')
         : failure.message
 
       return null
@@ -182,7 +183,7 @@ export function useContractTradeDraft(
     fills.value = fills.value.filter(fill => fill.key !== key)
   }
 
-  function fieldError(field: TradeFormField): string | null {
+  function fieldError(field: TradeFormField): LocalizedTextVo | null {
     return rejectedField.value === field ? rejectionMessage.value : null
   }
 

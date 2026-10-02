@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
@@ -9,6 +10,7 @@ import SettingsSection from '~/components/molecules/SettingsSection.vue'
 import type { TradeJournalSettingDto } from '~/domain/models/dto/trade-journal-setting-dto'
 import type { TradeTagGroupDto } from '~/domain/models/dto/trade-tag-group-dto'
 import type { TradeTagKind } from '~/domain/models/vo/trade-tag-kind-vo'
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const {
   setting = null,
@@ -24,13 +26,13 @@ const {
 } = defineProps<{
   setting?: TradeJournalSettingDto | null
   loading?: boolean
-  loadErrorMessage?: string | null
-  makerRateHint?: string | null
-  takerRateHint?: string | null
+  loadErrorMessage?: LocalizedTextVo | null
+  makerRateHint?: LocalizedTextVo | null
+  takerRateHint?: LocalizedTextVo | null
   saving?: boolean
-  saveErrorMessage?: string | null
+  saveErrorMessage?: LocalizedTextVo | null
   tagGroups?: readonly TradeTagGroupDto[]
-  tagErrorMessage?: string | null
+  tagErrorMessage?: LocalizedTextVo | null
   tagBusy?: boolean
 }>()
 
@@ -46,6 +48,9 @@ const takerRateText = defineModel<string>('takerRateText', { required: true })
 const newTagKind = defineModel<TradeTagKind>('newTagKind', { required: true })
 const newTagName = defineModel<string>('newTagName', { required: true })
 
+const { t } = useI18n()
+const { localize } = useLocalizedText()
+
 const renamingTagId = ref<number | null>(null)
 const renamingName = ref('')
 
@@ -59,15 +64,15 @@ function confirmRenaming(): void {
 
 <template>
   <SettingsSection
-    title="交易日誌"
-    description="合約日誌記開倉、平倉時自動帶出的手續費率（現貨日誌的手續費每筆自己填），以及兩本日誌共用的失誤與型態標籤。"
+    :title="t('tradeJournal.settingsPanel.title')"
+    :description="t('tradeJournal.settingsPanel.description')"
   >
     <p
       v-if="loading"
       class="trade-journal-settings-panel__state"
       data-testid="trade-journal-settings-loading"
     >
-      讀取目前的設定…
+      {{ t('tradeJournal.settingsPanel.loading') }}
     </p>
 
     <AppAlert
@@ -75,25 +80,25 @@ function confirmRenaming(): void {
       tone="danger"
       data-testid="trade-journal-settings-load-error"
     >
-      {{ loadErrorMessage }}
+      {{ localize(loadErrorMessage) }}
     </AppAlert>
 
     <template v-else>
       <section class="trade-journal-settings-panel__block">
         <h3 class="trade-journal-settings-panel__heading">
-          手續費率
+          {{ t('tradeJournal.settingsPanel.feeRatesHeading') }}
           <AppBadge
             :variant="setting?.summaryTone ?? 'neutral'"
             data-testid="fee-rate-summary"
           >
-            {{ setting?.summary ?? '還沒設定' }}
+            {{ setting ? localize(setting.summary) : t('tradeJournal.settingsPanel.notConfigured') }}
           </AppBadge>
         </h3>
 
         <div class="trade-journal-settings-panel__rates">
           <FormField
-            label="掛單費率（%）"
-            :error-message="makerRateHint"
+            :label="t('tradeJournal.settingsPanel.makerFeeRate')"
+            :error-message="makerRateHint === null ? null : localize(makerRateHint)"
           >
             <AppInput
               v-model="makerRateText"
@@ -103,8 +108,8 @@ function confirmRenaming(): void {
             />
           </FormField>
           <FormField
-            label="吃單費率（%）"
-            :error-message="takerRateHint"
+            :label="t('tradeJournal.settingsPanel.takerFeeRate')"
+            :error-message="takerRateHint === null ? null : localize(takerRateHint)"
           >
             <AppInput
               v-model="takerRateText"
@@ -120,7 +125,7 @@ function confirmRenaming(): void {
           tone="danger"
           data-testid="fee-rate-save-error"
         >
-          {{ saveErrorMessage }}
+          {{ localize(saveErrorMessage) }}
         </AppAlert>
 
         <div>
@@ -129,7 +134,7 @@ function confirmRenaming(): void {
             data-testid="fee-rate-save"
             @click="emit('saveFeeRates')"
           >
-            {{ saving ? '儲存中…' : '儲存費率' }}
+            {{ saving ? t('tradeJournal.settingsPanel.saving') : t('tradeJournal.settingsPanel.saveFeeRates') }}
           </AppButton>
         </div>
       </section>
@@ -141,13 +146,13 @@ function confirmRenaming(): void {
         :data-testid="`tag-group-${group.kind}`"
       >
         <h3 class="trade-journal-settings-panel__heading">
-          {{ group.title }}
+          {{ localize(group.title) }}
         </h3>
         <p
           v-if="group.tags.length === 0"
           class="trade-journal-settings-panel__state"
         >
-          {{ group.emptyMessage }}
+          {{ localize(group.emptyMessage) }}
         </p>
         <ul
           v-else
@@ -170,7 +175,7 @@ function confirmRenaming(): void {
                 data-testid="tag-rename-confirm"
                 @click="confirmRenaming"
               >
-                改名
+                {{ t('tradeJournal.settingsPanel.rename') }}
               </AppButton>
               <AppButton
                 size="small"
@@ -178,7 +183,7 @@ function confirmRenaming(): void {
                 data-testid="tag-rename-cancel"
                 @click="renamingTagId = null"
               >
-                取消
+                {{ t('tradeJournal.common.cancel') }}
               </AppButton>
             </template>
             <template v-else>
@@ -190,7 +195,7 @@ function confirmRenaming(): void {
                 data-testid="tag-rename"
                 @click="renamingTagId = tag.id; renamingName = tag.name"
               >
-                改名
+                {{ t('tradeJournal.settingsPanel.rename') }}
               </AppButton>
               <AppButton
                 size="small"
@@ -199,7 +204,7 @@ function confirmRenaming(): void {
                 data-testid="tag-delete"
                 @click="emit('deleteTag', tag.id)"
               >
-                刪除
+                {{ t('tradeJournal.common.delete') }}
               </AppButton>
             </template>
           </li>
@@ -207,17 +212,17 @@ function confirmRenaming(): void {
       </section>
 
       <div class="trade-journal-settings-panel__new-tag">
-        <FormField label="新增標籤">
+        <FormField :label="t('tradeJournal.settingsPanel.newTag')">
           <div class="trade-journal-settings-panel__new-tag-row">
             <AppSelect
               v-model="newTagKind"
               data-testid="new-tag-kind"
             >
               <option value="mistake">
-                失誤標籤
+                {{ t('tradeJournal.common.mistakeTags') }}
               </option>
               <option value="setup">
-                型態標籤
+                {{ t('tradeJournal.common.setupTags') }}
               </option>
             </AppSelect>
             <AppInput
@@ -231,7 +236,7 @@ function confirmRenaming(): void {
               data-testid="new-tag-create"
               @click="emit('createTag')"
             >
-              新增
+              {{ t('tradeJournal.tagPicker.create') }}
             </AppButton>
           </div>
         </FormField>
@@ -242,7 +247,7 @@ function confirmRenaming(): void {
         tone="danger"
         data-testid="tag-error"
       >
-        {{ tagErrorMessage }}
+        {{ localize(tagErrorMessage) }}
       </AppAlert>
     </template>
   </SettingsSection>

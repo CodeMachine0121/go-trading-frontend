@@ -253,6 +253,9 @@ describe('BacktestProxy', () => {
 
     expect(failure).toBeInstanceOf(BacktestFieldError)
     expect((failure as BacktestFieldError).field).toBe('transactionCosts')
+    // 那一句是後端的原文：英文畫面上也原樣呈現，不翻。
+    expect((failure as BacktestFieldError).localizedMessage.in('en'))
+      .toBe('backtest validation failed: 進場成本率不得為負')
   })
 
   it('讀回來的那一份說得出幾筆是被掃出場的、以及每一筆怎麼出場', async () => {

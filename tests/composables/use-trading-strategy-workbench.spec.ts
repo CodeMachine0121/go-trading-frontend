@@ -93,8 +93,10 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[11]).toContain('吐一個數字的')
-    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[13]).toContain('採用來、吐是非的')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[11]?.in('zh-TW')).toContain('吐一個數字的')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[11]?.in('en'))
+      .toContain('does not output a signal, so it cannot be a signal source')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[13]?.in('zh-TW')).toContain('採用來、吐是非的')
     expect(workbench.unusableStrategyScriptsByKind.value.kCandle[9]).toBeUndefined()
   })
 })
@@ -161,7 +163,7 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
     await workbench.load()
 
     expect(workbench.missing.value).toBe(false)
-    expect(workbench.failureMessage.value).toBe('後端連不上')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('後端連不上')
   })
 
   it('連不上後端時明說連不上', async () => {
@@ -170,7 +172,7 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
     const workbench = workbenchUnderTest(null)
     await workbench.load()
 
-    expect(workbench.failureMessage.value).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('連不上後端 go-trading API，請確認它已啟動，且本站來源在它的 CORS_ALLOWED_ORIGINS 名單內。')
   })
 })
 
@@ -181,10 +183,10 @@ describe('useTradingStrategyWorkbench 存起來', () => {
     const { announcement } = useConsoleAnnouncement()
 
     await workbenchUnderTest(7).save(aWriteDto(7))
-    expect(announcement.value).toBe('更改成功')
+    expect(announcement.value?.in('zh-TW')).toBe('更改成功')
 
     await workbenchUnderTest(null).save(aWriteDto(undefined))
-    expect(announcement.value).toBe('交易策略拼好了')
+    expect(announcement.value?.in('zh-TW')).toBe('交易策略拼好了')
   })
 
   it('存好了就把「改過了」放掉——離開這一頁不該再被攔一次', async () => {
@@ -231,7 +233,7 @@ describe('useTradingStrategyWorkbench 存起來', () => {
   it('被拒絕時這一頁留著，一個字都沒說成功', async () => {
     // 要使用者把整棵樹重拼一次，是拿他的時間賠一個伺服器端才知道的規則。
     const { announcement } = useConsoleAnnouncement()
-    announcement.value = ''
+    announcement.value = null
     tradingStrategyApplication.saveTradingStrategy.mockRejectedValue(
       new Error('機器人名稱「早盤突破」已被使用'))
 
@@ -242,8 +244,10 @@ describe('useTradingStrategyWorkbench 存起來', () => {
     expect(workbench.savedGeneration.value).toBe(0)
     expect(workbench.createdId.value).toBeNull()
     expect(workbench.dirty.value).toBe(true)
-    expect(workbench.failureMessage.value).toBe('機器人名稱「早盤突破」已被使用')
-    expect(announcement.value).toBe('')
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe('機器人名稱「早盤突破」已被使用')
+    // 後端那一句是原文，換成英文也不翻。
+    expect(workbench.failureMessage.value?.in('en')).toBe('機器人名稱「早盤突破」已被使用')
+    expect(announcement.value).toBeNull()
   })
 })
 

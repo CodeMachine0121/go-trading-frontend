@@ -1,3 +1,5 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
 import type { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
@@ -7,8 +9,8 @@ import { IndicatorCalculationResultDto } from '~/domain/models/dto/indicator-cal
 import { IndicatorValueDto } from '~/domain/models/dto/indicator-value-dto'
 
 /** 是非在這個領域裡就是這麼說的。畫面不自己翻譯。 */
-const TRUE_LABEL = '是'
-const FALSE_LABEL = '否'
+const TRUE_LABEL = new LocalizedTextVo('是', 'Yes')
+const FALSE_LABEL = new LocalizedTextVo('否', 'No')
 
 /**
  * Domain Model：解讀一次計算的結果。
@@ -47,9 +49,13 @@ export class IndicatorCalculationDomain {
     const usedCandleCount = this.indicatorCalculation.usedCandleCount
     const shortCoverageMessage = candleCount === null || usedCandleCount >= candleCount
       ? null
-      : `這一次需要 ${candleCount} 根才畫得滿，`
-        + `但走完的刻度區間只湊得出 ${usedCandleCount} 根——`
-        + '下面的數字是以這段較短的行情算出來的。'
+      : new LocalizedTextVo(
+          `這一次需要 ${candleCount} 根才畫得滿，`
+          + `但走完的刻度區間只湊得出 ${usedCandleCount} 根——`
+          + '下面的數字是以這段較短的行情算出來的。',
+          `This run needs ${candleCount} candles to fill the view, `
+          + `but the completed interval only yields ${usedCandleCount}; `
+          + 'the numbers below were calculated from this shorter stretch of market data.')
 
     // 「一個信號」種類的產出是一個結論，沒有指標名稱——所以它走 signalLabel，
     // 不進 indicatorValues。中文與語氣由信號自己給。
@@ -76,7 +82,7 @@ export class IndicatorCalculationDomain {
       this.sortedIndicatorValues().map(indicatorValue => new IndicatorValueDto(
         indicatorValue.name,
         indicatorValue.items.map(
-          item => (typeof item === 'boolean' ? (item ? TRUE_LABEL : FALSE_LABEL) : String(item))),
+          item => (typeof item === 'boolean' ? (item ? TRUE_LABEL : FALSE_LABEL) : new UntranslatedTextVo(String(item)))),
         resultType.isList(),
       )),
       null,

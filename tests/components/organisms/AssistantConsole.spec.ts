@@ -5,6 +5,7 @@ import { SUGGESTED_PROMPTS, buildMessage, buildSummary } from '../../fixtures/as
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 function mountConsole(
   layoutDensity: LayoutDensityDto = onADesktop(),
@@ -19,10 +20,12 @@ function mountConsole(
     props: {
       conversations: [buildSummary(1), buildSummary(2)],
       activeConversationId: 1,
-      conversationsErrorMessage: overrides.conversationsErrorMessage ?? null,
+      conversationsErrorMessage: overrides.conversationsErrorMessage === undefined
+        ? null
+        : new UntranslatedTextVo(overrides.conversationsErrorMessage),
       messages: overrides.messages ?? [],
       pending: false,
-      rejectionMessage: overrides.rejectionMessage ?? null,
+      rejectionMessage: overrides.rejectionMessage === undefined ? null : new UntranslatedTextVo(overrides.rejectionMessage),
       suggestedPrompts: SUGGESTED_PROMPTS,
       timeZone: buildTimeZone(),
       draft: overrides.draft ?? '',
@@ -109,7 +112,7 @@ describe('AssistantConsole', () => {
 
     await wrapper.findAll('[data-testid="assistant-suggested-prompt"]')[0]?.trigger('click')
 
-    expect(wrapper.emitted('send')).toEqual([[SUGGESTED_PROMPTS[0]]])
+    expect(wrapper.emitted('send')).toEqual([[SUGGESTED_PROMPTS[0]?.traditionalChinese]])
   })
 
   it('打好的那一句送得出去', async () => {

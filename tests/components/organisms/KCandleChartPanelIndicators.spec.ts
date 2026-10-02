@@ -15,6 +15,7 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildStrategyScriptApplication, buildStoredStrategyScript, buildAdoptedStrategyScript }
   from '../../fixtures/strategy-script-application'
@@ -984,7 +985,9 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
 describe('連一個值都算不出來的時候，那一列要說話', () => {
   /** 系統認出「湊不出最少可算根數」之後，交到這一層的樣子。 */
   const tooThin = new IndicatorCalculationFieldError(
-    'span', '這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。')
+    'span', new LocalizedTextVo(
+      '這段區間只湊得出 19 根 K 線，而這支策略腳本至少要 20 根才算得出一個值。',
+      'This period only yields 19 K-candles, but this strategy script needs at least 20 to calculate a single value.'))
 
   it('那一列說出系統給的原因', async () => {
     const { wrapper } = await mountPanel({

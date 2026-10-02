@@ -41,6 +41,9 @@ import { StrategyScriptMarketplaceProxy } from '~/infrastructure/proxy/strategy-
 import { StrategyScriptMarketplaceService } from '~/domain/service/strategy-script-marketplace-service'
 import { StrategyScriptMarketplaceApplication } from '~/application/strategy-script-marketplace-application'
 import { TimeZoneApplication } from '~/application/time-zone-application'
+import { DisplayLanguageApplication } from '~/application/display-language-application'
+import { DisplayLanguageService } from '~/domain/service/display-language-service'
+import { DisplayLanguagePreferenceProxy } from '~/infrastructure/proxy/display-language-preference-proxy'
 import { AppearanceApplication } from '~/application/appearance-application'
 import { AppearanceService } from '~/domain/service/appearance-service'
 import { MarketCounterpartApplication } from '~/application/market-counterpart-application'
@@ -325,6 +328,11 @@ export default defineNuxtPlugin(() => {
     new TimeZoneService(new TimeZonePreferenceProxy()),
   )
 
+  // 顯示語言同樣只是這台瀏覽器的說法：記住的選擇與瀏覽器偏好都在瀏覽器裡。
+  const displayLanguageApplication = new DisplayLanguageApplication(
+    new DisplayLanguageService(new DisplayLanguagePreferenceProxy()),
+  )
+
   return {
     provide: {
       backendHealthApplication,
@@ -341,6 +349,7 @@ export default defineNuxtPlugin(() => {
       liveKCandleApplication,
       liveKCandleContractApplication,
       timeZoneApplication,
+      displayLanguageApplication,
       assistantConversationApplication,
       currentConversationPreferenceProxy,
       assistantDrawerWidthApplication,

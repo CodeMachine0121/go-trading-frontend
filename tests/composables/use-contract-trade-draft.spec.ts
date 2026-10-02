@@ -22,6 +22,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { TradeFormFieldVo } from '~/domain/models/vo/trade-form-field-vo'
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import { buildRecord, contractTradeRecordProxyMock, kCandleContractProxyMock, tradingStrategyProxyMock } from '../fixtures/contract-trade-journal'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const recordProxy = contractTradeRecordProxyMock()
 const tradingStrategyProxy = tradingStrategyProxyMock()
@@ -88,7 +89,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
     expect(draft.setupTags.value.map(tag => tag.name)).toEqual(['突破'])
     expect(draft.preview.value.averageEntryPriceText).toBe('97,927.6')
-    expect(draft.preview.value.stopLossDistanceText).toBe('往下 1.58%')
+    expect(draft.preview.value.stopLossDistanceText?.in('zh-TW')).toBe('往下 1.58%')
     expect(draft.preview.value.plannedRiskText).toBe('78.93')
     expect(draft.preview.value.fees[0]?.automaticFeeText).toBe('1.47')
     expect(draft.dirty.value).toBe(true)
@@ -100,7 +101,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
     await draft.loadReferenceData()
 
-    expect(draft.referenceFailureMessage.value).toContain('連不上交易服務')
+    expect(draft.referenceFailureMessage.value?.in('zh-TW')).toContain('連不上交易服務')
   })
 
   it('刪掉一筆成交', () => {
@@ -142,7 +143,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
   it('止損放錯邊時原話寫在計畫止損旁，內容保留', async () => {
     recordProxy.recordTrade.mockRejectedValue(new TradeRejectedError(
-      '做多的止損必須低於進場價', new TradeFormFieldVo('plannedStopLossPrice')))
+      new UntranslatedTextVo('做多的止損必須低於進場價'), new TradeFormFieldVo('plannedStopLossPrice')))
     const draft = draftUnderTest()
     draft.symbol.value = 'BTCUSDT'
     draft.fills.value[0]!.priceText = '97905'
@@ -152,7 +153,7 @@ describe('useContractTradeDraft：記一筆', () => {
     const saved = await draft.save()
 
     expect(saved).toBeNull()
-    expect(draft.fieldError('plannedStopLossPrice')).toBe('做多的止損必須低於進場價')
+    expect(draft.fieldError('plannedStopLossPrice')?.in('zh-TW')).toBe('做多的止損必須低於進場價')
     expect(draft.fieldError('symbol')).toBeNull()
     expect(draft.plannedStopLossText.value).toBe('98000')
     expect(draft.saving.value).toBe(false)
@@ -165,7 +166,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
     await draft.save()
 
-    expect(draft.rejectionMessage.value).toBe('請填合約標的')
+    expect(draft.rejectionMessage.value?.in('zh-TW')).toBe('請填合約標的')
     expect(draft.rejectedField.value).toBeNull()
     expect(recordProxy.recordTrade).not.toHaveBeenCalled()
   })
@@ -181,13 +182,13 @@ describe('useContractTradeDraft：記一筆', () => {
     await draft.save()
 
     expect(draft.conflictingTradeId.value).toBe(27)
-    expect(draft.rejectionMessage.value).toContain('#27')
+    expect(draft.rejectionMessage.value?.in('zh-TW')).toContain('#27')
     expect(draft.rejectedField.value).toBeNull()
   })
 
   it('後面的成交沒存成功時記得已建立的那一筆', async () => {
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValue(new TradeRejectedError('出場數量超過目前持倉', new TradeFormFieldVo('exitQuantity')))
+    recordProxy.addFill.mockRejectedValue(new TradeRejectedError(new UntranslatedTextVo('出場數量超過目前持倉'), new TradeFormFieldVo('exitQuantity')))
     const draft = draftUnderTest()
     draft.symbol.value = 'BTCUSDT'
     draft.fills.value[0]!.priceText = '1'
@@ -199,14 +200,14 @@ describe('useContractTradeDraft：記一筆', () => {
     await draft.save()
 
     expect(draft.recordedTradeId.value).toBe(27)
-    expect(draft.fieldError('exitQuantity')).toContain('已建立 #27')
+    expect(draft.fieldError('exitQuantity')?.in('zh-TW')).toContain('已建立 #27')
     expect(draft.fills.value.map(fill => fill.kind)).toEqual(['exit'])
   })
 
   it('對既有交易加到一半失敗時，已存下的那幾筆從表單移掉，再存不會重送', async () => {
     const existing = buildRecord({ status: 'open' }).toDomain().toDto()
     recordProxy.addFill.mockResolvedValueOnce(buildRecord({ status: 'open' }))
-    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError('出場數量超過目前持倉', new TradeFormFieldVo('exitQuantity')))
+    recordProxy.addFill.mockRejectedValueOnce(new TradeRejectedError(new UntranslatedTextVo('出場數量超過目前持倉'), new TradeFormFieldVo('exitQuantity')))
     const draft = draftUnderTest(existing)
     draft.fills.value[0]!.priceText = '98000'
     draft.fills.value[0]!.quantityText = '0.01'
@@ -216,7 +217,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
     await draft.save()
 
-    expect(draft.fieldError('exitQuantity')).toContain('前 1 筆已存下')
+    expect(draft.fieldError('exitQuantity')?.in('zh-TW')).toContain('前 1 筆已存下')
     expect(draft.fills.value).toHaveLength(1)
     expect(draft.fills.value[0]).toMatchObject({ kind: 'exit', quantityText: '5' })
   })
@@ -245,7 +246,7 @@ describe('useContractTradeDraft：記一筆', () => {
 
     expect(draft.setupTagIds.value).toEqual([6])
     expect(draft.setupTags.value.map(tag => tag.name)).toEqual(['回踩'])
-    expect(draft.rejectionMessage.value).toBe('已有同名的型態標籤')
+    expect(draft.rejectionMessage.value?.in('zh-TW')).toBe('已有同名的型態標籤')
   })
 })
 
@@ -256,7 +257,7 @@ describe('useContractTradeDraft：從連結打開', () => {
 
     const loaded = await draft.applyJournalLink('link-412')
 
-    expect(loaded?.sourceLabel).toBe('來自 BTC 趨勢跟隨・第 412 輪')
+    expect(loaded?.sourceLabel.in('zh-TW')).toBe('來自 BTC 趨勢跟隨・第 412 輪')
     expect(draft.symbol.value).toBe('BTCUSDT')
     expect(draft.plannedStopLossText.value).toBe('96380')
     expect(draft.tradingStrategyId.value).toBe(5)
@@ -302,7 +303,7 @@ describe('useContractTradeDraft：從連結打開', () => {
 
     expect(draft.fills.value[0]).toMatchObject({ priceText: '', quantityText: '' })
     expect(draft.plannedStopLossText.value).toBe('')
-    expect(draft.prefillMessage.value).toBe('這一輪沒有記下參考價，請手動填寫進場價與數量')
+    expect(draft.prefillMessage.value?.in('zh-TW')).toBe('這一輪沒有記下參考價，請手動填寫進場價與數量')
   })
 
   it('那一輪不在紀錄中或是別人的，空白表單並說明', async () => {
@@ -313,10 +314,24 @@ describe('useContractTradeDraft：從連結打開', () => {
 
     expect(loaded).toBeNull()
     expect(draft.symbol.value).toBe('')
-    expect(draft.prefillMessage.value).toContain('找不到這一輪')
-    expect(draft.prefillMessage.value).toContain('這一輪的建議已不在紀錄中，請手動填寫')
+    expect(draft.prefillMessage.value?.in('zh-TW')).toContain('找不到這一輪')
+    expect(draft.prefillMessage.value?.in('zh-TW')).toContain('這一輪的建議已不在紀錄中，請手動填寫')
     expect(draft.prefillNotFound.value).toBe(true)
     expect(draft.prefillFailed.value).toBe(false)
+  })
+
+  it.each([
+    ['那一輪不在紀錄中', () => recordProxy.findJournalLink.mockRejectedValue(new JournalLinkNotFoundError('找不到這一輪')),
+      'This run could not be found. Its suggestion is no longer on record; please fill in the form yourself.'],
+    ['連不上', () => recordProxy.findJournalLink.mockRejectedValue(new BackendUnreachableError('http://x')),
+      'Cannot reach the trading service (go-trading API). Make sure it is running, then try again.'],
+  ])('%s時的說明有英文', async (_, arrange, expectedEnglish) => {
+    arrange()
+    const draft = draftUnderTest()
+
+    await draft.applyJournalLink('link-412')
+
+    expect(draft.prefillMessage.value?.in('en')).toBe(expectedEnglish)
   })
 
   it('連不上時說連不上，而且標示讀取失敗', async () => {
@@ -327,7 +342,7 @@ describe('useContractTradeDraft：從連結打開', () => {
 
     expect(draft.prefillFailed.value).toBe(true)
     expect(draft.prefillNotFound.value).toBe(false)
-    expect(draft.prefillMessage.value).toContain('連不上交易服務')
+    expect(draft.prefillMessage.value?.in('zh-TW')).toContain('連不上交易服務')
   })
 
   it('讀取預填中不能儲存', async () => {
@@ -378,7 +393,7 @@ describe('useContractTradeDraft：對既有交易加成交', () => {
 
     await draft.save()
 
-    expect(draft.preview.value.quantityLabel).toBe('數量（BTC）')
+    expect(draft.preview.value.quantityLabel.in('zh-TW')).toBe('數量（BTC）')
     expect(recordProxy.addFill).toHaveBeenCalledWith(27, expect.objectContaining({ quantity: new Decimal('1') }))
   })
 })

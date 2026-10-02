@@ -1,5 +1,6 @@
 // @vitest-environment nuxt
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import TradingStrategyWorkbench from '~/components/organisms/TradingStrategyWorkbench.vue'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
@@ -9,6 +10,7 @@ import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 import { TradingStrategyService } from '~/domain/service/trading-strategy-service'
 import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 兩份選單是系統的規則，不是這一份的資料：直接向真的 domain service 要，不在測試裡另抄一份。
 const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
@@ -58,7 +60,7 @@ function mountWorkbench(
       marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
       contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
       saving: false,
-      failureMessage: '',
+      failureMessage: null,
       savedGeneration: 0,
       layoutDensity,
     },
@@ -808,7 +810,7 @@ describe('TradingStrategyWorkbench：存好之後', () => {
 
 describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本', () => {
   /** 一個指著 11 號的來源，而 11 號不在選單裡。 */
-  function withAStraySource(unusableStrategyScripts: Record<number, string>) {
+  function withAStraySource(unusableStrategyScripts: Record<number, LocalizedTextVo>) {
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: aBot(
@@ -822,7 +824,7 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
         contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
-        failureMessage: '',
+        failureMessage: null,
         savedGeneration: 0,
         layoutDensity: onADesktop(),
       },
@@ -830,7 +832,9 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
   }
 
   it('選單不是一片空白——它說得出這個來源用的是哪一支、為什麼用不了', async () => {
-    const wrapper = withAStraySource({ 11: '吐一個數字的（這支不吐訊號，當不了信號來源）' })
+    const wrapper = withAStraySource({
+      11: new LocalizedTextVo('吐一個數字的（這支不吐訊號，當不了信號來源）', 'Number output (not a signal source)'),
+    })
     await flushPromises()
 
     await wrapper.get('[data-testid="strategy-script-settings-0"]').trigger('click')
@@ -876,7 +880,7 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
         contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
-        failureMessage: '',
+        failureMessage: null,
         savedGeneration: 0,
         layoutDensity: onADesktop(),
       },
@@ -905,5 +909,30 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
     await flushPromises()
 
     expect(wrapper.find('[data-testid="strategy-script-add"]').exists()).toBe(false)
+  })
+})
+
+describe('TradingStrategyWorkbench 換成英文', () => {
+  it.each([
+    { testId: 'trading-strategy-form-save', expected: 'Save' },
+    { testId: 'step-buy', expected: 'What counts as a buy' },
+    { testId: 'step-sell', expected: 'What counts as a sell' },
+  ])('「$testId」說英文', async ({ testId, expected }) => {
+    const wrapper = mountWorkbench()
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get(`[data-testid="${testId}"]`).text()).toContain(expected)
+  })
+
+  it('擋下來的那一句跟著換成英文', async () => {
+    const wrapper = mountWorkbench(null)
+    await flushPromises()
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="trading-strategy-form-rejection"]').text())
+      .toBe('Give the trading strategy a name')
   })
 })

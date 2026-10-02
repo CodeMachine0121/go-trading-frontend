@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ContractTradeStatisticsPanel from '~/components/organisms/ContractTradeStatisticsPanel.vue'
 import { ContractTradeStatisticsDomain } from '~/domain/models/domains/contract-trade-statistics-domain'
 import { TradeStatisticsPeriodDomain } from '~/domain/models/domains/trade-statistics-period-domain'
@@ -10,6 +11,7 @@ import { ContractTradeMistakeCost } from '~/domain/models/entities/contract-trad
 import { TRADE_STATISTICS_PERIODS } from '~/domain/models/vo/trade-statistics-period-vo'
 import { buildStatistics } from '../../fixtures/contract-trade-journal'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 const PERIOD_OPTIONS = TRADE_STATISTICS_PERIODS.map(period => new TradeStatisticsPeriodDomain(period).toOptionDto())
 const TIME_ZONE = buildTimeZone('UTC')
@@ -64,6 +66,19 @@ describe('ContractTradeStatisticsPanel', () => {
 
   it('讀取中與讀取失敗', () => {
     expect(mountPanel({ loading: true }).find('[data-testid="statistics-loading"]').exists()).toBe(true)
-    expect(mountPanel({ failureMessage: '連不上' }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
+    expect(mountPanel({ failureMessage: new UntranslatedTextVo('連不上') }).get('[data-testid="statistics-failure"]').text()).toBe('連不上')
+  })
+
+  it('換成英文時標題列、期間選項與兩組比較都說英文', async () => {
+    const wrapper = mountPanel({ statistics: new ContractTradeStatisticsDomain(buildStatistics({ excludedFromRMultipleCount: 3 })).toDto() })
+
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="statistics-headline"]').text())
+      .toBe('Last 30 days · 30 closed, measured in R so trades of different sizes can be compared')
+    expect(wrapper.get('[data-testid="statistics-period"]').text()).toContain('All time')
+    expect(wrapper.get('[data-testid="statistics-exclusion"]').text()).toBe('3 trades have no stop loss and are left out of R')
+    expect(wrapper.get('[data-testid="source-comparison"]').text()).toContain('Linked strategy')
   })
 })

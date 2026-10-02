@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import AssistantComposer from '~/components/molecules/AssistantComposer.vue'
 
 function mountComposer(props: { draft: string, pending?: boolean, autofocus?: boolean }) {
@@ -152,6 +153,23 @@ describe('AssistantComposer 的焦點', () => {
     await wrapper.setProps({ pending: true })
 
     expect(inputHasFocus(wrapper)).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('AssistantComposer 的英文畫面', () => {
+  it('提示、送出鍵與提醒都說英文，打進去的那一句照原樣', async () => {
+    const wrapper = mountComposer({ draft: 'BTCUSDT 最近走勢如何' })
+    wrapper.vm.$i18n.locale = 'en'
+    await nextTick()
+
+    const input = wrapper.get('[data-testid="assistant-composer-input"]')
+    expect(input.attributes('placeholder')).toBe('Ask about the market, e.g. How has BTCUSDT moved hour by hour over the last day?')
+    expect(input.attributes('aria-label')).toBe('Ask the assistant')
+    expect(input.element).toHaveProperty('value', 'BTCUSDT 最近走勢如何')
+    expect(wrapper.get('[data-testid="assistant-composer-send"]').text()).toBe('Send')
+    expect(wrapper.text()).toContain('Enter to send · Shift+Enter for a new line')
+    expect(wrapper.text()).toContain('The assistant can make mistakes.')
     wrapper.unmount()
   })
 })

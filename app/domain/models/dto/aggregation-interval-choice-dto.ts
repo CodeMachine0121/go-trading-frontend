@@ -1,3 +1,4 @@
+import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 
 /**
@@ -22,7 +23,7 @@ const AUTOMATIC_CHOICE_VALUE = 'auto'
  */
 export class AggregationIntervalChoiceDto {
   constructor(
-    public readonly label: string,
+    public readonly label: LocalizedTextVo,
     /** 沒挑（自動）時是 `null`。 */
     public readonly interval: AggregationIntervalVo | null,
   ) {}

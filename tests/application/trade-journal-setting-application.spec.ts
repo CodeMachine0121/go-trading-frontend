@@ -30,7 +30,8 @@ describe('TradeJournalSettingApplication.getSetting', () => {
     const setting = await application.getSetting()
 
     expect(setting.configured).toBe(true)
-    expect(setting.summary).toBe('掛單 0.02%・吃單 0.05%')
+    expect(setting.summary.in('zh-TW')).toBe('掛單 0.02%・吃單 0.05%')
+    expect(setting.summary.in('en')).toBe('Maker 0.02% · Taker 0.05%')
   })
 
   it.each([
@@ -43,7 +44,7 @@ describe('TradeJournalSettingApplication.getSetting', () => {
     const setting = await application.getSetting()
 
     expect(setting.configured).toBe(false)
-    expect(setting.summary).toBe('還沒設定')
+    expect(setting.summary.in('zh-TW')).toBe('還沒設定')
   })
 })
 
@@ -57,7 +58,7 @@ describe('TradeJournalSettingApplication.saveFeeRates', () => {
     const [writeDto] = settingProxy.saveFeeRates.mock.calls[0] as [TradeFeeRatesWriteDto]
     expect(writeDto.makerFeeRate?.toString()).toBe('0.02')
     expect(writeDto.takerFeeRate?.toString()).toBe('0.05')
-    expect(setting.summary).toBe('掛單 0.02%・吃單 0.05%')
+    expect(setting.summary.in('zh-TW')).toBe('掛單 0.02%・吃單 0.05%')
   })
 
   it('留白就送沒有', async () => {
@@ -74,12 +75,15 @@ describe('TradeJournalSettingApplication.saveFeeRates', () => {
 
 describe('TradeJournalSettingApplication.rateInputHint', () => {
   it.each([
-    ['留白沒有提示', '', null],
-    ['正常的費率沒有提示', '0.05', null],
-    ['負的費率即時提示', '-0.01', '手續費率不得為負'],
-    ['讀不懂的字即時提示', 'abc', '手續費率要填數字'],
-  ])('%s', (_, rateText, expected) => {
-    expect(buildFixture().application.rateInputHint(rateText)).toBe(expected)
+    ['留白沒有提示', '', undefined, undefined],
+    ['正常的費率沒有提示', '0.05', undefined, undefined],
+    ['負的費率即時提示', '-0.01', '手續費率不得為負', 'Fee rate cannot be negative'],
+    ['讀不懂的字即時提示', 'abc', '手續費率要填數字', 'Fee rate must be a number'],
+  ])('%s', (_, rateText, expected, expectedEnglish) => {
+    const hint = buildFixture().application.rateInputHint(rateText)
+
+    expect(hint?.in('zh-TW')).toBe(expected)
+    expect(hint?.in('en')).toBe(expectedEnglish)
   })
 })
 
@@ -96,10 +100,10 @@ describe('TradeJournalSettingApplication 標籤', () => {
 
     const groups = await application.listTagGroups()
 
-    expect(groups.map(group => group.title)).toEqual(['失誤標籤', '型態標籤'])
+    expect(groups.map(group => group.title.in('zh-TW'))).toEqual(['失誤標籤', '型態標籤'])
     expect(groups[0]?.tags.map(tag => tag.name)).toEqual(['追價進場', '移動止損', '提早出場', '部位過大', '報復性交易'])
     expect(groups[1]?.tags).toEqual([])
-    expect(groups[1]?.emptyMessage).toContain('還沒有型態標籤')
+    expect(groups[1]?.emptyMessage.in('zh-TW')).toContain('還沒有型態標籤')
   })
 
   it('新增與改名時去掉前後空白', async () => {
