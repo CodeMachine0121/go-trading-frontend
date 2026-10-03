@@ -153,6 +153,28 @@ describe('把送來的一則收乾淨再往內傳', () => {
     expect(received.map(update => update.status)).toEqual(['forming', 'closed'])
   })
 
+  it('一段裡同時送到好幾則時，一則一則依序往內傳', async () => {
+    const { received, stream } = await followAnOpenStream()
+
+    await stream.writeRaw(`data: ${aWireUpdate('forming')}\n\ndata: ${aWireUpdate('closed')}\n\n`)
+
+    await vi.waitFor(() => expect(received).toHaveLength(2))
+    expect(received.map(update => update.status)).toEqual(['forming', 'closed'])
+  })
+
+  it('換行用 \\r\\n、而且剛好斷在 \\r 與 \\n 之間時，不會多切出一則', async () => {
+    const { received, stream } = await followAnOpenStream()
+    const body = aWireUpdate('forming')
+
+    await stream.writeRaw(`data: ${body.slice(0, 20)}\r`)
+    await stream.writeRaw(`\ndata: ${body.slice(20)}\r\n\r\n`)
+    await stream.send(aWireUpdate('closed'))
+
+    // 切錯的話，那兩行會變成兩則各自讀不懂的半截而被略過，只剩後面那一則。
+    await vi.waitFor(() => expect(received).toHaveLength(2))
+    expect(received.map(update => update.status)).toEqual(['forming', 'closed'])
+  })
+
   it('走完的那一根照樣往內傳，狀態如實保留', async () => {
     const { received, stream } = await followAnOpenStream()
 
@@ -313,6 +335,58 @@ describe('LiveKCandleProxy 分得出停了與結束了', () => {
   })
 })
 
+describe('LiveKCandleProxy 不把別人的錯當成自己斷線', () => {
+  it('畫面處理一則時出了錯，略過那一則，通道照樣開著、不重接', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const stream = anOpenStream()
+    fetchMock.mockResolvedValueOnce(stream.response)
+    const received: string[] = []
+    new LiveKCandleProxy('http://backend.test', '/k-candles/live', signedInSessionStorage(),
+      undefined, RECONNECT_DELAY_MILLISECONDS)
+      .followKCandles('BTCUSDT', (update) => {
+        if (update.status === 'forming') {
+          throw new Error('畫面那一邊壞了')
+        }
+        received.push(update.status)
+      })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    await stream.send(aWireUpdate('forming'))
+    await stream.send(aWireUpdate('closed'))
+
+    await vi.waitFor(() => expect(received).toEqual(['closed']))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('回覆不是事件串流時（例如前面那一層代答的錯誤頁）說結束了，不一再重接', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockResolvedValueOnce(new Response('<html>維護中</html>', {
+      status: 200, headers: { 'Content-Type': 'text/html' },
+    }))
+    const { received } = follow()
+
+    await vi.waitFor(() => expect(received).toHaveLength(1))
+    await vi.advanceTimersByTimeAsync(RECONNECT_DELAY_MILLISECONDS * 2)
+
+    expect(received.map(update => update.status)).toEqual(['ended'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('停了之後不留下等著重接的計時', async () => {
+    vi.useFakeTimers()
+    const stream = anOpenStream()
+    fetchMock.mockResolvedValueOnce(stream.response)
+    const { stop, received } = follow()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    await stream.drop()
+    await vi.waitFor(() => expect(received).toHaveLength(1))
+
+    stop()
+
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
 describe('LiveKCandleProxy 遇到登入過期', () => {
   it('救得回這一段登入時，帶著新的那一份再接一次，不說結束了', async () => {
     const sessionStorage = signedInSessionStorage('an-expired-proof')
@@ -333,22 +407,69 @@ describe('LiveKCandleProxy 遇到登入過期', () => {
     await vi.waitFor(() => expect(received.map(update => update.status)).toEqual(['forming']))
   })
 
-  it('救不回來時說結束了', async () => {
+  it('救不回來時說結束了，並與其他打後端的路一樣把人登出', async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
+    const sessionStorage = signedInSessionStorage()
+    const onSignedOut = vi.fn()
     const recoverSession = vi.fn(async () => false)
-    const { received } = follow({ hooks: new BackendRequestHooks(undefined, recoverSession) })
+    const { received } = follow({
+      sessionStorage, hooks: new BackendRequestHooks(onSignedOut, recoverSession),
+    })
 
     await vi.waitFor(() => expect(received.map(update => update.status)).toEqual(['ended']))
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.clearSession).toHaveBeenCalledTimes(1)
+    expect(onSignedOut).toHaveBeenCalledTimes(1)
   })
 
-  it('救回來之後仍被拒絕時說結束了，不再無限地救', async () => {
+  it('救回來之後仍被拒絕時說結束了並登出，不再無限地救', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }))
+    const onSignedOut = vi.fn()
     const recoverSession = vi.fn(async () => true)
-    const { received } = follow({ hooks: new BackendRequestHooks(undefined, recoverSession) })
+    const { received } = follow({ hooks: new BackendRequestHooks(onSignedOut, recoverSession) })
 
     await vi.waitFor(() => expect(received.map(update => update.status)).toEqual(['ended']))
     expect(recoverSession).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(onSignedOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('跟了一陣子、斷線重接時才遇到過期，也一樣先救回來', async () => {
+    vi.useFakeTimers()
+    const first = anOpenStream()
+    const second = anOpenStream()
+    fetchMock
+      .mockResolvedValueOnce(first.response)
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(second.response)
+    const recoverSession = vi.fn(async () => true)
+    const { received } = follow({ hooks: new BackendRequestHooks(undefined, recoverSession) })
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    await first.drop()
+    await vi.waitFor(() => expect(received).toHaveLength(1))
+    await vi.advanceTimersByTimeAsync(RECONNECT_DELAY_MILLISECONDS)
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    expect(recoverSession).toHaveBeenCalledTimes(1)
+    await second.send(aWireUpdate('forming'))
+    await vi.waitFor(() => expect(received.map(update => update.status)).toEqual(['stalled', 'forming']))
+  })
+
+  it('還在救的時候就停了，救完也不再接、不登出', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }))
+    const onSignedOut = vi.fn()
+    const recovery = Promise.withResolvers<boolean>()
+    const recoverSession = vi.fn(() => recovery.promise)
+    const { stop, received } = follow({ hooks: new BackendRequestHooks(onSignedOut, recoverSession) })
+    await vi.waitFor(() => expect(recoverSession).toHaveBeenCalledTimes(1))
+
+    stop()
+    recovery.resolve(false)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onSignedOut).not.toHaveBeenCalled()
+    expect(received).toHaveLength(0)
   })
 })

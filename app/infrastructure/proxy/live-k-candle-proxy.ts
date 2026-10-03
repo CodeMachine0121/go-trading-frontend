@@ -68,15 +68,29 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
     const stopping = new AbortController()
     const endpoint = `${this.baseUrl}${this.followRoute}?symbol=${encodeURIComponent(symbol)}`
 
+    // 畫面處理一則更新時出了錯是畫面那一邊的事：記下來、略過這一則，通道照樣開著——
+    // 與原生通道對待處理函式出錯的方式相同，也不讓它被當成連線掉了而一再重接。
+    const report = (update: LiveKCandleUpdate) => {
+      try {
+        onUpdate(update)
+      }
+      catch (error: unknown) {
+        // translation-exempt：寫給開發者主控台的紀錄，不是畫面上的話。
+        console.warn('處理一則即時更新時出了錯，略過這一則', error)
+      }
+    }
+
     // 連線掉了是「停了」，之後自己重接；通道一開始就被拒絕（被擋下、找不到、不在追蹤名單上、
     // 正在關機）是「結束了」，不再重試——兩者要人做的事不同。
     const stall = () => {
-      onUpdate(new LiveKCandleUpdate(symbol, 'stalled', null))
-      setTimeout(() => {
-        if (!stopping.signal.aborted) {
-          void connect(true)
-        }
-      }, this.reconnectDelayMilliseconds)
+      report(new LiveKCandleUpdate(symbol, 'stalled', null))
+      const reconnecting = setTimeout(() => void connect(true), this.reconnectDelayMilliseconds)
+      stopping.signal.addEventListener('abort', () => clearTimeout(reconnecting), { once: true })
+    }
+
+    const end = (response: Response) => {
+      void response.body?.cancel().catch(() => {})
+      report(new LiveKCandleUpdate(symbol, 'ended', null))
     }
 
     const connect = async (mayRenew: boolean): Promise<void> => {
@@ -92,22 +106,40 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
         return
       }
 
-      // 登入憑證十五分鐘就過期：救得回來就帶著新的那一份再接一次，不必叫人重新整理畫面。
-      if (response.status === SIGNED_OUT_STATUS && mayRenew && await this.hooks.recoverSession()) {
-        if (!stopping.signal.aborted) {
-          await connect(false)
+      if (response.status === SIGNED_OUT_STATUS) {
+        // 登入憑證十五分鐘就過期：救得回來就帶著新的那一份再接一次，不必叫人重新整理畫面。
+        if (mayRenew) {
+          void response.body?.cancel().catch(() => {})
+          const recovered = await this.hooks.recoverSession()
+          if (stopping.signal.aborted) {
+            return
+          }
+          if (recovered) {
+            await connect(false)
+            return
+          }
         }
-        return
-      }
-      if (!response.ok || response.body === null) {
-        onUpdate(new LiveKCandleUpdate(symbol, 'ended', null))
+
+        // 救不回來了：與其他打後端的路同一個結局。留著那份不算數的登入，
+        // 畫面會繼續以為這個人登入著，下一發也照樣被擋。
+        this.sessionStorageProxy.clearSession()
+        this.hooks.onSignedOut()
+        end(response)
         return
       }
 
+      // 原生通道也拒收不是事件串流的回覆（例如前面那一層代答的錯誤頁）：讀下去只會一再重接。
+      const isEventStream = response.headers.get('Content-Type')?.startsWith('text/event-stream') ?? false
+      if (!response.ok || response.body === null || !isEventStream) {
+        end(response)
+        return
+      }
+
+      // 這裡吞掉的只會是讀串流本身的錯（連線掉了）；畫面那一邊的錯已經在 report 裡收掉。
       await this.readEvents(response.body, (data) => {
         const update = this.toUpdate(data)
         if (update !== null) {
-          onUpdate(update)
+          report(update)
         }
       }).catch(() => {})
       if (!stopping.signal.aborted) {
@@ -133,8 +165,11 @@ export class LiveKCandleProxy implements ILiveKCandleProxy {
     let pending = ''
 
     for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-      const lines = (pending + decoder.decode(chunk.value, { stream: true })).split(/\r\n|\r|\n/)
-      pending = lines.pop() ?? ''
+      const text = pending + decoder.decode(chunk.value, { stream: true })
+      // 結尾的一個 \r 可能是 \r\n 的前半，留到下一段一起切，免得多切出一行空行、把一則拆成兩則。
+      const heldBack = text.endsWith('\r') ? '\r' : ''
+      const lines = text.slice(0, text.length - heldBack.length).split(/\r\n|\r|\n/)
+      pending = (lines.pop() ?? '') + heldBack
 
       for (const line of lines) {
         if (line === '') {
