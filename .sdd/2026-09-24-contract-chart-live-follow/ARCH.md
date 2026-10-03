@@ -1,5 +1,7 @@
 # 合約 K 線圖表的即時跟盤 — Architecture Design
 
+> **2026-10-03 更正：** 後端收回「看行情不必登入」——查 K 線、看圖、即時跟盤、列交易標的現在都要已開通的登入。`LiveKCandleProxy` 因此不再用瀏覽器原生的 `EventSource`（送不出授權標頭），改以 `fetch` 讀 Server-Sent Events 串流、帶著當下那一份登入憑證；連線掉了由它自己重接（說「停了」），一開始就被拒絕說「結束了」，登入過期時先救回一次再接。本切片中與此相反的描述保留作為當時的決定，以此更正為準。
+
 **Status:** Confirmed
 **Source PRD:** `.sdd/2026-09-24-contract-chart-live-follow/PRD.md`
 **Tech context:** Nuxt 4 · Vue 3 · TypeScript · Clean/Onion（`.claude/rules/`）· decimal.js · Vitest
