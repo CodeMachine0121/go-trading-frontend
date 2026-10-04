@@ -27,6 +27,7 @@ export class StrategyBotRunRecordDomain {
       this.resultTone,
       this.runRecord.result === 'conflict',
       this.runRecord.toSuggestionDomain().toText(),
+      this.runRecord.autoOrder === null ? null : this.runRecord.autoOrder.toDomain().toDto(),
     )
   }
 

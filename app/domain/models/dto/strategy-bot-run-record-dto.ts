@@ -1,4 +1,5 @@
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { ContractAutoOrderResultDto } from '~/domain/models/dto/contract-auto-order-result-dto'
 
 /**
  * DTO：一輪跑過的紀錄，已經算成畫面直接畫得出來的樣子。
@@ -30,5 +31,7 @@ export class StrategyBotRunRecordDto {
      * 會讓那張表讀起來像壞掉的。怎麼寫是規則，所以句子在這裡就組好，元件不拼字。
      */
     public readonly suggestionText: LocalizedTextVo | null,
+    /** 那一輪的下單結果；沒有下單的那一輪是 `null`，那一段就不畫。 */
+    public readonly autoOrder: ContractAutoOrderResultDto | null = null,
   ) {}
 }
