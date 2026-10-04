@@ -541,7 +541,7 @@ describe('StrategyBotListPanel 的自動下單', () => {
       [botWithAutoOrder(1, '早盤突破', true)], {}, showsDetailInline)
 
     expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
-    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text()).toContain('尚未生效')
+    expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toContain('現貨機器人目前還不會自動下單')
   })
 
   it('執行中的機器人也打得開，打開之後那一列標出自動下單', async () => {

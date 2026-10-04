@@ -26,7 +26,7 @@ export const strategyBotTraditionalChineseMessages = {
   autoOrderSwitch: {
     off: '關',
     on: '開',
-    notInEffect: '尚未生效：目前機器人仍只送 Telegram 通知，不會下單',
+    position: '機器人持倉：',
     switchFailed: '自動下單沒有切換成功。',
   },
   statusBadge: {

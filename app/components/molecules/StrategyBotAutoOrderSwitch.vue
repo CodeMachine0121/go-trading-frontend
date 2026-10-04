@@ -5,8 +5,12 @@ import AppSwitch from '~/components/atoms/AppSwitch.vue'
 import type { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
-const { enabled, switching = false, refusal = null, failureMessage = null } = defineProps<{
+const { enabled, notice, positionLabel = null, switching = false, refusal = null, failureMessage = null } = defineProps<{
   enabled: boolean
+  /** 打開這一種機器人的開關會發生什麼——合約會真的下單，現貨還不會。 */
+  notice: LocalizedTextVo
+  /** 機器人持倉；現貨機器人是 `null`，那一行就不畫。 */
+  positionLabel?: LocalizedTextVo | null
   switching?: boolean
   refusal?: AutoOrderRefusalDto | null
   failureMessage?: LocalizedTextVo | null
@@ -45,9 +49,19 @@ const { localize } = useLocalizedText()
 
     <p
       class="strategy-bot-auto-order-switch__notice"
-      data-testid="auto-order-not-in-effect"
+      data-testid="auto-order-notice"
     >
-      {{ t('strategyBot.autoOrderSwitch.notInEffect') }}
+      {{ localize(notice) }}
+    </p>
+
+    <!-- 關著也照樣畫：關掉不會平倉，倉位還在，他得知道還有什麼要自己處理。 -->
+    <p
+      v-if="positionLabel !== null"
+      class="strategy-bot-auto-order-switch__position"
+      data-testid="auto-order-position"
+    >
+      <!-- 標籤自己帶著它那種語言要的間隔（中文全形冒號後不留空、英文留一格），兩段之間不能再多空白。 -->
+      {{ t('strategyBot.autoOrderSwitch.position') }}<span class="strategy-bot-auto-order-switch__position-value">{{ localize(positionLabel) }}</span>
     </p>
 
     <AppAlert
@@ -102,6 +116,19 @@ const { localize } = useLocalizedText()
     margin: 0;
     color: color('text-muted');
     font-size: font-size('2xs');
+  }
+
+  &__position {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
+  }
+
+  &__position-value {
+    color: color('text-strong');
+    font-weight: font-weight('medium');
+
+    @include numeric;
   }
 }
 </style>

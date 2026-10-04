@@ -101,6 +101,8 @@ onBeforeRouteLeave(() => workbench.dirty.value
       >
         <StrategyBotAutoOrderSwitch
           :enabled="workbench.autoOrderEnabled.value"
+          :notice="page.autoOrderNotice"
+          :position-label="workbench.editing.value.autoOrderPositionLabel"
           :switching="workbench.autoOrderSwitching.value"
           :refusal="workbench.autoOrderRefusal.value"
           :failure-message="workbench.autoOrderFailureMessage.value"

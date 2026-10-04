@@ -341,6 +341,8 @@ onMounted(() => {
               v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
               class="strategy-bot-list__inline-history"
               :enabled="strategyBot.autoOrderEnabled"
+              :notice="page.autoOrderNotice"
+              :position-label="strategyBot.autoOrderPositionLabel"
               :switching="autoOrder.switchingStrategyBotId.value === strategyBot.id"
               :refusal="autoOrder.refusalFor(strategyBot.id)"
               :failure-message="autoOrder.failureMessageFor(strategyBot.id)"
@@ -394,6 +396,8 @@ onMounted(() => {
         <StrategyBotAutoOrderSwitch
           class="strategy-bot-list__detail-auto-order"
           :enabled="selectedBot.autoOrderEnabled"
+          :notice="page.autoOrderNotice"
+          :position-label="selectedBot.autoOrderPositionLabel"
           :switching="autoOrder.switchingStrategyBotId.value === selectedBot.id"
           :refusal="autoOrder.refusalFor(selectedBot.id)"
           :failure-message="autoOrder.failureMessageFor(selectedBot.id)"
