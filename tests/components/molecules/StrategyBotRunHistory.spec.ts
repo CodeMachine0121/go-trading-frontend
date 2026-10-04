@@ -38,8 +38,25 @@ function runRecord(
 describe('StrategyBotRunHistory', () => {
   function runWithAutoOrder(autoOrder: ContractAutoOrderResultDto | null) {
     return new StrategyBotRunRecordDto(
-      52, new Date('2026-10-04T06:30:00Z'), new UntranslatedTextVo('買入'), 'success', false, null, autoOrder)
+      52, new Date('2026-10-04T06:30:00Z'), new UntranslatedTextVo('買入'), 'success', false,
+      new UntranslatedTextVo('做多 3 倍 · 保證金 50'), autoOrder)
   }
+
+  it.each(['warning', 'danger', 'neutral'] as const)('下單結果的語氣 %s 照樣畫出來', (tone) => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('沒有下單'), tone, null))] })
+
+    expect(wrapper.get('[data-testid="run-history-auto-order"]').classes())
+      .toContain(`strategy-bot-run-history__auto-order--${tone}`)
+  })
+
+  it('下單結果緊接在那一輪的建議部位後面', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('成交 · 做多'), 'success', null))] })
+
+    const plan = wrapper.get('[data-testid="run-history-plan"]').element
+    expect(plan.nextElementSibling?.getAttribute('data-testid')).toBe('run-history-auto-order')
+  })
 
   it('有下單的那一輪畫出下單結果與它的語氣', () => {
     const wrapper = mountHistory({ runRecords: [runWithAutoOrder(

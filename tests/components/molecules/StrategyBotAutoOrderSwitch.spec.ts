@@ -30,6 +30,14 @@ describe('StrategyBotAutoOrderSwitch', () => {
     expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('機器人持倉：多 0.002')
   })
 
+  it('說明與持倉排在開關底下，說明在前', () => {
+    const wrapper = mountSwitch({ positionLabel: new LocalizedTextVo('多 0.002', 'Long 0.002') })
+
+    const order = wrapper.findAll('[data-testid]').map(element => element.attributes('data-testid'))
+      .filter(testId => ['auto-order-switch', 'auto-order-notice', 'auto-order-position'].includes(testId ?? ''))
+    expect(order).toEqual(['auto-order-switch', 'auto-order-notice', 'auto-order-position'])
+  })
+
   it('沒有機器人持倉（現貨）就不畫那一行', () => {
     const wrapper = mountSwitch({ positionLabel: null })
 
