@@ -6,6 +6,8 @@ import { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import type { IStrategyBotProxy } from '~/domain/interface/i-strategy-bot-proxy'
 import { StrategyBot } from '~/domain/models/entities/strategy-bot'
+import { AutoOrderPositionVo } from '~/domain/models/vo/auto-order-position-vo'
+import Decimal from 'decimal.js'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
@@ -165,13 +167,27 @@ describe('StrategyBotWorkbenchPage 的自動下單開關', () => {
     expect(wrapper.find('[data-testid="auto-order-switch"]').exists()).toBe(false)
   })
 
-  it.each(['kCandle', 'contractKCandle'] as const)('%s 機器人的頁面照交易服務的狀態畫開關', async (marketDataKind) => {
+  it.each([
+    { marketDataKind: 'kCandle' as const, notice: '現貨機器人目前還不會自動下單' },
+    { marketDataKind: 'contractKCandle' as const, notice: '打開後，機器人說出新結論時會用你的幣安帳戶真的開倉' },
+  ])('$marketDataKind 機器人的頁面照交易服務的狀態畫開關，並說「$notice」', async ({ marketDataKind, notice }) => {
     getStrategyBot.mockResolvedValue(botWith(marketDataKind, true))
     const wrapper = mountPage(7, marketDataKind)
     await flushPromises()
 
     expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
-    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text()).toContain('尚未生效')
+    expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toContain(notice)
+  })
+
+  it('合約機器人的頁面畫出它自己開的持倉', async () => {
+    const contractBot = new StrategyBot(
+      7, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'running', '', null, false, null, 'contractKCandle', true,
+      new AutoOrderPositionVo('long', new Decimal('0.002')))
+    getStrategyBot.mockResolvedValue(contractBot)
+    const wrapper = mountPage(7, 'contractKCandle')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('機器人持倉：多 0.002')
   })
 
   it('執行中的機器人打得開，開關變成開著', async () => {

@@ -541,7 +541,17 @@ describe('StrategyBotListPanel 的自動下單', () => {
       [botWithAutoOrder(1, '早盤突破', true)], {}, showsDetailInline)
 
     expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe('true')
-    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text()).toContain('尚未生效')
+    expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toContain('現貨機器人目前還不會自動下單')
+  })
+
+  it('清單頁不畫機器人持倉，那是詳細頁的事', async () => {
+    const withPosition = new StrategyBotDto(
+      1, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉', runningState(), null,
+      'kCandle', new UntranslatedTextVo('BTCUSDT'), null, '/strategy-bots/1', true,
+      new LocalizedTextVo('多 0.002', 'Long 0.002'))
+    const { wrapper } = await mountWithSelected([withPosition])
+
+    expect(wrapper.find('[data-testid="auto-order-position"]').exists()).toBe(false)
   })
 
   it('執行中的機器人也打得開，打開之後那一列標出自動下單', async () => {

@@ -6,20 +6,42 @@ import { AutoOrderRefusalDto } from '~/domain/models/dto/auto-order-refusal-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
+const CONTRACT_NOTICE = new LocalizedTextVo(
+  '打開後會真的開倉。', 'Once on, it opens real positions.')
+
 function mountSwitch(props: Record<string, unknown> = {}) {
   return mount(StrategyBotAutoOrderSwitch, {
-    props: { enabled: false, ...props },
+    props: { enabled: false, notice: CONTRACT_NOTICE, ...props },
     global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' } } },
   })
 }
 
 describe('StrategyBotAutoOrderSwitch', () => {
-  it.each([true, false])('開關照交易服務說的呈現（%s），旁邊一律標示尚未生效', (enabled) => {
+  it.each([true, false])('開關照交易服務說的呈現（%s），旁邊說清楚打開會發生什麼', (enabled) => {
     const wrapper = mountSwitch({ enabled })
 
     expect(wrapper.get('[data-testid="auto-order-switch"]').attributes('aria-checked')).toBe(String(enabled))
-    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text())
-      .toBe('尚未生效：目前機器人仍只送 Telegram 通知，不會下單')
+    expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toBe('打開後會真的開倉。')
+  })
+
+  it.each([true, false])('有機器人持倉就畫出來，開關關著（%s）也照畫', (enabled) => {
+    const wrapper = mountSwitch({ enabled, positionLabel: new LocalizedTextVo('多 0.002', 'Long 0.002') })
+
+    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('機器人持倉：多 0.002')
+  })
+
+  it('說明與持倉排在開關底下，說明在前', () => {
+    const wrapper = mountSwitch({ positionLabel: new LocalizedTextVo('多 0.002', 'Long 0.002') })
+
+    const order = wrapper.findAll('[data-testid]').map(element => element.attributes('data-testid'))
+      .filter(testId => ['auto-order-switch', 'auto-order-notice', 'auto-order-position'].includes(testId ?? ''))
+    expect(order).toEqual(['auto-order-switch', 'auto-order-notice', 'auto-order-position'])
+  })
+
+  it('沒有機器人持倉（現貨）就不畫那一行', () => {
+    const wrapper = mountSwitch({ positionLabel: null })
+
+    expect(wrapper.find('[data-testid="auto-order-position"]').exists()).toBe(false)
   })
 
   it.each([
@@ -67,8 +89,9 @@ describe('StrategyBotAutoOrderSwitch', () => {
     expect(wrapper.get('[data-testid="auto-order-failure"]').text()).toBe('找不到這台策略機器人')
   })
 
-  it('切成英文時，開關、尚未生效那一句與操作台自己說的失敗都換成英文', async () => {
+  it('切成英文時，開關、說明、持倉與操作台自己說的失敗都換成英文', async () => {
     const wrapper = mountSwitch({
+      positionLabel: new LocalizedTextVo('空 0.5', 'Short 0.5'),
       failureMessage: new LocalizedTextVo('自動下單沒有切換成功。', 'Auto-order could not be switched.'),
     })
 
@@ -76,8 +99,8 @@ describe('StrategyBotAutoOrderSwitch', () => {
     await nextTick()
 
     expect(wrapper.text()).toContain('Auto-order')
-    expect(wrapper.get('[data-testid="auto-order-not-in-effect"]').text())
-      .toBe('Not in effect yet: the bot still only sends Telegram notifications and does not place orders')
+    expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toBe('Once on, it opens real positions.')
+    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('Bot position: Short 0.5')
     expect(wrapper.get('[data-testid="auto-order-failure"]').text()).toBe('Auto-order could not be switched.')
   })
 })

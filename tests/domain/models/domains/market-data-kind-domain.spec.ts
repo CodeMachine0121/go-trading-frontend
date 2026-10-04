@@ -85,6 +85,25 @@ describe('MarketDataKindDomain', () => {
       expect(workbench.replaysOnContractAccount).toBe(replaysOnContractAccount)
     })
 
+  it.each([
+    {
+      declared: 'kCandle',
+      notice: '現貨機器人目前還不會自動下單，仍只送 Telegram 通知。',
+      english: 'Spot bots do not place orders yet; they still only send Telegram notifications.',
+    },
+    // 合約會真的下單：說清楚打開會發生什麼，也說清楚關掉不會平倉。
+    {
+      declared: 'contractKCandle',
+      notice: '打開後，機器人說出新結論時會用你的幣安帳戶真的開倉、平倉，並掛上止損止盈。關掉只會停止下新的單，已經開的倉位不會被平掉。',
+      english: 'Once on, the bot opens and closes real positions with your Binance account whenever it reaches a new conclusion, and places stop-loss and take-profit orders. Turning it off only stops new orders; positions already open are not closed.',
+    },
+  ])('$declared 的自動下單說明照實說，兩種語言都是', ({ declared, notice, english }) => {
+    const autoOrderNotice = new MarketDataKindDomain(declared).toStrategyBotPageDto().autoOrderNotice
+
+    expect(autoOrderNotice.in('zh-TW')).toBe(notice)
+    expect(autoOrderNotice.in('en')).toBe(english)
+  })
+
   it('同一種才算同一種', () => {
     expect(new MarketDataKindDomain('contractKCandle').isSameAs(new MarketDataKindDomain(' contractkcandle'))).toBe(true)
     expect(new MarketDataKindDomain('contractKCandle').isSameAs(new MarketDataKindDomain(''))).toBe(false)

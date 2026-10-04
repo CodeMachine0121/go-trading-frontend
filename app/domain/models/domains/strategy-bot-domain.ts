@@ -3,6 +3,7 @@ import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { AutoOrderPositionDomain } from '~/domain/models/domains/auto-order-position-domain'
 
 /**
  * Domain Model：一台已存機器人對畫面的樣子。
@@ -40,6 +41,9 @@ export class StrategyBotDomain {
         : null,
       `${page.listPath}/${this.strategyBot.id}`,
       this.strategyBot.autoOrderEnabled,
+      this.strategyBot.autoOrderPosition === null
+        ? null
+        : new AutoOrderPositionDomain(this.strategyBot.autoOrderPosition).toLabel(),
     )
   }
 }

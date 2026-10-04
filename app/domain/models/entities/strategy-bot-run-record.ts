@@ -1,6 +1,7 @@
 import type Decimal from 'decimal.js'
 import { StrategyBotRunRecordDomain } from '~/domain/models/domains/strategy-bot-run-record-domain'
 import { StrategyBotRunSuggestionDomain } from '~/domain/models/domains/strategy-bot-run-suggestion-domain'
+import type { ContractAutoOrderResult } from '~/domain/models/entities/contract-auto-order-result'
 
 /**
  * Entity：後端那一輪的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -32,6 +33,8 @@ export class StrategyBotRunRecord {
     public readonly suggestedLeverage: Decimal | null = null,
     /** 合約那一輪建議的名目（保證金 × 槓桿）。只有合約那一輪有。 */
     public readonly suggestedNotional: Decimal | null = null,
+    /** 那一輪排入的自動下單做成什麼樣。沒有下單的那一輪是 `null`。 */
+    public readonly autoOrder: ContractAutoOrderResult | null = null,
   ) {}
 
   toDomain(): StrategyBotRunRecordDomain {

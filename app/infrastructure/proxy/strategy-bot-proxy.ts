@@ -15,6 +15,8 @@ import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
 import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
 import Decimal from 'decimal.js'
+import { AutoOrderPositionVo } from '~/domain/models/vo/auto-order-position-vo'
+import { ContractAutoOrderResult } from '~/domain/models/entities/contract-auto-order-result'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
@@ -58,6 +60,28 @@ type StrategyBotRunRecordWire = {
   suggestedDirection?: string | null
   suggestedLeverage?: string | null
   suggestedNotional?: string | null
+  /** 那一輪排入了自動下單才有。 */
+  autoOrder?: ContractAutoOrderResultWire | null
+}
+
+/** 後端回來的一輪下單結果。數字沒做到那一步就整個不回。 */
+type ContractAutoOrderResultWire = {
+  status: string
+  action?: string
+  closedQuantity?: string | null
+  closeAveragePrice?: string | null
+  openedQuantity?: string | null
+  openAveragePrice?: string | null
+  stopLossPrice?: string | null
+  takeProfitPrice?: string | null
+  protectionMissing?: boolean
+  reason?: string
+}
+
+/** 後端回來的機器人持倉：合約機器人才有，方向空手時是空字串。 */
+type AutoOrderPositionWire = {
+  direction?: string
+  quantity?: string
 }
 
 /**
@@ -96,6 +120,7 @@ type StrategyBotWire = {
   /** 舊版後端不回，那一台就是現貨機器人。 */
   marketDataKind?: string
   autoOrderEnabled?: boolean
+  autoOrderPosition?: AutoOrderPositionWire | null
 }
 
 /**
@@ -177,6 +202,21 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         runRecordWire.suggestedDirection ?? null,
         this.toSuggestedFigure(runRecordWire.suggestedLeverage),
         this.toSuggestedFigure(runRecordWire.suggestedNotional),
+        // 沒有下單的那一輪後端整個不回；有下單時數字沒做到那一步也不回。
+        runRecordWire.autoOrder === undefined || runRecordWire.autoOrder === null
+          ? null
+          : new ContractAutoOrderResult(
+              runRecordWire.autoOrder.status,
+              runRecordWire.autoOrder.action ?? '',
+              this.toSuggestedFigure(runRecordWire.autoOrder.closedQuantity),
+              this.toSuggestedFigure(runRecordWire.autoOrder.closeAveragePrice),
+              this.toSuggestedFigure(runRecordWire.autoOrder.openedQuantity),
+              this.toSuggestedFigure(runRecordWire.autoOrder.openAveragePrice),
+              this.toSuggestedFigure(runRecordWire.autoOrder.stopLossPrice),
+              this.toSuggestedFigure(runRecordWire.autoOrder.takeProfitPrice),
+              runRecordWire.autoOrder.protectionMissing ?? false,
+              runRecordWire.autoOrder.reason ?? '',
+            ),
       ))
     }
     catch (error: unknown) {
@@ -343,6 +383,10 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       this.toPositionPlan(marketDataKind, botWire.positionPlan),
       marketDataKind.value,
       botWire.autoOrderEnabled ?? false,
+      botWire.autoOrderPosition === undefined || botWire.autoOrderPosition === null
+        ? null
+        : new AutoOrderPositionVo(
+            botWire.autoOrderPosition.direction ?? '', new Decimal(botWire.autoOrderPosition.quantity ?? '0')),
     )
   }
 }

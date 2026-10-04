@@ -28,7 +28,7 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
   autoOrderSwitch: {
     off: 'Off',
     on: 'On',
-    notInEffect: 'Not in effect yet: the bot still only sends Telegram notifications and does not place orders',
+    position: 'Bot position: ',
     switchFailed: 'Auto-order could not be switched.',
   },
   statusBadge: {

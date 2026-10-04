@@ -3,6 +3,7 @@ import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import StrategyBotRunHistory from '~/components/molecules/StrategyBotRunHistory.vue'
 import { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
+import { ContractAutoOrderResultDto } from '~/domain/models/dto/contract-auto-order-result-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
@@ -35,6 +36,53 @@ function runRecord(
 }
 
 describe('StrategyBotRunHistory', () => {
+  function runWithAutoOrder(autoOrder: ContractAutoOrderResultDto | null) {
+    return new StrategyBotRunRecordDto(
+      52, new Date('2026-10-04T06:30:00Z'), new UntranslatedTextVo('買入'), 'success', false,
+      new UntranslatedTextVo('做多 3 倍 · 保證金 50'), autoOrder)
+  }
+
+  it.each(['warning', 'danger', 'neutral'] as const)('下單結果的語氣 %s 照樣畫出來', (tone) => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('沒有下單'), tone, null))] })
+
+    expect(wrapper.get('[data-testid="run-history-auto-order"]').classes())
+      .toContain(`strategy-bot-run-history__auto-order--${tone}`)
+  })
+
+  it('下單結果緊接在那一輪的建議部位後面', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('成交 · 做多'), 'success', null))] })
+
+    const plan = wrapper.get('[data-testid="run-history-plan"]').element
+    expect(plan.nextElementSibling?.getAttribute('data-testid')).toBe('run-history-auto-order')
+  })
+
+  it('有下單的那一輪畫出下單結果與它的語氣', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('成交 · 做多'), 'success', null))] })
+
+    const autoOrder = wrapper.get('[data-testid="run-history-auto-order"]')
+    expect(autoOrder.text()).toBe('成交 · 做多')
+    expect(autoOrder.classes()).toContain('strategy-bot-run-history__auto-order--success')
+    expect(wrapper.find('[data-testid="run-history-protection-warning"]').exists()).toBe(false)
+  })
+
+  it('止損止盈沒掛上時另畫一行警告，讓他立刻看到', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(new ContractAutoOrderResultDto(
+      new UntranslatedTextVo('成交 · 做多'), 'danger', new UntranslatedTextVo('止損或止盈沒有掛上')))] })
+
+    const warning = wrapper.get('[data-testid="run-history-protection-warning"]')
+    expect(warning.text()).toBe('止損或止盈沒有掛上')
+    expect(warning.attributes('role')).toBe('alert')
+  })
+
+  it('沒有下單的那一輪不畫下單結果', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(null)] })
+
+    expect(wrapper.find('[data-testid="run-history-auto-order"]').exists()).toBe(false)
+  })
+
   it('一輪一列，說得出第幾輪、什麼時候、結果是什麼', () => {
     const wrapper = mountHistory({
       runRecords: [runRecord(2, '買入', 'success'), runRecord(1, '持有', 'neutral')],

@@ -494,3 +494,77 @@ describe('StrategyBotProxy 的自動下單', () => {
     await expect(enabling).rejects.not.toBeInstanceOf(AutoOrderRefusedError)
   })
 })
+
+describe('StrategyBotProxy 讀得出自動下單做了什麼', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('那一輪的下單結果讀成精確小數，沒做到的那一步是 null', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 52,
+      ranAt: '2026-10-04T06:30:00Z',
+      result: 'buy',
+      autoOrder: {
+        status: 'filled',
+        action: '做多',
+        openedDirection: 'long',
+        openedQuantity: '0.002',
+        openAveragePrice: '84971.9',
+        stopLossPrice: '83697.3',
+        takeProfitPrice: '87521.1',
+        protectionMissing: true,
+        reason: '止盈沒有掛上',
+      },
+    }]))
+
+    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+
+    expect(autoOrder?.status).toBe('filled')
+    expect(autoOrder?.action).toBe('做多')
+    expect(autoOrder?.closedQuantity).toBeNull()
+    expect(autoOrder?.closeAveragePrice).toBeNull()
+    expect(autoOrder?.openedQuantity?.toString()).toBe('0.002')
+    expect(autoOrder?.openAveragePrice?.toString()).toBe('84971.9')
+    expect(autoOrder?.stopLossPrice?.toString()).toBe('83697.3')
+    expect(autoOrder?.takeProfitPrice?.toString()).toBe('87521.1')
+    expect(autoOrder?.protectionMissing).toBe(true)
+    expect(autoOrder?.reason).toBe('止盈沒有掛上')
+  })
+
+  it.each([undefined, null])('那一輪沒有下單結果（%s）就是 null', async (autoOrder) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 52, ranAt: '2026-10-04T06:30:00Z', result: 'hold', autoOrder,
+    }]))
+
+    expect((await proxy().listRunRecords(3))[0]?.autoOrder).toBeNull()
+  })
+
+  it('只說了狀態的下單結果，其他一律讀成沒有', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 52, ranAt: '2026-10-04T06:30:00Z', result: 'buy', autoOrder: { status: 'pending' },
+    }]))
+
+    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+
+    expect(autoOrder?.action).toBe('')
+    expect(autoOrder?.protectionMissing).toBe(false)
+    expect(autoOrder?.reason).toBe('')
+  })
+
+  it('合約機器人讀得出它自己的持倉', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      botWire({ marketDataKind: 'contractKCandle', autoOrderPosition: { direction: 'short', quantity: '0.004' } })))
+
+    const position = (await proxy().getStrategyBot(3)).autoOrderPosition
+
+    expect(position?.direction).toBe('short')
+    expect(position?.quantity.toString()).toBe('0.004')
+  })
+
+  it.each([undefined, null])('沒說持倉（%s）就是 null', async (autoOrderPosition) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ autoOrderPosition })))
+
+    expect((await proxy().getStrategyBot(3)).autoOrderPosition).toBeNull()
+  })
+})

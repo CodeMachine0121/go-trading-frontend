@@ -101,6 +101,26 @@ const { localize } = useLocalizedText()
             {{ localize(runRecord.suggestionText) }}
           </p>
 
+          <!-- 那一輪排入的自動下單做成什麼樣；沒有下單的那一輪不畫。 -->
+          <p
+            v-if="runRecord.autoOrder !== null"
+            class="strategy-bot-run-history__auto-order"
+            :class="`strategy-bot-run-history__auto-order--${runRecord.autoOrder.tone}`"
+            data-testid="run-history-auto-order"
+          >
+            {{ localize(runRecord.autoOrder.text) }}
+          </p>
+
+          <!-- 止損或止盈沒掛上是他現在就得處理的事：另寫一行，不只靠顏色。 -->
+          <p
+            v-if="runRecord.autoOrder !== null && runRecord.autoOrder.protectionWarning !== null"
+            class="strategy-bot-run-history__protection-warning"
+            role="alert"
+            data-testid="run-history-protection-warning"
+          >
+            {{ localize(runRecord.autoOrder.protectionWarning) }}
+          </p>
+
           <!--
             衝突是這一排裡唯一**要人去處理**的一種，所以它自己說出下一步，
             而且墊一塊警示底：只多一個詞而不說要做什麼的話，讀的人還是得自己想。
@@ -240,6 +260,37 @@ const { localize } = useLocalizedText()
     font-size: font-size('xs');
 
     @include numeric;
+  }
+
+  // 與建議部位同一層級的註腳；語氣跟著下單結果走。
+  &__auto-order {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
+
+    @include numeric;
+
+    &--success {
+      color: color('success');
+    }
+
+    &--warning {
+      color: color('warning');
+    }
+
+    &--danger {
+      color: color('danger');
+    }
+  }
+
+  &__protection-warning {
+    margin: spacing('3xs') 0 0;
+    border-radius: radius('sm');
+    background-color: color('danger-soft');
+    padding: spacing('2xs') spacing('xs');
+    color: color('danger');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 
   &__attention {

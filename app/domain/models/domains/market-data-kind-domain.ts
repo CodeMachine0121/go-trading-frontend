@@ -39,6 +39,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         tradingStrategyLabel: LocalizedTextVo
         tradingStrategyCreateHint: LocalizedTextVo
         runHistoryNote: LocalizedTextVo | null
+        autoOrderNotice: LocalizedTextVo
       }
     }
   >
@@ -71,6 +72,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       // 新拼一份交易策略沒說行情種類就是 K 線，所以不必多交代。
       tradingStrategyCreateHint: new UntranslatedTextVo(''),
       runHistoryNote: null,
+      // 現貨機器人的開關存得起來，但交易服務還不會替現貨下單。
+      autoOrderNotice: new LocalizedTextVo(
+        '現貨機器人目前還不會自動下單，仍只送 Telegram 通知。',
+        'Spot bots do not place orders yet; they still only send Telegram notifications.'),
     },
   },
   contractKCandle: {
@@ -127,6 +132,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       runHistoryNote: new LocalizedTextVo(
         '連續好幾輪都是持有，也可能是這個合約的一分鐘合約 K 線超過 5 分鐘沒有進來——那幾輪會被跳過、不送訊息。可以到合約 K 線瀏覽看看最新一根的時間。',
         'Several holds in a row can also mean this contract\'s one-minute contract K-candles have not arrived for over 5 minutes; those runs are skipped and send no message. Check the time of the latest candle in the contract K-candle browser.'),
+      // 真錢：說清楚打開會發生什麼，也說清楚關掉**不會**發生什麼——關掉不是出場。
+      autoOrderNotice: new LocalizedTextVo(
+        '打開後，機器人說出新結論時會用你的幣安帳戶真的開倉、平倉，並掛上止損止盈。關掉只會停止下新的單，已經開的倉位不會被平掉。',
+        'Once on, the bot opens and closes real positions with your Binance account whenever it reaches a new conclusion, and places stop-loss and take-profit orders. Turning it off only stops new orders; positions already open are not closed.'),
     },
   },
 }
@@ -196,6 +205,7 @@ export class MarketDataKindDomain {
       page.tradingStrategyLabel,
       page.tradingStrategyCreateHint,
       page.runHistoryNote,
+      page.autoOrderNotice,
     )
   }
 
