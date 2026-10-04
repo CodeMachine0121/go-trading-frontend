@@ -55,21 +55,21 @@ export class ContractAutoOrderResultDomain {
       this.result.closedQuantity === null || this.result.closeAveragePrice === null
         ? null
         : new LocalizedTextVo(
-            `平倉 ${this.result.closedQuantity.toString()} @ ${this.result.closeAveragePrice.toString()}`,
-            `Closed ${this.result.closedQuantity.toString()} @ ${this.result.closeAveragePrice.toString()}`),
+            `平倉 ${this.result.closedQuantity.toFixed()} @ ${this.result.closeAveragePrice.toFixed()}`,
+            `Closed ${this.result.closedQuantity.toFixed()} @ ${this.result.closeAveragePrice.toFixed()}`),
       this.result.openedQuantity === null || this.result.openAveragePrice === null
         ? null
         : new LocalizedTextVo(
-            `開倉 ${this.result.openedQuantity.toString()} @ ${this.result.openAveragePrice.toString()}`,
-            `Opened ${this.result.openedQuantity.toString()} @ ${this.result.openAveragePrice.toString()}`),
+            `開倉 ${this.result.openedQuantity.toFixed()} @ ${this.result.openAveragePrice.toFixed()}`,
+            `Opened ${this.result.openedQuantity.toFixed()} @ ${this.result.openAveragePrice.toFixed()}`),
       this.result.stopLossPrice === null
         ? null
         : new LocalizedTextVo(
-            `止損 ${this.result.stopLossPrice.toString()}`, `Stop loss ${this.result.stopLossPrice.toString()}`),
+            `止損 ${this.result.stopLossPrice.toFixed()}`, `Stop loss ${this.result.stopLossPrice.toFixed()}`),
       this.result.takeProfitPrice === null
         ? null
         : new LocalizedTextVo(
-            `止盈 ${this.result.takeProfitPrice.toString()}`, `Take profit ${this.result.takeProfitPrice.toString()}`),
+            `止盈 ${this.result.takeProfitPrice.toFixed()}`, `Take profit ${this.result.takeProfitPrice.toFixed()}`),
       this.result.reason === '' ? null : new UntranslatedTextVo(this.result.reason),
     ])
 

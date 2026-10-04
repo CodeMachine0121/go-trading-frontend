@@ -11,7 +11,7 @@ export class AutoOrderPositionDomain {
   constructor(private readonly position: AutoOrderPositionVo) {}
 
   toLabel(): LocalizedTextVo {
-    const quantity = this.position.quantity.toString()
+    const quantity = this.position.quantity.toFixed()
 
     if (this.position.quantity.greaterThan(0)) {
       if (this.position.direction === 'long') {
