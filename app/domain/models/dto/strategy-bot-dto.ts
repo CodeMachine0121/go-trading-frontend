@@ -42,5 +42,7 @@ export class StrategyBotDto {
     /** 這一台的編輯頁——在它自己那一種的畫面底下。 */
     public readonly editPath: string = `/strategy-bots/${id}`,
     public readonly autoOrderEnabled: boolean = false,
+    /** 機器人持倉：「多 0.002」「空 0.002」「空手」。現貨機器人與舊版後端是 `null`，那一格就不畫。 */
+    public readonly autoOrderPositionLabel: LocalizedTextVo | null = null,
   ) {}
 }
