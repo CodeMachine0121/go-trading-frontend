@@ -85,6 +85,17 @@ describe('MarketDataKindDomain', () => {
       expect(workbench.replaysOnContractAccount).toBe(replaysOnContractAccount)
     })
 
+  it.each([
+    { declared: 'kCandle', notice: '現貨機器人目前還不會自動下單，仍只送 Telegram 通知。' },
+    // 合約會真的下單：說清楚打開會發生什麼，也說清楚關掉不會平倉。
+    {
+      declared: 'contractKCandle',
+      notice: '打開後，機器人說出新結論時會用你的幣安帳戶真的開倉、平倉，並掛上止損止盈。關掉只會停止下新的單，已經開的倉位不會被平掉。',
+    },
+  ])('$declared 的自動下單說明照實說', ({ declared, notice }) => {
+    expect(new MarketDataKindDomain(declared).toStrategyBotPageDto().autoOrderNotice.in('zh-TW')).toBe(notice)
+  })
+
   it('同一種才算同一種', () => {
     expect(new MarketDataKindDomain('contractKCandle').isSameAs(new MarketDataKindDomain(' contractkcandle'))).toBe(true)
     expect(new MarketDataKindDomain('contractKCandle').isSameAs(new MarketDataKindDomain(''))).toBe(false)

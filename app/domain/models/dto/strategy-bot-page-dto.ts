@@ -33,5 +33,7 @@ export class StrategyBotPageDto {
     public readonly tradingStrategyCreateHint: LocalizedTextVo,
     /** 執行紀錄底下那一句註腳；這一種不需要時是 `null`。 */
     public readonly runHistoryNote: LocalizedTextVo | null,
+    /** 自動下單開關旁那一句：打開這一種機器人的開關會發生什麼。 */
+    public readonly autoOrderNotice: LocalizedTextVo,
   ) {}
 }
