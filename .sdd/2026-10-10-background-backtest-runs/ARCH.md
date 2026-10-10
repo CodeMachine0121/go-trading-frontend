@@ -28,6 +28,7 @@
 | `composables/use-backtest-runs.ts` | **Add** | 每個列表一份自己的狀態（每頁只掛一個列表，離開再回來一律從後端重讀，所以不用跨頁的 `useState`）：`runs`、`totalCount`、`loading`、`failure`；`load()`、`prepend(run)`、`cancel(id)`；有 active 的就 `setTimeout` 輪詢（間隔 3 秒），無 active 或離開（`onUnmounted`／`stopPolling`）就停；離開畫面時還在路上的那一次回來也不再排下一次 |
 | `composables/use-latest-run.ts`、`use-backtest-run.ts`、`use-trading-strategy-backtest-run.ts` | **Modify** | 送出成功的結果從「成績單」改成「輪次」：`submittedRun` ref；錯誤分支多「每人上限滿」（後端 429）；移除 `backtest-running-alert` 鎖按鈕的邏輯（改為送出中短暫 disabled 即可） |
 | `components/molecules/BacktestRunStatusBadge.vue` | **Add** | 包 `AppBadge`，吃 `label`／`tone`／`progressPercent` |
+| `components/organisms/BacktestRunPanel.vue` | **Add** | 「我的回測」那一塊：持有 `useBacktestRuns`＋`useBacktestRunDetail`，畫 `BacktestRunList` 與 `BacktestRunDetailDialog`，吃範圍、空狀態句與剛送出的那一筆；兩個 pane 與總覽頁共用 |
 | `components/organisms/BacktestRunList.vue` | **Add** | 列表（loading／failure／empty／rows）、每列徽章＋要跑什麼＋送出時間＋摘要＋取消鈕；emit `open(id)`；手機換兩行 |
 | `components/organisms/BacktestRunDetailDialog.vue` | **Add** | 點開一筆：取明細，完成畫 `BacktestResultSections`，失敗／已取消畫原因 |
 | `components/organisms/StrategyScriptBacktestPane.vue`、`TradingStrategyBacktestPane.vue` | **Modify** | 送出後顯示「已送出，輪次 #N」並 `prepend`；下方放 `BacktestRunList`（範圍＝該腳本／該策略）；說明文字改 |
@@ -60,7 +61,7 @@
 - **Most likely next requirement:** 比較兩筆輪次。
 - **Where it lands:** `BacktestRunDetailDto.result` 已是 sections；比較畫面就是兩組 sections 並排，列表多一個「選取」狀態。
 - **Do not hardcode:** 輪詢間隔（3 秒）放 `useBacktestRuns` 的常數；每頁 20 由後端預設。
-- **Known debt / deferred:** 區塊下方列表與總覽頁各自一個 `useState` key；同一頁同時出現兩個範圍時各自輪詢（最多兩個迴圈）。
+- **Known debt / deferred:** 每個 `BacktestRunPanel`（區塊下方與總覽頁共用的「我的回測」那一塊）各自一份列表狀態與一個輪詢迴圈；目前每頁只掛一個。
 
 ---
 
