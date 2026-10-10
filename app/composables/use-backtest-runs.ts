@@ -2,10 +2,8 @@ import { toValue, type MaybeRefOrGetter } from 'vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { BacktestRunDto } from '~/domain/models/dto/backtest-run-dto'
 import type { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
-import { LocalizedError } from '~/domain/errors/localized-error'
-import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { useBacktestRunFailureMessage } from '~/composables/use-backtest-run-failure-message'
 
 /** 有排隊中或進行中的輪次時，列表每隔這麼久回頭重讀一次。 */
 export const BACKTEST_RUN_POLL_INTERVAL_MILLISECONDS = 3000
@@ -20,7 +18,7 @@ export function useBacktestRuns(
   backtestApplication: BacktestApplication,
   scope: MaybeRefOrGetter<BacktestRunListQueryDto>,
 ) {
-  const { translatedText } = useLocalizedText()
+  const { failureMessageOf } = useBacktestRunFailureMessage()
 
   const runs = ref<BacktestRunDto[]>([])
   const totalCount = ref(0)
@@ -31,19 +29,6 @@ export function useBacktestRuns(
   const hasActiveRuns = computed(() => runs.value.some(run => run.isActive))
   const canShowMore = computed(
     () => backtestApplication.canShowMoreRuns(query.value, runs.value.length, totalCount.value))
-
-  function failureOf(error: unknown): LocalizedTextVo {
-    if (error instanceof BackendUnreachableError) {
-      return translatedText('backtest.common.unreachable')
-    }
-    if (error instanceof LocalizedError) {
-      return error.localizedMessage
-    }
-
-    return error instanceof Error
-      ? new UntranslatedTextVo(error.message)
-      : translatedText('backtest.runs.unknownFailure')
-  }
 
   function takePage(page: { runs: readonly BacktestRunDto[], totalCount: number }) {
     runs.value = [...page.runs]
@@ -58,7 +43,7 @@ export function useBacktestRuns(
       takePage(await backtestApplication.listRuns(query.value))
     }
     catch (error: unknown) {
-      failureMessage.value = failureOf(error)
+      failureMessage.value = failureMessageOf(error)
     }
     finally {
       loading.value = false
@@ -84,7 +69,7 @@ export function useBacktestRuns(
       runs.value = runs.value.map(run => (run.id === id ? cancelled : run))
     }
     catch (error: unknown) {
-      failureMessage.value = failureOf(error)
+      failureMessage.value = failureMessageOf(error)
     }
   }
 
@@ -108,7 +93,7 @@ export function useBacktestRuns(
       void backtestApplication.refreshRuns(query.value)
         .then(takePage)
         .catch((error: unknown) => {
-          failureMessage.value = failureOf(error)
+          failureMessage.value = failureMessageOf(error)
         })
         .then(schedulePoll)
     }, BACKTEST_RUN_POLL_INTERVAL_MILLISECONDS)
