@@ -6,6 +6,8 @@ import { BacktestService } from '~/domain/service/backtest-service'
 import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
 import type { BacktestRunListQueryDomain } from '~/domain/models/domains/backtest-run-list-query-domain'
 import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import Decimal from 'decimal.js'
+import { Backtest, BacktestTradeStatistics, EquityPoint } from '~/domain/models/entities/backtest'
 import { buildBacktestProxy, buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
 import { buildTimeZone } from '../../fixtures/time-zone'
 
@@ -93,13 +95,22 @@ describe('BacktestRunsPage', () => {
       .toContain('還沒有回測，去策略腳本或交易策略頁送出一筆')
   })
 
-  it('點一筆就取那一筆的明細', async () => {
+  it('點一筆完成的就用成績單畫面呈現', async () => {
+    const start = new Date('2026-08-06T00:00:00Z')
+    const end = new Date('2026-09-04T23:00:00Z')
+    const result = new Backtest(
+      'BTCUSDT', '1h', start, end, 2, new Decimal(10000), new Decimal(12550), 0.255, 0.101, 0.5, 4,
+      0, 0, 0, new Decimal(0), [], [new EquityPoint(start, new Decimal(10000))], null,
+      new BacktestTradeStatistics(2.5, new Decimal(75), 9000, 1, 0.25), 'nextOpen', null, null, null)
     const runProxy = twentyFiveRunsProxy()
+    vi.mocked(runProxy.getRun).mockResolvedValue(buildBacktestRun({ id: 25, status: 'succeeded', result }))
     const wrapper = await mountPage(runProxy)
 
     await wrapper.findAll('[data-testid="backtest-run-open"]')[0]!.trigger('click')
     await flushPromises()
 
     expect(runProxy.getRun).toHaveBeenCalledWith(25)
+    expect(wrapper.find('section[data-testid="backtest-result-section-whole"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="summary-profit-factor"]').exists()).toBe(true)
   })
 })

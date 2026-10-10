@@ -36,6 +36,7 @@ describe('BacktestRunProxy 列出', () => {
     }))
     expect(page.totalCount).toBe(25)
     expect(page.runs[0]?.id).toBe(40)
+    expect(page.runs[0]?.result).toBeNull()
   })
 
   it('沒有輪次時後端給 null 也收成空清單', async () => {

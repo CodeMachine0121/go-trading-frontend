@@ -18,6 +18,7 @@ import type { BacktestRun } from '~/domain/models/entities/backtest-run'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 const chartLibrary = vi.hoisted(() => {
@@ -112,6 +113,19 @@ describe('StrategyScriptBacktestPane', () => {
       expect(queryDomain.strategyScriptId).toBe(9)
       expect(queryDomain.tradingStrategyId).toBeNull()
       expect(inBackground).toBe(false)
+    })
+
+    it('回到這一頁時列表從後端重讀，進行中那一筆是最新的進度', async () => {
+      const runProxy = buildBacktestRunProxy({
+        listRuns: vi.fn().mockResolvedValue(new BacktestRunPage(
+          [buildBacktestRun({ id: 40, status: 'running', progressPercent: 70, strategyScriptId: 9 })], 1)),
+      })
+      const wrapper = mountPane(buildProxy(), { strategyScriptId: 9 }, runProxy)
+      await flushPromises()
+
+      const row = wrapper.get('[data-testid="backtest-run-row"]')
+      expect(row.text()).toContain('#40')
+      expect(row.get('[data-testid="backtest-run-status"]').text()).toBe('進行中 · 70%')
     })
 
     it('預設押注方式旁邊沒有那一格', () => {

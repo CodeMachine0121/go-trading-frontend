@@ -87,6 +87,21 @@ describe('StrategyScriptBacktestPane 在合約帳戶上重演', () => {
     expect(termsDomain.slippagePercentage.toString()).toBe('0.1')
   })
 
+  it('合約策略腳本頁送出後說出輪次編號，列表最上面多一筆排隊中，鍵又按得下去', async () => {
+    const wrapper = mountPane(buildProxy({
+      submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ id: 40, kind: 'contractScript' })),
+    }), true)
+
+    await submit(wrapper)
+
+    expect(wrapper.get('[data-testid="backtest-submitted-alert"]').text()).toContain('已送出，輪次 #40')
+    const rows = wrapper.findAll('[data-testid="backtest-run-row"]')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.text()).toContain('#40')
+    expect(rows[0]!.get('[data-testid="backtest-run-status"]').text()).toBe('排隊中')
+    expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled')).toBeUndefined()
+  })
+
   it('槓桿與滑點留白時照樣送出，兩格都不算有填', async () => {
     const proxy = buildProxy()
     const wrapper = mountPane(proxy, true)
