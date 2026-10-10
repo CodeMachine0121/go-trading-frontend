@@ -7,8 +7,7 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
 import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
-import BacktestRunList from '~/components/organisms/BacktestRunList.vue'
-import BacktestRunDetailDialog from '~/components/organisms/BacktestRunDetailDialog.vue'
+import BacktestRunPanel from '~/components/organisms/BacktestRunPanel.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
@@ -19,8 +18,6 @@ import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
-import { useBacktestRuns } from '~/composables/use-backtest-runs'
-import { useBacktestRunDetail } from '~/composables/use-backtest-run-detail'
 import { useI18n } from 'vue-i18n'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
@@ -71,20 +68,7 @@ const aggregationInterval = ref('')
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
 
 // 下方那份「我的回測」只列這一份交易策略的；還沒存過的那一份沒有東西可列。
-const runList = useBacktestRuns(
-  backtestApplication, () => new BacktestRunListQueryDto(null, null, tradingStrategyId))
-const runDetail = useBacktestRunDetail(backtestApplication)
-onMounted(() => {
-  if (tradingStrategyId !== null) {
-    void runList.load()
-  }
-})
-
-watch(backtestRun.result, (submitted) => {
-  if (submitted !== null) {
-    runList.prepend(submitted)
-  }
-})
+const runScope = computed(() => new BacktestRunListQueryDto(null, null, tradingStrategyId))
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
@@ -342,32 +326,13 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
       {{ t('backtest.tradingStrategyBacktestPane.placeholder') }}
     </p>
 
-    <AppPanel
+    <BacktestRunPanel
       v-if="tradingStrategyId !== null"
-      :title="t('backtest.runs.title')"
-      data-testid="backtest-run-list-panel"
-    >
-      <BacktestRunList
-        :runs="runList.runs.value"
-        :total-count="runList.totalCount.value"
-        :loading="runList.loading.value"
-        :failure-message="runList.failureMessage.value"
-        :time-zone="timeZone"
-        :can-show-more="runList.canShowMore.value"
-        :empty-message="t('backtest.runs.emptyHere')"
-        @open="runDetail.openRun"
-        @cancel="runList.cancel"
-        @show-more="runList.showMore"
-      />
-    </AppPanel>
-
-    <BacktestRunDetailDialog
-      :open="runDetail.open.value"
-      :detail="runDetail.detail.value"
-      :loading="runDetail.loading.value"
-      :failure-message="runDetail.failureMessage.value"
+      :backtest-application="backtestApplication"
       :time-zone="timeZone"
-      @close="runDetail.close"
+      :scope="runScope"
+      :empty-message="t('backtest.runs.emptyHere')"
+      :submitted-run="backtestRun.result.value"
     />
 
     <BacktestRuleGuideDialog

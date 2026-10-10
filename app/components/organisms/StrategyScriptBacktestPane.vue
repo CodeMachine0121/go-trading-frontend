@@ -6,8 +6,7 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
 import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
-import BacktestRunList from '~/components/organisms/BacktestRunList.vue'
-import BacktestRunDetailDialog from '~/components/organisms/BacktestRunDetailDialog.vue'
+import BacktestRunPanel from '~/components/organisms/BacktestRunPanel.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
@@ -22,8 +21,6 @@ import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
-import { useBacktestRuns } from '~/composables/use-backtest-runs'
-import { useBacktestRunDetail } from '~/composables/use-backtest-run-detail'
 import { useI18n } from 'vue-i18n'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 
@@ -89,19 +86,7 @@ const aggregationInterval = defineModel<string>('aggregationInterval', { require
 const backtestRun = useBacktestRun(backtestApplication)
 
 // 下方那份「我的回測」：指名了一支腳本就只列它的；還沒存起來的算式沒有來源可指，列全部。
-const runList = useBacktestRuns(
-  backtestApplication, () => new BacktestRunListQueryDto(null, strategyScriptId ?? null))
-const runDetail = useBacktestRunDetail(backtestApplication)
-onMounted(() => {
-  void runList.load()
-})
-
-// 剛送出的那一筆插到列表最上面：它是這個人剛按下去的東西，不必等下一次重讀。
-watch(backtestRun.result, (submitted) => {
-  if (submitted !== null) {
-    runList.prepend(submitted)
-  }
-})
+const runScope = computed(() => new BacktestRunListQueryDto(null, strategyScriptId ?? null))
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
@@ -390,33 +375,14 @@ function buildRequest(): BacktestRequestDto {
         {{ t('backtest.runs.submitted', { id: backtestRun.result.value.id }) }}
       </AppAlert>
 
-      <AppPanel
-        :title="t('backtest.runs.title')"
-        data-testid="backtest-run-list-panel"
-      >
-        <BacktestRunList
-          :runs="runList.runs.value"
-          :total-count="runList.totalCount.value"
-          :loading="runList.loading.value"
-          :failure-message="runList.failureMessage.value"
-          :time-zone="timeZone"
-          :can-show-more="runList.canShowMore.value"
-          :empty-message="t('backtest.runs.emptyHere')"
-          @open="runDetail.openRun"
-          @cancel="runList.cancel"
-          @show-more="runList.showMore"
-        />
-      </AppPanel>
+      <BacktestRunPanel
+        :backtest-application="backtestApplication"
+        :time-zone="timeZone"
+        :scope="runScope"
+        :empty-message="t('backtest.runs.emptyHere')"
+        :submitted-run="backtestRun.result.value"
+      />
     </div>
-
-    <BacktestRunDetailDialog
-      :open="runDetail.open.value"
-      :detail="runDetail.detail.value"
-      :loading="runDetail.loading.value"
-      :failure-message="runDetail.failureMessage.value"
-      :time-zone="timeZone"
-      @close="runDetail.close"
-    />
 
     <BacktestRuleGuideDialog
       :open="ruleGuideOpen"
