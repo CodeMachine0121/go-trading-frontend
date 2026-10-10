@@ -1,8 +1,16 @@
 import Decimal from 'decimal.js'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
+import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
-import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
+import type { BacktestRunDto } from '~/domain/models/dto/backtest-run-dto'
+import type { BacktestRunPageDto } from '~/domain/models/dto/backtest-run-page-dto'
+import type { BacktestRunDetailDto } from '~/domain/models/dto/backtest-run-detail-dto'
+import type { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
+import type { BacktestRunStatusOptionDto } from '~/domain/models/dto/backtest-run-status-option-dto'
+import { BacktestRunListQueryDomain } from '~/domain/models/domains/backtest-run-list-query-domain'
+import { BacktestRunStatusDomain } from '~/domain/models/domains/backtest-run-status-domain'
+import { BACKTEST_RUN_STATUSES } from '~/domain/models/vo/backtest-run-status-vo'
 import type { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
@@ -40,54 +48,89 @@ const DEFAULT_INITIAL_CAPITAL = '10000'
  * 公開用例方法之間互不呼叫。
  */
 export class BacktestService {
-  constructor(private readonly backtestProxy: IBacktestProxy) {}
+  constructor(
+    private readonly backtestProxy: IBacktestProxy,
+    private readonly backtestRunProxy: IBacktestRunProxy,
+  ) {}
 
-  /** 跑一次回測：驗證輸入（不合法就不送出）→ 送出 → 已經可以直接畫的結果。 */
-  async runBacktest(backtestRequestDto: BacktestRequestDto): Promise<BacktestResultDto> {
+  /** 送出一次回測：驗證輸入（不合法就不送出）→ 送出 → 後端記下的那一筆輪次。成績單之後拿輪次去看。 */
+  async submitBacktest(backtestRequestDto: BacktestRequestDto): Promise<BacktestRunDto> {
     const requestDomain = new BacktestRequestDomain(backtestRequestDto)
-    const backtest = await this.backtestProxy.runBacktest(requestDomain)
+    const run = await this.backtestProxy.submitBacktest(requestDomain)
 
-    return backtest.toDomain().toDto()
+    return run.toDomain().toDto()
   }
 
-  /**
-   * 重演一整份交易策略：同樣驗證輸入（不合法就不送出）→ 送出 → 已經可以直接畫的結果。
-   *
-   * 回來的形狀與重演一支腳本完全相同，所以成績單、資金曲線與交易明細三個元件
-   * 一個都不必分兩種讀法。
-   */
-  async runTradingStrategyBacktest(
+  /** 送出一整份交易策略的回測：同樣驗證輸入（不合法就不送出）→ 送出 → 那一筆輪次。 */
+  async submitTradingStrategyBacktest(
     requestDto: TradingStrategyBacktestRequestDto,
-  ): Promise<BacktestResultDto> {
+  ): Promise<BacktestRunDto> {
     const requestDomain = new TradingStrategyBacktestRequestDomain(requestDto)
-    const backtest = await this.backtestProxy.runTradingStrategyBacktest(requestDomain)
+    const run = await this.backtestProxy.submitTradingStrategyBacktest(requestDomain)
 
-    return backtest.toDomain().toDto()
+    return run.toDomain().toDto()
   }
 
-  /**
-   * 在逐倉合約帳戶上重演一支合約策略腳本：現貨那幾格與合約多問的那幾格各自驗過（不合法就不送出）→
-   * 送出 → 已經可以直接畫的結果，成績單與明細多出合約那幾格。
-   */
-  async runContractBacktest(
+  /** 在逐倉合約帳戶上重演一支合約策略腳本：現貨那幾格與合約多問的那幾格各自驗過（不合法就不送出）→ 送出。 */
+  async submitContractBacktest(
     backtestRequestDto: BacktestRequestDto, termsDto: ContractBacktestTermsDto,
-  ): Promise<BacktestResultDto> {
+  ): Promise<BacktestRunDto> {
     const requestDomain = new BacktestRequestDomain(backtestRequestDto)
     const termsDomain = new ContractBacktestTermsDomain(termsDto)
-    const backtest = await this.backtestProxy.runContractBacktest(requestDomain, termsDomain)
+    const run = await this.backtestProxy.submitContractBacktest(requestDomain, termsDomain)
 
-    return backtest.toDomain().toDto()
+    return run.toDomain().toDto()
   }
 
   /** 在逐倉合約帳戶上重演一份合約交易策略。交易模式是那份交易策略自己的。 */
-  async runContractTradingStrategyBacktest(
+  async submitContractTradingStrategyBacktest(
     requestDto: TradingStrategyBacktestRequestDto, termsDto: ContractBacktestTermsDto,
-  ): Promise<BacktestResultDto> {
+  ): Promise<BacktestRunDto> {
     const requestDomain = new TradingStrategyBacktestRequestDomain(requestDto)
     const termsDomain = new ContractBacktestTermsDomain(termsDto)
-    const backtest = await this.backtestProxy.runContractTradingStrategyBacktest(requestDomain, termsDomain)
+    const run = await this.backtestProxy.submitContractTradingStrategyBacktest(requestDomain, termsDomain)
 
-    return backtest.toDomain().toDto()
+    return run.toDomain().toDto()
+  }
+
+  /** 列自己的輪次，新到舊。 */
+  async listRuns(queryDto: BacktestRunListQueryDto): Promise<BacktestRunPageDto> {
+    const page = await this.backtestRunProxy.listRuns(new BacktestRunListQueryDomain(queryDto), false)
+
+    return page.toDto()
+  }
+
+  /** 列表自己定期重讀的那一發：走背景，不算使用者在等。 */
+  async refreshRuns(queryDto: BacktestRunListQueryDto): Promise<BacktestRunPageDto> {
+    const page = await this.backtestRunProxy.listRuns(new BacktestRunListQueryDomain(queryDto), true)
+
+    return page.toDto()
+  }
+
+  /** 翻下一頁：同一組條件、上限再往上加一頁。 */
+  grownQuery(queryDto: BacktestRunListQueryDto): BacktestRunListQueryDto {
+    return new BacktestRunListQueryDomain(queryDto).grown()
+  }
+
+  canShowMoreRuns(queryDto: BacktestRunListQueryDto, shownCount: number, totalCount: number): boolean {
+    return new BacktestRunListQueryDomain(queryDto).canShowMore(shownCount, totalCount)
+  }
+
+  async getRun(id: number): Promise<BacktestRunDetailDto> {
+    const run = await this.backtestRunProxy.getRun(id)
+
+    return run.toDomain().toDetailDto()
+  }
+
+  async cancelRun(id: number): Promise<BacktestRunDto> {
+    const run = await this.backtestRunProxy.cancelRun(id)
+
+    return run.toDomain().toDto()
+  }
+
+  /** 狀態篩選的選單：五種，各用自己的說法。 */
+  listBacktestRunStatusOptions(): BacktestRunStatusOptionDto[] {
+    return BACKTEST_RUN_STATUSES.map(status => new BacktestRunStatusDomain(status).toOptionDto())
   }
 
   /** 合約重演的交易模式選單：三種，連同它們買入與賣出各是什麼意思。 */

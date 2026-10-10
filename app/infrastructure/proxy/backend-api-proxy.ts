@@ -24,6 +24,7 @@ type BackendFailure = {
     openTradeId?: number
     reason?: string
     failureReason?: string
+    ownerActiveLimit?: number
   }
 }
 
@@ -230,6 +231,7 @@ export abstract class BackendApiProxy {
               timeAllowanceSpent: backendFailure.data?.timeAllowanceSpent ?? false,
               openTradeId: backendFailure.data?.openTradeId,
               reason,
+              ownerActiveLimit: backendFailure.data?.ownerActiveLimit,
             },
           )
         }

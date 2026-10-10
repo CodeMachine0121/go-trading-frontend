@@ -8,6 +8,7 @@ import { StrategyScriptProxy } from '~/infrastructure/proxy/strategy-script-prox
 import { StrategyBotProxy } from '~/infrastructure/proxy/strategy-bot-proxy'
 import { TradingStrategyProxy } from '~/infrastructure/proxy/trading-strategy-proxy'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
+import { BacktestRunProxy } from '~/infrastructure/proxy/backtest-run-proxy'
 import { BacktestService } from '~/domain/service/backtest-service'
 import { BacktestApplication } from '~/application/backtest-application'
 import { TimeZonePreferenceProxy } from '~/infrastructure/proxy/time-zone-preference-proxy'
@@ -193,11 +194,11 @@ export default defineNuxtPlugin(() => {
     new StrategyScriptService(new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
-  // 重演一支策略腳本是後端的另一項能力，所以它有自己的 proxy 而不是塞進算指標的那一個：
-  // 兩者問的問題不同（這一批 K 線上算出什麼 vs 這一段歷史走下來會怎樣），
-  // 回來的形狀也完全不同。它同樣不留存，因此這台瀏覽器上沒有任何要記住的東西。
+  // 送出一次重演與回頭看輪次是後端的兩個入口：前者把要求記成一筆輪次，後者列、看、取消。
   const backtestApplication = new BacktestApplication(
-    new BacktestService(new BacktestProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+    new BacktestService(
+      new BacktestProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new BacktestRunProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
   )
 
   // 圖表上的指標同時要打後端（算）與碰瀏覽器儲存（記住線色、記住旋鈕調成什麼、

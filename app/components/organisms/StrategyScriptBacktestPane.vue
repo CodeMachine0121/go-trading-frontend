@@ -6,7 +6,8 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
 import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
-import BacktestResultSections from '~/components/organisms/BacktestResultSections.vue'
+import BacktestRunList from '~/components/organisms/BacktestRunList.vue'
+import BacktestRunDetailDialog from '~/components/organisms/BacktestRunDetailDialog.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
@@ -19,7 +20,10 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
+import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 import { useBacktestRun } from '~/composables/use-backtest-run'
+import { useBacktestRuns } from '~/composables/use-backtest-runs'
+import { useBacktestRunDetail } from '~/composables/use-backtest-run-detail'
 import { useI18n } from 'vue-i18n'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 
@@ -83,6 +87,21 @@ const symbol = defineModel<string>('symbol', { required: true })
 const aggregationInterval = defineModel<string>('aggregationInterval', { required: true })
 
 const backtestRun = useBacktestRun(backtestApplication)
+
+// 下方那份「我的回測」：指名了一支腳本就只列它的；還沒存起來的算式沒有來源可指，列全部。
+const runList = useBacktestRuns(
+  backtestApplication, () => new BacktestRunListQueryDto(null, strategyScriptId ?? null))
+const runDetail = useBacktestRunDetail(backtestApplication)
+onMounted(() => {
+  void runList.load()
+})
+
+// 剛送出的那一筆插到列表最上面：它是這個人剛按下去的東西，不必等下一次重讀。
+watch(backtestRun.result, (submitted) => {
+  if (submitted !== null) {
+    runList.prepend(submitted)
+  }
+})
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
@@ -149,13 +168,14 @@ const quiet = computed(() => backtestRun.result.value === null
   && backtestRun.scriptFailedMessage.value === null
   && backtestRun.requestRejectedMessage.value === null
   && backtestRun.timeAllowanceSpentMessage.value === null
+  && backtestRun.ownerLimitMessage.value === null
   && backtestRun.serverErrorMessage.value === null)
 
 // 工作台手機上釘在底下的那顆「執行回測」送出的是這一張表單；它要知道這一次是不是還在跑，
 // 才能與這裡自己那顆一起停用——兩顆鍵，同一條規矩。
 defineExpose({ running: backtestRun.running })
 
-// 換了一份工作區，上一次那次重演就與畫面上這一份無關了——結果與失敗訊息一起清掉。
+// 換了一份工作區，上一次送出的那一句與失敗訊息就與畫面上這一份無關了，一起清掉。
 watch(() => workspaceGeneration, () => backtestRun.clear())
 
 async function runBacktest() {
@@ -353,21 +373,50 @@ function buildRequest(): BacktestRequestDto {
         {{ t('backtest.common.unreachable') }}
       </AppAlert>
 
+      <!-- 同時太多筆：要做的是等一筆結束或取消一筆，不是改請求。 -->
       <AppAlert
-        v-else-if="backtestRun.running.value"
-        tone="info"
-        data-testid="backtest-running-alert"
+        v-else-if="backtestRun.ownerLimitMessage.value"
+        tone="warning"
+        data-testid="backtest-owner-limit-alert"
       >
-        {{ t('backtest.strategyScriptBacktestPane.runningNotice') }}
+        {{ localize(backtestRun.ownerLimitMessage.value) }}
       </AppAlert>
 
-      <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->
-      <BacktestResultSections
-        v-if="backtestRun.result.value"
-        :result="backtestRun.result.value"
-        :time-zone="timeZone"
-      />
+      <AppAlert
+        v-else-if="backtestRun.result.value"
+        tone="success"
+        data-testid="backtest-submitted-alert"
+      >
+        {{ t('backtest.runs.submitted', { id: backtestRun.result.value.id }) }}
+      </AppAlert>
+
+      <AppPanel
+        :title="t('backtest.runs.title')"
+        data-testid="backtest-run-list-panel"
+      >
+        <BacktestRunList
+          :runs="runList.runs.value"
+          :total-count="runList.totalCount.value"
+          :loading="runList.loading.value"
+          :failure-message="runList.failureMessage.value"
+          :time-zone="timeZone"
+          :can-show-more="runList.canShowMore.value"
+          :empty-message="t('backtest.runs.emptyHere')"
+          @open="runDetail.openRun"
+          @cancel="runList.cancel"
+          @show-more="runList.showMore"
+        />
+      </AppPanel>
     </div>
+
+    <BacktestRunDetailDialog
+      :open="runDetail.open.value"
+      :detail="runDetail.detail.value"
+      :loading="runDetail.loading.value"
+      :failure-message="runDetail.failureMessage.value"
+      :time-zone="timeZone"
+      @close="runDetail.close"
+    />
 
     <BacktestRuleGuideDialog
       :open="ruleGuideOpen"

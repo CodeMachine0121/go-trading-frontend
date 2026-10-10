@@ -1,5 +1,8 @@
 import type Decimal from 'decimal.js'
-import { BacktestRun } from '~/domain/models/entities/backtest-run'
+import { vi } from 'vitest'
+import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
+import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
+import { BacktestRun, BacktestRunPage } from '~/domain/models/entities/backtest-run'
 import type { Backtest } from '~/domain/models/entities/backtest'
 
 export const RUN_SUBMITTED_AT = new Date('2026-10-10T02:00:00Z')
@@ -76,6 +79,28 @@ export function queuedRunWire(overrides: Record<string, unknown> = {}) {
     maximumDrawdown: null,
     tradeCount: null,
     failureReason: '',
+    ...overrides,
+  }
+}
+
+/** 送出回測的替身：四種入口都回一筆排隊中的輪次。 */
+export function buildBacktestProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
+  return {
+    submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ kind: 'spotTradingStrategy' })),
+    submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ kind: 'contractScript' })),
+    submitContractTradingStrategyBacktest: vi.fn().mockResolvedValue(
+      buildBacktestRun({ kind: 'contractTradingStrategy' })),
+    ...overrides,
+  }
+}
+
+/** 回頭看輪次的替身：預設一筆都沒有。 */
+export function buildBacktestRunProxy(overrides: Partial<IBacktestRunProxy> = {}): IBacktestRunProxy {
+  return {
+    listRuns: vi.fn().mockResolvedValue(new BacktestRunPage([], 0)),
+    getRun: vi.fn().mockResolvedValue(buildBacktestRun()),
+    cancelRun: vi.fn().mockResolvedValue(buildBacktestRun({ status: 'cancelled' })),
     ...overrides,
   }
 }

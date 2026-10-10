@@ -2,6 +2,8 @@ import Decimal from 'decimal.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
+import { queuedRunWire } from '../../fixtures/backtest-run'
+import { BacktestRunProxy } from '~/infrastructure/proxy/backtest-run-proxy'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
@@ -67,17 +69,29 @@ function rejectionOf(status: number, message: string, data: Record<string, unkno
   })
 }
 
+/**
+ * 一份成績單在線上的樣子，透過「看一筆輪次」讀回來。
+ * 送出回測已經不當場回成績單了——成績單只從完成的那一筆輪次拿得到。
+ */
+async function replayedRun(resultWire: unknown, kind = 'spotScript') {
+  vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ ...queuedRunWire({ kind, status: 'succeeded' }), result: resultWire }))
+
+  const run = await new BacktestRunProxy(BASE_URL, signedInSessionStorage()).getRun(40)
+
+  return run.result!
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('BacktestProxy short-term replays', () => {
   it.each([
-    ['重演一支腳本', (proxy: BacktestProxy) => proxy.runBacktest(scriptRequestOf('nextOpen', VALIDATION_START_TIME))],
-    ['重演一份交易策略', (proxy: BacktestProxy) => proxy.runTradingStrategyBacktest(
+    ['重演一支腳本', (proxy: BacktestProxy) => proxy.submitBacktest(scriptRequestOf('nextOpen', VALIDATION_START_TIME))],
+    ['重演一份交易策略', (proxy: BacktestProxy) => proxy.submitTradingStrategyBacktest(
       strategyRequestOf('nextOpen', VALIDATION_START_TIME))],
   ])('%s時送出下一格開盤成交與驗證起點', async (_, run) => {
-    const fetchMock = vi.fn().mockResolvedValue(resultWire('2026-01-01T00:00:00Z', '2026-01-31T23:00:00Z'))
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await run(new BacktestProxy(BASE_URL, signedInSessionStorage()))
@@ -88,10 +102,10 @@ describe('BacktestProxy short-term replays', () => {
   })
 
   it('沒動的成交時點與留白的驗證起點不上線', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(resultWire('2026-01-01T00:00:00Z', '2026-01-31T23:00:00Z'))
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(scriptRequestOf('close', null))
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(scriptRequestOf('close', null))
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('fillTiming')
@@ -99,15 +113,12 @@ describe('BacktestProxy short-term replays', () => {
   })
 
   it('讀出五格、成交時點與兩段各自的結果', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(resultWire(
+    const backtest = await replayedRun(resultWire(
       '2026-01-01T00:00:00Z', '2026-01-31T23:00:00Z', {
         validationStartTime: '2026-01-21T00:00:00Z',
         inSample: resultWire('2026-01-01T00:00:00Z', '2026-01-20T23:00:00Z'),
         validation: resultWire('2026-01-21T00:00:00Z', '2026-01-31T23:00:00Z'),
-      })))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runBacktest(scriptRequestOf('nextOpen', VALIDATION_START_TIME))
+      }))
 
     expect(backtest.tradeStatistics.profitFactor).toBe(2.5)
     expect(backtest.tradeStatistics.expectancy?.equals(new Decimal(75))).toBe(true)
@@ -138,10 +149,7 @@ describe('BacktestProxy short-term replays', () => {
       closedTrades: [],
       equityCurve: [],
     }
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(olderWire))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runBacktest(scriptRequestOf('close', null))
+    const backtest = await replayedRun(olderWire)
 
     expect(backtest.tradeStatistics.profitFactor).toBeNull()
     expect(backtest.tradeStatistics.maximumConsecutiveLossCount).toBe(0)
@@ -166,15 +174,11 @@ describe('BacktestProxy short-term replays', () => {
 
       return { ...wire, tradingMode: 'longShort', leverage: '1', summary: { ...wire.summary, ...contractSummaryExtra } }
     }
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(contractResultWire(
+    const backtest = await replayedRun(contractResultWire(
       '2026-01-01T00:00:00Z', '2026-01-31T23:00:00Z', {
         inSample: contractResultWire('2026-01-01T00:00:00Z', '2026-01-20T23:00:00Z'),
         validation: contractResultWire('2026-01-21T00:00:00Z', '2026-01-31T23:00:00Z'),
-      })))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runContractBacktest(
-      scriptRequestOf('close', VALIDATION_START_TIME),
-      new ContractBacktestTermsDomain(new ContractBacktestTermsDto(new Decimal(0), new Decimal(0), null)))
+      }), 'contractScript')
 
     expect(backtest.validation?.contractFigures?.tradingMode).toBe('longShort')
     expect(backtest.inSample?.tradeStatistics.profitFactor).toBe(2.5)
@@ -183,10 +187,10 @@ describe('BacktestProxy short-term replays', () => {
   const contractTerms = () => new ContractBacktestTermsDomain(
     new ContractBacktestTermsDto(new Decimal(0), new Decimal(0), null))
   const everyReplay: readonly [string, (proxy: BacktestProxy) => Promise<unknown>][] = [
-    ['現貨策略腳本', proxy => proxy.runBacktest(scriptRequestOf('close', null))],
-    ['現貨交易策略', proxy => proxy.runTradingStrategyBacktest(strategyRequestOf('close', null))],
-    ['合約策略腳本', proxy => proxy.runContractBacktest(scriptRequestOf('close', null), contractTerms())],
-    ['合約交易策略', proxy => proxy.runContractTradingStrategyBacktest(
+    ['現貨策略腳本', proxy => proxy.submitBacktest(scriptRequestOf('close', null))],
+    ['現貨交易策略', proxy => proxy.submitTradingStrategyBacktest(strategyRequestOf('close', null))],
+    ['合約策略腳本', proxy => proxy.submitContractBacktest(scriptRequestOf('close', null), contractTerms())],
+    ['合約交易策略', proxy => proxy.submitContractTradingStrategyBacktest(
       strategyRequestOf('close', null), contractTerms())],
   ]
 
@@ -214,7 +218,7 @@ describe('BacktestProxy short-term replays', () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(rejectionOf(400, '驗證段湊不出任何一格', { field })))
 
     const failure = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runBacktest(scriptRequestOf('close', VALIDATION_START_TIME)).catch((error: unknown) => error)
+      .submitBacktest(scriptRequestOf('close', VALIDATION_START_TIME)).catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BacktestFieldError)
     expect((failure as BacktestFieldError).field).toBe(field)

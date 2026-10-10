@@ -2,6 +2,9 @@ import Decimal from 'decimal.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
+import { queuedRunWire } from '../../fixtures/backtest-run'
+import { BacktestRunOwnerLimitError } from '~/domain/errors/backtest-run-owner-limit-error'
+import { BacktestRunProxy } from '~/infrastructure/proxy/backtest-run-proxy'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
@@ -86,6 +89,7 @@ function completedWire() {
 function rejectionOf(status: number, message: string, named?: {
   parameterName?: string
   field?: string
+  ownerActiveLimit?: number
 }) {
   return Object.assign(new Error(message), {
     response: { status },
@@ -95,7 +99,7 @@ function rejectionOf(status: number, message: string, named?: {
 
 async function backtestFailure(): Promise<unknown> {
   try {
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
   }
   catch (error: unknown) {
     return error
@@ -104,16 +108,52 @@ async function backtestFailure(): Promise<unknown> {
   throw new Error('這次回測應該要失敗才對')
 }
 
+/**
+ * 一份成績單在線上的樣子，透過「看一筆輪次」讀回來。
+ * 送出回測已經不當場回成績單了——成績單只從完成的那一筆輪次拿得到。
+ */
+async function replayedRun(resultWire: unknown, kind = 'spotScript') {
+  vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ ...queuedRunWire({ kind, status: 'succeeded' }), result: resultWire }))
+
+  const run = await new BacktestRunProxy(BASE_URL, signedInSessionStorage()).getRun(40)
+
+  return run.result!
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('BacktestProxy', () => {
+  it('送出之後拿回的是後端記下的那一筆輪次：編號與排隊中', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(queuedRunWire({ id: 40, status: 'queued' })))
+
+    const run = await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
+
+    expect(run.id).toBe(40)
+    expect(run.status).toBe('queued')
+    expect(run.result).toBeNull()
+  })
+
+  it('同時太多筆被擋下時說出上限，自成一類', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
+      rejectionOf(429, 'too many active backtest runs', { ownerActiveLimit: 3 })))
+
+    const failure = await backtestFailure()
+
+    expect(failure).toBeInstanceOf(BacktestRunOwnerLimitError)
+    expect((failure as BacktestRunOwnerLimitError).ownerActiveLimit).toBe(3)
+    expect((failure as BacktestRunOwnerLimitError).localizedMessage.in('zh-TW'))
+      .toBe('你同時最多 3 筆，等其中一筆結束再送')
+    expect((failure as BacktestRunOwnerLimitError).localizedMessage.in('en'))
+      .toBe('You can have at most 3 backtests queued or running; wait for one to finish')
+  })
+
   it('把每一項條件都送到回測端點', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/backtests`,
@@ -132,10 +172,10 @@ describe('BacktestProxy', () => {
   })
 
   it('金額以字串送出去，不經過浮點數', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(typeof body.initialCapital).toBe('string')
@@ -143,10 +183,10 @@ describe('BacktestProxy', () => {
   })
 
   it('填了的出場距離以字串送出去', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(
       requestOf([], new Decimal('2'), new Decimal('5')))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -158,10 +198,10 @@ describe('BacktestProxy', () => {
     // 送一個零雖然等價（後端把零讀成「沒有這個出場」），
     // 但那個等價是巧合：一個空輸入框轉成的零不是使用者的意思。
     // 不送它，「留白就不模擬」在線上就是字面的意思。
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('stopLossPercentage')
@@ -169,10 +209,10 @@ describe('BacktestProxy', () => {
   })
 
   it('只填一個就只送那一個', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(
       requestOf([], new Decimal('2'), new Decimal(0)))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -181,10 +221,10 @@ describe('BacktestProxy', () => {
   })
 
   it('填了的費率以字串送出去', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(
       requestOf([], new Decimal(0), new Decimal(0),
         new Decimal('0.0855'), new Decimal('0.3855')))
 
@@ -195,10 +235,10 @@ describe('BacktestProxy', () => {
 
   it('留白的費率**根本不出現在請求裡**', async () => {
     // 與出場距離一字不差的理由：一個空輸入框轉成的零不是使用者的意思。
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('entryCostPercentage')
@@ -206,10 +246,10 @@ describe('BacktestProxy', () => {
   })
 
   it('只填進場那一格就只送那一格——出場由後端沿用它', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(
       requestOf([], new Decimal(0), new Decimal(0), new Decimal('0.1')))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -222,10 +262,7 @@ describe('BacktestProxy', () => {
     wire.summary.totalTransactionCost = '210'
     wire.closedTrades[0]!.entryCost = '100'
     wire.closedTrades[0]!.exitCost = '110'
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
-
-    const backtest = await new BacktestProxy(
-      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(wire)
 
     expect(backtest.totalTransactionCost.toString()).toBe('210')
     expect(backtest.closedTrades[0]!.entryCost.toString()).toBe('100')
@@ -234,10 +271,7 @@ describe('BacktestProxy', () => {
 
   it('沒說成本時一律當成零', async () => {
     // 比這一刀早的後端從來不收費，也不說這三件事。
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
-
-    const backtest = await new BacktestProxy(
-      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(completedWire())
 
     expect(backtest.totalTransactionCost.isZero()).toBe(true)
     expect(backtest.closedTrades[0]!.entryCost.isZero()).toBe(true)
@@ -263,10 +297,7 @@ describe('BacktestProxy', () => {
     wire.summary.stopLossExitCount = 2
     wire.summary.takeProfitExitCount = 1
     wire.closedTrades[0]!.exitReason = 'stopLoss'
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
-
-    const backtest = await new BacktestProxy(
-      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(wire)
 
     expect(backtest.stopLossExitCount).toBe(2)
     expect(backtest.takeProfitExitCount).toBe(1)
@@ -275,10 +306,7 @@ describe('BacktestProxy', () => {
 
   it('沒說出場原因時當成訊號出場，兩個筆數當成零', async () => {
     // 比這一刀早的後端不說這三件事，而那時每一筆都只可能是訊號出場。
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
-
-    const backtest = await new BacktestProxy(
-      BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(completedWire())
 
     expect(backtest.stopLossExitCount).toBe(0)
     expect(backtest.takeProfitExitCount).toBe(0)
@@ -298,10 +326,10 @@ describe('BacktestProxy', () => {
 
   it('宣告與這一次的值分兩份送，空的也送', async () => {
     // 「一個都沒宣告」與「忘了送」在收的那一端長得一模一樣。
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.parameters).toEqual([])
@@ -309,10 +337,10 @@ describe('BacktestProxy', () => {
   })
 
   it('宣告過的旋鈕兩份都帶著', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(
       requestOf([new StrategyScriptParameterDto('period', 'lookbackCount', 20)]))
 
     const body = fetchMock.mock.calls[0]![1].body
@@ -321,9 +349,7 @@ describe('BacktestProxy', () => {
   })
 
   it('把回來的東西正規化成 entity，金額不失精度', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(completedWire())
 
     expect(backtest.symbol).toBe('BTCUSDT')
     expect(backtest.winRate).toBe(0.75)
@@ -337,18 +363,14 @@ describe('BacktestProxy', () => {
     // 那是後端刻意說的兩件不同的事；存成 0 會讓分別在進 domain 的第一步消失。
     const wire = completedWire()
     wire.summary.winRate = null as unknown as number
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(wire)
 
     expect(backtest.winRate).toBeNull()
   })
 
   it('沒有交易也沒有曲線時收成空清單，不是失敗', async () => {
     const wire = { ...completedWire(), closedTrades: null, equityCurve: null }
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(wire))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    const backtest = await replayedRun(wire)
 
     expect(backtest.closedTrades).toEqual([])
     expect(backtest.equityCurve).toEqual([])
@@ -417,7 +439,7 @@ function tradingStrategyRequestOf(
 async function tradingStrategyBacktestFailure(): Promise<unknown> {
   try {
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+      .submitTradingStrategyBacktest(tradingStrategyRequestOf())
   }
   catch (error: unknown) {
     return error
@@ -428,11 +450,11 @@ async function tradingStrategyBacktestFailure(): Promise<unknown> {
 
 describe('BacktestProxy 重演一整份交易策略', () => {
   it('打的是那一份底下的重演端點', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+      .submitTradingStrategyBacktest(tradingStrategyRequestOf())
 
     expect(fetchMock.mock.calls[0]![0]).toBe(`${BASE_URL}/trading-strategies/7/backtests`)
     expect(fetchMock.mock.calls[0]![1].method).toBe('POST')
@@ -440,11 +462,11 @@ describe('BacktestProxy 重演一整份交易策略', () => {
 
   it('送出去的沒有彙總刻度，也沒有算式', async () => {
     // 那兩樣是那份交易策略自己說的。順手送過去的話，同一件事就有兩個答案。
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+      .submitTradingStrategyBacktest(tradingStrategyRequestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('aggregationInterval')
@@ -458,21 +480,15 @@ describe('BacktestProxy 重演一整份交易策略', () => {
 
   it('讀回來的那一份說得出打架了幾棒', async () => {
     const wire = completedWire()
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
-      { ...wire, summary: { ...wire.summary, conflictedCandleCount: 180 } }))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+    const backtest = await replayedRun(
+      { ...wire, summary: { ...wire.summary, conflictedCandleCount: 180 } })
 
     expect(backtest.conflictedCandleCount).toBe(180)
   })
 
   it('沒有那一項時當成一棒都沒打架過', async () => {
     // 單獨重演一支策略腳本從來不會打架，後端那一邊也就不說這件事。
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(completedWire()))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+    const backtest = await replayedRun(completedWire())
 
     expect(backtest.conflictedCandleCount).toBe(0)
   })
@@ -503,11 +519,11 @@ describe('BacktestProxy 照哪一套規矩操作', () => {
     // 這是 R4 的機械面，而且它的家在這裡：這一側不宣告的欄位送不出去。
     // 上一層（面板）測的是 DTO，那是一層之上——一個在 proxy 裡被重新加回
     // body 的欄位，DTO 那一層看不見。
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runBacktest(requestOf())
+      .submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('tradingMode')
@@ -519,11 +535,11 @@ describe('BacktestProxy 照哪一套規矩操作', () => {
   })
 
   it('重演一整份交易策略時，刻度、算式與那三格都不上路', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runTradingStrategyBacktest(tradingStrategyRequestOf())
+      .submitTradingStrategyBacktest(tradingStrategyRequestOf())
 
     const body = fetchMock.mock.calls[0]![1].body
     // 那三樣都是這份交易策略自己說的，多送一份等於同一件事有兩個答案。
@@ -556,10 +572,10 @@ describe('BacktestProxy 指名一支策略腳本', () => {
   }
 
   it('只送識別碼，不送算式也不送旋鈕宣告；這一次的值照送', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(namedRequest())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(namedRequest())
 
     const body = fetchMock.mock.calls[0]?.[1]?.body
     expect(body).toHaveProperty('strategyScriptId', 9)
@@ -569,10 +585,10 @@ describe('BacktestProxy 指名一支策略腳本', () => {
   })
 
   it('自帶算式時送算式與旋鈕宣告，沒有識別碼', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(completedWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
-    await new BacktestProxy(BASE_URL, signedInSessionStorage()).runBacktest(requestOf())
+    await new BacktestProxy(BASE_URL, signedInSessionStorage()).submitBacktest(requestOf())
 
     const body = fetchMock.mock.calls[0]?.[1]?.body
     expect(body).toHaveProperty('script', SCRIPT_BODY)

@@ -9,6 +9,9 @@ import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/bac
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { buildBacktestRun, buildBacktestRunProxy } from '../fixtures/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
 const WHOLE_SCRIPT = [
@@ -39,16 +42,16 @@ function completedBacktest(): Backtest {
 
 function buildProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
   return {
-    runBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runContractBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ kind: 'spotTradingStrategy' })),
+    submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ kind: 'contractScript' })),
+    submitContractTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ kind: 'contractTradingStrategy' })),
     ...overrides,
   }
 }
 
 function buildApplication(proxy: IBacktestProxy): BacktestApplication {
-  return new BacktestApplication(new BacktestService(proxy))
+  return new BacktestApplication(new BacktestService(proxy, buildBacktestRunProxy()))
 }
 
 function backtestRequest(overrides: Partial<{
@@ -80,34 +83,90 @@ function backtestRequest(overrides: Partial<{
 
 describe('BacktestApplication', () => {
   describe('跑一次回測', () => {
-    it('把結果交成已經可以直接畫的樣子', async () => {
-      const result = await buildApplication(buildProxy()).runBacktest(backtestRequest())
+    it('送出就拿到那一筆輪次，不是成績單', async () => {
+      const run = await buildApplication(buildProxy()).submitBacktest(backtestRequest())
 
-      expect(result.summary.totalReturnRate).toBe('+25.00%')
-      expect(result.summary.totalReturnTone).toBe('positive')
-      expect(result.closedTrades).toHaveLength(1)
-      expect(result.closedTrades[0]!.directionLabel.in('zh-TW')).toBe('做多')
-      expect(result.equityCurve).toHaveLength(1)
+      expect(run.id).toBe(40)
+      expect(run.statusLabel.in('zh-TW')).toBe('排隊中')
+      expect(run.isActive).toBe(true)
+    })
+
+    it('完成的那一筆從輪次看成績單，已經是可以直接畫的樣子', async () => {
+      const runProxy = buildBacktestRunProxy({
+        getRun: vi.fn().mockResolvedValue(buildBacktestRun({ status: 'succeeded', result: completedBacktest() })),
+      })
+      const application = new BacktestApplication(new BacktestService(buildProxy(), runProxy))
+
+      const detail = await application.getRun(40)
+
+      expect(detail.run.statusLabel.in('zh-TW')).toBe('完成')
+      expect(detail.result?.summary.totalReturnRate).toBe('+25.00%')
+      expect(detail.result?.summary.totalReturnTone).toBe('positive')
+      expect(detail.result?.closedTrades[0]!.directionLabel.in('zh-TW')).toBe('做多')
+      expect(detail.result?.equityCurve).toHaveLength(1)
+    })
+
+    it('列出的每一筆都帶著狀態與摘要，並回總數', async () => {
+      const runProxy = buildBacktestRunProxy({
+        listRuns: vi.fn().mockResolvedValue(new BacktestRunPage([
+          buildBacktestRun({ id: 41, status: 'succeeded', totalReturnRate: 0.255, maximumDrawdown: 0.101, tradeCount: 4 }),
+        ], 25)),
+      })
+      const application = new BacktestApplication(new BacktestService(buildProxy(), runProxy))
+
+      const page = await application.listRuns(new BacktestRunListQueryDto('succeeded'))
+
+      expect(page.totalCount).toBe(25)
+      expect(page.runs[0]!.outcome?.in('zh-TW')).toBe('+25.5% · 最大回撤 10.1% · 4 筆')
+      const sent = vi.mocked(runProxy.listRuns).mock.calls[0]!
+      expect(sent[0].status).toBe('succeeded')
+      expect(sent[0].limit).toBe(20)
+      expect(sent[1]).toBe(false)
+    })
+
+    it('自己定期重讀的那一發走背景', async () => {
+      const runProxy = buildBacktestRunProxy()
+      const application = new BacktestApplication(new BacktestService(buildProxy(), runProxy))
+
+      await application.refreshRuns(new BacktestRunListQueryDto())
+
+      expect(vi.mocked(runProxy.listRuns).mock.calls[0]![1]).toBe(true)
+    })
+
+    it('取消回的是改過狀態的那一筆', async () => {
+      const application = new BacktestApplication(new BacktestService(buildProxy(), buildBacktestRunProxy()))
+
+      const run = await application.cancelRun(41)
+
+      expect(run.statusLabel.in('zh-TW')).toBe('已取消')
+      expect(run.canCancel).toBe(false)
+    })
+
+    it('狀態選單五種', () => {
+      const labels = buildApplication(buildProxy()).listBacktestRunStatusOptions()
+        .map(option => option.label.in('zh-TW'))
+
+      expect(labels).toEqual(['排隊中', '進行中', '完成', '失敗', '已取消'])
     })
 
     it('送出去的就是畫面上那一整份算式，一字不改', async () => {
       // 兩個去處讀的是同一份算式，所以送出去的也是同一份。
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest())
+      await buildApplication(proxy).submitBacktest(backtestRequest())
 
-      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      const sent = vi.mocked(proxy.submitBacktest).mock.calls[0]![0] as BacktestRequestDomain
       expect(sent.script).toBe(WHOLE_SCRIPT)
     })
 
     it('宣告的旋鈕跟著一起送出去', async () => {
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({
+      await buildApplication(proxy).submitBacktest(backtestRequest({
         parameters: [new StrategyScriptParameterDto('period', 'lookbackCount', 20)],
       }))
 
-      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      const sent = vi.mocked(proxy.submitBacktest).mock.calls[0]![0] as BacktestRequestDomain
       expect(sent.parameters.all).toHaveLength(1)
       expect(sent.parameters.all[0]!.name).toBe('period')
     })
@@ -118,9 +177,9 @@ describe('BacktestApplication', () => {
       // 從市集加入的那些沒有算式可以送——指名是它們唯一回測得了的方式。
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({ script: '', strategyScriptId: 9 }))
+      await buildApplication(proxy).submitBacktest(backtestRequest({ script: '', strategyScriptId: 9 }))
 
-      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      const sent = vi.mocked(proxy.submitBacktest).mock.calls[0]![0] as BacktestRequestDomain
       expect(sent.strategyScriptId).toBe(9)
       expect(sent.script).toBe('')
     })
@@ -128,9 +187,9 @@ describe('BacktestApplication', () => {
     it('指名時只有空白字元的算式不算一段算式，也不跟著送', async () => {
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({ script: '  ', strategyScriptId: 9 }))
+      await buildApplication(proxy).submitBacktest(backtestRequest({ script: '  ', strategyScriptId: 9 }))
 
-      const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0] as BacktestRequestDomain
+      const sent = vi.mocked(proxy.submitBacktest).mock.calls[0]![0] as BacktestRequestDomain
       expect(sent.script).toBe('')
     })
 
@@ -138,13 +197,13 @@ describe('BacktestApplication', () => {
       const proxy = buildProxy()
 
       const rejection = await buildApplication(proxy)
-        .runBacktest(backtestRequest({ strategyScriptId: 9 }))
+        .submitBacktest(backtestRequest({ strategyScriptId: 9 }))
         .catch((error: unknown) => error)
 
       expect(rejection).toBeInstanceOf(BacktestFieldError)
       expect((rejection as BacktestFieldError).field).toBe('script')
       expect((rejection as BacktestFieldError).message).toBe('指名一支策略腳本與自帶一段算式只能挑一種')
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
     })
   })
 
@@ -169,17 +228,17 @@ describe('BacktestApplication', () => {
     ])('%s：指名是哪一格，而且一次都沒打出去', async (_name, overrides, expectedField) => {
       const proxy = buildProxy()
 
-      await expect(buildApplication(proxy).runBacktest(backtestRequest(overrides)))
+      await expect(buildApplication(proxy).submitBacktest(backtestRequest(overrides)))
         .rejects.toThrow(BacktestFieldError)
-      await buildApplication(proxy).runBacktest(backtestRequest(overrides)).catch(
+      await buildApplication(proxy).submitBacktest(backtestRequest(overrides)).catch(
         (error: BacktestFieldError) => expect(error.field).toBe(expectedField))
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
     })
 
     it('指標值種類不是「一個信號」時擋在算式那一格，說出目前的種類', async () => {
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'floatList' })).catch(
+      await buildApplication(proxy).submitBacktest(backtestRequest({ resultType: 'floatList' })).catch(
         (error: BacktestFieldError) => {
           expect(error.field).toBe('script')
           expect(error.message).toContain('一個信號')
@@ -187,35 +246,35 @@ describe('BacktestApplication', () => {
           expect(error.localizedMessage.in('en')).toContain('"A signal"')
           expect(error.localizedMessage.in('en')).toContain('"A list of numbers"')
         })
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
     })
 
     it('種類是「一個信號」但本金不合法時，擋的是本金那一格，不是種類', async () => {
       const proxy = buildProxy()
 
       await buildApplication(proxy)
-        .runBacktest(backtestRequest({ resultType: 'signal', initialCapital: new Decimal(0) }))
+        .submitBacktest(backtestRequest({ resultType: 'signal', initialCapital: new Decimal(0) }))
         .catch((error: BacktestFieldError) => expect(error.field).toBe('initialCapital'))
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
     })
 
     it('種類是「一個信號」時正常送出', async () => {
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({ resultType: 'signal' }))
+      await buildApplication(proxy).submitBacktest(backtestRequest({ resultType: 'signal' }))
 
-      expect(proxy.runBacktest).toHaveBeenCalled()
+      expect(proxy.submitBacktest).toHaveBeenCalled()
     })
 
     it('全押時那一格填什麼都不影響', async () => {
       // 使用者從百分比切到全押，那一格留著的數字不該讓他送不出去。
       const proxy = buildProxy()
 
-      await buildApplication(proxy).runBacktest(backtestRequest({
+      await buildApplication(proxy).submitBacktest(backtestRequest({
         positionSizingMode: 'allIn', positionSizingValue: new Decimal(Number.NaN),
       }))
 
-      expect(proxy.runBacktest).toHaveBeenCalled()
+      expect(proxy.submitBacktest).toHaveBeenCalled()
     })
   })
 
@@ -268,43 +327,42 @@ describe('BacktestApplication 重演一整份交易策略', () => {
       new Decimal('50'), new Decimal(0), new Decimal(0), new Decimal(0), new Decimal(0))
   }
 
-  it('回來的形狀與重演一支腳本完全一樣，三個元件一種讀法就夠', async () => {
-    const result = await buildApplication(buildProxy())
-      .runTradingStrategyBacktest(tradingStrategyRequest())
+  it('送出就拿到那一筆輪次，記著它是一份交易策略的回測', async () => {
+    const run = await buildApplication(buildProxy())
+      .submitTradingStrategyBacktest(tradingStrategyRequest())
 
-    expect(result.summary.totalReturnRate).toBe('+25.00%')
-    expect(result.closedTrades).toHaveLength(1)
-    expect(result.equityCurve).toHaveLength(1)
+    expect(run.kind).toBe('spotTradingStrategy')
+    expect(run.statusLabel.in('zh-TW')).toBe('排隊中')
   })
 
   it('還沒存過的那一份連送都不送——沒有東西可以指名', async () => {
     const proxy = buildProxy()
 
     await expect(buildApplication(proxy)
-      .runTradingStrategyBacktest(tradingStrategyRequest({ tradingStrategyId: 0 })))
+      .submitTradingStrategyBacktest(tradingStrategyRequest({ tradingStrategyId: 0 })))
       .rejects.toBeInstanceOf(BacktestFieldError)
-    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+    expect(proxy.submitTradingStrategyBacktest).not.toHaveBeenCalled()
   })
 
   it('起點晚於終點時當場擋下來，一次都沒打出去', async () => {
     // 驗證的規則與重演一支腳本同一套；少掉的只有算式與彙總刻度那兩格。
     const proxy = buildProxy()
 
-    await expect(buildApplication(proxy).runTradingStrategyBacktest(tradingStrategyRequest({
+    await expect(buildApplication(proxy).submitTradingStrategyBacktest(tradingStrategyRequest({
       startTime: END_TIME, endTime: START_TIME })))
       .rejects.toMatchObject({ field: 'timeRange' })
-    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
+    expect(proxy.submitTradingStrategyBacktest).not.toHaveBeenCalled()
   })
 
   it('本金不是大於零時說在本金那一格', async () => {
     await expect(buildApplication(buildProxy())
-      .runTradingStrategyBacktest(tradingStrategyRequest({ initialCapital: new Decimal('0') })))
+      .submitTradingStrategyBacktest(tradingStrategyRequest({ initialCapital: new Decimal('0') })))
       .rejects.toMatchObject({ field: 'initialCapital' })
   })
 
   it('沒挑標的時說在標的那一格', async () => {
     await expect(buildApplication(buildProxy())
-      .runTradingStrategyBacktest(tradingStrategyRequest({ symbol: '' })))
+      .submitTradingStrategyBacktest(tradingStrategyRequest({ symbol: '' })))
       .rejects.toMatchObject({ field: 'symbol' })
   })
 })

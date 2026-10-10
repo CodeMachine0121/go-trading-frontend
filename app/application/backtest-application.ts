@@ -2,7 +2,11 @@ import type Decimal from 'decimal.js'
 import type { BacktestService } from '~/domain/service/backtest-service'
 import type { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
-import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
+import type { BacktestRunDto } from '~/domain/models/dto/backtest-run-dto'
+import type { BacktestRunPageDto } from '~/domain/models/dto/backtest-run-page-dto'
+import type { BacktestRunDetailDto } from '~/domain/models/dto/backtest-run-detail-dto'
+import type { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
+import type { BacktestRunStatusOptionDto } from '~/domain/models/dto/backtest-run-status-option-dto'
 import type { BacktestTimeRangeDto } from '~/domain/models/dto/backtest-time-range-dto'
 import type { PositionSizingModeOptionDto } from '~/domain/models/dto/position-sizing-mode-option-dto'
 import type { BacktestRuleDto } from '~/domain/models/dto/backtest-rule-dto'
@@ -17,26 +21,54 @@ import type { FillTimingOptionDto } from '~/domain/models/dto/fill-timing-option
 export class BacktestApplication {
   constructor(private readonly backtestService: BacktestService) {}
 
-  async runBacktest(backtestRequestDto: BacktestRequestDto): Promise<BacktestResultDto> {
-    return this.backtestService.runBacktest(backtestRequestDto)
+  async submitBacktest(backtestRequestDto: BacktestRequestDto): Promise<BacktestRunDto> {
+    return this.backtestService.submitBacktest(backtestRequestDto)
   }
 
-  async runTradingStrategyBacktest(
+  async submitTradingStrategyBacktest(
     requestDto: TradingStrategyBacktestRequestDto,
-  ): Promise<BacktestResultDto> {
-    return this.backtestService.runTradingStrategyBacktest(requestDto)
+  ): Promise<BacktestRunDto> {
+    return this.backtestService.submitTradingStrategyBacktest(requestDto)
   }
 
-  async runContractBacktest(
+  async submitContractBacktest(
     backtestRequestDto: BacktestRequestDto, termsDto: ContractBacktestTermsDto,
-  ): Promise<BacktestResultDto> {
-    return this.backtestService.runContractBacktest(backtestRequestDto, termsDto)
+  ): Promise<BacktestRunDto> {
+    return this.backtestService.submitContractBacktest(backtestRequestDto, termsDto)
   }
 
-  async runContractTradingStrategyBacktest(
+  async submitContractTradingStrategyBacktest(
     requestDto: TradingStrategyBacktestRequestDto, termsDto: ContractBacktestTermsDto,
-  ): Promise<BacktestResultDto> {
-    return this.backtestService.runContractTradingStrategyBacktest(requestDto, termsDto)
+  ): Promise<BacktestRunDto> {
+    return this.backtestService.submitContractTradingStrategyBacktest(requestDto, termsDto)
+  }
+
+  async listRuns(queryDto: BacktestRunListQueryDto): Promise<BacktestRunPageDto> {
+    return this.backtestService.listRuns(queryDto)
+  }
+
+  async refreshRuns(queryDto: BacktestRunListQueryDto): Promise<BacktestRunPageDto> {
+    return this.backtestService.refreshRuns(queryDto)
+  }
+
+  grownQuery(queryDto: BacktestRunListQueryDto): BacktestRunListQueryDto {
+    return this.backtestService.grownQuery(queryDto)
+  }
+
+  canShowMoreRuns(queryDto: BacktestRunListQueryDto, shownCount: number, totalCount: number): boolean {
+    return this.backtestService.canShowMoreRuns(queryDto, shownCount, totalCount)
+  }
+
+  async getRun(id: number): Promise<BacktestRunDetailDto> {
+    return this.backtestService.getRun(id)
+  }
+
+  async cancelRun(id: number): Promise<BacktestRunDto> {
+    return this.backtestService.cancelRun(id)
+  }
+
+  listBacktestRunStatusOptions(): BacktestRunStatusOptionDto[] {
+    return this.backtestService.listBacktestRunStatusOptions()
   }
 
   listContractTradingModeOptions(): ContractTradingModeOptionDto[] {

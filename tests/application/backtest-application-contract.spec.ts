@@ -3,29 +3,23 @@ import { describe, expect, it, vi } from 'vitest'
 import { BacktestApplication } from '~/application/backtest-application'
 import { BacktestService } from '~/domain/service/backtest-service'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
-import { Backtest } from '~/domain/models/entities/backtest'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
+import { buildBacktestRun, buildBacktestRunProxy } from '../fixtures/backtest-run'
 
 const START_TIME = new Date('2026-08-06T00:00:00Z')
 
-function emptyBacktest(): Backtest {
-  return new Backtest(
-    'BTCUSDT', '1h', START_TIME, START_TIME, 0, new Decimal(10000), new Decimal(10000),
-    0, 0, null, 0, 0, 0, 0, new Decimal(0), [], [])
-}
-
 function applicationWith(proxy: IBacktestProxy): BacktestApplication {
-  return new BacktestApplication(new BacktestService(proxy))
+  return new BacktestApplication(new BacktestService(proxy, buildBacktestRunProxy()))
 }
 
 function buildProxy(): IBacktestProxy {
   return {
-    runBacktest: vi.fn().mockResolvedValue(emptyBacktest()),
-    runTradingStrategyBacktest: vi.fn().mockResolvedValue(emptyBacktest()),
-    runContractBacktest: vi.fn().mockResolvedValue(emptyBacktest()),
-    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(emptyBacktest()),
+    submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
   }
 }
 
@@ -40,10 +34,10 @@ describe('BacktestApplication 的合約重演', () => {
   it('現貨那幾格照現貨的規則把關，不合法就不送出', async () => {
     const proxy = buildProxy()
 
-    await expect(applicationWith(proxy).runContractBacktest(
+    await expect(applicationWith(proxy).submitContractBacktest(
       scriptRequest(''), new ContractBacktestTermsDto(new Decimal(5), new Decimal(0), 'longShort')))
       .rejects.toBeInstanceOf(BacktestFieldError)
-    expect(proxy.runContractBacktest).not.toHaveBeenCalled()
+    expect(proxy.submitContractBacktest).not.toHaveBeenCalled()
   })
 
   it('交易模式選單三種，第一個是多空反手', () => {
