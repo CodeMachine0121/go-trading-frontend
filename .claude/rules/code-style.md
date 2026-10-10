@@ -17,7 +17,7 @@ TypeScript 最容易破功的一條，規則詳見 [naming.md](naming.md)：**`i
 
 `type` alias 只用於**有限的字面量聯合**（`type FinalVerdict = 'buy' | 'hold' | 'sell' | 'avoid'`），不用來描述物件形狀。
 
-**唯一例外：proxy 檔內描述後端 wire 形狀的 `type XxxWire`。** 它描述的是外部契約而非我們的 model，永遠不會有實例被 `new` 出來（它從 `JSON.parse` 來），也永遠不帶行為，因此不適用「資料一律 class」。條件是它**必須宣告在 proxy 實作檔內、不得匯出、不得進 `domain/models/`**——詳見 [data-access.md](data-access.md)。
+**唯一例外：proxy 檔內描述後端 wire 形狀的 `type XxxWire`。** 它描述的是外部契約而非我們的 model，永遠不會有實例被 `new` 出來（它從 `JSON.parse` 來），也永遠不帶行為，因此不適用「資料一律 class」。條件是它**必須宣告在 proxy 實作檔內、不得匯出、不得進 `domain/models/`**——詳見 [data-access.md](data-access.md)（含好幾個 proxy 共用的 `*-wire.ts` 例外）。
 
 ## 變數宣告當下即賦值
 

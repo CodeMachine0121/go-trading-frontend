@@ -20,7 +20,6 @@ export type BacktestRunWire = {
   tradingStrategyId: number | null
   subjectName: string
   submittedAt: string
-  startedAt: string | null
   finishedAt: string | null
   totalReturnRate: number | null
   maximumDrawdown: number | null

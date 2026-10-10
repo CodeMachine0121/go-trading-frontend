@@ -23,7 +23,7 @@ const destinations = computed(() => [
   { to: '/k-candles', label: t('shell.navigation.kCandleData'), icon: 'table', paths: ['/k-candles', '/contract-k-candles'], nested: false },
   { to: '/strategy-scripts', label: t('shell.navigation.strategyScripts'), icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
   { to: '/trading-strategies', label: t('shell.navigation.tradingStrategies'), icon: 'flow', paths: ['/trading-strategies'], nested: true },
-  { to: '/backtest-runs', label: t('shell.navigation.backtestRuns'), icon: 'library', paths: ['/backtest-runs'], nested: false },
+  { to: '/backtest-runs', label: t('shell.navigation.backtestRuns'), icon: 'history', paths: ['/backtest-runs'], nested: false },
   { to: '/strategy-bots', label: t('shell.navigation.strategyBots'), icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
   { to: '/spot-trade-journal', label: t('shell.navigation.tradeJournal'), icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
   { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
@@ -40,11 +40,13 @@ const tabDestinations = computed(() => [
   { to: '/chat', label: t('shell.navigation.assistantTab'), icon: 'sparkle', paths: ['/chat'], nested: false },
 ] as const)
 
-/** 收在「更多」裡的去處。 */
+/** 收在「更多」裡的去處，照它們要去的路挑，不靠在清單上的位置。 */
+const MORE_DESTINATION_PATHS: readonly string[] = ['/k-candles', '/trading-strategies', '/backtest-runs', '/spot-trade-journal', '/marketplace']
+
 const moreDestinations = computed(() => [
-  destinations.value[1], destinations.value[3], destinations.value[4], destinations.value[6], destinations.value[7],
+  ...destinations.value.filter(destination => MORE_DESTINATION_PATHS.includes(destination.to)),
   settingsDestination.value,
-] as const)
+])
 
 const { destinationPaths = {} } = defineProps<{
   title: string

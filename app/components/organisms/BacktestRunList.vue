@@ -60,14 +60,9 @@ const { localize } = useLocalizedText()
         data-testid="backtest-run-row"
       >
         <div class="backtest-run-list__headline">
-          <button
-            type="button"
-            class="backtest-run-list__number"
-            data-testid="backtest-run-open"
-            @click="emit('open', run.id)"
-          >
+          <span class="backtest-run-list__number">
             {{ t('backtest.runs.runNumber', { id: run.id }) }}
-          </button>
+          </span>
           <BacktestRunStatusBadge :run="run" />
           <span class="backtest-run-list__subject">{{ run.subjectName }}</span>
           <span class="backtest-run-list__moment">
@@ -182,13 +177,9 @@ const { localize } = useLocalizedText()
   }
 
   &__number {
-    border: none;
-    background: none;
-    padding: 0;
     color: color('text-strong');
     font-weight: font-weight('semibold');
     font-size: font-size('sm');
-    cursor: pointer;
 
     @include numeric;
   }

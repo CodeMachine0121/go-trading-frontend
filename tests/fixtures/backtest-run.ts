@@ -2,7 +2,8 @@ import type Decimal from 'decimal.js'
 import { vi } from 'vitest'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
-import { BacktestRun, BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRun } from '~/domain/models/entities/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 import type { Backtest } from '~/domain/models/entities/backtest'
 
 export const RUN_SUBMITTED_AT = new Date('2026-10-10T02:00:00Z')

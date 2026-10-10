@@ -78,13 +78,12 @@ describe('BacktestRunList', () => {
     expect(wrapper.emitted('cancel')).toEqual([[41]])
   })
 
-  it('點編號或查看都往上說要打開哪一筆', async () => {
+  it('按查看往上說要打開哪一筆', async () => {
     const wrapper = mountList({ runs: [runDto({ id: 40, status: 'succeeded' })], totalCount: 1 })
 
-    await wrapper.get('[data-testid="backtest-run-open"]').trigger('click')
     await wrapper.get('[data-testid="backtest-run-view"]').trigger('click')
 
-    expect(wrapper.emitted('open')).toEqual([[40], [40]])
+    expect(wrapper.emitted('open')).toEqual([[40]])
   })
 
   it('說出顯示幾筆、共幾筆，翻得下去時才有那顆鍵', async () => {

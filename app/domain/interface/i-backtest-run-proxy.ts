@@ -1,4 +1,5 @@
-import type { BacktestRun, BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import type { BacktestRun } from '~/domain/models/entities/backtest-run'
+import type { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 import type { BacktestRunListQueryDomain } from '~/domain/models/domains/backtest-run-list-query-domain'
 
 /**

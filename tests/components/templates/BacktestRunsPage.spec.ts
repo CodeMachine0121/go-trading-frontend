@@ -5,7 +5,7 @@ import { BacktestApplication } from '~/application/backtest-application'
 import { BacktestService } from '~/domain/service/backtest-service'
 import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
 import type { BacktestRunListQueryDomain } from '~/domain/models/domains/backtest-run-list-query-domain'
-import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 import Decimal from 'decimal.js'
 import { Backtest, BacktestTradeStatistics, EquityPoint } from '~/domain/models/entities/backtest'
 import { buildBacktestProxy, buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
@@ -106,7 +106,7 @@ describe('BacktestRunsPage', () => {
     vi.mocked(runProxy.getRun).mockResolvedValue(buildBacktestRun({ id: 25, status: 'succeeded', result }))
     const wrapper = await mountPage(runProxy)
 
-    await wrapper.findAll('[data-testid="backtest-run-open"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="backtest-run-view"]')[0]!.trigger('click')
     await flushPromises()
 
     expect(runProxy.getRun).toHaveBeenCalledWith(25)

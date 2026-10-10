@@ -18,7 +18,7 @@ import type { BacktestRun } from '~/domain/models/entities/backtest-run'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
-import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 const chartLibrary = vi.hoisted(() => {

@@ -17,10 +17,9 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const statusOptions = backtestApplication.listBacktestRunStatusOptions()
-const statusFilter = ref('')
+const statusFilter = ref<BacktestRunStatus | ''>('')
 
-const scope = computed(() => new BacktestRunListQueryDto(
-  statusFilter.value === '' ? null : statusFilter.value as BacktestRunStatus))
+const scope = computed(() => new BacktestRunListQueryDto(statusFilter.value === '' ? null : statusFilter.value))
 </script>
 
 <template>

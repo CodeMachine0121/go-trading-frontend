@@ -1,3 +1,5 @@
+/** 成績單的 wire 形狀與讀法，送出回測與查看輪次兩個 proxy 共用；金額是字串，因為它們是精確小數。 */
+
 import Decimal from 'decimal.js'
 import type { PositionDirection } from '~/domain/models/vo/position-direction-vo'
 import type { TradeExitReason } from '~/domain/models/vo/trade-exit-reason-vo'
@@ -10,17 +12,7 @@ import {
   EquityPoint,
 } from '~/domain/models/entities/backtest'
 
-/**
- * 一次重演回來的成績單在線上的樣子，以及怎麼把它讀成領域的形狀。
- *
- * 它是純粹的轉換模組：送出回測與查看輪次兩個 proxy 收到的是同一份成績單，
- * 讀法只寫這一次。
- */
-/**
- * 後端回傳的原始 wire 形狀，只給 proxy 用。
- * 金額一律以字串傳遞——它們是精確小數，經過浮點數就再也回不來了。
- */
-export type ClosedTradeWire = {
+type ClosedTradeWire = {
   direction: string
   entryTime: string
   entryPrice: string
@@ -47,14 +39,14 @@ export type ClosedTradeWire = {
 /**
  * 合約重演的一筆交易：押下去的叫保證金而不是押注金額，另帶槓桿、數量與資金費用。
  */
-export type ContractClosedTradeWire = Omit<ClosedTradeWire, 'stake'> & {
+type ContractClosedTradeWire = Omit<ClosedTradeWire, 'stake'> & {
   margin: string
   leverage: string
   quantity: string
   fundingFee: string
 }
 
-export type EquityPointWire = {
+type EquityPointWire = {
   openTime: string
   equity: string
 }

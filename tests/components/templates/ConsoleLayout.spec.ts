@@ -62,6 +62,14 @@ describe('ConsoleLayout', () => {
     expect(labels).toEqual(['行情圖表', 'K 線資料', '策略腳本', '交易策略', '回測紀錄', '策略機器人', '交易日誌', 'Marketplace', '設定'])
   })
 
+  it('回測紀錄用自己的歷史圖示，不借策略腳本庫的清單圖示', async () => {
+    const wrapper = await mountLayoutAt(DESKTOP)
+
+    const icon = wrapper.get('[data-testid="destination-/backtest-runs"] [data-icon]').attributes('data-icon')
+
+    expect(icon).toBe('history')
+  })
+
   it('英文畫面上側欄的去處都是英文', async () => {
     const wrapper = await mountLayoutAt(DESKTOP)
 

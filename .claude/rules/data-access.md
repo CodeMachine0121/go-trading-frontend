@@ -30,6 +30,8 @@ GET /investment-verdicts, /investment-verdicts/history, /investment-verdicts/tra
 - 把 wire 資料轉成 **entity**（或 VO）再往內傳：日期字串 → `Date`、數字字串 → 精確小數型別、`null` → 明確的預設值或 `undefined`、snake_case → camelCase。
 - 後端改欄位名時，**只有 proxy 檔要改**——這是分層的價值所在。
 
+**例外：共用的 wire 轉換模組。** 同一份 wire 形狀被好幾個 proxy 收到時（例如送出回測與查看輪次都會拿到同一份成績單），可以把 wire 型別與它的 `toXxx()` 讀法抽成 `app/infrastructure/proxy/` 底下的 `*-wire.ts` 模組，只匯出其他 proxy 真的用到的東西。這種模組**只准被 `infrastructure/proxy/` 內的檔案 import**，絕不出現在 domain、application 或元件裡。
+
 ## 前端狀態不是持久化
 
 瀏覽器端的狀態（Pinia store、`useState`、URL query）是**畫面狀態**，不是資料庫：

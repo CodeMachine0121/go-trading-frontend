@@ -10,7 +10,7 @@ import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { buildBacktestRun, buildBacktestRunProxy } from '../fixtures/backtest-run'
-import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。

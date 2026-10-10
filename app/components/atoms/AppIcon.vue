@@ -23,6 +23,7 @@ type IconName
     | 'save'
     | 'save-as'
     | 'library'
+    | 'history'
     | 'rename'
     | 'load'
     | 'delete'
@@ -93,6 +94,14 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   'library': [
     'M8 6h13M8 12h13M8 18h13',
     'M3 6h.01M3 12h.01M3 18h.01',
+  ],
+  // 一個鐘面，外圈帶著往回轉的箭頭——送出去之後回頭看的那幾次回測。
+  //
+  // 不借清單那一顆（`library`）：它已經是自己的策略腳本庫，一個圖示只能說一件事。
+  'history': [
+    'M3 12a9 9 0 1 0 2.6-6.4',
+    'M3 3v5h5',
+    'M12 7v5l3 3',
   ],
   // 一支胖的鉛筆，加上一條把筆尖切出來的線——改掉它的名字。
   //

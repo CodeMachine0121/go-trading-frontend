@@ -1,7 +1,7 @@
 import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
 import type { BacktestRunListQueryDomain } from '~/domain/models/domains/backtest-run-list-query-domain'
 import type { BacktestRun } from '~/domain/models/entities/backtest-run'
-import { BacktestRunPage } from '~/domain/models/entities/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BacktestRunAlreadyEndedError } from '~/domain/errors/backtest-run-already-ended-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
