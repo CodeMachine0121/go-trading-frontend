@@ -12,20 +12,31 @@ export function useBacktestRunDetail(backtestApplication: BacktestApplication) {
   const loading = ref(false)
   const failureMessage = ref<LocalizedTextVo | null>(null)
 
+  /** 最後點開的是哪一筆：先點的那一筆比較晚回來時，不能蓋到後點的那一筆上。 */
+  let openingId: number | null = null
+
   async function openRun(id: number) {
+    openingId = id
     open.value = true
     detail.value = null
     failureMessage.value = null
     loading.value = true
 
     try {
-      detail.value = await backtestApplication.getRun(id)
+      const opened = await backtestApplication.getRun(id)
+      if (openingId === id) {
+        detail.value = opened
+      }
     }
     catch (error: unknown) {
-      failureMessage.value = failureMessageOf(error)
+      if (openingId === id) {
+        failureMessage.value = failureMessageOf(error)
+      }
     }
     finally {
-      loading.value = false
+      if (openingId === id) {
+        loading.value = false
+      }
     }
   }
 
