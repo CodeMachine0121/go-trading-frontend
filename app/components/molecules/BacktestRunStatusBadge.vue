@@ -15,7 +15,7 @@ const { localize } = useLocalizedText()
     :variant="run.statusTone"
     data-testid="backtest-run-status"
   >
-    {{ localize(run.statusLabel) }}<template v-if="run.status === 'running'">
+    {{ localize(run.statusLabel) }}<template v-if="run.showsProgress">
       · {{ t('backtest.runs.progress', { percent: run.progressPercent }) }}
     </template>
   </AppBadge>

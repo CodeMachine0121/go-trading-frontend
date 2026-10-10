@@ -34,8 +34,4 @@ export class BacktestRunListQueryDomain {
   grown(): BacktestRunListQueryDto {
     return this.query.withLimit(Math.min(this.limit + BACKTEST_RUN_PAGE_SIZE, BACKTEST_RUN_LIMIT_CEILING))
   }
-
-  toDto(): BacktestRunListQueryDto {
-    return this.query.withLimit(this.limit)
-  }
 }

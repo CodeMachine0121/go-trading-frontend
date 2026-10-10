@@ -4,20 +4,21 @@ import { buildBacktestRun } from '../../../fixtures/backtest-run'
 
 describe('BacktestRunDomain 狀態', () => {
   it.each([
-    { status: 'queued', label: '排隊中', tone: 'neutral', isActive: true, canCancel: true },
-    { status: 'running', label: '進行中', tone: 'info', isActive: true, canCancel: true },
-    { status: 'succeeded', label: '完成', tone: 'success', isActive: false, canCancel: false },
-    { status: 'failed', label: '失敗', tone: 'danger', isActive: false, canCancel: false },
-    { status: 'cancelled', label: '已取消', tone: 'neutral', isActive: false, canCancel: false },
+    { status: 'queued', label: '排隊中', tone: 'neutral', isActive: true, canCancel: true, showsProgress: false },
+    { status: 'running', label: '進行中', tone: 'info', isActive: true, canCancel: true, showsProgress: true },
+    { status: 'succeeded', label: '完成', tone: 'success', isActive: false, canCancel: false, showsProgress: false },
+    { status: 'failed', label: '失敗', tone: 'danger', isActive: false, canCancel: false, showsProgress: false },
+    { status: 'cancelled', label: '已取消', tone: 'neutral', isActive: false, canCancel: false, showsProgress: false },
     // 認不得的狀態讀成失敗：把一筆不明的輪次說成還在跑，會讓人等一件不會發生的事。
-    { status: 'weird', label: '失敗', tone: 'danger', isActive: false, canCancel: false },
-  ])('$status → $label／$tone', ({ status, label, tone, isActive, canCancel }) => {
+    { status: 'weird', label: '失敗', tone: 'danger', isActive: false, canCancel: false, showsProgress: false },
+  ])('$status → $label／$tone', ({ status, label, tone, isActive, canCancel, showsProgress }) => {
     const dto = buildBacktestRun({ status }).toDomain().toDto()
 
     expect(dto.statusLabel.in('zh-TW')).toBe(label)
     expect(dto.statusTone).toBe(tone)
     expect(dto.isActive).toBe(isActive)
     expect(dto.canCancel).toBe(canCancel)
+    expect(dto.showsProgress).toBe(showsProgress)
   })
 
   it.each([
@@ -67,6 +68,16 @@ describe('BacktestRunDomain 結束之後那一句', () => {
 
     expect(dto.outcome?.in('zh-TW')).toBe('失敗：超過時間上限')
     expect(dto.outcome?.in('en')).toBe('Failed: 超過時間上限')
+  })
+
+  it.each([
+    { failureReason: '' },
+    { failureReason: '   ' },
+  ])('失敗卻沒說原因（$failureReason）就只說失敗', ({ failureReason }) => {
+    const dto = buildBacktestRun({ status: 'failed', failureReason }).toDomain().toDto()
+
+    expect(dto.outcome?.in('zh-TW')).toBe('失敗')
+    expect(dto.outcome?.in('en')).toBe('Failed')
   })
 
   it('已取消就說已取消', () => {

@@ -41,6 +41,11 @@ export class BacktestRunDomain {
     return this.isActive
   }
 
+  /** 進行中的才在狀態旁寫出走到幾成；排隊中的還沒開始，結束的已經有結局。 */
+  get showsProgress(): boolean {
+    return this.status === 'running'
+  }
+
   get statusLabel(): LocalizedTextVo {
     return this.statusDomain.label()
   }
@@ -59,10 +64,14 @@ export class BacktestRunDomain {
     ])
   }
 
-  /** 結束之後的一句話；還沒結束是 `null`。 */
+  /** 結束之後的一句話；還沒結束是 `null`。失敗卻沒說原因的，只說失敗。 */
   get outcome(): LocalizedTextVo | null {
     if (this.status === 'failed') {
-      return new LocalizedTextVo(`失敗：${this.run.failureReason}`, `Failed: ${this.run.failureReason}`)
+      const reason = this.run.failureReason.trim()
+
+      return reason === ''
+        ? this.statusLabel
+        : new LocalizedTextVo(`失敗：${reason}`, `Failed: ${reason}`)
     }
     if (this.status === 'cancelled') {
       return this.statusLabel
@@ -74,22 +83,13 @@ export class BacktestRunDomain {
       return null
     }
 
-    const returnRate = this.signedPercent(this.run.totalReturnRate)
-    const drawdown = this.percent(this.run.maximumDrawdown)
+    const returnRatePercent = `${(Math.abs(this.run.totalReturnRate) * 100).toFixed(RATE_FRACTION_DIGITS)}%`
+    const returnRate = this.run.totalReturnRate < 0 ? `-${returnRatePercent}` : `+${returnRatePercent}`
+    const drawdown = `${(this.run.maximumDrawdown * 100).toFixed(RATE_FRACTION_DIGITS)}%`
 
     return new LocalizedTextVo(
       `${returnRate} · 最大回撤 ${drawdown} · ${this.run.tradeCount} 筆`,
       `${returnRate} · max drawdown ${drawdown} · ${this.run.tradeCount} trades`)
-  }
-
-  private signedPercent(rate: number): string {
-    const percent = this.percent(Math.abs(rate))
-
-    return rate < 0 ? `-${percent}` : `+${percent}`
-  }
-
-  private percent(rate: number): string {
-    return `${(rate * 100).toFixed(RATE_FRACTION_DIGITS)}%`
   }
 
   toDto(): BacktestRunDto {
@@ -100,6 +100,7 @@ export class BacktestRunDomain {
       this.statusLabel,
       this.statusTone,
       this.progressPercent,
+      this.showsProgress,
       this.isActive,
       this.canCancel,
       this.description,

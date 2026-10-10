@@ -12,6 +12,8 @@ export class BacktestRunDto {
     public readonly statusLabel: LocalizedTextVo,
     public readonly statusTone: BacktestRunStatusTone,
     public readonly progressPercent: number,
+    /** 狀態旁要不要寫出進度。 */
+    public readonly showsProgress: boolean,
     /** 排隊中或進行中：列表要繼續跟著它。 */
     public readonly isActive: boolean,
     public readonly canCancel: boolean,
