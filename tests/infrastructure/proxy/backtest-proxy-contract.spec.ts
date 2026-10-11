@@ -2,6 +2,8 @@ import Decimal from 'decimal.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BacktestProxy } from '~/infrastructure/proxy/backtest-proxy'
 import { signedInSessionStorage } from '../../fixtures/session-storage'
+import { queuedRunWire } from '../../fixtures/backtest-run'
+import { BacktestRunProxy } from '~/infrastructure/proxy/backtest-run-proxy'
 import { BacktestRequestDomain } from '~/domain/models/domains/backtest-request-domain'
 import { BacktestRequestDto } from '~/domain/models/dto/backtest-request-dto'
 import { TradingStrategyBacktestRequestDomain } from '~/domain/models/domains/trading-strategy-backtest-request-domain'
@@ -84,17 +86,29 @@ function contractWire() {
   }
 }
 
+/**
+ * 一份成績單在線上的樣子，透過「看一筆輪次」讀回來。
+ * 送出回測已經不當場回成績單了——成績單只從完成的那一筆輪次拿得到。
+ */
+async function replayedRun(resultWire: unknown, kind = 'spotScript') {
+  vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ ...queuedRunWire({ kind, status: 'succeeded' }), result: resultWire }))
+
+  const run = await new BacktestRunProxy(BASE_URL, signedInSessionStorage()).getRun(40)
+
+  return run.result!
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('BacktestProxy 的合約重演', () => {
   it('一支合約策略腳本送到合約重演的入口，帶著槓桿、滑點與交易模式', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(contractWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractBacktest(scriptRequest(), termsOf('5', '0.1', 'longOnly'))
+      .submitContractBacktest(scriptRequest(), termsOf('5', '0.1', 'longOnly'))
 
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE_URL}/contract-backtests`,
@@ -111,11 +125,11 @@ describe('BacktestProxy 的合約重演', () => {
   })
 
   it('留白的槓桿與滑點不上線——交易服務讀成一倍、不計滑點', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(contractWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractBacktest(scriptRequest(), termsOf('0', '0', 'longShort'))
+      .submitContractBacktest(scriptRequest(), termsOf('0', '0', 'longShort'))
 
     const body = fetchMock.mock.calls[0]![1].body
     expect(body).not.toHaveProperty('leverage')
@@ -124,11 +138,11 @@ describe('BacktestProxy 的合約重演', () => {
   })
 
   it('一份合約交易策略送到它自己底下的合約重演入口，不帶交易模式', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(contractWire())
+    const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
+      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
 
     expect(fetchMock.mock.calls[0]![0]).toBe(`${BASE_URL}/trading-strategies/7/contract-backtests`)
     const body = fetchMock.mock.calls[0]![1].body
@@ -138,10 +152,7 @@ describe('BacktestProxy 的合約重演', () => {
   })
 
   it('合約那幾格讀進領域：保證金、槓桿、數量、資金費用與強平', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(contractWire()))
-
-    const backtest = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractBacktest(scriptRequest(), termsOf('5', '0', 'shortOnly'))
+    const backtest = await replayedRun(contractWire(), 'contractScript')
 
     const closedTrade = backtest.closedTrades[0]!
     expect(closedTrade.stake.toString()).toBe('10000')
@@ -169,7 +180,7 @@ describe('BacktestProxy 的合約重演', () => {
     })))
 
     const failure = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractBacktest(scriptRequest(), termsOf('5', '0', 'longShort'))
+      .submitContractBacktest(scriptRequest(), termsOf('5', '0', 'longShort'))
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BacktestFieldError)
@@ -184,7 +195,7 @@ describe('BacktestProxy 的合約重演', () => {
     })))
 
     const failure = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .runContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
+      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BacktestFieldError)

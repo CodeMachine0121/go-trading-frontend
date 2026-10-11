@@ -13,6 +13,7 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     kCandleData: 'K-candle data',
     strategyScripts: 'Strategy scripts',
     tradingStrategies: 'Trading strategies',
+    backtestRuns: 'Backtest runs',
     strategyBots: 'Strategy bots',
     tradeJournal: 'Trade journal',
     settings: 'Settings',

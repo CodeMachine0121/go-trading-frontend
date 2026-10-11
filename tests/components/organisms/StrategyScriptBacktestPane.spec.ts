@@ -1,12 +1,11 @@
-import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import StrategyScriptBacktestPane from '~/components/organisms/StrategyScriptBacktestPane.vue'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
+import type { IBacktestRunProxy } from '~/domain/interface/i-backtest-run-proxy'
 import { BacktestApplication } from '~/application/backtest-application'
 import { BacktestService } from '~/domain/service/backtest-service'
-import { Backtest, ClosedTrade, EquityPoint } from '~/domain/models/entities/backtest'
 import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
@@ -14,8 +13,12 @@ import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-fai
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BacktestRunOwnerLimitError } from '~/domain/errors/backtest-run-owner-limit-error'
+import type { BacktestRun } from '~/domain/models/entities/backtest-run'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
+import { BacktestRunPage } from '~/domain/models/entities/backtest-run-page'
 
 // 繪圖函式庫是最外層的邊界：它需要真正的畫布，而這裡要驗的不是它畫得對不對。
 const chartLibrary = vi.hoisted(() => {
@@ -38,53 +41,23 @@ vi.mock('lightweight-charts', () => ({
 }))
 
 const WHOLE_SCRIPT = 'return indicator.Buy'
-const REPLAY_START = new Date('2026-08-06T00:00:00Z')
-const REPLAY_END = new Date('2026-09-04T23:00:00Z')
-
-function completedBacktest(overrides: Partial<{
-  totalReturnRate: number
-  winRate: number | null
-  positionOpenCount: number
-  closedTrades: ClosedTrade[]
-  equityCurve: EquityPoint[]
-}> = {}): Backtest {
-  // 開幾次與平幾次要對得上：同一時間最多一個部位，所以兩者最多差一，
-  // 而差在哪就決定了結束時還抱不抱著一注。四開一平是一個到不了的狀態。
-  const closedTrades = overrides.closedTrades ?? [new ClosedTrade(
-    'long', REPLAY_START, new Decimal('100'), REPLAY_END, new Decimal('110'),
-    new Decimal('10000'), new Decimal('1000'), 'signal', new Decimal(0), new Decimal(0))]
-
-  return new Backtest(
-    'BTCUSDT', '1h', REPLAY_START, REPLAY_END, 3,
-    new Decimal('10000'), new Decimal('12500'),
-    overrides.totalReturnRate ?? 0.25, 0.1,
-    overrides.winRate === undefined ? 0.75 : overrides.winRate,
-    overrides.positionOpenCount ?? closedTrades.length,
-    0,
-    0,
-    0,
-    new Decimal(0),
-    closedTrades,
-    overrides.equityCurve ?? [
-      new EquityPoint(REPLAY_START, new Decimal('10000')),
-      new EquityPoint(REPLAY_END, new Decimal('12500')),
-    ])
-}
 
 function buildProxy(overrides: Partial<IBacktestProxy> = {}): IBacktestProxy {
   return {
-    runBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runContractBacktest: vi.fn().mockResolvedValue(completedBacktest()),
-    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(completedBacktest()),
+    submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
     ...overrides,
   }
 }
 
-function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
+function mountPane(
+  proxy: IBacktestProxy, props: Record<string, unknown> = {}, runProxy: IBacktestRunProxy = buildBacktestRunProxy(),
+) {
   return mount(StrategyScriptBacktestPane, {
     props: {
-      backtestApplication: new BacktestApplication(new BacktestService(proxy)),
+      backtestApplication: new BacktestApplication(new BacktestService(proxy, runProxy)),
       tradingSymbolApplication: buildTradingSymbolApplication(),
       timeZone: buildTimeZone(),
       aggregationIntervalOptions: [new AggregationIntervalDomain('1h').toOptionDto()],
@@ -99,7 +72,7 @@ function mountPane(proxy: IBacktestProxy, props: Record<string, unknown> = {}) {
   })
 }
 
-async function runBacktest(wrapper: ReturnType<typeof mountPane>) {
+async function submitBacktest(wrapper: ReturnType<typeof mountPane>) {
   await wrapper.get('form').trigger('submit')
   await flushPromises()
 }
@@ -110,9 +83,9 @@ describe('StrategyScriptBacktestPane', () => {
       const proxy = buildProxy()
       const wrapper = mountPane(proxy)
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).toHaveBeenCalled()
+      expect(proxy.submitBacktest).toHaveBeenCalled()
     })
 
     it('本金已經填好一個大於零的數', () => {
@@ -121,6 +94,38 @@ describe('StrategyScriptBacktestPane', () => {
       const filled = wrapper.get('[data-testid="backtest-initial-capital-input"]')
         .element as HTMLInputElement
       expect(Number(filled.value)).toBeGreaterThan(0)
+    })
+
+    it('說明寫著送出後在背後計算、去哪裡看，沒有請等待', () => {
+      const wrapper = mountPane(buildProxy())
+
+      const placeholder = wrapper.get('[data-testid="backtest-placeholder"]').text()
+      expect(placeholder).toContain('送出後會在背後計算，可在下方列表或回測紀錄頁查看')
+      expect(wrapper.text()).not.toContain('請等待')
+    })
+
+    it('下方列表只列這一支腳本的輪次', async () => {
+      const runProxy = buildBacktestRunProxy()
+      mountPane(buildProxy(), { strategyScriptId: 9 }, runProxy)
+      await flushPromises()
+
+      const [queryDomain, inBackground] = vi.mocked(runProxy.listRuns).mock.calls[0]!
+      expect(queryDomain.strategyScriptId).toBe(9)
+      expect(queryDomain.tradingStrategyId).toBeNull()
+      expect(inBackground).toBe(false)
+    })
+
+    it('回到這一頁時列表從後端重讀，進行中那一筆是最新的進度', async () => {
+      const runProxy = buildBacktestRunProxy({
+        listRuns: vi.fn().mockResolvedValue(new BacktestRunPage(
+          [buildBacktestRun({ id: 40, status: 'running', progressPercent: 70, strategyScriptId: 9 })], 1)),
+      })
+      const wrapper = mountPane(buildProxy(), { strategyScriptId: 9 }, runProxy)
+      await flushPromises()
+
+      const row = wrapper.get('[data-testid="backtest-run-row"]')
+      expect(row.text()).toContain('#40')
+      expect(row.get('[data-testid="backtest-run-status"]').text()).toBe('進行中 · 70%')
     })
 
     it('預設押注方式旁邊沒有那一格', () => {
@@ -175,10 +180,11 @@ describe('StrategyScriptBacktestPane', () => {
 
       await wrapper.get('[data-testid="backtest-start-time-input"]').setValue('2026-09-10T00:00')
       await wrapper.get('[data-testid="backtest-end-time-input"]').setValue('2026-09-01T00:00')
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('起點不能晚於終點')
+      expect(wrapper.findAll('[data-testid="backtest-run-row"]')).toHaveLength(0)
     })
 
     it('本金留白時說在本金那一格', async () => {
@@ -186,9 +192,9 @@ describe('StrategyScriptBacktestPane', () => {
       const wrapper = mountPane(proxy)
 
       await wrapper.get('[data-testid="backtest-initial-capital-input"]').setValue('')
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('請填一個大於零的數')
     })
 
@@ -197,9 +203,9 @@ describe('StrategyScriptBacktestPane', () => {
       const wrapper = mountPane(proxy)
 
       await wrapper.get('[data-testid="backtest-initial-capital-input"]').setValue('0')
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
     })
 
     it('百分比填零時說在那一格', async () => {
@@ -209,9 +215,9 @@ describe('StrategyScriptBacktestPane', () => {
       await wrapper.get('[data-testid="backtest-position-sizing-mode-select"]')
         .setValue('percentage')
       await wrapper.get('[data-testid="backtest-position-sizing-value-input"]').setValue('0')
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('百分比要大於零且不超過一百')
     })
 
@@ -220,9 +226,9 @@ describe('StrategyScriptBacktestPane', () => {
       const proxy = buildProxy()
       const wrapper = mountPane(proxy, { resultType: 'floatList' })
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
       const message = wrapper.get('[data-testid="backtest-script-error"]').text()
       expect(message).toContain('一個信號')
       expect(message).toContain('一串數字')
@@ -232,67 +238,71 @@ describe('StrategyScriptBacktestPane', () => {
       const proxy = buildProxy()
       const wrapper = mountPane(proxy, { script: '   ' })
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(proxy.runBacktest).not.toHaveBeenCalled()
+      expect(proxy.submitBacktest).not.toHaveBeenCalled()
       expect(wrapper.get('[data-testid="backtest-script-error"]').text())
         .toContain('請填寫算式內容')
     })
   })
 
   describe('按下去之後的每一種狀態', () => {
-    it('算的時候顯示進行中，執行鍵停用', async () => {
-      // 避免他以為沒反應而按第二次。
-      let finishRun: (backtest: Backtest) => void = () => {}
+    it('送出去的時候執行鍵停用，收下之後說出輪次編號、鍵又按得下去', async () => {
+      // 避免他以為沒反應而按第二次；收下之後成績單不在這裡，在列表裡。
+      let finishRun: (run: BacktestRun) => void = () => {}
       const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn(() => new Promise<Backtest>((resolve) => {
+        submitBacktest: vi.fn(() => new Promise<BacktestRun>((resolve) => {
           finishRun = resolve
         })),
       }))
-
-      await wrapper.get('form').trigger('submit')
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="backtest-running-alert"]').exists()).toBe(true)
-      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
-        .toBeDefined()
-
-      finishRun(completedBacktest())
-      await flushPromises()
-
-      expect(wrapper.find('[data-testid="backtest-running-alert"]').exists()).toBe(false)
-      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
-        .toBeUndefined()
-    })
-
-    it('那顆鍵從頭到尾用同一個詞：執行回測 → 回測中…', async () => {
-      // 它曾經閒著時說「執行回測」、跑起來說「重演中」，讀起來像兩件事。
-      let finishRun: (backtest: Backtest) => void = () => {}
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn(() => new Promise<Backtest>((resolve) => {
-          finishRun = resolve
-        })),
-      }))
-
-      expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('執行回測')
 
       await wrapper.get('form').trigger('submit')
       await flushPromises()
 
       expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('回測中…')
+      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
+        .toBeDefined()
 
-      finishRun(completedBacktest())
+      finishRun(buildBacktestRun({ id: 40 }))
       await flushPromises()
 
+      expect(wrapper.get('[data-testid="backtest-submitted-alert"]').text()).toContain('已送出，輪次 #40')
       expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('執行回測')
+      expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
+        .toBeUndefined()
+    })
+
+    it('剛送出的那一筆立刻出現在下方的列表最上面', async () => {
+      const wrapper = mountPane(buildProxy({
+        submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun({ id: 40 })),
+      }))
+
+      await submitBacktest(wrapper)
+
+      const rows = wrapper.findAll('[data-testid="backtest-run-row"]')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.text()).toContain('#40')
+      expect(rows[0]!.get('[data-testid="backtest-run-status"]').text()).toBe('排隊中')
+    })
+
+    it('同時太多筆時說出上限，列表不變', async () => {
+      const wrapper = mountPane(buildProxy({
+        submitBacktest: vi.fn().mockRejectedValue(new BacktestRunOwnerLimitError(3)),
+      }))
+
+      await submitBacktest(wrapper)
+
+      expect(wrapper.get('[data-testid="backtest-owner-limit-alert"]').text())
+        .toBe('你同時最多 3 筆，等其中一筆結束再送')
+      expect(wrapper.findAll('[data-testid="backtest-run-row"]')).toHaveLength(0)
     })
 
     it('後端連不上時執行鍵停用——按了也沒用', async () => {
       const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockRejectedValue(new BackendUnreachableError('連不上')),
+        submitBacktest: vi.fn().mockRejectedValue(new BackendUnreachableError('連不上')),
       }))
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
       expect(wrapper.find('[data-testid="backtest-unreachable-alert"]').exists()).toBe(true)
       expect(wrapper.get('[data-testid="run-backtest-button"]').attributes('disabled'))
@@ -301,10 +311,10 @@ describe('StrategyScriptBacktestPane', () => {
 
     it('算式出錯時說成算式的問題', async () => {
       const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockRejectedValue(new IndicatorScriptFailedError('算式執行失敗')),
+        submitBacktest: vi.fn().mockRejectedValue(new IndicatorScriptFailedError('算式執行失敗')),
       }))
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
       expect(wrapper.get('[data-testid="backtest-script-failed-alert"]').text())
         .toContain('算式執行失敗')
@@ -312,11 +322,11 @@ describe('StrategyScriptBacktestPane', () => {
 
     it('名字對不上時說成參數的問題，不是算式壞了', async () => {
       const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockRejectedValue(
+        submitBacktest: vi.fn().mockRejectedValue(
           new StrategyScriptParameterNotDeclaredError('期數', '算式取用了參數 "期數"')),
       }))
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
       expect(wrapper.get('[data-testid="backtest-parameter-not-declared-alert"]').text())
         .toContain('期數')
@@ -325,159 +335,42 @@ describe('StrategyScriptBacktestPane', () => {
 
     it('後端自己壞掉時說清楚不是使用者的請求有問題', async () => {
       const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockRejectedValue(new BackendServerError('內部錯誤')),
+        submitBacktest: vi.fn().mockRejectedValue(new BackendServerError('內部錯誤')),
       }))
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
       expect(wrapper.get('[data-testid="backtest-server-error-alert"]').text())
         .toContain('不是你的請求有問題')
     })
 
-    it('這一次的錯誤不會被上一次的成績單蓋住', async () => {
-      const runBacktestMock = vi.fn()
-        .mockResolvedValueOnce(completedBacktest())
+    it('這一次的錯誤不會被上一次「已送出」那一句蓋住', async () => {
+      const submitBacktestMock = vi.fn()
+        .mockResolvedValueOnce(buildBacktestRun())
         .mockRejectedValueOnce(new BackendRequestRejectedError('這一段重演不了'))
-      const wrapper = mountPane(buildProxy({ runBacktest: runBacktestMock }))
+      const wrapper = mountPane(buildProxy({ submitBacktest: submitBacktestMock }))
 
-      await runBacktest(wrapper)
-      expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
+      await submitBacktest(wrapper)
+      expect(wrapper.find('[data-testid="backtest-submitted-alert"]').exists()).toBe(true)
 
-      await runBacktest(wrapper)
+      await submitBacktest(wrapper)
 
-      expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="backtest-submitted-alert"]').exists()).toBe(false)
       expect(wrapper.get('[data-testid="backtest-request-rejected-alert"]').text())
         .toContain('這一段重演不了')
     })
 
-    it('換了一份工作區就把上一次的成績單清掉', async () => {
-      // 換了一份算式，上一次那次重演與畫面上這一份已經無關了。
+    it('換了一份工作區就把上一次「已送出」那一句清掉', async () => {
+      // 換了一份算式，上一次送出的那一筆與畫面上這一份已經無關了。
       const wrapper = mountPane(buildProxy())
 
-      await runBacktest(wrapper)
-      expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
+      await submitBacktest(wrapper)
+      expect(wrapper.find('[data-testid="backtest-submitted-alert"]').exists()).toBe(true)
 
       await wrapper.setProps({ workspaceGeneration: 1 })
       await flushPromises()
 
-      expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(false)
-    })
-  })
-
-  describe('算完之後三塊東西一起出現', () => {
-    it('成績單、資金曲線與交易明細同時在畫面上', async () => {
-      const wrapper = mountPane(buildProxy())
-
-      await runBacktest(wrapper)
-
-      expect(wrapper.find('[data-testid="summary-total-return-rate"]').exists()).toBe(true)
-      expect(wrapper.find('[data-testid="equity-curve-chart"]').exists()).toBe(true)
-      expect(wrapper.findAll('[data-testid="trade-row"]')).toHaveLength(1)
-    })
-
-    it('賺的總報酬率是綠的', async () => {
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(completedBacktest({ totalReturnRate: 0.25 })),
-      }))
-
-      await runBacktest(wrapper)
-
-      const cell = wrapper.get('[data-testid="summary-total-return-rate"]')
-      expect(cell.text()).toBe('+25.00%')
-      expect(cell.classes().some(name => name.endsWith('--positive'))).toBe(true)
-    })
-
-    it('賠的總報酬率是紅的', async () => {
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(completedBacktest({ totalReturnRate: -0.08 })),
-      }))
-
-      await runBacktest(wrapper)
-
-      const cell = wrapper.get('[data-testid="summary-total-return-rate"]')
-      expect(cell.text()).toBe('-8.00%')
-      expect(cell.classes().some(name => name.endsWith('--negative'))).toBe(true)
-    })
-
-    it('賺的那一筆交易綠、賠的那一筆紅', async () => {
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(completedBacktest({
-          closedTrades: [
-            new ClosedTrade('long', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('300'), 'signal',
-              new Decimal(0), new Decimal(0)),
-            new ClosedTrade('short', REPLAY_START, new Decimal('100'), REPLAY_END,
-              new Decimal('110'), new Decimal('10000'), new Decimal('-120'), 'signal',
-              new Decimal(0), new Decimal(0)),
-          ],
-        })),
-      }))
-
-      await runBacktest(wrapper)
-
-      const profits = wrapper.findAll('[data-testid="trade-profit"]')
-      expect(profits[0]!.text()).toBe('300.00')
-      expect(profits[0]!.classes().some(name => name.endsWith('--positive'))).toBe(true)
-      expect(profits[1]!.text()).toBe('-120.00')
-      expect(profits[1]!.classes().some(name => name.endsWith('--negative'))).toBe(true)
-    })
-
-    it('一筆都沒平倉時勝率說不適用，不是 0%', async () => {
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(
-          completedBacktest({ winRate: null, closedTrades: [] })),
-      }))
-
-      await runBacktest(wrapper)
-
-      expect(wrapper.get('[data-testid="summary-win-rate"]').text()).toBe('不適用')
-    })
-
-    it('一筆交易都沒有時明講，而不是留一張空白表格', async () => {
-      // 空白讓人以為壞了，明講讓人知道是策略腳本沒開口。
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(
-          completedBacktest({ winRate: null, closedTrades: [] })),
-      }))
-
-      await runBacktest(wrapper)
-
-      expect(wrapper.get('[data-testid="no-trades"]').text())
-        .toContain('這段期間沒有觸發任何交易')
-      expect(wrapper.findAll('[data-testid="trade-row"]')).toHaveLength(0)
-    })
-
-    it('每一棒都說買入時，畫面說得出那一注還開著', async () => {
-      // 這是實際踩到的那一張成績單：算式每一棒都說買入，於是開一次倉之後
-      // 每一棒的買入都是空操作，那一注抱到最後。交易次數 0、明細空的，
-      // 但錢付出去了、市值也算進最後剩多少——三個數字都對，
-      // 錯的是畫面把它說成「沒有觸發任何交易」。
-      const wrapper = mountPane(buildProxy({
-        runBacktest: vi.fn().mockResolvedValue(completedBacktest({
-          winRate: null, positionOpenCount: 1, closedTrades: [],
-        })),
-      }))
-
-      await runBacktest(wrapper)
-
-      expect(wrapper.get('[data-testid="summary-position-open-count"]').text()).toBe('1')
-      expect(wrapper.get('[data-testid="summary-trade-count"]').text()).toBe('0')
-      expect(wrapper.get('[data-testid="no-closed-trades-yet"]').text())
-        .toContain('開了倉但還沒平掉')
-      expect(wrapper.find('[data-testid="no-trades"]').exists()).toBe(false)
-    })
-
-    it('資金曲線的每一點都交給繪圖函式庫，順序不變', async () => {
-      const wrapper = mountPane(buildProxy())
-
-      await runBacktest(wrapper)
-      await flushPromises()
-
-      const drawn = chartLibrary.lineSeries.setData.mock.calls.at(-1)?.[0] as
-        { value: number }[] | undefined
-      expect(drawn).toHaveLength(2)
-      expect(drawn![0]!.value).toBe(10000)
-      expect(drawn![1]!.value).toBe(12500)
+      expect(wrapper.find('[data-testid="backtest-submitted-alert"]').exists()).toBe(false)
     })
   })
 
@@ -600,9 +493,9 @@ describe('StrategyScriptBacktestPane 這一次照什麼規矩操作', () => {
     const proxy = buildProxy()
     const wrapper = mountPane(proxy)
 
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const request = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(request).not.toHaveProperty('tradingMode')
     expect(request).not.toHaveProperty('leverage')
     expect(request).not.toHaveProperty('maintenanceMarginRate')
@@ -618,9 +511,9 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('2')
     await wrapper.get('[data-testid="backtest-take-profit-percentage-input"]').setValue('5')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const request = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(request.stopLossPercentage.toString()).toBe('2')
     expect(request.takeProfitPercentage.toString()).toBe('5')
   })
@@ -634,9 +527,9 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="backtest-stop-loss-percentage-input"]').element.value).toBe('')
 
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const request = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(request.stopLossPercentage.isZero()).toBe(true)
     expect(request.takeProfitPercentage.isZero()).toBe(true)
   })
@@ -646,9 +539,9 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     const wrapper = mountPane(proxy)
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('-2')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    expect(proxy.submitBacktest).not.toHaveBeenCalled()
     // 位置就是這一條的全部重點：一則標在頁面頂端的訊息，指不出下一步。
     const exitLevelsField = wrapper.get('.backtest-condition-fields__exit-levels')
     expect(exitLevelsField.get('[data-testid="field-error"]').text())
@@ -661,7 +554,7 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     const wrapper = mountPane(buildProxy())
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('120')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
     expect(wrapper.get('.backtest-condition-fields__exit-levels')
       .get('[data-testid="field-error"]').text())
@@ -673,9 +566,9 @@ describe('StrategyScriptBacktestPane 這一次要不要模擬出場', () => {
     const wrapper = mountPane(proxy)
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('100')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    expect(proxy.runBacktest).toHaveBeenCalled()
+    expect(proxy.submitBacktest).toHaveBeenCalled()
   })
 })
 
@@ -688,9 +581,9 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
       .setValue('0.0855')
     await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]')
       .setValue('0.3855')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const request = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(request.entryCostPercentage.toString()).toBe('0.0855')
     expect(request.exitCostPercentage.toString()).toBe('0.3855')
   })
@@ -704,9 +597,9 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     expect(wrapper.get<HTMLInputElement>(
       '[data-testid="backtest-entry-cost-percentage-input"]').element.value).toBe('')
 
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const request = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const request = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(request.entryCostPercentage.isZero()).toBe(true)
     expect(request.exitCostPercentage.isZero()).toBe(true)
   })
@@ -716,9 +609,9 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     const wrapper = mountPane(proxy)
 
     await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('-1')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    expect(proxy.runBacktest).not.toHaveBeenCalled()
+    expect(proxy.submitBacktest).not.toHaveBeenCalled()
     // 位置就是這一條的全部重點：訊息要落在他要去改的那一組旁邊。
     expect(wrapper.get('.backtest-condition-fields__transaction-costs')
       .get('[data-testid="field-error"]').text())
@@ -730,7 +623,7 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     const wrapper = mountPane(buildProxy())
 
     await wrapper.get('[data-testid="backtest-exit-cost-percentage-input"]').setValue('101')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
     expect(wrapper.get('.backtest-condition-fields__transaction-costs')
       .get('[data-testid="field-error"]').text())
@@ -751,9 +644,9 @@ describe('StrategyScriptBacktestPane 這一次交易要付多少', () => {
     const wrapper = mountPane(proxy)
 
     await wrapper.get('[data-testid="backtest-entry-cost-percentage-input"]').setValue('100')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    expect(proxy.runBacktest).toHaveBeenCalled()
+    expect(proxy.submitBacktest).toHaveBeenCalled()
   })
 })
 
@@ -762,9 +655,9 @@ describe('StrategyScriptBacktestPane 指名一支我加入的策略腳本', () =
     const proxy = buildProxy()
     const wrapper = mountPane(proxy, { script: '', strategyScriptId: 9 })
 
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
 
-    const sent = vi.mocked(proxy.runBacktest).mock.calls[0]![0]
+    const sent = vi.mocked(proxy.submitBacktest).mock.calls[0]![0]
     expect(sent.strategyScriptId).toBe(9)
     expect(sent.script).toBe('')
   })
@@ -786,29 +679,17 @@ describe('StrategyScriptBacktestPane 切成英文', () => {
     expect(wrapper.text()).toContain('Stop-loss distance (%)')
     expect(wrapper.get('[data-testid="run-backtest-button"]').text()).toBe('Run backtest')
     expect(wrapper.get('[data-testid="backtest-placeholder"]').text())
-      .toBe('Press "Run backtest" and the scorecard, equity curve and trades will appear here.')
+      .toContain('computed in the background')
   })
 
   it('已經標在那一組旁邊的拒絕，換語言時跟著換', async () => {
     const wrapper = mountPane(buildProxy())
 
     await wrapper.get('[data-testid="backtest-stop-loss-percentage-input"]').setValue('-2')
-    await runBacktest(wrapper)
+    await submitBacktest(wrapper)
     await inEnglish(wrapper)
 
     expect(wrapper.get('.backtest-condition-fields__exit-levels [data-testid="field-error"]').text())
       .toBe('Stop-loss distance cannot be negative')
-  })
-
-  it('成績單、資金曲線與交易明細的標題與明細都說英文', async () => {
-    const wrapper = mountPane(buildProxy())
-
-    await runBacktest(wrapper)
-    await inEnglish(wrapper)
-
-    expect(wrapper.text()).toContain('Scorecard')
-    expect(wrapper.text()).toContain('Equity curve')
-    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('3 candles backtested')
-    expect(wrapper.get('[data-testid="trade-exit-reason"]').text()).toBe('Signal')
   })
 })

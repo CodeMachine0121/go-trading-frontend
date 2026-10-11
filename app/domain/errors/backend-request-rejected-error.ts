@@ -68,6 +68,9 @@ export class BackendRequestRejectedError extends LocalizedError {
 
   readonly reason: string | undefined
 
+  /** 交易服務說這個人同時進行的回測已經到了上限時，那個上限。 */
+  readonly ownerActiveLimit: number | undefined
+
   constructor(
     message: string,
     options?: {
@@ -81,6 +84,7 @@ export class BackendRequestRejectedError extends LocalizedError {
       timeAllowanceSpent?: boolean
       openTradeId?: number
       reason?: string
+      ownerActiveLimit?: number
     },
   ) {
     super(new UntranslatedTextVo(message), { cause: options?.cause })
@@ -94,5 +98,6 @@ export class BackendRequestRejectedError extends LocalizedError {
     this.timeAllowanceSpent = options?.timeAllowanceSpent ?? false
     this.openTradeId = options?.openTradeId
     this.reason = options?.reason
+    this.ownerActiveLimit = options?.ownerActiveLimit
   }
 }

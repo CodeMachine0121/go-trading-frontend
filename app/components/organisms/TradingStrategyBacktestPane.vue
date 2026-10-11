@@ -7,7 +7,7 @@ import AppPanel from '~/components/atoms/AppPanel.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import BacktestConditionFields from '~/components/molecules/BacktestConditionFields.vue'
 import BacktestRuleGuideDialog from '~/components/molecules/BacktestRuleGuideDialog.vue'
-import BacktestResultSections from '~/components/organisms/BacktestResultSections.vue'
+import BacktestRunPanel from '~/components/organisms/BacktestRunPanel.vue'
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
@@ -16,6 +16,7 @@ import type { FillTiming } from '~/domain/models/vo/fill-timing-vo'
 import { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-query-dto'
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
 import { useI18n } from 'vue-i18n'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
@@ -65,6 +66,9 @@ const symbol = ref('')
 const aggregationInterval = ref('')
 
 const backtestRun = useTradingStrategyBacktestRun(backtestApplication)
+
+// 下方那份「我的回測」只列這一份交易策略的；還沒存過的那一份沒有東西可列。
+const runScope = computed(() => new BacktestRunListQueryDto(null, null, tradingStrategyId))
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
@@ -299,18 +303,36 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
     </AppAlert>
 
     <AppAlert
-      v-else-if="backtestRun.running.value"
-      tone="info"
-      data-testid="backtest-running-alert"
+      v-else-if="backtestRun.ownerLimitMessage.value"
+      tone="warning"
+      data-testid="backtest-owner-limit-alert"
     >
-      {{ t('backtest.tradingStrategyBacktestPane.runningNotice') }}
+      {{ localize(backtestRun.ownerLimitMessage.value) }}
     </AppAlert>
 
-    <!-- 畫成哪幾塊由結果自己說：沒有驗證起點時只有一塊，與這個功能出現以前一模一樣。 -->
-    <BacktestResultSections
-      v-if="backtestRun.result.value"
-      :result="backtestRun.result.value"
+    <AppAlert
+      v-else-if="backtestRun.result.value"
+      tone="success"
+      data-testid="backtest-submitted-alert"
+    >
+      {{ t('backtest.runs.submitted', { id: backtestRun.result.value.id }) }}
+    </AppAlert>
+
+    <p
+      v-else-if="tradingStrategyId !== null"
+      class="trading-strategy-backtest-pane__placeholder"
+      data-testid="backtest-placeholder"
+    >
+      {{ t('backtest.tradingStrategyBacktestPane.placeholder') }}
+    </p>
+
+    <BacktestRunPanel
+      v-if="tradingStrategyId !== null"
+      :backtest-application="backtestApplication"
       :time-zone="timeZone"
+      :scope="runScope"
+      :empty-message="t('backtest.runs.emptyHere')"
+      :submitted-run="backtestRun.result.value"
     />
 
     <BacktestRuleGuideDialog
@@ -327,5 +349,15 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
+
+  &__placeholder {
+    margin: 0;
+    border: 1px dashed color('border-strong');
+    border-radius: radius('md');
+    padding: spacing('xl') spacing('md');
+    color: color('text-faint');
+    font-size: font-size('sm');
+    text-align: center;
+  }
 }
 </style>

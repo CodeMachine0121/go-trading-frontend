@@ -8,8 +8,6 @@ import type { IStrategyScriptProxy } from '~/domain/interface/i-strategy-script-
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
-import { Backtest } from '~/domain/models/entities/backtest'
-import Decimal from 'decimal.js'
 import type { IStrategyScriptMarketplaceProxy } from '~/domain/interface/i-strategy-script-marketplace-proxy'
 import { StrategyScriptNameConflictError } from '~/domain/errors/strategy-script-name-conflict-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
@@ -24,6 +22,7 @@ import {
 import { StrategyScript } from '~/domain/models/entities/strategy-script'
 import { buildBacktestApplication } from '../../fixtures/backtest-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { buildBacktestRun } from '../../fixtures/backtest-run'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與所有 domain model 都是真的。
@@ -1161,16 +1160,13 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     expect(wrapper.get('[data-testid="script-failed-alert"]').text()).toContain('第 3 行出錯')
   })
 
-  it('唯讀時照樣回測得了——回測的就是那一支，並顯示它的成績', async () => {
-    const runBacktest = vi.fn().mockResolvedValue(new Backtest(
-      'BTCUSDT', '5m', new Date(0), new Date(0), 12,
-      new Decimal(10000), new Decimal(10000), 0, 0, null, 0, 0, 0, 0,
-      new Decimal(0), [], []))
+  it('唯讀時照樣回測得了——回測的就是那一支，送出後說出輪次編號', async () => {
+    const submitBacktest = vi.fn().mockResolvedValue(buildBacktestRun({ id: 12 }))
     const wrapper = mountPanel({
       listAvailableStrategyScripts: vi.fn().mockResolvedValue({
         mine: [], adopted: [buildAdoptedStrategyScript(9, '均線交叉', { resultType: 'signal' })],
       }),
-    }, {}, undefined, { runBacktest })
+    }, {}, undefined, { submitBacktest })
     await settle()
     await pickStrategyScript(wrapper, 9)
 
@@ -1178,8 +1174,8 @@ describe('策略腳本畫面上的策略腳本：加入來的那些', () => {
     await wrapper.findAll('form').at(-1)!.trigger('submit')
     await settle()
 
-    expect(runBacktest).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: 9, script: '' }))
-    expect(wrapper.get('[data-testid="backtest-used-candle-count"]').text()).toContain('回測了 12 根')
+    expect(submitBacktest).toHaveBeenCalledWith(expect.objectContaining({ strategyScriptId: 9, script: '' }))
+    expect(wrapper.get('[data-testid="backtest-submitted-alert"]').text()).toContain('已送出，輪次 #12')
   })
 
   it('挑自己的那一支一切照舊：沒有唯讀的說明、每一顆都按得下去、試跑帶的是算式', async () => {

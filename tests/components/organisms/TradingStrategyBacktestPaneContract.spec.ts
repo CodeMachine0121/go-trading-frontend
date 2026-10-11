@@ -1,4 +1,3 @@
-import Decimal from 'decimal.js'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
@@ -6,11 +5,11 @@ import TradingStrategyBacktestPane from '~/components/organisms/TradingStrategyB
 import type { IBacktestProxy } from '~/domain/interface/i-backtest-proxy'
 import { BacktestApplication } from '~/application/backtest-application'
 import { BacktestService } from '~/domain/service/backtest-service'
-import { Backtest, ContractBacktestFigures, EquityPoint } from '~/domain/models/entities/backtest'
 import { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 vi.mock('lightweight-charts', () => ({
@@ -23,30 +22,19 @@ vi.mock('lightweight-charts', () => ({
   LineSeries: 'LineSeries',
 }))
 
-const REPLAY_START = new Date('2026-08-06T00:00:00Z')
-
-function contractBacktest(): Backtest {
-  return new Backtest(
-    'BTCUSDT', '1h', REPLAY_START, REPLAY_START, 2, new Decimal(10000), new Decimal(10000),
-    0, 0, null, 0, 0, 0, 0, new Decimal(0), [],
-    [new EquityPoint(REPLAY_START, new Decimal(10000))],
-    new ContractBacktestFigures(
-      'longOnly', new Decimal(3), 0, new Decimal(0), 0, null, 0, null, 0, 'smallestTier', null))
-}
-
 function buildProxy(): IBacktestProxy {
   return {
-    runBacktest: vi.fn().mockResolvedValue(contractBacktest()),
-    runTradingStrategyBacktest: vi.fn().mockResolvedValue(contractBacktest()),
-    runContractBacktest: vi.fn().mockResolvedValue(contractBacktest()),
-    runContractTradingStrategyBacktest: vi.fn().mockResolvedValue(contractBacktest()),
+    submitBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
+    submitContractTradingStrategyBacktest: vi.fn().mockResolvedValue(buildBacktestRun()),
   }
 }
 
 function mountPane(proxy: IBacktestProxy, replaysOnContractAccount: boolean) {
   return mount(TradingStrategyBacktestPane, {
     props: {
-      backtestApplication: new BacktestApplication(new BacktestService(proxy)),
+      backtestApplication: new BacktestApplication(new BacktestService(proxy, buildBacktestRunProxy())),
       // 合約標的清單認得 BTCUSDT；現貨那一份是空的，挑到它就代表挑錯了清單。
       tradingSymbolApplication: new TradingSymbolApplication(new TradingSymbolService(
         { findTradingSymbols: vi.fn().mockResolvedValue([]) },
@@ -86,8 +74,8 @@ describe('TradingStrategyBacktestPane 重演一份合約交易策略', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(proxy.runTradingStrategyBacktest).not.toHaveBeenCalled()
-    const [requestDomain, termsDomain] = vi.mocked(proxy.runContractTradingStrategyBacktest).mock.calls[0]!
+    expect(proxy.submitTradingStrategyBacktest).not.toHaveBeenCalled()
+    const [requestDomain, termsDomain] = vi.mocked(proxy.submitContractTradingStrategyBacktest).mock.calls[0]!
     expect(requestDomain.tradingStrategyId).toBe(7)
     expect(termsDomain.leverage.toString()).toBe('3')
     expect(termsDomain.slippagePercentage.toString()).toBe('0.05')

@@ -54,12 +54,20 @@ describe('ConsoleLayout', () => {
     expect(wrapper.get('[data-testid="content"]').text()).toBe('內容')
   })
 
-  it('側欄是八個去處，照這個順序，設定釘在底部', async () => {
+  it('側欄是九個去處，照這個順序，設定釘在底部', async () => {
     const wrapper = await mountLayoutAt(DESKTOP)
 
     const labels = wrapper.findAll('[data-testid^="destination-"]').map(link => link.text())
 
-    expect(labels).toEqual(['行情圖表', 'K 線資料', '策略腳本', '交易策略', '策略機器人', '交易日誌', 'Marketplace', '設定'])
+    expect(labels).toEqual(['行情圖表', 'K 線資料', '策略腳本', '交易策略', '回測紀錄', '策略機器人', '交易日誌', 'Marketplace', '設定'])
+  })
+
+  it('回測紀錄用自己的歷史圖示，不借策略腳本庫的清單圖示', async () => {
+    const wrapper = await mountLayoutAt(DESKTOP)
+
+    const icon = wrapper.get('[data-testid="destination-/backtest-runs"] [data-icon]').attributes('data-icon')
+
+    expect(icon).toBe('history')
   })
 
   it('英文畫面上側欄的去處都是英文', async () => {
@@ -70,7 +78,7 @@ describe('ConsoleLayout', () => {
 
     const labels = wrapper.findAll('[data-testid^="destination-"]').map(link => link.text())
 
-    expect(labels).toEqual(['Market chart', 'K-candle data', 'Strategy scripts', 'Trading strategies', 'Strategy bots', 'Trade journal', 'Marketplace', 'Settings'])
+    expect(labels).toEqual(['Market chart', 'K-candle data', 'Strategy scripts', 'Trading strategies', 'Backtest runs', 'Strategy bots', 'Trade journal', 'Marketplace', 'Settings'])
   })
 
   it.each([
@@ -79,6 +87,7 @@ describe('ConsoleLayout', () => {
     { name: '在合約 K 線瀏覽時 K 線資料亮著，行情圖表不亮', path: '/contract-k-candles', current: '/k-candles' },
     { name: '在編輯一台合約機器人時策略機器人亮著', path: '/contract-strategy-bots/7', current: '/strategy-bots' },
     { name: '在一份交易策略裡時交易策略亮著', path: '/trading-strategies/3', current: '/trading-strategies' },
+    { name: '在回測紀錄時回測紀錄亮著', path: '/backtest-runs', current: '/backtest-runs' },
     { name: '在一筆合約交易的詳情時交易日誌亮著', path: '/contract-trade-journal/27', current: '/spot-trade-journal' },
     { name: '在一筆現貨交易的詳情時交易日誌亮著', path: '/spot-trade-journal/5', current: '/spot-trade-journal' },
   ])('$name', async ({ path, current }) => {
@@ -152,13 +161,13 @@ describe('ConsoleLayout', () => {
       expect(assistantTab.attributes('href')).toBe('/chat')
     })
 
-    it('更多裡是 K 線資料、交易策略、交易日誌、Marketplace、設定', async () => {
+    it('更多裡是 K 線資料、交易策略、回測紀錄、交易日誌、Marketplace、設定', async () => {
       const wrapper = await mountLayoutAt(PHONE)
 
       await wrapper.get('[data-testid="tab-more"]').trigger('click')
 
       const labels = wrapper.findAll('[data-testid^="more-"]').map(link => link.text())
-      expect(labels).toEqual(['K 線資料', '交易策略', '交易日誌', 'Marketplace', '設定'])
+      expect(labels).toEqual(['K 線資料', '交易策略', '回測紀錄', '交易日誌', 'Marketplace', '設定'])
     })
 
     it('現貨／合約開關留在頂部標題列上', async () => {
@@ -171,6 +180,7 @@ describe('ConsoleLayout', () => {
       { name: '在設定畫面時「更多」亮著', path: '/settings', moreCurrent: true },
       { name: '在合約 K 線瀏覽時「更多」亮著', path: '/contract-k-candles', moreCurrent: true },
       { name: '在交易日誌時「更多」亮著', path: '/contract-trade-journal/new', moreCurrent: true },
+      { name: '在回測紀錄時「更多」亮著', path: '/backtest-runs', moreCurrent: true },
       { name: '在合約策略機器人時「機器人」亮著、「更多」不亮', path: '/contract-strategy-bots', moreCurrent: false },
     ])('$name', async ({ path, moreCurrent }) => {
       stopAt(path)

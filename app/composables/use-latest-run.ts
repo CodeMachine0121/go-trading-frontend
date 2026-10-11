@@ -4,6 +4,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { StrategyScriptParameterNotDeclaredError } from '~/domain/errors/strategy-script-parameter-not-declared-error'
 import { BacktestTimeAllowanceSpentError } from '~/domain/errors/backtest-time-allowance-spent-error'
+import { BacktestRunOwnerLimitError } from '~/domain/errors/backtest-run-owner-limit-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
@@ -49,6 +50,8 @@ export function useLatestRun<TResult, TField extends string>(
    * 而是期間的長短或刻度的粗細。
    */
   const timeAllowanceSpentMessage = ref<LocalizedTextVo | null>(null)
+  /** 這個人同時進行的回測已經到了上限。要做的不是改請求，是等一筆結束或取消一筆。 */
+  const ownerLimitMessage = ref<LocalizedTextVo | null>(null)
   const serverErrorMessage = ref<LocalizedTextVo | null>(null)
 
   /**
@@ -66,6 +69,7 @@ export function useLatestRun<TResult, TField extends string>(
     serverErrorMessage.value = null
     backendUnreachable.value = false
     timeAllowanceSpentMessage.value = null
+    ownerLimitMessage.value = null
   }
 
   /** 這個欄位有沒有被指出問題——沒有就是 `null`。 */
@@ -97,6 +101,9 @@ export function useLatestRun<TResult, TField extends string>(
       else if (error instanceof BacktestTimeAllowanceSpentError) {
         timeAllowanceSpentMessage.value = error.localizedMessage
       }
+      else if (error instanceof BacktestRunOwnerLimitError) {
+        ownerLimitMessage.value = error.localizedMessage
+      }
       else if (error instanceof IndicatorScriptFailedError) {
         scriptFailedMessage.value = error.localizedMessage
       }
@@ -127,6 +134,7 @@ export function useLatestRun<TResult, TField extends string>(
     backendUnreachable,
     serverErrorMessage,
     timeAllowanceSpentMessage,
+    ownerLimitMessage,
     messageFor,
     clear,
     run,

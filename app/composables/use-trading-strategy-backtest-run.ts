@@ -1,20 +1,20 @@
 import type { BacktestApplication } from '~/application/backtest-application'
 import type { TradingStrategyBacktestRequestDto } from '~/domain/models/dto/trading-strategy-backtest-request-dto'
 import type { ContractBacktestTermsDto } from '~/domain/models/dto/contract-backtest-terms-dto'
-import type { BacktestResultDto } from '~/domain/models/dto/backtest-result-dto'
+import type { BacktestRunDto } from '~/domain/models/dto/backtest-run-dto'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
 import { BacktestFieldError } from '~/domain/errors/backtest-field-error'
 import { useLatestRun } from '~/composables/use-latest-run'
 
 /**
- * 最近那一次交易策略回測。
+ * 最近那一次送出的交易策略回測：留下的是後端記下的那一筆輪次，不是成績單。
  *
  * 它與重演一支腳本那一支是**各自獨立的兩個**，儘管形狀相同：兩個畫面同時活著，
  * 共用一份就代表切過去會看到別人的結果。
  */
 export function useTradingStrategyBacktestRun(backtestApplication: BacktestApplication) {
   const { translatedText } = useLocalizedText()
-  const latestRun = useLatestRun<BacktestResultDto, BacktestField>(
+  const latestRun = useLatestRun<BacktestRunDto, BacktestField>(
     BacktestFieldError,
     translatedText('backtest.tradingStrategyBacktestPane.unexpectedError'))
 
@@ -22,11 +22,11 @@ export function useTradingStrategyBacktestRun(backtestApplication: BacktestAppli
     ...latestRun,
     /** 收的是「怎麼組出那份請求」——組裝本身就會失敗，所以它要落在 try 裡面。 */
     run: (buildRequest: () => TradingStrategyBacktestRequestDto) =>
-      latestRun.run(() => backtestApplication.runTradingStrategyBacktest(buildRequest())),
+      latestRun.run(() => backtestApplication.submitTradingStrategyBacktest(buildRequest())),
     /** 在合約帳戶上重演一份合約交易策略。 */
     runContract: (
       buildRequest: () => TradingStrategyBacktestRequestDto, buildTerms: () => ContractBacktestTermsDto,
     ) => latestRun.run(
-      () => backtestApplication.runContractTradingStrategyBacktest(buildRequest(), buildTerms())),
+      () => backtestApplication.submitContractTradingStrategyBacktest(buildRequest(), buildTerms())),
   }
 }
