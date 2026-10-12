@@ -11,5 +11,7 @@ export class ContractAutoOrderResultDto {
     public readonly tone: 'success' | 'neutral' | 'warning' | 'danger',
     /** 止損或止盈沒掛上時那一行提醒；都掛上了（或本來就沒要掛）是 `null`。 */
     public readonly protectionWarning: LocalizedTextVo | null,
+    /** 限價進場單那一行：狀態、參考價、限價、成交／要求、滑價；沒有進場單是 `null`。 */
+    public readonly entryText: LocalizedTextVo | null = null,
   ) {}
 }

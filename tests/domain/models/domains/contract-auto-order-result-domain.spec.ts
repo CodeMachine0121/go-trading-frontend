@@ -13,6 +13,13 @@ function result(overrides: Partial<{
   takeProfitPrice: string
   protectionMissing: boolean
   reason: string
+  referencePrice: string
+  entrySlippageTolerancePercentage: string
+  requestedQuantity: string
+  entryLimitPrice: string
+  entryStatus: string
+  entryExecutedQuantity: string
+  entrySlippagePercentage: string
 }> = {}) {
   const figure = (value: string | undefined) => value === undefined ? null : new Decimal(value)
   return new ContractAutoOrderResult(
@@ -26,6 +33,13 @@ function result(overrides: Partial<{
     figure(overrides.takeProfitPrice),
     overrides.protectionMissing ?? false,
     overrides.reason ?? '',
+    figure(overrides.referencePrice),
+    figure(overrides.entrySlippageTolerancePercentage),
+    figure(overrides.requestedQuantity),
+    figure(overrides.entryLimitPrice),
+    overrides.entryStatus ?? '',
+    figure(overrides.entryExecutedQuantity),
+    figure(overrides.entrySlippagePercentage),
   ).toDomain().toDto()
 }
 
@@ -128,5 +142,73 @@ describe('ContractAutoOrderResultDomain', () => {
 
   it('只有數量沒有均價的那一段不寫', () => {
     expect(result({ status: 'filled', openedQuantity: '0.002' }).text.in('zh-TW')).toBe('成交')
+  })
+
+  describe('限價進場單', () => {
+    const entry = {
+      referencePrice: '84154', entrySlippageTolerancePercentage: '0.1', requestedQuantity: '0.002', entryLimitPrice: '84238.1',
+    }
+
+    it('全部成交：下單結果照舊，下一行寫進場單狀態、參考價、限價、成交與帶正號的滑價', () => {
+      const dto = result({
+        ...entry, status: 'filled', action: '做多', openedQuantity: '0.002', openAveragePrice: '84180',
+        entryStatus: 'filled', entryExecutedQuantity: '0.002', entrySlippagePercentage: '0.031',
+      })
+
+      expect(dto.text.in('zh-TW')).toBe('成交 · 做多 · 開倉 0.002 @ 84180')
+      expect(dto.entryText?.in('zh-TW')).toBe('全部成交 · 參考價 84154 · 限價 84238.1 · 成交 0.002／0.002 · 滑價 +0.031%')
+      expect(dto.entryText?.in('en')).toBe('Fully filled · Reference 84154 · Limit 84238.1 · Filled 0.002/0.002 · Slippage +0.031%')
+    })
+
+    it('還在等成交：狀態說等待成交，進場行寫已成交 0', () => {
+      const dto = result({ ...entry, status: 'pending', action: '做多', entryStatus: 'working', entryExecutedQuantity: '0' })
+
+      expect(dto.text.in('zh-TW')).toBe('等待成交 · 做多')
+      expect(dto.text.in('en')).toBe('Waiting for fill · Long')
+      expect(dto.tone).toBe('neutral')
+      expect(dto.entryText?.in('zh-TW')).toBe('等待成交 · 參考價 84154 · 限價 84238.1 · 成交 0／0.002')
+    })
+
+    it('部分成交：寫其餘已撤單與成交 0.001／0.002', () => {
+      const dto = result({ ...entry, status: 'filled', entryStatus: 'partiallyFilled', entryExecutedQuantity: '0.001' })
+
+      expect(dto.entryText?.in('zh-TW')).toBe('部分成交，其餘已撤單 · 參考價 84154 · 限價 84238.1 · 成交 0.001／0.002')
+      expect(dto.entryText?.in('en')).toBe('Partially filled, rest cancelled · Reference 84154 · Limit 84238.1 · Filled 0.001/0.002')
+    })
+
+    it('沒有成交：狀態說沒有成交、提醒語氣；進場行寫沒有成交已撤單', () => {
+      const dto = result({ ...entry, status: 'unfilled', action: '做多', entryStatus: 'unfilled', entryExecutedQuantity: '0' })
+
+      expect(dto.text.in('zh-TW')).toBe('沒有成交 · 做多')
+      expect(dto.text.in('en')).toBe('Not filled · Long')
+      expect(dto.tone).toBe('warning')
+      expect(dto.entryText?.in('zh-TW')).toBe('沒有成交，已撤單 · 參考價 84154 · 限價 84238.1 · 成交 0／0.002')
+      expect(dto.entryText?.in('en')).toBe('Not filled, cancelled · Reference 84154 · Limit 84238.1 · Filled 0/0.002')
+    })
+
+    it('沒有成交量但有要求數量時讀作一點都還沒成交', () => {
+      expect(result({ ...entry, status: 'unfilled', entryStatus: 'unfilled' }).entryText?.in('zh-TW'))
+        .toBe('沒有成交，已撤單 · 參考價 84154 · 限價 84238.1 · 成交 0／0.002')
+    })
+
+    it.each([
+      { slippage: '-0.012', expected: '滑價 -0.012%' },
+      { slippage: '0', expected: '滑價 0%' },
+    ])('滑價 $slippage 寫成「$expected」，不加正號', ({ slippage, expected }) => {
+      expect(result({ status: 'filled', entrySlippagePercentage: slippage }).entryText?.in('zh-TW')).toBe(expected)
+    })
+
+    it('沒有任何進場資訊的那一輪不多畫一行', () => {
+      expect(result({ status: 'filled', action: '平多', closedQuantity: '0.002', closeAveragePrice: '84000' }).entryText)
+        .toBeNull()
+    })
+
+    it.each(['teleported', 'constructor'])('認不得的進場單狀態（%s）不寫那一段，其餘照寫', (entryStatus) => {
+      expect(result({ status: 'filled', referencePrice: '84154', entryStatus }).entryText?.in('zh-TW')).toBe('參考價 84154')
+    })
+
+    it('等待中但進場單已不在等成交時，狀態仍是等待下單', () => {
+      expect(result({ status: 'pending', entryStatus: 'filled' }).text.in('zh-TW')).toBe('等待下單')
+    })
   })
 })

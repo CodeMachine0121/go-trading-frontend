@@ -2,12 +2,16 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { ContractAutoOrderResult } from '~/domain/models/entities/contract-auto-order-result'
 import { ContractAutoOrderResultDto } from '~/domain/models/dto/contract-auto-order-result-dto'
+import { ContractAutoOrderEntryDomain } from '~/domain/models/domains/contract-auto-order-entry-domain'
 
 /** 一句話的每一段之間用什麼隔開，兩種語言都一樣。 */
 const PART_SEPARATOR = new UntranslatedTextVo(' · ')
 
 /** 還沒做完、或認不得的那一種。 */
 const PENDING_STATUS = { label: new LocalizedTextVo('等待下單', 'Pending'), tone: 'neutral' as const }
+
+/** 進場單掛著等成交時，還沒做完的那一輪說的是這一句。 */
+const WAITING_FOR_FILL_STATUS = { label: new LocalizedTextVo('等待成交', 'Waiting for fill'), tone: 'neutral' as const }
 
 /** 交易服務的狀態拼法對到畫面上的詞與語氣。 */
 const STATUSES: Readonly<Record<string, { label: LocalizedTextVo, tone: ContractAutoOrderResultDto['tone'] }>> = {
@@ -16,20 +20,21 @@ const STATUSES: Readonly<Record<string, { label: LocalizedTextVo, tone: Contract
   partiallyDone: {
     label: new LocalizedTextVo('平倉了但新方向沒開成', 'Closed, new side not opened'), tone: 'warning',
   },
+  unfilled: { label: new LocalizedTextVo('沒有成交', 'Not filled'), tone: 'warning' },
   notPlaced: { label: new LocalizedTextVo('沒有下單', 'Not placed'), tone: 'warning' },
   abandoned: { label: new LocalizedTextVo('放棄', 'Given up'), tone: 'warning' },
 }
 
 /** 交易服務寫好的動作詞對到英文；認不得的原樣呈現，不猜。 */
-const ACTIONS: Readonly<Record<string, string>> = {
-  做多: 'Long',
-  做空: 'Short',
-  平多: 'Close long',
-  平空: 'Close short',
-  反手做多: 'Reverse to long',
-  反手做空: 'Reverse to short',
-  平倉: 'Close',
-}
+const ACTIONS: readonly LocalizedTextVo[] = [
+  new LocalizedTextVo('做多', 'Long'),
+  new LocalizedTextVo('做空', 'Short'),
+  new LocalizedTextVo('平多', 'Close long'),
+  new LocalizedTextVo('平空', 'Close short'),
+  new LocalizedTextVo('反手做多', 'Reverse to long'),
+  new LocalizedTextVo('反手做空', 'Reverse to short'),
+  new LocalizedTextVo('平倉', 'Close'),
+]
 
 /**
  * Domain Model：一輪的下單結果怎麼說、用什麼語氣。
@@ -42,12 +47,14 @@ export class ContractAutoOrderResultDomain {
   constructor(private readonly result: ContractAutoOrderResult) {}
 
   toDto(): ContractAutoOrderResultDto {
-    // 只認這兩張表自己的鍵：沿著原型找到的 `constructor`、`toString` 不是狀態也不是動作。
-    const status = (Object.hasOwn(STATUSES, this.result.status) ? STATUSES[this.result.status] : undefined)
-      ?? PENDING_STATUS
-    const englishAction = (Object.hasOwn(ACTIONS, this.result.action) ? ACTIONS[this.result.action] : undefined)
-      ?? this.result.action
-    const action = this.result.action === '' ? null : new LocalizedTextVo(this.result.action, englishAction)
+    // 只認這張表自己的鍵：沿著原型找到的 `constructor`、`toString` 不是狀態。
+    const status = this.result.status === 'pending' && this.result.entryStatus === 'working'
+      ? WAITING_FOR_FILL_STATUS
+      : (Object.hasOwn(STATUSES, this.result.status) ? STATUSES[this.result.status] : undefined) ?? PENDING_STATUS
+    const action = this.result.action === ''
+      ? null
+      : ACTIONS.find(known => known.traditionalChinese === this.result.action)
+        ?? new UntranslatedTextVo(this.result.action)
 
     const text = PART_SEPARATOR.join([
       status.label,
@@ -81,6 +88,7 @@ export class ContractAutoOrderResultDomain {
             '止損或止盈沒有掛上，請立刻到幣安自己處理',
             'A stop-loss or take-profit order was not placed. Go to Binance and handle it yourself now.')
         : null,
+      new ContractAutoOrderEntryDomain(this.result).toText(),
     )
   }
 }

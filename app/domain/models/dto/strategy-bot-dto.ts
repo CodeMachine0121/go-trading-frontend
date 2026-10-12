@@ -3,6 +3,8 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import Decimal from 'decimal.js'
+import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 /**
  * DTO：一台機器人交給畫面的樣子。
@@ -44,5 +46,8 @@ export class StrategyBotDto {
     public readonly autoOrderEnabled: boolean = false,
     /** 機器人持倉：「多 0.002」「空 0.002」「空手」。現貨機器人與舊版後端是 `null`，那一格就不畫。 */
     public readonly autoOrderPositionLabel: LocalizedTextVo | null = null,
+    /** 開倉容許滑價（百分比），表單要填回去的值。 */
+    public readonly autoOrderEntrySlippageTolerancePercentage: Decimal
+      = new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
   ) {}
 }

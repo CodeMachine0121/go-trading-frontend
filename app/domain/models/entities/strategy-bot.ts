@@ -4,6 +4,8 @@ import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-ha
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AutoOrderPositionVo } from '~/domain/models/vo/auto-order-position-vo'
+import Decimal from 'decimal.js'
+import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 /**
  * Entity：後端那一台機器人的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -43,6 +45,8 @@ export class StrategyBot {
     public readonly autoOrderEnabled: boolean = false,
     /** 合約機器人用自動下單自己開出來的那一份。現貨機器人與舊版後端是 `null`。 */
     public readonly autoOrderPosition: AutoOrderPositionVo | null = null,
+    public readonly autoOrderEntrySlippageTolerancePercentage: Decimal
+      = new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
   ) {}
 
   toDomain(): StrategyBotDomain {

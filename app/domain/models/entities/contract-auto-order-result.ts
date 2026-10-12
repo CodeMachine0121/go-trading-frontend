@@ -8,7 +8,7 @@ import { ContractAutoOrderResultDomain } from '~/domain/models/domains/contract-
  */
 export class ContractAutoOrderResult {
   constructor(
-    /** `pending`／`filled`／`partiallyDone`／`notPlaced`／`abandoned`。 */
+    /** `pending`／`filled`／`partiallyDone`／`unfilled`／`notPlaced`／`abandoned`。 */
     public readonly status: string,
     public readonly action: string,
     public readonly closedQuantity: Decimal | null,
@@ -19,6 +19,16 @@ export class ContractAutoOrderResult {
     public readonly takeProfitPrice: Decimal | null,
     public readonly protectionMissing: boolean,
     public readonly reason: string,
+    /** 以下是開倉那一張限價進場單；沒有進場單的那一輪都沒有。 */
+    public readonly referencePrice: Decimal | null = null,
+    public readonly entrySlippageTolerancePercentage: Decimal | null = null,
+    public readonly requestedQuantity: Decimal | null = null,
+    public readonly entryLimitPrice: Decimal | null = null,
+    /** `working`／`filled`／`partiallyFilled`／`unfilled`；還沒掛出去是空字串。 */
+    public readonly entryStatus: string = '',
+    public readonly entryExecutedQuantity: Decimal | null = null,
+    /** 對擁有者不利為正。 */
+    public readonly entrySlippagePercentage: Decimal | null = null,
   ) {}
 
   toDomain(): ContractAutoOrderResultDomain {

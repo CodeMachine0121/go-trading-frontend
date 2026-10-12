@@ -22,4 +22,8 @@ export const STRATEGY_BOT_LIMITS = {
   triggerIntervalMaximumMinutes: 1440,
   /** 機器人名稱的字數上限。 */
   nameMaximumLength: 128,
+  entrySlippageToleranceMinimumPercentage: 0,
+  entrySlippageToleranceMaximumPercentage: 5,
+  /** 交易服務替沒說過的機器人用的那一個。 */
+  entrySlippageToleranceDefaultPercentage: '0.1',
 } as const

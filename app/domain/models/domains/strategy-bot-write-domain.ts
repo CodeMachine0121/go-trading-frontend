@@ -59,6 +59,15 @@ export class StrategyBotWriteDomain {
         `The trigger interval can be at most ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} minutes`)
     }
 
+    const entrySlippageTolerance = this.writeDto.autoOrderEntrySlippageTolerancePercentage
+    if (entrySlippageTolerance !== null && (entrySlippageTolerance.isNaN()
+      || entrySlippageTolerance.lessThan(STRATEGY_BOT_LIMITS.entrySlippageToleranceMinimumPercentage)
+      || entrySlippageTolerance.greaterThan(STRATEGY_BOT_LIMITS.entrySlippageToleranceMaximumPercentage))) {
+      return new LocalizedTextVo(
+        `開倉容許滑價必須介於 ${STRATEGY_BOT_LIMITS.entrySlippageToleranceMinimumPercentage} 到 ${STRATEGY_BOT_LIMITS.entrySlippageToleranceMaximumPercentage} 之間（單位：%）`,
+        `The entry slippage tolerance must be between ${STRATEGY_BOT_LIMITS.entrySlippageToleranceMinimumPercentage} and ${STRATEGY_BOT_LIMITS.entrySlippageToleranceMaximumPercentage} (percent)`)
+    }
+
     // 問在最後，因為前面那四格是必填的：一台連名字都沒有的機器人，
     // 先講它的槓桿沒有意義。
     //
@@ -86,6 +95,7 @@ export class StrategyBotWriteDomain {
       // 沒有要正規化的東西：那五格是數字，沒有前後空白可以去。
       this.writeDto.positionPlan,
       this.writeDto.marketDataKind,
+      this.writeDto.autoOrderEntrySlippageTolerancePercentage,
     )
   }
 }

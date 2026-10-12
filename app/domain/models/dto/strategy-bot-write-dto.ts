@@ -1,3 +1,4 @@
+import type Decimal from 'decimal.js'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
@@ -33,5 +34,7 @@ export class StrategyBotWriteDto {
      * 改一台時沿用它自己的——建立之後不得更換，所以表單上沒有換的選項。
      */
     public readonly marketDataKind: MarketDataKind = 'kCandle',
+    /** 開倉容許滑價（百分比）；`null` 是這一種機器人不收這一格，送出時整個鍵不放，交易服務保留原值。 */
+    public readonly autoOrderEntrySlippageTolerancePercentage: Decimal | null = null,
   ) {}
 }
