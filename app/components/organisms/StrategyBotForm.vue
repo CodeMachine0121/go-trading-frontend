@@ -262,6 +262,28 @@ function onSave() {
       </div>
     </section>
 
+    <section
+      v-if="form.takesAutoOrderEntrySlippageTolerance"
+      class="bot-form__section"
+      data-testid="bot-auto-order-entry"
+    >
+      <h3 class="bot-form__section-title">
+        {{ t('strategyBot.form.autoOrderEntryTitle') }}
+      </h3>
+      <FormField :label="t('strategyBot.form.entrySlippageToleranceLabel')">
+        <AppInput
+          v-model="form.entrySlippageToleranceText.value"
+          type="number"
+          inputmode="decimal"
+          placeholder="0.1"
+          data-testid="bot-entry-slippage-tolerance-input"
+        />
+      </FormField>
+      <p class="bot-form__help">
+        {{ t('strategyBot.form.entrySlippageToleranceHelp') }}
+      </p>
+    </section>
+
     <AppAlert
       v-if="form.rejection.value !== null"
       tone="warning"
@@ -363,6 +385,13 @@ function onSave() {
     accent-color: color('primary');
     width: spacing('md');
     height: spacing('md');
+  }
+
+  &__help {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('xs');
+    line-height: line-height('normal');
   }
 
   &__actions {

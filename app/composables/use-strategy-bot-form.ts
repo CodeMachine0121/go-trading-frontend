@@ -7,6 +7,7 @@ import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
+import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 /** 一台新機器人的預設觸發間隔。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
@@ -47,6 +48,7 @@ export function useStrategyBotForm(
   const takeProfitText = ref('')
   /** 合約機器人的槓桿倍數。留空即一倍；現貨機器人的表單上沒有這一格。 */
   const leverageText = ref('')
+  const entrySlippageToleranceText = ref<string>(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage)
 
   /**
    * 押多少那一格旁邊要不要出現一格數字。問的是既有那個模型，不自己記——
@@ -115,6 +117,12 @@ export function useStrategyBotForm(
       buildPositionPlan(),
       // 改一台時用它自己的種類——建立之後不得更換；新拼一台就是這一頁的那一種。
       editing()?.marketDataKind ?? page.marketDataKind,
+      page.takesAutoOrderEntrySlippageTolerance
+        // 清空不是 0：0 是「只在參考價成交」，不該由一次誤刪替他選。
+        ? (String(entrySlippageToleranceText.value).trim() === ''
+            ? new Decimal(Number.NaN)
+            : decimalOfText(entrySlippageToleranceText.value))
+        : null,
     )
   }
 
@@ -144,6 +152,8 @@ export function useStrategyBotForm(
     stopLossText.value = positionPlan?.stopLossPercentage.toString() ?? ''
     takeProfitText.value = positionPlan?.takeProfitPercentage.toString() ?? ''
     leverageText.value = positionPlan?.leverage?.toString() ?? ''
+    entrySlippageToleranceText.value = loaded?.autoOrderEntrySlippageTolerancePercentage.toString()
+      ?? STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage
   }
 
   return {
@@ -161,6 +171,8 @@ export function useStrategyBotForm(
     takeProfitText,
     leverageText,
     takesLeverage: page.takesLeverage,
+    entrySlippageToleranceText,
+    takesAutoOrderEntrySlippageTolerance: page.takesAutoOrderEntrySlippageTolerance,
     rejection,
     reset,
     toWriteDto,
