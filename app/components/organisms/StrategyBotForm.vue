@@ -270,7 +270,10 @@ function onSave() {
       <h3 class="bot-form__section-title">
         {{ t('strategyBot.form.autoOrderEntryTitle') }}
       </h3>
-      <FormField :label="t('strategyBot.form.entrySlippageToleranceLabel')">
+      <FormField
+        :label="t('strategyBot.form.entrySlippageToleranceLabel')"
+        :hint="t('strategyBot.form.entrySlippageToleranceHelp')"
+      >
         <AppInput
           v-model="form.entrySlippageToleranceText.value"
           type="number"
@@ -279,9 +282,6 @@ function onSave() {
           data-testid="bot-entry-slippage-tolerance-input"
         />
       </FormField>
-      <p class="bot-form__help">
-        {{ t('strategyBot.form.entrySlippageToleranceHelp') }}
-      </p>
     </section>
 
     <AppAlert
@@ -385,13 +385,6 @@ function onSave() {
     accent-color: color('primary');
     width: spacing('md');
     height: spacing('md');
-  }
-
-  &__help {
-    margin: 0;
-    color: color('text-muted');
-    font-size: font-size('xs');
-    line-height: line-height('normal');
   }
 
   &__actions {
