@@ -9,6 +9,7 @@ import { StrategyBotRunningError } from '~/domain/errors/strategy-bot-running-er
 import { TradingStrategyNotFoundError } from '~/domain/errors/trading-strategy-not-found-error'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { AUTO_ORDER_REFUSAL_REASONS } from '~/domain/models/vo/auto-order-refusal-reason-vo'
 import type { BackendRequestValue } from '~/infrastructure/proxy/backend-api-proxy'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
@@ -21,12 +22,15 @@ import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 const STRATEGY_BOTS_ENDPOINT = '/strategy-bots'
 
 /** 後端用這兩個狀態碼分別表示「看不到那一台」與「有一條規則擋著」。只有這裡需要知道。 */
 const NOT_FOUND_STATUS = 404
 const CONFLICT_STATUS = 409
+
+const ENTRY_ORDER_OUTSTANDING_REASON = 'autoOrderEntryOutstanding'
 
 /**
  * 後端說「還沒完成 Telegram 設定」時，訊息裡一定有的那幾個字。
@@ -76,6 +80,13 @@ type ContractAutoOrderResultWire = {
   takeProfitPrice?: string | null
   protectionMissing?: boolean
   reason?: string
+  referencePrice?: string | null
+  entrySlippageTolerancePercentage?: string | null
+  requestedQuantity?: string | null
+  entryLimitPrice?: string | null
+  entryStatus?: string
+  entryExecutedQuantity?: string | null
+  entrySlippagePercentage?: string | null
 }
 
 /** 後端回來的機器人持倉：合約機器人才有，方向空手時是空字串。 */
@@ -121,6 +132,8 @@ type StrategyBotWire = {
   marketDataKind?: string
   autoOrderEnabled?: boolean
   autoOrderPosition?: AutoOrderPositionWire | null
+  /** 舊版後端不回，讀作交易服務對既有機器人的預設。 */
+  autoOrderEntrySlippageTolerancePercentage?: string | null
 }
 
 /**
@@ -216,6 +229,13 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
               this.toSuggestedFigure(runRecordWire.autoOrder.takeProfitPrice),
               runRecordWire.autoOrder.protectionMissing ?? false,
               runRecordWire.autoOrder.reason ?? '',
+              this.toSuggestedFigure(runRecordWire.autoOrder.referencePrice),
+              this.toSuggestedFigure(runRecordWire.autoOrder.entrySlippageTolerancePercentage),
+              this.toSuggestedFigure(runRecordWire.autoOrder.requestedQuantity),
+              this.toSuggestedFigure(runRecordWire.autoOrder.entryLimitPrice),
+              runRecordWire.autoOrder.entryStatus ?? '',
+              this.toSuggestedFigure(runRecordWire.autoOrder.entryExecutedQuantity),
+              this.toSuggestedFigure(runRecordWire.autoOrder.entrySlippagePercentage),
             ),
       ))
     }
@@ -279,6 +299,10 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       return new AutoOrderRefusedError(error.message, autoOrderRefusalReason, { cause: error })
     }
 
+    if (error.status === CONFLICT_STATUS && error.reason === ENTRY_ORDER_OUTSTANDING_REASON) {
+      return new StrategyBotEntryOrderOutstandingError({ cause: error })
+    }
+
     if (error.status === CONFLICT_STATUS) {
       return error.message.includes(BOT_RUNNING_HINT)
         ? new StrategyBotRunningError(error.message, { cause: error })
@@ -305,6 +329,9 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       tradingStrategyId: writeDto.tradingStrategyId,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
       marketDataKind: writeDto.marketDataKind,
+      ...(writeDto.autoOrderEntrySlippageTolerancePercentage === null
+        ? {}
+        : { autoOrderEntrySlippageTolerancePercentage: writeDto.autoOrderEntrySlippageTolerancePercentage.toString() }),
     }
 
     // 沒有部位規劃就**整個鍵都不放**，而不是放一組零。
@@ -387,6 +414,8 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         ? null
         : new AutoOrderPositionVo(
             botWire.autoOrderPosition.direction ?? '', new Decimal(botWire.autoOrderPosition.quantity ?? '0')),
+      this.toSuggestedFigure(botWire.autoOrderEntrySlippageTolerancePercentage)
+      ?? new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
     )
   }
 }

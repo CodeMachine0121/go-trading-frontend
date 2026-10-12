@@ -12,6 +12,7 @@ import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configu
 import Decimal from 'decimal.js'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 
 const BASE_URL = 'http://localhost:8080'
@@ -566,5 +567,112 @@ describe('StrategyBotProxy 讀得出自動下單做了什麼', () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ autoOrderPosition })))
 
     expect((await proxy().getStrategyBot(3)).autoOrderPosition).toBeNull()
+  })
+})
+
+describe('StrategyBotProxy 的限價進場', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function writeDomainWithTolerance(tolerance: Decimal | null) {
+    return new StrategyBotWriteDomain(new StrategyBotWriteDto(
+      3, '早盤突破', 'BTCUSDT', 9, 5, null, 'contractKCandle', tolerance))
+  }
+
+  it.each([
+    { wire: '0.3', expected: '0.3' },
+    { wire: '0', expected: '0' },
+    { wire: undefined, expected: '0.1' },
+    { wire: null, expected: '0.1' },
+  ])('交易服務說開倉容許滑價 $wire 時讀作 $expected', async ({ wire, expected }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      botWire({ autoOrderEntrySlippageTolerancePercentage: wire })))
+
+    const bot = await proxy().getStrategyBot(3)
+
+    expect(bot.autoOrderEntrySlippageTolerancePercentage.toString()).toBe(expected)
+  })
+
+  it.each([
+    { tolerance: new Decimal(0), expected: '0' },
+    { tolerance: new Decimal(5), expected: '5' },
+    { tolerance: new Decimal('0.25'), expected: '0.25' },
+  ])('有開倉容許滑價時以字串 $expected 送出', async ({ tolerance, expected }) => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().updateStrategyBot(writeDomainWithTolerance(tolerance))
+
+    expect(fetchMock.mock.calls[0]?.[1]?.body.autoOrderEntrySlippageTolerancePercentage).toBe(expected)
+  })
+
+  it('不收這一格的機器人整個鍵都不放，交易服務保留原值', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().updateStrategyBot(writeDomainWithTolerance(null))
+
+    expect(Object.keys(fetchMock.mock.calls[0]?.[1]?.body)).not.toContain('autoOrderEntrySlippageTolerancePercentage')
+  })
+
+  it('那一輪的進場單欄位讀成精確小數與狀態', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 60,
+      ranAt: '2026-10-12T06:30:00Z',
+      result: 'buy',
+      autoOrder: {
+        status: 'pending',
+        referencePrice: '84154',
+        entrySlippageTolerancePercentage: '0.1',
+        requestedQuantity: '0.002',
+        entryLimitPrice: '84238.1',
+        entryStatus: 'working',
+        entryExecutedQuantity: '0.001',
+        entrySlippagePercentage: '0.031',
+      },
+    }]))
+
+    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+
+    expect(autoOrder?.referencePrice?.toString()).toBe('84154')
+    expect(autoOrder?.entrySlippageTolerancePercentage?.toString()).toBe('0.1')
+    expect(autoOrder?.requestedQuantity?.toString()).toBe('0.002')
+    expect(autoOrder?.entryLimitPrice?.toString()).toBe('84238.1')
+    expect(autoOrder?.entryStatus).toBe('working')
+    expect(autoOrder?.entryExecutedQuantity?.toString()).toBe('0.001')
+    expect(autoOrder?.entrySlippagePercentage?.toString()).toBe('0.031')
+  })
+
+  it('沒有進場單的下單結果，進場欄位一律讀成沒有', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
+      runNumber: 60, ranAt: '2026-10-12T06:30:00Z', result: 'sell', autoOrder: { status: 'filled' },
+    }]))
+
+    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+
+    expect(autoOrder?.referencePrice).toBeNull()
+    expect(autoOrder?.entryLimitPrice).toBeNull()
+    expect(autoOrder?.entryStatus).toBe('')
+    expect(autoOrder?.entrySlippagePercentage).toBeNull()
+  })
+
+  it('刪除被還掛著的進場單擋下時，交出說得出下一步的那一種失敗', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(createFetchError({
+      request: BASE_URL,
+      options: {},
+      response: {
+        status: 409,
+        statusText: 'rejected',
+        _data: { message: 'strategy bot has an entry order outstanding: 這台機器人還有一張進場單掛在幣安上', reason: 'autoOrderEntryOutstanding' },
+      },
+    } as unknown as FetchContext)))
+
+    const deleting = proxy().deleteStrategyBot(3)
+
+    await expect(deleting).rejects.toBeInstanceOf(StrategyBotEntryOrderOutstandingError)
+    await expect(deleting).rejects.toMatchObject({
+      message: '這台機器人還有一張進場單掛在幣安上，請先關掉自動下單，等它撤單後再刪除',
+    })
   })
 })

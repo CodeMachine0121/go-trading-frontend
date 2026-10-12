@@ -80,7 +80,7 @@ export const settingsEnglishMessages: typeof settingsTraditionalChineseMessages 
   },
   binanceTradingKey: {
     title: 'Binance trading key',
-    description: 'Leave a Binance API key for bots to place orders with later. Once saved, nothing of the Secret Key is shown and only the last four characters of the API Key are. Tradable markets reflect the moment you saved — if you change permissions on Binance, save again.',
+    description: 'Leave a Binance API key; contract bots with auto order on use it to place real orders. Once saved, nothing of the Secret Key is shown and only the last four characters of the API Key are. Tradable markets reflect the moment you saved — if you change permissions on Binance, save again.',
     configured: 'Configured',
     apiKeyHint: 'Only the last four characters are shown',
     replace: 'Replace',

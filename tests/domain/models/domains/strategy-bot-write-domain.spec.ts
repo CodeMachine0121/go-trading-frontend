@@ -113,3 +113,41 @@ describe('StrategyBotWriteDomain 的英文那一份', () => {
     expect(aBotWrite(overrides).rejection?.in('en')).toBe(expected)
   })
 })
+
+describe('StrategyBotWriteDomain 的開倉容許滑價', () => {
+  function withTolerance(tolerance: Decimal | null) {
+    return new StrategyBotWriteDomain(new StrategyBotWriteDto(
+      undefined, '早盤突破', 'BTCUSDT', 9, 5, null, 'contractKCandle', tolerance))
+  }
+
+  it.each(['0', '0.1', '5'])('%s 在範圍內，送得出去且原樣送出', (tolerance) => {
+    const writeDomain = withTolerance(new Decimal(tolerance))
+
+    expect(writeDomain.rejection).toBeNull()
+    expect(writeDomain.sendable.autoOrderEntrySlippageTolerancePercentage?.toString()).toBe(tolerance)
+  })
+
+  it.each([
+    ['超過 5', new Decimal('5.01')],
+    ['負數', new Decimal('-0.1')],
+    ['不是數字（清空）', new Decimal(Number.NaN)],
+  ])('%s就送不出去，說出範圍', (_situation, tolerance) => {
+    const writeDomain = withTolerance(tolerance)
+
+    expect(writeDomain.isSendable).toBe(false)
+    expect(writeDomain.rejection?.in('zh-TW')).toBe('開倉容許滑價必須介於 0 到 5 之間（單位：%）')
+    expect(writeDomain.rejection?.in('en')).toBe('The entry slippage tolerance must be between 0 and 5 (percent)')
+  })
+
+  it('不收這一格的機器人不問它', () => {
+    expect(withTolerance(null).rejection).toBeNull()
+    expect(withTolerance(null).sendable.autoOrderEntrySlippageTolerancePercentage).toBeNull()
+  })
+
+  it('必填的那幾格先問', () => {
+    const writeDomain = new StrategyBotWriteDomain(new StrategyBotWriteDto(
+      undefined, '', 'BTCUSDT', 9, 5, null, 'contractKCandle', new Decimal(9)))
+
+    expect(writeDomain.rejection?.in('zh-TW')).toBe('必須給機器人取一個名稱')
+  })
+})

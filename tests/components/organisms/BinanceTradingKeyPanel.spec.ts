@@ -170,3 +170,12 @@ describe('BinanceTradingKeyPanel：移除', () => {
     expect(wrapper.get('[data-testid="binance-trading-key-save-error"]').text()).toBe('移除失敗')
   })
 })
+
+describe('BinanceTradingKeyPanel：金鑰的用途', () => {
+  it('照實說合約機器人打開自動下單後會用它真的下單，不說「將來」', () => {
+    const text = mountPanel({ setting: UNCONFIGURED }).text()
+
+    expect(text).toContain('合約機器人打開自動下單後就用它真的下單')
+    expect(text).not.toContain('將來')
+  })
+})

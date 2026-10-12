@@ -451,3 +451,79 @@ describe('StrategyBotForm 一份交易策略都沒有時，說的是這一種', 
     }
   })
 })
+
+describe('StrategyBotForm 的開倉容許滑價', () => {
+  function aContractBotWithTolerance(tolerance: string) {
+    return new StrategyBotDto(
+      7, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉',
+      new StrategyBotRunStateDto(
+        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
+      null, 'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), null,
+      '/contract-strategy-bots/7', false, null, new Decimal(tolerance))
+  }
+
+  async function mountNewContractBot() {
+    const wrapper = mountForm({
+      editing: null, marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-name-input"]').setValue('費率反轉')
+    await wrapper.get('[data-testid="bot-trading-strategy-select"]').setValue('9')
+
+    return wrapper
+  }
+
+  it('新拼一台合約機器人預填 0.1，旁邊說明限價、撤單、0 的後果與市價平倉', async () => {
+    const wrapper = await mountNewContractBot()
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="bot-entry-slippage-tolerance-input"]').element.value).toBe('0.1')
+    const section = wrapper.get('[data-testid="bot-auto-order-entry"]').text()
+    expect(section).toContain('開倉容許滑價（%）')
+    expect(section).toContain('限價單')
+    expect(section).toContain('一個觸發間隔內沒成交就撤單')
+    expect(section).toContain('填 0 代表只在參考價成交')
+    expect(section).toContain('平倉一律用市價')
+  })
+
+  it('改一台時顯示它現在的值', async () => {
+    const wrapper = mountForm({
+      editing: aContractBotWithTolerance('0.3'), marketDataKind: 'contractKCandle', tradingSymbolApplication: contractSymbolApplication() })
+    await flushPromises()
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="bot-entry-slippage-tolerance-input"]').element.value).toBe('0.3')
+  })
+
+  it.each(['0', '5'])('填 %s 存得下去，送出去的就是它', async (typed) => {
+    const wrapper = await mountNewContractBot()
+    await wrapper.get('[data-testid="bot-entry-slippage-tolerance-input"]').setValue(typed)
+
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
+    expect(saved.autoOrderEntrySlippageTolerancePercentage?.toString()).toBe(typed)
+  })
+
+  it.each(['5.01', '-0.1', ''])('填「%s」儲存不給按，並說出範圍', async (typed) => {
+    const wrapper = await mountNewContractBot()
+    await wrapper.get('[data-testid="bot-entry-slippage-tolerance-input"]').setValue(typed)
+
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toBe('開倉容許滑價必須介於 0 到 5 之間（單位：%）')
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('現貨機器人沒有這一格，送出去的也不帶它', async () => {
+    const wrapper = mountForm()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-auto-order-entry"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+    const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
+    expect(saved.autoOrderEntrySlippageTolerancePercentage).toBeNull()
+  })
+
+  it('建議部位收著時這一格照樣在', async () => {
+    const wrapper = await mountNewContractBot()
+
+    expect(wrapper.find('[data-testid="bot-position-plan-fields"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="bot-entry-slippage-tolerance-input"]').exists()).toBe(true)
+  })
+})

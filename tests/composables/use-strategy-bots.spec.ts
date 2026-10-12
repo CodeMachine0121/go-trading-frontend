@@ -4,6 +4,7 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
+import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const strategyBotApplication = {
@@ -180,14 +181,37 @@ describe('useStrategyBots 刪除要先確認', () => {
   })
 
   it('確認之後才真的刪，並重讀清單', async () => {
+    strategyBotApplication.listStrategyBots.mockResolvedValueOnce([botDto(3, '早盤突破'), botDto(4, '午盤回檔')])
+    strategyBotApplication.listStrategyBots.mockResolvedValueOnce([botDto(4, '午盤回檔')])
     strategyBotApplication.deleteStrategyBot.mockResolvedValue(undefined)
 
     const bots = botsUnderTest()
+    await bots.load()
     bots.askToDelete(botDto(3, '早盤突破'))
     await bots.confirmDelete()
 
     expect(strategyBotApplication.deleteStrategyBot).toHaveBeenCalledWith(3)
     expect(bots.deleting.value).toBeNull()
+    expect(bots.strategyBots.value.map(strategyBot => strategyBot.id)).toEqual([4])
+    expect(bots.failureMessage.value).toBeNull()
+  })
+})
+
+describe('useStrategyBots 刪除被還掛著的進場單擋下', () => {
+  it('說出原因與下一步，那一台留在清單上', async () => {
+    strategyBotApplication.listStrategyBots.mockResolvedValue([botDto(3, '早盤突破')])
+    strategyBotApplication.deleteStrategyBot.mockRejectedValue(new StrategyBotEntryOrderOutstandingError())
+
+    const bots = botsUnderTest()
+    await bots.load()
+    bots.askToDelete(botDto(3, '早盤突破'))
+    await bots.confirmDelete()
+
+    expect(bots.failureMessage.value?.in('zh-TW'))
+      .toBe('這台機器人還有一張進場單掛在幣安上，請先關掉自動下單，等它撤單後再刪除')
+    expect(bots.failureMessage.value?.in('en'))
+      .toBe('This bot still has an entry order resting on Binance. Turn auto order off and wait for the order to be cancelled before deleting the bot.')
+    expect(bots.strategyBots.value.map(strategyBot => strategyBot.id)).toEqual([3])
   })
 })
 

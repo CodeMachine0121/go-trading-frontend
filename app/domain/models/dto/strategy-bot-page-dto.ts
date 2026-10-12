@@ -35,5 +35,7 @@ export class StrategyBotPageDto {
     public readonly runHistoryNote: LocalizedTextVo | null,
     /** 自動下單開關旁那一句：打開這一種機器人的開關會發生什麼。 */
     public readonly autoOrderNotice: LocalizedTextVo,
+    /** 表單多一格開倉容許滑價：只有會自動下單開倉的那一種。 */
+    public readonly takesAutoOrderEntrySlippageTolerance: boolean,
   ) {}
 }

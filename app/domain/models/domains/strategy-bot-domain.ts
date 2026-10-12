@@ -44,6 +44,7 @@ export class StrategyBotDomain {
       this.strategyBot.autoOrderPosition === null
         ? null
         : new AutoOrderPositionDomain(this.strategyBot.autoOrderPosition).toLabel(),
+      this.strategyBot.autoOrderEntrySlippageTolerancePercentage,
     )
   }
 }

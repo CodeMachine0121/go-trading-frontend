@@ -262,6 +262,28 @@ function onSave() {
       </div>
     </section>
 
+    <section
+      v-if="form.takesAutoOrderEntrySlippageTolerance"
+      class="bot-form__section"
+      data-testid="bot-auto-order-entry"
+    >
+      <h3 class="bot-form__section-title">
+        {{ t('strategyBot.form.autoOrderEntryTitle') }}
+      </h3>
+      <FormField
+        :label="t('strategyBot.form.entrySlippageToleranceLabel')"
+        :hint="t('strategyBot.form.entrySlippageToleranceHelp')"
+      >
+        <AppInput
+          v-model="form.entrySlippageToleranceText.value"
+          type="number"
+          inputmode="decimal"
+          placeholder="0.1"
+          data-testid="bot-entry-slippage-tolerance-input"
+        />
+      </FormField>
+    </section>
+
     <AppAlert
       v-if="form.rejection.value !== null"
       tone="warning"

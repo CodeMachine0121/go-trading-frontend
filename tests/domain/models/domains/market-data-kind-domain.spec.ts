@@ -109,3 +109,19 @@ describe('MarketDataKindDomain', () => {
     expect(new MarketDataKindDomain('contractKCandle').isSameAs(new MarketDataKindDomain(''))).toBe(false)
   })
 })
+
+describe('MarketDataKindDomain 的開倉容許滑價', () => {
+  it.each([
+    { kind: 'contractKCandle', expected: true },
+    { kind: 'kCandle', expected: false },
+  ])('$kind 的機器人表單收不收開倉容許滑價：$expected', ({ kind, expected }) => {
+    expect(new MarketDataKindDomain(kind).toStrategyBotPageDto().takesAutoOrderEntrySlippageTolerance).toBe(expected)
+  })
+
+  it('合約機器人的執行紀錄註腳說明滑價的正負', () => {
+    const note = new MarketDataKindDomain('contractKCandle').toStrategyBotPageDto().runHistoryNote
+
+    expect(note?.in('zh-TW')).toContain('進場的滑價以參考價為準，正值代表成交得比參考價差。')
+    expect(note?.in('en')).toContain('a positive value means the fill was worse than the reference')
+  })
+})
