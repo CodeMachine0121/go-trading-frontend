@@ -78,7 +78,7 @@ export const settingsTraditionalChineseMessages = {
   },
   binanceTradingKey: {
     title: '幣安交易金鑰',
-    description: '留下一組幣安 API 金鑰，將來機器人下單時用它。Secret Key 存進去之後一個字都看不到，API Key 只看得到最後四個字。可交易市場只記存入當下的狀態——在幣安改了權限，要回來重存一次。',
+    description: '留下一組幣安 API 金鑰，合約機器人打開自動下單後就用它真的下單。Secret Key 存進去之後一個字都看不到，API Key 只看得到最後四個字。可交易市場只記存入當下的狀態——在幣安改了權限，要回來重存一次。',
     configured: '已設定',
     apiKeyHint: '只看得到最後四個字',
     replace: '換一組',
