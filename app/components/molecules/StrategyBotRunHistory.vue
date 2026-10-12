@@ -111,6 +111,15 @@ const { localize } = useLocalizedText()
             {{ localize(runRecord.autoOrder.text) }}
           </p>
 
+          <p
+            v-if="runRecord.autoOrder !== null && runRecord.autoOrder.entryText !== null"
+            class="strategy-bot-run-history__auto-order"
+            :class="`strategy-bot-run-history__auto-order--${runRecord.autoOrder.tone}`"
+            data-testid="run-history-auto-order-entry"
+          >
+            {{ localize(runRecord.autoOrder.entryText) }}
+          </p>
+
           <!-- 止損或止盈沒掛上是他現在就得處理的事：另寫一行，不只靠顏色。 -->
           <p
             v-if="runRecord.autoOrder !== null && runRecord.autoOrder.protectionWarning !== null"

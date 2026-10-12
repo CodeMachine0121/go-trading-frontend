@@ -77,6 +77,25 @@ describe('StrategyBotRunHistory', () => {
     expect(warning.attributes('role')).toBe('alert')
   })
 
+  it('有進場單的那一輪在下單結果底下多畫一行進場資訊，語氣相同', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(new ContractAutoOrderResultDto(
+      new UntranslatedTextVo('沒有成交 · 做多'), 'warning', null,
+      new UntranslatedTextVo('沒有成交，已撤單 · 參考價 84154 · 限價 84238.1 · 成交 0／0.002')))] })
+
+    const entry = wrapper.get('[data-testid="run-history-auto-order-entry"]')
+    expect(entry.text()).toBe('沒有成交，已撤單 · 參考價 84154 · 限價 84238.1 · 成交 0／0.002')
+    expect(entry.classes()).toContain('strategy-bot-run-history__auto-order--warning')
+    expect(wrapper.get('[data-testid="run-history-auto-order"]').element.nextElementSibling?.getAttribute('data-testid'))
+      .toBe('run-history-auto-order-entry')
+  })
+
+  it('沒有進場資訊的那一輪不多畫進場行', () => {
+    const wrapper = mountHistory({ runRecords: [runWithAutoOrder(
+      new ContractAutoOrderResultDto(new UntranslatedTextVo('成交 · 平多'), 'success', null))] })
+
+    expect(wrapper.find('[data-testid="run-history-auto-order-entry"]').exists()).toBe(false)
+  })
+
   it('沒有下單的那一輪不畫下單結果', () => {
     const wrapper = mountHistory({ runRecords: [runWithAutoOrder(null)] })
 
