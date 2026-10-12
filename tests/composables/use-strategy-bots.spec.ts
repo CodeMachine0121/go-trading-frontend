@@ -181,14 +181,19 @@ describe('useStrategyBots 刪除要先確認', () => {
   })
 
   it('確認之後才真的刪，並重讀清單', async () => {
+    strategyBotApplication.listStrategyBots.mockResolvedValueOnce([botDto(3, '早盤突破'), botDto(4, '午盤回檔')])
+    strategyBotApplication.listStrategyBots.mockResolvedValueOnce([botDto(4, '午盤回檔')])
     strategyBotApplication.deleteStrategyBot.mockResolvedValue(undefined)
 
     const bots = botsUnderTest()
+    await bots.load()
     bots.askToDelete(botDto(3, '早盤突破'))
     await bots.confirmDelete()
 
     expect(strategyBotApplication.deleteStrategyBot).toHaveBeenCalledWith(3)
     expect(bots.deleting.value).toBeNull()
+    expect(bots.strategyBots.value.map(strategyBot => strategyBot.id)).toEqual([4])
+    expect(bots.failureMessage.value).toBeNull()
   })
 })
 
