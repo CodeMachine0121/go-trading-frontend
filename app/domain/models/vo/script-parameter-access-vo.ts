@@ -5,15 +5,16 @@ import { STRATEGY_PARAMETER_KIND_LABELS, type StrategyScriptParameterKind } from
 /** VO：一種參數種類在算式裡的讀法。不可變、無行為。 */
 export class ScriptParameterAccessVo {
   constructor(
+    /** 它說的是哪一種：說明裡那一則的名字由它取，它也是那一則的鍵。 */
+    public readonly kind: StrategyScriptParameterKind,
     public readonly returnType: string,
     public readonly example: LocalizedTextVo,
     public readonly usage: LocalizedTextVo,
   ) {}
 
-  /** 交出某一種的讀法；名字由種類取，所以一份說明裡的每一則各自是一種。 */
-  toDto(kind: StrategyScriptParameterKind): ScriptParameterAccessDto {
+  toDto(): ScriptParameterAccessDto {
     return new ScriptParameterAccessDto(
-      kind, STRATEGY_PARAMETER_KIND_LABELS[kind], this.returnType, this.example, this.usage)
+      this.kind, STRATEGY_PARAMETER_KIND_LABELS[this.kind], this.returnType, this.example, this.usage)
   }
 }
 
@@ -37,12 +38,13 @@ export class ScriptParameterAccessVo {
  * 而「拿來做什麼」正是看到函式簽章之後還會卡住的地方。
  *
  * 後端哪天改了注入的函式名（見 yaegi 那一側的符號表），要改的就是這一份清單。
- */
-/**
- * 以種類為鍵：多一種種類卻沒寫讀法，型別檢查就過不了——說明不會悄悄少一則。
+ *
+ * **以種類為鍵**：多一種種類卻沒寫讀法，型別檢查就過不了——說明不會悄悄少一則。
+ * 每一則也記著自己是哪一種（鍵與它要一致，見測試），所以讀法不會被貼上別種的名字。
  */
 export const SCRIPT_PARAMETER_ACCESSES: Readonly<Record<StrategyScriptParameterKind, ScriptParameterAccessVo>> = {
   lookbackCount: new ScriptParameterAccessVo(
+    'lookbackCount',
     'int',
     new LocalizedTextVo(
       [
@@ -58,6 +60,7 @@ export const SCRIPT_PARAMETER_ACCESSES: Readonly<Record<StrategyScriptParameterK
       'How many candles to look back. It comes out as an integer you can slice with directly; the system also uses it to decide how many extra K-candles to fetch.'),
   ),
   number: new ScriptParameterAccessVo(
+    'number',
     'float64',
     new LocalizedTextVo(
       [
@@ -73,6 +76,7 @@ export const SCRIPT_PARAMETER_ACCESSES: Readonly<Record<StrategyScriptParameterK
       'Any single number, such as a multiplier, threshold or weight. The system does not interpret it and passes it to the script as is.'),
   ),
   boolean: new ScriptParameterAccessVo(
+    'boolean',
     'bool',
     new LocalizedTextVo(
       [
@@ -88,6 +92,7 @@ export const SCRIPT_PARAMETER_ACCESSES: Readonly<Record<StrategyScriptParameterK
       'A switch. It reads as a bool you can put straight into an if, with no need to agree on which number means yes.'),
   ),
   orderFlowPriceStep: new ScriptParameterAccessVo(
+    'orderFlowPriceStep',
     'float64',
     new LocalizedTextVo(
       [

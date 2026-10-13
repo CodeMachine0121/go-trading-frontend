@@ -18,7 +18,7 @@
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
 | `dto/strategy-script-parameter-dto.ts` | **Modify** | 種類聯合與 `STRATEGY_PARAMETER_KINDS` 加 `orderFlowPriceStep`——兩支 proxy 讀回來就靠這份清單，漏了會退回 `number`（US-02） |
-| `domains/strategy-script-parameter-domain.ts` | **Modify** | 值必須大於零；輸入框可小數、步進 1；不算回看根數 |
+| `domains/strategy-script-parameter-domain.ts` | **Modify** | 值必須大於零；輸入框可打任何小數（step `any`）；不算回看根數 |
 | `domains/strategy-script-parameters-domain.ts` | **Modify** | 整份規則加「至多一個」，排在名稱重複之後 |
 | `domains/market-data-kind-domain.ts` | **Modify** | 描述表多一欄 `parameterKinds`；新方法 `declarableParameterKinds()` |
 | `service/indicator-calculation-service.ts` | **Modify** | `listStrategyScriptParameterKindOptions(marketDataKind)`：照行情種類的可宣告清單貼標籤 |
@@ -42,7 +42,7 @@
 | :--- | :--- |
 | `MarketDataKindDomain.declarableParameterKinds()` | 回傳那一種行情可以宣告的種類，K 線三種、合約四種 |
 | `StrategyScriptParameterDomain.validationMessage()` | `orderFlowPriceStep` 不大於零 →「訂單流價位寬度必須大於零」 |
-| `StrategyScriptParameterDomain.step()` | `orderFlowPriceStep` → 1 |
+| `StrategyScriptParameterDomain.step()` | `orderFlowPriceStep` → `any`（不讓瀏覽器把 0.001 這種寬度判成不在格點上；上下箭頭仍一次跳 1） |
 | `StrategyScriptParametersDomain.validationMessage()` | 第二個 `orderFlowPriceStep` →「訂單流價位寬度至多宣告一個」 |
 
 ---

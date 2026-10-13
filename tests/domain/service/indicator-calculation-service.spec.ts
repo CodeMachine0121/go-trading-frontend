@@ -1,3 +1,4 @@
+import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -285,6 +286,12 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
       .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions('contractKCandle')
         .map(option => option.label))
     expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false', 'Order flow price step'])
+  })
+
+  it('每一則記著的種類與它的鍵一致——讀法不會被貼上別種的名字', () => {
+    for (const [kind, access] of Object.entries(SCRIPT_PARAMETER_ACCESSES)) {
+      expect(access.kind).toBe(kind)
+    }
   })
 
   it('每一則各自是一種，可以拿種類當鍵，依選單的順序排', () => {

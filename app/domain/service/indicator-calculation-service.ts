@@ -263,7 +263,7 @@ export class IndicatorCalculationService {
   listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
     // In the menu's order: the order the market data kind declares, not the order the readings happen to be written in.
     return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
-      .map(kind => SCRIPT_PARAMETER_ACCESSES[kind].toDto(kind))
+      .map(kind => SCRIPT_PARAMETER_ACCESSES[kind].toDto())
   }
 
   /**
