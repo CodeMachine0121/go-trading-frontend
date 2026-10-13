@@ -3,7 +3,7 @@ import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-
 import { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
 import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
-import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { STRATEGY_PARAMETER_KIND_LABELS, type StrategyScriptParameterDto, type StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
@@ -30,7 +30,6 @@ import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-a
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
-import { STRATEGY_PARAMETER_KIND_LABELS } from '~/domain/models/vo/strategy-script-parameter-kind-label-vo'
 
 /**
  * 沒特別填時要餵給算式幾根 K 線。
@@ -264,8 +263,7 @@ export class IndicatorCalculationService {
   listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
     // In the menu's order: the order the market data kind declares, not the order the readings happen to be written in.
     return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
-      .flatMap(kind => SCRIPT_PARAMETER_ACCESSES.filter(access => access.kind === kind))
-      .map(access => access.toDto())
+      .map(kind => SCRIPT_PARAMETER_ACCESSES[kind].toDto(kind))
   }
 
   /**

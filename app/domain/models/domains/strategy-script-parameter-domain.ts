@@ -44,17 +44,13 @@ export class StrategyScriptParameterDomain {
   }
 
   /**
-   * 上下箭頭一次跳多少。回看根數跳整數，數值跳 0.1。
+   * 上下箭頭一次跳多少。回看根數跳整數；其餘都是 `any`。
    *
-   * 訂單流價位寬度是 `any`：它常見的是 1、5、10，但低價合約要 0.5、0.001 這種寬度，
-   * 給一個數字步進會讓瀏覽器把不在格點上的寬度判成不合法。`any` 時上下箭頭照樣一次跳 1。
+   * 給一個數字步進，瀏覽器會把不在格點上的值（0.05、0.001 這種寬度）自己判成不合法、擋住送出——
+   * 什麼值合法是這個物件的 `validationMessage()` 說了算，不是瀏覽器。`any` 時上下箭頭一次跳 1。
    */
   step(): number | 'any' {
-    if (this.parameter.kind === 'orderFlowPriceStep') {
-      return 'any'
-    }
-
-    return this.parameter.kind === 'lookbackCount' ? 1 : 0.1
+    return this.parameter.kind === 'lookbackCount' ? 1 : 'any'
   }
 
   /**

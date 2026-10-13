@@ -92,7 +92,7 @@ describe('這一份哪裡不對', () => {
 describe('每一列在畫面上該長什麼樣子', () => {
   it.each([
     { kind: 'lookbackCount' as const, inputMode: 'numeric', step: 1 },
-    { kind: 'number' as const, inputMode: 'decimal', step: 0.1 },
+    { kind: 'number' as const, inputMode: 'decimal', step: 'any' },
   ])('$kind 給的是 $inputMode', ({ kind, inputMode, step }) => {
     // 「回看根數要整數鍵盤」是業務規則，不是版面問題——畫面問這個，不自己判斷。
     const parameter = new StrategyScriptParameterDomain(new StrategyScriptParameterDto('期數', kind, 20))
@@ -193,7 +193,7 @@ describe('訂單流價位寬度', () => {
     expect(parameter.lookbackCount()).toBe(0)
   })
 
-  it('數值仍然一次跳 0.1', () => {
-    expect(new StrategyScriptParameterDomain(numberParameter('倍數', 1)).step()).toBe(0.1)
+  it('數值也不讓瀏覽器擋住不在格點上的小數', () => {
+    expect(new StrategyScriptParameterDomain(numberParameter('倍數', 1)).step()).toBe('any')
   })
 })

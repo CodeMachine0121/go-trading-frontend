@@ -1,21 +1,19 @@
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
-import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
-import { STRATEGY_PARAMETER_KIND_LABELS } from '~/domain/models/vo/strategy-script-parameter-kind-label-vo'
+import { STRATEGY_PARAMETER_KIND_LABELS, type StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 /** VO：一種參數種類在算式裡的讀法。不可變、無行為。 */
 export class ScriptParameterAccessVo {
   constructor(
-    /** 它說的是哪一種：說明只列出這一種行情宣告得到的種類，名字也由它取。 */
-    public readonly kind: StrategyScriptParameterKind,
     public readonly returnType: string,
     public readonly example: LocalizedTextVo,
     public readonly usage: LocalizedTextVo,
   ) {}
 
-  toDto(): ScriptParameterAccessDto {
+  /** 交出某一種的讀法；名字由種類取，所以一份說明裡的每一則各自是一種。 */
+  toDto(kind: StrategyScriptParameterKind): ScriptParameterAccessDto {
     return new ScriptParameterAccessDto(
-      this.kind, STRATEGY_PARAMETER_KIND_LABELS[this.kind], this.returnType, this.example, this.usage)
+      kind, STRATEGY_PARAMETER_KIND_LABELS[kind], this.returnType, this.example, this.usage)
   }
 }
 
@@ -40,9 +38,11 @@ export class ScriptParameterAccessVo {
  *
  * 後端哪天改了注入的函式名（見 yaegi 那一側的符號表），要改的就是這一份清單。
  */
-export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
-  new ScriptParameterAccessVo(
-    'lookbackCount',
+/**
+ * 以種類為鍵：多一種種類卻沒寫讀法，型別檢查就過不了——說明不會悄悄少一則。
+ */
+export const SCRIPT_PARAMETER_ACCESSES: Readonly<Record<StrategyScriptParameterKind, ScriptParameterAccessVo>> = {
+  lookbackCount: new ScriptParameterAccessVo(
     'int',
     new LocalizedTextVo(
       [
@@ -57,8 +57,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       '要往回看幾根。交出整數，可以直接拿去切片；系統也靠它決定要多拿幾根 K 線。',
       'How many candles to look back. It comes out as an integer you can slice with directly; the system also uses it to decide how many extra K-candles to fetch.'),
   ),
-  new ScriptParameterAccessVo(
-    'number',
+  number: new ScriptParameterAccessVo(
     'float64',
     new LocalizedTextVo(
       [
@@ -73,8 +72,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       '倍數、門檻、權重之類的任何一個數字。系統不解讀它的意思，原樣交給算式。',
       'Any single number, such as a multiplier, threshold or weight. The system does not interpret it and passes it to the script as is.'),
   ),
-  new ScriptParameterAccessVo(
-    'boolean',
+  boolean: new ScriptParameterAccessVo(
     'bool',
     new LocalizedTextVo(
       [
@@ -89,8 +87,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       '一個開關。讀出來就是 bool，可以直接寫進 if——不必自己約定「幾算是」。',
       'A switch. It reads as a bool you can put straight into an if, with no need to agree on which number means yes.'),
   ),
-  new ScriptParameterAccessVo(
-    'orderFlowPriceStep',
+  orderFlowPriceStep: new ScriptParameterAccessVo(
     'float64',
     new LocalizedTextVo(
       [
@@ -105,4 +102,4 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       '宣告了它，每一格的 Footprint 才有內容，價位依這個寬度分。值就在 Footprint.PriceStep；要直接讀也可以用 indicator.Number("名字")。',
       'Declaring it is what fills each candle\'s Footprint, with levels split at this width. The value is in Footprint.PriceStep, or read it directly with indicator.Number("name").'),
   ),
-]
+}
