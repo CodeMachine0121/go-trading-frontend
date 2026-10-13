@@ -43,9 +43,12 @@ export class StrategyScriptParameterDomain {
     return this.parameter.kind === 'lookbackCount' ? 'numeric' : 'decimal'
   }
 
-  /** 上下箭頭一次跳多少。回看根數跳整數，數值不限。 */
+  /**
+   * 上下箭頭一次跳多少。回看根數跳整數；訂單流價位寬度也跳 1——
+   * 它常見的是 1、5、10 這種寬度，一次跳 0.1 要按上百下。數值不限。
+   */
   step(): number {
-    return this.parameter.kind === 'lookbackCount' ? 1 : 0.1
+    return this.parameter.kind === 'lookbackCount' || this.parameter.kind === 'orderFlowPriceStep' ? 1 : 0.1
   }
 
   /**
@@ -57,6 +60,12 @@ export class StrategyScriptParameterDomain {
   validationMessage(): LocalizedTextVo | null {
     if (this.parameter.name.trim() === '') {
       return new LocalizedTextVo('參數名稱不得為空白', 'The parameter name cannot be blank')
+    }
+
+    if (this.parameter.kind === 'orderFlowPriceStep') {
+      return this.parameter.value > 0
+        ? null
+        : new LocalizedTextVo('訂單流價位寬度必須大於零', 'The order flow price step must be greater than zero')
     }
 
     if (this.parameter.kind !== 'lookbackCount') {

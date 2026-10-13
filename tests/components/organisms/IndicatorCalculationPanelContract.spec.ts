@@ -360,3 +360,21 @@ describe('合約策略腳本的工作區', () => {
     expect(wrapper.get(`[data-testid="${alert}"]`).text()).toContain('重試')
   })
 })
+
+describe('IndicatorCalculationPanel（合約行情）：參數種類', () => {
+  async function kindOptionsOf(marketDataKind: MarketDataKind): Promise<string[]> {
+    const wrapper = mountPanel({ marketDataKind })
+    await flushPromises()
+    await wrapper.get('[data-testid="add-parameter-button"]').trigger('click')
+
+    return wrapper.get('[data-testid="parameter-kind-select"]').findAll('option').map(option => option.attributes('value') ?? '')
+  }
+
+  it('合約行情的種類選單有訂單流價位寬度', async () => {
+    expect(await kindOptionsOf('contractKCandle')).toEqual(['lookbackCount', 'number', 'boolean', 'orderFlowPriceStep'])
+  })
+
+  it('K 線的種類選單沒有', async () => {
+    expect(await kindOptionsOf('kCandle')).toEqual(['lookbackCount', 'number', 'boolean'])
+  })
+})

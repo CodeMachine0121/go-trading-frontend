@@ -1,4 +1,5 @@
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { MARKET_DATA_KINDS } from '~/domain/models/vo/market-data-kind-vo'
 import type { KCandleFieldVo } from '~/domain/models/vo/k-candle-field-vo'
 import { CONTRACT_K_CANDLE_FIELDS, K_CANDLE_FIELDS } from '~/domain/models/vo/k-candle-field-vo'
@@ -21,6 +22,8 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       scriptInputTypeName: string
       guideHeading: LocalizedTextVo
       fields: readonly KCandleFieldVo[]
+      /** 這一種行情的策略腳本可以宣告的參數種類，依選單上的順序。 */
+      parameterKinds: readonly StrategyScriptParameterKind[]
       valueTypeNote: LocalizedTextVo
       notes: readonly LocalizedTextVo[]
       offersBacktest: boolean
@@ -50,6 +53,7 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     scriptInputTypeName: 'KCandle',
     guideHeading: new LocalizedTextVo('每一根 K 線有什麼', 'What each K-candle holds'),
     fields: K_CANDLE_FIELDS,
+    parameterKinds: ['lookbackCount', 'number', 'boolean'],
     valueTypeNote: new LocalizedTextVo('價量一律是 float64，直接算就好。', 'Prices and volumes are all float64, so you can calculate with them directly.'),
     notes: [],
     offersBacktest: true,
@@ -85,14 +89,18 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
     scriptInputTypeName: 'ContractKCandle',
     guideHeading: new LocalizedTextVo('每一格合約行情有什麼', 'What each contract market data candle holds'),
     fields: CONTRACT_K_CANDLE_FIELDS,
-    // 不能沿用現貨那一句「一律是 float64」：成交筆數、三組開高低收與結算旗標都不是。
+    // 訂單流足跡只給合約行情：宣告了訂單流價位寬度，交易服務才替每一格附上足跡。
+    parameterKinds: ['lookbackCount', 'number', 'boolean', 'orderFlowPriceStep'],
+    // 不能沿用現貨那一句「一律是 float64」：成交筆數、三組開高低收、結算旗標與足跡都不是。
     valueTypeNote: new LocalizedTextVo(
       '價量是 float64，但不是每一項都是：TradeCount 是 int64，要先 float64(...) 才能跟價格一起算；'
       + 'Mark、Index、PremiumIndex 是 indicator.PriceLine，要取裡面的 Open / High / Low / Close；'
-      + 'FundingSettledInBar 是 bool。',
+      + 'FundingSettledInBar 是 bool；'
+      + 'Footprint 是 indicator.Footprint，裡面有 PriceStep、Levels（一串 indicator.PriceLevel，每一個有 Price、BuyVolume、SellVolume、TradeCount，價位由低到高）、Delta、PointOfControl。',
       'Prices and volumes are float64, but not every field is: TradeCount is int64, so convert it with float64(...) before combining it with prices; '
       + 'Mark, Index and PremiumIndex are indicator.PriceLine, so read the Open / High / Low / Close inside them; '
-      + 'FundingSettledInBar is bool.'),
+      + 'FundingSettledInBar is bool; '
+      + 'Footprint is indicator.Footprint, holding PriceStep, Levels (a list of indicator.PriceLevel, each with Price, BuyVolume, SellVolume and TradeCount, lowest price first), Delta and PointOfControl.'),
     notes: [
       new LocalizedTextVo(
         '沒有值的一律是零：指數價格開始記錄前的舊資料、第一次結算之前、沒錄到持倉統計的時段。持倉量是零多半代表那時沒有資料。',
@@ -106,6 +114,13 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
       new LocalizedTextVo(
         '每一項都只來自這一格收盤以前，收盤那一刻的結算與統計屬於下一格。',
         'Every field comes only from before this candle closes; a settlement or statistic at the exact closing moment belongs to the next candle.'),
+      new LocalizedTextVo(
+        '訂單流足跡要先宣告一個「訂單流價位寬度」參數才有，沒宣告時整份是空的。每一筆成交的價格往下取到寬度的整數倍就是它的價位；'
+        + 'BuyVolume 是買方主動吃單、SellVolume 是賣方主動吃單；Delta 是兩邊相減，PointOfControl 是成交最多的價位（平手取低）。'
+        + '訂單流不存進系統，每次現拿，第一次會比較慢；一次至多 31 天、一格至多 1,000 個價位，太細就放寬寬度。',
+        'The order flow footprint is only there once you declare an "order flow price step" parameter; without one it is empty. Each trade\'s price rounded down to a multiple of the step is its level; '
+        + 'BuyVolume is buyer-initiated and SellVolume seller-initiated; Delta is the difference, and PointOfControl is the busiest level (the lower one on a tie). '
+        + 'Order flow is not stored but fetched each time, so the first run is slower; one run reaches back at most 31 days and a candle holds at most 1,000 levels, so widen the step if it is too fine.'),
     ],
     // 合約的回測在逐倉合約帳戶上重演。
     offersBacktest: true,
@@ -231,6 +246,11 @@ export class MarketDataKindDomain {
   /** 是不是與另一個（已正規化的）種類是同一種。清單依它篩。 */
   isSameAs(other: MarketDataKindDomain): boolean {
     return this.value === other.value
+  }
+
+  /** 這一種行情的策略腳本可以宣告的參數種類，依選單上的順序。 */
+  declarableParameterKinds(): readonly StrategyScriptParameterKind[] {
+    return MARKET_DATA_KIND_DESCRIPTIONS[this.value].parameterKinds
   }
 
   /** 「算式裡可以用什麼」那一段。 */

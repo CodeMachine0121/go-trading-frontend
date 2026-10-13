@@ -49,7 +49,7 @@ export const K_CANDLE_FIELDS: KCandleFieldVo[] = [
  *
  * **現貨那十項原樣在最前面、同名同義**：後端的型別內嵌了一根現貨形狀的 K 線，
  * 所以 `candle.Close` 這種寫法兩邊都成立。其餘是合約才有的：成交筆數、三組價格
- * （各自是一個 `indicator.PriceLine`，有 Open / High / Low / Close）、資金費率與持倉統計。
+ * （各自是一個 `indicator.PriceLine`，有 Open / High / Low / Close）、資金費率、持倉統計與訂單流足跡。
  *
  * 後端哪天改了 `vo.ContractKCandleVo`，要改的就是這一份清單。
  */
@@ -69,5 +69,6 @@ export const CONTRACT_K_CANDLE_FIELDS: KCandleFieldVo[] = [
   new KCandleFieldVo('TopTraderPositionLongShare', 'float64', new LocalizedTextVo('大戶多空持倉比：多方佔比', 'Top trader position long/short ratio: long share')),
   new KCandleFieldVo('TopTraderPositionShortShare', 'float64', new LocalizedTextVo('大戶多空持倉比：空方佔比', 'Top trader position long/short ratio: short share')),
   new KCandleFieldVo('TopTraderPositionLongShortRatio', 'float64', new LocalizedTextVo('大戶多空持倉比：比值', 'Top trader position long/short ratio: ratio')),
+  new KCandleFieldVo('Footprint', 'indicator.Footprint', new LocalizedTextVo('訂單流足跡（宣告了訂單流價位寬度才有）：PriceStep、Levels、Delta、PointOfControl', 'Order flow footprint (only with an order flow price step declared): PriceStep, Levels, Delta, PointOfControl')),
   new KCandleFieldVo('KCandleVo', 'indicator.KCandle', new LocalizedTextVo('內嵌的那一根現貨形狀，可以整根交給吃 indicator.KCandle 的函式', 'The embedded spot-shaped K-candle; pass it whole to any function that takes indicator.KCandle')),
 ]

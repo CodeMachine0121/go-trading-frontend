@@ -136,7 +136,7 @@ const script = ref(blankStrategyScriptContent.script)
 // 旋鈕是**策略腳本內容**，與算式內容、指標值種類同一層：載入時跟著換，
 // 改動它算「有東西還沒存」。彙總刻度與要看多長仍然不是——它們屬於這一次。
 const strategyScriptParameters = useStrategyScriptParameters(
-  indicatorCalculationApplication, blankStrategyScriptContent.parameters)
+  indicatorCalculationApplication, blankStrategyScriptContent.parameters, marketDataKind)
 const resultType = ref<string>(blankStrategyScriptContent.resultType)
 
 // 換指標值種類時，把算式裡第一個 Calculate 進入點的回傳型別換成新選的——
@@ -158,7 +158,7 @@ const resultTypeOptions = indicatorCalculationApplication.listResultTypeOptions(
 // 算式收到的每一根 K 線有哪些欄位，以及宣告好的參數怎麼讀。
 // 兩份都是沙箱契約的一部分，都不會變，取一次就好。
 const scriptInputGuide = indicatorCalculationApplication.describeScriptInputGuide(marketDataKind)
-const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses()
+const scriptParameterAccesses = indicatorCalculationApplication.listScriptParameterAccesses(marketDataKind)
 const signalReadings = indicatorCalculationApplication.listSignalReadings()
 /** 「算式裡可以用什麼」那份說明開著沒有。它只在使用者問的時候出現。 */
 const guideOpen = ref(false)

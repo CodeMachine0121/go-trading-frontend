@@ -17,6 +17,8 @@ export const STRATEGY_BOT_HALT_REASONS = [
   // 一個去換掉某一支腳本，一個是整套規則不在了。
   'tradingStrategyUnavailable',
   'scriptFailed',
+  // 要的訂單流超過一次能給的（天數或價位數）：要做的事是縮短回看或放寬價位寬度，不是修算式。
+  'orderFlowRefused',
   'credentialRejected',
   'destinationNotFound',
 ] as const
@@ -28,6 +30,9 @@ export const STRATEGY_BOT_HALT_REASON_LABELS: Readonly<Record<StrategyBotHaltRea
   strategyUnavailable: new LocalizedTextVo('有一支策略腳本找不到了', 'One of its strategy scripts can no longer be found'),
   tradingStrategyUnavailable: new LocalizedTextVo('它用的那一份交易策略找不到了', 'The trading strategy it follows can no longer be found'),
   scriptFailed: new LocalizedTextVo('有一支策略腳本算不出來', 'One of its strategy scripts failed to calculate'),
+  orderFlowRefused: new LocalizedTextVo(
+    '它要的訂單流超過一次能給的範圍（天數或價位數）',
+    'The order flow it asks for exceeds what one run can provide (days or price levels)'),
   credentialRejected: new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'),
   destinationNotFound: new LocalizedTextVo('找不到這個聊天室', 'This Telegram chat cannot be found'),
 }

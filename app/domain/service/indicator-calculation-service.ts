@@ -31,6 +31,14 @@ import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parame
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
 
+/** 種類選單上每一種的名字。哪幾種出現在選單上由行情種類決定，見 `MarketDataKindDomain.declarableParameterKinds`。 */
+const STRATEGY_PARAMETER_KIND_LABELS: Readonly<Record<StrategyScriptParameterKind, LocalizedTextVo>> = {
+  lookbackCount: new LocalizedTextVo('回看根數', 'Lookback count'),
+  number: new LocalizedTextVo('數值', 'Number'),
+  boolean: new LocalizedTextVo('是非', 'True/false'),
+  orderFlowPriceStep: new LocalizedTextVo('訂單流價位寬度', 'Order flow price step'),
+}
+
 /**
  * 沒特別填時要餵給算式幾根 K 線。
  *
@@ -157,13 +165,10 @@ export class IndicatorCalculationService {
     return spanVo.toObservationWindow(new Date())
   }
 
-  /** 種類選單上可以挑的每一個。 */
-  listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
-    return [
-      new StrategyScriptParameterKindOptionDto('lookbackCount', new LocalizedTextVo('回看根數', 'Lookback count')),
-      new StrategyScriptParameterKindOptionDto('number', new LocalizedTextVo('數值', 'Number')),
-      new StrategyScriptParameterKindOptionDto('boolean', new LocalizedTextVo('是非', 'True/false')),
-    ]
+  /** 種類選單上可以挑的每一個：哪幾種由行情種類決定，這裡只貼上名字。 */
+  listStrategyScriptParameterKindOptions(marketDataKind: MarketDataKind): StrategyScriptParameterKindOptionDto[] {
+    return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
+      .map(kind => new StrategyScriptParameterKindOptionDto(kind, STRATEGY_PARAMETER_KIND_LABELS[kind]))
   }
 
   /**
@@ -263,8 +268,12 @@ export class IndicatorCalculationService {
    * 畫面問這個而不是自己寫幾段範例，理由也相同——那些字一旦散在畫面上，
    * 後端改了注入的函式名時，沒有人會知道要回頭改它們。
    */
-  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
-    return SCRIPT_PARAMETER_ACCESSES.map(access => access.toDto())
+  listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
+    const declarableKinds = new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
+
+    return SCRIPT_PARAMETER_ACCESSES
+      .filter(access => declarableKinds.includes(access.kind))
+      .map(access => access.toDto())
   }
 
   /**

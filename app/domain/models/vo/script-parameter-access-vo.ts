@@ -1,9 +1,12 @@
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
+import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 /** VO：一種參數種類在算式裡的讀法。不可變、無行為。 */
 export class ScriptParameterAccessVo {
   constructor(
+    /** 它說的是哪一種，讓說明只列出這一種行情宣告得到的種類。 */
+    public readonly kind: StrategyScriptParameterKind,
     public readonly kindLabel: LocalizedTextVo,
     public readonly returnType: string,
     public readonly example: LocalizedTextVo,
@@ -19,7 +22,9 @@ export class ScriptParameterAccessVo {
 /**
  * 沙箱注入給算式的那兩個函式——宣告好的參數就是這樣讀出來的。
  *
- * **三種種類讀出來的型別不同，而那正是分種類的理由。**
+ * **前三種種類讀出來的型別不同，而那正是分種類的理由。**
+ * 第四種（訂單流價位寬度）主要不是拿來讀的：宣告它是要系統替每一格附上足跡。
+ *
  * 回看根數交出 `int`，因為它幾乎總是拿去切片（`data[len(data)-n:]`），
  * 而 Go 不讓浮點數當索引；數值交出 `float64`，因為它要跟價量一起運算；
  * 是非交出 `bool`，可以直接寫進 `if`。
@@ -37,6 +42,7 @@ export class ScriptParameterAccessVo {
  */
 export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   new ScriptParameterAccessVo(
+    'lookbackCount',
     new LocalizedTextVo('回看根數', 'Lookback count'),
     'int',
     new LocalizedTextVo(
@@ -53,6 +59,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       'How many candles to look back. It comes out as an integer you can slice with directly; the system also uses it to decide how many extra K-candles to fetch.'),
   ),
   new ScriptParameterAccessVo(
+    'number',
     new LocalizedTextVo('數值', 'Number'),
     'float64',
     new LocalizedTextVo(
@@ -69,6 +76,7 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
       'Any single number, such as a multiplier, threshold or weight. The system does not interpret it and passes it to the script as is.'),
   ),
   new ScriptParameterAccessVo(
+    'boolean',
     new LocalizedTextVo('是非', 'True/false'),
     'bool',
     new LocalizedTextVo(
@@ -83,5 +91,22 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
     new LocalizedTextVo(
       '一個開關。讀出來就是 bool，可以直接寫進 if——不必自己約定「幾算是」。',
       'A switch. It reads as a bool you can put straight into an if, with no need to agree on which number means yes.'),
+  ),
+  new ScriptParameterAccessVo(
+    'orderFlowPriceStep',
+    new LocalizedTextVo('訂單流價位寬度', 'Order flow price step'),
+    'float64',
+    new LocalizedTextVo(
+      [
+        'footprint := data[len(data)-1].Footprint',
+        'for _, level := range footprint.Levels { /* level.Price、level.BuyVolume、level.SellVolume */ }',
+      ].join('\n'),
+      [
+        'footprint := data[len(data)-1].Footprint',
+        'for _, level := range footprint.Levels { /* level.Price, level.BuyVolume, level.SellVolume */ }',
+      ].join('\n')),
+    new LocalizedTextVo(
+      '宣告了它，每一格的 Footprint 才有內容，價位依這個寬度分。值就在 Footprint.PriceStep；要直接讀也可以用 indicator.Number("名字")。',
+      'Declaring it is what fills each candle\'s Footprint, with levels split at this width. The value is in Footprint.PriceStep, or read it directly with indicator.Number("name").'),
   ),
 ]

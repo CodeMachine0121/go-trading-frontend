@@ -1,5 +1,6 @@
 import type { IndicatorCalculationApplication } from '~/application/indicator-calculation-application'
 import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 一支算式的旋鈕在畫面上的**狀態**：宣告了哪幾個，以及每一列該長什麼樣子。
@@ -14,12 +15,13 @@ import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/
 export function useStrategyScriptParameters(
   indicatorCalculationApplication: IndicatorCalculationApplication,
   initialParameters: readonly StrategyScriptParameterDto[],
+  marketDataKind: MarketDataKind,
 ) {
   const parameters = ref<readonly StrategyScriptParameterDto[]>(initialParameters)
 
   const fields = computed(
     () => indicatorCalculationApplication.describeStrategyScriptParameters(parameters.value))
-  const kindOptions = indicatorCalculationApplication.listStrategyScriptParameterKindOptions()
+  const kindOptions = indicatorCalculationApplication.listStrategyScriptParameterKindOptions(marketDataKind)
 
   function replaceAll(replacement: readonly StrategyScriptParameterDto[]) {
     parameters.value = replacement
