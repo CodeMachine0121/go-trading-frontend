@@ -169,7 +169,7 @@ const { localize } = useLocalizedText()
 
       <div
         v-for="access in parameterAccesses"
-        :key="access.returnType"
+        :key="access.kind"
         class="indicator-script-guide__kind"
         data-testid="script-parameter-access"
       >

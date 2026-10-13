@@ -30,14 +30,7 @@ import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-a
 import type { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import { SIGNAL_READINGS } from '~/domain/models/vo/signal-reading-vo'
 import type { SignalReadingDto } from '~/domain/models/dto/signal-reading-dto'
-
-/** 種類選單上每一種的名字。哪幾種出現在選單上由行情種類決定，見 `MarketDataKindDomain.declarableParameterKinds`。 */
-const STRATEGY_PARAMETER_KIND_LABELS: Readonly<Record<StrategyScriptParameterKind, LocalizedTextVo>> = {
-  lookbackCount: new LocalizedTextVo('回看根數', 'Lookback count'),
-  number: new LocalizedTextVo('數值', 'Number'),
-  boolean: new LocalizedTextVo('是非', 'True/false'),
-  orderFlowPriceStep: new LocalizedTextVo('訂單流價位寬度', 'Order flow price step'),
-}
+import { STRATEGY_PARAMETER_KIND_LABELS } from '~/domain/models/vo/strategy-script-parameter-kind-label-vo'
 
 /**
  * 沒特別填時要餵給算式幾根 K 線。
@@ -269,10 +262,9 @@ export class IndicatorCalculationService {
    * 後端改了注入的函式名時，沒有人會知道要回頭改它們。
    */
   listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
-    const declarableKinds = new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
-
-    return SCRIPT_PARAMETER_ACCESSES
-      .filter(access => declarableKinds.includes(access.kind))
+    // In the menu's order: the order the market data kind declares, not the order the readings happen to be written in.
+    return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
+      .flatMap(kind => SCRIPT_PARAMETER_ACCESSES.filter(access => access.kind === kind))
       .map(access => access.toDto())
   }
 

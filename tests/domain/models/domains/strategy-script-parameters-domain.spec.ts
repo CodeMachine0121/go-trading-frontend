@@ -184,11 +184,11 @@ describe('訂單流價位寬度', () => {
       .toBeNull()
   })
 
-  it('輸入框可以打小數、上下箭頭一次跳 1，而且不讓系統多拿 K 線', () => {
+  it('輸入框可以打任何小數（不讓瀏覽器把 0.5 判成不在格點上），而且不讓系統多拿 K 線', () => {
     const parameter = new StrategyScriptParameterDomain(orderFlowPriceStep('寬', 10))
 
     expect(parameter.inputMode()).toBe('decimal')
-    expect(parameter.step()).toBe(1)
+    expect(parameter.step()).toBe('any')
     expect(parameter.control()).toBe('number')
     expect(parameter.lookbackCount()).toBe(0)
   })

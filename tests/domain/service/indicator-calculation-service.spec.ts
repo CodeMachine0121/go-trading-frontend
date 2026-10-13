@@ -287,6 +287,10 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
     expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false', 'Order flow price step'])
   })
 
+  it('每一則各自是一種，可以拿種類當鍵，依選單的順序排', () => {
+    expect(accesses.map(access => access.kind)).toEqual(['lookbackCount', 'number', 'boolean', 'orderFlowPriceStep'])
+  })
+
   it('K 線畫面的讀法說明沒有訂單流價位寬度', () => {
     const kCandleAccesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses('kCandle')
 

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { MARKET_DATA_KINDS } from '~/domain/models/vo/market-data-kind-vo'
+import { STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 describe('MarketDataKindDomain', () => {
@@ -157,5 +159,14 @@ describe('MarketDataKindDomain：訂單流足跡', () => {
     const guide = new MarketDataKindDomain('kCandle').toScriptInputGuideDto()
 
     expect(guide.fields.map(field => field.name)).not.toContain('Footprint')
+  })
+})
+
+describe('MarketDataKindDomain：可宣告的參數種類與全部種類對得上', () => {
+  it('每一種可宣告的種類至少有一種行情宣告得到，每一種行情宣告的也都是認得的種類', () => {
+    // 兩份清單要人手同步：加了第五種卻只加進其中一邊，就是讀得懂卻挑不到，或挑得到卻讀不懂。
+    const offered = MARKET_DATA_KINDS.flatMap(kind => [...new MarketDataKindDomain(kind).declarableParameterKinds()])
+
+    expect(new Set(offered)).toEqual(new Set(STRATEGY_PARAMETER_KINDS))
   })
 })

@@ -19,7 +19,7 @@ export class StrategyScriptParameterFieldDto {
     /** 用挑的那一種挑得到哪幾個。用打的那一種是空的。 */
     public readonly valueOptions: readonly StrategyScriptParameterValueOptionDto[],
     public readonly inputMode: 'numeric' | 'decimal',
-    public readonly step: number,
+    public readonly step: number | 'any',
     public readonly isInvalid: boolean,
   ) {}
 }

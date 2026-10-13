@@ -1,13 +1,13 @@
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { ScriptParameterAccessDto } from '~/domain/models/dto/script-parameter-access-dto'
 import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { STRATEGY_PARAMETER_KIND_LABELS } from '~/domain/models/vo/strategy-script-parameter-kind-label-vo'
 
 /** VO：一種參數種類在算式裡的讀法。不可變、無行為。 */
 export class ScriptParameterAccessVo {
   constructor(
-    /** 它說的是哪一種，讓說明只列出這一種行情宣告得到的種類。 */
+    /** 它說的是哪一種：說明只列出這一種行情宣告得到的種類，名字也由它取。 */
     public readonly kind: StrategyScriptParameterKind,
-    public readonly kindLabel: LocalizedTextVo,
     public readonly returnType: string,
     public readonly example: LocalizedTextVo,
     public readonly usage: LocalizedTextVo,
@@ -15,7 +15,7 @@ export class ScriptParameterAccessVo {
 
   toDto(): ScriptParameterAccessDto {
     return new ScriptParameterAccessDto(
-      this.kindLabel, this.returnType, this.example, this.usage)
+      this.kind, STRATEGY_PARAMETER_KIND_LABELS[this.kind], this.returnType, this.example, this.usage)
   }
 }
 
@@ -43,7 +43,6 @@ export class ScriptParameterAccessVo {
 export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   new ScriptParameterAccessVo(
     'lookbackCount',
-    new LocalizedTextVo('回看根數', 'Lookback count'),
     'int',
     new LocalizedTextVo(
       [
@@ -60,7 +59,6 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   ),
   new ScriptParameterAccessVo(
     'number',
-    new LocalizedTextVo('數值', 'Number'),
     'float64',
     new LocalizedTextVo(
       [
@@ -77,7 +75,6 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   ),
   new ScriptParameterAccessVo(
     'boolean',
-    new LocalizedTextVo('是非', 'True/false'),
     'bool',
     new LocalizedTextVo(
       [
@@ -94,7 +91,6 @@ export const SCRIPT_PARAMETER_ACCESSES: ScriptParameterAccessVo[] = [
   ),
   new ScriptParameterAccessVo(
     'orderFlowPriceStep',
-    new LocalizedTextVo('訂單流價位寬度', 'Order flow price step'),
     'float64',
     new LocalizedTextVo(
       [
