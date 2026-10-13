@@ -283,6 +283,19 @@ describe('StrategyScriptProxy：策略腳本記著的旋鈕', () => {
       expect(strategyScripts[0]?.parameters[0]?.kind).toBe(kind)
     })
 
+  it('訂單流價位寬度讀回來還是訂單流價位寬度', async () => {
+    // 上面那一條 range 的是同一份清單，清單漏了這一種它也跟著少一個案例；這一條把交易服務送的字寫死。
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [{
+      ...strategyScriptWireOf(1, '足跡'),
+      parameters: [{ name: '寬', kind: 'orderFlowPriceStep', defaultValue: 10 }],
+    }], adopted: [] }))
+
+    const { mine: strategyScripts } = await new StrategyScriptProxy(BASE_URL, signedInSessionStorage())
+      .listAvailableStrategyScripts()
+
+    expect(strategyScripts[0]?.parameters[0]?.kind).toBe('orderFlowPriceStep')
+  })
+
   it('認不得的種類一律當成數值——它不會憑空變成回看根數去多拿 K 線', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ mine: [{
       ...strategyScriptWireOf(1, '布林通道'),
