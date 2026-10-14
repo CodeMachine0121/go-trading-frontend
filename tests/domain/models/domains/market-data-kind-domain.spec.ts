@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { MARKET_DATA_KINDS } from '~/domain/models/vo/market-data-kind-vo'
+import { STRATEGY_PARAMETER_KINDS } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 describe('MarketDataKindDomain', () => {
@@ -123,5 +125,48 @@ describe('MarketDataKindDomain 的開倉容許滑價', () => {
 
     expect(note?.in('zh-TW')).toContain('進場的滑價以參考價為準，正值代表成交得比參考價差。')
     expect(note?.in('en')).toContain('a positive value means the fill was worse than the reference')
+  })
+})
+
+describe('MarketDataKindDomain：訂單流足跡', () => {
+  it('合約行情宣告得到訂單流價位寬度，K 線宣告不到', () => {
+    expect(new MarketDataKindDomain('contractKCandle').declarableParameterKinds())
+      .toEqual(['lookbackCount', 'number', 'boolean', 'orderFlowPriceStep'])
+    expect(new MarketDataKindDomain('kCandle').declarableParameterKinds())
+      .toEqual(['lookbackCount', 'number', 'boolean'])
+  })
+
+  it('合約行情的說明列出 Footprint 與它裡面的每一項', () => {
+    const guide = new MarketDataKindDomain('contractKCandle').toScriptInputGuideDto()
+
+    expect(guide.fields.find(field => field.name === 'Footprint')?.type).toBe('indicator.Footprint')
+    expect(guide.valueTypeNote.in('zh-TW')).toContain(
+      'Footprint 是 indicator.Footprint，裡面有 PriceStep、Levels（一串 indicator.PriceLevel，每一個有 Price、BuyVolume、SellVolume、TradeCount，價位由低到高）、Delta、PointOfControl')
+    expect(guide.valueTypeNote.in('en')).toContain('Footprint is indicator.Footprint')
+  })
+
+  it('說明講清楚宣告了才有、價位怎麼取、上限與不落地', () => {
+    const notes = new MarketDataKindDomain('contractKCandle').toScriptInputGuideDto().notes.map(note => note.in('zh-TW'))
+    const orderFlowNote = notes.find(note => note.startsWith('訂單流足跡'))
+
+    expect(orderFlowNote).toContain('要先宣告一個「訂單流價位寬度」參數才有，沒宣告時整份是空的')
+    expect(orderFlowNote).toContain('每一筆成交的價格往下取到寬度的整數倍就是它的價位')
+    expect(orderFlowNote).toContain('一次至多 31 天、一格至多 1,000 個價位')
+    expect(orderFlowNote).toContain('訂單流不存進系統，每次現拿')
+  })
+
+  it('K 線的說明沒有 Footprint', () => {
+    const guide = new MarketDataKindDomain('kCandle').toScriptInputGuideDto()
+
+    expect(guide.fields.map(field => field.name)).not.toContain('Footprint')
+  })
+})
+
+describe('MarketDataKindDomain：可宣告的參數種類與全部種類對得上', () => {
+  it('每一種可宣告的種類至少有一種行情宣告得到，每一種行情宣告的也都是認得的種類', () => {
+    // 兩份清單要人手同步：加了第五種卻只加進其中一邊，就是讀得懂卻挑不到，或挑得到卻讀不懂。
+    const offered = MARKET_DATA_KINDS.flatMap(kind => [...new MarketDataKindDomain(kind).declarableParameterKinds()])
+
+    expect(new Set(offered)).toEqual(new Set(STRATEGY_PARAMETER_KINDS))
   })
 })

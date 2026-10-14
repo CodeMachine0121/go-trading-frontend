@@ -3,7 +3,7 @@ import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-
 import { StrategyScriptParameterKindOptionDto } from '~/domain/models/dto/strategy-script-parameter-kind-option-dto'
 import { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import { StrategyScriptParameterDomain } from '~/domain/models/domains/strategy-script-parameter-domain'
-import type { StrategyScriptParameterDto, StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
+import { STRATEGY_PARAMETER_KIND_LABELS, type StrategyScriptParameterDto, type StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
 import { IndicatorCalculationFieldError } from '~/domain/errors/indicator-calculation-field-error'
 import { CalculationSpanUnitOptionDto } from '~/domain/models/dto/calculation-span-option-dto'
@@ -157,13 +157,10 @@ export class IndicatorCalculationService {
     return spanVo.toObservationWindow(new Date())
   }
 
-  /** 種類選單上可以挑的每一個。 */
-  listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
-    return [
-      new StrategyScriptParameterKindOptionDto('lookbackCount', new LocalizedTextVo('回看根數', 'Lookback count')),
-      new StrategyScriptParameterKindOptionDto('number', new LocalizedTextVo('數值', 'Number')),
-      new StrategyScriptParameterKindOptionDto('boolean', new LocalizedTextVo('是非', 'True/false')),
-    ]
+  /** 種類選單上可以挑的每一個：哪幾種由行情種類決定，這裡只貼上名字。 */
+  listStrategyScriptParameterKindOptions(marketDataKind: MarketDataKind): StrategyScriptParameterKindOptionDto[] {
+    return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
+      .map(kind => new StrategyScriptParameterKindOptionDto(kind, STRATEGY_PARAMETER_KIND_LABELS[kind]))
   }
 
   /**
@@ -263,8 +260,10 @@ export class IndicatorCalculationService {
    * 畫面問這個而不是自己寫幾段範例，理由也相同——那些字一旦散在畫面上，
    * 後端改了注入的函式名時，沒有人會知道要回頭改它們。
    */
-  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
-    return SCRIPT_PARAMETER_ACCESSES.map(access => access.toDto())
+  listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
+    // In the menu's order: the order the market data kind declares, not the order the readings happen to be written in.
+    return new MarketDataKindDomain(marketDataKind).declarableParameterKinds()
+      .map(kind => SCRIPT_PARAMETER_ACCESSES[kind].toDto())
   }
 
   /**

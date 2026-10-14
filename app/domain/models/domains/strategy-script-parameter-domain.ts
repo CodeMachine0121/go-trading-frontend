@@ -43,8 +43,18 @@ export class StrategyScriptParameterDomain {
     return this.parameter.kind === 'lookbackCount' ? 'numeric' : 'decimal'
   }
 
-  /** 上下箭頭一次跳多少。回看根數跳整數，數值不限。 */
-  step(): number {
+  /**
+   * 上下箭頭一次跳多少。回看根數跳整數，數值跳 0.1。
+   *
+   * 訂單流價位寬度是 `any`：低價合約要 0.001 這種寬度，給一個數字步進，
+   * 瀏覽器會把不在格點上的寬度自己判成不合法、擋住送出——什麼寬度合法是 `validationMessage()` 說了算。
+   * `any` 時上下箭頭一次跳 1，常見的 1、5、10 剛好合用。
+   */
+  step(): number | 'any' {
+    if (this.parameter.kind === 'orderFlowPriceStep') {
+      return 'any'
+    }
+
     return this.parameter.kind === 'lookbackCount' ? 1 : 0.1
   }
 
@@ -57,6 +67,12 @@ export class StrategyScriptParameterDomain {
   validationMessage(): LocalizedTextVo | null {
     if (this.parameter.name.trim() === '') {
       return new LocalizedTextVo('參數名稱不得為空白', 'The parameter name cannot be blank')
+    }
+
+    if (this.parameter.kind === 'orderFlowPriceStep') {
+      return this.parameter.value > 0
+        ? null
+        : new LocalizedTextVo('訂單流價位寬度必須大於零', 'The order flow price step must be greater than zero')
     }
 
     if (this.parameter.kind !== 'lookbackCount') {

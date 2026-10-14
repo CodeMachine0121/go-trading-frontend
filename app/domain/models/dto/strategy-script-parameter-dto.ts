@@ -1,12 +1,17 @@
+import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+
 /**
- * 一個策略腳本參數是哪一種。有限的兩種，所以是字面量聯合而不是自由字串。
+ * 一個策略腳本參數是哪一種。有限的幾種，所以是字面量聯合而不是自由字串。
+ *
+ * 訂單流價位寬度只給合約行情：宣告了它，交易服務才替每一格附上訂單流足跡。
+ * 它與回看根數一樣是系統必須讀懂的那一種——它決定要拿什麼資料。
  *
  * 分種類的第一個理由是**系統必須知道要拿多少 K 線**——那只有回看根數那一種算數。
  * 其餘的差別都在「怎麼讀它」：數值原樣交出去，是非零是否、非零是是。
  * 順帶讓畫面在使用者填任何值之前就長得出正確的格子，
  * 也讓「回看根數必須是大於零的整數」有地方成立。
  */
-export type StrategyScriptParameterKind = 'lookbackCount' | 'number' | 'boolean'
+export type StrategyScriptParameterKind = 'lookbackCount' | 'number' | 'boolean' | 'orderFlowPriceStep'
 
 /**
  * 可以宣告的每一種，**一份清單**。
@@ -20,7 +25,19 @@ export const STRATEGY_PARAMETER_KINDS: readonly StrategyScriptParameterKind[] = 
   'lookbackCount',
   'number',
   'boolean',
+  'orderFlowPriceStep',
 ]
+
+/**
+ * 每一種參數種類給人看的名字，**只有這一份**：種類選單與「在算式裡怎麼讀」那一段都從這裡取，
+ * 免得一邊改了名字、另一邊還是舊的。
+ */
+export const STRATEGY_PARAMETER_KIND_LABELS: Readonly<Record<StrategyScriptParameterKind, LocalizedTextVo>> = {
+  lookbackCount: new LocalizedTextVo('回看根數', 'Lookback count'),
+  number: new LocalizedTextVo('數值', 'Number'),
+  boolean: new LocalizedTextVo('是非', 'True/false'),
+  orderFlowPriceStep: new LocalizedTextVo('訂單流價位寬度', 'Order flow price step'),
+}
 
 /**
  * DTO：一個策略腳本參數的唯一形狀。

@@ -1,4 +1,5 @@
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { StrategyScriptParameterKind } from '~/domain/models/dto/strategy-script-parameter-dto'
 
 /**
  * DTO：在算式裡讀一個參數的寫法——一種參數種類一則。
@@ -9,6 +10,8 @@ import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
  */
 export class ScriptParameterAccessDto {
   constructor(
+    /** 這一則講的是哪一種參數——它在一份說明裡只出現一次，所以也是那一則的鍵。 */
+    public readonly kind: StrategyScriptParameterKind,
     /** 這一則講的是哪一種參數，給人看的說法。 */
     public readonly kindLabel: LocalizedTextVo,
     /** 讀出來是什麼 Go 型別，例如 `int`。 */

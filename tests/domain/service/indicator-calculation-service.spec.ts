@@ -1,3 +1,4 @@
+import { SCRIPT_PARAMETER_ACCESSES } from '~/domain/models/vo/script-parameter-access-vo'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IIndicatorCalculationProxy } from '~/domain/interface/i-indicator-calculation-proxy'
 import { IndicatorCalculation } from '~/domain/models/entities/indicator-calculation'
@@ -257,20 +258,59 @@ describe('IndicatorCalculationService：宣告好的參數在算式裡怎麼讀'
   // 這一份與 K 線欄位那一份是同一件事的兩半——兩者描述的都是沙箱交給算式的東西。
   // 它住在領域而不是畫面，理由也相同：那些字一旦散在畫面上，
   // 系統那一側改了注入的函式名時，沒有人會知道要回頭改它們。
-  const accesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses()
+  const accesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses('contractKCandle')
 
-  it('選單上挑得到的就是可宣告的每一種，一種都不少', () => {
+  it('合約行情的選單挑得到可宣告的每一種，一種都不少', () => {
     // 少一種就是那一種存得進去卻挑不出來——而漏掉一個列舉點正是這個切片犯過的錯。
-    expect(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
+    expect(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions('contractKCandle')
       .map(option => option.value)).toEqual([...STRATEGY_PARAMETER_KINDS])
+  })
+
+  it('K 線的選單沒有訂單流價位寬度——現貨沒有足跡可以給', () => {
+    const kCandleOptions = new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions('kCandle')
+
+    expect(kCandleOptions.map(option => option.value)).toEqual(['lookbackCount', 'number', 'boolean'])
+    expect(kCandleOptions.map(option => option.label.in('zh-TW'))).toEqual(['回看根數', '數值', '是非'])
+  })
+
+  it('合約的選單把訂單流價位寬度排在最後，叫它的名字', () => {
+    const contractOptions = new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions('contractKCandle')
+
+    expect(contractOptions.map(option => option.label.in('zh-TW'))).toEqual(['回看根數', '數值', '是非', '訂單流價位寬度'])
+    expect(contractOptions.map(option => option.label.in('en'))).toEqual(['Lookback count', 'Number', 'True/false', 'Order flow price step'])
   })
 
   it('每一種可宣告的種類都有一則，一則都不少', () => {
     // 少一則就是一種讀法沒有人說得出來，而那一種在選單上挑得到。
     expect(accesses.map(access => access.kindLabel))
-      .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions()
+      .toEqual(new IndicatorCalculationService(buildProxy()).listStrategyScriptParameterKindOptions('contractKCandle')
         .map(option => option.label))
-    expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false'])
+    expect(accesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false', 'Order flow price step'])
+  })
+
+  it('每一則記著的種類與它的鍵一致——讀法不會被貼上別種的名字', () => {
+    for (const [kind, access] of Object.entries(SCRIPT_PARAMETER_ACCESSES)) {
+      expect(access.kind).toBe(kind)
+    }
+  })
+
+  it('每一則各自是一種，可以拿種類當鍵，依選單的順序排', () => {
+    expect(accesses.map(access => access.kind)).toEqual(['lookbackCount', 'number', 'boolean', 'orderFlowPriceStep'])
+  })
+
+  it('K 線畫面的讀法說明沒有訂單流價位寬度', () => {
+    const kCandleAccesses = new IndicatorCalculationService(buildProxy()).listScriptParameterAccesses('kCandle')
+
+    expect(kCandleAccesses.map(access => access.kindLabel.in('en'))).toEqual(['Lookback count', 'Number', 'True/false'])
+  })
+
+  it('訂單流價位寬度的說明指向每一格的 Footprint', () => {
+    const access = accesses.find(candidate => candidate.kindLabel.in('zh-TW') === '訂單流價位寬度')
+
+    expect(access?.returnType).toBe('float64')
+    expect(access?.example.in('zh-TW')).toContain('data[len(data)-1].Footprint')
+    expect(access?.example.in('zh-TW')).toContain('range footprint.Levels')
+    expect(access?.usage.in('zh-TW')).toContain('宣告了它，每一格的 Footprint 才有內容')
   })
 
   it.each([

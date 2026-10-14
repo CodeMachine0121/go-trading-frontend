@@ -87,7 +87,17 @@ export class StrategyScriptParametersDomain {
       }
     }
 
-    return this.duplicateNameMessage()
+    const duplicateNameMessage = this.duplicateNameMessage()
+    if (duplicateNameMessage !== null) {
+      return duplicateNameMessage
+    }
+
+    // 訂單流價位寬度至多一個：一格只裝得下一份足跡，兩個寬度會要兩份。
+    const orderFlowPriceStepCount = this.parameters.filter(parameter => parameter.kind === 'orderFlowPriceStep').length
+
+    return orderFlowPriceStepCount > 1
+      ? new LocalizedTextVo('訂單流價位寬度至多宣告一個', 'At most one order flow price step may be declared')
+      : null
   }
 
   private duplicateNameMessage(): LocalizedTextVo | null {

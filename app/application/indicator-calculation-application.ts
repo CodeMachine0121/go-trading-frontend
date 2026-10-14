@@ -66,8 +66,8 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.observationWindowFor(span)
   }
 
-  listStrategyScriptParameterKindOptions(): StrategyScriptParameterKindOptionDto[] {
-    return this.indicatorCalculationService.listStrategyScriptParameterKindOptions()
+  listStrategyScriptParameterKindOptions(marketDataKind: MarketDataKind): StrategyScriptParameterKindOptionDto[] {
+    return this.indicatorCalculationService.listStrategyScriptParameterKindOptions(marketDataKind)
   }
 
   describeStrategyScriptParameters(
@@ -110,8 +110,8 @@ export class IndicatorCalculationApplication {
     return this.indicatorCalculationService.listResultTypeOptions()
   }
 
-  listScriptParameterAccesses(): ScriptParameterAccessDto[] {
-    return this.indicatorCalculationService.listScriptParameterAccesses()
+  listScriptParameterAccesses(marketDataKind: MarketDataKind): ScriptParameterAccessDto[] {
+    return this.indicatorCalculationService.listScriptParameterAccesses(marketDataKind)
   }
 
   describeScriptInputGuide(marketDataKind: MarketDataKind = 'kCandle'): ScriptInputGuideDto {

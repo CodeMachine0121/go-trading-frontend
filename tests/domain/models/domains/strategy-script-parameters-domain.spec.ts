@@ -150,3 +150,50 @@ describe('是非：仍然是一個數字，只是換一種讀法', () => {
     expect(new StrategyScriptParameterDomain(booleanParameter('只看多方', 1)).lookbackCount()).toBe(0)
   })
 })
+
+function orderFlowPriceStep(name: string, value: number) {
+  return new StrategyScriptParameterDto(name, 'orderFlowPriceStep', value)
+}
+
+describe('訂單流價位寬度', () => {
+  it.each([
+    { value: 10, expected: null },
+    { value: 0.5, expected: null },
+    { value: 0, expected: '訂單流價位寬度必須大於零' },
+    { value: -5, expected: '訂單流價位寬度必須大於零' },
+  ])('寬度 $value', ({ value, expected }) => {
+    expect(new StrategyScriptParametersDomain([orderFlowPriceStep('寬', value)]).validationMessage()?.in('zh-TW') ?? null)
+      .toBe(expected)
+  })
+
+  it('一支策略腳本至多一個', () => {
+    const parameters = new StrategyScriptParametersDomain([orderFlowPriceStep('寬', 10), orderFlowPriceStep('窄', 1)])
+
+    expect(parameters.validationMessage()?.in('zh-TW')).toBe('訂單流價位寬度至多宣告一個')
+    expect(parameters.validationMessage()?.in('en')).toBe('At most one order flow price step may be declared')
+  })
+
+  it('名稱重複先說，一次只說一則', () => {
+    const parameters = new StrategyScriptParametersDomain([orderFlowPriceStep('寬', 10), orderFlowPriceStep('寬', 1)])
+
+    expect(parameters.validationMessage()?.in('zh-TW')).toBe('參數名稱 寬 重複了，同一支策略腳本內不得重複')
+  })
+
+  it('一個訂單流價位寬度加其他種類沒有錯誤', () => {
+    expect(new StrategyScriptParametersDomain([orderFlowPriceStep('寬', 10), lookbackCount('期數', 20)]).validationMessage())
+      .toBeNull()
+  })
+
+  it('輸入框可以打任何小數（不讓瀏覽器把 0.5 判成不在格點上），而且不讓系統多拿 K 線', () => {
+    const parameter = new StrategyScriptParameterDomain(orderFlowPriceStep('寬', 10))
+
+    expect(parameter.inputMode()).toBe('decimal')
+    expect(parameter.step()).toBe('any')
+    expect(parameter.control()).toBe('number')
+    expect(parameter.lookbackCount()).toBe(0)
+  })
+
+  it('數值仍然一次跳 0.1，方便微調', () => {
+    expect(new StrategyScriptParameterDomain(numberParameter('倍數', 1)).step()).toBe(0.1)
+  })
+})
