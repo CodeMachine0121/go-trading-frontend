@@ -84,3 +84,40 @@ describe('浮動工具列：拖到別處', () => {
     host.remove()
   })
 })
+
+describe('浮動工具列：拖到一半', () => {
+  function startDrag() {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const wrapper = mount(ChartDrawingFloatingToolbar, { props: { drawing: trendLine() }, attachTo: host })
+    vi.spyOn(wrapper.element.parentElement as HTMLElement, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 0, y: 0, width: 800, height: 600 }))
+    vi.spyOn(wrapper.element, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 300, y: 10, width: 200, height: 36 }))
+
+    return { wrapper, host }
+  }
+
+  it('被瀏覽器取消：之後的移動不再拖它', async () => {
+    const { wrapper, host } = startDrag()
+
+    await wrapper.get('button').trigger('pointerdown', { clientX: 305, clientY: 20 })
+    window.dispatchEvent(new PointerEvent('pointercancel'))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 105, clientY: 120 }))
+    await nextTick()
+
+    expect((wrapper.element as HTMLElement).style.left).toBe('')
+    wrapper.unmount()
+    host.remove()
+  })
+
+  it('拖到一半工具列消失：視窗上不留下監聽', async () => {
+    const { wrapper, host } = startDrag()
+    const removed = vi.spyOn(window, 'removeEventListener')
+
+    await wrapper.get('button').trigger('pointerdown', { clientX: 305, clientY: 20 })
+    wrapper.unmount()
+
+    expect(removed.mock.calls.map(([type]) => type)).toEqual(expect.arrayContaining(['pointermove', 'pointerup', 'pointercancel']))
+    host.remove()
+    vi.restoreAllMocks()
+  })
+})

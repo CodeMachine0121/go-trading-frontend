@@ -38,6 +38,9 @@ function changeColor(token: string) {
   emit('command', new ChartDrawingCommandDto('changeColor', [], token))
 }
 
+/** 拖動中的那一組監聽；拖完、被取消或工具列消失時都要收掉。 */
+let stopDragging: (() => void) | null = null
+
 function startDragging(event: PointerEvent) {
   const element = toolbar.value
   const container = element?.parentElement
@@ -56,13 +59,21 @@ function startDragging(event: PointerEvent) {
       top: Math.max(0, Math.min(containerBounds.height - bounds.height, moveEvent.clientY - containerBounds.top - grabY)),
     }
   }
-  const stop = () => {
+  stopDragging?.()
+  stopDragging = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', stop)
+    window.removeEventListener('pointercancel', stop)
+    stopDragging = null
   }
+  const stop = () => stopDragging?.()
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', stop)
+  window.addEventListener('pointercancel', stop)
 }
+
+// 拖到一半工具列就不見了（例如上一步把那個繪圖拿掉了）：監聽不能留在視窗上。
+onBeforeUnmount(() => stopDragging?.())
 </script>
 
 <template>
