@@ -10,7 +10,7 @@ import { NuxtLink } from '#components'
 // 需要新的長相時，是在這裡新增一個 variant（並在 token 內補色），不是新增一個元件。
 // 詳見 .claude/rules/component-design.md。
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost' | 'accent'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-ghost' | 'accent' | 'chrome'
 type ButtonSize = 'small' | 'medium' | 'large'
 
 /**
@@ -211,6 +211,22 @@ const { variant = 'primary', size = 'medium', shape = 'default', block = false, 
     &:hover:not(:disabled) {
       background-color: color('danger-soft');
       color: color('danger');
+    }
+  }
+
+  // 看盤工作區四條細邊上的鍵，照 TradingView 的樣子：平時只有字或圖示，滑過去才有底，
+  // 選著的那一個（`aria-pressed`）換成強調色——一整排互斥的選擇靠顏色而不是框線分出誰被選了。
+  &--chrome {
+    background-color: transparent;
+    color: color('chart-workspace-text');
+    font-weight: font-weight('regular');
+
+    &:hover:not(:disabled) {
+      background-color: color('chart-workspace-hover');
+    }
+
+    &[aria-pressed='true'] {
+      color: color('chart-workspace-accent');
     }
   }
 }
