@@ -52,6 +52,11 @@ const chartLibrary = vi.hoisted(() => {
     createPriceLine: vi.fn((options: unknown) => ({ options })),
     removePriceLine: vi.fn(),
   }
+  // 成交量那一條：它的資料不是 K 線，不拿來推回「那是幾點」。
+  const histogramSeries = {
+    setData: vi.fn(),
+    applyOptions: vi.fn(),
+  }
   const lineSeries = {
     setData: vi.fn(recordBars),
     kind: 'Line',
@@ -138,6 +143,7 @@ const chartLibrary = vi.hoisted(() => {
   return {
     candlestickSeries,
     lineSeries,
+    histogramSeries,
     timeScale,
     priceScale,
     chartApi,
@@ -180,6 +186,7 @@ vi.mock('lightweight-charts', () => ({
   BarSeries: 'BarSeries',
   LineSeries: 'LineSeries',
   AreaSeries: 'AreaSeries',
+  HistogramSeries: 'HistogramSeries',
   CrosshairMode: { Normal: 0, Magnet: 1 },
   PriceScaleMode: { Normal: 0, Logarithmic: 1, Percentage: 2 },
   // 真的那個函式庫用這組列舉告訴我們這一格刻度該說到多細。
@@ -260,7 +267,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   chartLibrary.reset()
   chartLibrary.chartApi.addSeries.mockImplementation(
-    (definition: string) => definition === 'LineSeries' ? chartLibrary.lineSeries : chartLibrary.candlestickSeries)
+    (definition: string) => definition === 'LineSeries'
+      ? chartLibrary.lineSeries
+      : definition === 'HistogramSeries' ? chartLibrary.histogramSeries : chartLibrary.candlestickSeries)
   // 顏色從 token 展開的 CSS 變數讀；測試環境沒有樣式表，因此把讀到的值換成 token 名稱本身，
   // 才驗得出「這一根用的是哪一個 token」。
   vi.stubGlobal('getComputedStyle', () => ({
@@ -749,7 +758,9 @@ describe('KCandleChart：看盤工作區要的那幾件事', () => {
   })
 
   it('美國線交的是開高低收；面積交的是收盤價', async () => {
-    chartLibrary.chartApi.addSeries.mockImplementation(() => chartLibrary.candlestickSeries)
+    // 每一種畫法都交回同一個替身，才讀得到它們各自交了什麼；成交量那一條照舊是它自己。
+    chartLibrary.chartApi.addSeries.mockImplementation((definition: string) =>
+      definition === 'HistogramSeries' ? chartLibrary.histogramSeries : chartLibrary.candlestickSeries)
     const wrapper = await mountChart(chartDto(TWO_CANDLES), 'bar' as 'candlestick')
     expect(drawnRows()[0]).toMatchObject({ open: 100, high: 130, low: 90, close: 110 })
 
@@ -838,5 +849,43 @@ describe('KCandleChart：看盤工作區要的那幾件事', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="overlay"]').text()).toBe('function')
+  })
+})
+
+describe('KCandleChart：成交量疊圖', () => {
+  const DOWN_TREND = new KCandleTrendVo('down', new LocalizedTextVo('下跌', 'Down'), 'danger')
+  const FLAT_TREND = new KCandleTrendVo('flat', new LocalizedTextVo('平盤', 'Flat'), 'neutral')
+
+  it('每一根一根量柱，漲（含平盤）用淡漲色、跌用淡跌色，疊在底部自己的軸上', async () => {
+    await mountChart(chartDto([
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND),
+      kCandleDto('2026-09-02T10:05:00.000Z', '90', DOWN_TREND),
+      kCandleDto('2026-09-02T10:10:00.000Z', '100', FLAT_TREND),
+    ]))
+
+    expect(chartLibrary.chartApi.addSeries).toHaveBeenCalledWith('HistogramSeries', expect.objectContaining({ priceScaleId: 'volume', visible: true }))
+    expect(chartLibrary.priceScale.applyOptions).toHaveBeenCalledWith({ scaleMargins: { top: 0.8, bottom: 0 } })
+    expect(chartLibrary.histogramSeries.setData.mock.lastCall?.[0].map((row: { value: number, color: string }) => [row.value, row.color]))
+      .toEqual([[1, '--color-chart-workspace-volume-up'], [1, '--color-chart-workspace-volume-down'], [1, '--color-chart-workspace-volume-up']])
+  })
+
+  it('收起來就把那一條藏起來，再打開就回來；K 線不重畫', async () => {
+    const wrapper = await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]))
+    chartLibrary.candlestickSeries.setData.mockClear()
+
+    await wrapper.setProps({ showsVolume: false })
+    expect(chartLibrary.histogramSeries.applyOptions).toHaveBeenLastCalledWith({ visible: false })
+
+    await wrapper.setProps({ showsVolume: true })
+    expect(chartLibrary.histogramSeries.applyOptions).toHaveBeenLastCalledWith({ visible: true })
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+  })
+
+  it('換畫法時成交量那一條不被換掉', async () => {
+    const wrapper = await mountChart(chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]))
+
+    await wrapper.setProps({ drawing: 'line' })
+
+    expect(chartLibrary.chartApi.removeSeries).not.toHaveBeenCalledWith(chartLibrary.histogramSeries)
   })
 })

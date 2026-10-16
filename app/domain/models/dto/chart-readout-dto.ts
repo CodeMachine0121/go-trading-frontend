@@ -12,5 +12,7 @@ export class ChartReadoutDto {
     public readonly tone: 'success' | 'danger' | 'neutral',
     /** 最新那一根還有多久收完；已經收完時是 `null`。 */
     public readonly countdown: string | null,
+    /** 那一根的成交量怎麼寫：未滿一千寫原數，否則以 K／M／B 為單位，都到小數兩位。 */
+    public readonly volumeText: string,
   ) {}
 }

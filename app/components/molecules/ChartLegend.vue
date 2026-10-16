@@ -12,16 +12,19 @@ import type { AppliedIndicatorRowDto } from '~/domain/models/dto/applied-indicat
  *
  * 它不判斷哪一根、漲跌多少、用什麼顏色——圖例那一行是領域算好的，這裡只把它排出來。
  */
-const { title, intervalLabel, readout = null, appliedIndicatorRows = [] } = defineProps<{
+const { title, intervalLabel, readout = null, appliedIndicatorRows = [], volumeShown = true } = defineProps<{
   title: string
   intervalLabel: string
   readout?: ChartReadoutDto | null
   appliedIndicatorRows?: readonly AppliedIndicatorRowDto[]
+  /** 成交量疊圖看不看得到；收起來時 Vol 那一行變淡。 */
+  volumeShown?: boolean
 }>()
 
 const emit = defineEmits<{
   toggleVisibility: [appliedIndicatorId: number]
   remove: [appliedIndicatorId: number]
+  toggleVolume: []
 }>()
 
 const { t } = useI18n()
@@ -82,6 +85,37 @@ const values = computed(() => {
       class="chart-legend__row"
     >
       <slot name="extra" />
+    </div>
+
+    <!-- 成交量：與已套用的指標同一種長相，但它不是一支策略腳本，所以只有收起與顯示，沒有移除。 -->
+    <div
+      v-if="readout"
+      class="chart-legend__row chart-legend__row--indicator"
+      :class="{ 'chart-legend__row--off': !volumeShown }"
+      data-testid="legend-volume"
+    >
+      <span class="chart-legend__title">Vol</span>
+      <span
+        class="chart-legend__values"
+        :class="`chart-legend__values--${readout.kCandle.trend.tone}`"
+        data-testid="legend-volume-value"
+      >{{ readout.volumeText }}</span>
+      <span class="chart-legend__actions">
+        <button
+          type="button"
+          class="chart-legend__action"
+          :aria-label="volumeShown ? t('marketData.chartWorkspace.hideIndicator') : t('marketData.chartWorkspace.showIndicator')"
+          :title="volumeShown ? t('marketData.chartWorkspace.hideIndicator') : t('marketData.chartWorkspace.showIndicator')"
+          data-testid="legend-toggle-volume"
+          @click="emit('toggleVolume')"
+        >
+          <AppIcon
+            :name="volumeShown ? 'shown' : 'hidden'"
+            size="small"
+            stroke="fine"
+          />
+        </button>
+      </span>
     </div>
 
     <div

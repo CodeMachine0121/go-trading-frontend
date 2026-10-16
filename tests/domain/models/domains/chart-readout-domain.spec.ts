@@ -62,3 +62,28 @@ describe('ChartReadoutDomain：算不出百分比', () => {
     expect(readout?.changePercentText).toBeNull()
   })
 })
+
+describe('ChartReadoutDomain：成交量怎麼寫', () => {
+  it.each([
+    ['1234.5', '1.23K'],
+    ['999.456', '999.46'],
+    // 滿一千就以 K 為單位——剛好一千也算。
+    ['1000', '1.00K'],
+    ['1500', '1.50K'],
+    ['2500000', '2.50M'],
+    ['3200000000', '3.20B'],
+  ])('成交量 %s 寫成「%s」', (volume, text) => {
+    const chart = kCandleChartOf('1h', [new KCandleSpec('2026-10-16T10:00:00.000Z', '100', '100', '100', '100', volume)])
+
+    expect(new ChartReadoutDomain(chart, 0, NOW).toDto()?.volumeText).toBe(text)
+  })
+
+  it('十字線不在圖上時寫最新那一根的量', () => {
+    const chart = kCandleChartOf('1h', [
+      new KCandleSpec('2026-10-16T10:00:00.000Z', '100', '100', '100', '100', '5'),
+      new KCandleSpec('2026-10-16T11:00:00.000Z', '100', '100', '100', '100', '7'),
+    ])
+
+    expect(new ChartReadoutDomain(chart, null, NOW).toDto()?.volumeText).toBe('7')
+  })
+})

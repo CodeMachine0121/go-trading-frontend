@@ -79,3 +79,26 @@ describe('圖例：已套用的指標', () => {
     expect(wrapper.emitted(event)).toEqual([[1]])
   })
 })
+
+describe('圖例：成交量', () => {
+  it('Vol 那一行寫那一根的量', () => {
+    const chart = kCandleChartOf('1h', [new KCandleSpec('2026-10-16T10:00:00.000Z', '100', '100', '100', '100', '1234.5')])
+    const readout = new ChartReadoutDomain(chart, 0, new Date('2026-10-16T10:30:00.000Z')).toDto()
+    const wrapper = mount(ChartLegend, { props: { title: 'BTCUSDT', intervalLabel: '一小時', readout } })
+
+    expect(wrapper.get('[data-testid="legend-volume-value"]').text()).toBe('1.23K')
+    expect(wrapper.get('[data-testid="legend-toggle-volume"]').attributes('aria-label')).toBe('在圖上收起來')
+  })
+
+  it('收起來時那一行說的是「在圖上顯示」；按下去交出切換', async () => {
+    const wrapper = mount(ChartLegend, { props: { title: 'BTCUSDT', intervalLabel: '一小時', readout: readoutAt(1), volumeShown: false } })
+
+    expect(wrapper.get('[data-testid="legend-toggle-volume"]').attributes('aria-label')).toBe('在圖上顯示')
+    await wrapper.get('[data-testid="legend-toggle-volume"]').trigger('click')
+    expect(wrapper.emitted('toggleVolume')).toHaveLength(1)
+  })
+
+  it('還沒有圖時沒有 Vol 那一行', () => {
+    expect(mount(ChartLegend, { props: { title: 'BTCUSDT', intervalLabel: '—' } }).find('[data-testid="legend-volume"]').exists()).toBe(false)
+  })
+})

@@ -71,6 +71,8 @@ $colors: (
   'chart-workspace-down': #f23645,
   'chart-workspace-area-top': rgb(41 98 255 / 28%),
   'chart-workspace-area-bottom': rgb(41 98 255 / 2%),
+  'chart-workspace-volume-up': rgb(8 153 129 / 50%),
+  'chart-workspace-volume-down': rgb(242 54 69 / 50%),
   // 繪圖的調色盤。繪圖自己的顏色不隨外觀改變——同一條紅線在亮色與暗色下都是那條紅線。
   'drawing-red': #f23645,
   'drawing-orange': #ff9800,
@@ -146,6 +148,8 @@ $colors-light: (
   'chart-workspace-down': #f23645,
   'chart-workspace-area-top': rgb(41 98 255 / 28%),
   'chart-workspace-area-bottom': rgb(41 98 255 / 2%),
+  'chart-workspace-volume-up': rgb(8 153 129 / 50%),
+  'chart-workspace-volume-down': rgb(242 54 69 / 50%),
   'drawing-red': #f23645,
   'drawing-orange': #ff9800,
   'drawing-yellow': #ffeb3b,

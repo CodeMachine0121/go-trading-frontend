@@ -100,6 +100,8 @@ const autoScale = ref(true)
 const hoveredIndex = ref<number | null>(null)
 const latestVisible = ref(true)
 const indicatorDialogOpen = ref(false)
+/** 成交量疊圖：一進畫面是開的；收起來只在這一次看盤中有效。 */
+const volumeShown = ref(true)
 const objectTreeOpen = ref(false)
 /** 手機上繪圖工具收起來，由圖左下角的鉛筆叫出來。 */
 const drawingToolsOpen = ref(false)
@@ -336,6 +338,7 @@ onMounted(() => {
         :indicators="indicators"
         :price-scale-mode="priceScaleMode"
         :auto-scale="autoScale"
+        :shows-volume="volumeShown"
         :cursor-style="drawings.activeDrawingKind.value === null ? drawings.cursorStyle.value : 'cross'"
         @range-change="emit('rangeChange', $event)"
         @crosshair-move="hoveredIndex = $event"
@@ -375,6 +378,8 @@ onMounted(() => {
         :interval-label="intervalLabel"
         :readout="readout"
         :applied-indicator-rows="appliedIndicatorRows"
+        :volume-shown="volumeShown"
+        @toggle-volume="volumeShown = !volumeShown"
         @toggle-visibility="emit('toggleIndicatorVisibility', $event)"
         @remove="emit('removeIndicator', $event)"
       >

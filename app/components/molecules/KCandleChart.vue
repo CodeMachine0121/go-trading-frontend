@@ -34,6 +34,14 @@ const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
   neutral: '--color-chart-workspace-text-muted',
 }
 
+/** 成交量柱的顏色：漲（含平盤）與跌各一種淡色，照 TradingView。 */
+const VOLUME_UP_COLOR_TOKEN = '--color-chart-workspace-volume-up'
+const VOLUME_DOWN_COLOR_TOKEN = '--color-chart-workspace-volume-down'
+
+/** 成交量疊在圖的底部：它自己的價格軸上方留八成給 K 線。 */
+const VOLUME_PRICE_SCALE_ID = 'volume'
+const VOLUME_TOP_MARGIN = 0.8
+
 /** 畫成曲線或面積時那條線的顏色。 */
 const LINE_DRAWING_COLOR_TOKEN = '--color-chart-workspace-accent'
 /** 面積下方的填色，上濃下淡。 */
@@ -71,6 +79,7 @@ const {
   priceScaleMode = 'normal',
   autoScale = true,
   cursorStyle = 'cross',
+  showsVolume = true,
 } = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
@@ -100,6 +109,8 @@ const {
   autoScale?: boolean
   /** 沒選繪圖工具時滑鼠在圖上的樣子：箭頭與點不畫十字線的兩條線。 */
   cursorStyle?: ChartCursorStyleValue
+  /** 底部疊不疊成交量柱。 */
+  showsVolume?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -115,6 +126,8 @@ const emit = defineEmits<{
 const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
 const seriesApi = shallowRef<ISeriesApi<SeriesType> | null>(null)
+/** 成交量那一條。它不隨畫法換掉——換的是 K 線怎麼畫，不是量。 */
+const volumeSeriesApi = shallowRef<ISeriesApi<'Histogram'> | null>(null)
 /** 交給疊在上面那一層（繪圖）的座標換算；函式庫載完才有。 */
 const coordinateSpace = shallowRef<ChartCoordinateSpace | null>(null)
 /** 上一次說出去的「看不看得到最新那一根」，只在它變了的時候再說一次。 */
@@ -209,6 +222,13 @@ function drawKCandles() {
   })
 
   series.setData(rows)
+
+  const volumeColors = { up: readColor(host, VOLUME_UP_COLOR_TOKEN), down: readColor(host, VOLUME_DOWN_COLOR_TOKEN) }
+  volumeSeriesApi.value?.setData(kCandles.map(kCandle => ({
+    time: wallClockSecondsOf(kCandle.openTime, timeZone),
+    value: kCandle.volume.toNumber(),
+    color: kCandle.trend.tone === 'danger' ? volumeColors.down : volumeColors.up,
+  })))
   drawIndicators()
   applyDrawnRange()
   reportLatestVisibility()
@@ -314,7 +334,7 @@ function applyDrawnRange() {
 
 onMounted(async () => {
   const {
-    createChart, CandlestickSeries, BarSeries, LineSeries, AreaSeries, TickMarkType, CrosshairMode, PriceScaleMode: LibraryPriceScaleMode,
+    createChart, CandlestickSeries, BarSeries, LineSeries, AreaSeries, HistogramSeries, TickMarkType, CrosshairMode, PriceScaleMode: LibraryPriceScaleMode,
   } = await import('lightweight-charts')
 
   // 函式庫還沒載完，使用者就離開了這個畫面：沒有容器可以畫，就不要建立圖表。
@@ -367,6 +387,15 @@ onMounted(async () => {
   applyTimeZoneFormatting.value()
 
   // 指標的曲線與 K 線的曲線用的是同一種序列，只差在顏色由指標帶進來。
+  volumeSeriesApi.value = createdChart.addSeries(HistogramSeries, {
+    priceScaleId: VOLUME_PRICE_SCALE_ID,
+    priceFormat: { type: 'volume' },
+    lastValueVisible: false,
+    priceLineVisible: false,
+    visible: showsVolume,
+  })
+  createdChart.priceScale(VOLUME_PRICE_SCALE_ID).applyOptions({ scaleMargins: { top: VOLUME_TOP_MARGIN, bottom: 0 } })
+
   addLineSeries.value = (color: string) => createdChart.addSeries(
     LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
 
@@ -480,6 +509,9 @@ watch(() => [priceScaleMode, autoScale], () => applyPriceScale.value?.())
 // 箭頭與點兩種游標不畫十字線的兩條線（點由疊在上面那一層畫）。
 watch(() => cursorStyle, paintChartFrame)
 
+// 收起或顯示成交量：只是那一條看不看得到，資料不動。
+watch(() => showsVolume, visible => volumeSeriesApi.value?.applyOptions({ visible }))
+
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
   createSeriesFor.value?.(nextDrawing)
@@ -554,6 +586,7 @@ onBeforeUnmount(() => {
   // 整張圖都收掉了，這些把手指向的東西已經不存在——留著只會讓下次繪製對空氣操作。
   indicatorPriceLines.value = []
   indicatorSeriesApis.value = []
+  volumeSeriesApi.value = null
   addLineSeries.value = null
 })
 </script>

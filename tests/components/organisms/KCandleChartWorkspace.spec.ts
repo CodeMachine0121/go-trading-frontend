@@ -470,3 +470,25 @@ describe('KCandleChartWorkspace：其餘的接線', () => {
     expect(wrapper.findComponent(KCandleChart).props('autoScale')).toBe(false)
   })
 })
+
+describe('KCandleChartWorkspace：成交量疊圖', () => {
+  it('一進來成交量是開的；在圖例上收起來，圖上那一條跟著藏起來；再按一次回來', async () => {
+    const wrapper = mountWorkspace()
+    expect(wrapper.findComponent(KCandleChart).props('showsVolume')).toBe(true)
+
+    await wrapper.get('[data-testid="legend-toggle-volume"]').trigger('click')
+    expect(wrapper.findComponent(KCandleChart).props('showsVolume')).toBe(false)
+
+    await wrapper.get('[data-testid="legend-toggle-volume"]').trigger('click')
+    expect(wrapper.findComponent(KCandleChart).props('showsVolume')).toBe(true)
+  })
+
+  it('十字線停在第 0 根：Vol 那一行寫那一根的量', async () => {
+    const wrapper = mountWorkspace()
+
+    wrapper.findComponent(KCandleChart).vm.$emit('crosshairMove', 0)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="legend-volume-value"]').text()).toBe('1')
+  })
+})

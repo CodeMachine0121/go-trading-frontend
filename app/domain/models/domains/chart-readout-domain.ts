@@ -1,9 +1,17 @@
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import Decimal from 'decimal.js'
 import { ChartReadoutDto } from '~/domain/models/dto/chart-readout-dto'
 
 const MILLISECONDS_PER_SECOND = 1000
 const SECONDS_PER_MINUTE = 60
 const SECONDS_PER_HOUR = 3600
+
+/** 成交量的單位，由大到小；未滿最小的那一個就寫原數。 */
+const VOLUME_UNITS: readonly [Decimal, string][] = [
+  [new Decimal('1e9'), 'B'],
+  [new Decimal('1e6'), 'M'],
+  [new Decimal('1e3'), 'K'],
+]
 
 /**
  * Domain Model：圖例要說的那一根，與最新那一根的收盤倒數。
@@ -52,6 +60,11 @@ export class ChartReadoutDomain {
       ? null
       : remainingSeconds >= SECONDS_PER_HOUR ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`
 
-    return new ChartReadoutDto(kCandle, change, changePercentText, tone, countdown)
+    const volumeUnit = VOLUME_UNITS.find(([size]) => kCandle.volume.greaterThanOrEqualTo(size))
+    const volumeText = volumeUnit === undefined
+      ? kCandle.volume.toDecimalPlaces(2).toString()
+      : `${kCandle.volume.dividedBy(volumeUnit[0]).toFixed(2)}${volumeUnit[1]}`
+
+    return new ChartReadoutDto(kCandle, change, changePercentText, tone, countdown, volumeText)
   }
 }
