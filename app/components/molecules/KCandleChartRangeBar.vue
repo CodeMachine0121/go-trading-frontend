@@ -139,12 +139,17 @@ function toggleMode(mode: Exclude<PriceScaleMode, 'normal'>) {
 
   &__presets {
     display: flex;
-    flex: 1;
+    flex: 1 0 auto;
     gap: spacing('3xs');
   }
 
+  // 註腳是最先讓位的那一個：寫不下時收成省略號，價格軸那三個開關永遠看得到。
   &__covered {
     display: none;
+    flex: 0 1 auto;
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
     color: color('chart-workspace-text-muted');
     font-size: font-size('2xs');
 
