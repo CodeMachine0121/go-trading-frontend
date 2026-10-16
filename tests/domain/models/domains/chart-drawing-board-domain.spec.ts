@@ -113,3 +113,11 @@ describe('ChartDrawingBoardDomain：改一個不存在的', () => {
     expect(board.changed(99, new ChartDrawingCommandDto('toggleLocked'))).toBe(board)
   })
 })
+
+describe('ChartDrawingBoardDomain：換成一模一樣的錨點', () => {
+  it('不多一步——點一下沒拖只是選取', () => {
+    const board = emptyBoard().added(horizontalLine())
+
+    expect(board.changed(1, new ChartDrawingCommandDto('replaceAnchors', [anchorOf(TEN_O_CLOCK, '60000')]))).toBe(board)
+  })
+})

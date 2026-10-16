@@ -58,10 +58,19 @@ export class ChartDrawingDomain {
     const drawing = this.drawing
 
     switch (command.kind) {
-      case 'replaceAnchors':
-        return drawing.locked || command.anchors.length !== this.kind.anchorCount
+      case 'replaceAnchors': {
+        // 換成一模一樣的錨點也是沒有變：點一下沒拖，不該多一步。
+        const unchanged = command.anchors.every((anchor, index) => {
+          const current = drawing.anchors[index]
+
+          return current !== undefined && current.openTime.getTime() === anchor.openTime.getTime()
+            && current.price.equals(anchor.price)
+        })
+
+        return drawing.locked || command.anchors.length !== this.kind.anchorCount || unchanged
           ? this
           : this.rebuilt({ anchors: [...command.anchors] })
+      }
       case 'cycleLineWidth':
         return this.kind.styleEditable
           ? this.rebuilt({ lineWidth: drawing.lineWidth % CHART_DRAWING_MAXIMUM_LINE_WIDTH + 1 })
