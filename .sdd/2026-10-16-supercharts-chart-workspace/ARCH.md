@@ -149,9 +149,18 @@ flowchart TD
 - **Known debt / deferred:**
   - 右邊細邊只有物件樹，自選清單等到有多檔最新價的來源。
   - 板子快照存整份陣列，100 步×100 個繪圖仍很小；若繪圖數量級變大再改成差異紀錄。
-  - `KCandleQuote` 只剩零使用者時刪除（`/improve-codebase` 判斷）。
+  - **兩個面板的 `jumpToLatest` 各一份**（「以要求的長度、結束在現在」）。沒有收進 domain：兩個面板本來就各自持有整條取資料／跟盤的流程（既有的重複），只抽這一小段會讓規則一半在面板、一半在領域；等哪天把兩個面板的取資料流程合成一個 composable 時一起搬。
+  - **`ChartDrawingLayer` 約 600 行**。沒有拆：畫法與命中已經是依種類分的兩張表（新增繪圖的那道縫），剩下的是指標事件與座標換算；拆成「幾何工具」模組會變成 rules 禁止的 utils 雜物模組，拆成子元件又沒有可以獨立存在的畫面。等到要加第一種需要文字輸入的繪圖（文字標註）時，那一種的編輯框應該是一個子元件。
+  - 圖例每秒重算一次（為了收盤倒數）。量很小，不值得為它拆出一條只算倒數的路。
 
 ---
+
+## 6a. Implementation Notes（與原設計的差異）
+
+- **沒有 `ChartWorkspaceFrame` 樣板**：lint 規則不允許有機體 import 樣板，格線骨架直接寫在 `KCandleChartWorkspace` 的樣式裡。
+- **圖例的值由 `KCandleChartApplication.describeReadout` 給**，而不是 `ChartDrawingApplication`：圖例說的是 K 線，不是繪圖。
+- **主選單的開關不由工作區直接碰**：工作區發 `openMenu`，面板轉給頁面，頁面呼叫 `useChartWorkspaceMenu`。有機體因此不依賴 Nuxt 的共用狀態，在測試裡照樣掛得起來。
+- **`/improve-codebase` 之後**：商品搜尋的按鈕與對話框合成 `SymbolSearch`；兩個面板共用的狀態說明抽成 `KCandleChartNotices`；`KCandleQuote`、`LayoutDensityDto.startsChartControlsCollapsed` 與六句不再用到的說法刪除。
 
 ## 7. Traceability
 
