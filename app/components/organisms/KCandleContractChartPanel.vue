@@ -190,7 +190,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
       unexpectedFailure.value = true
     }
 
-    forgetTheChart()
+    // 拖動縮放來的那一次（多半是在接上一段）失敗時，手上這批仍然是這一檔、這種粗細的，
+    // 照樣畫著，只多一句說明。換標的、換粗細、跳過去失敗時才放掉——
+    // 那時手上那張圖已經不是使用者要看的東西了。
+    if (repositions) {
+      forgetTheChart()
+    }
   }
   finally {
     if (requestNumber === latestRequestNumber) {
@@ -283,6 +288,14 @@ function showRange(range: { startTime: Date, endTime: Date }) {
 function jumpToLatest() {
   activePreset.value = null
 
+  return showLatest()
+}
+
+/**
+ * 以他現在要求看的那一段長度、結束在現在重新取並擺位。
+ * 跳到最新、換標的、換粗細都是這一件事：那三種都要擺回看得到最新那一根。
+ */
+function showLatest() {
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
     aggregationIntervalChoice.value).endingAt(new Date()), true)
@@ -306,11 +319,11 @@ function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
   aggregationIntervalChoice.value = choice
   activePreset.value = null
 
-  return reload()
+  return showLatest()
 }
 
-// 換合約等於換一批資料，正在看的那一段不變。
-watch(symbol, () => reload())
+// 換合約等於換一批資料：看的長度不變，擺回看得到最新那一根。
+watch(symbol, () => showLatest())
 
 onMounted(() => {
   presets.value = kCandleChartApplication.listRangePresets()

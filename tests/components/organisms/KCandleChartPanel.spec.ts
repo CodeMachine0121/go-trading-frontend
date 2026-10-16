@@ -205,7 +205,7 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
   })
 
-  it('換交易標的就重新取，正在看的那一段不變', async () => {
+  it('換交易標的就重新取：看的長度不變，結束在現在', async () => {
     const findKCandleSeries = vi.fn()
       .mockResolvedValueOnce(seriesOf([]))
       .mockResolvedValue(seriesOf([]))
@@ -218,8 +218,9 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
     const secondPlan = findKCandleSeries.mock.calls[1]?.[0]
     expect(secondPlan.symbol).toBe('ETHUSDT')
-    expect(secondPlan.visibleStartTime).toEqual(firstPlan.visibleStartTime)
-    expect(secondPlan.visibleEndTime).toEqual(firstPlan.visibleEndTime)
+    expect(secondPlan.visibleEndTime.getTime() - secondPlan.visibleStartTime.getTime())
+      .toBe(firstPlan.visibleEndTime.getTime() - firstPlan.visibleStartTime.getTime())
+    expect(Math.abs(secondPlan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
   })
 
   it('換畫法不重新取，只改怎麼畫', async () => {
@@ -411,6 +412,36 @@ describe('KCandleChartPanel', () => {
 
     expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(false)
     expect(closePriceDrawnBy(wrapper)).toBe('222')
+  })
+
+  it('拖到快沒資料、接上一段卻失敗時：說明連不上，手上這批照樣畫著', async () => {
+    const findKCandleSeries = vi.fn()
+      .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      .mockRejectedValueOnce(new BackendUnreachableError('/k-candles/series'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    // 手上這批從 7/27 開始；看 7/28 起的一個月，離最早那一根一天，不到半個畫面寬
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-07-28T00:00:00.000Z'), endTime: new Date('2026-08-27T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    expect(loadPlanOf(findKCandleSeries, 1).kind).toBe('extendEarlier')
+    expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(true)
+    expect(closePriceDrawnBy(wrapper)).toBe('110')
+  })
+
+  it('換一檔卻取不到時，上一檔的圖不留著冒充這一檔', async () => {
+    const findKCandleSeries = vi.fn()
+      .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+      .mockRejectedValueOnce(new BackendUnreachableError('/k-candles/series'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(true)
+    expect(wrapper.findComponent(KCandleChart).exists()).toBe(false)
   })
 
   it('慢回來的那一次不覆蓋後送出的結果', async () => {
@@ -617,8 +648,27 @@ describe('KCandleChartPanel：看盤工作區上的幾件事', () => {
 
     const plan = findKCandleSeries.mock.calls.at(-1)?.[0]
     expect(plan.visibleEndTime.getTime() - plan.visibleStartTime.getTime()).toBe(2 * DAY)
+    // 跳過去時才擺位置：擺回看得到最新那一根，右邊留著一成
+    expect(chartStub.props('drawnRange')).toEqual({ from: 0, to: 0.1 })
     expect(Math.abs(plan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
     expect(wrapper.findAll('[data-testid="range-preset-button"]').every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
+  })
+
+  it('往回拖到一段過去之後換一檔：畫面擺回看得到最新那一根，右側留白', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    const chartStub = wrapper.findComponent(KCandleChart)
+    chartStub.vm.$emit('rangeChange', {
+      startTime: new Date(CURRENT_TIME.getTime() - 60 * DAY), endTime: new Date(CURRENT_TIME.getTime() - 58 * DAY),
+    })
+    await flushPromises()
+    const draggedRange = chartStub.props('drawnRange')
+
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
+    await flushPromises()
+
+    expect(chartStub.props('drawnRange')).not.toBe(draggedRange)
+    expect(chartStub.props('drawnRange')).toEqual({ from: 0, to: 0.1 })
   })
 
   it('在圖上直接打字：打開商品搜尋並帶著那一個字', async () => {

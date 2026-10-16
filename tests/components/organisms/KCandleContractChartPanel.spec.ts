@@ -186,29 +186,58 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.attributes('aria-pressed')).toBe('true')
   })
 
-  it('按四小時之後沒有任何一個快捷區間亮著', async () => {
+  it('往回拖到一段過去之後按四小時：沒有任何一個快捷區間亮著，擺回結束在現在', async () => {
     const findKCandleContractSeries = vi.fn().mockResolvedValue(
       contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-06-01T00:00:00.000Z'), endTime: new Date('2026-06-03T00:00:00.000Z'),
+    })
+    await flushPromises()
 
     await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="4h"]').trigger('click')
     await flushPromises()
 
+    expect(Math.abs(findKCandleContractSeries.mock.calls.at(-1)?.[0].visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
     expect(wrapper.findAll('[data-testid="range-preset-button"]')
       .every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
   })
 
-  it('換合約時換一批資料，看的那一段不變', async () => {
+  it('拖到快沒資料、接上一段卻失敗時：說明連不上，手上這批照樣畫著', async () => {
+    const findKCandleContractSeries = vi.fn()
+      .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+      .mockRejectedValueOnce(new BackendUnreachableError('/contract-k-candles/series'))
+    const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+
+    // 手上這批從 8/17 開始；看 8/18 起的一個月，離最早那一根一天
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-18T00:00:00.000Z'), endTime: new Date('2026-09-17T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    expect(loadPlanOf(findKCandleContractSeries, 1).kind).toBe('extendEarlier')
+    expect(wrapper.find('[data-testid="unreachable-alert"]').exists()).toBe(true)
+    expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles[0]?.close.toString()).toBe('110')
+  })
+
+  it('往回拖到一段過去之後換合約：換一批資料，看的長度不變，擺回結束在現在', async () => {
     const findKCandleContractSeries = vi.fn().mockResolvedValue(
       contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-06-01T00:00:00.000Z'), endTime: new Date('2026-06-03T00:00:00.000Z'),
+    })
+    await flushPromises()
+    const draggedRange = wrapper.findComponent(KCandleChart).props('drawnRange')
 
     await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
-    const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
+    const loadPlan = findKCandleContractSeries.mock.calls.at(-1)?.[0]
     expect(loadPlan.symbol).toBe('ETHUSDT')
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-08-24T12:00:00.000Z')
+    expect(loadPlan.visibleEndTime.getTime() - loadPlan.visibleStartTime.getTime()).toBe(2 * 24 * 60 * 60 * 1000)
+    expect(Math.abs(loadPlan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).not.toBe(draggedRange)
   })
 
   it('常駐一句話只說還沒有的：合約圖表沒有指標', async () => {

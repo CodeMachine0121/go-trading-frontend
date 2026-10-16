@@ -144,6 +144,39 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
       .every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
   })
 
+  it('每根五分鐘時拉遠到看得到好幾天：仍然是每根五分鐘', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '5m'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    await chooseCoarseness(wrapper, '5m')
+    const callsBeforeZoom = findKCandleSeries.mock.calls.length
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-28T12:00:00.000Z'), endTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    await flushPromises()
+
+    // 拉遠到手上這批之外，往左接上一段——接的仍是五分鐘
+    expect(findKCandleSeries.mock.calls.length).toBeGreaterThan(callsBeforeZoom)
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('5m')
+    expect(chosenCoarseness(wrapper)).toBe('5m')
+  })
+
+  it('往回拖到一段過去之後換粗細：看的長度不變，擺回結束在現在', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '4h'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-06-01T00:00:00.000Z'), endTime: new Date('2026-06-11T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    await chooseCoarseness(wrapper, '4h')
+
+    const plan = findKCandleSeries.mock.calls.at(-1)?.[0]
+    expect(plan.aggregationIntervalChoice.declaredInterval).toBe('4h')
+    expect(plan.visibleEndTime.getTime() - plan.visibleStartTime.getTime()).toBe(10 * 24 * 60 * 60 * 1000)
+    expect(Math.abs(plan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
+  })
+
   it('挑到同一個不重新取', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '5m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
@@ -194,11 +227,13 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await chooseCoarseness(wrapper, '15m')
 
     // 一年配的是一天
+    vi.setSystemTime(CURRENT_TIME)
     await wrapper.findAll('[data-testid="range-preset-button"]')[8]?.trigger('click')
     await flushPromises()
 
     expect(chosenCoarseness(wrapper)).toBe('1d')
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('1d')
+    expect(findKCandleSeries.mock.calls.at(-1)?.[0].visibleStartTime.toISOString()).toBe('2025-09-02T12:00:00.000Z')
   })
 
   it('換交易標的不改變挑好的那一種', async () => {

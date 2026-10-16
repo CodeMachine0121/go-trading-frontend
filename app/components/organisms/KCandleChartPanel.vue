@@ -340,7 +340,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
       unexpectedFailure.value = true
     }
 
-    forgetTheChart()
+    // 拖動縮放來的那一次（多半是在接上一段）失敗時，手上這批仍然是這一檔、這種粗細的，
+    // 照樣畫著，只多一句說明。換標的、換粗細、跳過去失敗時才放掉——
+    // 那時手上那張圖已經不是使用者要看的東西了。
+    if (repositions) {
+      forgetTheChart()
+    }
   }
   finally {
     if (requestNumber === latestRequestNumber) {
@@ -433,6 +438,14 @@ function showRange(range: { startTime: Date, endTime: Date }) {
 function jumpToLatest() {
   activePreset.value = null
 
+  return showLatest()
+}
+
+/**
+ * 以他現在要求看的那一段長度、結束在現在重新取並擺位。
+ * 跳到最新、換標的、換粗細都是這一件事：那三種都要擺回看得到最新那一根。
+ */
+function showLatest() {
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
     aggregationIntervalChoice.value).endingAt(new Date()), true)
@@ -459,16 +472,16 @@ function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
   aggregationIntervalChoice.value = choice
   activePreset.value = null
 
-  return reload()
+  return showLatest()
 }
 
-// 換交易標的等於換一批資料，正在看的那一段不變。
+// 換交易標的等於換一批資料：看的長度不變，擺回看得到最新那一根。
 watch(symbol, () => {
   // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
   // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
   catchUpOutcome.value = null
 
-  return reload()
+  return showLatest()
 })
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
