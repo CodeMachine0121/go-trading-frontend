@@ -3,7 +3,7 @@
 Contract: PRD.md
 Design map: ARCH.md
 Implementation: `app/`（domain：chart-drawing／timeline／readout；molecules：ChartDrawing*、ChartLegend、KCandleChart*、SymbolSearch；organisms：KCandleChartWorkspace、ChartWorkspaceMenu、兩個面板；layouts/chart-workspace）
-Oracle: Acceptance Criteria（83 個 Scenario）＋ Business Rules（14）＋ NFR（3）
+Oracle: Acceptance Criteria（89 個 Scenario，含追加的 US-12 成交量疊圖）＋ Business Rules（15）＋ NFR（3）
 
 測試檔縮寫：
 `WS` = tests/components/organisms/KCandleChartWorkspace.spec.ts ·
@@ -107,6 +107,12 @@ Oracle: Acceptance Criteria（83 個 Scenario）＋ Business Rules（14）＋ NF
 | AC-10-3 | ⌘Z 上一步 | 那條線消失 | Workspace onKeydown | WS ⌘Z 上一步、⌘⇧Z 下一步 | asserts-oracle | produces-oracle | ✅ conforms |
 | AC-11-1 | 手機上的上方細邊 | 只有主選單、交易標的、目前刻度、畫法、指標；左右細邊收起、有鉛筆 | Workspace／Toolbar 的 respond-to('md') 樣式 | —（樣式；以 390 寬截圖人工確認） | no-test | unclear | ❔ unclear |
 | AC-11-2 | 手機上叫出繪圖工具 | 按鉛筆展開、選工具後收起 | Workspace drawingToolsOpen | WS 在手機上按鉛筆 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-1 | 一進來就看得到成交量 | 底部約五分之一高的量柱、漲淡漲色跌淡跌色、圖例多一行 Vol | KCandleChart 成交量序列（priceScale `volume` 上留 0.8）、ChartLegend Vol 列 | KC 每一根一根量柱…；WS 一進來成交量是開的 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-2 | 圖例寫十字線那一根的量 | 1234.5 寫「1.23K」 | ChartReadoutDomain.volumeText | RD 成交量 1234.5 寫成「1.23K」；MOL ChartLegend Vol 那一行寫那一根的量；WS 十字線停在第 0 根：Vol… | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-3 | 量的寫法 | 999.46、1.50K、2.50M、3.20B（另含剛好 1000 → 1.00K） | 同上 | RD 成交量怎麼寫 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-4 | 十字線不在圖上時說最新那一根的量 | 最新那一根的量 | 同上 | RD 十字線不在圖上時寫最新那一根的量 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-5 | 在圖例上把成交量收起來 | 量柱消失、那一行變淡；再按就回來 | Workspace volumeShown、KCandleChart showsVolume | WS 在圖例上收起來…再按一次回來；KC 收起來就把那一條藏起來；MOL ChartLegend 收起來時那一行說的是「在圖上顯示」 | asserts-oracle | produces-oracle | ✅ conforms |
+| AC-12-6 | 換彙總刻度時量跟著換 | 量柱是每根五分鐘那一根的量 | KCandleChart drawKCandles（量與 K 線取自同一批） | KC 每一根一根量柱（量來自圖上那一批）；CO 換一種粗細就重新取 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-1 | 繪圖屬於「現貨或合約＋交易標的」 | 換一邊或一檔就是另一份 | Proxy 鍵、useChartDrawings | PX、UC | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-2 | 錨點＝起始時間＋價格；右側留白對齊到之後那一根 | 換刻度時間不變；空白處推算之後的起始時間 | ChartDrawingAnchorVo、KCandleTimelineDomain | TL | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-3 | 磁鐵：在 K 線上吸到最近的開高低收，留白不吸 | 同上 | alignAnchor | TL | asserts-oracle | produces-oracle | ✅ conforms |
@@ -121,6 +127,7 @@ Oracle: Acceptance Criteria（83 個 Scenario）＋ Business Rules（14）＋ NF
 | BR-12 | 快捷區間亮到自己拖動或縮放為止 | 同 AC-04-3 | KCandleChartPanel.showRange | SP 快捷區間的亮與不亮 | asserts-oracle | produces-oracle | ✅ conforms |
 | BR-13 | 畫到一半換標的、換刻度、Esc：丟掉不留存 | 半成品不進板子 | Layer watch(activeDrawingKind)；KCandleChart 重建時 Layer 一起重掛 | LY 畫到一半換了工具 | asserts-oracle（換標的／換刻度那兩條由「圖換一批就重掛繪圖層」保證，沒有獨立測試） | produces-oracle | ✅ conforms |
 | BR-14 | 兩則浮動提示同時存在時即時更新那一則在上 | 即時更新在上、其次是錯誤或載入中 | KCandleChartNotices（順序） | tests/components/molecules/KCandleChartNotices.spec.ts 即時更新的那一句與載入中同時存在 | asserts-oracle（契約檢查後補上） | produces-oracle | ✅ conforms |
+| BR-15 | 成交量的寫法；疊圖一進畫面是開的、收起來不留存、現貨與合約都有 | 同上 | ChartReadoutDomain、Workspace volumeShown（畫面狀態） | RD；WS | asserts-oracle | produces-oracle | ✅ conforms |
 | NFR-1 | 拖動、縮放、畫線跟手；100 個以內不卡頓 | 互動時不延遲 | Layer 只在畫面簽章變了才重畫 | — | no-test | unclear | ❔ unclear |
 | NFR-2 | Chrome／Safari／Firefox、最窄 390、觸控可畫、亮暗兩色 | 都能用 | tokens 兩組、pointer 事件 | LY 手指；截圖人工確認亮暗與 390 | shallow | unclear | ❔ unclear |
 | NFR-3 | 繪圖只記在這個瀏覽器 | 不送後端 | ChartDrawingPreferenceProxy（只有 localStorage） | PX | asserts-oracle | produces-oracle | ✅ conforms |
@@ -137,7 +144,7 @@ Oracle: Acceptance Criteria（83 個 Scenario）＋ Business Rules（14）＋ NF
 
 ## Summary
 
-- Conforms: 95/100 clauses ✅ (95%)
+- Conforms: 102/107 clauses ✅ (95%)
 - Violations: 無（契約檢查時的 AC-05-1 提示位置與 AC-02-8 措辭已修正）
 - Mis-asserted: 無（BR-14 的先後順序已補上斷言）
 - Partial: 無
