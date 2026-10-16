@@ -6,8 +6,7 @@ export type AggregationIntervalValue = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 /**
  * VO：一種彙總刻度——一根 K 線涵蓋多久。不可變、無行為。
  *
- * 圖表不挑它：圖上一律畫最細的那一種，也就是後端存下來的一分鐘。
- * 會挑的是指標計算，那裡由使用者自己指定。
+ * 圖表上由看的人挑（快捷區間會一併換到那個長度配的那一種）；指標計算也由使用者自己指定。
  */
 export class AggregationIntervalVo {
   constructor(

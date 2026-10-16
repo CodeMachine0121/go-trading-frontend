@@ -8,7 +8,7 @@ import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregati
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { signedInSessionStorage, SIGNED_IN_HEADERS } from '../../fixtures/session-storage'
 import {
-  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+  DEFAULT_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../fixtures/aggregation-interval-choice'
 
 const BASE_URL = 'http://localhost:8080'
@@ -27,10 +27,10 @@ function buildQueryAt(currentTime: Date): KCandleQueryDomain {
 const QUERY = buildQueryAt(new Date('2026-09-23T12:00:00.000Z'))
 
 function loadPlanChoosing(
-  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+  choice: AggregationIntervalChoiceDto = DEFAULT_AGGREGATION_INTERVAL_CHOICE,
 ): KCandleChartLoadPlanVo {
   return new KCandleChartLoadPlanVo(
-    true, 'BTCUSDT',
+    'replace', 'BTCUSDT',
     new Date('2026-09-23T03:00:00.000Z'), new Date('2026-09-23T09:00:00.000Z'),
     new Date('2026-09-23T00:00:00.000Z'), new Date('2026-09-23T12:00:00.000Z'),
     choice,
@@ -137,23 +137,6 @@ describe('KCandleContractProxy', () => {
 
     expect(kCandleContract?.indexPriceLine).toBeNull()
     expect(kCandleContract?.premiumIndexLine?.close.toString()).toBe('-0.0005')
-  })
-
-  it('取合約的彙總序列時，挑「自動」就不說刻度', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '1h', kCandles: [] })
-    vi.stubGlobal('$fetch', fetchMock)
-
-    await new KCandleContractProxy(BASE_URL, signedInSessionStorage())
-      .findKCandleContractSeries(loadPlanChoosing())
-
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/contract-k-candles/series', {
-      headers: SIGNED_IN_HEADERS,
-      query: {
-        symbol: 'BTCUSDT',
-        startTime: '2026-09-23T00:00:00.000Z',
-        endTime: '2026-09-23T12:00:00.000Z',
-      },
-    })
   })
 
   it('挑了一種粗細時把那一種說出去', async () => {

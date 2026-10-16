@@ -75,6 +75,8 @@ export class LiveKCandleChartDomain {
       this.chart.aggregationIntervalChoice,
       // 即時更新只帶成交價；合約的三條價格線照舊是取回那一批時最新那一根的。
       this.chart.latestContractPrices,
+      // 即時更新只長在右邊，左邊到底了沒有不受影響。
+      this.chart.reachedEarliest,
     )
   }
 

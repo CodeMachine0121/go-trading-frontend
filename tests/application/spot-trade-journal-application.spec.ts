@@ -677,6 +677,8 @@ describe('SpotTradeJournalApplication.getPricePath', () => {
     const pricePath = await application.getPricePath(record)
 
     expect(kCandleProxy.findKCandleSeries.mock.calls[0]?.[0].symbol).toBe('2330')
+    // 持有兩天兩個半小時、前後各多一成：一分鐘塞不下九百根，五分鐘塞得下
+    expect(kCandleProxy.findKCandleSeries.mock.calls[0]?.[0].aggregationIntervalChoice.declaredInterval).toBe('5m')
     expect(pricePath.markers.map(marker => [marker.kind, marker.text.in('zh-TW')])).toEqual([['entry', '買進 1,050'], ['exit', '賣出 1,120']])
     expect(pricePath.lines.map(line => line.label.in('zh-TW'))).toEqual(['買進均價', '計畫止損', '計畫止盈', '最大不利', '最大有利'])
   })

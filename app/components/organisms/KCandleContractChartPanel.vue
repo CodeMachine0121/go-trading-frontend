@@ -126,7 +126,11 @@ const contractPrices = computed(() => chart.value?.latestContractPrices ?? null)
 /** 圖的標題說的是**畫出來的那一個**合約；還沒取到任何東西時才退回選單上那一個。 */
 const chartTitle = computed(() => `${chart.value?.symbol ?? symbol.value}.P`)
 
-async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
+/**
+ * 照這一段取（需要的話）並畫出來。`repositions` 為否（使用者自己拖動縮放來的）時
+ * 不把畫面擺回領域算的位置——他放手的地方就是他要的位置。
+ */
+async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, repositions: boolean) {
   latestRequestNumber += 1
   const requestNumber = latestRequestNumber
 
@@ -152,7 +156,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     const chartView = await kCandleChartApplication.loadKCandleContractChart(kCandleChartViewportDto)
 
     if (requestNumber === latestRequestNumber) {
-      drawnRange.value = chartView.drawnRange
+      if (repositions) {
+        drawnRange.value = chartView.drawnRange
+      }
 
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
@@ -253,11 +259,12 @@ onBeforeUnmount(() => {
   stopTheFollow()
 })
 
+/** 按一個長度：一併換到那個長度看得清楚的粗細（照 TradingView 的日期範圍按鈕）。 */
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePreset.value = preset
+  aggregationIntervalChoice.value = preset.aggregationIntervalChoice
 
-  return showViewport(preset.toViewportDto(
-    symbol.value, chart.value, aggregationIntervalChoice.value))
+  return showViewport(preset.toViewportDto(symbol.value, chart.value), true)
 }
 
 function showRange(range: { startTime: Date, endTime: Date }) {
@@ -266,7 +273,7 @@ function showRange(range: { startTime: Date, endTime: Date }) {
 
   return showViewport(new KCandleChartViewportDto(
     symbol.value, range.startTime, range.endTime, chart.value,
-    aggregationIntervalChoice.value))
+    aggregationIntervalChoice.value), false)
 }
 
 /**
@@ -278,21 +285,29 @@ function jumpToLatest() {
 
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
-    aggregationIntervalChoice.value).endingAt(new Date()))
+    aggregationIntervalChoice.value).endingAt(new Date()), true)
 }
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
-    aggregationIntervalChoice.value))
+    aggregationIntervalChoice.value), true)
 }
 
-/** 換一種粗細。看的那一段一個字都不動；要不要重新取由領域決定。 */
+/**
+ * 換一種粗細。看的那一段一個字都不動，但它從此不再是任何一個快捷區間；
+ * 要不要重新取由領域決定。
+ */
 function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
-  aggregationIntervalChoice.value = choice
-}
+  if (choice.value === aggregationIntervalChoice.value.value) {
+    return
+  }
 
-watch(aggregationIntervalChoice, () => reload())
+  aggregationIntervalChoice.value = choice
+  activePreset.value = null
+
+  return reload()
+}
 
 // 換合約等於換一批資料，正在看的那一段不變。
 watch(symbol, () => reload())

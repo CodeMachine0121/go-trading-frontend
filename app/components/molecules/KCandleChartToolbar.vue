@@ -41,11 +41,12 @@ const drawingMenuOpen = ref(false)
 
 /** 細邊上寫得下的短說法；沒有短說法的那一種照它的全名寫。 */
 const shortLabels = computed<Record<string, string>>(() => ({
-  'auto': t('marketData.chartWorkspace.intervalShort.auto'),
   '1m': t('marketData.chartWorkspace.intervalShort.oneMinute'),
   '5m': t('marketData.chartWorkspace.intervalShort.fiveMinutes'),
   '15m': t('marketData.chartWorkspace.intervalShort.fifteenMinutes'),
   '1h': t('marketData.chartWorkspace.intervalShort.oneHour'),
+  '4h': t('marketData.chartWorkspace.intervalShort.fourHours'),
+  '1d': t('marketData.chartWorkspace.intervalShort.oneDay'),
 }))
 
 function shortLabelOf(choice: AggregationIntervalChoiceDto): string {

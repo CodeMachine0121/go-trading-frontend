@@ -15,7 +15,7 @@ import { SignedOutError } from '~/domain/errors/signed-out-error'
 import { BackendRequestHooks } from '~/infrastructure/proxy/backend-request-hooks'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import {
-  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+  DEFAULT_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../fixtures/aggregation-interval-choice'
 
 const BASE_URL = 'http://localhost:8080'
@@ -47,10 +47,10 @@ const K_CANDLE_WIRE = {
 }
 
 function loadPlanChoosing(
-  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+  choice: AggregationIntervalChoiceDto = DEFAULT_AGGREGATION_INTERVAL_CHOICE,
 ): KCandleChartLoadPlanVo {
   return new KCandleChartLoadPlanVo(
-    true,
+    'replace',
     'BTCUSDT',
     new Date('2026-08-30T03:00:00.000Z'),
     new Date('2026-08-30T09:00:00.000Z'),
@@ -121,24 +121,6 @@ describe('KCandleProxy', () => {
     expect(kCandles[0]?.open.toString()).toBe('100.5')
     expect(kCandles[0]?.quoteVolume?.toString()).toBe('1200.25')
     expect(kCandles[0]?.takerBuyQuoteVolume?.toString()).toBe('600')
-  })
-
-  it('取彙總 K 線時，只把要取的那一段問出去——彙總刻度不由這裡決定', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ symbol: 'BTCUSDT', interval: '1h', kCandles: [] })
-    vi.stubGlobal('$fetch', fetchMock)
-
-    await new KCandleProxy(BASE_URL, signedInSessionStorage()).findKCandleSeries(LOAD_PLAN)
-
-    // 沒挑時條件裡**沒有** interval：一根該多粗需要交易時段與休市日才算得對，
-    // 我們自己算一種就等於在畫面這一側長出第二份市場作息。
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/k-candles/series', {
-      headers: SIGNED_IN_HEADERS,
-      query: {
-        symbol: 'BTCUSDT',
-        startTime: '2026-08-30T00:00:00.000Z',
-        endTime: '2026-08-30T12:00:00.000Z',
-      },
-    })
   })
 
   it('使用者挑了一種粗細時，把那一種說出去', async () => {

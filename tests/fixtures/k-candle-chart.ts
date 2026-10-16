@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js'
 import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandle } from '~/domain/models/entities/k-candle'
-import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from './aggregation-interval-choice'
+import { DEFAULT_AGGREGATION_INTERVAL_CHOICE } from './aggregation-interval-choice'
 import { aggregationIntervalNamed } from './aggregation-interval'
 
 /** 一根 K 線要的那幾個價；沒說的都是 100、量是 1。 */
@@ -28,6 +28,6 @@ export function kCandleChartOf(intervalValue: string, kCandleSpecs: readonly KCa
       new Decimal(spec.open), new Decimal(spec.high), new Decimal(spec.low), new Decimal(spec.close),
       new Decimal(spec.volume), new Decimal('1'), new Decimal('1'), new Decimal('1'),
     ).toDomain().toDto()),
-    AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+    DEFAULT_AGGREGATION_INTERVAL_CHOICE,
   )
 }

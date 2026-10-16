@@ -103,7 +103,7 @@ afterEach(() => {
 })
 
 describe('KCandleContractChartPanel', () => {
-  it('一進來畫 BTCUSDT 最近一天，標系統說的每根涵蓋，最大的數字是最新那一根的收盤價', async () => {
+  it('一進來畫 BTCUSDT 最近一個月、每根一小時，標系統說的每根涵蓋，最大的數字是最新那一根的收盤價', async () => {
     const spotProxy = buildSpotProxy()
     const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([
       buildKCandleContract('2026-09-23T11:00:00.000Z', '110'),
@@ -114,8 +114,9 @@ describe('KCandleContractChartPanel', () => {
     expect(findKCandleContractSeries).toHaveBeenCalledTimes(1)
     const loadPlan = loadPlanOf(findKCandleContractSeries, 0)
     expect(loadPlan.symbol).toBe('BTCUSDT')
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-22T12:00:00.000Z')
+    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-08-24T12:00:00.000Z')
     expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-23T12:00:00.000Z')
+    expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('1h')
     expect(spotProxy.findKCandleSeries).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('十五分鐘')
     expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('105.5')
@@ -133,32 +134,68 @@ describe('KCandleContractChartPanel', () => {
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
     expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('5m')
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-22T12:00:00.000Z')
+    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-08-24T12:00:00.000Z')
     expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-23T12:00:00.000Z')
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('五分鐘')
   })
 
-  it('在圖上拉遠時換成那一段，由系統換粗一點的每根涵蓋', async () => {
+  it('在圖上拖到手上這批之外很遠的地方時換一批，粗細不變，畫面不被擺回去', async () => {
     const findKCandleContractSeries = vi.fn()
       .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
       .mockResolvedValueOnce(contractSeriesOf([
-        buildKCandleContract('2026-09-14T00:00:00.000Z', '90'),
-        buildKCandleContract('2026-09-23T11:00:00.000Z', '95'),
+        buildKCandleContract('2026-06-14T00:00:00.000Z', '90'),
+        buildKCandleContract('2026-06-14T01:00:00.000Z', '95'),
       ], '1h'))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+    const drawnRangeBefore = wrapper.findComponent(KCandleChart).props('drawnRange')
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
-      startTime: new Date('2026-09-13T12:00:00.000Z'), endTime: new Date('2026-09-23T12:00:00.000Z'),
+      startTime: new Date('2026-06-13T12:00:00.000Z'), endTime: new Date('2026-06-14T12:00:00.000Z'),
     })
     await flushPromises()
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-13T12:00:00.000Z')
-    // 挑的仍是「自動」：粗細由系統換，圖上標的是它說的那一種
-    expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBeNull()
-    expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
+    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-06-13T12:00:00.000Z')
+    expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('1h')
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles.map(kCandle => kCandle.close.toString()))
       .toEqual(['90', '95'])
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).toBe(drawnRangeBefore)
+  })
+
+  it('按「一天」一併換成每根五分鐘，五分鐘亮著', async () => {
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(
+      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+
+    await wrapper.findAll('[data-testid="range-preset-button"]')[3]?.trigger('click')
+    await flushPromises()
+
+    expect(loadPlanOf(findKCandleContractSeries, 1).aggregationIntervalChoice.declaredInterval).toBe('5m')
+    expect(wrapper.get('[data-interval="5m"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('按目前亮著的那一顆粗細：不重新取，亮著的快捷區間也不熄', async () => {
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(
+      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="1h"]').trigger('click')
+    await flushPromises()
+
+    expect(findKCandleContractSeries).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.attributes('aria-pressed')).toBe('true')
+  })
+
+  it('按四小時之後沒有任何一個快捷區間亮著', async () => {
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(
+      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="4h"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')
+      .every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
   })
 
   it('換合約時換一批資料，看的那一段不變', async () => {
@@ -171,7 +208,7 @@ describe('KCandleContractChartPanel', () => {
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
     expect(loadPlan.symbol).toBe('ETHUSDT')
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-22T12:00:00.000Z')
+    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-08-24T12:00:00.000Z')
   })
 
   it('常駐一句話只說還沒有的：合約圖表沒有指標', async () => {
@@ -456,7 +493,8 @@ describe('KCandleContractChartPanel：看盤工作區上的幾件事', () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
     const chartStub = wrapper.findComponent(KCandleChart)
     chartStub.vm.$emit('rangeChange', {
-      startTime: new Date(Date.now() - 5 * DAY), endTime: new Date(Date.now() - 3 * DAY),
+      // 拖到手上這批之外很遠的地方：整批換一批，跳回來時才又得再取一次
+      startTime: new Date(Date.now() - 60 * DAY), endTime: new Date(Date.now() - 58 * DAY),
     })
     await flushPromises()
     chartStub.vm.$emit('latestVisibilityChange', false)
