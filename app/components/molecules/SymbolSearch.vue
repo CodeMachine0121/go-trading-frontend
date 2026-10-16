@@ -1,42 +1,50 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/atoms/AppModal.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 
 /**
- * 分子：商品搜尋，照 TradingView 的樣子——打字篩選、上下鍵挑、Enter 選定。
+ * 分子：商品搜尋，照 TradingView 的樣子——上方細邊那一顆「代號＋放大鏡」，
+ * 按下去打開搜尋：打字篩選、上下鍵挑、Enter 選定。
  *
- * 它只負責「在給它的那幾列裡找」：哪幾檔可以挑、每一列怎麼說，由使用它的欄位決定。
- * `#filters` 給那個欄位放自己的篩選（例如現貨的市場鍵）。
+ * 它只負責「在給它的那幾列裡找」：哪幾檔可以挑、每一列怎麼說、按鈕上寫什麼，由使用它的欄位決定。
+ * 開關、打開時先放進搜尋框的字、鍵盤怎麼挑，全部收在這裡——
+ * 現貨與合約兩個欄位因此只要交出清單、接住挑中的那一檔。
  */
-const { open, options, initialQuery = '' } = defineProps<{
-  open: boolean
+const { options, symbolLabel, hint = '' } = defineProps<{
   options: readonly SymbolSearchOptionDto[]
-  /** 打開時搜尋框裡先放的字（在圖上直接打字打開時，就是那一個字）。 */
-  initialQuery?: string
+  /** 按鈕上寫的那一檔。 */
+  symbolLabel: string
+  /** 滑過按鈕時的說明。 */
+  hint?: string
 }>()
 
-const emit = defineEmits<{
-  pick: [symbol: string]
-  close: []
-}>()
+const emit = defineEmits<{ pick: [symbol: string] }>()
 
 const { t } = useI18n()
 
+const open = ref(false)
 const query = ref('')
 const highlighted = ref(0)
 const input = ref<HTMLInputElement | null>(null)
 
-watch(() => open, async (isOpen) => {
-  if (!isOpen) {
-    return
-  }
+/** 打開商品搜尋；在圖上直接打字打開時，帶著那一個字。 */
+async function openSearch(initialQuery = '') {
   query.value = initialQuery
   highlighted.value = 0
+  open.value = true
   await nextTick()
   input.value?.focus()
-}, { immediate: true })
+}
+
+function pick(symbol: string) {
+  open.value = false
+  emit('pick', symbol)
+}
+
+defineExpose({ openSearch })
 
 const matching = computed(() => {
   const text = query.value.trim().toUpperCase()
@@ -62,17 +70,32 @@ function onKeydown(event: KeyboardEvent) {
   else if (event.key === 'Enter') {
     const option = matching.value[highlighted.value]
     if (option !== undefined) {
-      emit('pick', option.symbol)
+      pick(option.symbol)
     }
   }
 }
 </script>
 
 <template>
+  <AppButton
+    variant="chrome"
+    class="symbol-search__button"
+    :title="hint"
+    data-testid="symbol-search-button"
+    @click="openSearch()"
+  >
+    <span class="symbol-search__button-symbol">{{ symbolLabel }}</span>
+    <AppIcon
+      name="search"
+      size="small"
+      stroke="fine"
+    />
+  </AppButton>
+
   <AppModal
     :open="open"
     :title="t('marketData.chartWorkspace.symbolSearch')"
-    @close="emit('close')"
+    @close="open = false"
   >
     <div class="symbol-search-dialog">
       <label class="symbol-search-dialog__search">
@@ -93,8 +116,6 @@ function onKeydown(event: KeyboardEvent) {
           @keydown="onKeydown"
         >
       </label>
-
-      <slot name="filters" />
 
       <p
         v-if="matching.length === 0"
@@ -120,7 +141,7 @@ function onKeydown(event: KeyboardEvent) {
             class="symbol-search-dialog__option"
             :class="{ 'symbol-search-dialog__option--highlighted': index === highlighted }"
             data-testid="symbol-search-option"
-            @click="emit('pick', option.symbol)"
+            @click="pick(option.symbol)"
             @mouseenter="highlighted = index"
           >
             <span class="symbol-search-dialog__symbol">{{ option.symbol }}</span>
@@ -134,6 +155,16 @@ function onKeydown(event: KeyboardEvent) {
 </template>
 
 <style scoped lang="scss">
+.symbol-search {
+  &__button {
+    font-size: font-size('md');
+  }
+
+  &__button-symbol {
+    font-weight: font-weight('semibold');
+  }
+}
+
 .symbol-search-dialog {
   display: flex;
   flex-direction: column;

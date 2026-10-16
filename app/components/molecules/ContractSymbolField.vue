@@ -2,9 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
-import AppButton from '~/components/atoms/AppButton.vue'
-import AppIcon from '~/components/atoms/AppIcon.vue'
-import SymbolSearchDialog from '~/components/molecules/SymbolSearchDialog.vue'
+import SymbolSearch from '~/components/molecules/SymbolSearch.vue'
 import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
@@ -73,12 +71,12 @@ const hint = computed(() => {
     : t('marketData.contractSymbolField.allHint')
 })
 
-const searchOpen = ref(false)
-const initialSearchQuery = ref('')
+/** 商品搜尋那一顆；在圖上直接打字時，由外面叫它打開。 */
+const symbolSearch = ref<InstanceType<typeof SymbolSearch> | null>(null)
 
+/** 打開商品搜尋，帶著打的那一個字。 */
 function openSearch(initialQuery = '') {
-  initialSearchQuery.value = initialQuery
-  searchOpen.value = true
+  void symbolSearch.value?.openSearch(initialQuery)
 }
 
 const searchOptions = computed(() => options.value.options.map(contractTradingSymbol => new SymbolSearchOptionDto(
@@ -88,11 +86,6 @@ const searchOptions = computed(() => options.value.options.map(contractTradingSy
     ? t('marketData.chartWorkspace.perpetualContract')
     : t('marketData.contractSymbolField.notWatched', { symbol: t('marketData.chartWorkspace.perpetualContract') }),
 )))
-
-function pickFromSearch(pickedSymbol: string) {
-  searchOpen.value = false
-  symbol.value = pickedSymbol
-}
 
 defineExpose({ openSearch })
 
@@ -119,26 +112,12 @@ onMounted(async () => {
     v-if="presentation === 'search'"
     class="contract-symbol-field contract-symbol-field--search"
   >
-    <AppButton
-      variant="chrome"
-      class="contract-symbol-field__search-button"
-      :title="hint"
-      data-testid="symbol-search-button"
-      @click="openSearch()"
-    >
-      <span class="contract-symbol-field__search-symbol">{{ symbol === '' ? t('marketData.contractSymbolField.noOptions') : `${symbol}.P` }}</span>
-      <AppIcon
-        name="search"
-        size="small"
-        stroke="fine"
-      />
-    </AppButton>
-    <SymbolSearchDialog
-      :open="searchOpen"
+    <SymbolSearch
+      ref="symbolSearch"
       :options="searchOptions"
-      :initial-query="initialSearchQuery"
-      @pick="pickFromSearch"
-      @close="searchOpen = false"
+      :symbol-label="symbol === '' ? t('marketData.contractSymbolField.noOptions') : `${symbol}.P`"
+      :hint="hint"
+      @pick="symbol = $event"
     />
   </div>
 
@@ -181,12 +160,5 @@ onMounted(async () => {
 .contract-symbol-field {
   min-width: 0;
 
-  &__search-button {
-    font-size: font-size('md');
-  }
-
-  &__search-symbol {
-    font-weight: font-weight('semibold');
-  }
 }
 </style>

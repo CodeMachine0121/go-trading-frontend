@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
-import SymbolSearchDialog from '~/components/molecules/SymbolSearchDialog.vue'
+import SymbolSearch from '~/components/molecules/SymbolSearch.vue'
 import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 
 const OPTIONS = [
@@ -10,9 +10,15 @@ const OPTIONS = [
   new SymbolSearchOptionDto('2330', '台積電', '台股'),
 ]
 
+/** 沒帶字時像使用者那樣按那一顆；帶字時像在圖上直接打字那樣從外面打開。 */
 async function openDialog(initialQuery = '') {
-  const wrapper = mount(SymbolSearchDialog, { props: { open: false, options: OPTIONS, initialQuery } })
-  await wrapper.setProps({ open: true })
+  const wrapper = mount(SymbolSearch, { props: { options: OPTIONS, symbolLabel: 'BTCUSDT' } })
+  if (initialQuery === '') {
+    await wrapper.get('[data-testid="symbol-search-button"]').trigger('click')
+  }
+  else {
+    await (wrapper.vm as unknown as { openSearch: (query: string) => Promise<void> }).openSearch(initialQuery)
+  }
   await nextTick()
 
   return wrapper
@@ -87,9 +93,28 @@ describe('商品搜尋', () => {
     expect(wrapper.emitted('pick')).toEqual([['2330']])
   })
 
-  it('關著的時候什麼都不畫', () => {
-    const wrapper = mount(SymbolSearchDialog, { props: { open: false, options: OPTIONS } })
+  it('還沒按之前只有那一顆：寫著目前那一檔', () => {
+    const wrapper = mount(SymbolSearch, { props: { options: OPTIONS, symbolLabel: 'BTCUSDT' } })
+
+    expect(wrapper.get('[data-testid="symbol-search-button"]').text()).toBe('BTCUSDT')
+    expect(wrapper.find('[data-testid="symbol-search-input"]').exists()).toBe(false)
+  })
+
+  it('選定之後收起來', async () => {
+    const wrapper = await openDialog()
+
+    await wrapper.findAll('[data-testid="symbol-search-option"]')[0]?.trigger('click')
 
     expect(wrapper.find('[data-testid="symbol-search-input"]').exists()).toBe(false)
+  })
+
+  it('再打開一次時搜尋框是空的，從第一列挑起', async () => {
+    const wrapper = await openDialog()
+    await wrapper.get('[data-testid="symbol-search-input"]').setValue('ETH')
+    await wrapper.findAll('[data-testid="symbol-search-option"]')[0]?.trigger('click')
+
+    await wrapper.get('[data-testid="symbol-search-button"]').trigger('click')
+
+    expect((wrapper.get('[data-testid="symbol-search-input"]').element as HTMLInputElement).value).toBe('')
   })
 })

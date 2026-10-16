@@ -3,9 +3,7 @@ import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
 import FormField from '~/components/molecules/FormField.vue'
-import AppButton from '~/components/atoms/AppButton.vue'
-import AppIcon from '~/components/atoms/AppIcon.vue'
-import SymbolSearchDialog from '~/components/molecules/SymbolSearchDialog.vue'
+import SymbolSearch from '~/components/molecules/SymbolSearch.vue'
 import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
@@ -111,14 +109,12 @@ const hint = computed(() => {
   return t('marketData.symbolField.hint')
 })
 
-/** 商品搜尋開著沒有，以及打開時先放進搜尋框的字。 */
-const searchOpen = ref(false)
-const initialSearchQuery = ref('')
+/** 商品搜尋那一顆；在圖上直接打字時，由外面叫它打開。 */
+const symbolSearch = ref<InstanceType<typeof SymbolSearch> | null>(null)
 
-/** 打開商品搜尋；在圖上直接打字打開時，帶著那一個字。 */
+/** 打開商品搜尋，帶著打的那一個字。 */
 function openSearch(initialQuery = '') {
-  initialSearchQuery.value = initialQuery
-  searchOpen.value = true
+  void symbolSearch.value?.openSearch(initialQuery)
 }
 
 const searchOptions = computed(() => options.value.options.map(tradingSymbol => new SymbolSearchOptionDto(
@@ -128,11 +124,6 @@ const searchOptions = computed(() => options.value.options.map(tradingSymbol => 
     ? localize(tradingSymbol.market.label)
     : `${localize(tradingSymbol.market.label)} · ${localize(tradingSymbol.liveUpdateAvailability.label)}`,
 )))
-
-function pickFromSearch(pickedSymbol: string) {
-  searchOpen.value = false
-  symbol.value = pickedSymbol
-}
 
 defineExpose({ openSearch })
 
@@ -169,26 +160,12 @@ onMounted(async () => {
     v-if="presentation === 'search'"
     class="symbol-field symbol-field--search"
   >
-    <AppButton
-      variant="chrome"
-      class="symbol-field__search-button"
-      :title="hint"
-      data-testid="symbol-search-button"
-      @click="openSearch()"
-    >
-      <span class="symbol-field__search-symbol">{{ symbol === '' ? t('marketData.symbolField.noOptions') : symbol }}</span>
-      <AppIcon
-        name="search"
-        size="small"
-        stroke="fine"
-      />
-    </AppButton>
-    <SymbolSearchDialog
-      :open="searchOpen"
+    <SymbolSearch
+      ref="symbolSearch"
       :options="searchOptions"
-      :initial-query="initialSearchQuery"
-      @pick="pickFromSearch"
-      @close="searchOpen = false"
+      :symbol-label="symbol === '' ? t('marketData.symbolField.noOptions') : symbol"
+      :hint="hint"
+      @pick="symbol = $event"
     />
   </div>
 
@@ -258,14 +235,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: spacing('3xs');
   min-width: 0;
-
-  &__search-button {
-    font-size: font-size('md');
-  }
-
-  &__search-symbol {
-    font-weight: font-weight('semibold');
-  }
 
   &__markets {
     // 這一排是「看哪個市場」，底下那格是「看哪一檔」——兩件事，所以中間留一口氣。
