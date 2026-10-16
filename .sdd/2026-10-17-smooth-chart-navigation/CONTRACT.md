@@ -17,7 +17,8 @@
 | AC-07 | 手上的夠畫就不去要 | 拉遠、拉近、左右拖：不跟後端要、粗細不變 | `KCandleChartViewportDomain.toLoadPlan` → `none` | viewport spec「手上的夠畫就不去要」`it.each`；application 同名 `it.each` | asserts-oracle | produces-oracle | ✅ |
 | AC-08 | 往左接上更早的一段 | 離最早那一根不到半個畫面寬：左邊接上；看的那幾根在原位 | `toLoadPlan` → `extendEarlier`；`KCandleChartMergeDomain`；`KCandleChart.drawChartChange` 平移 | application「拖到離最早那一根不到半個畫面寬時…」；chart spec「左邊接上了兩根…平移兩根」 | asserts-oracle | produces-oracle | ✅ |
 | AC-09 | 離最早那一根還遠時不去要 | 一個畫面寬以上：不去要 | `toLoadPlan` 門檻 | application「往左拖一點，離最早那一根還有一個畫面寬」 | asserts-oracle | produces-oracle | ✅ |
-| AC-10 | 那一頭已經沒有更早的資料 | 上一次接上來一根都沒有：不再去要 | `KCandleChartMergeDomain` 記 `reachedEarliest`；`toLoadPlan` 檢查 | application「往左接上來的一段一根都沒有時…」；merge spec | asserts-oracle | produces-oracle | ✅ |
+| AC-10 | 那一頭已經沒有更早的資料 | 接連空了滿兩週：不再去要 | `KCandleChartMergeDomain` 累積 `emptyEarlierSpanMilliseconds`、記 `reachedEarliest`；`toLoadPlan` 檢查 | merge spec「接連空了十三天又空一天」；application「…到底了，再往左拖不再去要」（以已到底的一批驗不再去要） | asserts-oracle | produces-oracle | ✅ |
+| AC-10b | 空的一段只是剛好落在休市裡 | 空了不到兩週：再往左接上更早的一段 | 同上 | merge spec「左邊接上來的一天一根都沒有…還不算到底」「…還不到兩週」 | asserts-oracle | produces-oracle | ✅ |
 | AC-11 | 往右接上更晚的一段 | 手上最新那一根早於現在、拖到不到半個畫面寬：右邊接上 | `toLoadPlan` → `extendLater` | application「看過一段過去、往右拖到快沒資料時…」；viewport spec | asserts-oracle | produces-oracle | ✅ |
 | AC-12 | 放手之後畫面停在原地 | 沒有被加上右側留白或擺回去 | 面板 `showViewport(…, false)` 不寫 `drawnRange` | `KCandleChartPanel.spec.ts`「拖動放手之後畫面停在原地…」（同一個物件）；合約「在圖上拖到…畫面不被擺回去」 | asserts-oracle | produces-oracle | ✅ |
 | AC-13 | 一次接上的一段不超過九百根 | 每根一分鐘：至多九百根 | `MAXIMUM_FETCHED_CANDLE_COUNT` | application「每根一分鐘時，往左接上的一段至多九百分鐘」；viewport spec 右邊同 | asserts-oracle | produces-oracle | ✅ |
@@ -45,7 +46,7 @@
 
 ## Summary
 
-27 條：✅ 27 · 🔴 0 · 🟠 0 · 🟡 0 · ❌ 0 · ❔ 0 · ⚠️ 2 orphans（皆已說明）
+28 條：✅ 28 · 🔴 0 · 🟠 0 · 🟡 0 · ❌ 0 · ❔ 0 · ⚠️ 2 orphans（皆已說明）
 Conformance：100%（修正後）
 
 第一次對照時的發現與處置：

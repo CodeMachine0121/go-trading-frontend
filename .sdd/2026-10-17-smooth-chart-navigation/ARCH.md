@@ -50,9 +50,16 @@
 - **Where it lands:** `CHOOSABLE_AGGREGATION_INTERVAL_VALUES` 與 `defaultAggregationIntervalChoice()`（已是單一入口）。
 - **Do not hardcode:** 九百根、半個畫面寬——都是 `KCandleChartViewportDomain` 的具名常數。
 - **Known debt:** 手上這批只增不減；一直往左拖到很久以前會累積很多根。圖表本身撐得住數萬根，真的成為問題時再加「離畫面太遠的那一頭丟掉」。
+- **Code review 之後的調整：**
+  - 接上一段的門檻量的是手上最早（最晚）那一根，不是涵蓋範圍的邊界；空的一段要接連累積滿兩週才算到底（`KCandleChartMergeDomain`）。
+  - 跟著市場走時接上一段，不重新開始跟：`LiveKCandleService.followKCandles` 回傳 `LiveKCandleFollowingDto`（`stop`／`rebaseOnto`），面板另外留一份「取回來的樣子」（沒有併進即時）拿去併，避免即時那幾根被算兩次、也不丟掉取的途中收到的更新。
+  - `KCandleChartViewDto.replacedChart`：整批換了一張圖就擺位置（即使是拖過去的）；失敗時若這一次要的是另一張圖（`KCandleChartViewportDto.asksForAnotherChart`）就放掉舊的。
+  - 圖表元件判斷「同一張圖」改用 `KCandleChartDto.belongsTo`（與取回計畫同一條規則）；「只動了尾巴」要前面每一根都畫得一模一樣（`KCandleDto.drawsLike`）；手按著時不立「圖自己動的」標記。
+  - 取回計畫 VO 不再帶 `needsReload` getter，呼叫端直接看 `kind`。
 - **Known debt（improve-codebase 沒採用的建議）：**
   - 現貨與合約兩個面板的「看哪一段」流程（`selectPreset`／`showRange`／`jumpToLatest`／`reload`／`selectAggregationIntervalChoice`）幾乎相同。這一刀之前就重複；抽成一個 composable 要同時處理兩種 application 方法與合約的跟盤規則，是獨立的一次重構，不混在這一刀。
   - `KCandleChart.drawChartChange` 偏長，但四種畫法共用同一組前置判斷；照規則「太長不是拆 private function 的理由」，不拆。
+  - 一個月、每根一小時的預設畫面，受九百根的上限所限，左邊只多取七天半：第一次拖動多半就會往左接上一段。之後就有足夠的餘裕；若嫌第一次那一下，可在整批取回之後主動先接一段。
   - 接上一段只在使用者放手時觸發：拉得非常遠（例如每根一分鐘看好幾天）時，要放手幾次才補滿。TradingView 會自己連續補；真的成為問題時，讓面板在接上之後若仍在門檻內就再問一次。
 
 ---
