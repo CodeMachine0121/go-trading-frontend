@@ -25,7 +25,7 @@
 | `KCandleChartService.loadChartFrom` | **Modify** | `replace` 取來就是新的一批；`extend*` 取來交給 `KCandleChartMergeDomain` |
 | `KCandleChartService` 常數 | **Modify** | 粗細六種、預設一小時、沒有「自動」；快捷區間帶粗細；預設快捷區間改為「一個月」（對應一小時，與「一進來一小時」一致） |
 | `KCandleChartRangePresetDto` | **Modify** | 多 `aggregationIntervalChoice`；`toViewportDto(symbol, loadedChart)` 用自己的粗細 |
-| `KCandleChartPanel` / `KCandleContractChartPanel` | **Modify** | `showViewport(dto, repositions)`：拖動縮放來的不擺位置；按快捷區間時一併換粗細；拿掉「粗細一變就 reload」的 watch，改在換粗細那一處明確重取 |
+| `KCandleChartPanel` / `KCandleContractChartPanel` | **Modify** | `showViewport(dto, repositions)`：拖動縮放來的不擺位置，失敗時也不放掉手上這批（只多一句說明）；按快捷區間時一併換粗細；拿掉「粗細一變就 reload」的 watch，換粗細、換標的與跳到最新共用 `showLatest()`——看的長度不變、結束在現在 |
 | `KCandleChart.vue` | **Modify** | `drawKCandles` 依關係分四種畫法；`applyDrawnRange` 只在換一批（換檔、換粗細、第一次）與 `drawnRange` 改變時擺 |
 | `AggregationIntervalChoiceDto` 的「自動」 | **Remove** | 不再有沒有刻度的選擇 |
 | `FittingAggregationIntervalDomain` | **Add** | 交易紀錄的價格走勢原本靠「自動」由後端挑粗細；拿掉「自動」之後由它挑「塞得進九百根的最細那一種」，現貨與合約兩條走勢共用 |
