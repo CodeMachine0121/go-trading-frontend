@@ -34,10 +34,8 @@ export const marketDataTraditionalChineseMessages = {
     chartServerError: '後端出錯了（不是你看的區間有問題），請稍後重試：{message}',
     loadingMarketData: '取行情中…',
     unexpectedChartFailure: '取行情時發生未預期的錯誤。',
-    aggregationIntervalCaption: '每根涵蓋',
     chartIdle: '還沒有行情可以畫。挑一個看多長，或先確認後端起來了。',
     coveredRange: '手上這批共 {count} 根，涵蓋 {startTime} ～ {endTime}（{cityName}）',
-    controlsTitle: '看什麼',
     liveUpdateStalled: '即時更新已停止，正在重新連上。圖表顯示的是目前手上的資料。',
   },
   chartIndicatorPanel: {
@@ -140,8 +138,6 @@ export const marketDataTraditionalChineseMessages = {
     rangeGroupLabel: '看多長',
     aggregationIntervalLabel: '每根涵蓋',
     drawingGroupLabel: '畫法',
-    candlestickDrawing: '蠟燭',
-    lineDrawing: '曲線',
   },
   kCandleQueryForm: {
     startTimeLabel: '開始時間',
@@ -197,7 +193,6 @@ export const marketDataTraditionalChineseMessages = {
     empty: '查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。',
   },
   kCandleChartPanel: {
-    spotBadge: '現貨',
     emptyChart: '查無 K 線。這段區間內可能還沒有資料，或交易標的名稱與後端不同。',
     liveUpdateMarketClosed: '這個市場目前收盤中。圖表顯示的是收盤前的資料，開盤後會自己動起來。',
     liveUpdateNoLivePlace: '這一檔沒有即時更新，資料每分鐘更新一次。',
@@ -210,7 +205,6 @@ export const marketDataTraditionalChineseMessages = {
     catchUp: '立刻更新',
   },
   kCandleContractChartPanel: {
-    perpetualBadge: '永續合約',
     markPrice: '標記價格',
     indexPrice: '指數價格',
     premiumIndex: '溢價指數',

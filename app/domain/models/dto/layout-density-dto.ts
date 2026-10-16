@@ -21,8 +21,6 @@ export class LayoutDensityDto {
      * 換一個畫面是一下不是兩下，而手不必伸到螢幕最上緣。
      */
     public readonly usesBottomNavigation: boolean,
-    /** K 線圖表的「看什麼」一開始就是收起的——高度先讓給圖。 */
-    public readonly startsChartControlsCollapsed: boolean,
     /**
      * AI-Assistant佔掉整個畫面的寬度。
      *
@@ -41,14 +39,13 @@ export class LayoutDensityDto {
    * 沒有這個比較，每一幀都會生出一份全新的答案，而拿著它的三個畫面
    * 會在使用者拖動的那一整秒裡各重繪六十次，卻沒有任何一個布林改變過。
    *
-   * **逐欄比較，即使今天有兩欄是多餘的**：那兩欄現在恰好與疏密共用同一道分界，
-   * 所以少比它們今天也不會錯。但下一個把某一件事挪到第三道分界上的人，
+   * **逐欄比較，即使今天有一欄是多餘的**：那一欄現在恰好與疏密共用同一道分界，
+   * 所以少比它今天也不會錯。但下一個把某一件事挪到第三道分界上的人，
    * 不會記得回來改這裡——而漏掉的那一欄不會報錯，只會讓畫面停在上一個答案上。
    */
   sameAs(other: LayoutDensityDto): boolean {
     return this.density === other.density
       && this.usesBottomNavigation === other.usesBottomNavigation
-      && this.startsChartControlsCollapsed === other.startsChartControlsCollapsed
       && this.assistantCoversScreen === other.assistantCoversScreen
   }
 }

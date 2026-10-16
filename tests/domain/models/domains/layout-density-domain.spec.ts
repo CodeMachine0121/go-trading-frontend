@@ -37,16 +37,6 @@ describe('LayoutDensityDomain 導覽的形狀', () => {
   })
 })
 
-describe('LayoutDensityDomain K 線控制項的起始狀態', () => {
-  it.each([
-    { name: '手機上一開始就收起來，高度先讓給圖', width: PHONE, expected: true },
-    { name: '差一個像素就到分界，仍然收起來', width: 767, expected: true },
-    { name: '剛好到分界就維持展開', width: 768, expected: false },
-  ])('$name', ({ width, expected }) => {
-    expect(at(width).startsChartControlsCollapsed).toBe(expected)
-  })
-})
-
 describe('LayoutDensityDomain 助手蓋不蓋滿畫面', () => {
   it.each([
     { name: '手機上蓋滿整個畫面', width: PHONE, expected: true },
@@ -64,7 +54,6 @@ describe('LayoutDensityDomain 極端的寬度', () => {
     expect(at(0)).toEqual({
       density: 'roomy',
       usesBottomNavigation: true,
-      startsChartControlsCollapsed: true,
       assistantCoversScreen: true,
     })
   })

@@ -36,10 +36,8 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     chartServerError: 'The backend ran into an error (nothing is wrong with the range you are viewing). Please try again later: {message}',
     loadingMarketData: 'Loading market data…',
     unexpectedChartFailure: 'An unexpected error occurred while loading market data.',
-    aggregationIntervalCaption: 'Aggregation interval',
     chartIdle: 'No market data to draw yet. Pick a range, or check that the backend is up.',
     coveredRange: 'This batch has {count} K-candle, covering {startTime} – {endTime} ({cityName}) | This batch has {count} K-candles, covering {startTime} – {endTime} ({cityName})',
-    controlsTitle: 'View',
     liveUpdateStalled: 'Live updates stopped; reconnecting. The chart shows the data already loaded.',
   },
   chartIndicatorPanel: {
@@ -142,8 +140,6 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     rangeGroupLabel: 'Range',
     aggregationIntervalLabel: 'Aggregation interval',
     drawingGroupLabel: 'Drawing style',
-    candlestickDrawing: 'Candles',
-    lineDrawing: 'Line',
   },
   kCandleQueryForm: {
     startTimeLabel: 'Start time',
@@ -199,7 +195,6 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     empty: 'No K-candles found. There may be no data in this period yet, or this contract has not started syncing.',
   },
   kCandleChartPanel: {
-    spotBadge: 'Spot',
     emptyChart: 'No K-candles found. There may be no data in this period yet, or the symbol name differs from the backend\'s.',
     liveUpdateMarketClosed: 'This market is closed. The chart shows data from before the close and will move again once the market opens.',
     liveUpdateNoLivePlace: 'This symbol has no live updates; its data refreshes once a minute.',
@@ -212,7 +207,6 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     catchUp: 'Update now',
   },
   kCandleContractChartPanel: {
-    perpetualBadge: 'Perpetual',
     markPrice: 'Mark price',
     indexPrice: 'Index price',
     premiumIndex: 'Premium index',
