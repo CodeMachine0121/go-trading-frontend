@@ -789,6 +789,16 @@ describe('KCandleChart：看盤工作區要的那幾件事', () => {
     expect(wrapper.emitted('autoScaleChange')).toEqual([[false]])
   })
 
+  it('自動縮放關著時雙擊價格軸：說自動縮放又開了', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+    await wrapper.setProps({ autoScale: false })
+
+    chartLibrary.turnAutoScale(true)
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('dblclick'))
+
+    expect(wrapper.emitted('autoScaleChange')).toEqual([[true]])
+  })
+
   it('十字線停在第 1 根就說 1；離開圖就說 null', async () => {
     const wrapper = await mountChart(chartDto(TWO_CANDLES))
 

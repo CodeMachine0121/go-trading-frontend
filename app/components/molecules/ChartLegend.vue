@@ -61,6 +61,7 @@ const values = computed(() => {
         v-if="readout"
         class="chart-legend__values"
         :class="`chart-legend__values--${readout.tone}`"
+        :data-tone="readout.tone"
         data-testid="legend-values"
       >
         <span

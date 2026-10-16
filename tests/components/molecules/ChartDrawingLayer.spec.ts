@@ -109,6 +109,18 @@ describe('ChartDrawingLayer：畫', () => {
     expect(anchorsOf(finished(wrapper))).toEqual([[openTimeOf(10), '800'], [openTimeOf(30), '850']])
   })
 
+  it('手機上用手指按住拖曳：同樣畫出那一條', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'trendLine' })
+    const target = root(wrapper)
+
+    target.dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 200, button: 0, pointerType: 'touch', bubbles: true, cancelable: true }))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 150, pointerType: 'touch' }))
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 300, clientY: 150, pointerType: 'touch' }))
+    await nextTick()
+
+    expect(anchorsOf(finished(wrapper))).toEqual([[openTimeOf(10), '800'], [openTimeOf(30), '850']])
+  })
+
   it('點一下、移動、再點一下：同樣畫出那一條', async () => {
     const wrapper = mountLayer({ activeDrawingKind: 'trendLine' })
 
@@ -226,10 +238,12 @@ describe('ChartDrawingLayer：選取與拖動', () => {
   it('鎖定的那一條：點得到、拖不動', async () => {
     const wrapper = mountLayer({ drawings: [LOCKED] })
 
-    await press(wrapper, [200, 200], [220, 150])
+    const pressed = await press(wrapper, [200, 200], [220, 150])
 
     expect(wrapper.emitted('select')).toEqual([[1]])
     expect(wrapper.emitted('change')).toBeUndefined()
+    // 點在它身上就是選它：這一下也不交給圖去拖。
+    expect(pressed.defaultPrevented).toBe(true)
   })
 
   it('開著鎖定所有繪圖：拖不動', async () => {
@@ -471,5 +485,76 @@ describe('ChartDrawingLayer：其餘的點法與畫法', () => {
 
     expect(strokes).toContain('strokeRect')
     expect(strokes.filter(stroke => stroke === 'arc').length).toBeGreaterThan(8)
+  })
+})
+
+describe('ChartDrawingLayer：顏色與選取時的軸上色帶', () => {
+  /** 記下每一次填色時用的是哪一個顏色、填在哪裡，以及畫了幾個把手（圓）。 */
+  async function paintRecording(props: Parameters<typeof mountLayer>[0] & { countdown?: string | null }) {
+    const fills: { color: unknown, x: number, y: number }[] = []
+    let arcs = 0
+    const state: Record<string, unknown> = {}
+    const context = new Proxy(state, {
+      get: (target, property: string) => {
+        if (property === 'fillRect') {
+          return (x: number, y: number) => fills.push({ color: target.fillStyle, x, y })
+        }
+        if (property === 'arc') {
+          return () => {
+            arcs += 1
+          }
+        }
+        if (property === 'measureText') {
+          return () => ({ width: 10 })
+        }
+        return property in target ? target[property] : () => {}
+      },
+      set: (target, property: string, value: unknown) => {
+        target[property] = value
+        return true
+      },
+    })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D)
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    const wrapper = mountLayer(props)
+    if (props.countdown !== undefined) {
+      await wrapper.setProps({ countdown: props.countdown })
+    }
+    frames.shift()?.(0)
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+
+    return { fills, arcs: () => arcs }
+  }
+
+  it('收盤倒數的標籤用最新那一根的漲跌色，貼在價格軸上', async () => {
+    // 最新那一根（第 39 根）開 900 收 900，不是跌——用漲的顏色。
+    const { fills } = await paintRecording({ countdown: '00:42' })
+
+    expect(fills).toContainEqual(expect.objectContaining({ color: '--color-chart-workspace-up', x: 500 }))
+  })
+
+  it('選取中的趨勢線：兩端畫出把手，價格軸與時間軸上各有一條色帶', async () => {
+    const { fills, arcs } = await paintRecording({
+      drawings: [chartDrawingOf(1, 'trendLine', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '850')]).toDomain().toDto()],
+      selectedDrawingId: 1,
+    })
+
+    expect(arcs()).toBe(2)
+    // 價格軸上的色帶從高的那一端（y = 150）開始；時間軸上的色帶從左的那一端（x = 100）開始。
+    expect(fills).toContainEqual(expect.objectContaining({ x: 500, y: 150 }))
+    expect(fills).toContainEqual(expect.objectContaining({ x: 100, y: 400 }))
+  })
+
+  it('沒有選取時不畫把手、也沒有色帶', async () => {
+    const { fills, arcs } = await paintRecording({
+      drawings: [chartDrawingOf(1, 'trendLine', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '850')]).toDomain().toDto()],
+    })
+
+    expect(arcs()).toBe(0)
+    expect(fills.filter(fill => fill.x === 500 || fill.y === 400)).toEqual([])
   })
 })

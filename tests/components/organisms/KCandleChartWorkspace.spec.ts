@@ -51,6 +51,7 @@ function mountWorkspace(options: { chart?: KCandleChartDto | null, stored?: Char
     },
     slots: {
       symbol: '<button data-testid="symbol-slot">BTCUSDT</button>',
+      market: '<button data-testid="market-slot">現貨／合約</button>',
       empty: '<p data-testid="empty-slot">還沒有行情可以畫</p>',
       indicators: '<p data-testid="indicators-slot">指標清單</p>',
       notices: '<p data-testid="notice-slot">即時更新停了</p>',
@@ -74,6 +75,7 @@ describe('KCandleChartWorkspace：版面', () => {
     const wrapper = mountWorkspace()
 
     expect(wrapper.find('[data-testid="symbol-slot"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="market-slot"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="aggregation-interval-choice-button"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="chart-drawing-toolbar"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="k-candle-chart-range-bar"]').exists()).toBe(true)
@@ -160,6 +162,7 @@ describe('KCandleChartWorkspace：圖回報的那幾件事', () => {
     await wrapper.get('[data-testid="logarithmic-scale"]').trigger('click')
 
     expect(wrapper.findComponent(KCandleChart).props('priceScaleMode')).toBe('logarithmic')
+    expect(wrapper.get('[data-testid="logarithmic-scale"]').attributes('aria-pressed')).toBe('true')
   })
 
   it('換了畫法：交出去', async () => {
@@ -294,6 +297,20 @@ describe('KCandleChartWorkspace：快捷鍵', () => {
 
     expect(wrapper.emitted('typeToSearch')).toBeUndefined()
     expect(groupPressed(wrapper, 'cursor')).toBe('true')
+    input.remove()
+  })
+
+  it('有繪圖選取著、正在搜尋框裡打字時按 Delete：刪的是字，那個繪圖還在', async () => {
+    const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
+    await wrapper.get('[data-testid="object-tree-select"]').trigger('click')
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+
+    press('Delete', {}, input)
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="object-tree-row"]')).toHaveLength(1)
     input.remove()
   })
 

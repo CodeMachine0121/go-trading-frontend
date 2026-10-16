@@ -20,12 +20,15 @@ describe('圖例', () => {
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一小時')
     expect(wrapper.get('[data-testid="legend-values"]').text()).toBe('開108高111低104收105−5 (−4.55%)')
+    // 跌的那一根用跌的顏色。
+    expect(wrapper.get('[data-testid="legend-values"]').attributes('data-tone')).toBe('danger')
   })
 
   it('漲的那一根用正號', () => {
     const wrapper = mount(ChartLegend, { props: { title: 'BTCUSDT', intervalLabel: '一小時', readout: readoutAt(0) } })
 
     expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('+10 (+10.00%)')
+    expect(wrapper.get('[data-testid="legend-values"]').attributes('data-tone')).toBe('success')
   })
 
   it('還沒有圖時只有標題，不寫開高低收', () => {

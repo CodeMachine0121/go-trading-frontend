@@ -258,6 +258,28 @@ describe('圖表上的指標：挑一支套上去', () => {
 })
 
 describe('圖表上的指標：把一支先收起來', () => {
+  it('在圖例上按「在圖上收起來」：那一條線從圖上消失，圖例那一行變淡，仍留在已套用清單上', async () => {
+    const { wrapper } = await mountPanel()
+    await applyStrategyScript(wrapper, 7)
+
+    await wrapper.get('[data-testid="legend-toggle-indicator-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(KCandleChart).props('indicators')).toEqual([])
+    expect(wrapper.get('[data-testid="legend-toggle-indicator-1"]').attributes('aria-label')).toBe('在圖上顯示')
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
+  })
+
+  it('在圖例上按「移除」：那一支從已套用清單上拿掉', async () => {
+    const { wrapper } = await mountPanel()
+    await applyStrategyScript(wrapper, 7)
+
+    await wrapper.get('[data-testid="legend-remove-indicator-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(0)
+  })
+
   it('收起來的那一支不畫在圖上，但仍然留在清單上', async () => {
     // 收的是那條線，不是那一支指標——要真的拿掉它，清單上另有一顆按鈕。
     const { wrapper } = await mountPanel()

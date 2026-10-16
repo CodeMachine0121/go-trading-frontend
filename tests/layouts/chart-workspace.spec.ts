@@ -5,6 +5,8 @@ import { reactive, ref } from 'vue'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ChartWorkspaceLayoutPage from '~/layouts/chart-workspace.vue'
+import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
+import { AppearanceDto } from '~/domain/models/dto/appearance-dto'
 
 const { rawRoute, openedAssistant } = vi.hoisted(() => ({
   rawRoute: { path: '/contract-k-candles/chart', fullPath: '/contract-k-candles/chart', meta: {} as Record<string, string> },
@@ -13,6 +15,12 @@ const { rawRoute, openedAssistant } = vi.hoisted(() => ({
 mockNuxtImport('useRoute', () => () => reactive(rawRoute))
 mockNuxtImport('useBackendHealth', () => () => ({
   health: ref(null), checking: ref(false), errorMessage: ref(null), checkBackendHealth: vi.fn(),
+}))
+mockNuxtImport('useUserSession', () => () => ({
+  currentUser: ref(new SignedInUserDto(1, 'trader@example.com', true, null)), signOut: vi.fn(),
+}))
+mockNuxtImport('useAppearance', () => () => ({
+  appearance: ref(new AppearanceDto('system', 'dark', [])), selectAppearance: vi.fn(),
 }))
 mockNuxtImport('useAssistantDrawer', () => () => ({
   openDrawer: () => {
@@ -60,8 +68,12 @@ describe('看盤工作區版型', () => {
     useChartWorkspaceMenu().openMenu()
     await nextTick()
 
+    expect(wrapper.find('[data-testid="display-language-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="time-zone-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="appearance-toggle"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="open-assistant"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="backend-status"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="signed-in-email"]').text()).toBe('trader@example.com')
   })
 
   it.each([

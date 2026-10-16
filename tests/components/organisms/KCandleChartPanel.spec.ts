@@ -252,18 +252,18 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
     const secondPlan = findKCandleSeries.mock.calls[1]?.[0]
     expect(secondPlan.symbol).toBe('ETHUSDT')
-    expect(secondPlan.startTime).toEqual(firstPlan.startTime)
-    expect(secondPlan.endTime).toEqual(firstPlan.endTime)
+    expect(secondPlan.visibleStartTime).toEqual(firstPlan.visibleStartTime)
+    expect(secondPlan.visibleEndTime).toEqual(firstPlan.visibleEndTime)
   })
 
   it('換畫法不重新取，只改怎麼畫', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    await pickDrawing(wrapper, 2)
+    await pickDrawing(wrapper, 3)
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('line')
+    expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('area')
   })
 
   it('一檔都沒選著時不去取，也不怪使用者沒填', async () => {
@@ -670,5 +670,23 @@ describe('KCandleChartPanel：看盤工作區上的幾件事', () => {
     await wrapper.get('[data-testid="open-workspace-menu"]').trigger('click')
 
     expect(wrapper.emitted('openMenu')).toHaveLength(1)
+  })
+})
+
+describe('KCandleChartPanel：快捷區間的亮與不亮', () => {
+  it('按下快捷區間那一個亮起來；自己拖動之後沒有任何一個亮著', async () => {
+    const wrapper = await mountPanel(buildProxy())
+    const fiveDays = () => wrapper.findAll('[data-testid="range-preset-button"]').find(button => button.text() === '五天')
+
+    await fiveDays()?.trigger('click')
+    await flushPromises()
+    expect(fiveDays()?.attributes('aria-pressed')).toBe('true')
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-01T00:00:00.000Z'), endTime: new Date('2026-09-02T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="range-preset-button"]').every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
   })
 })
