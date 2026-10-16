@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import KCandleChartWorkspace from '~/components/organisms/KCandleChartWorkspace.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
-import AppButton from '~/components/atoms/AppButton.vue'
+import KCandleChartNotices from '~/components/molecules/KCandleChartNotices.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
@@ -383,65 +383,16 @@ onMounted(() => {
     </template>
 
     <template #notices>
-      <AppAlert
-        v-if="liveUpdateNotice"
-        :tone="liveUpdateNotice.tone"
-        :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
-      >
-        {{ liveUpdateNoticeMessage }}
-      </AppAlert>
-
-      <AppAlert
-        v-if="rejectedMessage || unexpectedFailure"
-        tone="danger"
-        data-testid="rejected-alert"
-      >
-        {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="serverErrorMessage"
-        tone="danger"
-        data-testid="server-error-alert"
-      >
-        {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            {{ t('marketData.common.retry') }}
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="unreachableExplanation"
-        tone="danger"
-        data-testid="unreachable-alert"
-      >
-        {{ localize(unreachableExplanation) }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            {{ t('marketData.common.retry') }}
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="loading"
-        tone="info"
-        data-testid="loading-alert"
-      >
-        {{ t('marketData.common.loadingMarketData') }}
-      </AppAlert>
+      <KCandleChartNotices
+        :live-update-notice="liveUpdateNotice"
+        :live-update-message="liveUpdateNoticeMessage"
+        :rejected-message="rejectedMessage"
+        :unexpected-failure="unexpectedFailure"
+        :server-error-message="serverErrorMessage"
+        :unreachable-explanation="unreachableExplanation"
+        :loading="loading"
+        @retry="reload"
+      />
     </template>
 
     <template #empty>

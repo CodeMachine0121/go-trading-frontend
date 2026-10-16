@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
 import KCandleChartWorkspace from '~/components/organisms/KCandleChartWorkspace.vue'
-import AppAlert from '~/components/atoms/AppAlert.vue'
+import KCandleChartNotices from '~/components/molecules/KCandleChartNotices.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
@@ -581,65 +581,16 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
       幾種原因共用這一個位置，一次只說一句，哪一句由 domain model 決定。
     -->
     <template #notices>
-      <AppAlert
-        v-if="liveUpdateNotice"
-        :tone="liveUpdateNotice.tone"
-        :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
-      >
-        {{ liveUpdateNoticeMessage }}
-      </AppAlert>
-
-      <AppAlert
-        v-if="rejectedMessage || unexpectedFailure"
-        tone="danger"
-        data-testid="rejected-alert"
-      >
-        {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="serverErrorMessage"
-        tone="danger"
-        data-testid="server-error-alert"
-      >
-        {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            {{ t('marketData.common.retry') }}
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="unreachableExplanation"
-        tone="danger"
-        data-testid="unreachable-alert"
-      >
-        {{ localize(unreachableExplanation) }}
-        <template #action>
-          <AppButton
-            variant="secondary"
-            size="small"
-            :disabled="loading"
-            @click="reload"
-          >
-            {{ t('marketData.common.retry') }}
-          </AppButton>
-        </template>
-      </AppAlert>
-
-      <AppAlert
-        v-else-if="loading"
-        tone="info"
-        data-testid="loading-alert"
-      >
-        {{ t('marketData.common.loadingMarketData') }}
-      </AppAlert>
+      <KCandleChartNotices
+        :live-update-notice="liveUpdateNotice"
+        :live-update-message="liveUpdateNoticeMessage"
+        :rejected-message="rejectedMessage"
+        :unexpected-failure="unexpectedFailure"
+        :server-error-message="serverErrorMessage"
+        :unreachable-explanation="unreachableExplanation"
+        :loading="loading"
+        @retry="reload"
+      />
     </template>
 
     <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
