@@ -1,0 +1,82 @@
+import Decimal from 'decimal.js'
+import { describe, expect, it } from 'vitest'
+import { KCandleTimelineDomain } from '~/domain/models/domains/k-candle-timeline-domain'
+import { KCandleSpec, kCandleChartOf } from '../../../fixtures/k-candle-chart'
+
+/** 三根一小時 K 線：10:00、11:00、12:00，序位 0 到 2。 */
+const THREE_HOURS = kCandleChartOf('1h', [
+  new KCandleSpec('2026-10-16T10:00:00.000Z'),
+  new KCandleSpec('2026-10-16T11:00:00.000Z', '100', '105', '99', '103'),
+  new KCandleSpec('2026-10-16T12:00:00.000Z'),
+])
+
+describe('KCandleTimelineDomain：第幾根與哪一刻互換', () => {
+  it.each([
+    [1, '2026-10-16T11:00:00.000Z'],
+    [4, '2026-10-16T14:00:00.000Z'],
+    [-1, '2026-10-16T09:00:00.000Z'],
+  ])('第 %s 根的起始時間是 %s（最新之後與最早之前以彙總刻度推算）', (logicalIndex, openTime) => {
+    expect(new KCandleTimelineDomain(THREE_HOURS).openTimeAt(logicalIndex)).toEqual(new Date(openTime))
+  })
+
+  it.each([
+    ['2026-10-16T11:00:00.000Z', 1],
+    ['2026-10-16T14:00:00.000Z', 4],
+    ['2026-10-16T09:00:00.000Z', -1],
+    // 最早那一根之前、沒對齊到整點：落在涵蓋它的那一根（09:00 那一根）
+    ['2026-10-16T09:30:00.000Z', -1],
+    // 五分鐘圖上畫的點換到一小時圖：落在包含它的那一小時上。
+    ['2026-10-16T11:05:00.000Z', 1],
+  ])('%s 落在第 %s 根', (openTime, logicalIndex) => {
+    expect(new KCandleTimelineDomain(THREE_HOURS).logicalIndexOf(new Date(openTime))).toBe(logicalIndex)
+  })
+
+  it('落在兩根之間沒有交易的空檔時，對到之後那一根', () => {
+    const withGap = kCandleChartOf('1h', [
+      new KCandleSpec('2026-10-16T10:00:00.000Z'),
+      new KCandleSpec('2026-10-16T12:00:00.000Z'),
+    ])
+
+    expect(new KCandleTimelineDomain(withGap).logicalIndexOf(new Date('2026-10-16T11:00:00.000Z'))).toBe(1)
+  })
+
+  it.each([
+    [1.4, '2026-10-16T11:00:00.000Z'],
+    [1.6, '2026-10-16T12:00:00.000Z'],
+  ])('落點在第 %s 根時對齊到最近的那一根（%s）', (logicalIndex, openTime) => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).alignAnchor(logicalIndex, new Decimal('100'), false)
+
+    expect(anchor.openTime).toEqual(new Date(openTime))
+  })
+})
+
+describe('KCandleTimelineDomain：磁鐵模式', () => {
+  it('開著磁鐵、落在一根 K 線上：吸到開高低收裡最接近的那一個', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).alignAnchor(1, new Decimal('104.8'), true)
+
+    expect(anchor.price.toString()).toBe('105')
+  })
+
+  it('開著磁鐵、落在最新那一根右邊的空白：不吸', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).alignAnchor(4, new Decimal('104.8'), true)
+
+    expect(anchor.price.toString()).toBe('104.8')
+    expect(anchor.logicalIndex).toBe(4)
+  })
+
+  it('沒開磁鐵：落點就是指到的價格', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).alignAnchor(1, new Decimal('104.8'), false)
+
+    expect(anchor.price.toString()).toBe('104.8')
+  })
+})
+
+describe('KCandleTimelineDomain：一根都沒有的圖', () => {
+  it('不會壞掉：以彙總刻度從時間原點推算', () => {
+    const empty = new KCandleTimelineDomain(kCandleChartOf('1h', []))
+
+    expect(empty.openTimeAt(2)).toEqual(new Date(2 * 3_600_000))
+    expect(empty.openTimeAt(-1)).toEqual(new Date(-3_600_000))
+    expect(empty.logicalIndexOf(new Date(3 * 3_600_000))).toBe(3)
+  })
+})
