@@ -17,4 +17,15 @@ export class KCandleChartViewportDto {
     public readonly loadedChart: KCandleChartDto | null,
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ) {}
+
+  /**
+   * 跳到最新：同一檔、同樣的長度與粗細，只是結束在這一刻。
+   * 右側留白與要不要重新取不在這裡決定——交給顯示區間原本那一套規則。
+   */
+  endingAt(now: Date): KCandleChartViewportDto {
+    const span = this.visibleEndTime.getTime() - this.visibleStartTime.getTime()
+
+    return new KCandleChartViewportDto(
+      this.symbol, new Date(now.getTime() - span), now, this.loadedChart, this.aggregationIntervalChoice)
+  }
 }

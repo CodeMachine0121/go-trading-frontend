@@ -275,12 +275,10 @@ function showRange(range: { startTime: Date, endTime: Date }) {
  */
 function jumpToLatest() {
   activePreset.value = null
-  const now = new Date()
-  const span = requestedEndTime.value.getTime() - requestedStartTime.value.getTime()
 
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, new Date(now.getTime() - span), now, chart.value,
-    aggregationIntervalChoice.value))
+    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
+    aggregationIntervalChoice.value).endingAt(new Date()))
 }
 
 function reload() {
