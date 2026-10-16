@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../fixtures/k-candle-series'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { KCandleSpec, kCandleChartOf } from '../fixtures/k-candle-chart'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
@@ -460,5 +461,19 @@ describe('KCandleChartApplication', () => {
         viewportSpanning(30 * 24 * 60, null, 'BTCUSDT', aggregationIntervalChoiceOf('1m'))))
         .rejects.toThrow('也可以改用更長的一種')
     })
+  })
+})
+
+describe('KCandleChartApplication：圖例', () => {
+  it('說的是十字線那一根，並帶最新那一根的收盤倒數', () => {
+    const chart = kCandleChartOf('1h', [
+      new KCandleSpec('2026-10-16T10:00:00.000Z', '100', '100', '100', '110'),
+      new KCandleSpec('2026-10-16T11:00:00.000Z', '110', '110', '100', '105'),
+    ])
+
+    const readout = buildApplication(buildProxy()).describeReadout(chart, 1, new Date('2026-10-16T11:59:30.000Z'))
+
+    expect(readout?.change.toString()).toBe('-5')
+    expect(readout?.countdown).toBe('00:30')
   })
 })
