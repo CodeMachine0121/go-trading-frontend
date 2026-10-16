@@ -3,6 +3,7 @@ import type { ChartDrawingAnchorDto } from '~/domain/models/dto/chart-drawing-an
 import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { DateAndPriceRangeMeasurementDto } from '~/domain/models/dto/date-and-price-range-measurement-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { DRAWING_BLUE_TOKEN, DRAWING_RED_TOKEN } from '~/domain/models/vo/chart-drawing-color-vo'
 
 const MINUTES_PER_HOUR = 60
 const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
@@ -47,8 +48,10 @@ export class DateAndPriceRangeMeasurementDomain {
       ? new LocalizedTextVo('0分', '0m')
       : new LocalizedTextVo(' ', ' ').join(parts)
 
+    const rising = !priceDifference.isNegative()
+
     return new DateAndPriceRangeMeasurementDto(
-      priceDifference, percentText, toIndex - fromIndex, duration, volume,
-      !priceDifference.isNegative())
+      priceDifference, percentText, toIndex - fromIndex, duration, volume, rising,
+      rising ? DRAWING_BLUE_TOKEN : DRAWING_RED_TOKEN)
   }
 }

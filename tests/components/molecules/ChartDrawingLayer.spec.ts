@@ -558,3 +558,86 @@ describe('ChartDrawingLayer：顏色與選取時的軸上色帶', () => {
     expect(fills.filter(fill => fill.x === 500 || fill.y === 400)).toEqual([])
   })
 })
+
+describe('ChartDrawingLayer：這一下結束時圖一定恢復可以拖動', () => {
+  const panAndZoom = () => chartApi.applyOptions.mock.lastCall?.[0]
+  const LOCKED = chartDrawingOf(1, 'trendLine', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '800')], true).toDomain().toDto()
+
+  it('點一下鎖定的線：選取它，放開之後圖照樣拖得動、縮放得了', async () => {
+    const wrapper = mountLayer({ drawings: [LOCKED] })
+
+    await press(wrapper, [200, 200])
+
+    expect(wrapper.emitted('select')).toEqual([[1]])
+    expect(panAndZoom()).toEqual({ handleScroll: true, handleScale: true })
+  })
+
+  it('開著鎖定所有時點一下繪圖：放開之後圖照樣拖得動', async () => {
+    const wrapper = mountLayer({ drawings: [LOCKED], lockAllDrawings: true })
+
+    await press(wrapper, [200, 200])
+
+    expect(panAndZoom()).toEqual({ handleScroll: true, handleScale: true })
+  })
+
+  it('拖到一半被瀏覽器取消：不算一步、之後的移動不再改它、圖恢復可以拖動', async () => {
+    const drawing = chartDrawingOf(1, 'trendLine', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '800')]).toDomain().toDto()
+    const wrapper = mountLayer({ drawings: [drawing] })
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { clientX: 200, clientY: 200, button: 0, bubbles: true, cancelable: true }))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 220, clientY: 150 }))
+
+    window.dispatchEvent(new PointerEvent('pointercancel'))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 260, clientY: 100 }))
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 260, clientY: 100 }))
+    await nextTick()
+
+    expect(wrapper.emitted('change')).toBeUndefined()
+    expect(panAndZoom()).toEqual({ handleScroll: true, handleScale: true })
+  })
+
+  it('按著拖曳畫到一半被取消：半成品丟掉', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'trendLine' })
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 200, button: 0, bubbles: true, cancelable: true }))
+
+    window.dispatchEvent(new PointerEvent('pointercancel'))
+    await press(wrapper, [300, 150])
+
+    expect(wrapper.emitted('finish')).toBeUndefined()
+  })
+})
+
+describe('ChartDrawingLayer：換一張圖時半成品丟掉', () => {
+  it('點了第一點之後換成另一種彙總刻度：下一下不會把上一張圖的半成品畫完', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'trendLine' })
+    await press(wrapper, [100, 200])
+
+    await wrapper.setProps({ chart: kCandleChartOf('5m', [new KCandleSpec(openTimeOf(0))]) })
+    await press(wrapper, [300, 150])
+
+    expect(wrapper.emitted('finish')).toBeUndefined()
+  })
+
+  it('只是即時更新換了一批資料：半成品留著，下一下照樣畫完', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'trendLine' })
+    await press(wrapper, [100, 200])
+
+    await wrapper.setProps({ chart: kCandleChartOf('1m', CHART.kCandles.map(kCandle => new KCandleSpec(kCandle.openTime.toISOString()))) })
+    await press(wrapper, [300, 150])
+
+    expect(finished(wrapper)?.kind).toBe('trendLine')
+  })
+})
+
+describe('ChartDrawingLayer：整個移動時保留錨點在那一根裡的時刻', () => {
+  it('只往上拖：兩端的時間一秒都不變', async () => {
+    const offset = (index: number) => new Date(Date.UTC(2026, 9, 16, 10, index, 30)).toISOString()
+    const drawing = chartDrawingOf(1, 'trendLine', [anchorOf(offset(10), '800'), anchorOf(offset(30), '800')]).toDomain().toDto()
+    const wrapper = mountLayer({ drawings: [drawing] })
+
+    await press(wrapper, [200, 200], [200, 150])
+
+    const command = wrapper.emitted<[number, { anchors: ChartDrawingDto['anchors'] }]>('change')?.[0]?.[1]
+    expect(command?.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
+      .toEqual([[offset(10), '850'], [offset(30), '850']])
+  })
+})

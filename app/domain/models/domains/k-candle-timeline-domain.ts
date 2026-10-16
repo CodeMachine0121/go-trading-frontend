@@ -86,4 +86,20 @@ export class KCandleTimelineDomain {
 
     return new ChartDrawingAnchorDto(this.openTimeAt(alignedIndex), new Decimal(alignedPrice), alignedIndex)
   }
+
+  /**
+   * 把一個錨點平移幾根：落到那一根上，並保留它原本在自己那一根裡的哪個時刻。
+   *
+   * 細刻度畫的點（五分鐘圖上的 10:05）在粗刻度上只是「10:00 那一根裡的某一刻」；
+   * 平移之後若直接對齊到那一根的起始時間，那五分鐘就悄悄不見了，換回細刻度時點會跑掉。
+   * 一根都沒平移時時間原樣不動。
+   */
+  shiftedAnchor(openTime: Date, kCandleShift: number, price: Decimal): ChartDrawingAnchorDto {
+    const logicalIndex = this.logicalIndexOf(openTime)
+    const offsetWithinKCandle = openTime.getTime() - this.openTimeAt(logicalIndex).getTime()
+    const shiftedIndex = logicalIndex + kCandleShift
+
+    return new ChartDrawingAnchorDto(
+      new Date(this.openTimeAt(shiftedIndex).getTime() + offsetWithinKCandle), price, shiftedIndex)
+  }
 }

@@ -79,6 +79,10 @@ export class ChartDrawingService {
     return new KCandleTimelineDomain(chart).alignAnchor(logicalIndex, price, magnet)
   }
 
+  shiftAnchor(chart: KCandleChartDto, openTime: Date, kCandleShift: number, price: Decimal): ChartDrawingAnchorDto {
+    return new KCandleTimelineDomain(chart).shiftedAnchor(openTime, kCandleShift, price)
+  }
+
   placeDrawings(chart: KCandleChartDto, drawings: readonly ChartDrawingDto[]): PlacedChartDrawingDto[] {
     const timeline = new KCandleTimelineDomain(chart)
 

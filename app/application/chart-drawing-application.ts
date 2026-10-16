@@ -55,6 +55,11 @@ export class ChartDrawingApplication {
     return this.chartDrawingService.alignAnchor(chart, logicalIndex, price, magnet)
   }
 
+  /** 拖動整個繪圖時，一個錨點平移幾根之後落在哪。 */
+  shiftAnchor(chart: KCandleChartDto, openTime: Date, kCandleShift: number, price: Decimal): ChartDrawingAnchorDto {
+    return this.chartDrawingService.shiftAnchor(chart, openTime, kCandleShift, price)
+  }
+
   placeDrawings(chart: KCandleChartDto, drawings: readonly ChartDrawingDto[]): PlacedChartDrawingDto[] {
     return this.chartDrawingService.placeDrawings(chart, drawings)
   }

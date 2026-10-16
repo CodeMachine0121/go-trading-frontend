@@ -81,11 +81,19 @@ const drag = shallowRef<{ original: ChartDrawingDto, preview: ChartDrawingDto, s
 const hoveredDrawingId = ref<number | null>(null)
 const pointer = ref<{ x: number, y: number } | null>(null)
 
-/** 換了工具或回到游標時，畫到一半的那一個丟掉。 */
-watch(() => activeDrawingKind, () => {
+/** 畫到一半或拖到一半的那一個丟掉，圖恢復可以拖動與縮放。 */
+function abandonGesture() {
   draft.value = null
+  drag.value = null
   coordinateSpace.setPanAndZoomEnabled(true)
-})
+}
+
+// 換了工具或回到游標時，畫到一半的那一個丟掉。
+watch(() => activeDrawingKind, abandonGesture)
+
+// 換了一檔或換了彙總刻度：畫到一半的那一個屬於上一張圖，丟掉——
+// 否則下一下會用上一檔的價與時間在這一檔畫完它。即時更新只換了資料，不在此列。
+watch(() => `${chart.symbol}|${chart.interval.value}`, abandonGesture)
 
 /** 畫面上真正要畫的：拖動中的那一個換成預覽，正在畫的那一個加在最後。 */
 const placedDrawings = computed<PlacedChartDrawingDto[]>(() => {
@@ -309,7 +317,8 @@ function onPointerDown(event: PointerEvent) {
         const shiftedY = (coordinateSpace.priceToY(anchor.price.toNumber()) ?? 0) + movedY - y
         const shiftedPrice = coordinateSpace.yToPrice(shiftedY) ?? anchor.price.toNumber()
 
-        return chartDrawingApplication.alignAnchor(chart, anchor.logicalIndex + shift, new Decimal(shiftedPrice), false).toVo()
+        // 平移的是根數：錨點原本在那一根裡的哪個時刻（例如細刻度畫的點）一起保留。
+        return chartDrawingApplication.shiftAnchor(chart, anchor.openTime, shift, new Decimal(shiftedPrice)).toVo()
       })
     },
   }
@@ -366,15 +375,30 @@ function onPointerUp(event: PointerEvent) {
     return
   }
 
+  // 這一下結束了：不論是拖完、點了一個拖不動（鎖定）的繪圖，還是什麼都沒對到，圖都恢復可以拖動與縮放。
+  // 只在「有在拖」的那條路上恢復的話，點一下鎖定的線就會讓圖從此拖不動。
+  coordinateSpace.setPanAndZoomEnabled(true)
+
   const dragging = drag.value
   if (dragging !== null) {
     drag.value = null
-    coordinateSpace.setPanAndZoomEnabled(true)
     // 指標真的動過才交出去：點一下沒拖，只是選取。動了一點點卻對齊回原處的，由領域判斷那不算一步。
     if (dragging.moved) {
       emit('change', dragging.original.id, new ChartDrawingCommandDto('replaceAnchors', dragging.preview.anchors))
     }
   }
+}
+
+/**
+ * 瀏覽器自己取消了這一下（系統手勢、第二根手指、掌壓）：拖到一半的不算數、按著拖的半成品丟掉。
+ * 「點一下、等第二下」的那一個留著——那時手指本來就不在畫面上。
+ */
+function onPointerCancel() {
+  drag.value = null
+  if (draft.value !== null && !draft.value.awaitingSecondPoint) {
+    draft.value = null
+  }
+  coordinateSpace.setPanAndZoomEnabled(true)
 }
 
 function onPointerLeave() {
@@ -392,9 +416,24 @@ watch([placedDrawings, () => selectedDrawingId, hoveredDrawingId, pointer, () =>
   needsPaint = true
 })
 
+/**
+ * 這一次畫用到的顏色。一次畫只讀一次畫布的樣式，同一個 token 只解一次——
+ * 每一筆、每一個把手、每一條斐波那契都去問一次樣式，倒數每秒一跳時就是上百次樣式解析。
+ * 每一次畫都重新讀，所以換外觀之後下一次畫就是新的顏色。
+ */
+let paintColors = new Map<string, string>()
+let paintStyle: CSSStyleDeclaration | null = null
+
 function colorOf(token: string): string {
-  const root = canvas.value
-  return root === null ? token : getComputedStyle(root).getPropertyValue(token).trim() || token
+  const cached = paintColors.get(token)
+  if (cached !== undefined) {
+    return cached
+  }
+  const style = paintStyle ?? (canvas.value === null ? null : getComputedStyle(canvas.value))
+  const color = style?.getPropertyValue(token).trim() || token
+  paintColors.set(token, color)
+
+  return color
 }
 
 /** 把一個顏色加上透明度。顏色一律是 token 解出來的 #rrggbb。 */
@@ -492,7 +531,7 @@ const painters: Record<ChartDrawingKindValue, (context: CanvasRenderingContext2D
     }
 
     const bounds = boundsOf(placed)
-    const color = colorOf(measurement.rising ? '--color-drawing-blue' : '--color-drawing-red')
+    const color = colorOf(measurement.colorToken)
     context.setLineDash([])
     context.lineWidth = 1
     context.strokeStyle = color
@@ -574,6 +613,8 @@ function paint() {
     element.height = Math.round(height * ratio)
   }
   const style = getComputedStyle(element)
+  paintStyle = style
+  paintColors = new Map()
   labelFont = `${style.fontSize} ${style.fontFamily}`
   context.setTransform(ratio, 0, 0, ratio, 0, 0)
   context.clearRect(0, 0, width, height)
@@ -662,6 +703,7 @@ onMounted(() => {
   root?.addEventListener('pointerdown', onPointerDown, { capture: true })
   window.addEventListener('pointermove', onPointerMove)
   window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerCancel)
   root?.addEventListener('pointerleave', onPointerLeave)
   animationFrame = requestAnimationFrame(paintLoop)
 })
@@ -671,6 +713,7 @@ onBeforeUnmount(() => {
   root?.removeEventListener('pointerdown', onPointerDown, { capture: true })
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('pointercancel', onPointerCancel)
   root?.removeEventListener('pointerleave', onPointerLeave)
   cancelAnimationFrame(animationFrame)
 })

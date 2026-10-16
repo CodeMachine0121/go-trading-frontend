@@ -80,3 +80,25 @@ describe('KCandleTimelineDomain：一根都沒有的圖', () => {
     expect(empty.logicalIndexOf(new Date(3 * 3_600_000))).toBe(3)
   })
 })
+
+describe('KCandleTimelineDomain：把錨點平移幾根', () => {
+  it('一根都沒平移：時間原樣不動，連那一根裡的幾分也保留', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).shiftedAnchor(new Date('2026-10-16T10:05:00.000Z'), 0, new Decimal('101'))
+
+    expect(anchor.openTime).toEqual(new Date('2026-10-16T10:05:00.000Z'))
+    expect(anchor.price.toString()).toBe('101')
+  })
+
+  it('往右兩根：落到那一根上，原本在那一根裡的五分鐘一起保留', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).shiftedAnchor(new Date('2026-10-16T10:05:00.000Z'), 2, new Decimal('101'))
+
+    expect(anchor.openTime).toEqual(new Date('2026-10-16T12:05:00.000Z'))
+    expect(anchor.logicalIndex).toBe(2)
+  })
+
+  it('平移到最新那一根之後：照彙總刻度往後推', () => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).shiftedAnchor(new Date('2026-10-16T12:00:00.000Z'), 3, new Decimal('101'))
+
+    expect(anchor.openTime).toEqual(new Date('2026-10-16T15:00:00.000Z'))
+  })
+})

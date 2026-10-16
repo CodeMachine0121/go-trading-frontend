@@ -60,3 +60,13 @@ describe('DateAndPriceRangeMeasurementDomain', () => {
     expect(measure(anchorAt(23, '100'), anchorAt(30, '100')).volume.toString()).toBe('4')
   })
 })
+
+describe('DateAndPriceRangeMeasurementDomain：顏色', () => {
+  it.each([
+    ['往上量', '100', '110', '--color-drawing-blue'],
+    ['兩點同價', '100', '100', '--color-drawing-blue'],
+    ['往下量', '110', '99', '--color-drawing-red'],
+  ])('%s：%s → %s 畫成 %s', (_, from, to, colorToken) => {
+    expect(measure(anchorAt(0, from), anchorAt(1, to)).colorToken).toBe(colorToken)
+  })
+})

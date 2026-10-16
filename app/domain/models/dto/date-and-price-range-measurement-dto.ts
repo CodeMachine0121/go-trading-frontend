@@ -10,7 +10,9 @@ export class DateAndPriceRangeMeasurementDto {
     public readonly kCandleCount: number,
     public readonly duration: LocalizedTextVo,
     public readonly volume: Decimal,
-    /** 價差不小於零。上漲畫藍色、下跌畫紅色。 */
+    /** 價差不小於零。決定框與說明往哪一頭畫。 */
     public readonly rising: boolean,
+    /** 這個範圍畫成什麼顏色：上漲藍、下跌紅。 */
+    public readonly colorToken: string,
   ) {}
 }
