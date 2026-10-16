@@ -19,7 +19,8 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop, onAPhone } from '../../fixtures/layout-density'
+import { openIndicatorDialog, pickSymbolInSearch } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { buildLiveKCandleContractApplication } from '../../fixtures/live-k-candle-application'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
@@ -28,7 +29,6 @@ import {
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 // 圖本身以 stub 取代：它要的是真正的畫布。
 const CURRENT_TIME = new Date('2026-09-23T12:00:00.000Z')
-const INTERVAL_SELECT = '[data-testid="aggregation-interval-choice-select"]'
 
 function buildKCandleContract(openTime: string, closePrice: string): KCandleContract {
   const markLine = new ContractPriceLineVo(
@@ -80,7 +80,7 @@ async function mountPanel(kCandleContractProxy: IKCandleContractProxy, spotProxy
         buildContractTradingSymbolProxy([buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('ETHUSDT')]))),
       liveKCandleContractApplication: buildLiveKCandleContractApplication(),
       timeZone: buildTimeZone('UTC'),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -118,7 +118,7 @@ describe('KCandleContractChartPanel', () => {
     expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-23T12:00:00.000Z')
     expect(spotProxy.findKCandleSeries).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('十五分鐘')
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('105.5')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('105.5')
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(2)
   })
 
@@ -128,7 +128,7 @@ describe('KCandleContractChartPanel', () => {
       .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')], '5m'))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
-    await wrapper.get(INTERVAL_SELECT).setValue('5m')
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="5m"]').trigger('click')
     await flushPromises()
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
@@ -166,7 +166,7 @@ describe('KCandleContractChartPanel', () => {
       contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
@@ -178,6 +178,7 @@ describe('KCandleContractChartPanel', () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
     }))
+    await openIndicatorDialog(wrapper)
 
     expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toBe('合約圖表沒有指標。')
     // 即時跟盤已經有了，那一句不能再說它沒有。
@@ -202,8 +203,7 @@ describe('KCandleContractChartPanel', () => {
       .mockRejectedValueOnce(new BackendRequestRejectedError(
         '時間區間過大，請縮小區間；若指定了彙總刻度，也可以改用更長的一種'))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
-
-    await wrapper.get(INTERVAL_SELECT).setValue('1m')
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="1m"]').trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="rejected-alert"]').text())
@@ -275,6 +275,7 @@ describe('KCandleContractChartPanel', () => {
         contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
     }))
 
+    await wrapper.get('[data-testid="drawing-menu-button"]').trigger('click')
     const lineButton = wrapper.findAll('[data-testid="drawing-button"]').find(button => button.text() === '曲線')
     await lineButton?.trigger('click')
 
@@ -294,7 +295,7 @@ describe('KCandleContractChartPanel', () => {
     // 時鐘會隨真實時間往前走，所以比的是看了多長，而不是從哪一刻開始。
     expect(loadPlan.visibleEndTime.getTime() - loadPlan.visibleStartTime.getTime())
       .toBe(5 * 24 * 60 * 60 * 1000)
-    expect(fiveDays?.classes().join(' ')).toContain('primary')
+    expect(fiveDays?.attributes('aria-pressed')).toBe('true')
   })
 
   it('先送出的那一次晚回來時不蓋掉後來那一次', async () => {
@@ -308,7 +309,7 @@ describe('KCandleContractChartPanel', () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
     // 改粗細那一次還沒回來，使用者又在圖上拖了一下（選單在等的時候是停用的，圖不是）。
-    await wrapper.get(INTERVAL_SELECT).setValue('1m')
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="1m"]').trigger('click')
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-20T12:00:00.000Z'), endTime: new Date('2026-09-23T12:00:00.000Z'),
     })
@@ -332,7 +333,7 @@ describe('KCandleContractChartPanel', () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
     // 改粗細那一次還沒回來，使用者又在圖上拖了一下（選單在等的時候是停用的，圖不是）。
-    await wrapper.get(INTERVAL_SELECT).setValue('1m')
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="1m"]').trigger('click')
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
       startTime: new Date('2026-09-20T12:00:00.000Z'), endTime: new Date('2026-09-23T12:00:00.000Z'),
     })
@@ -358,14 +359,13 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(1)
   })
 
-  it('版面：「看什麼」一塊，圖的標題是畫出來的那一個合約', async () => {
+  it('圖例的標題是畫出來的那一個永續合約', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(
         contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
     }))
 
-    // 圖在前、「看什麼」在旁邊那一欄（手機上排在圖的後面）。
-    expect(wrapper.findAll('h2').map(title => title.text())).toEqual(['BTCUSDT', '看什麼'])
+    expect(wrapper.get('[data-testid="chart-legend"]').text()).toContain('BTCUSDT.P')
   })
 
   it.each([
@@ -382,7 +382,7 @@ describe('KCandleContractChartPanel', () => {
       () => [buildKCandleContract('2026-09-23T11:45:00.000Z', '110')],
       ['7777', '—', '—'],
     ],
-  ])('行情摘要上的標記價格、指數價格與溢價指數：%s', async (_label, kCandleContracts, expected) => {
+  ])('圖例第二行的標記價格、指數價格與溢價指數：%s', async (_label, kCandleContracts, expected) => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf(kCandleContracts())),
     }))
@@ -418,17 +418,6 @@ describe('KCandleContractChartPanel', () => {
     expect(findKCandleContractsInRange).not.toHaveBeenCalled()
   })
 
-  it('收起「看什麼」之後，沒有指標那一句照樣在', async () => {
-    const wrapper = await mountPanel(buildKCandleContractProxy({
-      findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
-    }))
-
-    await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="toggle-panel"]').attributes('aria-expanded')).toBe('false')
-    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toContain('沒有指標')
-  })
-
   it('取行情的時候說正在取', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -447,7 +436,7 @@ describe('KCandleContractChartPanel', () => {
           { findTradingSymbols: vi.fn() }, buildContractTradingSymbolProxy([buildContractTradingSymbol('ETHUSDT')]))),
         liveKCandleContractApplication: buildLiveKCandleContractApplication(),
         timeZone: buildTimeZone('UTC'),
-        layoutDensity: onAPhone(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -455,5 +444,47 @@ describe('KCandleContractChartPanel', () => {
 
     const lastLoadPlan = loadPlanOf(findKCandleContractSeries, findKCandleContractSeries.mock.calls.length - 1)
     expect(lastLoadPlan.symbol).toBe('ETHUSDT')
+  })
+})
+
+describe('KCandleContractChartPanel：看盤工作區上的幾件事', () => {
+  const DAY = 24 * 60 * 60 * 1000
+
+  it('按「跳到最新」：以要求看的那一段長度、結束在現在重新看', async () => {
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(
+      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
+    const chartStub = wrapper.findComponent(KCandleChart)
+    chartStub.vm.$emit('rangeChange', {
+      startTime: new Date(Date.now() - 5 * DAY), endTime: new Date(Date.now() - 3 * DAY),
+    })
+    await flushPromises()
+    chartStub.vm.$emit('latestVisibilityChange', false)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="jump-to-latest"]').trigger('click')
+    await flushPromises()
+
+    const plan = loadPlanOf(findKCandleContractSeries, findKCandleContractSeries.mock.calls.length - 1)
+    expect(plan.visibleEndTime.getTime() - plan.visibleStartTime.getTime()).toBe(2 * DAY)
+    expect(Math.abs(plan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
+  })
+
+  it('在圖上直接打字：打開商品搜尋並帶著那一個字', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy())
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b' }))
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="symbol-search-input"]').element as HTMLInputElement).value).toBe('B')
+    wrapper.unmount()
+  })
+
+  it('按主選單：交給頁面', async () => {
+    const wrapper = await mountPanel(buildKCandleContractProxy())
+
+    await wrapper.get('[data-testid="open-workspace-menu"]').trigger('click')
+
+    expect(wrapper.emitted('openMenu')).toHaveLength(1)
   })
 })

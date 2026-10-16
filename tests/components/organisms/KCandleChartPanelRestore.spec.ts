@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { openIndicatorDialog } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Mock } from 'vitest'
@@ -21,7 +23,6 @@ import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../..
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -104,11 +105,13 @@ async function mountPanel(overrides: {
           }),
       }),
       timeZone: buildTimeZone(),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
   await flushPromises()
+  // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+  await openIndicatorDialog(wrapper)
   await vi.advanceTimersByTimeAsync(400)
   await flushPromises()
 

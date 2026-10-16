@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import KCandleChart from '~/components/molecules/KCandleChart.vue'
-import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
-import KCandleQuote from '~/components/molecules/KCandleQuote.vue'
+import KCandleChartWorkspace from '~/components/organisms/KCandleChartWorkspace.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
-import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
@@ -20,7 +16,8 @@ import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregati
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
-import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
+import type { ChartDrawingApplication } from '~/application/chart-drawing-application'
+import type { KCandleChartDrawing } from '~/domain/models/vo/k-candle-chart-drawing-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
@@ -35,23 +32,29 @@ const DEFAULT_SYMBOL = 'BTCUSDT'
 // 同一套判斷——這裡只換「取的是合約那一條」。即時跟盤也是現貨那一套，跟的是合約的通道。
 // **沒有指標與立刻更新**：那兩樣沒有擺出來，而且畫面上明說。
 const {
-  kCandleChartApplication, tradingSymbolApplication, liveKCandleContractApplication, timeZone, layoutDensity,
+  kCandleChartApplication, tradingSymbolApplication, liveKCandleContractApplication, chartDrawingApplication, timeZone,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
   /** 合約那一條即時通道；與現貨圖表的那一條各跟各的。 */
   liveKCandleContractApplication: LiveKCandleContractApplication
+  /** 圖上的繪圖：記在哪、怎麼改、上一步回到哪。合約與現貨的繪圖分開記。 */
+  chartDrawingApplication: ChartDrawingApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
-  /** 這裡只用到其中一項：控制項一開始收不收。 */
-  layoutDensity: LayoutDensityDto
 }>()
+
+/** 按了看盤工作區左上角的主選單——選單在版型裡，交給頁面打開。 */
+const emit = defineEmits<{ openMenu: [] }>()
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const symbol = ref(DEFAULT_SYMBOL)
-const drawing = ref<'candlestick' | 'line'>('candlestick')
+const drawing = ref<KCandleChartDrawing>('candlestick')
+
+/** 挑合約的那個欄位——在圖上直接打字時要它打開商品搜尋。 */
+const symbolField = ref<InstanceType<typeof ContractSymbolField> | null>(null)
 
 const presets = ref<KCandleChartRangePresetDto[]>([])
 const activePreset = ref<KCandleChartRangePresetDto | null>(null)
@@ -121,7 +124,7 @@ const intervalLabel = computed(() => chart.value === null ? '—' : localize(cha
 const contractPrices = computed(() => chart.value?.latestContractPrices ?? null)
 
 /** 圖的標題說的是**畫出來的那一個**合約；還沒取到任何東西時才退回選單上那一個。 */
-const chartTitle = computed(() => chart.value?.symbol ?? symbol.value)
+const chartTitle = computed(() => `${chart.value?.symbol ?? symbol.value}.P`)
 
 async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
   latestRequestNumber += 1
@@ -266,6 +269,20 @@ function showRange(range: { startTime: Date, endTime: Date }) {
     aggregationIntervalChoice.value))
 }
 
+/**
+ * 跳到最新：以他現在要求看的那一段長度、結束在現在重新擺位。
+ * 右側留白與要不要重新取，照顯示區間原本那一套規則走。
+ */
+function jumpToLatest() {
+  activePreset.value = null
+  const now = new Date()
+  const span = requestedEndTime.value.getTime() - requestedStartTime.value.getTime()
+
+  return showViewport(new KCandleChartViewportDto(
+    symbol.value, new Date(now.getTime() - span), now, chart.value,
+    aggregationIntervalChoice.value))
+}
+
 function reload() {
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
@@ -291,337 +308,179 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="k-candle-contract-chart-panel">
+  <KCandleChartWorkspace
+    v-model:drawing="drawing"
+    class="k-candle-contract-chart-panel"
+    market-side="contract"
+    :chart="chart"
+    :drawn-range="drawnRange"
+    :time-zone="timeZone"
+    :symbol="chart?.symbol ?? symbol"
+    :legend-title="chartTitle"
+    :interval-label="intervalLabel"
+    :presets="presets"
+    :active-preset="activePreset"
+    :aggregation-interval-choices="aggregationIntervalChoices"
+    :active-aggregation-interval-choice="aggregationIntervalChoice"
+    :loading="loading"
+    :k-candle-chart-application="kCandleChartApplication"
+    :chart-drawing-application="chartDrawingApplication"
+    @select-preset="selectPreset"
+    @select-aggregation-interval-choice="selectAggregationIntervalChoice"
+    @range-change="showRange"
+    @jump-to-latest="jumpToLatest"
+    @open-menu="emit('openMenu')"
+    @type-to-search="symbolField?.openSearch($event)"
+  >
+    <template #symbol>
+      <ContractSymbolField
+        ref="symbolField"
+        v-model="symbol"
+        presentation="search"
+        :trading-symbol-application="tradingSymbolApplication"
+        @selected="selectContractTradingSymbol"
+      />
+    </template>
+
+    <template #market>
+      <slot name="market" />
+    </template>
+
     <!--
-      行情摘要：成交價最大，旁邊是合約才有的那三條。它跟著畫出來的那批資料走，
-      不是選單上剛選的那一個。沒有記錄的那一條畫成「—」，與 0 一眼分得出來。
+      合約才有的那三條，接在圖例第二行。沒有記錄的那一條畫成「—」，與 0 一眼分得出來。
+      它們讀的是最新一根**記錄**，不是即時的那一根——說出它是幾點的，才不會被當成現價。
     -->
-    <KCandleQuote
-      v-if="chart?.latestKCandle"
-      :latest="chart.latestKCandle"
-      :symbol="chart.symbol"
-      :time-zone="timeZone"
+    <template
+      v-if="contractPrices"
+      #legendExtra
     >
-      <template #tags>
-        <AppBadge variant="accent">
-          {{ t('marketData.kCandleContractChartPanel.perpetualBadge') }}
-        </AppBadge>
-      </template>
-
-      <template #stats>
-        <div
-          class="k-candle-contract-chart-panel__stat"
-          data-testid="mark-price-stat"
-        >
-          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.markPrice') }}</span>
-          <span class="k-candle-contract-chart-panel__stat-value">
-            {{ contractPrices?.markPrice.toString() ?? '—' }}
-          </span>
-        </div>
-        <div
-          class="k-candle-contract-chart-panel__stat"
-          data-testid="index-price-stat"
-        >
-          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.indexPrice') }}</span>
-          <span class="k-candle-contract-chart-panel__stat-value">
-            {{ contractPrices?.indexPrice?.toString() ?? '—' }}
-          </span>
-        </div>
-        <div
-          class="k-candle-contract-chart-panel__stat"
-          data-testid="premium-index-stat"
-        >
-          <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.premiumIndex') }}</span>
-          <span class="k-candle-contract-chart-panel__stat-value">
-            {{ contractPrices?.premiumIndex?.toString() ?? '—' }}
-          </span>
-        </div>
-        <!-- 那三條讀的是最新一根**記錄**，不是即時的那一根——說出它是幾點的，才不會被當成現價。 -->
-        <span
-          v-if="contractPrices"
-          class="k-candle-contract-chart-panel__stat-at"
-          data-testid="contract-prices-at"
-        >
-          {{ t('marketData.kCandleContractChartPanel.recordedAt', {
-            time: timeZone.formatDateTime(contractPrices.recordedAt),
-          }) }}
-        </span>
-      </template>
-    </KCandleQuote>
-
-    <AppAlert
-      v-if="liveUpdateNotice"
-      :tone="liveUpdateNotice.tone"
-      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
-    >
-      {{ liveUpdateNoticeMessage }}
-    </AppAlert>
-
-    <AppAlert
-      v-if="rejectedMessage || unexpectedFailure"
-      tone="danger"
-      data-testid="rejected-alert"
-    >
-      {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="serverErrorMessage"
-      tone="danger"
-      data-testid="server-error-alert"
-    >
-      {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
-        >
-          {{ t('marketData.common.retry') }}
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="unreachableExplanation"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      {{ localize(unreachableExplanation) }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
-        >
-          {{ t('marketData.common.retry') }}
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="loading"
-      tone="info"
-      data-testid="loading-alert"
-    >
-      {{ t('marketData.common.loadingMarketData') }}
-    </AppAlert>
-
-    <div class="k-candle-contract-chart-panel__workspace">
-      <AppPanel
-        :title="chartTitle"
-        flush
-        class="k-candle-contract-chart-panel__chart"
+      <span
+        class="k-candle-contract-chart-panel__stat"
+        data-testid="mark-price-stat"
       >
-        <template #meta>
-          <span>{{ t('marketData.common.aggregationIntervalCaption') }}</span>
-          <AppBadge
-            variant="info"
-            data-testid="interval-label"
+        <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.markPrice') }}</span>{{ contractPrices.markPrice.toString() }}
+      </span>
+      <span
+        class="k-candle-contract-chart-panel__stat"
+        data-testid="index-price-stat"
+      >
+        <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.indexPrice') }}</span>{{ contractPrices.indexPrice?.toString() ?? '—' }}
+      </span>
+      <span
+        class="k-candle-contract-chart-panel__stat"
+        data-testid="premium-index-stat"
+      >
+        <span class="k-candle-contract-chart-panel__stat-label">{{ t('marketData.kCandleContractChartPanel.premiumIndex') }}</span>{{ contractPrices.premiumIndex?.toString() ?? '—' }}
+      </span>
+      <span
+        class="k-candle-contract-chart-panel__stat-label"
+        data-testid="contract-prices-at"
+      >
+        {{ t('marketData.kCandleContractChartPanel.recordedAt', {
+          time: timeZone.formatDateTime(contractPrices.recordedAt),
+        }) }}
+      </span>
+    </template>
+
+    <template #notices>
+      <AppAlert
+        v-if="liveUpdateNotice"
+        :tone="liveUpdateNotice.tone"
+        :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
+      >
+        {{ liveUpdateNoticeMessage }}
+      </AppAlert>
+
+      <AppAlert
+        v-if="rejectedMessage || unexpectedFailure"
+        tone="danger"
+        data-testid="rejected-alert"
+      >
+        {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="serverErrorMessage"
+        tone="danger"
+        data-testid="server-error-alert"
+      >
+        {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="reload"
           >
-            {{ intervalLabel }}
-          </AppBadge>
+            {{ t('marketData.common.retry') }}
+          </AppButton>
         </template>
+      </AppAlert>
 
-        <div class="k-candle-contract-chart-panel__stage">
-          <!-- 寬螢幕上在圖的上方，手機上移到圖的下方給拇指點。 -->
-          <KCandleChartToolbar
-            v-model:drawing="drawing"
-            class="k-candle-contract-chart-panel__toolbar"
-            :presets="presets"
-            :active-preset="activePreset"
-            :aggregation-interval-choices="aggregationIntervalChoices"
-            :active-aggregation-interval-choice="aggregationIntervalChoice"
-            :loading="loading"
-            @select-preset="selectPreset"
-            @select-aggregation-interval-choice="selectAggregationIntervalChoice"
-          />
-
-          <p
-            v-if="chart && chart.isEmpty"
-            class="k-candle-contract-chart-panel__empty"
-            data-testid="empty-chart"
+      <AppAlert
+        v-else-if="unreachableExplanation"
+        tone="danger"
+        data-testid="unreachable-alert"
+      >
+        {{ localize(unreachableExplanation) }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="reload"
           >
-            {{ t('marketData.kCandleContractChartPanel.emptyChart') }}
-          </p>
-
-          <KCandleChart
-            v-else-if="chart"
-            class="k-candle-contract-chart-panel__canvas"
-            :chart="chart"
-            :drawing="drawing"
-            :drawn-range="drawnRange"
-            :time-zone="timeZone"
-            @range-change="showRange"
-          />
-
-          <p
-            v-else
-            class="k-candle-contract-chart-panel__empty"
-            data-testid="idle-chart"
-          >
-            {{ t('marketData.common.chartIdle') }}
-          </p>
-        </div>
-
-        <template
-          v-if="chart && !chart.isEmpty"
-          #footer
-        >
-          <span data-testid="covered-range">
-            {{ t('marketData.common.coveredRange', {
-              count: chart.count,
-              startTime: timeZone.formatDateTime(chart.coveredStartTime),
-              endTime: timeZone.formatDateTime(chart.coveredEndTime),
-              cityName: localize(timeZone.cityName),
-            }, chart.count) }}
-          </span>
+            {{ t('marketData.common.retry') }}
+          </AppButton>
         </template>
-      </AppPanel>
+      </AppAlert>
 
-      <aside class="k-candle-contract-chart-panel__side">
-        <AppPanel
-          :title="t('marketData.common.controlsTitle')"
-          collapsible
-          :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
-        >
-          <ContractSymbolField
-            v-model="symbol"
-            :trading-symbol-application="tradingSymbolApplication"
-            @selected="selectContractTradingSymbol"
-          />
-        </AppPanel>
+      <AppAlert
+        v-else-if="loading"
+        tone="info"
+        data-testid="loading-alert"
+      >
+        {{ t('marketData.common.loadingMarketData') }}
+      </AppAlert>
+    </template>
 
-        <!--
-          這一句說的是**這張圖是什麼**，所以住在「看什麼」外面、常駐著：收起「看什麼」的人
-          收的是控制項，而「這裡沒有指標」正是他找不到指標時要讀到的那一句。
-        -->
-        <AppAlert
-          tone="info"
-          data-testid="no-indicators-notice"
-        >
-          {{ t('marketData.kCandleContractChartPanel.noIndicators') }}
-        </AppAlert>
-      </aside>
-    </div>
-  </section>
+    <template #empty>
+      <p
+        v-if="chart && chart.isEmpty"
+        data-testid="empty-chart"
+      >
+        {{ t('marketData.kCandleContractChartPanel.emptyChart') }}
+      </p>
+      <p
+        v-else
+        data-testid="idle-chart"
+      >
+        {{ t('marketData.common.chartIdle') }}
+      </p>
+    </template>
+
+    <!-- 合約圖表目前沒有指標：按鈕照樣在，打開之後明說。 -->
+    <template #indicators>
+      <AppAlert
+        tone="info"
+        data-testid="no-indicators-notice"
+      >
+        {{ t('marketData.kCandleContractChartPanel.noIndicators') }}
+      </AppAlert>
+    </template>
+  </KCandleChartWorkspace>
 </template>
 
 <style scoped lang="scss">
 .k-candle-contract-chart-panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: spacing('sm');
-  min-height: 0;
-
-  // 手機上一欄由上往下：圖在前，看什麼在後。寬螢幕上圖在左、旁邊一欄固定寬。
-  &__workspace {
-    display: grid;
-    flex: 1;
-    gap: spacing('sm');
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    min-height: 0;
-
-    @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1fr) 18.75rem;
-      align-items: stretch;
-    }
-  }
-
-  // 圖吃掉工作區剩下的所有高度——這個畫面就是為了看圖而存在的。
-  &__chart {
-    min-height: 24rem;
-
-    @include respond-to('lg') {
-      min-height: 32rem;
-    }
-  }
-
-  &__stage {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  &__toolbar {
-    order: 2;
-    border-top: 1px solid color('border');
-    padding: spacing('xs');
-
-    @include respond-to('md') {
-      order: 0;
-      border-top: 0;
-      border-bottom: 1px solid color('border');
-    }
-  }
-
-  &__canvas {
-    order: 1;
-  }
-
-  &__side {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('sm');
-    align-self: start;
-    min-width: 0;
-  }
-
-  // 手機上是一格一格的小方塊，寬螢幕上是一排沒有框的標籤＋數字。
   &__stat {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('3xs');
-    border: 1px solid color('border');
-    border-radius: radius('sm');
-    background-color: color('surface');
-    padding: spacing('xs');
-    min-width: 0;
-
-    @include respond-to('md') {
-      border: 0;
-      background: none;
-      padding: 0;
-    }
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   &__stat-label {
-    color: color('text-faint');
-    font-size: font-size('2xs');
-  }
-
-  &__stat-value {
-    overflow: hidden;
-    color: color('text-strong');
-    font-weight: font-weight('medium');
-    font-size: font-size('sm');
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    @include numeric;
-  }
-
-  &__stat-at {
-    grid-column: 1 / -1;
-    align-self: end;
-    color: color('text-faint');
-    font-size: font-size('2xs');
-
-    @include numeric;
-  }
-
-  &__empty {
-    order: 1;
-    margin: auto;
-    padding: spacing('2xl') spacing('md');
-    color: color('text-faint');
-    font-size: font-size('xs');
-    text-align: center;
+    margin-right: spacing('3xs');
+    color: color('chart-workspace-text-muted');
   }
 }
 </style>

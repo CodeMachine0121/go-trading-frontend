@@ -22,6 +22,8 @@ mockNuxtImport('useSelectedTimeZone', () => () => ({
   selectableTimeZones: [], selectedTimeZone: buildTimeZone('UTC'), selectTimeZone: () => {},
 }))
 mockNuxtImport('useLayoutDensity', () => () => ({ layoutDensity: onADesktop() }))
+mockNuxtImport('useRoute', () => () => ({ path: '/k-candles/chart' }))
+mockNuxtImport('useChartWorkspaceMenu', () => () => ({ openMenu: () => {} }))
 
 const PANEL_STUBS = {
   KCandleSearchPanel: true,
@@ -35,16 +37,17 @@ describe('看行情的四個畫面', () => {
   const { global: translation } = createDisplayLanguageI18n()
 
   it.each([
-    ['現貨 K 線瀏覽', 'Spot K-candle browsing', SpotKCandleBrowsePage],
-    ['現貨 K 線圖表', 'Spot K-candle chart', SpotKCandleChartPage],
-    ['合約 K 線瀏覽', 'Contract K-candle browsing', ContractKCandleBrowsePage],
-    ['合約 K 線圖表', 'Contract K-candle chart', ContractKCandleChartPage],
-  ])('標題是「%s」，英文是「%s」', (traditionalChineseTitle, englishTitle, page) => {
+    ['現貨 K 線瀏覽', 'Spot K-candle browsing', SpotKCandleBrowsePage, 'console'],
+    ['現貨 K 線圖表', 'Spot K-candle chart', SpotKCandleChartPage, 'chart-workspace'],
+    ['合約 K 線瀏覽', 'Contract K-candle browsing', ContractKCandleBrowsePage, 'console'],
+    ['合約 K 線圖表', 'Contract K-candle chart', ContractKCandleChartPage, 'chart-workspace'],
+  ])('標題是「%s」，英文是「%s」，版型是 %s', (traditionalChineseTitle, englishTitle, page, layout) => {
     declaredMeta.length = 0
     mount(page, { global: { stubs: PANEL_STUBS } })
 
     const [meta] = declaredMeta
-    expect(meta?.layout).toBe('console')
+    // 兩個圖表畫面是看盤工作區：圖佔滿整個視窗，其餘畫面維持操作台版型。
+    expect(meta?.layout).toBe(layout)
     expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'zh-TW' })).toBe(traditionalChineseTitle)
     expect(translation.t(meta?.consoleTitleKey ?? '', {}, { locale: 'en' })).toBe(englishTitle)
   })

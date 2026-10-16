@@ -18,7 +18,8 @@ import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-se
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
+import { pickSymbolInSearch } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { buildLiveKCandleContractApplication } from '../../fixtures/live-k-candle-application'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
@@ -94,7 +95,7 @@ async function mountPanel(
         { findTradingSymbols: vi.fn() }, buildContractTradingSymbolProxy(contractTradingSymbols))),
       liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
       timeZone: buildTimeZone('UTC'),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -134,7 +135,7 @@ describe('合約圖表看著就跟', () => {
     await flushPromises()
 
     expect(drawnCloses(wrapper).at(-1)).toBe('64050')
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('64050')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('64050')
   })
 
   it('走完一根、下一根開始，圖上多出一根新的', async () => {
@@ -166,7 +167,7 @@ describe('合約圖表看著就跟', () => {
     const feed = controllableFeed()
     const wrapper = await mountPanel(feed)
 
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
     expect(feed.stopped.count).toBeGreaterThanOrEqual(1)
@@ -214,7 +215,7 @@ describe('圖放掉時跟盤一起放掉', () => {
     const wrapper = await mountPanel(feed, undefined, findKCandleContractSeries)
     const stoppedBefore = feed.stopped.count
 
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
     expect(feed.stopped.count).toBeGreaterThan(stoppedBefore)
@@ -250,7 +251,7 @@ describe('不在合約追蹤名單上的沒有即時更新', () => {
       [buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('DOGEUSDT', false)])
     const stoppedBefore = feed.stopped.count
 
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('DOGEUSDT')
+    await pickSymbolInSearch(wrapper, 'DOGEUSDT')
     await flushPromises()
 
     expect(feed.stopped.count).toBeGreaterThan(stoppedBefore)
@@ -272,7 +273,7 @@ describe('不知道在不在名單上時照常跟', () => {
           { findContractTradingSymbols: vi.fn().mockRejectedValue(new Error('後端沒有回應')) })),
         liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
         timeZone: buildTimeZone('UTC'),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -296,7 +297,7 @@ describe('不知道在不在名單上時照常跟', () => {
           { findContractTradingSymbols: vi.fn().mockReturnValue(new Promise((resolve) => { resolveSymbols = resolve })) })),
         liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
         timeZone: buildTimeZone('UTC'),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -327,9 +328,9 @@ describe('換走又換回來', () => {
       findKCandleContractSeries)
     expect(feed.followKCandles).toHaveBeenCalledTimes(1)
 
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('DOGEUSDT')
+    await pickSymbolInSearch(wrapper, 'DOGEUSDT')
     await flushPromises()
-    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('BTCUSDT')
+    await pickSymbolInSearch(wrapper, 'BTCUSDT')
     await flushPromises()
 
     expect(feed.followKCandles).toHaveBeenCalledTimes(2)

@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { LocalizedError } from '~/domain/errors/localized-error'
 import { useI18n } from 'vue-i18n'
-import KCandleChart from '~/components/molecules/KCandleChart.vue'
-import KCandleChartToolbar from '~/components/molecules/KCandleChartToolbar.vue'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
+import KCandleChartWorkspace from '~/components/organisms/KCandleChartWorkspace.vue'
 import AppAlert from '~/components/atoms/AppAlert.vue'
-import AppBadge from '~/components/atoms/AppBadge.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
-import AppPanel from '~/components/atoms/AppPanel.vue'
-import KCandleQuote from '~/components/molecules/KCandleQuote.vue'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { LiveKCandleApplication } from '~/application/live-k-candle-application'
@@ -31,7 +27,8 @@ import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
-import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
+import type { ChartDrawingApplication } from '~/application/chart-drawing-application'
+import type { KCandleChartDrawing } from '~/domain/models/vo/k-candle-chart-drawing-vo'
 
 /** 進入畫面時預先帶入的交易標的，只是省一次輸入，使用者可自行更換。 */
 const DEFAULT_SYMBOL = 'BTCUSDT'
@@ -44,30 +41,31 @@ const {
   chartIndicatorApplication,
   liveKCandleApplication,
   strategyScriptApplication,
+  chartDrawingApplication,
   timeZone,
-  layoutDensity,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
   chartIndicatorApplication: ChartIndicatorApplication
   liveKCandleApplication: LiveKCandleApplication
   strategyScriptApplication: StrategyScriptApplication
+  /** 圖上的繪圖：記在哪、怎麼改、上一步回到哪。 */
+  chartDrawingApplication: ChartDrawingApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
-  /**
-   * 現在這個寬度代表什麼。這裡只用到其中一項：控制項一開始收不收。
-   *
-   * 它由頁面問來、往下傳，而不是這裡自己去問——這個有機體因此在任何地方
-   * 都掛得起來，包括一個沒有整個應用程式在跑的測試裡。
-   */
-  layoutDensity: LayoutDensityDto
 }>()
+
+/** 按了看盤工作區左上角的主選單——選單在版型裡，交給頁面打開。 */
+const emit = defineEmits<{ openMenu: [] }>()
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const symbol = ref(DEFAULT_SYMBOL)
-const drawing = ref<'candlestick' | 'line'>('candlestick')
+const drawing = ref<KCandleChartDrawing>('candlestick')
+
+/** 挑標的那個欄位——在圖上直接打字時要它打開商品搜尋。 */
+const symbolField = ref<InstanceType<typeof SymbolField> | null>(null)
 
 const presets = ref<KCandleChartRangePresetDto[]>([])
 const activePreset = ref<KCandleChartRangePresetDto | null>(null)
@@ -420,6 +418,20 @@ function showRange(range: { startTime: Date, endTime: Date }) {
     aggregationIntervalChoice.value))
 }
 
+/**
+ * 跳到最新：以他現在要求看的那一段長度、結束在現在重新擺位。
+ * 右側留白與要不要重新取，照顯示區間原本那一套規則走——這裡不另外算。
+ */
+function jumpToLatest() {
+  activePreset.value = null
+  const now = new Date()
+  const span = requestedEndTime.value.getTime() - requestedStartTime.value.getTime()
+
+  return showViewport(new KCandleChartViewportDto(
+    symbol.value, new Date(now.getTime() - span), now, chart.value,
+    aggregationIntervalChoice.value))
+}
+
 function reload() {
   return showViewport(new KCandleChartViewportDto(
     symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
@@ -491,321 +503,189 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
 </script>
 
 <template>
-  <section class="k-candle-chart-panel">
-    <!--
-      行情摘要：這一頁最大的那個數字，擺在最上面——**先說現在多少錢，再說它怎麼走的**。
-      它跟著畫出來的那批資料走（不是選單上剛選的那一檔），所以換標的的空窗期裡
-      它不會先跳成新的名字配舊的價。
-    -->
-    <KCandleQuote
-      v-if="chart?.latestKCandle"
-      :latest="chart.latestKCandle"
-      :symbol="chart.symbol"
-      :time-zone="timeZone"
-    >
-      <template #tags>
-        <AppBadge variant="neutral">
-          {{ t('marketData.kCandleChartPanel.spotBadge') }}
-        </AppBadge>
-      </template>
-    </KCandleQuote>
+  <KCandleChartWorkspace
+    v-model:drawing="drawing"
+    class="k-candle-chart-panel"
+    market-side="spot"
+    :chart="chart"
+    :drawn-range="drawnRange"
+    :time-zone="timeZone"
+    :indicators="chartIndicators.visibleChartIndicators.value"
+    :symbol="chart?.symbol ?? symbol"
+    :legend-title="chartTitle"
+    :interval-label="intervalLabel"
+    :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
+    :presets="presets"
+    :active-preset="activePreset"
+    :aggregation-interval-choices="aggregationIntervalChoices"
+    :active-aggregation-interval-choice="aggregationIntervalChoice"
+    :loading="loading"
+    :k-candle-chart-application="kCandleChartApplication"
+    :chart-drawing-application="chartDrawingApplication"
+    @select-preset="selectPreset"
+    @select-aggregation-interval-choice="selectAggregationIntervalChoice"
+    @range-change="showRange"
+    @jump-to-latest="jumpToLatest"
+    @open-menu="emit('openMenu')"
+    @type-to-search="symbolField?.openSearch($event)"
+    @toggle-indicator-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
+    @remove-indicator="chartIndicators.removeAppliedIndicator"
+  >
+    <!-- 選著的是哪一檔由挑標的那個欄位說：圖表這一層才是需要知道
+         「這一檔會不會收盤、有沒有即時更新」的人。 -->
+    <template #symbol>
+      <SymbolField
+        ref="symbolField"
+        v-model="symbol"
+        presentation="search"
+        :trading-symbol-application="tradingSymbolApplication"
+        @selected="selectedTradingSymbol = $event"
+      />
+    </template>
+
+    <template #market>
+      <slot name="market" />
+    </template>
+
+    <template #topBarEnd>
+      <span
+        v-if="catchUpMessage"
+        class="k-candle-chart-panel__catch-up-message"
+        data-testid="catch-up-message"
+      >
+        {{ catchUpMessage }}
+      </span>
+      <!--
+        只有會收盤的市場給這顆按鈕。永不收盤的市場永遠只差一輪就跟上了，
+        給它一顆「立刻更新」只是讓人多按一次去做本來就會發生的事。
+      -->
+      <AppButton
+        v-if="canCatchUp"
+        variant="chrome"
+        size="small"
+        :disabled="catchingUp || loading"
+        data-testid="catch-up-button"
+        @click="catchUp"
+      >
+        <AppIcon
+          name="refresh"
+          stroke="fine"
+        />
+        {{ catchingUp ? t('marketData.kCandleChartPanel.catchingUp') : t('marketData.kCandleChartPanel.catchUp') }}
+      </AppButton>
+    </template>
 
     <!--
-      這幾則說的是**圖現在怎麼了**，不是控制項怎麼了，所以它們不住在「看什麼」裡：
-      收起「看什麼」的人收的是控制項，而一則「連不上後端」不該跟著被收走——
-      那正是他最需要看到它的時候。
-
-      即時這一層沒有東西動，不代表「圖表壞了」——所以它與那幾則錯誤各自獨立，
-      不搶同一個位置：圖照樣顯示手上有的，只是多一行說明。
+      這幾則說的是**圖現在怎麼了**。即時這一層沒有東西動，不代表「圖表壞了」——
+      所以它與那幾則錯誤各自獨立：圖照樣顯示手上有的，只是多一行說明。
       幾種原因共用這一個位置，一次只說一句，哪一句由 domain model 決定。
     -->
-    <AppAlert
-      v-if="liveUpdateNotice"
-      :tone="liveUpdateNotice.tone"
-      :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
-    >
-      {{ liveUpdateNoticeMessage }}
-    </AppAlert>
-
-    <AppAlert
-      v-if="rejectedMessage || unexpectedFailure"
-      tone="danger"
-      data-testid="rejected-alert"
-    >
-      {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="serverErrorMessage"
-      tone="danger"
-      data-testid="server-error-alert"
-    >
-      {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
-        >
-          {{ t('marketData.common.retry') }}
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="unreachableExplanation"
-      tone="danger"
-      data-testid="unreachable-alert"
-    >
-      {{ localize(unreachableExplanation) }}
-      <template #action>
-        <AppButton
-          variant="secondary"
-          size="small"
-          :disabled="loading"
-          @click="reload"
-        >
-          {{ t('marketData.common.retry') }}
-        </AppButton>
-      </template>
-    </AppAlert>
-
-    <AppAlert
-      v-else-if="loading"
-      tone="info"
-      data-testid="loading-alert"
-    >
-      {{ t('marketData.common.loadingMarketData') }}
-    </AppAlert>
-
-    <!-- 寬螢幕上兩欄：左邊是圖，右邊是看什麼與套用中的指標。手機上由上往下疊，圖在前。 -->
-    <div class="k-candle-chart-panel__workspace">
-      <!-- 標題說的是**畫出來的那批**是哪一檔，不是選單上剛選的那一檔——
-           換標的到取回來之間有一段空窗，那段時間標題若先跳掉，
-           畫面就會用新名字標著舊資料。還沒取到任何東西時才退回選單上那一檔。 -->
-      <AppPanel
-        :title="chartTitle"
-        flush
-        class="k-candle-chart-panel__chart"
+    <template #notices>
+      <AppAlert
+        v-if="liveUpdateNotice"
+        :tone="liveUpdateNotice.tone"
+        :data-testid="`live-update-${liveUpdateNotice.value}-alert`"
       >
-        <!-- 每根涵蓋多久寫在圖的標題列上：它說的是圖上那批 K 線多粗，
-             所以它跟著圖，不跟著控制項。 -->
-        <template #meta>
-          <span>{{ t('marketData.common.aggregationIntervalCaption') }}</span>
-          <AppBadge
-            variant="info"
-            data-testid="interval-label"
-          >
-            {{ intervalLabel }}
-          </AppBadge>
-        </template>
+        {{ liveUpdateNoticeMessage }}
+      </AppAlert>
 
-        <template #actions>
-          <span
-            v-if="catchUpMessage"
-            class="k-candle-chart-panel__catch-up-message"
-            data-testid="catch-up-message"
-          >
-            {{ catchUpMessage }}
-          </span>
-          <!--
-            只有會收盤的市場給這顆按鈕。永不收盤的市場永遠只差一輪就跟上了，
-            給它一顆「立刻更新」只是讓人多按一次去做本來就會發生的事。
-          -->
+      <AppAlert
+        v-if="rejectedMessage || unexpectedFailure"
+        tone="danger"
+        data-testid="rejected-alert"
+      >
+        {{ rejectedMessage ? localize(rejectedMessage) : t('marketData.common.unexpectedChartFailure') }}
+      </AppAlert>
+
+      <AppAlert
+        v-else-if="serverErrorMessage"
+        tone="danger"
+        data-testid="server-error-alert"
+      >
+        {{ t('marketData.common.chartServerError', { message: localize(serverErrorMessage) }) }}
+        <template #action>
           <AppButton
-            v-if="canCatchUp"
             variant="secondary"
             size="small"
-            :disabled="catchingUp || loading"
-            data-testid="catch-up-button"
-            @click="catchUp"
+            :disabled="loading"
+            @click="reload"
           >
-            <AppIcon name="refresh" />
-            {{ catchingUp ? t('marketData.kCandleChartPanel.catchingUp') : t('marketData.kCandleChartPanel.catchUp') }}
+            {{ t('marketData.common.retry') }}
           </AppButton>
         </template>
+      </AppAlert>
 
-        <div class="k-candle-chart-panel__stage">
-          <!-- 看多長、看多細、怎麼畫：寬螢幕上在圖的上方，手機上移到圖的下方給拇指點。 -->
-          <KCandleChartToolbar
-            v-model:drawing="drawing"
-            class="k-candle-chart-panel__toolbar"
-            :presets="presets"
-            :active-preset="activePreset"
-            :aggregation-interval-choices="aggregationIntervalChoices"
-            :active-aggregation-interval-choice="aggregationIntervalChoice"
-            :loading="loading"
-            @select-preset="selectPreset"
-            @select-aggregation-interval-choice="selectAggregationIntervalChoice"
-          />
-
-          <p
-            v-if="chart && chart.isEmpty"
-            class="k-candle-chart-panel__empty"
-            data-testid="empty-chart"
+      <AppAlert
+        v-else-if="unreachableExplanation"
+        tone="danger"
+        data-testid="unreachable-alert"
+      >
+        {{ localize(unreachableExplanation) }}
+        <template #action>
+          <AppButton
+            variant="secondary"
+            size="small"
+            :disabled="loading"
+            @click="reload"
           >
-            {{ t('marketData.kCandleChartPanel.emptyChart') }}
-          </p>
-
-          <KCandleChart
-            v-else-if="chart"
-            class="k-candle-chart-panel__canvas"
-            :chart="chart"
-            :drawing="drawing"
-            :drawn-range="drawnRange"
-            :time-zone="timeZone"
-            :indicators="chartIndicators.visibleChartIndicators.value"
-            @range-change="showRange"
-          />
-
-          <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
-               而不是留一整片空白——那看起來像壞了。 -->
-          <p
-            v-else
-            class="k-candle-chart-panel__empty"
-            data-testid="idle-chart"
-          >
-            {{ t('marketData.common.chartIdle') }}
-          </p>
-        </div>
-
-        <!-- 「手上這批涵蓋到哪」是圖的註腳，不是一句要人讀的話：
-             它收在卡片底下那一條窄帶裡，需要對照的時候才會被看見。 -->
-        <template
-          v-if="chart && !chart.isEmpty"
-          #footer
-        >
-          <span data-testid="covered-range">
-            {{ t('marketData.common.coveredRange', {
-              count: chart.count,
-              startTime: timeZone.formatDateTime(chart.coveredStartTime),
-              endTime: timeZone.formatDateTime(chart.coveredEndTime),
-              cityName: localize(timeZone.cityName),
-            }, chart.count) }}
-          </span>
+            {{ t('marketData.common.retry') }}
+          </AppButton>
         </template>
-      </AppPanel>
+      </AppAlert>
 
-      <aside class="k-candle-chart-panel__side">
-        <AppPanel
-          :title="t('marketData.common.controlsTitle')"
-          collapsible
-          :initially-collapsed="layoutDensity.startsChartControlsCollapsed"
-        >
-          <div class="k-candle-chart-panel__controls">
-            <!-- 選著的是哪一檔由挑標的那個欄位說：圖表這一層才是需要知道
-                 「這一檔會不會收盤、有沒有即時更新」的人。 -->
-            <SymbolField
-              v-model="symbol"
-              :trading-symbol-application="tradingSymbolApplication"
-              @selected="selectedTradingSymbol = $event"
-            />
+      <AppAlert
+        v-else-if="loading"
+        tone="info"
+        data-testid="loading-alert"
+      >
+        {{ t('marketData.common.loadingMarketData') }}
+      </AppAlert>
+    </template>
 
-            <ChartIndicatorPanel
-              :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
-              :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
-              :color-options="chartIndicators.colorOptions"
-              :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
-              :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
-              :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
-              @apply="chartIndicators.applyIndicator"
-              @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
-              @confirm-pending="chartIndicators.confirmPendingIndicator"
-              @cancel-pending="chartIndicators.cancelPendingIndicator"
-              @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
-              @toggle-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
-              @remove="chartIndicators.removeAppliedIndicator"
-              @change-line-color="chartIndicators.changeLineColor"
-            />
-          </div>
-        </AppPanel>
-      </aside>
-    </div>
-  </section>
+    <!-- 一次都還沒取到（例如後端沒起來）時，圖的位置要說出「這裡本來會有一張圖」，
+         而不是留一整片空白——那看起來像壞了。 -->
+    <template #empty>
+      <p
+        v-if="chart && chart.isEmpty"
+        data-testid="empty-chart"
+      >
+        {{ t('marketData.kCandleChartPanel.emptyChart') }}
+      </p>
+      <p
+        v-else
+        data-testid="idle-chart"
+      >
+        {{ t('marketData.common.chartIdle') }}
+      </p>
+    </template>
+
+    <template #indicators>
+      <ChartIndicatorPanel
+        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
+        :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
+        :color-options="chartIndicators.colorOptions"
+        :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
+        :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
+        :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
+        @apply="chartIndicators.applyIndicator"
+        @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
+        @confirm-pending="chartIndicators.confirmPendingIndicator"
+        @cancel-pending="chartIndicators.cancelPendingIndicator"
+        @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
+        @toggle-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
+        @remove="chartIndicators.removeAppliedIndicator"
+        @change-line-color="chartIndicators.changeLineColor"
+      />
+    </template>
+  </KCandleChartWorkspace>
 </template>
 
 <style scoped lang="scss">
 .k-candle-chart-panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: spacing('sm');
-  min-height: 0;
-
-  // 手機上一欄由上往下：圖在前，看什麼在後。寬螢幕上圖在左、旁邊一欄固定寬。
-  &__workspace {
-    display: grid;
-    flex: 1;
-    gap: spacing('sm');
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    min-height: 0;
-
-    @include respond-to('lg') {
-      grid-template-columns: minmax(0, 1fr) 18.75rem;
-      align-items: stretch;
-    }
-  }
-
-  // 圖吃掉工作區剩下的所有高度——這個畫面就是為了看圖而存在的。
-  &__chart {
-    min-height: 24rem;
-
-    @include respond-to('lg') {
-      min-height: 32rem;
-    }
-  }
-
-  &__stage {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  // 手機上工具列排在圖的下方（拇指搆得到）；寬螢幕上回到圖的上方，與設計稿的交易版面一致。
-  &__toolbar {
-    order: 2;
-    border-top: 1px solid color('border');
-    padding: spacing('xs');
-
-    @include respond-to('md') {
-      order: 0;
-      border-top: 0;
-      border-bottom: 1px solid color('border');
-    }
-  }
-
-  &__canvas {
-    order: 1;
-  }
-
-  &__side {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('sm');
-    min-width: 0;
-  }
-
-  &__controls {
-    display: flex;
-    flex-direction: column;
-    gap: spacing('md');
-  }
-
   &__catch-up-message {
-    color: color('text-faint');
+    color: color('chart-workspace-text-muted');
     font-size: font-size('2xs');
-  }
-
-  &__empty {
-    order: 1;
-    margin: auto;
-    padding: spacing('2xl') spacing('md');
-    color: color('text-faint');
-    font-size: font-size('xs');
-    text-align: center;
+    white-space: nowrap;
   }
 }
 </style>

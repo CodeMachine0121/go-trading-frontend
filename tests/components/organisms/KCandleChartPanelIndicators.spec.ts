@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { openIndicatorDialog, pickSymbolInSearch } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -22,7 +24,6 @@ import { buildStrategyScriptApplication, buildStoredStrategyScript, buildAdopted
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -87,11 +88,13 @@ async function mountPanel(overrides: {
         }),
       }),
       timeZone: buildTimeZone(),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
   await flushPromises()
+  // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+  await openIndicatorDialog(wrapper)
 
   return { wrapper, calculateIndicator }
 }
@@ -319,7 +322,7 @@ describe('圖表上的指標：把一支先收起來', () => {
     await wrapper.get('[data-testid="toggle-indicator-visibility-1"]').trigger('click')
     await flushPromises()
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -334,7 +337,7 @@ describe('圖表上的指標：什麼時候重算', () => {
     const { wrapper, calculateIndicator } = await mountPanel()
     await applyStrategyScript(wrapper, 7)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -467,7 +470,7 @@ describe('圖表上的指標：什麼時候重算', () => {
   it('一支都沒套用時，換交易標的不發生任何計算', async () => {
     const { wrapper, calculateIndicator } = await mountPanel()
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -529,7 +532,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -547,7 +550,7 @@ describe('圖表上的指標：算不出來的時候', () => {
     await applyStrategyScript(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -590,11 +593,13 @@ describe('圖表上的指標：線的顏色', () => {
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
     await flushPromises()
+    // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+    await openIndicatorDialog(wrapper)
 
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
@@ -655,11 +660,13 @@ describe('圖表上的指標：邊界', () => {
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
     await flushPromises()
+    // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+    await openIndicatorDialog(wrapper)
 
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
@@ -723,11 +730,13 @@ describe('圖表上的指標：邊界', () => {
             new BackendUnreachableError('http://localhost:8080')),
         }),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
     await flushPromises()
+    // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+    await openIndicatorDialog(wrapper)
 
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
     expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
@@ -789,10 +798,10 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     resolvers[0]?.(aCalculation('BTC 的值'))
     await flushPromises()
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
-    await wrapper.get('[data-testid="symbol-select"]').setValue('BTCUSDT')
+    await pickSymbolInSearch(wrapper, 'BTCUSDT')
     await flushPromises()
     await settle()
 
@@ -821,7 +830,7 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     await flushPromises()
 
     // 還沒回來就又換了一次，較新的那一次先回來。
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -851,7 +860,7 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
     await applyStrategyScript(wrapper, 8)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(0)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -881,18 +890,20 @@ describe('圖表上的指標：圖沒了的時候', () => {
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
     await flushPromises()
+    // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+    await openIndicatorDialog(wrapper)
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
     expect(await linesOf(wrapper, 1)).toHaveLength(1)
     await wrapper.get('[data-testid="close-applied-indicator-button"]').trigger('click')
     await flushPromises()
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -973,7 +984,7 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
     await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -1030,7 +1041,7 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
     await applyStrategyScript(wrapper, 7)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 
@@ -1046,7 +1057,7 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
     await applyStrategyScript(wrapper, 7)
     expect(wrapper.find('[data-testid="indicator-error-1"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     await settle()
 

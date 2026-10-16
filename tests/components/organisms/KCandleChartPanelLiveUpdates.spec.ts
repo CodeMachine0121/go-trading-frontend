@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { openIndicatorDialog, pickSymbolInSearch } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -18,7 +20,6 @@ import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-a
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 const CURRENT_TIME = new Date('2026-09-03T12:00:00.000Z')
@@ -90,11 +91,13 @@ async function mountPanel(
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
   await flushPromises()
+  // 指標的清單與旋鈕都在「指標與策略腳本」對話框裡。
+  await openIndicatorDialog(wrapper)
 
   return { wrapper, calculateIndicator, recalculateIndicator }
 }
@@ -109,18 +112,18 @@ afterEach(() => {
 })
 
 describe('圖跟著市場走', () => {
-  it('市場動了，圖上就多出正在走的那一根，最上面的行情摘要也跟著報新價', async () => {
+  it('市場動了，圖上就多出正在走的那一根，圖例也跟著報新價', async () => {
     const feed = controllableFeed()
     const { wrapper } = await mountPanel(feed)
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('110')
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).not.toContain('118')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('110')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).not.toContain('118')
 
     feed.report('forming', '118')
     await flushPromises()
 
     const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
     expect(kCandles[kCandles.length - 1]?.close.toString()).toBe('118')
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('118')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('118')
   })
 
   it('新的一根進來時畫面不重新擺位——它長進右邊那段留白裡', async () => {
@@ -144,7 +147,7 @@ describe('圖跟著市場走', () => {
     const { wrapper } = await mountPanel(feed)
     expect(feed.followerCount()).toBe(1)
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
     expect(feed.stopped.count).toBe(1)
@@ -191,7 +194,7 @@ describe('取行情失敗之後', () => {
         .mockRejectedValue(new BackendServerError('後端出錯了')),
     })
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
     expect(feed.stopped.count).toBe(1)
 
