@@ -95,11 +95,18 @@ const chartLibrary = vi.hoisted(() => {
     notifyRangeChange?.({ ...reported })
   }
 
+  let visibleLogicalRange: { from: number, to: number } | null = null
+  let notifyLogicalRangeChange: (() => void) | null = null
   const timeScale = {
     subscribeVisibleTimeRangeChange: vi.fn((handler) => {
       notifyRangeChange = handler
     }),
+    subscribeVisibleLogicalRangeChange: vi.fn((handler: () => void) => {
+      notifyLogicalRangeChange = handler
+    }),
+    getVisibleLogicalRange: vi.fn(() => visibleLogicalRange),
     setVisibleLogicalRange: vi.fn((range: { from: number, to: number }) => {
+      visibleLogicalRange = { ...range }
       const reported = snapEveryRangeTo ?? timeRangeFor(range)
       if (reported === null) {
         return
@@ -108,11 +115,23 @@ const chartLibrary = vi.hoisted(() => {
       notifyOnce(reported)
     }),
   }
+  let priceScaleAutoScale = true
+  const priceScale = {
+    applyOptions: vi.fn((options: { autoScale?: boolean }) => {
+      priceScaleAutoScale = options.autoScale ?? priceScaleAutoScale
+    }),
+    options: vi.fn(() => ({ autoScale: priceScaleAutoScale })),
+  }
+  let notifyCrosshairMove: ((param: { point?: { x: number, y: number }, logical?: number }) => void) | null = null
   const chartApi = {
     addSeries: vi.fn(),
     applyOptions: vi.fn(),
     removeSeries: vi.fn(),
     timeScale: () => timeScale,
+    priceScale: vi.fn(() => priceScale),
+    subscribeCrosshairMove: vi.fn((handler) => {
+      notifyCrosshairMove = handler
+    }),
     remove: vi.fn(),
   }
 
@@ -120,7 +139,21 @@ const chartLibrary = vi.hoisted(() => {
     candlestickSeries,
     lineSeries,
     timeScale,
+    priceScale,
     chartApi,
+    /** 讓替身像使用者把十字線移到某一根上（或移出圖）那樣通知一次。 */
+    moveCrosshair(logical: number | null) {
+      notifyCrosshairMove?.(logical === null ? {} : { point: { x: 1, y: 1 }, logical })
+    },
+    /** 讓替身像使用者拖到某一段那樣，把看得到的序位換掉並通知。 */
+    showLogicalRange(range: { from: number, to: number }) {
+      visibleLogicalRange = { ...range }
+      notifyLogicalRangeChange?.()
+    },
+    /** 讓替身像使用者拖了價格軸那樣，把自動縮放關掉。 */
+    turnAutoScale(on: boolean) {
+      priceScaleAutoScale = on
+    },
     createChart: vi.fn(() => chartApi),
     /** 讓替身像使用者拖出一段那樣回報一個區間。 */
     reportRange(range: { from: number, to: number }) {
@@ -132,6 +165,8 @@ const chartLibrary = vi.hoisted(() => {
       snapEveryRangeTo = range
     },
     reset() {
+      visibleLogicalRange = null
+      priceScaleAutoScale = true
       lastReported = null
       snapEveryRangeTo = null
       barTimes = []
@@ -142,7 +177,11 @@ const chartLibrary = vi.hoisted(() => {
 vi.mock('lightweight-charts', () => ({
   createChart: chartLibrary.createChart,
   CandlestickSeries: 'CandlestickSeries',
+  BarSeries: 'BarSeries',
   LineSeries: 'LineSeries',
+  AreaSeries: 'AreaSeries',
+  CrosshairMode: { Normal: 0, Magnet: 1 },
+  PriceScaleMode: { Normal: 0, Logarithmic: 1, Percentage: 2 },
   // 真的那個函式庫用這組列舉告訴我們這一格刻度該說到多細。
   TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
 }))
@@ -255,7 +294,7 @@ describe('KCandleChart', () => {
     ]))
 
     expect(drawnRows().map(row => row.color))
-      .toEqual(['--color-success', '--color-danger', '--color-text-muted'])
+      .toEqual(['--color-chart-workspace-up', '--color-chart-workspace-down', '--color-chart-workspace-text-muted'])
   })
 
   it('圖上不擺繪圖函式庫的商標', async () => {
@@ -273,8 +312,8 @@ describe('KCandleChart', () => {
     await mountChart(chartDto([]))
 
     expect(chartLibrary.chartApi.applyOptions).toHaveBeenCalledWith(expect.objectContaining({
-      layout: { background: { color: '--color-surface' }, textColor: '--color-text-muted' },
-      grid: { vertLines: { color: '--color-chart-grid' }, horzLines: { color: '--color-chart-grid' } },
+      layout: { background: { color: '--color-chart-workspace-surface' }, textColor: '--color-chart-workspace-text' },
+      grid: { vertLines: { color: '--color-chart-workspace-grid' }, horzLines: { color: '--color-chart-workspace-grid' } },
     }))
   })
 
@@ -289,10 +328,10 @@ describe('KCandleChart', () => {
     await flushPromises()
 
     expect(chartLibrary.chartApi.applyOptions).toHaveBeenCalledWith(expect.objectContaining({
-      grid: { vertLines: { color: '--color-chart-grid' }, horzLines: { color: '--color-chart-grid' } },
+      grid: { vertLines: { color: '--color-chart-workspace-grid' }, horzLines: { color: '--color-chart-workspace-grid' } },
     }))
     expect(drawnRows()).toHaveLength(1)
-    expect(drawnRows()[0]).toMatchObject({ color: '--color-success' })
+    expect(drawnRows()[0]).toMatchObject({ color: '--color-chart-workspace-up' })
     delete document.documentElement.dataset.theme
   })
 
@@ -336,7 +375,7 @@ describe('KCandleChart', () => {
     const wrapper = await mountChart(chartDto([]))
     // 掛載時自己擺過一次位置，先讓那一次走完
     vi.advanceTimersByTime(300)
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('wheel'))
 
     chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
     chartLibrary.reportRange({ from: 1788346800, to: 1788350400 })
@@ -402,7 +441,7 @@ describe('KCandleChart', () => {
       new DrawnKCandleRangeVo(0, 2.2))
     vi.advanceTimersByTime(300)
 
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('wheel'))
     // 使用者拉了一下，函式庫回報的是他看得到 K 線的那一段（第一根到最後一根）
     chartLibrary.reportRange({ from: 1788343200, to: 1788343800 })
     vi.advanceTimersByTime(300)
@@ -418,7 +457,7 @@ describe('KCandleChart', () => {
     const wrapper = await mountChart(chartDto([]))
     vi.advanceTimersByTime(300)
 
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('pointerdown'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
     chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
     vi.advanceTimersByTime(300)
 
@@ -467,7 +506,7 @@ describe('KCandleChart', () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))
     vi.advanceTimersByTime(300)
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('wheel'))
 
     chartLibrary.reportRange({ from: 1788343200, to: 1788350400 })
     wrapper.unmount()
@@ -488,7 +527,7 @@ describe('KCandleChart', () => {
     expect(wrapper.emitted('rangeChange')).toBeUndefined()
 
     chartLibrary.snapEveryRangeTo(null)
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('wheel'))
     chartLibrary.reportRange({ from: 1788346800, to: 1788350400 })
     vi.advanceTimersByTime(300)
 
@@ -499,7 +538,7 @@ describe('KCandleChart', () => {
     vi.useFakeTimers()
     const wrapper = await mountChart(chartDto([]))
     vi.advanceTimersByTime(300)
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('wheel'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('wheel'))
 
     chartLibrary.reportRange(null as unknown as { from: number, to: number })
     vi.advanceTimersByTime(300)
@@ -578,7 +617,7 @@ describe('KCandleChart', () => {
       chartDto([kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)]), 'candlestick', 'Asia/Taipei')
     // 掛載時自己擺過一次位置，先讓那一次走完
     vi.advanceTimersByTime(300)
-    wrapper.get('[data-testid="k-candle-chart"]').element.dispatchEvent(new Event('pointerdown'))
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
 
     // 函式庫回報的是它手上那份讀數（台北的當地時鐘），不是瞬間。
     chartLibrary.reportRange({
@@ -690,5 +729,104 @@ describe('KCandleChart 上的指標', () => {
     await flushPromises()
 
     expect(chartLibrary.chartApi.removeSeries).toHaveBeenCalledWith(chartLibrary.lineSeries)
+  })
+})
+
+describe('KCandleChart：看盤工作區要的那幾件事', () => {
+  const TWO_CANDLES = [
+    kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND),
+    kCandleDto('2026-09-02T10:05:00.000Z', '120', UP_TREND),
+  ]
+
+  it.each([
+    ['bar', 'BarSeries'],
+    ['area', 'AreaSeries'],
+    ['line', 'LineSeries'],
+  ] as const)('畫法是 %s 時建的是 %s', async (drawing, seriesDefinition) => {
+    await mountChart(chartDto(TWO_CANDLES), drawing as 'candlestick')
+
+    expect(chartLibrary.chartApi.addSeries).toHaveBeenCalledWith(seriesDefinition, expect.anything())
+  })
+
+  it('美國線交的是開高低收；面積交的是收盤價', async () => {
+    chartLibrary.chartApi.addSeries.mockImplementation(() => chartLibrary.candlestickSeries)
+    const wrapper = await mountChart(chartDto(TWO_CANDLES), 'bar' as 'candlestick')
+    expect(drawnRows()[0]).toMatchObject({ open: 100, high: 130, low: 90, close: 110 })
+
+    await wrapper.setProps({ drawing: 'area' })
+    await flushPromises()
+    expect(drawnRows()[0]).toEqual({ time: expect.any(Number), value: 110 })
+  })
+
+  it.each([
+    ['logarithmic', 1],
+    ['percentage', 2],
+  ] as const)('價格軸改成 %s', async (priceScaleMode, libraryMode) => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+
+    await wrapper.setProps({ priceScaleMode })
+
+    expect(chartLibrary.priceScale.applyOptions).toHaveBeenLastCalledWith({ mode: libraryMode, autoScale: true })
+  })
+
+  it('關掉自動縮放就交給函式庫', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+
+    await wrapper.setProps({ autoScale: false })
+
+    expect(chartLibrary.priceScale.applyOptions).toHaveBeenLastCalledWith({ mode: 0, autoScale: false })
+  })
+
+  it('使用者拖了價格軸之後放手：說自動縮放關了；沒變時不說', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+    const canvas = wrapper.get('[data-testid="k-candle-chart-canvas"]').element
+
+    canvas.dispatchEvent(new Event('pointerup'))
+    expect(wrapper.emitted('autoScaleChange')).toBeUndefined()
+
+    chartLibrary.turnAutoScale(false)
+    canvas.dispatchEvent(new Event('pointerup'))
+    expect(wrapper.emitted('autoScaleChange')).toEqual([[false]])
+  })
+
+  it('十字線停在第 1 根就說 1；離開圖就說 null', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+
+    chartLibrary.moveCrosshair(1.2)
+    chartLibrary.moveCrosshair(null)
+
+    expect(wrapper.emitted('crosshairMove')).toEqual([[1], [null]])
+  })
+
+  it('看得到最新那一根時說看得到；往回拖到它離開畫面時說看不到，只在變的時候說', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+
+    chartLibrary.showLogicalRange({ from: -5, to: 0.5 })
+    chartLibrary.showLogicalRange({ from: -6, to: 0.4 })
+    chartLibrary.showLogicalRange({ from: 0, to: 1.5 })
+
+    expect(wrapper.emitted('latestVisibilityChange')).toEqual([[true], [false], [true]])
+  })
+
+  it('箭頭游標不畫十字線的兩條線', async () => {
+    const wrapper = await mountChart(chartDto(TWO_CANDLES))
+
+    await wrapper.setProps({ cursorStyle: 'arrow' })
+
+    expect(chartLibrary.chartApi.applyOptions).toHaveBeenLastCalledWith(expect.objectContaining({
+      crosshair: expect.objectContaining({ vertLine: expect.objectContaining({ visible: false }) }),
+    }))
+  })
+
+  it('疊在圖上的那一層拿到的是座標換算', async () => {
+    const wrapper = mount(KCandleChart, {
+      props: { chart: chartDto(TWO_CANDLES), drawnRange: DRAWN_RANGE, timeZone: buildTimeZone() },
+      slots: { overlay: '<span data-testid="overlay">{{ typeof params.coordinateSpace.logicalToX }}</span>' },
+    })
+    expect(wrapper.find('[data-testid="overlay"]').exists()).toBe(false)
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="overlay"]').text()).toBe('function')
   })
 })
