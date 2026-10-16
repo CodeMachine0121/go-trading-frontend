@@ -26,5 +26,10 @@ export class KCandleChartViewDto {
     public readonly visibleRange: ChartVisibleRangeVo,
     public readonly reloadedChart: KCandleChartDto | null,
     public readonly drawnRange: DrawnKCandleRangeVo | null,
+    /**
+     * 這一次是整批換了一張圖（不是接上一段、也不是沒換）。換了一張圖，
+     * 序位全都不一樣了，畫面一定要照 `drawnRange` 重新擺——即使是使用者拖過去的。
+     */
+    public readonly replacedChart: boolean,
   ) {}
 }

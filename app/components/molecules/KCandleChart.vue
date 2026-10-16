@@ -153,6 +153,14 @@ let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
  * 於是又去取了一次它剛剛才畫完的東西。
  */
 let selfIssuedRangeChange = false
+/**
+ * 使用者的手（滑鼠或手指）是不是還按在圖上。
+ *
+ * 按著的時候圖自己重畫（接上一段回來、右邊多一根）也不立「是圖自己動的」標記：
+ * 那之後一定還有他的拖動事件，而他放手的那一段必須送得出去——立了標記就會被吞掉，
+ * 他得再按一次才會接上下一段。
+ */
+let pointerHeld = false
 
 /**
  * 顏色一律從 token 展開出來的 CSS 變數讀，不在這裡寫死色碼——
@@ -232,7 +240,9 @@ function redrawKCandles() {
   }
 
   // setData 自己也會讓函式庫回頭說一次「區間變了」——那不是使用者的動作。
-  selfIssuedRangeChange = true
+  if (!pointerHeld) {
+    selfIssuedRangeChange = true
+  }
   const rows = rowsOf(host, chart === null ? [] : chart.kCandles)
   series.setData(rows.map(row => row.kCandle))
   volumeSeriesApi.value?.setData(rows.map(row => row.volume))
@@ -258,8 +268,7 @@ function drawChartChange(nextChart: KCandleChartDto | null, previousChart: KCand
   }
 
   if (nextChart === null || previousChart === null
-    || nextChart.symbol !== previousChart.symbol
-    || nextChart.aggregationIntervalChoice.value !== previousChart.aggregationIntervalChoice.value) {
+    || !nextChart.belongsTo(previousChart.symbol, previousChart.aggregationIntervalChoice)) {
     redrawKCandles()
     applyDrawnRange()
 
@@ -270,16 +279,22 @@ function drawChartChange(nextChart: KCandleChartDto | null, previousChart: KCand
   const nextKCandles = nextChart.kCandles
   const lastPreviousIndex = previousKCandles.length - 1
   const grownBy = nextKCandles.length - previousKCandles.length
+  // 「只動了尾巴」要連前面每一根都畫得一模一樣才算：只比根數與頭尾時刻，
+  // 接上右邊那一段時被後端改過的那幾根就畫不出來。同一個物件就不必逐欄比。
   const onlyTheTailChanged = lastPreviousIndex >= 0
     && (grownBy === 0 || grownBy === 1)
-    && nextKCandles[0]?.openTime.getTime() === previousKCandles[0]?.openTime.getTime()
     && nextKCandles[lastPreviousIndex]?.openTime.getTime() === previousKCandles[lastPreviousIndex]?.openTime.getTime()
+    && previousKCandles.slice(0, lastPreviousIndex).every((kCandle, index) => {
+      const nextKCandle = nextKCandles[index]
+
+      return nextKCandle !== undefined && (nextKCandle === kCandle || nextKCandle.drawsLike(kCandle))
+    })
 
   if (onlyTheTailChanged) {
     // 右邊多一根時，看得到最新那一根的圖會自己往右挪一格——那不是使用者的動作。
     // 只動那一根的價格時區間不變、函式庫不會回頭說話，所以不立標記：
     // 立了，正在拖的那一次放手時就會被當成圖自己動的而被吞掉。
-    if (grownBy === 1) {
+    if (grownBy === 1 && !pointerHeld) {
       selfIssuedRangeChange = true
     }
 
@@ -508,6 +523,13 @@ onMounted(async () => {
   const markUserGesture = () => {
     selfIssuedRangeChange = false
   }
+  const holdPointer = () => {
+    markUserGesture()
+    pointerHeld = true
+  }
+  const releasePointer = () => {
+    pointerHeld = false
+  }
   // 拖價格軸會關掉自動縮放、雙擊它會再打開——函式庫不為這兩件事發通知，
   // 所以在手勢結束時問它一次，與外面記著的不一樣才說出去。
   const reportAutoScale = () => {
@@ -517,16 +539,23 @@ onMounted(async () => {
     }
   }
   host.addEventListener('wheel', markUserGesture, { passive: true })
-  host.addEventListener('pointerdown', markUserGesture)
-  host.addEventListener('touchstart', markUserGesture, { passive: true })
+  host.addEventListener('pointerdown', holdPointer)
+  host.addEventListener('touchstart', holdPointer, { passive: true })
   host.addEventListener('pointerup', reportAutoScale)
   host.addEventListener('dblclick', reportAutoScale)
+  // 放手可能發生在圖外（拖出邊界才放開），所以聽整個視窗。
+  window.addEventListener('pointerup', releasePointer)
+  window.addEventListener('pointercancel', releasePointer)
+  window.addEventListener('touchend', releasePointer)
   releaseGestureListeners.value = () => {
     host.removeEventListener('wheel', markUserGesture)
-    host.removeEventListener('pointerdown', markUserGesture)
-    host.removeEventListener('touchstart', markUserGesture)
+    host.removeEventListener('pointerdown', holdPointer)
+    host.removeEventListener('touchstart', holdPointer)
     host.removeEventListener('pointerup', reportAutoScale)
     host.removeEventListener('dblclick', reportAutoScale)
+    window.removeEventListener('pointerup', releasePointer)
+    window.removeEventListener('pointercancel', releasePointer)
+    window.removeEventListener('touchend', releasePointer)
   }
 
   // 先接上通知再畫第一次，這樣連第一次繪製自己造成的區間變動也走得到抑制邏輯。

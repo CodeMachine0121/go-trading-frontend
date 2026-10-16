@@ -30,9 +30,22 @@ export class KCandleChartDto {
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
     /** 只有合約圖表有：最新那一根的標記價格、指數價格與溢價指數。現貨圖表、或一根都沒有時為 null。 */
     public readonly latestContractPrices: KCandleContractPricesDto | null = null,
-    /** 往左接上來的一段一根都沒有過：那一頭已經沒有更早的資料，不必再去要。 */
+    /** 往左接上來的空白累積夠長了：那一頭已經沒有更早的資料，不必再去要。 */
     public readonly reachedEarliest: boolean = false,
+    /**
+     * 最近接連幾次往左接上來、一根都沒有的那幾段加起來多長（毫秒）。
+     * 有休市的市場，一段剛好落在休市裡也會是空的——所以空一次不算到底，空得夠久才算。
+     */
+    public readonly emptyEarlierSpanMilliseconds: number = 0,
   ) {}
+
+  /**
+   * 這一批是不是這一檔、以這一種粗細取回的那一張圖。
+   * 不是的話，它涵蓋得再廣都不算數：要整批換、要重新擺位置。
+   */
+  belongsTo(symbol: string, aggregationIntervalChoice: AggregationIntervalChoiceDto): boolean {
+    return this.symbol === symbol && this.aggregationIntervalChoice.value === aggregationIntervalChoice.value
+  }
 
   get count(): number {
     return this.kCandles.length

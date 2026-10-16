@@ -386,3 +386,56 @@ describe('跟不動時明說', () => {
     expect(wrapper.text()).not.toContain('收盤中')
   })
 })
+
+describe('手上這批從開頭就有 K 線時', () => {
+  /** 最早那一根就在手上這批的開頭（8/17）：一般的拖動離左邊很遠，不會去接上一段。 */
+  function fullSeries(symbol: string) {
+    return new KCandleContractSeriesVo([
+      buildKCandleContract(symbol, '2026-08-17T01:00:00.000Z', '60000'),
+      buildKCandleContract(symbol, '2026-09-23T11:45:00.000Z', '64000'),
+    ], aggregationIntervalOf('1h'))
+  }
+
+  it('換到不在名單上的、圖還沒回來就換回原本那一個：不必重取也接著跟', async () => {
+    const feed = controllableFeed()
+    const findKCandleContractSeries = vi.fn().mockImplementation(({ symbol }: { symbol: string }) =>
+      symbol === 'DOGEUSDT' ? new Promise(() => {}) : Promise.resolve(fullSeries(symbol)))
+    const wrapper = await mountPanel(feed,
+      [buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('DOGEUSDT', false)],
+      findKCandleContractSeries)
+    // 看一天：手上這批一個多月，離最早那一根很遠
+    await wrapper.findAll('[data-testid="range-preset-button"]')[3]?.trigger('click')
+    await flushPromises()
+    const btcFetches = findKCandleContractSeries.mock.calls.length
+
+    await pickSymbolInSearch(wrapper, 'DOGEUSDT')
+    await flushPromises()
+    await pickSymbolInSearch(wrapper, 'BTCUSDT')
+    await flushPromises()
+
+    // BTC 那一批還夠畫：沒有再去要，但跟盤重新接上
+    expect(findKCandleContractSeries.mock.calls.filter(([plan]) => plan.symbol === 'BTCUSDT')).toHaveLength(btcFetches)
+    expect(feed.follows.at(-1)?.symbol).toBe('BTCUSDT')
+  })
+
+  it('往左接上一段時不重新開始跟，接上來的那幾根與正在走的那一根都在圖上', async () => {
+    const feed = controllableFeed()
+    const findKCandleContractSeries = vi.fn()
+      .mockResolvedValueOnce(fullSeries('BTCUSDT'))
+      .mockResolvedValueOnce(new KCandleContractSeriesVo(
+        [buildKCandleContract('BTCUSDT', '2026-08-16T23:00:00.000Z', '59000')], aggregationIntervalOf('1h')))
+    const wrapper = await mountPanel(feed, undefined, findKCandleContractSeries)
+    feed.report('forming', '2026-09-23T12:00:00.000Z', '64050')
+    await flushPromises()
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-18T00:00:00.000Z'), endTime: new Date('2026-09-17T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    expect(findKCandleContractSeries.mock.calls[1]?.[0].kind).toBe('extendEarlier')
+    expect(feed.followKCandles).toHaveBeenCalledTimes(1)
+    expect(feed.stopped.count).toBe(0)
+    expect(drawnCloses(wrapper)).toEqual(['59000', '60000', '64000', '64050'])
+  })
+})

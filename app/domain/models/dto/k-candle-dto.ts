@@ -26,4 +26,18 @@ export class KCandleDto {
     /** 那個漲跌佔開盤價的多少（百分點）。開盤價是零時除不出來，為 `null`。 */
     public readonly priceChangePercent: Decimal | null,
   ) {}
+
+  /**
+   * 畫出來會不會一模一樣：同一刻開始、開高低收與成交量都相同。
+   * 圖拿它判斷「這一批除了最後一根之外有沒有變」——即時更新每一則都會重組整批，
+   * 物件換了不代表畫出來的東西換了。
+   */
+  drawsLike(other: KCandleDto): boolean {
+    return this.openTime.getTime() === other.openTime.getTime()
+      && this.open.equals(other.open)
+      && this.high.equals(other.high)
+      && this.low.equals(other.low)
+      && this.close.equals(other.close)
+      && this.volume.equals(other.volume)
+  }
 }

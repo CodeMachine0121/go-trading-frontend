@@ -139,7 +139,9 @@ describe('KCandleChartApplication', () => {
     })
 
     it('不必重新取時，照手上那批算出要畫的那一段——按快捷區間才不會像壞掉', async () => {
+      // 最早那一根就在手上這批的開頭：拉近的那一段離它很遠
       const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([
+        buildKCandle('2026-09-01T00:00:00.000Z', '100', '100'),
         buildKCandle('2026-09-02T10:00:00.000Z', '100', '110'),
         buildKCandle('2026-09-02T11:00:00.000Z', '100', '120'),
         buildKCandle('2026-09-02T12:00:00.000Z', '100', '130'),
@@ -153,7 +155,8 @@ describe('KCandleChartApplication', () => {
 
       expect(nextView.reloadedChart).toBeNull()
       expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-      expect(nextView.drawnRange).toEqual({ from: 0, to: 2.3 })
+      // 看的那一段從第 1 根畫到第 3 根，看得到最新那一根，所以右邊留三根的一成
+      expect(nextView.drawnRange).toEqual({ from: 1, to: 3.3 })
     })
 
     it.each([
@@ -249,7 +252,10 @@ describe('KCandleChartApplication', () => {
 
     it('看過一段過去、往右拖到快沒資料時，在右邊接上更晚的一段，接到現在為止', async () => {
       const findKCandleSeries = vi.fn()
-        .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-01T00:00:00.000Z', '100', '110')], '1h'))
+        .mockResolvedValueOnce(seriesOf([
+          buildKCandle('2026-08-30T12:00:00.000Z', '100', '105'),
+          buildKCandle('2026-09-01T11:00:00.000Z', '100', '110'),
+        ], '1h'))
         .mockResolvedValueOnce(seriesOf([buildKCandle('2026-09-02T00:00:00.000Z', '110', '120')], '1h'))
       const kCandleChartApplication = buildApplication(buildProxy({ findKCandleSeries }))
       // 看 8/31 00:00 到 9/1 00:00：手上這批涵蓋 8/30 12:00 到 9/1 12:00，早於現在一整天
@@ -265,7 +271,7 @@ describe('KCandleChartApplication', () => {
       const extendPlan = findKCandleSeries.mock.calls[1]?.[0]
       expect(extendPlan.fetchStartTime.toISOString()).toBe('2026-09-01T12:00:00.000Z')
       expect(extendPlan.fetchEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
-      expect(nextView.reloadedChart?.count).toBe(2)
+      expect(nextView.reloadedChart?.count).toBe(3)
       expect(nextView.reloadedChart?.coveredEndTime.toISOString()).toBe('2026-09-02T12:00:00.000Z')
     })
 
@@ -541,6 +547,7 @@ describe('KCandleChartApplication', () => {
 
     it('手上那批還夠用時不重新取——與現貨圖表同一條規則', async () => {
       const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([
+        buildKCandleContract('2026-09-01T00:00:00.000Z', '100', '100'),
         buildKCandleContract('2026-09-02T11:00:00.000Z', '100', '110'),
       ]))
       const kCandleChartApplication = buildContractChartApplication(

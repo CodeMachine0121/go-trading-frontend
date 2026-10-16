@@ -6,6 +6,7 @@ import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
+import { LiveKCandleFollowingDto } from '~/domain/models/dto/live-k-candle-following-dto'
 
 /**
  * Domain Service：跟盤的編排。
@@ -17,7 +18,7 @@ export class LiveKCandleService {
   constructor(private readonly liveKCandleProxy: ILiveKCandleProxy) {}
 
   /**
-   * 開始跟一個交易標的，每收到一則就把併好的結果交出去，並回傳怎麼停。
+   * 開始跟一個交易標的，每收到一則就把併好的結果交出去，並回傳怎麼停、怎麼接上一段。
    *
    * 交出去的是一份**報告**而不是一張圖，因為呼叫端需要知道的不只是圖變成什麼樣子，
    * 還有「這一則是不是一根走完了」（要重算指標）與「是不是跟不動了」（要明說）。
@@ -27,10 +28,10 @@ export class LiveKCandleService {
     symbol: string,
     chart: KCandleChartDto,
     onReport: (report: LiveKCandleReportDto) => void,
-  ): () => void {
+  ): LiveKCandleFollowingDto {
     let liveChart = new LiveKCandleChartDomain(chart)
 
-    return this.liveKCandleProxy.followKCandles(symbol, (update) => {
+    const stop = this.liveKCandleProxy.followKCandles(symbol, (update) => {
       liveChart = liveChart.applying(update)
 
       onReport(new LiveKCandleReportDto(
@@ -41,6 +42,12 @@ export class LiveKCandleService {
         update.status === 'marketClosed',
         update.status === 'ended',
       ))
+    })
+
+    return new LiveKCandleFollowingDto(stop, (extendedChart) => {
+      liveChart = liveChart.rebasedOnto(extendedChart)
+
+      return liveChart.toChartDto()
     })
   }
 

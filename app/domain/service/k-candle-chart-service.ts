@@ -138,7 +138,7 @@ export class KCandleChartService {
 
     // 接上一段時取回來的只是那一段，要併進手上這批才是這一次要畫的那一批。
     // 能走到「接上」，手上一定已經有一批——那是取回計畫判斷的前提。
-    const fetchedChart = kCandleChartLoadPlanVo.needsReload
+    const fetchedChart = kCandleChartLoadPlanVo.kind !== 'none'
       ? await fetchChart(kCandleChartLoadPlanVo)
       : null
     const loadedChart = kCandleChartViewportDto.loadedChart
@@ -155,6 +155,7 @@ export class KCandleChartService {
       chartVisibleRangeVo,
       reloadedChart,
       new DrawnKCandleRangeDomain(drawnChart, chartVisibleRangeVo).toVo(),
+      kCandleChartLoadPlanVo.kind === 'replace',
     )
   }
 

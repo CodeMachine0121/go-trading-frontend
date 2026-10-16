@@ -40,9 +40,4 @@ export class KCandleChartLoadPlanVo {
     public readonly fetchEndTime: Date,
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ) {}
-
-  /** 這一次要不要跟後端要東西。 */
-  get needsReload(): boolean {
-    return this.kind !== 'none'
-  }
 }

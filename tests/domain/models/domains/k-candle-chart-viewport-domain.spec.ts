@@ -16,15 +16,21 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 const NOW = new Date('2026-09-02T12:00:00.000Z')
 
 /** 只給會影響行為的資料：手上這批的交易標的、挑的粗細、涵蓋範圍與那一頭到底了沒有。 */
+/**
+ * 只給會影響行為的資料：手上這批的交易標的、挑的粗細、涵蓋範圍、那一頭到底了沒有，
+ * 以及最早與最晚那一根落在哪裡——沒說的話，就是貼著涵蓋範圍的兩端（一天到晚都有成交的市場）。
+ */
 function loadedChart(
   { symbol = 'BTCUSDT', coveredStartTime, coveredEndTime,
-    choice = DEFAULT_AGGREGATION_INTERVAL_CHOICE, reachedEarliest = false }:
+    choice = DEFAULT_AGGREGATION_INTERVAL_CHOICE, reachedEarliest = false,
+    kCandleOpenTimes = [coveredStartTime, new Date(new Date(coveredEndTime).getTime() - 60 * 60 * 1000).toISOString()] }:
   {
     symbol?: string
     coveredStartTime: string
     coveredEndTime: string
     choice?: AggregationIntervalChoiceDto
     reachedEarliest?: boolean
+    kCandleOpenTimes?: string[]
   },
 ): KCandleChartDto {
   return new KCandleChartDto(
@@ -32,14 +38,14 @@ function loadedChart(
     intervalFor(choice.value),
     new Date(coveredStartTime),
     new Date(coveredEndTime),
-    [new KCandleDto(
-      symbol, new Date(coveredStartTime),
+    kCandleOpenTimes.map(openTime => new KCandleDto(
+      symbol, new Date(openTime),
       new Decimal('100'), new Decimal('110'), new Decimal('90'), new Decimal('105'),
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
       new KCandleTrendVo('up', new LocalizedTextVo('上漲', 'Up'), 'success'),
       new Decimal('5'),
       new Decimal('5'),
-    )],
+    )),
     choice,
     null,
     reachedEarliest,
@@ -133,7 +139,7 @@ describe('KCandleChartViewportDomain', () => {
 
       expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-02T00:00:00.000Z')
       expect(loadPlan.visibleEndTime).toEqual(NOW)
-      expect(loadPlan.needsReload).toBe(false)
+      expect(loadPlan.kind).toBe('none')
     })
   })
 
@@ -147,6 +153,25 @@ describe('KCandleChartViewportDomain', () => {
       expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
       // 看的那一段不動
       expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-09-01T06:00:00.000Z')
+    })
+
+    it('有休市的市場：要的那一段從休市裡開始，量的是手上最早那一根，不是那一段的開頭', () => {
+      // 要的是 9/1 00:00 起，但最早那一根是 09:00 開盤；圖最多只拖得到 09:00
+      const closingMarket = loadedChart({ ...ONE_DAY_LOADED, kCandleOpenTimes: ['2026-09-01T09:00:00.000Z', '2026-09-02T05:00:00.000Z'] })
+
+      const loadPlan = viewport('2026-09-01T09:00:00.000Z', '2026-09-01T21:00:00.000Z', closingMarket).toLoadPlan()
+
+      expect(loadPlan.kind).toBe('extendEarlier')
+      expect(loadPlan.fetchEndTime.toISOString()).toBe('2026-09-01T00:00:00.000Z')
+    })
+
+    it('手上一根都沒有時，量的是那一段的開頭', () => {
+      const empty = loadedChart({ ...ONE_DAY_LOADED, kCandleOpenTimes: [] })
+
+      expect(viewport('2026-09-01T06:00:00.000Z', '2026-09-02T06:00:00.000Z', empty).toLoadPlan().kind)
+        .toBe('extendEarlier')
+      expect(viewport('2026-09-01T12:00:00.000Z', '2026-09-02T12:00:00.000Z', empty).toLoadPlan().kind)
+        .toBe('none')
     })
 
     it('那一頭已經到底時不再去要', () => {
@@ -168,6 +193,15 @@ describe('KCandleChartViewportDomain', () => {
       expect(loadPlan.kind).toBe('extendLater')
       expect(loadPlan.fetchStartTime.toISOString()).toBe('2026-09-01T12:00:00.000Z')
       expect(loadPlan.fetchEndTime).toEqual(NOW)
+    })
+
+    it('有休市的市場：手上最新那一根是收盤前那一根，量的是它，不是那一段的結尾', () => {
+      // 要到 9/1 12:00，但 8/31 13:00 收盤之後就沒有成交；圖最多只拖得到 13:00 那一根
+      const closingMarket = loadedChart({ ...PAST_LOADED, kCandleOpenTimes: ['2026-08-30T12:00:00.000Z', '2026-08-31T13:00:00.000Z'] })
+
+      const loadPlan = viewport('2026-08-31T01:00:00.000Z', '2026-08-31T13:00:00.000Z', closingMarket).toLoadPlan()
+
+      expect(loadPlan.kind).toBe('extendLater')
     })
 
     it('每根一分鐘時，右邊一次至多接九百根', () => {

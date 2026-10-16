@@ -74,8 +74,7 @@ export class KCandleChartViewportDomain {
     // 不是後端回報的刻度：那是兩件事，見 KCandleChartDto。
     // 涵蓋不到任何時間的那一批單獨列成一個理由——拿它接上一段，接出來的仍然什麼都沒有。
     if (loadedChart === null
-      || loadedChart.symbol !== this.symbol
-      || loadedChart.aggregationIntervalChoice.value !== this.aggregationIntervalChoice.value
+      || !loadedChart.belongsTo(this.symbol, this.aggregationIntervalChoice)
       || loadedChart.coveredSpanMilliseconds <= 0
       || visibleEnd <= loadedChart.coveredStartTime.getTime()
       || visibleStart >= loadedChart.coveredEndTime.getTime()) {
@@ -96,15 +95,20 @@ export class KCandleChartViewportDomain {
     const coveredStart = loadedChart.coveredStartTime.getTime()
     const coveredEnd = loadedChart.coveredEndTime.getTime()
     const extendThresholdMilliseconds = spanMilliseconds * EXTEND_THRESHOLD_RATIO
+    // 離邊緣多遠，量的是**手上最早（最晚）那一根**，不是當初要的那一段的邊界：
+    // 有休市的市場，要的那一段常常從休市裡開始，而圖只拖得到真的有 K 線的地方——
+    // 拿邊界量，差的那幾個小時永遠補不掉，於是怎麼拖都不會接上。
+    const earliestLoaded = loadedChart.kCandles[0]?.openTime.getTime() ?? coveredStart
+    const latestLoaded = loadedChart.latestKCandleOpenTime?.getTime() ?? coveredEnd
 
-    if (!loadedChart.reachedEarliest && visibleStart - coveredStart < extendThresholdMilliseconds) {
+    if (!loadedChart.reachedEarliest && visibleStart - earliestLoaded < extendThresholdMilliseconds) {
       return planOf('extendEarlier', coveredStart - maximumFetchedMilliseconds, coveredStart)
     }
 
     // 「手上最新那一根早於現在」以一整根為準：不到一根的那一點點，即時更新本來就會補上；
     // 拿「早於現在一毫秒」當理由，每一次放手都會去要一段幾乎是空的。
     const intervalMilliseconds = this.aggregationIntervalChoice.interval.minutes * MILLISECONDS_PER_MINUTE
-    if (now - coveredEnd >= intervalMilliseconds && coveredEnd - visibleEnd < extendThresholdMilliseconds) {
+    if (now - coveredEnd >= intervalMilliseconds && latestLoaded - visibleEnd < extendThresholdMilliseconds) {
       return planOf('extendLater', coveredEnd, Math.min(coveredEnd + maximumFetchedMilliseconds, now))
     }
 

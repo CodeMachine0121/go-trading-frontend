@@ -19,6 +19,7 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { LiveKCandleFollowingDto } from '~/domain/models/dto/live-k-candle-following-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -248,8 +249,13 @@ async function catchUp() {
   }
 }
 
-/** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
-let stopFollowing: (() => void) | null = null
+/** 正在跟的那一檔：怎麼停、怎麼接上一段。換一批 K 線、離開畫面時都要用到；沒在跟時是 null。 */
+let following: LiveKCandleFollowingDto | null = null
+/**
+ * 手上這批**取回來的樣子**——沒有併進即時 K 線的那一份。下一次要不要取、
+ * 接上一段時拿什麼去併，說的都是它：拿併過即時的那一份去併，即時那幾根就會被算兩次。
+ */
+let loadedChart: KCandleChartDto | null = null
 /**
  * 這是第幾次跟盤。回呼是個閉包，它可能比自己的訂閱活得更久——
  * 只認自己那一次的號碼，就不必假設「停止」在每一種情況下都立刻生效。
@@ -294,13 +300,21 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
     const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
 
     if (requestNumber === latestRequestNumber) {
-      if (repositions) {
+      // 整批換了一張圖時序位全都不一樣了，即使是拖過去的那一次也要照領域說的擺。
+      if (repositions || chartView.replacedChart) {
         drawnRange.value = chartView.drawnRange
       }
 
+      // 接上一段時不重新開始跟：已經收到的即時 K 線留著，併進接好的那一批。
+      // 換了一批（或本來就沒在跟）時才重新開始跟。
+      const rebasedChart = chartView.reloadedChart !== null && !chartView.replacedChart && following !== null
+        ? following.rebaseOnto(chartView.reloadedChart)
+        : null
+
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
-        chart.value = chartView.reloadedChart
+        loadedChart = chartView.reloadedChart
+        chart.value = rebasedChart ?? chartView.reloadedChart
       }
 
       // **指標算的是使用者正在看的那一段**，不是手上那一整批（後者兩側各多取了半段）。
@@ -315,7 +329,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
       // 跟盤放在**告訴指標他在看哪一段之後**：跟盤一開始，更新隨時可能進來，
       // 而處理一則更新的第一件事就是拿那一段去問「看得到最新那一根嗎」——
       // 那一段還沒交出去的話，走完的第一根會被當成不在畫面上而漏算。
-      if (chartView.reloadedChart !== null) {
+      if (chartView.reloadedChart !== null && rebasedChart === null) {
         followTheMarket(chartView.reloadedChart)
       }
     }
@@ -343,7 +357,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
     // 拖動縮放來的那一次（多半是在接上一段）失敗時，手上這批仍然是這一檔、這種粗細的，
     // 照樣畫著，只多一句說明。換標的、換粗細、跳過去失敗時才放掉——
     // 那時手上那張圖已經不是使用者要看的東西了。
-    if (repositions) {
+    if (repositions || kCandleChartViewportDto.asksForAnotherChart) {
       forgetTheChart()
     }
   }
@@ -363,8 +377,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
  */
 function forgetTheChart() {
   chart.value = null
-  stopFollowing?.()
-  stopFollowing = null
+  loadedChart = null
+  following?.stop()
+  following = null
   followGeneration += 1
   latestLiveReport.value = null
   chartIndicators.clearLines()
@@ -375,11 +390,11 @@ function forgetTheChart() {
  * 舊的那一批已經不在圖上了。
  */
 function followTheMarket(followedChart: KCandleChartDto) {
-  stopFollowing?.()
+  following?.stop()
   followGeneration += 1
   const generation = followGeneration
 
-  stopFollowing = liveKCandleApplication.followKCandles(
+  following = liveKCandleApplication.followKCandles(
     followedChart.symbol, followedChart, (report) => {
       // 已經不是這一次在跟了：這一則講的是上一檔的行情。
       if (generation !== followGeneration) {
@@ -409,7 +424,7 @@ function followTheMarket(followedChart: KCandleChartDto) {
 }
 
 onBeforeUnmount(() => {
-  stopFollowing?.()
+  following?.stop()
   followGeneration += 1
   chartIndicators.stopSettling()
 })
@@ -419,7 +434,7 @@ function selectPreset(preset: KCandleChartRangePresetDto) {
   activePreset.value = preset
   aggregationIntervalChoice.value = preset.aggregationIntervalChoice
 
-  return showViewport(preset.toViewportDto(symbol.value, chart.value), true)
+  return showViewport(preset.toViewportDto(symbol.value, loadedChart), true)
 }
 
 function showRange(range: { startTime: Date, endTime: Date }) {
@@ -427,7 +442,7 @@ function showRange(range: { startTime: Date, endTime: Date }) {
   activePreset.value = null
 
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, range.startTime, range.endTime, chart.value,
+    symbol.value, range.startTime, range.endTime, loadedChart,
     aggregationIntervalChoice.value), false)
 }
 
@@ -447,13 +462,13 @@ function jumpToLatest() {
  */
 function showLatest() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
+    symbol.value, requestedStartTime.value, requestedEndTime.value, loadedChart,
     aggregationIntervalChoice.value).endingAt(new Date()), true)
 }
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
+    symbol.value, requestedStartTime.value, requestedEndTime.value, loadedChart,
     aggregationIntervalChoice.value), true)
 }
 

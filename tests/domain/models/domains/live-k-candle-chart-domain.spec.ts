@@ -76,6 +76,46 @@ describe('把即時更新併進圖上那批 K 線', () => {
     expect(merged.reachedEarliest).toBe(true)
   })
 
+  /** 一批 5 分鐘 K 線，涵蓋到某一刻為止。 */
+  function chartCoveredUntil(coveredEndTime: string, kCandles: KCandle[]): KCandleChartDto {
+    return new KCandleChartDto(
+      'BTCUSDT', intervalOf('5m'), new Date('2026-09-03T00:00:00.000Z'), new Date(coveredEndTime),
+      kCandles.map(kCandle => kCandle.toDomain().toDto()), DEFAULT_AGGREGATION_INTERVAL_CHOICE)
+  }
+
+  it('往右接上一段之後：落在新取回那一段裡的即時 K 線不再併（後端已經算進去），之後的留著', () => {
+    const following = new LiveKCandleChartDomain(
+      chartCoveredUntil('2026-09-03T10:05:00.000Z', [kCandleOf('2026-09-03T10:00:00.000Z')]))
+      .applying(formingAt('2026-09-03T10:00:00.000Z', { volume: '2' }))
+      .applying(formingAt('2026-09-03T10:05:00.000Z', { volume: '3' }))
+      .applying(formingAt('2026-09-03T10:10:00.000Z', { volume: '4' }))
+    // 往右接上來的那一批涵蓋到 10:10，10:05 那一根已經在裡面了
+    const extended = chartCoveredUntil('2026-09-03T10:10:00.000Z', [
+      kCandleOf('2026-09-03T10:00:00.000Z'), kCandleOf('2026-09-03T10:05:00.000Z', { volume: '3' })])
+
+    const rebased = following.rebasedOnto(extended).toChartDto()
+
+    expect(rebased.kCandles.map(kCandle => [kCandle.openTime.toISOString(), kCandle.volume.toString()])).toEqual([
+      ['2026-09-03T10:00:00.000Z', '2'],
+      ['2026-09-03T10:05:00.000Z', '3'],
+      ['2026-09-03T10:10:00.000Z', '4'],
+    ])
+  })
+
+  it('往左接上一段之後：即時 K 線一根都不丟', () => {
+    const following = new LiveKCandleChartDomain(
+      chartCoveredUntil('2026-09-03T10:05:00.000Z', [kCandleOf('2026-09-03T10:00:00.000Z')]))
+      .applying(formingAt('2026-09-03T10:00:00.000Z', { volume: '2' }))
+    const extended = new KCandleChartDto(
+      'BTCUSDT', intervalOf('5m'), new Date('2026-09-02T00:00:00.000Z'), new Date('2026-09-03T10:05:00.000Z'),
+      [kCandleOf('2026-09-02T09:00:00.000Z'), kCandleOf('2026-09-03T10:00:00.000Z')].map(kCandle => kCandle.toDomain().toDto()),
+      DEFAULT_AGGREGATION_INTERVAL_CHOICE)
+
+    const rebased = following.rebasedOnto(extended).toChartDto()
+
+    expect(rebased.kCandles.map(kCandle => kCandle.volume.toString())).toEqual(['0', '2'])
+  })
+
   it('併進來之後，這一批仍然是以同一個選擇取回的那一批', () => {
     const chart = chartOf('5m', ['2026-09-03T10:00:00.000Z'], aggregationIntervalChoiceOf('5m'))
 

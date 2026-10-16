@@ -965,6 +965,53 @@ describe('KCandleChart：換一批時挑最不會讓畫面動的畫法', () => {
     expect(wrapper.emitted('rangeChange')).toHaveLength(1)
   })
 
+  it('根數沒變、但前面幾根被換了（右邊接上一段帶回後端的版本）：整批重畫', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([kCandleDto('2026-09-02T10:00:00.000Z', '111', UP_TREND), TEN_FIVE]) })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.candlestickSeries.update).not.toHaveBeenCalled()
+  })
+
+  it('前面幾根換了物件、畫出來卻一模一樣（即時更新重組了整批）：仍然只更新最後一根', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND), kCandleDto('2026-09-02T10:05:00.000Z', '125', UP_TREND),
+    ]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+    expect(chartLibrary.candlestickSeries.update).toHaveBeenCalledTimes(1)
+  })
+
+  it('手還按著時接上一段回來重畫：放手的那一段照樣送得回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    vi.advanceTimersByTime(300)
+
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+    chartLibrary.reportRange({ from: 1788343200, to: 1788343800 })
+    window.dispatchEvent(new Event('pointerup'))
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toHaveLength(1)
+  })
+
+  it('放手之後圖自己重畫的那一下，不算使用者拖曳', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
+    window.dispatchEvent(new Event('pointerup'))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
   it('左邊接上了兩根：整批重畫，再把看的那一段往右平移兩根，看的那幾根還在原處', async () => {
     const wrapper = await mountAndForget(chartDtoOf([TEN_FIVE, TEN_TEN]))
     chartLibrary.showLogicalRange({ from: 0.5, to: 1.5 })

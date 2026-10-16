@@ -139,7 +139,7 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('五分鐘')
   })
 
-  it('在圖上拖到手上這批之外很遠的地方時換一批，粗細不變，畫面不被擺回去', async () => {
+  it('在圖上拖到手上這批之外很遠的地方時換一批，粗細不變，照拖過去的那一段擺', async () => {
     const findKCandleContractSeries = vi.fn()
       .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
       .mockResolvedValueOnce(contractSeriesOf([
@@ -159,7 +159,9 @@ describe('KCandleContractChartPanel', () => {
     expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('1h')
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles.map(kCandle => kCandle.close.toString()))
       .toEqual(['90', '95'])
-    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).toBe(drawnRangeBefore)
+    // 整批換了一張圖：序位全都不一樣了，照拖過去的那一段重新擺（兩根都在、看得到最新那一根）
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).not.toBe(drawnRangeBefore)
+    expect(wrapper.findComponent(KCandleChart).props('drawnRange')).toEqual({ from: 0, to: 1.2 })
   })
 
   it('按「一天」一併換成每根五分鐘，五分鐘亮著', async () => {
@@ -412,8 +414,10 @@ describe('KCandleContractChartPanel', () => {
   })
 
   it('小幅拖動、還在手上那批之內時不重新取，圖照舊', async () => {
-    const findKCandleContractSeries = vi.fn().mockResolvedValue(
-      contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
+    const findKCandleContractSeries = vi.fn().mockResolvedValue(contractSeriesOf([
+      buildKCandleContract('2026-08-17T00:00:00.000Z', '100'),
+      buildKCandleContract('2026-09-23T11:00:00.000Z', '110'),
+    ]))
     const wrapper = await mountPanel(buildKCandleContractProxy({ findKCandleContractSeries }))
 
     wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
@@ -422,7 +426,7 @@ describe('KCandleContractChartPanel', () => {
     await flushPromises()
 
     expect(findKCandleContractSeries).toHaveBeenCalledTimes(1)
-    expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(1)
+    expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(2)
   })
 
   it('圖例的標題是畫出來的那一個永續合約', async () => {
