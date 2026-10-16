@@ -2,6 +2,10 @@
 import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
+import SymbolSearchDialog from '~/components/molecules/SymbolSearchDialog.vue'
+import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
 
@@ -17,7 +21,7 @@ import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trad
  * 沒有市場鍵：合約都在同一個全天候的市場。
  */
 const {
-  tradingSymbolApplication, errorMessage = null, watchedOnly = false, keepsSelection = false,
+  tradingSymbolApplication, errorMessage = null, watchedOnly = false, keepsSelection = false, presentation = 'select',
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
@@ -25,6 +29,8 @@ const {
   watchedOnly?: boolean
   /** 目前這一個不在清單上也不改選——改一台已存的機器人時，它盯的合約不能被悄悄換掉。 */
   keepsSelection?: boolean
+  /** 表單裡的下拉選單，或看盤工作區上方細邊那一顆「代號＋放大鏡」。同 SymbolField。 */
+  presentation?: 'select' | 'search'
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -67,6 +73,29 @@ const hint = computed(() => {
     : t('marketData.contractSymbolField.allHint')
 })
 
+const searchOpen = ref(false)
+const initialSearchQuery = ref('')
+
+function openSearch(initialQuery = '') {
+  initialSearchQuery.value = initialQuery
+  searchOpen.value = true
+}
+
+const searchOptions = computed(() => options.value.options.map(contractTradingSymbol => new SymbolSearchOptionDto(
+  contractTradingSymbol.symbol,
+  `${contractTradingSymbol.symbol}.P`,
+  contractTradingSymbol.isWatched
+    ? t('marketData.chartWorkspace.perpetualContract')
+    : t('marketData.contractSymbolField.notWatched', { symbol: t('marketData.chartWorkspace.perpetualContract') }),
+)))
+
+function pickFromSearch(pickedSymbol: string) {
+  searchOpen.value = false
+  symbol.value = pickedSymbol
+}
+
+defineExpose({ openSearch })
+
 onMounted(async () => {
   try {
     contractTradingSymbols.value = await tradingSymbolApplication.listContractTradingSymbols()
@@ -86,7 +115,35 @@ onMounted(async () => {
 </script>
 
 <template>
+  <div
+    v-if="presentation === 'search'"
+    class="contract-symbol-field contract-symbol-field--search"
+  >
+    <AppButton
+      variant="chrome"
+      class="contract-symbol-field__search-button"
+      :title="hint"
+      data-testid="symbol-search-button"
+      @click="openSearch()"
+    >
+      <span class="contract-symbol-field__search-symbol">{{ symbol === '' ? t('marketData.contractSymbolField.noOptions') : `${symbol}.P` }}</span>
+      <AppIcon
+        name="search"
+        size="small"
+        stroke="fine"
+      />
+    </AppButton>
+    <SymbolSearchDialog
+      :open="searchOpen"
+      :options="searchOptions"
+      :initial-query="initialSearchQuery"
+      @pick="pickFromSearch"
+      @close="searchOpen = false"
+    />
+  </div>
+
   <FormField
+    v-else
     :label="t('marketData.contractSymbolField.label')"
     :hint="hint"
     :error-message="errorMessage"
@@ -123,5 +180,13 @@ onMounted(async () => {
 <style scoped lang="scss">
 .contract-symbol-field {
   min-width: 0;
+
+  &__search-button {
+    font-size: font-size('md');
+  }
+
+  &__search-symbol {
+    font-weight: font-weight('semibold');
+  }
 }
 </style>

@@ -132,3 +132,39 @@ describe('ContractSymbolField 只列追蹤中的、而且改一台已存的機�
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['BTCUSDT'])
   })
 })
+
+describe('ContractSymbolField：看盤工作區上那一顆', () => {
+  it('寫著目前那一個永續合約，按下去打開商品搜尋，挑一個就換成它', async () => {
+    const wrapper = mount(ContractSymbolField, {
+      props: {
+        'modelValue': 'BTCUSDT',
+        'presentation': 'search' as const,
+        'tradingSymbolApplication': buildApplication(buildContractTradingSymbolProxy([
+          buildContractTradingSymbol('BTCUSDT'), buildContractTradingSymbol('ETHUSDT', false),
+        ])),
+        'onUpdate:modelValue': (value: string) => wrapper.setProps({ modelValue: value }),
+      },
+    })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="symbol-search-button"]').text()).toBe('BTCUSDT.P')
+
+    await wrapper.get('[data-testid="symbol-search-button"]').trigger('click')
+    expect(wrapper.findAll('[data-testid="symbol-search-option"]').map(option => option.text()))
+      .toEqual(['BTCUSDTBTCUSDT.P永續合約', 'ETHUSDTETHUSDT.P永續合約（未追蹤）'])
+    await wrapper.findAll('[data-testid="symbol-search-option"]')[1]?.trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['ETHUSDT'])
+  })
+
+  it('從外面打開時帶著打的那一個字', async () => {
+    const wrapper = mount(ContractSymbolField, {
+      props: { modelValue: 'BTCUSDT', presentation: 'search', tradingSymbolApplication: buildApplication(buildContractTradingSymbolProxy([buildContractTradingSymbol('BTCUSDT')])) },
+    })
+    await flushPromises()
+
+    ;(wrapper.vm as unknown as { openSearch: (query: string) => void }).openSearch('B')
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="symbol-search-input"]').element as HTMLInputElement).value).toBe('B')
+  })
+})

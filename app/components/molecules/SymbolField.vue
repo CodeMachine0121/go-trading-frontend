@@ -3,6 +3,10 @@ import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import AppButton from '~/components/atoms/AppButton.vue'
+import AppIcon from '~/components/atoms/AppIcon.vue'
+import SymbolSearchDialog from '~/components/molecules/SymbolSearchDialog.vue'
+import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
@@ -17,9 +21,14 @@ import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
  * **這裡只用於讀行情。** 新增／修改 K 線的表單維持手打——
  * 那正是新的交易標的誕生的地方，只能從既有清單挑的話就永遠建不出第一根。
  */
-const { tradingSymbolApplication, errorMessage = null } = defineProps<{
+const { tradingSymbolApplication, errorMessage = null, presentation = 'select' } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
+  /**
+   * 長什麼樣子：表單裡的下拉選單，或看盤工作區上方細邊那一顆「代號＋放大鏡」——
+   * 按下去打開商品搜尋。挑的是同一份清單、同一條規則，只是兩種長相。
+   */
+  presentation?: 'select' | 'search'
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -102,6 +111,31 @@ const hint = computed(() => {
   return t('marketData.symbolField.hint')
 })
 
+/** 商品搜尋開著沒有，以及打開時先放進搜尋框的字。 */
+const searchOpen = ref(false)
+const initialSearchQuery = ref('')
+
+/** 打開商品搜尋；在圖上直接打字打開時，帶著那一個字。 */
+function openSearch(initialQuery = '') {
+  initialSearchQuery.value = initialQuery
+  searchOpen.value = true
+}
+
+const searchOptions = computed(() => options.value.options.map(tradingSymbol => new SymbolSearchOptionDto(
+  tradingSymbol.symbol,
+  tradingSymbol.label,
+  tradingSymbol.hasLiveUpdates
+    ? localize(tradingSymbol.market.label)
+    : `${localize(tradingSymbol.market.label)} · ${localize(tradingSymbol.liveUpdateAvailability.label)}`,
+)))
+
+function pickFromSearch(pickedSymbol: string) {
+  searchOpen.value = false
+  symbol.value = pickedSymbol
+}
+
+defineExpose({ openSearch })
+
 onMounted(async () => {
   try {
     tradingSymbols.value = await tradingSymbolApplication.listTradingSymbols()
@@ -131,7 +165,37 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="symbol-field">
+  <div
+    v-if="presentation === 'search'"
+    class="symbol-field symbol-field--search"
+  >
+    <AppButton
+      variant="chrome"
+      class="symbol-field__search-button"
+      :title="hint"
+      data-testid="symbol-search-button"
+      @click="openSearch()"
+    >
+      <span class="symbol-field__search-symbol">{{ symbol === '' ? t('marketData.symbolField.noOptions') : symbol }}</span>
+      <AppIcon
+        name="search"
+        size="small"
+        stroke="fine"
+      />
+    </AppButton>
+    <SymbolSearchDialog
+      :open="searchOpen"
+      :options="searchOptions"
+      :initial-query="initialSearchQuery"
+      @pick="pickFromSearch"
+      @close="searchOpen = false"
+    />
+  </div>
+
+  <div
+    v-else
+    class="symbol-field"
+  >
     <!--
       切換鍵在欄位外面，不在裡面：FormField 用一個 <label> 把控制項包起來，
       而一顆按鈕放進 <label> 就會連帶去操作那個被標示的控制項。
@@ -194,6 +258,14 @@ onMounted(async () => {
   flex-direction: column;
   gap: spacing('3xs');
   min-width: 0;
+
+  &__search-button {
+    font-size: font-size('md');
+  }
+
+  &__search-symbol {
+    font-weight: font-weight('semibold');
+  }
 
   &__markets {
     // 這一排是「看哪個市場」，底下那格是「看哪一檔」——兩件事，所以中間留一口氣。
