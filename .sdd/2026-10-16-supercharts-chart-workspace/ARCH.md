@@ -162,6 +162,18 @@ flowchart TD
 - **主選單的開關不由工作區直接碰**：工作區發 `openMenu`，面板轉給頁面，頁面呼叫 `useChartWorkspaceMenu`。有機體因此不依賴 Nuxt 的共用狀態，在測試裡照樣掛得起來。
 - **`/improve-codebase` 之後**：商品搜尋的按鈕與對話框合成 `SymbolSearch`；兩個面板共用的狀態說明抽成 `KCandleChartNotices`；`KCandleQuote`、`LayoutDensityDto.startsChartControlsCollapsed` 與六句不再用到的說法刪除。
 
+## 6b. 追加：成交量疊圖（US-12）
+
+| Component | Change |
+| :--- | :--- |
+| `ChartReadoutDomain` / `ChartReadoutDto` | 多一個 `volumeText`：照「未滿一千寫原數、K／M／B 兩位小數」的規則寫那一根的量 |
+| `KCandleChart.vue` | 多一條 `HistogramSeries`，放在自己的價格軸（`volume`，上留八成），每根的顏色取 `chart-workspace-volume-up/down`；新 prop `showsVolume` 切它的 `visible`。主序列換畫法時它不動 |
+| `ChartLegend.vue` | 多一行 Vol：寫 `readout.volumeText`、滑過去有收起／顯示；emit `toggleVolume` |
+| `KCandleChartWorkspace.vue` | `volumeShown` 畫面狀態（預設 true、不留存），接到圖例與圖 |
+| `_tokens.scss` | `chart-workspace-volume-up` / `-down`（兩種外觀同值的半透明漲跌色） |
+
+不新增 Application 方法：量就是圖例那一行的一部分，跟著 `describeReadout` 一起來。
+
 ## 7. Traceability
 
 | PRD Scenario | Fulfilled by |
@@ -188,6 +200,7 @@ flowchart TD
 | US-08 全部 | `ChartDrawingBoardDomain`（快照、上限、清空下一步）、`useChartDrawings`（換檔重新 `loadBoard`） |
 | US-09 全部 | `ChartDrawingAnchorVo`（時間錨）、`KCandleTimelineDomain`、`ChartDrawingPreferenceProxy`（市場:標的為鍵、讀寫失敗不出聲） |
 | US-10 全部 | `ChartDrawingKindVo.shortcut`、`KCandleChartWorkspace` 鍵盤（輸入框／對話框開著時不作用） |
+| US-12 全部 | `ChartReadoutDomain.volumeText`、`KCandleChart` 成交量序列、`ChartLegend` Vol 列、`KCandleChartWorkspace.volumeShown` |
 | US-11 全部 | `ChartWorkspaceFrame` 斷點樣式、`KCandleChartWorkspace` 鉛筆按鈕 |
 
 ---
