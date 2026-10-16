@@ -615,12 +615,13 @@ onMounted(() => {
     left: spacing('xs');
   }
 
-  // 提示浮在圖的下緣中間：上緣有圖例與浮動工具列，左右下角是鉛筆與「跳到最新」。
+  // 提示浮在圖的上緣中間，排在浮動工具列下面，兩者同時出現時不互相蓋住。
+  // 手機上圖例會折成兩三行，提示再往下讓一點，不蓋住開高低收。
   // 墊一層實心的底，淡色的提示疊在 K 線上才讀得出來；沒有提示時它沒有高度，看不見。
   &__notices {
     position: absolute;
     z-index: 4;
-    bottom: spacing('2xl');
+    top: calc(#{spacing('2xl')} * 2.5);
     left: 50%;
     display: flex;
     flex-direction: column;
@@ -629,6 +630,10 @@ onMounted(() => {
     background-color: color('chart-workspace-surface');
     width: min(32rem, calc(100% - #{spacing('2xl')} * 3));
     transform: translateX(-50%);
+
+    @include respond-to('md') {
+      top: calc(#{spacing('2xl')} + #{spacing('lg')});
+    }
   }
 
   &__to-latest {

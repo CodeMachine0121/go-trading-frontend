@@ -212,7 +212,7 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     premiumIndex: 'Premium index',
     recordedAt: 'Recorded at {time}',
     emptyChart: 'No K-candles found. There may be no data in this period yet, or this contract has not started syncing.',
-    noIndicators: 'Contract charts have no indicators.',
+    noIndicators: 'Contract charts have no indicators to apply yet.',
     liveUpdateMarketClosed: 'This market is closed.',
     liveUpdateNoLivePlace: 'This contract symbol is not on the contract watchlist, so it has no live updates — add it to the contract watchlist to follow it live.',
     liveUpdateEnded: 'Live updates were cut off and will not reconnect on their own — check that this contract symbol is still on the contract watchlist, then reload the page. The chart shows the data already loaded.',

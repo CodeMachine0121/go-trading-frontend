@@ -180,7 +180,7 @@ describe('KCandleContractChartPanel', () => {
     }))
     await openIndicatorDialog(wrapper)
 
-    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toBe('合約圖表沒有指標。')
+    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toBe('合約圖表目前沒有指標可套用。')
     // 即時跟盤已經有了，那一句不能再說它沒有。
     expect(wrapper.text()).not.toContain('沒有即時跟盤')
   })
