@@ -28,6 +28,7 @@
 | `KCandleChartPanel` / `KCandleContractChartPanel` | **Modify** | `showViewport(dto, repositions)`：拖動縮放來的不擺位置；按快捷區間時一併換粗細；拿掉「粗細一變就 reload」的 watch，改在換粗細那一處明確重取 |
 | `KCandleChart.vue` | **Modify** | `drawKCandles` 依關係分四種畫法；`applyDrawnRange` 只在換一批（換檔、換粗細、第一次）與 `drawnRange` 改變時擺 |
 | `AggregationIntervalChoiceDto` 的「自動」 | **Remove** | 不再有沒有刻度的選擇 |
+| `FittingAggregationIntervalDomain` | **Add** | 交易紀錄的價格走勢原本靠「自動」由後端挑粗細；拿掉「自動」之後由它挑「塞得進九百根的最細那一種」，現貨與合約兩條走勢共用 |
 | 指標、繪圖、跟盤通道 | **Not touched** | 規則照舊 |
 
 ---
@@ -38,6 +39,7 @@
 | :--- | :--- | :--- | :--- |
 | `KCandleChartViewportDomain.toLoadPlan` | Domain Model | `replace`：沒有手上這批、換標的、換粗細、涵蓋為零、看的那一段整個在手上這批之外；取「看的那一段兩側各多半段」，超過九百根時保留較晚那一端。`extendEarlier`：還沒到底、且看的最早那一刻比涵蓋開始晚不到半個畫面寬；取 `[涵蓋開始 − 九百根, 涵蓋開始]`。`extendLater`：涵蓋結束早於現在、且看的最晚那一刻離涵蓋結束不到半個畫面寬；取 `[涵蓋結束, min(涵蓋結束 + 九百根, 現在)]`。其餘 `none` | US-03 |
 | `KCandleChartMergeDomain` | Domain Model | 併兩批 | US-03、US-04 第三例 |
+| `FittingAggregationIntervalDomain` | Domain Model | 一段時間 → 塞得進九百根的最細粗細（長到塞不下時用一天） | 拿掉「自動」的連帶影響（交易走勢） |
 | `KCandleChart.drawKCandles` | Component | 換一批→`setData`＋擺位置；往左接上 k 根→`setData`＋可見序位平移 k；同一批只多（或變了）最後一根→`series.update`；其他→`setData` 不擺位置 | US-04、US-05 |
 
 ---
