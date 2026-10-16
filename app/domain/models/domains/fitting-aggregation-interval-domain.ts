@@ -1,8 +1,6 @@
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-
-/** 一段至多畫幾根。後端單次至多一千根，留一成給有休市的市場（同一段時間格數較少，但我們只用長度換算）。 */
-const MAXIMUM_FITTING_CANDLE_COUNT = 900
+import { MAXIMUM_FETCHED_CANDLE_COUNT } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 
 const MILLISECONDS_PER_MINUTE = 60 * 1000
 
@@ -21,7 +19,7 @@ export class FittingAggregationIntervalDomain {
   toChoiceDto(): AggregationIntervalChoiceDto {
     const spanMinutes = (this.endTime.getTime() - this.startTime.getTime()) / MILLISECONDS_PER_MINUTE
     const fitting = AGGREGATION_INTERVALS.find(
-      interval => spanMinutes / interval.minutes <= MAXIMUM_FITTING_CANDLE_COUNT)
+      interval => spanMinutes / interval.minutes <= MAXIMUM_FETCHED_CANDLE_COUNT)
     ?? AGGREGATION_INTERVALS[AGGREGATION_INTERVALS.length - 1]
 
     return new AggregationIntervalChoiceDto(fitting)

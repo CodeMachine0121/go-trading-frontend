@@ -1,19 +1,10 @@
-import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
+import { KCandleChartLoadPlanVo, MAXIMUM_FETCHED_CANDLE_COUNT } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import type { KCandleChartLoadKind } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import { KCandleQueryValidationError } from '~/domain/errors/k-candle-query-validation-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-
-/**
- * 一次跟後端要的那一段最多涵蓋幾根。
- *
- * 後端單次至多一千根，而它數的是那一段時間裡有幾格——有休市的市場同一段時間格數較少，
- * 但我們這裡只會用「每根多久」去換算，所以留一成，不貼著上限走。
- * 後端那一側的上限若調整，這裡要跟著改——它是兩份設定，不是一份。
- */
-const MAXIMUM_FETCHED_CANDLE_COUNT = 900
 
 /** 整批取時往前後各多取的比例——各多取正在看的那段長度的一半。 */
 const PREFETCH_RATIO = 0.5

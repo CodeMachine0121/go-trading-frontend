@@ -1,6 +1,15 @@
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
 /**
+ * 一次跟後端要的那一段最多涵蓋幾根。
+ *
+ * 後端單次至多一千根，而它數的是那一段時間裡有幾格；我們只用「每根多久」去換算，
+ * 所以留一成，不貼著上限走。後端那一側的上限若調整，這裡要跟著改——它是兩份設定，不是一份。
+ * 圖表的整批取、接上一段，與交易走勢挑粗細，說的都是這一個數字。
+ */
+export const MAXIMUM_FETCHED_CANDLE_COUNT = 900
+
+/**
  * 這一次要怎麼取：
  * - `none`：手上這批夠畫，什麼都不要。
  * - `replace`：整批換一批（換檔、換粗細、看的那一段整個在手上這批之外）。

@@ -50,6 +50,10 @@
 - **Where it lands:** `CHOOSABLE_AGGREGATION_INTERVAL_VALUES` 與 `defaultAggregationIntervalChoice()`（已是單一入口）。
 - **Do not hardcode:** 九百根、半個畫面寬——都是 `KCandleChartViewportDomain` 的具名常數。
 - **Known debt:** 手上這批只增不減；一直往左拖到很久以前會累積很多根。圖表本身撐得住數萬根，真的成為問題時再加「離畫面太遠的那一頭丟掉」。
+- **Known debt（improve-codebase 沒採用的建議）：**
+  - 現貨與合約兩個面板的「看哪一段」流程（`selectPreset`／`showRange`／`jumpToLatest`／`reload`／`selectAggregationIntervalChoice`）幾乎相同。這一刀之前就重複；抽成一個 composable 要同時處理兩種 application 方法與合約的跟盤規則，是獨立的一次重構，不混在這一刀。
+  - `KCandleChart.drawChartChange` 偏長，但四種畫法共用同一組前置判斷；照規則「太長不是拆 private function 的理由」，不拆。
+  - 接上一段只在使用者放手時觸發：拉得非常遠（例如每根一分鐘看好幾天）時，要放手幾次才補滿。TradingView 會自己連續補；真的成為問題時，讓面板在接上之後若仍在門檻內就再問一次。
 
 ---
 
