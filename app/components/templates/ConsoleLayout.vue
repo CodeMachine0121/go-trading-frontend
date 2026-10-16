@@ -18,19 +18,7 @@ const { t } = useI18n()
  * （使用者最後停留的那一邊），人在合約 K 線圖表上時「行情圖表」照樣亮著——
  * 現貨與合約之間靠頂列的開關移動，不在導覽上各佔一格。
  */
-const destinations = computed(() => [
-  { to: '/k-candles/chart', label: t('shell.navigation.chart'), icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
-  { to: '/k-candles', label: t('shell.navigation.kCandleData'), icon: 'table', paths: ['/k-candles', '/contract-k-candles'], nested: false },
-  { to: '/strategy-scripts', label: t('shell.navigation.strategyScripts'), icon: 'code', paths: ['/strategy-scripts', '/contract-strategy-scripts'], nested: false },
-  { to: '/trading-strategies', label: t('shell.navigation.tradingStrategies'), icon: 'flow', paths: ['/trading-strategies'], nested: true },
-  { to: '/backtest-runs', label: t('shell.navigation.backtestRuns'), icon: 'history', paths: ['/backtest-runs'], nested: false },
-  { to: '/strategy-bots', label: t('shell.navigation.strategyBots'), icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
-  { to: '/spot-trade-journal', label: t('shell.navigation.tradeJournal'), icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
-  { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
-] as const)
-
-const settingsDestination = computed(() => (
-  { to: '/settings', label: t('shell.navigation.settings'), icon: 'settings', paths: ['/settings'], nested: false } as const))
+const { destinations, settingsDestination, isCurrent } = useConsoleDestinations()
 
 /** 窄螢幕底部直接露出來的四格（第五格是「更多」）。 */
 const tabDestinations = computed(() => [
@@ -73,11 +61,6 @@ const moreOpen = ref(false)
 
 function pathOf(destination: { to: string }): string {
   return destinationPaths[destination.to] ?? destination.to
-}
-
-function isCurrent(destination: { paths: readonly string[], nested: boolean }): boolean {
-  return destination.paths.some(path => route.path === path
-    || (destination.nested && route.path.startsWith(`${path}/`)))
 }
 
 /** 人在「更多」裡的畫面時，「更多」那一格自己亮——否則整排全暗，讀起來像哪裡都不在。 */
