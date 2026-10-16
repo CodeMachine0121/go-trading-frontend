@@ -68,7 +68,7 @@ export class KCandleContractProxy extends BackendApiProxy implements IKCandleCon
   async findKCandleContractSeries(
     kCandleChartLoadPlanVo: KCandleChartLoadPlanVo,
   ): Promise<KCandleContractSeriesVo> {
-    // 與現貨那一條相同：挑「自動」時一個字都不說，整個 key 不放進去。
+    // 與現貨那一條相同：一律說出使用者挑的那一種。
     const declaredInterval = kCandleChartLoadPlanVo.aggregationIntervalChoice.declaredInterval
 
     const kCandleContractSeriesWire = await this.requestBackend<KCandleContractSeriesWire>(
@@ -77,7 +77,7 @@ export class KCandleContractProxy extends BackendApiProxy implements IKCandleCon
           symbol: kCandleChartLoadPlanVo.symbol,
           startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
           endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
-          ...(declaredInterval === null ? {} : { interval: declaredInterval }),
+          interval: declaredInterval,
         },
       })
 

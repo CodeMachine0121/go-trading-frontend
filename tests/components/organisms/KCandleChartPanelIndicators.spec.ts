@@ -40,7 +40,11 @@ function buildKCandle(openTime: string, closePrice: string): KCandle {
 function buildKCandleProxy(): IKCandleProxy {
   return {
     findKCandlesInRange: vi.fn(),
-    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')])),
+    // 最早那一根落在手上這批的開頭：拖到看得到它之前，都還離左邊很遠，不會去接上一段。
+    findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([
+      buildKCandle('2026-07-27T00:00:00.000Z', '100'),
+      buildKCandle('2026-09-02T10:00:00.000Z', '110'),
+    ])),
     saveKCandle: vi.fn(),
     updateKCandle: vi.fn(),
     deleteKCandle: vi.fn(),

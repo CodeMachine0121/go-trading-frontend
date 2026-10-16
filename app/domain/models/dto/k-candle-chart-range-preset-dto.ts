@@ -18,21 +18,19 @@ export class KCandleChartRangePresetDto {
   constructor(
     public readonly label: LocalizedTextVo,
     public readonly spanMilliseconds: number,
+    /** 這個長度一併換到的粗細（照 TradingView 的日期範圍按鈕）。 */
+    public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ) {}
 
-  /**
-   * 挑好的粗細只是**原樣帶過去**：按一個快捷區間換的是看多長，不是看多細。
-   * 兩件事在這裡相遇，只因為 viewport 要它們兩個才說得完整。
-   */
+  /** 以現在為結束、往前這麼長，畫成這個長度配的那一種粗細。 */
   toViewportDto(
     symbol: string,
     loadedChart: KCandleChartDto | null,
-    aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ): KCandleChartViewportDto {
     const visibleEndTime = new Date()
     const visibleStartTime = new Date(visibleEndTime.getTime() - this.spanMilliseconds)
 
     return new KCandleChartViewportDto(
-      symbol, visibleStartTime, visibleEndTime, loadedChart, aggregationIntervalChoice)
+      symbol, visibleStartTime, visibleEndTime, loadedChart, this.aggregationIntervalChoice)
   }
 }

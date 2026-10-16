@@ -421,3 +421,48 @@ describe('通道結束了', () => {
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
   })
 })
+
+describe('跟著市場走的時候往左接上一段', () => {
+  it('不重新開始跟：取的途中收到的那一則留著，同一根再來一次也不會把成交量算兩次', async () => {
+    const feed = controllableFeed()
+    let releaseExtension: () => void = () => {}
+    const extension = new Promise<ReturnType<typeof seriesOf>>((resolve) => {
+      releaseExtension = () => resolve(seriesOf([buildKCandle('2026-07-27T23:00:00.000Z', '90')], '1h'))
+    })
+    // 一個月、每根一小時：手上這批從 7/28 00:00 開始，最早那一根就在那裡
+    const findKCandleSeries = vi.fn()
+      .mockResolvedValueOnce(seriesOf([
+        buildKCandle('2026-07-28T00:00:00.000Z', '100'),
+        buildKCandle('2026-09-03T11:00:00.000Z', '110'),
+      ], '1h'))
+      .mockImplementationOnce(() => extension)
+    const { wrapper } = await mountPanel(feed, { findKCandleSeries })
+    feed.report('forming', '118')
+    await flushPromises()
+
+    // 拖到離最早那一根一天的地方：往左接上一段
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-07-29T00:00:00.000Z'), endTime: new Date('2026-08-28T00:00:00.000Z'),
+    })
+    await flushPromises()
+    // 還在取的時候，正在走的那一根又動了
+    feed.report('forming', '121')
+    await flushPromises()
+    releaseExtension()
+    await flushPromises()
+
+    const kCandles = wrapper.findComponent(KCandleChart).props('chart')?.kCandles ?? []
+    expect(findKCandleSeries.mock.calls[1]?.[0].kind).toBe('extendEarlier')
+    expect(feed.followerCount()).toBe(1)
+    expect(feed.stopped.count).toBe(0)
+    expect(kCandles[0]?.openTime.toISOString()).toBe('2026-07-27T23:00:00.000Z')
+    expect(kCandles.at(-1)?.close.toString()).toBe('121')
+
+    feed.report('forming', '122')
+    await flushPromises()
+
+    const latest = wrapper.findComponent(KCandleChart).props('chart')?.kCandles.at(-1)
+    expect(latest?.close.toString()).toBe('122')
+    expect(latest?.volume.toString()).toBe('1')
+  })
+})

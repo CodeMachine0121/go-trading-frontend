@@ -12,7 +12,7 @@ import { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import { AggregationIntervalVo } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleTrendVo } from '~/domain/models/vo/k-candle-trend-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
+import { DEFAULT_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 // 繪圖函式庫是最外層的邊界，比照 proxy 用 mocking 套件替身，不手刻假實作。
@@ -47,6 +47,8 @@ const chartLibrary = vi.hoisted(() => {
 
   const candlestickSeries = {
     setData: vi.fn(recordBars),
+    // 只更新最後一根（或在右邊接一根）：真的那個函式庫不會為同一根的價格回頭通知。
+    update: vi.fn(),
     kind: 'Candlestick',
     // 水平線掛在主序列身上，而且要交回把手才收得掉——替身照做。
     createPriceLine: vi.fn((options: unknown) => ({ options })),
@@ -55,10 +57,12 @@ const chartLibrary = vi.hoisted(() => {
   // 成交量那一條：它的資料不是 K 線，不拿來推回「那是幾點」。
   const histogramSeries = {
     setData: vi.fn(),
+    update: vi.fn(),
     applyOptions: vi.fn(),
   }
   const lineSeries = {
     setData: vi.fn(recordBars),
+    update: vi.fn(),
     kind: 'Line',
     createPriceLine: vi.fn((options: unknown) => ({ options })),
     removePriceLine: vi.fn(),
@@ -220,7 +224,7 @@ function chartDto(kCandles: KCandleDto[]): KCandleChartDto {
     VISIBLE_START_TIME,
     VISIBLE_END_TIME,
     kCandles,
-    AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+    DEFAULT_AGGREGATION_INTERVAL_CHOICE,
   )
 }
 
@@ -499,6 +503,21 @@ describe('KCandleChart', () => {
     })
 
     await wrapper.setProps({ chart: chartDto([]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+  })
+
+  it('函式庫還沒載完就換了時區時，什麼也不畫——等載完那一刻自己會畫', async () => {
+    const wrapper = mount(KCandleChart, {
+      props: {
+        chart: chartDto([]),
+        drawing: 'candlestick',
+        drawnRange: DRAWN_RANGE,
+        timeZone: buildTimeZone(),
+      },
+    })
+
+    await wrapper.setProps({ timeZone: buildTimeZone('Asia/Taipei') })
 
     expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
   })
@@ -887,5 +906,173 @@ describe('KCandleChart：成交量疊圖', () => {
     await wrapper.setProps({ drawing: 'line' })
 
     expect(chartLibrary.chartApi.removeSeries).not.toHaveBeenCalledWith(chartLibrary.histogramSeries)
+  })
+})
+
+describe('KCandleChart：換一批時挑最不會讓畫面動的畫法', () => {
+  const TEN = kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND)
+  const TEN_FIVE = kCandleDto('2026-09-02T10:05:00.000Z', '120', UP_TREND)
+  const TEN_TEN = kCandleDto('2026-09-02T10:10:00.000Z', '130', UP_TREND)
+
+  function chartDtoOf(kCandles: KCandleDto[], symbol = 'BTCUSDT'): KCandleChartDto {
+    return new KCandleChartDto(
+      symbol,
+      new AggregationIntervalVo('5m', new LocalizedTextVo('五分鐘', '5 minutes'), 5),
+      VISIBLE_START_TIME, VISIBLE_END_TIME, kCandles, DEFAULT_AGGREGATION_INTERVAL_CHOICE)
+  }
+
+  async function mountAndForget(chart: KCandleChartDto) {
+    const wrapper = await mountChart(chart)
+    chartLibrary.candlestickSeries.setData.mockClear()
+    chartLibrary.timeScale.setVisibleLogicalRange.mockClear()
+
+    return wrapper
+  }
+
+  it('還在走的那一根價格變了：只更新那一根，其他不重畫，畫面位置不動', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, kCandleDto('2026-09-02T10:05:00.000Z', '125', UP_TREND)]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+    expect(chartLibrary.candlestickSeries.update).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.candlestickSeries.update).toHaveBeenCalledWith(expect.objectContaining({ time: 1788343500, close: 125 }))
+    expect(chartLibrary.histogramSeries.update).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
+  })
+
+  it('最新那一根收完、下一根開始：右邊多一根，其他不重畫', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+    expect(chartLibrary.candlestickSeries.update.mock.calls.map(call => call[0].time))
+      .toEqual([1788343500, 1788343800])
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
+  })
+
+  it('只動最後一根的價格時，使用者正在拖的那一次照樣送得回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN, TEN_FIVE]))
+    vi.advanceTimersByTime(300)
+
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
+    await wrapper.setProps({ chart: chartDtoOf([TEN, kCandleDto('2026-09-02T10:05:00.000Z', '125', UP_TREND)]) })
+    chartLibrary.reportRange({ from: 1788343200, to: 1788343500 })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toHaveLength(1)
+  })
+
+  it('根數沒變、但前面幾根被換了（右邊接上一段帶回後端的版本）：整批重畫', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([kCandleDto('2026-09-02T10:00:00.000Z', '111', UP_TREND), TEN_FIVE]) })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.candlestickSeries.update).not.toHaveBeenCalled()
+  })
+
+  it('前面幾根換了物件、畫出來卻一模一樣（即時更新重組了整批）：仍然只更新最後一根', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([
+      kCandleDto('2026-09-02T10:00:00.000Z', '110', UP_TREND), kCandleDto('2026-09-02T10:05:00.000Z', '125', UP_TREND),
+    ]) })
+
+    expect(chartLibrary.candlestickSeries.setData).not.toHaveBeenCalled()
+    expect(chartLibrary.candlestickSeries.update).toHaveBeenCalledTimes(1)
+  })
+
+  it('手還按著時接上一段回來重畫：放手的那一段照樣送得回去', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    vi.advanceTimersByTime(300)
+
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+    chartLibrary.reportRange({ from: 1788343200, to: 1788343800 })
+    window.dispatchEvent(new Event('pointerup'))
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toHaveLength(1)
+  })
+
+  it('放手之後圖自己重畫的那一下，不算使用者拖曳', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    vi.advanceTimersByTime(300)
+    wrapper.get('[data-testid="k-candle-chart-canvas"]').element.dispatchEvent(new Event('pointerdown'))
+    window.dispatchEvent(new Event('pointerup'))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
+  it('左邊接上了兩根：整批重畫，再把看的那一段往右平移兩根，看的那幾根還在原處', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    chartLibrary.showLogicalRange({ from: 0.5, to: 1.5 })
+
+    await wrapper.setProps({ chart: chartDtoOf([
+      kCandleDto('2026-09-02T09:55:00.000Z', '100', UP_TREND), TEN, TEN_FIVE, TEN_TEN,
+    ]) })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).toHaveBeenCalledWith({ from: 2.5, to: 3.5 })
+  })
+
+  it('左邊接上了幾根而函式庫說不出正在看哪幾根時，只重畫、不平移', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    chartLibrary.timeScale.getVisibleLogicalRange.mockReturnValueOnce(null)
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
+  })
+
+  it('左邊接上之後圖自己移的那一下不算使用者拖曳', async () => {
+    vi.useFakeTimers()
+    const wrapper = await mountChart(chartDtoOf([TEN_FIVE, TEN_TEN]))
+    vi.advanceTimersByTime(300)
+    chartLibrary.showLogicalRange({ from: 0.5, to: 1.5 })
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+    vi.advanceTimersByTime(300)
+
+    expect(wrapper.emitted('rangeChange')).toBeUndefined()
+  })
+
+  it('右邊接上一段：整批重畫，位置不動', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN]))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE, TEN_TEN]) })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
+  })
+
+  it('換了一檔：整批重畫並擺到領域算的位置', async () => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps({ chart: chartDtoOf([TEN, TEN_FIVE], 'ETHUSDT') })
+
+    expect(chartLibrary.candlestickSeries.setData).toHaveBeenCalledTimes(1)
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).toHaveBeenCalledWith({ from: 0, to: 1.5 })
+  })
+
+  it.each([
+    ['換畫法', { drawing: 'line' as const }],
+    ['換時區', { timeZone: buildTimeZone('Asia/Taipei') }],
+  ])('%s只重畫，不把畫面擺回去', async (_change, props) => {
+    const wrapper = await mountAndForget(chartDtoOf([TEN, TEN_FIVE]))
+
+    await wrapper.setProps(props)
+
+    expect(chartLibrary.timeScale.setVisibleLogicalRange).not.toHaveBeenCalled()
   })
 })

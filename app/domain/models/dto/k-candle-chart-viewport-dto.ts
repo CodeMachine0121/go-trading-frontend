@@ -18,6 +18,12 @@ export class KCandleChartViewportDto {
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
   ) {}
 
+  /** 手上那一張不是這一次要的那一張（還沒有、換了標的、換了粗細）。 */
+  get asksForAnotherChart(): boolean {
+    return this.loadedChart === null
+      || !this.loadedChart.belongsTo(this.symbol.trim(), this.aggregationIntervalChoice)
+  }
+
   /**
    * 跳到最新：同一檔、同樣的長度與粗細，只是結束在這一刻。
    * 右側留白與要不要重新取不在這裡決定——交給顯示區間原本那一套規則。

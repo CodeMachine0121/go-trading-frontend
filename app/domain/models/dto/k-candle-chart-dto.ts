@@ -6,16 +6,16 @@ import type { KCandleContractPricesDto } from '~/domain/models/dto/k-candle-cont
 /**
  * DTO：圖表這一次要畫的東西，也是畫面拿得到的唯一形狀。
  *
- * coveredStartTime / coveredEndTime 是這批資料涵蓋的範圍——比使用者正在看的那一段更寬，
- * 因為取的時候兩側各多取了半段。下次使用者小幅拖動時，就是靠它判斷不必重新取。
+ * coveredStartTime / coveredEndTime 是這批資料涵蓋的範圍——比使用者正在看的那一段更寬
+ * （整批取時兩側各多取半段，之後還會在兩邊接上一段）。要不要去要、在哪一側接，就是靠它判斷。
  *
  * **這裡有兩個關於粗細的東西，而且必須有兩個：**
  * - `interval` 是**系統實際用了哪一種**，圖上那句「每根涵蓋」說的是它。
  * - `aggregationIntervalChoice` 是**這一批當初以哪個選擇取回的**，
  *   下一次比對「選擇換了沒」說的是它。
  *
- * 拿 `interval` 去比對會無限重取：挑「自動」、後端回「五分鐘」，
- * 下一次的選擇仍然是「自動」，卻永遠不等於「五分鐘」，於是每一次都重取。
+ * 拿 `interval` 去比對會在後端回的與挑的不同時無限重取：挑「一分鐘」而後端回「五分鐘」，
+ * 下一次的選擇仍然是「一分鐘」，卻永遠不等於「五分鐘」，於是每一次都重取。
  * 兩者型別不同（刻度 vs 選擇），拿錯不會編譯過。
  */
 export class KCandleChartDto {
@@ -30,7 +30,22 @@ export class KCandleChartDto {
     public readonly aggregationIntervalChoice: AggregationIntervalChoiceDto,
     /** 只有合約圖表有：最新那一根的標記價格、指數價格與溢價指數。現貨圖表、或一根都沒有時為 null。 */
     public readonly latestContractPrices: KCandleContractPricesDto | null = null,
+    /** 往左接上來的空白累積夠長了：那一頭已經沒有更早的資料，不必再去要。 */
+    public readonly reachedEarliest: boolean = false,
+    /**
+     * 最近接連幾次往左接上來、一根都沒有的那幾段加起來多長（毫秒）。
+     * 有休市的市場，一段剛好落在休市裡也會是空的——所以空一次不算到底，空得夠久才算。
+     */
+    public readonly emptyEarlierSpanMilliseconds: number = 0,
   ) {}
+
+  /**
+   * 這一批是不是這一檔、以這一種粗細取回的那一張圖。
+   * 不是的話，它涵蓋得再廣都不算數：要整批換、要重新擺位置。
+   */
+  belongsTo(symbol: string, aggregationIntervalChoice: AggregationIntervalChoiceDto): boolean {
+    return this.symbol === symbol && this.aggregationIntervalChoice.value === aggregationIntervalChoice.value
+  }
 
   get count(): number {
     return this.kCandles.length

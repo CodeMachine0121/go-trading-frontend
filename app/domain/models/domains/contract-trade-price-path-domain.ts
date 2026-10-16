@@ -1,7 +1,7 @@
 import type { ContractTradeRecordDto } from '~/domain/models/dto/contract-trade-record-dto'
 import type { KCandleContract } from '~/domain/models/entities/k-candle-contract'
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
-import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
+import { FittingAggregationIntervalDomain } from '~/domain/models/domains/fitting-aggregation-interval-domain'
 import { TradePricePathDto } from '~/domain/models/dto/trade-price-path-dto'
 import { TradePricePathCandleDto } from '~/domain/models/dto/trade-price-path-candle-dto'
 import { TradePricePathMarkerDto } from '~/domain/models/dto/trade-price-path-marker-dto'
@@ -11,7 +11,6 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 const MINIMUM_MARGIN_MILLISECONDS = 30 * 60 * 1000
 const MARGIN_RATIO = 0.1
-const AUTOMATIC_INTERVAL_LABEL = new LocalizedTextVo('自動', 'Auto')
 const NO_MARKET_DATA_MESSAGE = new LocalizedTextVo('沒有行情資料，無法計算', 'No market data, cannot be calculated')
 
 export class ContractTradePricePathDomain {
@@ -29,13 +28,13 @@ export class ContractTradePricePathDomain {
     const fetchEndTime = new Date(Math.min(this.now.getTime(), endTime.getTime() + margin))
 
     return new KCandleChartLoadPlanVo(
-      true,
+      'replace',
       this.record.symbol,
       fetchStartTime,
       fetchEndTime,
       fetchStartTime,
       fetchEndTime,
-      new AggregationIntervalChoiceDto(AUTOMATIC_INTERVAL_LABEL, null),
+      new FittingAggregationIntervalDomain(fetchStartTime, fetchEndTime).toChoiceDto(),
     )
   }
 

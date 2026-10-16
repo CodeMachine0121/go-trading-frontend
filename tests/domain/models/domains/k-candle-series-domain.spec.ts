@@ -5,7 +5,7 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import { seriesOf } from '../../../fixtures/k-candle-series'
 import {
-  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
+  DEFAULT_AGGREGATION_INTERVAL_CHOICE, aggregationIntervalChoiceOf,
 } from '../../../fixtures/aggregation-interval-choice'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
@@ -14,10 +14,10 @@ const COVERED_END_TIME = new Date('2026-09-02T18:00:00.000Z')
 
 /** 取回計畫說要哪一段、以及使用者挑了什麼——它說不出**實際**多粗，那是系統回答的。 */
 function loadPlanForThatStretch(
-  choice: AggregationIntervalChoiceDto = AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+  choice: AggregationIntervalChoiceDto = DEFAULT_AGGREGATION_INTERVAL_CHOICE,
 ): KCandleChartLoadPlanVo {
   return new KCandleChartLoadPlanVo(
-    true,
+    'replace',
     'BTCUSDT',
     new Date('2026-09-02T08:00:00.000Z'),
     new Date('2026-09-02T16:00:00.000Z'),
@@ -66,12 +66,11 @@ describe('KCandleSeriesDomain', () => {
     expect(chart.interval.value).toBe('15m')
   })
 
-  it('沒挑時記下的就是「沒挑」，不是系統替我們挑的那一種', () => {
-    const chart = new KCandleSeriesDomain(seriesOf([], '1h'), loadPlanForThatStretch()).toDto()
+  it('記下的是挑的那一種，不是系統回報的那一種——兩者可能不同', () => {
+    const chart = new KCandleSeriesDomain(seriesOf([], '1m'), loadPlanForThatStretch()).toDto()
 
-    expect(chart.aggregationIntervalChoice.value).toBe('auto')
-    expect(chart.aggregationIntervalChoice.declaredInterval).toBeNull()
-    expect(chart.interval.value).toBe('1h')
+    expect(chart.aggregationIntervalChoice.value).toBe('1h')
+    expect(chart.interval.value).toBe('1m')
   })
 
   it('取回一根都沒有時是空的一批，不是錯誤', () => {

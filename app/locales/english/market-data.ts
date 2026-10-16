@@ -90,11 +90,12 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     showIndicator: 'Show on chart',
     removeIndicator: 'Remove',
     intervalShort: {
-      auto: 'Auto',
       oneMinute: '1m',
       fiveMinutes: '5m',
       fifteenMinutes: '15m',
       oneHour: '1h',
+      fourHours: '4h',
+      oneDay: '1D',
     },
     percentageScale: 'Percentage scale',
     logarithmicScale: 'log',

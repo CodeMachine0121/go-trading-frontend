@@ -19,6 +19,7 @@ import { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-view
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { LiveKCandleFollowingDto } from '~/domain/models/dto/live-k-candle-following-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
@@ -72,9 +73,10 @@ const activePreset = ref<KCandleChartRangePresetDto | null>(null)
 
 /**
  * 使用者要多細。它與「看哪一段」是兩個獨立的意圖，所以住在自己的 ref 裡：
- * 換標的、按快捷區間、拉遠拉近都只讀它、不寫它，於是挑好的那一種會一直用著。
+ * 換標的、拉遠拉近都只讀它、不寫它，於是挑好的那一種會一直用著；
+ * 會寫它的只有使用者自己換粗細，以及按快捷區間（那個長度配的那一種）。
  *
- * 預設**問 application 要**，不在這裡寫死——「一進來由系統挑」是一個判斷，
+ * 預設**問 application 要**，不在這裡寫死——「一進來每根多粗」是一個判斷，
  * 判斷住在 domain。進畫面前先擺一個空清單與一個佔位，理由與快捷區間相同。
  */
 const aggregationIntervalChoices = ref<AggregationIntervalChoiceDto[]>([])
@@ -237,7 +239,7 @@ async function catchUp() {
 
     await showViewport(new KCandleChartViewportDto(
       caughtUpSymbol, requestedStartTime.value, requestedEndTime.value, null,
-      aggregationIntervalChoice.value))
+      aggregationIntervalChoice.value), true)
   }
   catch (error: unknown) {
     catchUpOutcome.value = { collectedCount: null, failureReason: catchUpFailureReason(error) }
@@ -247,8 +249,13 @@ async function catchUp() {
   }
 }
 
-/** 怎麼停止跟目前這一檔。換一批 K 線、離開畫面時都要用到。 */
-let stopFollowing: (() => void) | null = null
+/** 正在跟的那一檔：怎麼停、怎麼接上一段。換一批 K 線、離開畫面時都要用到；沒在跟時是 null。 */
+let following: LiveKCandleFollowingDto | null = null
+/**
+ * 手上這批**取回來的樣子**——沒有併進即時 K 線的那一份。下一次要不要取、
+ * 接上一段時拿什麼去併，說的都是它：拿併過即時的那一份去併，即時那幾根就會被算兩次。
+ */
+let loadedChart: KCandleChartDto | null = null
 /**
  * 這是第幾次跟盤。回呼是個閉包，它可能比自己的訂閱活得更久——
  * 只認自己那一次的號碼，就不必假設「停止」在每一種情況下都立刻生效。
@@ -256,9 +263,14 @@ let stopFollowing: (() => void) | null = null
  */
 let followGeneration = 0
 
-async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
-  // 正在看的那一段等領域回答再設：它可能與這裡問的不一樣（拉太遠會被收回上限），
-  // 先樂觀寫上去的話，被收回的那一次畫面會停在使用者其實看不完的寬度上。
+/**
+ * 照這一段取（需要的話）並畫出來。
+ *
+ * `repositions` 說的是**這一次要不要把畫面擺到領域算的位置**：換標的、換粗細、
+ * 按快捷區間、跳到最新、重試時要；使用者自己拖動縮放來的那一次不要——
+ * 他放手的地方就是他要的位置，再擺一次就是「放手時畫面自己動了一下」。
+ */
+async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, repositions: boolean) {
   latestRequestNumber += 1
   const requestNumber = latestRequestNumber
 
@@ -288,12 +300,21 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
     const chartView = await kCandleChartApplication.loadKCandleChart(kCandleChartViewportDto)
 
     if (requestNumber === latestRequestNumber) {
-      // 一律照領域說的那一段擺位置：它可能與剛才問的不一樣（拉太遠會被收回上限）。
-      drawnRange.value = chartView.drawnRange
+      // 整批換了一張圖時序位全都不一樣了，即使是拖過去的那一次也要照領域說的擺。
+      if (repositions || chartView.replacedChart) {
+        drawnRange.value = chartView.drawnRange
+      }
+
+      // 接上一段時不重新開始跟：已經收到的即時 K 線留著，併進接好的那一批。
+      // 換了一批（或本來就沒在跟）時才重新開始跟。
+      const rebasedChart = chartView.reloadedChart !== null && !chartView.replacedChart && following !== null
+        ? following.rebaseOnto(chartView.reloadedChart)
+        : null
 
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
-        chart.value = chartView.reloadedChart
+        loadedChart = chartView.reloadedChart
+        chart.value = rebasedChart ?? chartView.reloadedChart
       }
 
       // **指標算的是使用者正在看的那一段**，不是手上那一整批（後者兩側各多取了半段）。
@@ -308,7 +329,7 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       // 跟盤放在**告訴指標他在看哪一段之後**：跟盤一開始，更新隨時可能進來，
       // 而處理一則更新的第一件事就是拿那一段去問「看得到最新那一根嗎」——
       // 那一段還沒交出去的話，走完的第一根會被當成不在畫面上而漏算。
-      if (chartView.reloadedChart !== null) {
+      if (chartView.reloadedChart !== null && rebasedChart === null) {
         followTheMarket(chartView.reloadedChart)
       }
     }
@@ -333,7 +354,12 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
       unexpectedFailure.value = true
     }
 
-    forgetTheChart()
+    // 拖動縮放來的那一次（多半是在接上一段）失敗時，手上這批仍然是這一檔、這種粗細的，
+    // 照樣畫著，只多一句說明。換標的、換粗細、跳過去失敗時才放掉——
+    // 那時手上那張圖已經不是使用者要看的東西了。
+    if (repositions || kCandleChartViewportDto.asksForAnotherChart) {
+      forgetTheChart()
+    }
   }
   finally {
     if (requestNumber === latestRequestNumber) {
@@ -351,8 +377,9 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto) {
  */
 function forgetTheChart() {
   chart.value = null
-  stopFollowing?.()
-  stopFollowing = null
+  loadedChart = null
+  following?.stop()
+  following = null
   followGeneration += 1
   latestLiveReport.value = null
   chartIndicators.clearLines()
@@ -363,11 +390,11 @@ function forgetTheChart() {
  * 舊的那一批已經不在圖上了。
  */
 function followTheMarket(followedChart: KCandleChartDto) {
-  stopFollowing?.()
+  following?.stop()
   followGeneration += 1
   const generation = followGeneration
 
-  stopFollowing = liveKCandleApplication.followKCandles(
+  following = liveKCandleApplication.followKCandles(
     followedChart.symbol, followedChart, (report) => {
       // 已經不是這一次在跟了：這一則講的是上一檔的行情。
       if (generation !== followGeneration) {
@@ -385,8 +412,8 @@ function followTheMarket(followedChart: KCandleChartDto) {
 
       // 一根**走完**時才重算——還在走的那一根怎麼動都不改變指標的答案（它本來就不算數）。
       //
-      // 走完的是**來源那一根（一分鐘）**，不是圖上那一根。刻度恆為一分鐘時兩者相同；
-      // 現在刻度由系統挑，圖上一根可能是一天，於是每一分鐘都會走到這裡，
+      // 走完的是**來源那一根（五分鐘）**，不是圖上那一根。圖上一根可能是一天，
+      // 於是每五分鐘都會走到這裡，
       // 而指標只採用走完的刻度區間，所以那幾次算出來的是同一個答案。
       // 多算幾次不會畫錯，只是白算——真正要的是「圖上那一根換了」，
       // 而那要拿新來的那一根所屬的刻度區間跟畫面上最新那一根比，屬於另一次改動。
@@ -397,16 +424,17 @@ function followTheMarket(followedChart: KCandleChartDto) {
 }
 
 onBeforeUnmount(() => {
-  stopFollowing?.()
+  following?.stop()
   followGeneration += 1
   chartIndicators.stopSettling()
 })
 
+/** 按一個長度：一併換到那個長度看得清楚的粗細（照 TradingView 的日期範圍按鈕）。 */
 function selectPreset(preset: KCandleChartRangePresetDto) {
   activePreset.value = preset
+  aggregationIntervalChoice.value = preset.aggregationIntervalChoice
 
-  return showViewport(preset.toViewportDto(
-    symbol.value, chart.value, aggregationIntervalChoice.value))
+  return showViewport(preset.toViewportDto(symbol.value, loadedChart), true)
 }
 
 function showRange(range: { startTime: Date, endTime: Date }) {
@@ -414,8 +442,8 @@ function showRange(range: { startTime: Date, endTime: Date }) {
   activePreset.value = null
 
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, range.startTime, range.endTime, chart.value,
-    aggregationIntervalChoice.value))
+    symbol.value, range.startTime, range.endTime, loadedChart,
+    aggregationIntervalChoice.value), false)
 }
 
 /**
@@ -425,37 +453,50 @@ function showRange(range: { startTime: Date, endTime: Date }) {
 function jumpToLatest() {
   activePreset.value = null
 
+  return showLatest()
+}
+
+/**
+ * 以他現在要求看的那一段長度、結束在現在重新取並擺位。
+ * 跳到最新、換標的、換粗細都是這一件事：那三種都要擺回看得到最新那一根。
+ */
+function showLatest() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
-    aggregationIntervalChoice.value).endingAt(new Date()))
+    symbol.value, requestedStartTime.value, requestedEndTime.value, loadedChart,
+    aggregationIntervalChoice.value).endingAt(new Date()), true)
 }
 
 function reload() {
   return showViewport(new KCandleChartViewportDto(
-    symbol.value, requestedStartTime.value, requestedEndTime.value, chart.value,
-    aggregationIntervalChoice.value))
+    symbol.value, requestedStartTime.value, requestedEndTime.value, loadedChart,
+    aggregationIntervalChoice.value), true)
 }
 
 /**
- * 換一種粗細。看的那一段一個字都不動——他說的是「我要多細」，不是「我要看多長」。
+ * 換一種粗細。看的那一段一個字都不動——他說的是「我要多細」，不是「我要看多長」；
+ * 但那一段從此不再是任何一個快捷區間（快捷區間說的是「這個長度配這種粗細」）。
  *
  * 重取由領域決定，這裡不判斷：手上那批是以另一個選擇取的，涵蓋得再廣都不算數，
- * 而那條規則已經寫在顯示區間那個 domain model 裡了。挑到同一個時
- * `watch` 根本不會醒來，所以「挑同一個不重取」也不必在這裡寫第二次。
+ * 而那條規則已經寫在顯示區間那個 domain model 裡了。
  */
 function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
+  if (choice.value === aggregationIntervalChoice.value.value) {
+    return
+  }
+
   aggregationIntervalChoice.value = choice
+  activePreset.value = null
+
+  return showLatest()
 }
 
-watch(aggregationIntervalChoice, () => reload())
-
-// 換交易標的等於換一批資料，正在看的那一段不變。
+// 換交易標的等於換一批資料：看的長度不變，擺回看得到最新那一根。
 watch(symbol, () => {
   // 補齊的說明講的是**某一檔**收到幾根。換了標的還留著它，那句話就變成在講新的那一檔。
   // 清在這裡而不是在重取那條路上：補齊自己也要重取一次，清在那裡會把剛說的話擦掉。
   catchUpOutcome.value = null
 
-  return reload()
+  return showLatest()
 })
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。

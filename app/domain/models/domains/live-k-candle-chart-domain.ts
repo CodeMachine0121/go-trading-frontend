@@ -42,6 +42,25 @@ export class LiveKCandleChartDomain {
     return new LiveKCandleChartDomain(this.chart, merged)
   }
 
+  /**
+   * 手上那一批接上了一段：換成新的那一批，**已經收到的即時 K 線留著**——
+   * 重新開始跟就會把它們丟掉，取回來的那一刻之後才走完的那一根會停在半路上。
+   *
+   * 往右接上來的那一段，後端已經把那段時間的成交算進去了；落在那一段裡的即時 K 線
+   * 再併一次就是重複累加成交量，所以丟掉——從原本涵蓋結束那一格起、到新的涵蓋結束為止。
+   * 往左接上來的不碰右邊，即時 K 線一根都不丟。
+   */
+  rebasedOnto(chart: KCandleChartDto): LiveKCandleChartDomain {
+    const previousCoveredEnd = this.chart.coveredEndTime.getTime()
+    const coveredEnd = chart.coveredEndTime.getTime()
+    const firstRefetchedBucket = this.bucketStartOf(previousCoveredEnd)
+
+    return new LiveKCandleChartDomain(chart, new Map([...this.liveKCandles].filter(([openTime]) =>
+      coveredEnd <= previousCoveredEnd
+      || this.bucketStartOf(openTime) < firstRefetchedBucket
+      || openTime >= coveredEnd)))
+  }
+
   /** 併好之後這張圖的樣子，也是畫面拿得到的唯一形狀。 */
   toChartDto(): KCandleChartDto {
     if (this.liveKCandles.size === 0) {
@@ -75,6 +94,9 @@ export class LiveKCandleChartDomain {
       this.chart.aggregationIntervalChoice,
       // 即時更新只帶成交價；合約的三條價格線照舊是取回那一批時最新那一根的。
       this.chart.latestContractPrices,
+      // 即時更新只長在右邊，左邊到底了沒有不受影響。
+      this.chart.reachedEarliest,
+      this.chart.emptyEarlierSpanMilliseconds,
     )
   }
 

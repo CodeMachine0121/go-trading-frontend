@@ -14,8 +14,8 @@ export class KCandleChartApplication {
   constructor(private readonly kCandleChartService: KCandleChartService) {}
 
   /**
-   * 回來的一律帶著使用者應該看到的那一段（可能已被收回上限）；
-   * 其中的 `reloadedChart` 為 `null` 代表手上那批就夠了，不必換資料。
+   * 回來的一律帶著使用者正在看的那一段；其中的 `reloadedChart` 為 `null`
+   * 代表手上那批就夠了，不必換資料；接上一段時它是併好之後的那一批。
    */
   async loadKCandleChart(
     kCandleChartViewportDto: KCandleChartViewportDto,

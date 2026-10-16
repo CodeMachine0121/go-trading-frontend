@@ -88,11 +88,12 @@ export const marketDataTraditionalChineseMessages = {
     showIndicator: '在圖上顯示',
     removeIndicator: '移除',
     intervalShort: {
-      auto: '自動',
       oneMinute: '1分',
       fiveMinutes: '5分',
       fifteenMinutes: '15分',
       oneHour: '1時',
+      fourHours: '4時',
+      oneDay: '日',
     },
     percentageScale: '百分比刻度',
     logarithmicScale: '對數',

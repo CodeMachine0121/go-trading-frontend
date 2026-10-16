@@ -5,7 +5,7 @@ import { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import { KCandle } from '~/domain/models/entities/k-candle'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../../fixtures/aggregation-interval-choice'
+import { DEFAULT_AGGREGATION_INTERVAL_CHOICE } from '../../../fixtures/aggregation-interval-choice'
 
 /** 十一根，整點起每五分鐘一根：09:00、09:05 …… 09:50。序位 0 到 10。 */
 const ELEVEN_OPEN_TIMES = [
@@ -31,7 +31,7 @@ function chartOf(openTimes: string[]): KCandleChartDto {
       new Decimal('100'), new Decimal('120'), new Decimal('90'), new Decimal('110'),
       new Decimal('1'), new Decimal('1'), new Decimal('1'), new Decimal('1'),
     ).toDomain().toDto()),
-    AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+    DEFAULT_AGGREGATION_INTERVAL_CHOICE,
   )
 }
 

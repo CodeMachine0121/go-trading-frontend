@@ -8,9 +8,9 @@ import { KCandleContractSeriesDomain } from '~/domain/models/domains/k-candle-co
 import { KCandleChartViewportDomain } from '~/domain/models/domains/k-candle-chart-viewport-domain'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
-import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
-import type { AggregationIntervalValue } from '~/domain/models/vo/aggregation-interval-vo'
+import { AGGREGATION_INTERVALS, aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleSeriesDomain } from '~/domain/models/domains/k-candle-series-domain'
+import { KCandleChartMergeDomain } from '~/domain/models/domains/k-candle-chart-merge-domain'
 import { DrawnKCandleRangeDomain } from '~/domain/models/domains/drawn-k-candle-range-domain'
 import { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range-vo'
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
@@ -21,78 +21,47 @@ const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
 const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR
 
 /**
- * 一進畫面先看哪一段。
+ * 圖表上可挑的粗細，**由細到粗**：後端認得的六種全部都在。
  *
- * 它有自己的名字，而不是拿清單的第一個：那一排由短到長排，第一個是一小時，
- * 於是「一進來看多長」會變成排序的副作用——改一次順序就靜靜換掉了預設。
- * 一進來看一天是一個判斷，所以寫成一個判斷。
- */
-const DEFAULT_K_CANDLE_CHART_RANGE_PRESET
-  = new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 1 * MILLISECONDS_PER_DAY)
-
-/**
- * 一鍵可切換的幾個長度，由短到長。固定的一組，不隨資料改變——
- * 它們是「值得看的幾個長度」這個判斷，不是設定。
+ * 照 TradingView，粗細一律由看的人挑，沒有「自動」——縮放只是同一種 K 線變寬變窄，
+ * 不會在跨過某個長度時突然換一種粗細。
  *
- * 幾小時的那幾個與幾個月的那幾個是同一排、同一種選擇，只是長度不同，
- * 所以不分成兩組：一條互斥的軌道才看得出「只能選一個」。
- *
- * 每根涵蓋多久仍然不在這裡。看一小時不等於要一分鐘一根——那是系統照它知道的
- * 交易時段挑的，這一排只說使用者要看多長。
- */
-const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
-  new KCandleChartRangePresetDto(new LocalizedTextVo('一小時', '1 hour'), 1 * MILLISECONDS_PER_HOUR),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('五小時', '5 hours'), 5 * MILLISECONDS_PER_HOUR),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('十小時', '10 hours'), 10 * MILLISECONDS_PER_HOUR),
-  DEFAULT_K_CANDLE_CHART_RANGE_PRESET,
-  new KCandleChartRangePresetDto(new LocalizedTextVo('五天', '5 days'), 5 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('一個月', '1 month'), 30 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('三個月', '3 months'), 90 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('六個月', '6 months'), 180 * MILLISECONDS_PER_DAY),
-  new KCandleChartRangePresetDto(new LocalizedTextVo('一年', '1 year'), 365 * MILLISECONDS_PER_DAY),
-]
-
-/**
- * 一進畫面每根涵蓋多久由誰說了算。
- *
- * 它有自己的名字，而不是拿清單的第一個：那一排由細到粗排，第一個剛好是「自動」，
- * 於是「一進來由系統挑」會變成排序的副作用——改一次順序就靜靜換掉了預設。
- * 一進來由系統挑是一個判斷，所以寫成一個判斷。
- *
- * **這裡也是「記住上次挑的那一種」將來要接上的地方**：那一天要換掉的是
- * 這個判斷的內容，而不是每一個問「預設是哪一個」的呼叫端。
- */
-const AUTOMATIC_AGGREGATION_INTERVAL_CHOICE = new AggregationIntervalChoiceDto(
-  new LocalizedTextVo('自動', 'Auto'), null)
-
-/**
- * 六種彙總刻度裡，圖表選單放哪幾種。
- *
- * 刻意不放**四小時與一天**：看那麼粗的人看的是好幾個月，而那種長度
- * 「自動」本來就會挑出夠粗的一種。選單每多一項，五選一那個
- * 「掃一眼就選完」的性質就少一點。
- *
- * 它列的是**代號**而不是整個刻度，因為型別會替我們把關：
- * 打錯一個字是編譯錯誤，而不是一個安靜少掉一項的選單——少一項沒有人會發現，
- * 那看起來就只是「我們沒支援那一種」。
- */
-const CHOOSABLE_AGGREGATION_INTERVAL_VALUES: AggregationIntervalValue[]
-  = ['1m', '5m', '15m', '1h']
-
-/**
- * 圖表上可挑的粗細，**由細到粗**，第一項是「自動」。
- *
- * 順序沿用 `AGGREGATION_INTERVALS` 的順序，而不是上面那一列的順序——
- * 「由細到粗」是那份清單的性質，在這裡再排一次就是同一件事有兩個說法。
- *
- * 標籤與代號也一律取自那份清單，不各自新建：選單上寫「五分鐘」而送出去 `5m`，
+ * 標籤與代號一律取自 `AGGREGATION_INTERVALS`：按鈕上寫「五分鐘」而送出去 `5m`，
  * 兩者必須永遠是同一列說的。
  */
-const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = [
-  AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
-  ...AGGREGATION_INTERVALS
-    .filter(interval => CHOOSABLE_AGGREGATION_INTERVAL_VALUES.includes(interval.value))
-    .map(interval => new AggregationIntervalChoiceDto(interval.label, interval)),
+const AGGREGATION_INTERVAL_CHOICES: AggregationIntervalChoiceDto[] = AGGREGATION_INTERVALS
+  .map(interval => new AggregationIntervalChoiceDto(interval))
+
+/**
+ * 一進畫面每根涵蓋多久：一小時。
+ *
+ * 它有自己的名字，而不是拿清單的第幾個：那一排由細到粗排，改一次順序就會靜靜換掉預設。
+ * **這裡也是「記住上次挑的那一種」將來要接上的地方。**
+ */
+const DEFAULT_AGGREGATION_INTERVAL_CHOICE = new AggregationIntervalChoiceDto(aggregationIntervalOf('1h'))
+
+/**
+ * 一進畫面先看哪一段：一個月——它對應的正是一進來的那一種粗細（一小時），
+ * 所以一進畫面時亮著的快捷區間與粗細說的是同一件事。
+ */
+const DEFAULT_K_CANDLE_CHART_RANGE_PRESET = new KCandleChartRangePresetDto(
+  new LocalizedTextVo('一個月', '1 month'), 30 * MILLISECONDS_PER_DAY, DEFAULT_AGGREGATION_INTERVAL_CHOICE)
+
+/**
+ * 一鍵可切換的幾個長度，由短到長，**每一個都帶著適合它的粗細**——
+ * 照 TradingView 底部那排日期範圍：按一個長度時一併換到那個長度看得清楚的粗細，
+ * 讓每一個長度畫出來都在幾百根之內。
+ */
+const K_CANDLE_CHART_RANGE_PRESETS: KCandleChartRangePresetDto[] = [
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一小時', '1 hour'), 1 * MILLISECONDS_PER_HOUR, new AggregationIntervalChoiceDto(aggregationIntervalOf('1m'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('五小時', '5 hours'), 5 * MILLISECONDS_PER_HOUR, new AggregationIntervalChoiceDto(aggregationIntervalOf('1m'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('十小時', '10 hours'), 10 * MILLISECONDS_PER_HOUR, new AggregationIntervalChoiceDto(aggregationIntervalOf('1m'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 1 * MILLISECONDS_PER_DAY, new AggregationIntervalChoiceDto(aggregationIntervalOf('5m'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('五天', '5 days'), 5 * MILLISECONDS_PER_DAY, new AggregationIntervalChoiceDto(aggregationIntervalOf('15m'))),
+  DEFAULT_K_CANDLE_CHART_RANGE_PRESET,
+  new KCandleChartRangePresetDto(new LocalizedTextVo('三個月', '3 months'), 90 * MILLISECONDS_PER_DAY, new AggregationIntervalChoiceDto(aggregationIntervalOf('4h'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('六個月', '6 months'), 180 * MILLISECONDS_PER_DAY, new AggregationIntervalChoiceDto(aggregationIntervalOf('1d'))),
+  new KCandleChartRangePresetDto(new LocalizedTextVo('一年', '1 year'), 365 * MILLISECONDS_PER_DAY, new AggregationIntervalChoiceDto(aggregationIntervalOf('1d'))),
 ]
 
 /**
@@ -121,8 +90,8 @@ export class KCandleChartService {
   /**
    * 使用者正在看這一段，手上有這些——那接下來該畫什麼、該把位置擺到哪裡。
    *
-   * 回來的一律帶著**應該看到的那一段**（可能已被收回上限），
-   * 而 `reloadedChart` 為 `null` 代表手上那批就夠了、不必換資料。
+   * 回來的一律帶著**正在看的那一段**，而 `reloadedChart` 為 `null` 代表手上那批就夠了、
+   * 不必換資料；接上一段時它是併好之後的那一批。
    * 另外還帶著**圖上實際要畫的那一段**（從第幾根到第幾根）——它比使用者要求的那一段
    * 多出右側留白，而留白落在最後一根之後，沒有任何時刻指得到它。
    *
@@ -167,19 +136,26 @@ export class KCandleChartService {
     const chartVisibleRangeVo = new ChartVisibleRangeVo(
       kCandleChartLoadPlanVo.visibleStartTime, kCandleChartLoadPlanVo.visibleEndTime)
 
-    const reloadedChart = kCandleChartLoadPlanVo.needsReload
+    // 接上一段時取回來的只是那一段，要併進手上這批才是這一次要畫的那一批。
+    // 能走到「接上」，手上一定已經有一批——那是取回計畫判斷的前提。
+    const fetchedChart = kCandleChartLoadPlanVo.kind !== 'none'
       ? await fetchChart(kCandleChartLoadPlanVo)
       : null
+    const loadedChart = kCandleChartViewportDto.loadedChart
+    const reloadedChart = fetchedChart !== null && kCandleChartLoadPlanVo.kind !== 'replace' && loadedChart !== null
+      ? new KCandleChartMergeDomain(loadedChart, fetchedChart).toDto()
+      : fetchedChart
 
     // 位置要照**這一次畫出去的那一批**算，而那批可能是剛取回的，也可能是手上原本那批——
     // 兩條分支在這裡合流，正是因為「畫面擺哪裡」這件事對兩者一視同仁：
     // 不必重新取的那一次照樣要擺位置（按下快捷區間常常就是這一種）。
-    const drawnChart = reloadedChart ?? kCandleChartViewportDto.loadedChart
+    const drawnChart = reloadedChart ?? loadedChart
 
     return new KCandleChartViewDto(
       chartVisibleRangeVo,
       reloadedChart,
       new DrawnKCandleRangeDomain(drawnChart, chartVisibleRangeVo).toVo(),
+      kCandleChartLoadPlanVo.kind === 'replace',
     )
   }
 
@@ -193,14 +169,14 @@ export class KCandleChartService {
     return DEFAULT_K_CANDLE_CHART_RANGE_PRESET
   }
 
-  /** 畫面上可挑的幾種粗細，由細到粗，第一項是「自動」。 */
+  /** 畫面上可挑的幾種粗細，由細到粗。 */
   listAggregationIntervalChoices(): AggregationIntervalChoiceDto[] {
     return AGGREGATION_INTERVAL_CHOICES
   }
 
-  /** 一進畫面每根涵蓋多久由誰說了算。 */
+  /** 一進畫面每根涵蓋多久。 */
   defaultAggregationIntervalChoice(): AggregationIntervalChoiceDto {
-    return AUTOMATIC_AGGREGATION_INTERVAL_CHOICE
+    return DEFAULT_AGGREGATION_INTERVAL_CHOICE
   }
 
   /** 圖例那一行：十字線所在那一根（不在 K 線上時最新那一根）與最新那一根的收盤倒數。 */

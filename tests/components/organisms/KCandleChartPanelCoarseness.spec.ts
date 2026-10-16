@@ -107,19 +107,19 @@ afterEach(() => {
 })
 
 describe('在圖表上挑一根 K 線涵蓋多久', () => {
-  it('選單上列的是領域說的那五項，畫面不自己寫死一份', async () => {
+  it('選單上列的是領域說的那六種，沒有自動，畫面不自己寫死一份', async () => {
     const wrapper = await mountPanel(buildProxy())
 
     expect(wrapper.findAll(INTERVAL_BUTTON).map(button => button.attributes('title')))
-      .toEqual(['自動', '一分鐘', '五分鐘', '十五分鐘', '一小時'])
+      .toEqual(['一分鐘', '五分鐘', '十五分鐘', '一小時', '四小時', '一天'])
   })
 
-  it('一進畫面選著「自動」，取行情時什麼粗細都不說', async () => {
+  it('一進畫面選著一小時，取行情時說的就是一小時', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()]))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    expect(chosenCoarseness(wrapper)).toBe('auto')
-    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBeNull()
+    expect(chosenCoarseness(wrapper)).toBe('1h')
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('1h')
   })
 
   it('挑一種粗細就重新取，並把那一種說出去', async () => {
@@ -132,15 +132,49 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('5m')
   })
 
-  it('挑回「自動」就不再說粗細', async () => {
+  it('按四小時：圖換成每根四小時，四小時亮著，沒有任何一個快捷區間亮著', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '4h'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    await chooseCoarseness(wrapper, '4h')
+
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('4h')
+    expect(chosenCoarseness(wrapper)).toBe('4h')
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')
+      .every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
+  })
+
+  it('每根五分鐘時拉遠到看得到好幾天：仍然是每根五分鐘', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '5m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     await chooseCoarseness(wrapper, '5m')
+    const callsBeforeZoom = findKCandleSeries.mock.calls.length
 
-    await chooseCoarseness(wrapper, 'auto')
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-08-28T12:00:00.000Z'), endTime: new Date('2026-09-02T12:00:00.000Z'),
+    })
+    await flushPromises()
 
-    expect(findKCandleSeries).toHaveBeenCalledTimes(3)
-    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBeNull()
+    // 拉遠到手上這批之外，往左接上一段——接的仍是五分鐘
+    expect(findKCandleSeries.mock.calls.length).toBeGreaterThan(callsBeforeZoom)
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('5m')
+    expect(chosenCoarseness(wrapper)).toBe('5m')
+  })
+
+  it('往回拖到一段過去之後換粗細：看的長度不變，擺回結束在現在', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '4h'))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-06-01T00:00:00.000Z'), endTime: new Date('2026-06-11T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    await chooseCoarseness(wrapper, '4h')
+
+    const plan = findKCandleSeries.mock.calls.at(-1)?.[0]
+    expect(plan.aggregationIntervalChoice.declaredInterval).toBe('4h')
+    expect(plan.visibleEndTime.getTime() - plan.visibleStartTime.getTime()).toBe(10 * 24 * 60 * 60 * 1000)
+    expect(Math.abs(plan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
   })
 
   it('挑到同一個不重新取', async () => {
@@ -151,6 +185,16 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await chooseCoarseness(wrapper, '5m')
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
+  })
+
+  it('按目前亮著的那一顆：不重新取，亮著的快捷區間也不熄', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+
+    await chooseCoarseness(wrapper, '1h')
+
+    expect(findKCandleSeries).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.attributes('aria-pressed')).toBe('true')
   })
 
   it('標題列說的是系統實際用的那一種，不是使用者挑的那一種', async () => {
@@ -164,28 +208,34 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('十五分鐘')
   })
 
-  it('換一種粗細時看的那一段不變', async () => {
+  it('換一種粗細時看的長度不變、仍結束在現在', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '5m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const before = findKCandleSeries.mock.calls.at(-1)?.[0]
 
-    await chooseCoarseness(wrapper, '1h')
+    await chooseCoarseness(wrapper, '4h')
 
     const after = findKCandleSeries.mock.calls.at(-1)?.[0]
-    expect(after.visibleStartTime).toEqual(before.visibleStartTime)
-    expect(after.visibleEndTime).toEqual(before.visibleEndTime)
+    expect(findKCandleSeries).toHaveBeenCalledTimes(2)
+    // 假時鐘跟著真實時間走（防抖要它），所以「現在」比一進畫面時晚了一點點：比長度與結尾，不比時刻
+    expect(after.visibleEndTime.getTime() - after.visibleStartTime.getTime())
+      .toBe(before.visibleEndTime.getTime() - before.visibleStartTime.getTime())
+    expect(Math.abs(after.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
   })
 
-  it('按快捷區間不改變挑好的那一種', async () => {
+  it('按快捷區間換到那個長度配的粗細，粗細按鈕跟著亮', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '15m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     await chooseCoarseness(wrapper, '15m')
 
-    await wrapper.findAll('[data-testid="range-preset-button"]')[5]?.trigger('click')
+    // 一年配的是一天
+    vi.setSystemTime(CURRENT_TIME)
+    await wrapper.findAll('[data-testid="range-preset-button"]')[8]?.trigger('click')
     await flushPromises()
 
-    expect(chosenCoarseness(wrapper)).toBe('15m')
-    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('15m')
+    expect(chosenCoarseness(wrapper)).toBe('1d')
+    expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('1d')
+    expect(findKCandleSeries.mock.calls.at(-1)?.[0].visibleStartTime.toISOString()).toBe('2025-09-02T12:00:00.000Z')
   })
 
   it('換交易標的不改變挑好的那一種', async () => {
@@ -207,8 +257,8 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     const wrapper = await mountPanel(
       buildProxy({
         findKCandleSeries: vi.fn()
-          .mockResolvedValueOnce(seriesOf([buildKCandle()], '5m'))
-          .mockResolvedValue(seriesOf([buildKCandle()], '1h')),
+          .mockResolvedValueOnce(seriesOf([buildKCandle()], '1h'))
+          .mockResolvedValue(seriesOf([buildKCandle()], '4h')),
       }),
       calculateIndicator)
     await openIndicatorDialog(wrapper)
@@ -216,7 +266,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await flushPromises()
     const calculationsBefore = calculateIndicator.mock.calls.length
 
-    await chooseCoarseness(wrapper, '1h')
+    await chooseCoarseness(wrapper, '4h')
     await settle()
 
     // 圖上換了一批 K 線，線就得照那一批重畫——不重算的話它畫的是另一種粗細的答案。

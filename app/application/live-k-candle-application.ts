@@ -1,5 +1,6 @@
 import type { LiveKCandleService } from '~/domain/service/live-k-candle-service'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { LiveKCandleFollowingDto } from '~/domain/models/dto/live-k-candle-following-dto'
 import type { LiveKCandleReportDto } from '~/domain/models/dto/live-k-candle-report-dto'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import type { LiveUpdateNoticeVo } from '~/domain/models/vo/live-update-notice-vo'
@@ -12,7 +13,7 @@ export class LiveKCandleApplication {
     symbol: string,
     chart: KCandleChartDto,
     onReport: (report: LiveKCandleReportDto) => void,
-  ): () => void {
+  ): LiveKCandleFollowingDto {
     return this.liveKCandleService.followKCandles(symbol, chart, onReport)
   }
 

@@ -6,10 +6,9 @@ import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-rang
  * DTO：問完「我在看這一段，手上有這些」之後拿回來的答案。
  *
  * **三件事永遠一起回答**，因為它們可以各自獨立發生：
- * - `visibleRange` 是使用者**應該**看到的那一段。它可能與問的時候不一樣——
- *   拉得比最粗的刻度所能涵蓋的還遠時會被收回上限。下一次要不要重新取、
- *   指標算哪一段，說的都是它。
- * - `reloadedChart` 是新取回的那一批；**`null` 代表手上那批就夠了**，畫面不必換資料。
+ * - `visibleRange` 是使用者正在看的那一段。指標算哪一段，說的是它。
+ * - `reloadedChart` 是這一次要畫的新的一批——整批換來的，或手上這批接上一段之後的；
+ *   **`null` 代表手上那批就夠了**，畫面不必換資料。
  * - `drawnRange` 是圖上**實際**要畫的那一段（從第幾根到第幾根）。它與上面那一對的差別
  *   正是**右側留白**：使用者看得到最新那一根時，畫出來的那一段會比他要求的那一段
  *   多出一成的寬度，而那一成落在最後一根之後，沒有任何時刻指得到它。
@@ -27,5 +26,10 @@ export class KCandleChartViewDto {
     public readonly visibleRange: ChartVisibleRangeVo,
     public readonly reloadedChart: KCandleChartDto | null,
     public readonly drawnRange: DrawnKCandleRangeVo | null,
+    /**
+     * 這一次是整批換了一張圖（不是接上一段、也不是沒換）。換了一張圖，
+     * 序位全都不一樣了，畫面一定要照 `drawnRange` 重新擺——即使是使用者拖過去的。
+     */
+    public readonly replacedChart: boolean,
   ) {}
 }

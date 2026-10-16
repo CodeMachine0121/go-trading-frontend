@@ -5,9 +5,10 @@ import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-r
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { PriceScaleMode } from '~/domain/models/vo/price-scale-mode-vo'
 import { buildTimeZone } from '../../fixtures/time-zone'
+import { DEFAULT_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
 
-const ONE_DAY = new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 86_400_000)
-const FIVE_DAYS = new KCandleChartRangePresetDto(new LocalizedTextVo('五天', '5 days'), 5 * 86_400_000)
+const ONE_DAY = new KCandleChartRangePresetDto(new LocalizedTextVo('一天', '1 day'), 86_400_000, DEFAULT_AGGREGATION_INTERVAL_CHOICE)
+const FIVE_DAYS = new KCandleChartRangePresetDto(new LocalizedTextVo('五天', '5 days'), 5 * 86_400_000, DEFAULT_AGGREGATION_INTERVAL_CHOICE)
 
 function mountBar(overrides: { priceScaleMode?: PriceScaleMode, autoScale?: boolean, timeZone?: string, coveredRangeCaption?: string | null } = {}) {
   return mount(KCandleChartRangeBar, {

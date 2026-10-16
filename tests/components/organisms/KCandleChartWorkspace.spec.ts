@@ -14,7 +14,7 @@ import { anchorOf, chartDrawingOf } from '../../fixtures/chart-drawing'
 import { KCandleSpec, kCandleChartOf } from '../../fixtures/k-candle-chart'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
-import { AUTOMATIC_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
+import { DEFAULT_AGGREGATION_INTERVAL_CHOICE } from '../../fixtures/aggregation-interval-choice'
 
 const CHART = kCandleChartOf('1h', [
   new KCandleSpec('2026-10-16T10:00:00.000Z', '100', '112', '99', '110'),
@@ -41,8 +41,8 @@ function mountWorkspace(options: { chart?: KCandleChartDto | null, stored?: Char
       legendTitle: 'BTCUSDT',
       intervalLabel: '一小時',
       presets: [],
-      aggregationIntervalChoices: [AUTOMATIC_AGGREGATION_INTERVAL_CHOICE],
-      activeAggregationIntervalChoice: AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+      aggregationIntervalChoices: [DEFAULT_AGGREGATION_INTERVAL_CHOICE],
+      activeAggregationIntervalChoice: DEFAULT_AGGREGATION_INTERVAL_CHOICE,
       drawing: 'candlestick',
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
         { findKCandlesInRange: vi.fn(), findKCandleSeries: vi.fn(), saveKCandle: vi.fn(), updateKCandle: vi.fn(), deleteKCandle: vi.fn(), catchUpSymbol: vi.fn() },
@@ -378,8 +378,8 @@ describe('KCandleChartWorkspace：疊在圖上的繪圖層', () => {
         legendTitle: 'BTCUSDT',
         intervalLabel: '一小時',
         presets: [],
-        aggregationIntervalChoices: [AUTOMATIC_AGGREGATION_INTERVAL_CHOICE],
-        activeAggregationIntervalChoice: AUTOMATIC_AGGREGATION_INTERVAL_CHOICE,
+        aggregationIntervalChoices: [DEFAULT_AGGREGATION_INTERVAL_CHOICE],
+        activeAggregationIntervalChoice: DEFAULT_AGGREGATION_INTERVAL_CHOICE,
         drawing: 'candlestick',
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
           { findKCandlesInRange: vi.fn(), findKCandleSeries: vi.fn(), saveKCandle: vi.fn(), updateKCandle: vi.fn(), deleteKCandle: vi.fn(), catchUpSymbol: vi.fn() },

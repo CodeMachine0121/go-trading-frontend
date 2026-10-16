@@ -3,6 +3,7 @@ import { formatWallClockTickMark } from '~/utilities/chart-tick-mark-format'
 import type { IChartApi, IPriceLine, ISeriesApi, MouseEventParams, SeriesType, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { KCandleDto } from '~/domain/models/dto/k-candle-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
@@ -152,6 +153,14 @@ let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
  * 於是又去取了一次它剛剛才畫完的東西。
  */
 let selfIssuedRangeChange = false
+/**
+ * 使用者的手（滑鼠或手指）是不是還按在圖上。
+ *
+ * 按著的時候圖自己重畫（接上一段回來、右邊多一根）也不立「是圖自己動的」標記：
+ * 那之後一定還有他的拖動事件，而他放手的那一段必須送得出去——立了標記就會被吞掉，
+ * 他得再按一次才會接上下一段。
+ */
+let pointerHeld = false
 
 /**
  * 顏色一律從 token 展開出來的 CSS 變數讀，不在這裡寫死色碼——
@@ -173,8 +182,56 @@ function readFontSize(host: HTMLElement): number {
   return Number.parseFloat(getComputedStyle(host).fontSize)
 }
 
-/** 精確小數只在真的要畫的這一刻才變成一般數值——繪圖函式庫只吃得下一般數值。 */
-function drawKCandles() {
+/**
+ * 把幾根 K 線換成繪圖函式庫吃的那幾列：主序列一列、成交量一列。
+ *
+ * 精確小數只在真的要畫的這一刻才變成一般數值——繪圖函式庫只吃得下一般數值。
+ * 顏色一次讀完：它們在同一批 K 線之間不會變，放在迴圈裡就是對同一個元素做幾百次樣式解析。
+ */
+function rowsOf(host: HTMLElement, kCandles: KCandleDto[]) {
+  const toneColors = {
+    success: readColor(host, TONE_COLOR_TOKENS.success),
+    danger: readColor(host, TONE_COLOR_TOKENS.danger),
+    neutral: readColor(host, TONE_COLOR_TOKENS.neutral),
+  }
+  const volumeColors = { up: readColor(host, VOLUME_UP_COLOR_TOKEN), down: readColor(host, VOLUME_DOWN_COLOR_TOKEN) }
+
+  return kCandles.map((kCandle) => {
+    const time = wallClockSecondsOf(kCandle.openTime, timeZone)
+    const toneColor = toneColors[kCandle.trend.tone]
+    const volume = {
+      time,
+      value: kCandle.volume.toNumber(),
+      color: kCandle.trend.tone === 'danger' ? volumeColors.down : volumeColors.up,
+    }
+
+    if (drawing === 'line' || drawing === 'area') {
+      return { kCandle: { time, value: kCandle.close.toNumber() }, volume }
+    }
+
+    const ohlc = {
+      time,
+      open: kCandle.open.toNumber(),
+      high: kCandle.high.toNumber(),
+      low: kCandle.low.toNumber(),
+      close: kCandle.close.toNumber(),
+      color: toneColor,
+    }
+
+    return {
+      kCandle: drawing === 'bar' ? ohlc : { ...ohlc, borderColor: toneColor, wickColor: toneColor },
+      volume,
+    }
+  })
+}
+
+/**
+ * 整批重畫手上這一批，**畫面位置不動**。
+ *
+ * 換畫法、換時區、換外觀都走這裡：看的還是同一批的同一段，序位一根都沒變，
+ * 所以不必也不該把畫面擺回任何地方。要擺位置的那幾種（換一批、跳過去）另外擺。
+ */
+function redrawKCandles() {
   const series = seriesApi.value
   const host = chartHost.value
   // 資料在繪圖函式庫載完之前就換了一批：還沒有東西可以畫，等載完那一刻自己會畫。
@@ -182,56 +239,88 @@ function drawKCandles() {
     return
   }
 
-  // 三種語氣的顏色一次讀完。它們在同一批 K 線之間不會變，
-  // 而一次繪製最多八百根——放在迴圈裡就是對同一個元素做八百次樣式解析。
-  const toneColors = {
-    success: readColor(host, TONE_COLOR_TOKENS.success),
-    danger: readColor(host, TONE_COLOR_TOKENS.danger),
-    neutral: readColor(host, TONE_COLOR_TOKENS.neutral),
+  // setData 自己也會讓函式庫回頭說一次「區間變了」——那不是使用者的動作。
+  if (!pointerHeld) {
+    selfIssuedRangeChange = true
+  }
+  const rows = rowsOf(host, chart === null ? [] : chart.kCandles)
+  series.setData(rows.map(row => row.kCandle))
+  volumeSeriesApi.value?.setData(rows.map(row => row.volume))
+  drawIndicators()
+  reportLatestVisibility()
+}
+
+/**
+ * 換了一批要畫的 K 線：照它跟上一批是什麼關係，挑最不會讓畫面動的那一種畫法。
+ *
+ * - **換了一張圖**（第一次、換標的、換粗細）：整批重畫並擺到領域算的位置。
+ * - **同一批只動了最後一根、或右邊多一根**（即時更新）：只更新那一兩根——
+ *   整批重畫一次幾百根，拖到一半就會頓一下。
+ * - **左邊接上了幾根**（往左接上一段）：整批重畫，再把看的那一段往右平移同樣的根數，
+ *   看的那幾根因此還在原本的位置上。
+ * - 其他（右邊接上一段、手上這批換了內容）：整批重畫，位置不動。
+ */
+function drawChartChange(nextChart: KCandleChartDto | null, previousChart: KCandleChartDto | null) {
+  const series = seriesApi.value
+  const host = chartHost.value
+  if (series === null || host === null) {
+    return
   }
 
-  const kCandles = chart === null ? [] : chart.kCandles
-  const rows = kCandles.map((kCandle) => {
-    const time = wallClockSecondsOf(kCandle.openTime, timeZone)
+  if (nextChart === null || previousChart === null
+    || !nextChart.belongsTo(previousChart.symbol, previousChart.aggregationIntervalChoice)) {
+    redrawKCandles()
+    applyDrawnRange()
 
-    if (drawing === 'line' || drawing === 'area') {
-      return { time, value: kCandle.close.toNumber() }
+    return
+  }
+
+  const previousKCandles = previousChart.kCandles
+  const nextKCandles = nextChart.kCandles
+  const lastPreviousIndex = previousKCandles.length - 1
+  const grownBy = nextKCandles.length - previousKCandles.length
+  // 「只動了尾巴」要連前面每一根都畫得一模一樣才算：只比根數與頭尾時刻，
+  // 接上右邊那一段時被後端改過的那幾根就畫不出來。同一個物件就不必逐欄比。
+  const onlyTheTailChanged = lastPreviousIndex >= 0
+    && (grownBy === 0 || grownBy === 1)
+    && nextKCandles[lastPreviousIndex]?.openTime.getTime() === previousKCandles[lastPreviousIndex]?.openTime.getTime()
+    && previousKCandles.slice(0, lastPreviousIndex).every((kCandle, index) => {
+      const nextKCandle = nextKCandles[index]
+
+      return nextKCandle !== undefined && (nextKCandle === kCandle || nextKCandle.drawsLike(kCandle))
+    })
+
+  if (onlyTheTailChanged) {
+    // 右邊多一根時，看得到最新那一根的圖會自己往右挪一格——那不是使用者的動作。
+    // 只動那一根的價格時區間不變、函式庫不會回頭說話，所以不立標記：
+    // 立了，正在拖的那一次放手時就會被當成圖自己動的而被吞掉。
+    if (grownBy === 1 && !pointerHeld) {
+      selfIssuedRangeChange = true
     }
 
-    const toneColor = toneColors[kCandle.trend.tone]
+    // 從上一批的最後一根開始更新：它可能剛收完（最後一次的價格），右邊那一根可能剛開始。
+    for (const row of rowsOf(host, nextKCandles.slice(lastPreviousIndex))) {
+      series.update(row.kCandle)
+      volumeSeriesApi.value?.update(row.volume)
+    }
+    reportLatestVisibility()
 
-    return drawing === 'bar'
-      ? {
-          time,
-          open: kCandle.open.toNumber(),
-          high: kCandle.high.toNumber(),
-          low: kCandle.low.toNumber(),
-          close: kCandle.close.toNumber(),
-          color: toneColor,
-        }
-      : {
-          time,
-          open: kCandle.open.toNumber(),
-          high: kCandle.high.toNumber(),
-          low: kCandle.low.toNumber(),
-          close: kCandle.close.toNumber(),
-          color: toneColor,
-          borderColor: toneColor,
-          wickColor: toneColor,
-        }
-  })
+    return
+  }
 
-  series.setData(rows)
+  const previousFirstOpenTime = previousKCandles[0]?.openTime.getTime()
+  const prependedCount = nextKCandles.findIndex(
+    kCandle => kCandle.openTime.getTime() === previousFirstOpenTime)
+  const visibleLogicalRange = chartApi.value?.timeScale().getVisibleLogicalRange() ?? null
 
-  const volumeColors = { up: readColor(host, VOLUME_UP_COLOR_TOKEN), down: readColor(host, VOLUME_DOWN_COLOR_TOKEN) }
-  volumeSeriesApi.value?.setData(kCandles.map(kCandle => ({
-    time: wallClockSecondsOf(kCandle.openTime, timeZone),
-    value: kCandle.volume.toNumber(),
-    color: kCandle.trend.tone === 'danger' ? volumeColors.down : volumeColors.up,
-  })))
-  drawIndicators()
-  applyDrawnRange()
-  reportLatestVisibility()
+  redrawKCandles()
+
+  if (prependedCount > 0 && visibleLogicalRange !== null) {
+    chartApi.value?.timeScale().setVisibleLogicalRange({
+      from: visibleLogicalRange.from + prependedCount,
+      to: visibleLogicalRange.to + prependedCount,
+    })
+  }
 }
 
 /**
@@ -301,8 +390,8 @@ function drawIndicators() {
  * 把看的位置擺到領域算好的那幾根上。
  *
  * 這件事必須與「換一批資料」分開，因為它會單獨發生：使用者按下快捷區間、
- * 或拉遠到被收回上限時，資料可能完全不必換（手上那批就夠了），
- * 但位置一定要動。少了這一條，按鈕看起來就像壞掉。
+ * 或跳到最新時，資料可能完全不必換（手上那批就夠了），但位置一定要動。
+ * 反過來，**使用者自己拖動縮放之後它不會發生**——外面不會為那一次給新的一段。
  *
  * **以序位擺位，不以時刻。** 繪圖函式庫拿時刻定位時會把落在資料之外的那一端
  * 往內收回最後一根身上（它明說自己無法外推），於是最新那一根永遠貼著右緣——
@@ -434,6 +523,13 @@ onMounted(async () => {
   const markUserGesture = () => {
     selfIssuedRangeChange = false
   }
+  const holdPointer = () => {
+    markUserGesture()
+    pointerHeld = true
+  }
+  const releasePointer = () => {
+    pointerHeld = false
+  }
   // 拖價格軸會關掉自動縮放、雙擊它會再打開——函式庫不為這兩件事發通知，
   // 所以在手勢結束時問它一次，與外面記著的不一樣才說出去。
   const reportAutoScale = () => {
@@ -443,16 +539,23 @@ onMounted(async () => {
     }
   }
   host.addEventListener('wheel', markUserGesture, { passive: true })
-  host.addEventListener('pointerdown', markUserGesture)
-  host.addEventListener('touchstart', markUserGesture, { passive: true })
+  host.addEventListener('pointerdown', holdPointer)
+  host.addEventListener('touchstart', holdPointer, { passive: true })
   host.addEventListener('pointerup', reportAutoScale)
   host.addEventListener('dblclick', reportAutoScale)
+  // 放手可能發生在圖外（拖出邊界才放開），所以聽整個視窗。
+  window.addEventListener('pointerup', releasePointer)
+  window.addEventListener('pointercancel', releasePointer)
+  window.addEventListener('touchend', releasePointer)
   releaseGestureListeners.value = () => {
     host.removeEventListener('wheel', markUserGesture)
-    host.removeEventListener('pointerdown', markUserGesture)
-    host.removeEventListener('touchstart', markUserGesture)
+    host.removeEventListener('pointerdown', holdPointer)
+    host.removeEventListener('touchstart', holdPointer)
     host.removeEventListener('pointerup', reportAutoScale)
     host.removeEventListener('dblclick', reportAutoScale)
+    window.removeEventListener('pointerup', releasePointer)
+    window.removeEventListener('pointercancel', releasePointer)
+    window.removeEventListener('touchend', releasePointer)
   }
 
   // 先接上通知再畫第一次，這樣連第一次繪製自己造成的區間變動也走得到抑制邏輯。
@@ -485,22 +588,23 @@ onMounted(async () => {
   })
 
   createSeriesFor.value(drawing)
-  drawKCandles()
+  redrawKCandles()
+  applyDrawnRange()
 })
 
-watch(() => chart, drawKCandles)
+watch(() => chart, drawChartChange)
 
 // 套用了一支、移除了一支、或換了某條線的顏色：K 線一根都沒變，只要重畫指標。
 watch(() => indicators, drawIndicators)
 
-// 外面換了要畫的那一段（按快捷區間、被收回上限）而資料不必換時，只需要移動位置。
+// 外面要求擺到某一段（按快捷區間、跳到最新、換一批）時，只需要移動位置。
 watch(() => drawnRange, applyDrawnRange)
 
 // 換時區只是換一種說法：看的還是同一段、同一批資料，但交給繪圖函式庫的讀數整批換了一種寫法，
 // 所以連資料帶位置一起重講一次——不會因此回頭去取任何東西。
 watch(() => timeZone, () => {
   applyTimeZoneFormatting.value?.()
-  drawKCandles()
+  redrawKCandles()
 })
 
 // 價格軸怎麼標、要不要自動縮放：只是換軸的說法，不重新取、不重畫 K 線。
@@ -515,13 +619,13 @@ watch(() => showsVolume, visible => volumeSeriesApi.value?.applyOptions({ visibl
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
   createSeriesFor.value?.(nextDrawing)
-  drawKCandles()
+  redrawKCandles()
 })
 
 /**
  * 圖框本身的顏色：底色、格線、軸線、軸上的字。
  *
- * 它們與 K 線分開上色，因為 K 線的顏色每畫一批就重讀一次（見 drawKCandles），
+ * 它們與 K 線分開上色，因為 K 線的顏色每畫一批就重讀一次（見 rowsOf），
  * 圖框卻只在建立時與外觀換掉時才需要讀。
  */
 function paintChartFrame() {
@@ -564,7 +668,7 @@ function paintWithCurrentTheme() {
     createSeriesFor.value?.(drawing)
   }
 
-  drawKCandles()
+  redrawKCandles()
 }
 
 useThemeChange(paintWithCurrentTheme)
