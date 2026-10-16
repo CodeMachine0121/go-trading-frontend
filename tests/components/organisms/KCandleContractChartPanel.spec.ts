@@ -123,7 +123,7 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(2)
   })
 
-  it('把每根涵蓋改成五分鐘時，看的那一段不動，改以五分鐘重畫', async () => {
+  it('把每根涵蓋改成五分鐘時，看的長度不變、仍結束在現在，改以五分鐘重畫', async () => {
     const findKCandleContractSeries = vi.fn()
       .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')]))
       .mockResolvedValueOnce(contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')], '5m'))
@@ -134,8 +134,8 @@ describe('KCandleContractChartPanel', () => {
 
     const loadPlan = loadPlanOf(findKCandleContractSeries, 1)
     expect(loadPlan.aggregationIntervalChoice.declaredInterval).toBe('5m')
-    expect(loadPlan.visibleStartTime.toISOString()).toBe('2026-08-24T12:00:00.000Z')
-    expect(loadPlan.visibleEndTime.toISOString()).toBe('2026-09-23T12:00:00.000Z')
+    expect(loadPlan.visibleEndTime.getTime() - loadPlan.visibleStartTime.getTime()).toBe(30 * 24 * 60 * 60 * 1000)
+    expect(Math.abs(loadPlan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('五分鐘')
   })
 

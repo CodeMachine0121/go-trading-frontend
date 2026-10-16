@@ -208,7 +208,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('十五分鐘')
   })
 
-  it('換一種粗細時看的那一段不變', async () => {
+  it('換一種粗細時看的長度不變、仍結束在現在', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()], '5m'))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const before = findKCandleSeries.mock.calls.at(-1)?.[0]
@@ -217,8 +217,10 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
 
     const after = findKCandleSeries.mock.calls.at(-1)?.[0]
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
-    expect(after.visibleStartTime).toEqual(before.visibleStartTime)
-    expect(after.visibleEndTime).toEqual(before.visibleEndTime)
+    // 假時鐘跟著真實時間走（防抖要它），所以「現在」比一進畫面時晚了一點點：比長度與結尾，不比時刻
+    expect(after.visibleEndTime.getTime() - after.visibleStartTime.getTime())
+      .toBe(before.visibleEndTime.getTime() - before.visibleStartTime.getTime())
+    expect(Math.abs(after.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
   })
 
   it('按快捷區間換到那個長度配的粗細，粗細按鈕跟著亮', async () => {
