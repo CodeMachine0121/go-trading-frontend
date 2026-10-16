@@ -1,28 +1,32 @@
 <script setup lang="ts">
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
+import MarketSwitch from '~/components/molecules/MarketSwitch.vue'
 
 definePageMeta({
-  layout: 'console',
+  layout: 'chart-workspace',
   consoleTitleKey: 'marketData.pages.spotKCandleChart.title',
   consoleSubtitleKey: 'marketData.pages.spotKCandleChart.subtitle',
 })
 
 // 頁面只做接線：從組裝根取得 Application 往下傳，互動邏輯住在 organism。
-// 時區、連線燈、帳號與現貨／合約開關由 console 版型統一接線。
+// 時區、連線燈、帳號由看盤工作區版型收進主選單；現貨／合約開關放進工作區的上方細邊。
 const {
   $kCandleChartApplication,
   $tradingSymbolApplication,
   $chartIndicatorApplication,
   $liveKCandleApplication,
   $strategyScriptApplication,
+  $chartDrawingApplication,
+  $marketCounterpartApplication,
 } = useNuxtApp()
+const route = useRoute()
 
 // 顯示時區是跨畫面共用的畫面狀態：頁面取用它，往下傳給要說時間的元件。
 const { selectedTimeZone } = useSelectedTimeZone()
 
-// 現在這個寬度代表什麼。這一頁用到的是「控制項一開始收不收」——
-// 手機上這一頁是為了看圖而存在的，那塊高度先讓給圖。
-const { layoutDensity } = useLayoutDensity()
+const { openMenu } = useChartWorkspaceMenu()
+
+const counterpart = computed(() => $marketCounterpartApplication.describeCounterpart(route.path))
 </script>
 
 <template>
@@ -32,7 +36,15 @@ const { layoutDensity } = useLayoutDensity()
     :chart-indicator-application="$chartIndicatorApplication"
     :live-k-candle-application="$liveKCandleApplication"
     :strategy-script-application="$strategyScriptApplication"
+    :chart-drawing-application="$chartDrawingApplication"
     :time-zone="selectedTimeZone"
-    :layout-density="layoutDensity"
-  />
+    @open-menu="openMenu"
+  >
+    <template #market>
+      <MarketSwitch
+        :counterpart="counterpart"
+        @navigate="path => navigateTo(path)"
+      />
+    </template>
+  </KCandleChartPanel>
 </template>

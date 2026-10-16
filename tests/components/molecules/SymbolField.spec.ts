@@ -220,3 +220,48 @@ describe('SymbolField 那一行說明', () => {
     expect(wrapper.text()).not.toContain('沒有即時更新的標的')
   })
 })
+
+describe('SymbolField：看盤工作區上那一顆', () => {
+  async function mountSearchField(modelValue = 'BTCUSDT') {
+    const wrapper = mount(SymbolField, {
+      props: {
+        'modelValue': modelValue,
+        'presentation': 'search' as const,
+        'tradingSymbolApplication': buildApplication(proxyListing('BTCUSDT', 'ETHUSDT')),
+        'onUpdate:modelValue': (value: string) => wrapper.setProps({ modelValue: value }),
+      },
+    })
+    await flushPromises()
+
+    return wrapper
+  }
+
+  it('寫著目前那一檔，按下去打開商品搜尋，挑一檔就換成它', async () => {
+    const wrapper = await mountSearchField()
+    expect(wrapper.get('[data-testid="symbol-search-button"]').text()).toBe('BTCUSDT')
+
+    await wrapper.get('[data-testid="symbol-search-button"]').trigger('click')
+    await wrapper.findAll('[data-testid="symbol-search-option"]')[1]?.trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['ETHUSDT'])
+    expect(wrapper.find('[data-testid="symbol-search-input"]').exists()).toBe(false)
+  })
+
+  it('從外面打開時帶著打的那一個字', async () => {
+    const wrapper = await mountSearchField()
+
+    ;(wrapper.vm as unknown as { openSearch: (query: string) => void }).openSearch('E')
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="symbol-search-input"]').element as HTMLInputElement).value).toBe('E')
+  })
+
+  it('一檔都沒選著時說沒有東西可挑', async () => {
+    const wrapper = mount(SymbolField, {
+      props: { modelValue: '', presentation: 'search', tradingSymbolApplication: buildApplication(proxyListing()) },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="symbol-search-button"]').text()).not.toBe('')
+  })
+})

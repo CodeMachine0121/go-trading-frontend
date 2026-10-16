@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { pickDrawing, pickSymbolInSearch } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
 import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -20,7 +22,6 @@ import { KCandle } from '~/domain/models/entities/k-candle'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
-import { onADesktop, onAPhone } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
@@ -73,7 +74,6 @@ function buildProxy(overrides: Partial<IKCandleProxy> = {}): IKCandleProxy {
 async function mountPanel(
   kCandleProxy: IKCandleProxy,
   tradingSymbolApplication = buildTradingSymbolApplication(),
-  layoutDensity = onADesktop(),
 ) {
   const wrapper = mount(KCandleChartPanel, {
     props: {
@@ -83,7 +83,7 @@ async function mountPanel(
       chartIndicatorApplication: buildChartIndicatorApplication(),
       strategyScriptApplication: buildStrategyScriptApplication(),
       timeZone: buildTimeZone(),
-      layoutDensity,
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -125,7 +125,7 @@ describe('KCandleChartPanel', () => {
         '一天', '五天', '一個月', '三個月', '六個月', '一年',
       ])
     // 一進畫面選的是一天，不是最短的那一段——它是一個判斷，不是排序的副作用
-    expect(presetButtons[3]?.classes()).toContain('app-button--primary')
+    expect(presetButtons[3]?.attributes('aria-pressed')).toBe('true')
   })
 
   it('選一個月不再換成較粗的刻度，圖上仍是一分鐘一根', async () => {
@@ -135,8 +135,8 @@ describe('KCandleChartPanel', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="interval-label"]').text()).toBe('一分鐘')
-    expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.classes())
-      .toContain('app-button--primary')
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[5]?.attributes('aria-pressed'))
+      .toBe('true')
   })
 
   it('不必重新取時，仍然把該畫的那一段交給圖——按快捷區間不會像壞掉', async () => {
@@ -171,8 +171,8 @@ describe('KCandleChartPanel', () => {
     // 但圖一定要被告知回到那一整天，連同回來的留白
     expect(wrapper.findComponent(KCandleChart).props('drawnRange'))
       .toEqual({ from: 0, to: 2.3 })
-    expect(wrapper.findAll('[data-testid="range-preset-button"]')[3]?.classes())
-      .toContain('app-button--primary')
+    expect(wrapper.findAll('[data-testid="range-preset-button"]')[3]?.attributes('aria-pressed'))
+      .toBe('true')
   })
 
   it('拉出恰好五百天不被收回——以前這一段會被收成四百分鐘', async () => {
@@ -246,25 +246,24 @@ describe('KCandleChartPanel', () => {
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
     const firstPlan = findKCandleSeries.mock.calls[0]?.[0]
 
-    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
     await flushPromises()
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
     const secondPlan = findKCandleSeries.mock.calls[1]?.[0]
     expect(secondPlan.symbol).toBe('ETHUSDT')
-    expect(secondPlan.startTime).toEqual(firstPlan.startTime)
-    expect(secondPlan.endTime).toEqual(firstPlan.endTime)
+    expect(secondPlan.visibleStartTime).toEqual(firstPlan.visibleStartTime)
+    expect(secondPlan.visibleEndTime).toEqual(firstPlan.visibleEndTime)
   })
 
   it('換畫法不重新取，只改怎麼畫', async () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    await wrapper.findAll('[data-testid="drawing-button"]')[1]?.trigger('click')
-    await flushPromises()
+    await pickDrawing(wrapper, 3)
 
     expect(findKCandleSeries).toHaveBeenCalledTimes(1)
-    expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('line')
+    expect(wrapper.findComponent(KCandleChart).props('drawing')).toBe('area')
   })
 
   it('一檔都沒選著時不去取，也不怪使用者沒填', async () => {
@@ -323,7 +322,7 @@ describe('KCandleChartPanel', () => {
         chartIndicatorApplication: buildChartIndicatorApplication(),
         strategyScriptApplication: buildStrategyScriptApplication(),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -371,46 +370,29 @@ describe('KCandleChartPanel', () => {
     expect(findKCandleSeries).toHaveBeenCalledTimes(2)
   })
 
-  it.each([
-    ['手機上一進來控制項就收著，高度先讓給圖', onAPhone(), false],
-    ['桌機上一進來控制項是展開的', onADesktop(), true],
-  ])('%s', async (_label, layoutDensity, controlsAreShown) => {
-    const wrapper = await mountPanel(
-      buildProxy({ findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([])) }),
-      buildTradingSymbolApplication(),
-      layoutDensity,
-    )
-
-    expect(wrapper.get('[data-testid="toggle-panel"]').attributes('aria-expanded'))
-      .toBe(String(controlsAreShown))
-  })
-
-  it('最上面先說現在多少錢，再說它怎麼走的', async () => {
+  it('圖例說的是最新那一根的收盤價', async () => {
     const wrapper = await mountPanel(buildProxy({
       findKCandleSeries: vi.fn().mockResolvedValue(
         seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')])),
     }))
 
-    expect(wrapper.get('[data-testid="k-candle-quote"]').text()).toContain('110')
+    expect(wrapper.get('[data-testid="legend-values"]').text()).toContain('110')
   })
 
-  it('一根都沒有時那一塊整個不畫——一個沒有數字的價格區只是一塊空白', async () => {
+  it('一根都沒有時圖例不寫開高低收——沒有數字可說', async () => {
     const wrapper = await mountPanel(buildProxy({
       findKCandleSeries: vi.fn().mockResolvedValue(seriesOf([])),
     }))
 
-    expect(wrapper.find('[data-testid="k-candle-quote"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="legend-values"]').exists()).toBe(false)
   })
 
-  it('把控制項收起來，一則「連不上後端」照樣看得見', async () => {
-    // 收起「看什麼」的人收的是控制項。一則說「圖現在怎麼了」的訊息跟著被收走，
-    // 正好是在他最需要看到它的時候把它藏起來。
+  it('一次都還沒取到就連不上後端：圖的位置說這裡本來會有一張圖，提示說連不上', async () => {
     const wrapper = await mountPanel(buildProxy({
       findKCandleSeries: vi.fn().mockRejectedValue(new BackendUnreachableError('/k-candles/series')),
     }))
 
-    await wrapper.get('[data-testid="toggle-panel"]').trigger('click')
-
+    expect(wrapper.get('[data-testid="idle-chart"]').text()).toContain('還沒有行情可以畫')
     expect(wrapper.get('[data-testid="unreachable-alert"]').text()).toContain('連不上後端')
   })
 
@@ -646,5 +628,65 @@ describe('KCandleChartPanel 立刻更新', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('[data-testid="catch-up-button"]').attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('KCandleChartPanel：看盤工作區上的幾件事', () => {
+  const DAY = 24 * 60 * 60 * 1000
+
+  it('往回拖到最新那一根離開畫面，按「跳到最新」：以拖過去那一段的長度、結束在現在重新看', async () => {
+    const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle('2026-09-02T10:00:00.000Z', '110')]))
+    const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
+    const chartStub = wrapper.findComponent(KCandleChart)
+    chartStub.vm.$emit('rangeChange', {
+      startTime: new Date(CURRENT_TIME.getTime() - 4 * DAY), endTime: new Date(CURRENT_TIME.getTime() - 2 * DAY),
+    })
+    await flushPromises()
+    chartStub.vm.$emit('latestVisibilityChange', false)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="jump-to-latest"]').trigger('click')
+    await flushPromises()
+
+    const plan = findKCandleSeries.mock.calls.at(-1)?.[0]
+    expect(plan.visibleEndTime.getTime() - plan.visibleStartTime.getTime()).toBe(2 * DAY)
+    expect(Math.abs(plan.visibleEndTime.getTime() - Date.now())).toBeLessThan(5000)
+    expect(wrapper.findAll('[data-testid="range-preset-button"]').every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
+  })
+
+  it('在圖上直接打字：打開商品搜尋並帶著那一個字', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="symbol-search-input"]').element as HTMLInputElement).value).toBe('E')
+    wrapper.unmount()
+  })
+
+  it('按主選單：交給頁面', async () => {
+    const wrapper = await mountPanel(buildProxy())
+
+    await wrapper.get('[data-testid="open-workspace-menu"]').trigger('click')
+
+    expect(wrapper.emitted('openMenu')).toHaveLength(1)
+  })
+})
+
+describe('KCandleChartPanel：快捷區間的亮與不亮', () => {
+  it('按下快捷區間那一個亮起來；自己拖動之後沒有任何一個亮著', async () => {
+    const wrapper = await mountPanel(buildProxy())
+    const fiveDays = () => wrapper.findAll('[data-testid="range-preset-button"]').find(button => button.text() === '五天')
+
+    await fiveDays()?.trigger('click')
+    await flushPromises()
+    expect(fiveDays()?.attributes('aria-pressed')).toBe('true')
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-01T00:00:00.000Z'), endTime: new Date('2026-09-02T00:00:00.000Z'),
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="range-preset-button"]').every(button => button.attributes('aria-pressed') === 'false')).toBe(true)
   })
 })

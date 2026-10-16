@@ -42,7 +42,6 @@ export class LayoutDensityDomain {
     return new LayoutDensityDto(
       this.density,
       this.usesBottomNavigation,
-      this.startsChartControlsCollapsed,
       this.assistantCoversScreen,
     )
   }
@@ -57,10 +56,6 @@ export class LayoutDensityDomain {
 
   private get usesBottomNavigation(): boolean {
     return this.viewportWidthInPixels < BOTTOM_NAVIGATION_BOUNDARY_PIXELS
-  }
-
-  private get startsChartControlsCollapsed(): boolean {
-    return this.holdableInOneHand
   }
 
   private get assistantCoversScreen(): boolean {

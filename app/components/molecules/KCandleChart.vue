@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { formatWallClockTickMark } from '~/utilities/chart-tick-mark-format'
-import type { IChartApi, IPriceLine, ISeriesApi, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
+import type { IChartApi, IPriceLine, ISeriesApi, MouseEventParams, SeriesType, TickMarkType, Time, UTCTimestamp } from 'lightweight-charts'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { DrawnKCandleRangeVo } from '~/domain/models/vo/drawn-k-candle-range-vo'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 import { useThemeChange } from '~/composables/use-theme-change'
+import { ChartCoordinateSpace } from '~/utilities/chart-coordinate-space'
+import type { KCandleChartDrawing } from '~/domain/models/vo/k-candle-chart-drawing-vo'
+import type { PriceScaleMode } from '~/domain/models/vo/price-scale-mode-vo'
+import type { ChartCursorStyleValue } from '~/domain/models/vo/chart-cursor-style-vo'
 
 /**
  * 刻度種類的那一組列舉值。它是執行期的東西，而繪圖函式庫要掛載後才載得進來
  * （它碰得到 document），所以型別在這裡先取出來，值等載完再拿。
  */
-
-/** 同一批資料的兩種畫法。是同一個元件的兩個樣子，不是兩個元件。 */
-type KCandleChartDrawing = 'candlestick' | 'line'
 
 /**
  * 分子：把一批 K 線畫出來，並把使用者拉出來的新區間送回去。
@@ -28,13 +29,24 @@ type KCandleChartDrawing = 'candlestick' | 'line'
 
 /** 漲跌語氣對應到哪一個顏色 token。語氣是領域算好的，這裡只負責接到顏色上。 */
 const TONE_COLOR_TOKENS: Record<'success' | 'danger' | 'neutral', string> = {
-  success: '--color-success',
-  danger: '--color-danger',
-  neutral: '--color-text-muted',
+  success: '--color-chart-workspace-up',
+  danger: '--color-chart-workspace-down',
+  neutral: '--color-chart-workspace-text-muted',
 }
 
-/** 畫成一條線時那條線的顏色。 */
-const LINE_DRAWING_COLOR_TOKEN = '--color-primary'
+/** 成交量柱的顏色：漲（含平盤）與跌各一種淡色，照 TradingView。 */
+const VOLUME_UP_COLOR_TOKEN = '--color-chart-workspace-volume-up'
+const VOLUME_DOWN_COLOR_TOKEN = '--color-chart-workspace-volume-down'
+
+/** 成交量疊在圖的底部：它自己的價格軸上方留八成給 K 線。 */
+const VOLUME_PRICE_SCALE_ID = 'volume'
+const VOLUME_TOP_MARGIN = 0.8
+
+/** 畫成曲線或面積時那條線的顏色。 */
+const LINE_DRAWING_COLOR_TOKEN = '--color-chart-workspace-accent'
+/** 面積下方的填色，上濃下淡。 */
+const AREA_TOP_COLOR_TOKEN = '--color-chart-workspace-area-top'
+const AREA_BOTTOM_COLOR_TOKEN = '--color-chart-workspace-area-bottom'
 
 /**
  * 使用者拉遠拉近時，區間會連續變動好幾十次。等他停下來再說一次就好——
@@ -64,6 +76,10 @@ const {
   drawnRange = null,
   timeZone,
   indicators = [],
+  priceScaleMode = 'normal',
+  autoScale = true,
+  cursorStyle = 'cross',
+  showsVolume = true,
 } = defineProps<{
   chart?: KCandleChartDto | null
   drawing?: KCandleChartDrawing
@@ -87,13 +103,35 @@ const {
    * 一旦這個檔案裡出現「這是一個數字還是一串」之類的 if，就是把業務規則搬錯地方了。
    */
   indicators?: readonly ChartIndicatorDto[]
+  /** 價格軸怎麼標。 */
+  priceScaleMode?: PriceScaleMode
+  /** 價格軸是不是自己跟著看得到的那幾根縮放。使用者拖過價格軸之後就不是了。 */
+  autoScale?: boolean
+  /** 沒選繪圖工具時滑鼠在圖上的樣子：箭頭與點不畫十字線的兩條線。 */
+  cursorStyle?: ChartCursorStyleValue
+  /** 底部疊不疊成交量柱。 */
+  showsVolume?: boolean
 }>()
 
-const emit = defineEmits<{ rangeChange: [{ startTime: Date, endTime: Date }] }>()
+const emit = defineEmits<{
+  rangeChange: [{ startTime: Date, endTime: Date }]
+  /** 十字線所在的第幾根；離開圖時是 `null`。圖例據此說那一根。 */
+  crosshairMove: [logicalIndex: number | null]
+  /** 最新那一根看不看得到。看不到時畫面給一顆「跳到最新」。 */
+  latestVisibilityChange: [visible: boolean]
+  /** 使用者拖了價格軸（自動縮放關了）或雙擊它（又開了）。 */
+  autoScaleChange: [autoScale: boolean]
+}>()
 
 const chartHost = ref<HTMLElement | null>(null)
 const chartApi = shallowRef<IChartApi | null>(null)
-const seriesApi = shallowRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | null>(null)
+const seriesApi = shallowRef<ISeriesApi<SeriesType> | null>(null)
+/** 成交量那一條。它不隨畫法換掉——換的是 K 線怎麼畫，不是量。 */
+const volumeSeriesApi = shallowRef<ISeriesApi<'Histogram'> | null>(null)
+/** 交給疊在上面那一層（繪圖）的座標換算；函式庫載完才有。 */
+const coordinateSpace = shallowRef<ChartCoordinateSpace | null>(null)
+/** 上一次說出去的「看不看得到最新那一根」，只在它變了的時候再說一次。 */
+let latestVisible: boolean | null = null
 const createSeriesFor = shallowRef<((drawing: KCandleChartDrawing) => void) | null>(null)
 
 // 指標畫在圖上的東西，記著才收得掉：繪圖函式庫沒有「清掉全部指標」這種呼叫，
@@ -102,6 +140,7 @@ const indicatorPriceLines = shallowRef<IPriceLine[]>([])
 const indicatorSeriesApis = shallowRef<ISeriesApi<'Line'>[]>([])
 const addLineSeries = shallowRef<((color: string) => ISeriesApi<'Line'>) | null>(null)
 const applyTimeZoneFormatting = shallowRef<(() => void) | null>(null)
+const applyPriceScale = shallowRef<(() => void) | null>(null)
 const releaseGestureListeners = shallowRef<(() => void) | null>(null)
 let rangeSettleTimer: ReturnType<typeof setTimeout> | null = null
 /**
@@ -155,27 +194,59 @@ function drawKCandles() {
   const rows = kCandles.map((kCandle) => {
     const time = wallClockSecondsOf(kCandle.openTime, timeZone)
 
-    if (drawing === 'line') {
+    if (drawing === 'line' || drawing === 'area') {
       return { time, value: kCandle.close.toNumber() }
     }
 
     const toneColor = toneColors[kCandle.trend.tone]
 
-    return {
-      time,
-      open: kCandle.open.toNumber(),
-      high: kCandle.high.toNumber(),
-      low: kCandle.low.toNumber(),
-      close: kCandle.close.toNumber(),
-      color: toneColor,
-      borderColor: toneColor,
-      wickColor: toneColor,
-    }
+    return drawing === 'bar'
+      ? {
+          time,
+          open: kCandle.open.toNumber(),
+          high: kCandle.high.toNumber(),
+          low: kCandle.low.toNumber(),
+          close: kCandle.close.toNumber(),
+          color: toneColor,
+        }
+      : {
+          time,
+          open: kCandle.open.toNumber(),
+          high: kCandle.high.toNumber(),
+          low: kCandle.low.toNumber(),
+          close: kCandle.close.toNumber(),
+          color: toneColor,
+          borderColor: toneColor,
+          wickColor: toneColor,
+        }
   })
 
   series.setData(rows)
+
+  const volumeColors = { up: readColor(host, VOLUME_UP_COLOR_TOKEN), down: readColor(host, VOLUME_DOWN_COLOR_TOKEN) }
+  volumeSeriesApi.value?.setData(kCandles.map(kCandle => ({
+    time: wallClockSecondsOf(kCandle.openTime, timeZone),
+    value: kCandle.volume.toNumber(),
+    color: kCandle.trend.tone === 'danger' ? volumeColors.down : volumeColors.up,
+  })))
   drawIndicators()
   applyDrawnRange()
+  reportLatestVisibility()
+}
+
+/**
+ * 最新那一根看不看得到：看得到的最右邊那一格不早於最後一根。
+ * 只在它變了的時候說一次——拖動途中每一格都說，畫面會被同一句話淹沒。
+ */
+function reportLatestVisibility() {
+  const range = chartApi.value?.timeScale().getVisibleLogicalRange() ?? null
+  const lastIndex = (chart?.kCandles.length ?? 0) - 1
+  const visible = range === null || lastIndex < 0 || range.to >= lastIndex
+
+  if (visible !== latestVisible) {
+    latestVisible = visible
+    emit('latestVisibilityChange', visible)
+  }
 }
 
 /**
@@ -262,7 +333,9 @@ function applyDrawnRange() {
 }
 
 onMounted(async () => {
-  const { createChart, CandlestickSeries, LineSeries, TickMarkType } = await import('lightweight-charts')
+  const {
+    createChart, CandlestickSeries, BarSeries, LineSeries, AreaSeries, HistogramSeries, TickMarkType, CrosshairMode, PriceScaleMode: LibraryPriceScaleMode,
+  } = await import('lightweight-charts')
 
   // 函式庫還沒載完，使用者就離開了這個畫面：沒有容器可以畫，就不要建立圖表。
   if (chartHost.value === null) {
@@ -280,9 +353,23 @@ onMounted(async () => {
       attributionLogo: false,
     },
     timeScale: { timeVisible: true, secondsVisible: false },
+    // TradingView 的十字線：跟著滑鼠走，不吸到收盤價上。
+    crosshair: { mode: CrosshairMode.Normal },
   })
 
   chartApi.value = createdChart
+  coordinateSpace.value = new ChartCoordinateSpace(createdChart, () => seriesApi.value)
+
+  const priceScaleModes: Record<PriceScaleMode, number> = {
+    normal: LibraryPriceScaleMode.Normal,
+    percentage: LibraryPriceScaleMode.Percentage,
+    logarithmic: LibraryPriceScaleMode.Logarithmic,
+  }
+  applyPriceScale.value = () => createdChart.priceScale('right').applyOptions({
+    mode: priceScaleModes[priceScaleMode],
+    autoScale,
+  })
+  applyPriceScale.value()
   // 底色、格線、軸上的字：全部照目前的外觀讀一次。外觀換了之後再讀一次（見 paintWithCurrentTheme）。
   paintChartFrame()
 
@@ -300,6 +387,15 @@ onMounted(async () => {
   applyTimeZoneFormatting.value()
 
   // 指標的曲線與 K 線的曲線用的是同一種序列，只差在顏色由指標帶進來。
+  volumeSeriesApi.value = createdChart.addSeries(HistogramSeries, {
+    priceScaleId: VOLUME_PRICE_SCALE_ID,
+    priceFormat: { type: 'volume' },
+    lastValueVisible: false,
+    priceLineVisible: false,
+    visible: showsVolume,
+  })
+  createdChart.priceScale(VOLUME_PRICE_SCALE_ID).applyOptions({ scaleMargins: { top: VOLUME_TOP_MARGIN, bottom: 0 } })
+
   addLineSeries.value = (color: string) => createdChart.addSeries(
     LineSeries, { color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
 
@@ -310,23 +406,53 @@ onMounted(async () => {
       createdChart.removeSeries(seriesApi.value)
     }
 
-    seriesApi.value = nextDrawing === 'line'
-      ? createdChart.addSeries(LineSeries, { color: readColor(host, LINE_DRAWING_COLOR_TOKEN), lineWidth: 2 })
-      : createdChart.addSeries(CandlestickSeries)
+    const lineColor = readColor(host, LINE_DRAWING_COLOR_TOKEN)
+    const seriesFor: Record<KCandleChartDrawing, () => ISeriesApi<SeriesType>> = {
+      candlestick: () => createdChart.addSeries(CandlestickSeries),
+      bar: () => createdChart.addSeries(BarSeries, { thinBars: false }),
+      line: () => createdChart.addSeries(LineSeries, { color: lineColor, lineWidth: 2 }),
+      area: () => createdChart.addSeries(AreaSeries, {
+        lineColor,
+        lineWidth: 2,
+        topColor: readColor(host, AREA_TOP_COLOR_TOKEN),
+        bottomColor: readColor(host, AREA_BOTTOM_COLOR_TOKEN),
+      }),
+    }
+    seriesApi.value = seriesFor[nextDrawing]()
   }
+
+  // 十字線所在的第幾根：圖例跟著它說那一根的開高低收。離開圖時說 null。
+  createdChart.subscribeCrosshairMove((param: MouseEventParams) => {
+    emit('crosshairMove', param.point === undefined || param.logical === undefined
+      ? null
+      : Math.round(param.logical))
+  })
+  createdChart.timeScale().subscribeVisibleLogicalRangeChange(reportLatestVisibility)
 
   // 真正的手勢一定發生在它造成的區間事件之前，所以在這裡清掉標記，
   // 就不會有「上一次繪製沒有觸發事件、標記卡著」而吃掉使用者下一次拖曳的情況。
   const markUserGesture = () => {
     selfIssuedRangeChange = false
   }
+  // 拖價格軸會關掉自動縮放、雙擊它會再打開——函式庫不為這兩件事發通知，
+  // 所以在手勢結束時問它一次，與外面記著的不一樣才說出去。
+  const reportAutoScale = () => {
+    const current = createdChart.priceScale('right').options().autoScale
+    if (current !== autoScale) {
+      emit('autoScaleChange', current)
+    }
+  }
   host.addEventListener('wheel', markUserGesture, { passive: true })
   host.addEventListener('pointerdown', markUserGesture)
   host.addEventListener('touchstart', markUserGesture, { passive: true })
+  host.addEventListener('pointerup', reportAutoScale)
+  host.addEventListener('dblclick', reportAutoScale)
   releaseGestureListeners.value = () => {
     host.removeEventListener('wheel', markUserGesture)
     host.removeEventListener('pointerdown', markUserGesture)
     host.removeEventListener('touchstart', markUserGesture)
+    host.removeEventListener('pointerup', reportAutoScale)
+    host.removeEventListener('dblclick', reportAutoScale)
   }
 
   // 先接上通知再畫第一次，這樣連第一次繪製自己造成的區間變動也走得到抑制邏輯。
@@ -377,6 +503,15 @@ watch(() => timeZone, () => {
   drawKCandles()
 })
 
+// 價格軸怎麼標、要不要自動縮放：只是換軸的說法，不重新取、不重畫 K 線。
+watch(() => [priceScaleMode, autoScale], () => applyPriceScale.value?.())
+
+// 箭頭與點兩種游標不畫十字線的兩條線（點由疊在上面那一層畫）。
+watch(() => cursorStyle, paintChartFrame)
+
+// 收起或顯示成交量：只是那一條看不看得到，資料不動。
+watch(() => showsVolume, visible => volumeSeriesApi.value?.applyOptions({ visible }))
+
 // 換畫法只是換一種畫，看的還是同一段、同一批資料，所以不重新取，只重畫。
 watch(() => drawing, (nextDrawing) => {
   createSeriesFor.value?.(nextDrawing)
@@ -395,14 +530,20 @@ function paintChartFrame() {
     return
   }
 
-  const gridColor = readColor(host, '--color-chart-grid')
-  const borderColor = readColor(host, '--color-border')
+  const gridColor = readColor(host, '--color-chart-workspace-grid')
+  const borderColor = readColor(host, '--color-chart-workspace-seam')
+  const crosshairLine = {
+    color: readColor(host, '--color-chart-workspace-crosshair'),
+    labelBackgroundColor: readColor(host, '--color-chart-workspace-crosshair-label'),
+    visible: cursorStyle === 'cross',
+  }
   chartApi.value.applyOptions({
     layout: {
-      background: { color: readColor(host, '--color-surface') },
-      textColor: readColor(host, '--color-text-muted'),
+      background: { color: readColor(host, '--color-chart-workspace-surface') },
+      textColor: readColor(host, '--color-chart-workspace-text'),
     },
     grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+    crosshair: { vertLine: crosshairLine, horzLine: { ...crosshairLine, visible: cursorStyle === 'cross' } },
     rightPriceScale: { borderColor },
     timeScale: { borderColor },
   })
@@ -418,8 +559,9 @@ function paintWithCurrentTheme() {
   paintChartFrame()
 
   const host = chartHost.value
-  if (host !== null && drawing === 'line') {
-    seriesApi.value?.applyOptions({ color: readColor(host, LINE_DRAWING_COLOR_TOKEN) })
+  // 曲線與面積的顏色是建序列時抄進去的；換外觀時整條重建一次最不會漏。
+  if (host !== null && (drawing === 'line' || drawing === 'area')) {
+    createSeriesFor.value?.(drawing)
   }
 
   drawKCandles()
@@ -435,6 +577,8 @@ onBeforeUnmount(() => {
   releaseGestureListeners.value?.()
   releaseGestureListeners.value = null
   applyTimeZoneFormatting.value = null
+  applyPriceScale.value = null
+  coordinateSpace.value = null
 
   chartApi.value?.remove()
   chartApi.value = null
@@ -442,31 +586,49 @@ onBeforeUnmount(() => {
   // 整張圖都收掉了，這些把手指向的東西已經不存在——留著只會讓下次繪製對空氣操作。
   indicatorPriceLines.value = []
   indicatorSeriesApis.value = []
+  volumeSeriesApi.value = null
   addLineSeries.value = null
 })
 </script>
 
 <template>
   <div
-    ref="chartHost"
     class="k-candle-chart"
+    :class="{ 'k-candle-chart--arrow': cursorStyle === 'arrow' }"
     data-testid="k-candle-chart"
-  />
+  >
+    <div
+      ref="chartHost"
+      class="k-candle-chart__host"
+      data-testid="k-candle-chart-canvas"
+    />
+    <!-- 疊在圖上的東西（繪圖）。它拿到的是座標換算，不是繪圖函式庫本身。 -->
+    <slot
+      v-if="coordinateSpace"
+      name="overlay"
+      :coordinate-space="coordinateSpace"
+    />
+  </div>
 </template>
 
 <style scoped lang="scss">
 .k-candle-chart {
   // 圖用光面板給它的所有高度。看得多寬與看得多高都是使用者的事，
   // 寫死一個 32rem 只會在大螢幕上留一大片沒人要的空白。
+  position: relative;
   flex: 1;
-  background-color: color('surface');
+  background-color: color('chart-workspace-surface');
   width: 100%;
+  min-height: 0;
 
-  // 手機上要留一點高度給圖下方的工具列與清單；寬螢幕上圖是主角。
-  min-height: 18rem;
+  &__host {
+    position: absolute;
+    inset: 0;
+  }
 
-  @include respond-to('md') {
-    min-height: 24rem;
+  // 箭頭游標就是一般的箭頭，不是十字。
+  &--arrow &__host {
+    cursor: default;
   }
 
   // 圖上刻度標籤的大小是從這裡讀出去的（見 readFontSize）——

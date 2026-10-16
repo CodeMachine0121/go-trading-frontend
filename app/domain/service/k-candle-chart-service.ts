@@ -2,6 +2,8 @@ import type { IKCandleProxy } from '~/domain/interface/i-k-candle-proxy'
 import type { IKCandleContractProxy } from '~/domain/interface/i-k-candle-contract-proxy'
 import type { KCandleChartLoadPlanVo } from '~/domain/models/vo/k-candle-chart-load-plan-vo'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { ChartReadoutDto } from '~/domain/models/dto/chart-readout-dto'
+import { ChartReadoutDomain } from '~/domain/models/domains/chart-readout-domain'
 import { KCandleContractSeriesDomain } from '~/domain/models/domains/k-candle-contract-series-domain'
 import { KCandleChartViewportDomain } from '~/domain/models/domains/k-candle-chart-viewport-domain'
 import { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
@@ -199,5 +201,10 @@ export class KCandleChartService {
   /** 一進畫面每根涵蓋多久由誰說了算。 */
   defaultAggregationIntervalChoice(): AggregationIntervalChoiceDto {
     return AUTOMATIC_AGGREGATION_INTERVAL_CHOICE
+  }
+
+  /** 圖例那一行：十字線所在那一根（不在 K 線上時最新那一根）與最新那一根的收盤倒數。 */
+  describeReadout(chart: KCandleChartDto, hoveredIndex: number | null, now: Date): ChartReadoutDto | null {
+    return new ChartReadoutDomain(chart, hoveredIndex, now).toDto()
   }
 }

@@ -2,6 +2,8 @@ import type { KCandleChartService } from '~/domain/service/k-candle-chart-servic
 import type { KCandleChartViewportDto } from '~/domain/models/dto/k-candle-chart-viewport-dto'
 import type { KCandleChartRangePresetDto } from '~/domain/models/dto/k-candle-chart-range-preset-dto'
 import type { KCandleChartViewDto } from '~/domain/models/dto/k-candle-chart-view-dto'
+import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
+import type { ChartReadoutDto } from '~/domain/models/dto/chart-readout-dto'
 import type { AggregationIntervalChoiceDto } from '~/domain/models/dto/aggregation-interval-choice-dto'
 
 /**
@@ -47,5 +49,9 @@ export class KCandleChartApplication {
 
   defaultAggregationIntervalChoice(): AggregationIntervalChoiceDto {
     return this.kCandleChartService.defaultAggregationIntervalChoice()
+  }
+
+  describeReadout(chart: KCandleChartDto, hoveredIndex: number | null, now: Date): ChartReadoutDto | null {
+    return this.kCandleChartService.describeReadout(chart, hoveredIndex, now)
   }
 }

@@ -16,6 +16,7 @@ import { AppearancePreferenceProxy } from '~/infrastructure/proxy/appearance-pre
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyScriptParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-script-parameter-value-preference-proxy'
 import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
+import { ChartDrawingPreferenceProxy } from '~/infrastructure/proxy/chart-drawing-preference-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
@@ -26,6 +27,7 @@ import { StrategyBotService } from '~/domain/service/strategy-bot-service'
 import { TradingStrategyService } from '~/domain/service/trading-strategy-service'
 import { TimeZoneService } from '~/domain/service/time-zone-service'
 import { ChartIndicatorService } from '~/domain/service/chart-indicator-service'
+import { ChartDrawingService } from '~/domain/service/chart-drawing-service'
 import { BackendHealthApplication } from '~/application/backend-health-application'
 import { KCandleApplication } from '~/application/k-candle-application'
 import { KCandleChartApplication } from '~/application/k-candle-chart-application'
@@ -51,6 +53,7 @@ import { MarketCounterpartApplication } from '~/application/market-counterpart-a
 import { MarketSideService } from '~/domain/service/market-side-service'
 import { MarketSidePreferenceProxy } from '~/infrastructure/proxy/market-side-preference-proxy'
 import { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import { ChartDrawingApplication } from '~/application/chart-drawing-application'
 import { AssistantConversationProxy } from '~/infrastructure/proxy/assistant-conversation-proxy'
 import { AssistantConversationService } from '~/domain/service/assistant-conversation-service'
 import { AssistantConversationApplication } from '~/application/assistant-conversation-application'
@@ -215,6 +218,11 @@ export default defineNuxtPlugin(() => {
     ),
   )
 
+  // 圖上的繪圖只記在這台瀏覽器裡：畫了什麼是看盤的人自己的草稿，不是行情。
+  const chartDrawingApplication = new ChartDrawingApplication(
+    new ChartDrawingService(new ChartDrawingPreferenceProxy()),
+  )
+
   // 跟盤是一條持續連著的通道，與其他那些一次問一次答的完全不同——
   // 所以它有自己的 proxy，而不是塞進取 K 線的那一個。
   const liveKCandleApplication = new LiveKCandleApplication(
@@ -349,6 +357,7 @@ export default defineNuxtPlugin(() => {
       strategyScriptMarketplaceApplication,
       backtestApplication,
       chartIndicatorApplication,
+      chartDrawingApplication,
       liveKCandleApplication,
       liveKCandleContractApplication,
       timeZoneApplication,

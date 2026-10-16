@@ -2,6 +2,8 @@
 import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SymbolSearch from '~/components/molecules/SymbolSearch.vue'
+import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
 
@@ -17,7 +19,7 @@ import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trad
  * 沒有市場鍵：合約都在同一個全天候的市場。
  */
 const {
-  tradingSymbolApplication, errorMessage = null, watchedOnly = false, keepsSelection = false,
+  tradingSymbolApplication, errorMessage = null, watchedOnly = false, keepsSelection = false, presentation = 'select',
 } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
@@ -25,6 +27,8 @@ const {
   watchedOnly?: boolean
   /** 目前這一個不在清單上也不改選——改一台已存的機器人時，它盯的合約不能被悄悄換掉。 */
   keepsSelection?: boolean
+  /** 表單裡的下拉選單，或看盤工作區上方細邊那一顆「代號＋放大鏡」。同 SymbolField。 */
+  presentation?: 'select' | 'search'
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -67,6 +71,24 @@ const hint = computed(() => {
     : t('marketData.contractSymbolField.allHint')
 })
 
+/** 商品搜尋那一顆；在圖上直接打字時，由外面叫它打開。 */
+const symbolSearch = ref<InstanceType<typeof SymbolSearch> | null>(null)
+
+/** 打開商品搜尋，帶著打的那一個字。 */
+function openSearch(initialQuery = '') {
+  void symbolSearch.value?.openSearch(initialQuery)
+}
+
+const searchOptions = computed(() => options.value.options.map(contractTradingSymbol => new SymbolSearchOptionDto(
+  contractTradingSymbol.symbol,
+  `${contractTradingSymbol.symbol}.P`,
+  contractTradingSymbol.isWatched
+    ? t('marketData.chartWorkspace.perpetualContract')
+    : t('marketData.contractSymbolField.notWatched', { symbol: t('marketData.chartWorkspace.perpetualContract') }),
+)))
+
+defineExpose({ openSearch })
+
 onMounted(async () => {
   try {
     contractTradingSymbols.value = await tradingSymbolApplication.listContractTradingSymbols()
@@ -86,7 +108,21 @@ onMounted(async () => {
 </script>
 
 <template>
+  <div
+    v-if="presentation === 'search'"
+    class="contract-symbol-field contract-symbol-field--search"
+  >
+    <SymbolSearch
+      ref="symbolSearch"
+      :options="searchOptions"
+      :symbol-label="symbol === '' ? t('marketData.contractSymbolField.noOptions') : `${symbol}.P`"
+      :hint="hint"
+      @pick="symbol = $event"
+    />
+  </div>
+
   <FormField
+    v-else
     :label="t('marketData.contractSymbolField.label')"
     :hint="hint"
     :error-message="errorMessage"
@@ -123,5 +159,6 @@ onMounted(async () => {
 <style scoped lang="scss">
 .contract-symbol-field {
   min-width: 0;
+
 }
 </style>

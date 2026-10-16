@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { openIndicatorDialog } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import KCandleChartPanel from '~/components/organisms/KCandleChartPanel.vue'
@@ -17,7 +19,6 @@ import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../..
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 const CURRENT_TIME = new Date('2026-09-03T12:00:00.000Z')
@@ -105,11 +106,12 @@ async function mountPanel() {
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
   await flushPromises()
+  await openIndicatorDialog(wrapper)
   await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
   await flushPromises()
 
@@ -311,7 +313,7 @@ describe('「看哪一段」與「算到哪一刻」互不干擾', () => {
           listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
-        layoutDensity: onADesktop(),
+        chartDrawingApplication: buildChartDrawingApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })

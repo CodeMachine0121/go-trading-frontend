@@ -57,6 +57,33 @@ type IconName
     | 'flow'
     | 'journal'
     | 'plus'
+    | 'cursor-cross'
+    | 'cursor-dot'
+    | 'cursor-arrow'
+    | 'trend-line'
+    | 'ray'
+    | 'horizontal-line'
+    | 'horizontal-ray'
+    | 'vertical-line'
+    | 'fibonacci'
+    | 'rectangle'
+    | 'date-price-range'
+    | 'magnet'
+    | 'pencil'
+    | 'stay-in-drawing-mode'
+    | 'lock'
+    | 'unlock'
+    | 'undo'
+    | 'redo'
+    | 'fullscreen'
+    | 'search'
+    | 'indicators'
+    | 'bars'
+    | 'line-chart'
+    | 'area-chart'
+    | 'to-latest'
+    | 'object-tree'
+    | 'grip'
 
 /** 每個圖示由幾條路徑組成。全站的圖示只在這裡定義。 */
 const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
@@ -308,15 +335,143 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   'plus': [
     'M12 5v14M5 12h14',
   ],
+  // 十字線游標。
+  'cursor-cross': [
+    'M12 3v7M12 14v7M3 12h7M14 12h7',
+  ],
+  // 點游標。
+  'cursor-dot': [
+    'M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+  ],
+  // 箭頭游標。
+  'cursor-arrow': [
+    'M7 4v14l4-4 3 6 2-1-3-6h5Z',
+  ],
+  // 兩個端點連一條線——趨勢線。
+  'trend-line': [
+    'M7.2 16.8 16.8 7.2',
+    'M4.4 18a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+    'M16.4 6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+  ],
+  // 從一個點往外延伸到邊——射線。
+  'ray': [
+    'M7.2 16.8 21 3',
+    'M4.4 18a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+  ],
+  // 橫跨的一條線，中間一個點——水平線。
+  'horizontal-line': [
+    'M3 12h7.4M13.6 12H21',
+    'M10.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+  ],
+  // 從一個點往右延伸——水平射線。
+  'horizontal-ray': [
+    'M7.6 12H21',
+    'M4.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+  ],
+  // 縱貫的一條線——垂直線。
+  'vertical-line': [
+    'M12 3v7.4M12 13.6V21',
+    'M10.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0',
+  ],
+  // 四條等寬的橫線——斐波那契回撤。
+  'fibonacci': [
+    'M3 5h18M3 10h18M3 14h18M3 19h18',
+  ],
+  // 一個方框——矩形。
+  'rectangle': [
+    'M5 5h14v14H5Z',
+  ],
+  // 一個框，中間上下的箭頭——日期與價格範圍。
+  'date-price-range': [
+    'M4 6h16v12H4Z',
+    'M12 9v6M10 11l2-2 2 2M10 13l2 2 2-2',
+  ],
+  // 一塊馬蹄形磁鐵——磁鐵模式。
+  'magnet': [
+    'M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4Z',
+  ],
+  // 一支筆——叫出繪圖工具。
+  'pencil': [
+    'M15 4l5 5L9 20H4v-5Z',
+  ],
+  // 一支筆加一個加號——連續繪圖。
+  'stay-in-drawing-mode': [
+    'M13 4l5 5-9 9H4v-5Z',
+    'M18 15v6M15 18h6',
+  ],
+  // 一把鎖上的鎖。
+  'lock': [
+    'M6 11h12v9H6Z',
+    'M8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  ],
+  // 一把打開的鎖。
+  'unlock': [
+    'M6 11h12v9H6Z',
+    'M8.5 11V8a3.5 3.5 0 0 1 6.8-1.2',
+  ],
+  // 往回的箭頭——上一步。
+  'undo': [
+    'M9 7 5 11l4 4',
+    'M5 11h10a4 4 0 0 1 0 8h-3',
+  ],
+  // 往前的箭頭——下一步。
+  'redo': [
+    'M15 7l4 4-4 4',
+    'M19 11H9a4 4 0 0 0 0 8h3',
+  ],
+  // 四個角往外——全螢幕。
+  'fullscreen': [
+    'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+  ],
+  // 一個放大鏡——搜尋。
+  'search': [
+    'M5 11a6 6 0 1 0 12 0a6 6 0 1 0-12 0',
+    'M15.5 15.5 20 20',
+  ],
+  // ƒx——指標。
+  'indicators': [
+    'M11 5c-1.5-.5-3 0-3.4 1.8L5.5 18c-.4 1.8-1.8 2.2-3 1.6M5 10h5',
+    'M13 10l7 9M20 10l-7 9',
+  ],
+  // 一豎兩橫——美國線。
+  'bars': [
+    'M9 4v16M6 8h3M9 16h3M15 4v14M12 13h3M15 7h3',
+  ],
+  // 一條折線——曲線。
+  'line-chart': [
+    'M3 17l6-7 5 4 7-9',
+  ],
+  // 折線下面填滿——面積。
+  'area-chart': [
+    'M3 20v-3l6-7 5 4 7-9v15Z',
+  ],
+  // 兩個往右的箭頭——跳到最新。
+  'to-latest': [
+    'M6 6l6 6-6 6M12 6l6 6-6 6',
+  ],
+  // 三個方框掛在一根枝上——物件樹。
+  'object-tree': [
+    'M4 4h7v5H4ZM13 10h7v5h-7ZM13 17h7v4h-7Z',
+    'M7.5 9v10.5H13M7.5 12.5H13',
+  ],
+  // 六個點——拖這裡。
+  'grip': [
+    'M9 6v.01M15 6v.01M9 12v.01M15 12v.01M9 18v.01M15 18v.01',
+  ],
 }
 
-const { name, size = 'medium' } = defineProps<{
+const { name, size = 'medium', stroke = 'regular' } = defineProps<{
   name: IconName
   /**
    * 三種大小。`large` 是給「一整顆鍵就是這個圖示」的地方用的——
    * 一顆手指大小的圓鍵配一個字級大小的圖示，看起來會像圖示掉在鍵裡面。
    */
   size?: 'small' | 'medium' | 'large'
+  /**
+   * 筆畫多粗。`fine` 是給看盤工作區那幾條細邊用的：TradingView 的工具列是細線稿，
+   * 一整排粗筆畫的圖示擺在那裡會比圖還搶眼。
+   */
+  stroke?: 'regular' | 'fine'
 }>()
 
 const paths = computed(() => ICON_PATHS[name])
@@ -329,7 +484,7 @@ const paths = computed(() => ICON_PATHS[name])
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    stroke-width="2"
+    :stroke-width="stroke === 'fine' ? 1.4 : 2"
     stroke-linecap="round"
     stroke-linejoin="round"
     aria-hidden="true"

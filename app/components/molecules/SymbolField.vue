@@ -3,6 +3,8 @@ import { useI18n } from 'vue-i18n'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import AppTabs from '~/components/atoms/AppTabs.vue'
 import FormField from '~/components/molecules/FormField.vue'
+import SymbolSearch from '~/components/molecules/SymbolSearch.vue'
+import { SymbolSearchOptionDto } from '~/domain/models/dto/symbol-search-option-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { TradingSymbolDto } from '~/domain/models/dto/trading-symbol-dto'
 import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
@@ -17,9 +19,14 @@ import { MARKETS, type MarketValue } from '~/domain/models/vo/market-vo'
  * **這裡只用於讀行情。** 新增／修改 K 線的表單維持手打——
  * 那正是新的交易標的誕生的地方，只能從既有清單挑的話就永遠建不出第一根。
  */
-const { tradingSymbolApplication, errorMessage = null } = defineProps<{
+const { tradingSymbolApplication, errorMessage = null, presentation = 'select' } = defineProps<{
   tradingSymbolApplication: TradingSymbolApplication
   errorMessage?: string | null
+  /**
+   * 長什麼樣子：表單裡的下拉選單，或看盤工作區上方細邊那一顆「代號＋放大鏡」——
+   * 按下去打開商品搜尋。挑的是同一份清單、同一條規則，只是兩種長相。
+   */
+  presentation?: 'select' | 'search'
 }>()
 
 const symbol = defineModel<string>({ required: true })
@@ -102,6 +109,24 @@ const hint = computed(() => {
   return t('marketData.symbolField.hint')
 })
 
+/** 商品搜尋那一顆；在圖上直接打字時，由外面叫它打開。 */
+const symbolSearch = ref<InstanceType<typeof SymbolSearch> | null>(null)
+
+/** 打開商品搜尋，帶著打的那一個字。 */
+function openSearch(initialQuery = '') {
+  void symbolSearch.value?.openSearch(initialQuery)
+}
+
+const searchOptions = computed(() => options.value.options.map(tradingSymbol => new SymbolSearchOptionDto(
+  tradingSymbol.symbol,
+  tradingSymbol.label,
+  tradingSymbol.hasLiveUpdates
+    ? localize(tradingSymbol.market.label)
+    : `${localize(tradingSymbol.market.label)} · ${localize(tradingSymbol.liveUpdateAvailability.label)}`,
+)))
+
+defineExpose({ openSearch })
+
 onMounted(async () => {
   try {
     tradingSymbols.value = await tradingSymbolApplication.listTradingSymbols()
@@ -131,7 +156,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="symbol-field">
+  <div
+    v-if="presentation === 'search'"
+    class="symbol-field symbol-field--search"
+  >
+    <SymbolSearch
+      ref="symbolSearch"
+      :options="searchOptions"
+      :symbol-label="symbol === '' ? t('marketData.symbolField.noOptions') : symbol"
+      :hint="hint"
+      @pick="symbol = $event"
+    />
+  </div>
+
+  <div
+    v-else
+    class="symbol-field"
+  >
     <!--
       切換鍵在欄位外面，不在裡面：FormField 用一個 <label> 把控制項包起來，
       而一顆按鈕放進 <label> 就會連帶去操作那個被標示的控制項。

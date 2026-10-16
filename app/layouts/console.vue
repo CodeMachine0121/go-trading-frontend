@@ -11,34 +11,18 @@ import MarketSwitch from '~/components/molecules/MarketSwitch.vue'
 import AppearanceToggle from '~/components/molecules/AppearanceToggle.vue'
 
 // 操作台的版型：每一頁共用的那一圈（連線燈、帳號、時區、現貨／合約開關、外觀、助手鍵）
-// 只在這裡接一次線。頁面只宣告自己的標題（definePageMeta 的 consoleTitleKey / consoleSubtitleKey）
-// 與自己的內容——以前每一頁各自接這一圈，同一段接線抄了十幾份。
-const route = useRoute()
-const { $marketCounterpartApplication } = useNuxtApp()
-
-const { selectableTimeZones, selectedTimeZone, selectTimeZone } = useSelectedTimeZone()
-const { selectableLanguages, selectedLanguageCode, selectLanguage } = useDisplayLanguage()
+// 由 useConsoleShell 接好，這裡只負責擺進頂欄與側欄。頁面只宣告自己的標題
+// （definePageMeta 的 consoleTitleKey / consoleSubtitleKey）與自己的內容。
+const {
+  route, counterpart, destinationPaths, title, subtitle,
+  selectableTimeZones, selectedTimeZone, selectTimeZone,
+  selectableLanguages, selectedLanguageCode, selectLanguage,
+  health, checking, errorMessage, checkBackendHealth,
+  currentUser, signOut,
+  appearance, selectAppearance,
+  openDrawer,
+} = useConsoleShell()
 const { t } = useI18n()
-const { health, checking, errorMessage, checkBackendHealth } = useBackendHealth()
-const { currentUser, signOut } = useUserSession()
-const { appearance, selectAppearance } = useAppearance()
-const { openDrawer } = useAssistantDrawer()
-
-const counterpart = computed(() => $marketCounterpartApplication.describeCounterpart(route.path))
-
-// 到了哪一邊的頁面就記住哪一邊；導覽上有兩邊的那幾格跟著它指路，不必每一頁再切一次。
-const { followPath, pathOnMarketSide } = useMarketSide()
-watch(() => route.path, followPath, { immediate: true })
-
-const SIDE_AWARE_DESTINATIONS = ['/k-candles/chart', '/k-candles', '/strategy-scripts', '/strategy-bots', '/spot-trade-journal']
-const destinationPaths = computed(
-  () => Object.fromEntries(SIDE_AWARE_DESTINATIONS.map(path => [path, pathOnMarketSide(path)])))
-const title = computed(() => route.meta.consoleTitleKey === undefined ? '' : t(route.meta.consoleTitleKey))
-const subtitle = computed(
-  () => route.meta.consoleSubtitleKey === undefined ? undefined : t(route.meta.consoleSubtitleKey))
-
-// 瀏覽器分頁上的標題也是這一頁的標題，跟著語言換。
-useHead({ title })
 </script>
 
 <template>

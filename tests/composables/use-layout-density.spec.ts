@@ -25,7 +25,7 @@ const Screen = defineComponent({
 
       return h('span', {
         'data-testid': 'answers',
-        'data-collapsed': String(layoutDensity.value.startsChartControlsCollapsed),
+        'data-covers-screen': String(layoutDensity.value.assistantCoversScreen),
         'data-drawer': String(layoutDensity.value.usesBottomNavigation),
         'data-generation': String(handedOut.size),
       })
@@ -37,7 +37,7 @@ function answersOf(wrapper: ReturnType<typeof mount>) {
   const element = wrapper.get('[data-testid="answers"]')
 
   return {
-    startsChartControlsCollapsed: element.attributes('data-collapsed') === 'true',
+    assistantCoversScreen: element.attributes('data-covers-screen') === 'true',
     usesBottomNavigation: element.attributes('data-drawer') === 'true',
   }
 }
@@ -63,7 +63,7 @@ describe('useLayoutDensity', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { layoutDensity } = useLayoutDensity(layoutDensityApplication)
 
-    expect(layoutDensity.value.startsChartControlsCollapsed).toBe(false)
+    expect(layoutDensity.value.assistantCoversScreen).toBe(false)
     expect(layoutDensity.value.usesBottomNavigation).toBe(false)
 
     warn.mockRestore()
@@ -74,7 +74,7 @@ describe('useLayoutDensity', () => {
     const wrapper = mount(Screen)
     await nextTick()
 
-    expect(answersOf(wrapper).startsChartControlsCollapsed).toBe(true)
+    expect(answersOf(wrapper).assistantCoversScreen).toBe(true)
 
     wrapper.unmount()
   })
@@ -82,11 +82,11 @@ describe('useLayoutDensity', () => {
   it('視窗被拉窄了，答案跟著改，不必再問一次', async () => {
     const wrapper = mount(Screen)
     await nextTick()
-    expect(answersOf(wrapper).startsChartControlsCollapsed).toBe(false)
+    expect(answersOf(wrapper).assistantCoversScreen).toBe(false)
 
     await resizeWindowTo(390)
 
-    expect(answersOf(wrapper).startsChartControlsCollapsed).toBe(true)
+    expect(answersOf(wrapper).assistantCoversScreen).toBe(true)
     expect(answersOf(wrapper).usesBottomNavigation).toBe(true)
 
     wrapper.unmount()
@@ -154,7 +154,7 @@ describe('useLayoutDensity', () => {
     await resizeWindowTo(900)
 
     expect(answersOf(wrapper).usesBottomNavigation).toBe(true)
-    expect(answersOf(wrapper).startsChartControlsCollapsed).toBe(false)
+    expect(answersOf(wrapper).assistantCoversScreen).toBe(false)
   })
 
   it('全部收起來之後再打開一個，仍然跟著視窗跑', async () => {
@@ -163,7 +163,7 @@ describe('useLayoutDensity', () => {
     const lonely = mount(Screen)
     await resizeWindowTo(390)
 
-    expect(answersOf(lonely).startsChartControlsCollapsed).toBe(true)
+    expect(answersOf(lonely).assistantCoversScreen).toBe(true)
 
     lonely.unmount()
   })

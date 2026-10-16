@@ -13,17 +13,18 @@ import { IndicatorCalculation } from '~/domain/models/entities/indicator-calcula
 import { IndicatorValueVo } from '~/domain/models/vo/indicator-value-vo'
 import SymbolField from '~/components/molecules/SymbolField.vue'
 import { seriesOf } from '../../fixtures/k-candle-series'
+import { openIndicatorDialog, pickDrawing } from '../../fixtures/symbol-search'
+import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import { buildTradingSymbolApplication } from '../../fixtures/trading-symbol-application'
 import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
 import { buildLiveKCandleApplication } from '../../fixtures/live-k-candle-application'
 import { buildStrategyScriptApplication, buildStoredStrategyScript } from '../../fixtures/strategy-script-application'
 import { buildTimeZone } from '../../fixtures/time-zone'
-import { onADesktop } from '../../fixtures/layout-density'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與 domain model 都是真的。
 const CURRENT_TIME = new Date('2026-09-02T12:00:00.000Z')
-const INTERVAL_SELECT = '[data-testid="aggregation-interval-choice-select"]'
+const INTERVAL_BUTTON = '[data-testid="aggregation-interval-choice-button"]'
 
 function buildKCandle(): KCandle {
   return new KCandle(
@@ -61,7 +62,7 @@ async function mountPanel(
         listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
-      layoutDensity: onADesktop(),
+      chartDrawingApplication: buildChartDrawingApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -81,12 +82,13 @@ async function settle() {
 
 /** 目前選著的是哪一種粗細。 */
 function chosenCoarseness(wrapper: VueWrapper): string {
-  return (wrapper.find(INTERVAL_SELECT).element as HTMLSelectElement).value
+  return wrapper.findAll(INTERVAL_BUTTON)
+    .find(button => button.attributes('aria-pressed') === 'true')?.attributes('data-interval') ?? ''
 }
 
 /** 挑一種粗細，並等到那一次取行情跑完。 */
 async function chooseCoarseness(wrapper: VueWrapper, value: string) {
-  await wrapper.find(INTERVAL_SELECT).setValue(value)
+  await wrapper.get(`${INTERVAL_BUTTON}[data-interval="${value}"]`).trigger('click')
   await flushPromises()
 }
 
@@ -108,7 +110,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
   it('選單上列的是領域說的那五項，畫面不自己寫死一份', async () => {
     const wrapper = await mountPanel(buildProxy())
 
-    expect(wrapper.find(INTERVAL_SELECT).findAll('option').map(option => option.text()))
+    expect(wrapper.findAll(INTERVAL_BUTTON).map(button => button.attributes('title')))
       .toEqual(['自動', '一分鐘', '五分鐘', '十五分鐘', '一小時'])
   })
 
@@ -116,7 +118,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     const findKCandleSeries = vi.fn().mockResolvedValue(seriesOf([buildKCandle()]))
     const wrapper = await mountPanel(buildProxy({ findKCandleSeries }))
 
-    expect((wrapper.find(INTERVAL_SELECT).element as HTMLSelectElement).value).toBe('auto')
+    expect(chosenCoarseness(wrapper)).toBe('auto')
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBeNull()
   })
 
@@ -182,7 +184,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await wrapper.findAll('[data-testid="range-preset-button"]')[5]?.trigger('click')
     await flushPromises()
 
-    expect((wrapper.find(INTERVAL_SELECT).element as HTMLSelectElement).value).toBe('15m')
+    expect(chosenCoarseness(wrapper)).toBe('15m')
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('15m')
   })
 
@@ -194,7 +196,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await wrapper.findComponent({ name: 'SymbolField' }).vm.$emit('update:modelValue', 'ETHUSDT')
     await flushPromises()
 
-    expect((wrapper.find(INTERVAL_SELECT).element as HTMLSelectElement).value).toBe('15m')
+    expect(chosenCoarseness(wrapper)).toBe('15m')
     expect(declaredIntervalOfLastCall(findKCandleSeries)).toBe('15m')
   })
 
@@ -209,6 +211,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
           .mockResolvedValue(seriesOf([buildKCandle()], '1h')),
       }),
       calculateIndicator)
+    await openIndicatorDialog(wrapper)
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
     const calculationsBefore = calculateIndicator.mock.calls.length
@@ -229,6 +232,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
       buildProxy({ catchUpSymbol: vi.fn().mockResolvedValue(3) }),
       calculateIndicator,
       buildTradingSymbolApplication(['BTCUSDT'], { hasTradingSession: true }))
+    await openIndicatorDialog(wrapper)
     await wrapper.get('[data-testid="chart-indicator-picker"]').setValue('7')
     await flushPromises()
     const calculationsBefore = calculateIndicator.mock.calls.length
@@ -261,7 +265,7 @@ describe('在圖表上挑一根 K 線涵蓋多久', () => {
     await chooseCoarseness(wrapper, '15m')
     const callsBefore = findKCandleSeries.mock.calls.length
 
-    await wrapper.findAll('[data-testid="drawing-button"]')[1]?.trigger('click')
+    await pickDrawing(wrapper, 2)
     await flushPromises()
 
     expect(chosenCoarseness(wrapper)).toBe('15m')
