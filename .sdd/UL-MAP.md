@@ -3,7 +3,7 @@
 **Project:** go-trading-frontend
 **Bounded Context:** K 線行情操作介面（K-Line Market Data Console）
 **Maintainer:** James Hsueh
-**Last Updated:** 2026-10-17
+**Last Updated:** 2026-10-18
 
 > 本文件只記錄**現在有效的詞彙**，不記錄變更歷史。詞彙不再使用就直接刪除該列。
 >
@@ -65,6 +65,7 @@
 | 快捷區間 | `KCandleChartRangePresetDto` | 快捷區間 | 一鍵把顯示區間換成某個長度，**並換到適合那個長度的粗細**（照 TradingView）：一小時／五小時／十小時→一分鐘；一天→五分鐘；五天→十五分鐘；一個月→一小時；三個月→四小時；六個月、一年→一天。預設一個月（對應一小時，與一進來的粗細一致） | Confirmed |
 | 取回計畫 | `KCandleChartLoadPlanVo` | *(不呈現)* | 對照顯示區間與已取回區間之後得出的結論：這次怎麼取（不取／整批換／往左接／往右接）、要取哪一段，以及**使用者挑的那一種彙總刻度**（原樣轉述，不推導） | Confirmed |
 | 接上一段 | `KCandleChartLoadPlanVo.kind = extendEarlier / extendLater` | *(不呈現)* | 拖到手上的 K 線快用完時，在那一側再取一段併進手上這批；畫面不動、不換粗細。一次至多九百根 | Confirmed |
+| 在路上的那一段 | *(尚未實作)* | *(不呈現)* | 一張圖已經去要、還沒回來的那一段。取回計畫要取的一段與它**完全相同**（同一張圖、同一個交易標的、同一種彙總刻度、同一個起訖、同一種接法）時不再去要，等那一份回來照常併進手上這批。回來（成功或失敗）就不再記著——失敗不會被記住，下次照常再要 | Archeology |
 | 那一頭到底了 | `KCandleChartDto.reachedEarliest` | *(不呈現)* | 接連往左接上來、一根都沒有的那幾段加起來滿兩週（`emptyEarlierSpanMilliseconds`）：再往左拖不再去要。空一段不算——有休市的市場一段常剛好落在休市裡 | Confirmed |
 | 交易走勢的粗細 | `FittingAggregationIntervalDomain` | *(不呈現)* | 一筆交易的價格走勢沒有人挑粗細：取塞得進九百根的最細那一種，長到塞不下時用一天 | Confirmed |
 | K 線圖表 | `KCandleChartDto` | K 線圖表 | 圖表這一次要畫的東西：交易標的、**系統回報的彙總刻度**（不是使用者挑的那一個）、已取回區間，以及該區間內的彙總 K 線 | Confirmed |
