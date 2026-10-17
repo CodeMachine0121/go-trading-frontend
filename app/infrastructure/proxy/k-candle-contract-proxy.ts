@@ -7,6 +7,7 @@ import { ContractPriceLineVo } from '~/domain/models/vo/contract-price-line-vo'
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { KCandleContract } from '~/domain/models/entities/k-candle-contract'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import { InFlightRequestSharing } from '~/infrastructure/proxy/in-flight-request-sharing'
 
 const K_CANDLE_CONTRACTS_ENDPOINT = '/contract-k-candles'
 const K_CANDLE_CONTRACT_SERIES_ENDPOINT = '/contract-k-candles/series'
@@ -50,6 +51,8 @@ type KCandleContractSeriesWire = {
 
 /** Proxy：唯一允許出現 $fetch 的地方，負責把 wire 形狀收乾淨再往 domain 送。 */
 export class KCandleContractProxy extends BackendApiProxy implements IKCandleContractProxy {
+  private readonly seriesRequests = new InFlightRequestSharing<KCandleContractSeriesVo>()
+
   async findKCandleContractsInRange(
     kCandleQueryDomain: KCandleQueryDomain,
   ): Promise<KCandleContract[]> {
@@ -69,23 +72,23 @@ export class KCandleContractProxy extends BackendApiProxy implements IKCandleCon
     kCandleChartLoadPlanVo: KCandleChartLoadPlanVo,
   ): Promise<KCandleContractSeriesVo> {
     // 與現貨那一條相同：一律說出使用者挑的那一種。
-    const declaredInterval = kCandleChartLoadPlanVo.aggregationIntervalChoice.declaredInterval
+    const query = {
+      symbol: kCandleChartLoadPlanVo.symbol,
+      startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
+      endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
+      interval: kCandleChartLoadPlanVo.aggregationIntervalChoice.declaredInterval,
+    }
 
-    const kCandleContractSeriesWire = await this.requestBackend<KCandleContractSeriesWire>(
-      K_CANDLE_CONTRACT_SERIES_ENDPOINT, {
-        query: {
-          symbol: kCandleChartLoadPlanVo.symbol,
-          startTime: kCandleChartLoadPlanVo.fetchStartTime.toISOString(),
-          endTime: kCandleChartLoadPlanVo.fetchEndTime.toISOString(),
-          interval: declaredInterval,
-        },
-      })
+    return this.seriesRequests.share(Object.values(query).join('|'), async () => {
+      const kCandleContractSeriesWire = await this.requestBackend<KCandleContractSeriesWire>(
+        K_CANDLE_CONTRACT_SERIES_ENDPOINT, { query })
 
-    return new KCandleContractSeriesVo(
-      kCandleContractSeriesWire.kCandles.map(
-        kCandleContractWire => this.toKCandleContract(kCandleContractWire)),
-      aggregationIntervalOf(kCandleContractSeriesWire.interval),
-    )
+      return new KCandleContractSeriesVo(
+        kCandleContractSeriesWire.kCandles.map(
+          kCandleContractWire => this.toKCandleContract(kCandleContractWire)),
+        aggregationIntervalOf(kCandleContractSeriesWire.interval),
+      )
+    })
   }
 
   private toKCandleContract(kCandleContractWire: KCandleContractWire): KCandleContract {
