@@ -18,7 +18,7 @@ function rememberedOf(
 
 /** 讀回來的那幾筆攤成好比對的形狀。 */
 function readAsPlain(proxy: AppliedChartIndicatorPreferenceProxy) {
-  return proxy.readAppliedChartIndicators().map(
+  return proxy.readAppliedChartIndicators('kCandle').map(
     one => ({ strategyScriptId: one.strategyScriptId, parameterValues: Object.fromEntries(one.parameterValues) }))
 }
 
@@ -27,7 +27,7 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
     // 順序有意義：它決定還原之後沒挑過顏色的那幾條線誰先拿到哪個顏色。
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
-    proxy.writeAppliedChartIndicators([
+    proxy.writeAppliedChartIndicators('kCandle', [
       rememberedOf(7, { 期數: 20 }),
       rememberedOf(9, { 倍數: 1.5 }),
       rememberedOf(7, { 期數: 60 }),
@@ -43,7 +43,7 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
   it('一個旋鈕都沒有的那一筆也記得住', () => {
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
-    proxy.writeAppliedChartIndicators([rememberedOf(7)])
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7)])
 
     expect(readAsPlain(proxy)).toEqual([{ strategyScriptId: 7, parameterValues: {} }])
   })
@@ -51,41 +51,41 @@ describe('AppliedChartIndicatorPreferenceProxy：擺過的那幾筆記得住', (
   it('後寫的整份蓋掉前寫的——留存的是現在圖上那幾筆', () => {
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
-    proxy.writeAppliedChartIndicators([rememberedOf(7), rememberedOf(9)])
-    proxy.writeAppliedChartIndicators([rememberedOf(9)])
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7), rememberedOf(9)])
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(9)])
 
     expect(readAsPlain(proxy)).toEqual([{ strategyScriptId: 9, parameterValues: {} }])
   })
 
   it('一支都沒擺過就是空的一份', () => {
-    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators()).toEqual([])
+    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators('kCandle')).toEqual([])
   })
 
   it('清成空的之後讀回來是空的', () => {
     const proxy = new AppliedChartIndicatorPreferenceProxy()
-    proxy.writeAppliedChartIndicators([rememberedOf(7)])
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7)])
 
-    proxy.writeAppliedChartIndicators([])
+    proxy.writeAppliedChartIndicators('kCandle', [])
 
-    expect(proxy.readAppliedChartIndicators()).toEqual([])
+    expect(proxy.readAppliedChartIndicators('kCandle')).toEqual([])
   })
 
   it('收起來的那一筆下次回來時仍然收著', () => {
     // 眼睛按下去的是「我現在不想看到這條線」，而那個意思不會因為他關掉分頁就過期。
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
-    proxy.writeAppliedChartIndicators([
+    proxy.writeAppliedChartIndicators('kCandle', [
       rememberedOf(7, {}, false),
       rememberedOf(9, {}, true),
     ])
 
-    expect(proxy.readAppliedChartIndicators().map(one => one.shownOnChart)).toEqual([false, true])
+    expect(proxy.readAppliedChartIndicators('kCandle').map(one => one.shownOnChart)).toEqual([false, true])
   })
 
   it('種類不寫進去——種類是宣告說的，留存它只會讓過期的種類贏過宣告', () => {
     const proxy = new AppliedChartIndicatorPreferenceProxy()
 
-    proxy.writeAppliedChartIndicators([rememberedOf(7, { 期數: 20 })])
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7, { 期數: 20 })])
 
     expect(localStorage.getItem(STORAGE_KEY)).not.toContain('lookbackCount')
   })
@@ -100,7 +100,7 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
   ])('$name：當成沒擺過', ({ stored }) => {
     localStorage.setItem(STORAGE_KEY, stored)
 
-    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators()).toEqual([])
+    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators('kCandle')).toEqual([])
   })
 
   it.each([
@@ -139,7 +139,7 @@ describe('AppliedChartIndicatorPreferenceProxy：留存的東西壞掉時', () =
     localStorage.setItem(STORAGE_KEY, `[${stored}]`)
 
     expect(new AppliedChartIndicatorPreferenceProxy()
-      .readAppliedChartIndicators().map(one => one.shownOnChart)).toEqual([true])
+      .readAppliedChartIndicators('kCandle').map(one => one.shownOnChart)).toEqual([true])
   })
 
   it.each([
@@ -164,7 +164,7 @@ describe('AppliedChartIndicatorPreferenceProxy：瀏覽器不讓存東西時', (
       setItem: vi.fn(),
     })
 
-    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators()).toEqual([])
+    expect(new AppliedChartIndicatorPreferenceProxy().readAppliedChartIndicators('kCandle')).toEqual([])
   })
 
   it('寫不了時不影響這一次的操作', () => {
@@ -177,6 +177,36 @@ describe('AppliedChartIndicatorPreferenceProxy：瀏覽器不讓存東西時', (
     })
 
     expect(() => new AppliedChartIndicatorPreferenceProxy()
-      .writeAppliedChartIndicators([rememberedOf(7)])).not.toThrow()
+      .writeAppliedChartIndicators('kCandle', [rememberedOf(7)])).not.toThrow()
+  })
+})
+
+describe('AppliedChartIndicatorPreferenceProxy：現貨與合約各記各的', () => {
+  it('合約那一份與現貨那一份分開讀寫', () => {
+    const proxy = new AppliedChartIndicatorPreferenceProxy()
+
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7)])
+    proxy.writeAppliedChartIndicators('contractKCandle', [rememberedOf(116)])
+
+    expect(proxy.readAppliedChartIndicators('kCandle').map(one => one.strategyScriptId)).toEqual([7])
+    expect(proxy.readAppliedChartIndicators('contractKCandle').map(one => one.strategyScriptId)).toEqual([116])
+  })
+
+  it('合約那一份清空時現貨那一份還在', () => {
+    const proxy = new AppliedChartIndicatorPreferenceProxy()
+    proxy.writeAppliedChartIndicators('kCandle', [rememberedOf(7)])
+    proxy.writeAppliedChartIndicators('contractKCandle', [rememberedOf(116)])
+
+    proxy.writeAppliedChartIndicators('contractKCandle', [])
+
+    expect(proxy.readAppliedChartIndicators('kCandle').map(one => one.strategyScriptId)).toEqual([7])
+  })
+
+  it('升級前記著的那一份屬於現貨，合約一支都沒有', () => {
+    localStorage.setItem(STORAGE_KEY, '[{"strategyId":7,"parameterValues":{}},{"strategyId":9,"parameterValues":{}}]')
+    const proxy = new AppliedChartIndicatorPreferenceProxy()
+
+    expect(proxy.readAppliedChartIndicators('kCandle').map(one => one.strategyScriptId)).toEqual([7, 9])
+    expect(proxy.readAppliedChartIndicators('contractKCandle')).toEqual([])
   })
 })

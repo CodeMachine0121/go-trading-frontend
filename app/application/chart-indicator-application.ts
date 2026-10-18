@@ -7,6 +7,7 @@ import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { StrategyScriptParameterFieldDto } from '~/domain/models/dto/strategy-script-parameter-field-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /** Application：圖表指標的用例編排，全程只碰 DTO。 */
 export class ChartIndicatorApplication {
@@ -17,13 +18,17 @@ export class ChartIndicatorApplication {
   }
 
   restoreAppliedIndicators(
+    marketDataKind: MarketDataKind,
     strategyScripts: readonly ChartApplicableStrategyScriptDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
-    return this.chartIndicatorService.restoreAppliedIndicators(strategyScripts, lastAppliedIndicatorId)
+    return this.chartIndicatorService.restoreAppliedIndicators(
+      marketDataKind, strategyScripts, lastAppliedIndicatorId)
   }
 
-  rememberAppliedIndicators(appliedIndicatorDtos: readonly AppliedIndicatorDto[]): void {
-    this.chartIndicatorService.rememberAppliedIndicators(appliedIndicatorDtos)
+  rememberAppliedIndicators(
+    marketDataKind: MarketDataKind, appliedIndicatorDtos: readonly AppliedIndicatorDto[],
+  ): void {
+    this.chartIndicatorService.rememberAppliedIndicators(marketDataKind, appliedIndicatorDtos)
   }
 
   rememberAppliedIndicatorParameters(appliedIndicatorDto: AppliedIndicatorDto): void {

@@ -4,7 +4,7 @@ import StrategyScriptPicker from '~/components/molecules/StrategyScriptPicker.vu
 import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 
 function strategyScriptOf(id: number, name: string, adopted = false): ChartApplicableStrategyScriptDto {
-  return new ChartApplicableStrategyScriptDto(id, name, 'floatList', [], true, adopted)
+  return new ChartApplicableStrategyScriptDto(id, name, 'floatList', [], true, adopted, 'kCandle')
 }
 
 describe('StrategyScriptPicker', () => {

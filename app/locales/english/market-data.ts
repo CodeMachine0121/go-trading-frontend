@@ -43,6 +43,7 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
   chartIndicatorPanel: {
     indicatorLabel: 'Indicators',
     noStrategyScripts: 'No strategy scripts yet. Write and save one on the strategy script page to apply it to the chart.',
+    strategyScriptsUnavailable: 'Strategy scripts could not be loaded right now. Reopen this chart to try again.',
     pickerPlaceholder: 'Apply a strategy script…',
     notDrawable: '{name} (cannot draw lines)',
     addToChart: 'Add',
@@ -213,7 +214,7 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
     premiumIndex: 'Premium index',
     recordedAt: 'Recorded at {time}',
     emptyChart: 'No K-candles found. There may be no data in this period yet, or this contract has not started syncing.',
-    noIndicators: 'Contract charts have no indicators to apply yet.',
+    noContractStrategyScripts: 'No contract-market strategy scripts yet. Add one on the contract strategy scripts screen.',
     liveUpdateMarketClosed: 'This market is closed.',
     liveUpdateNoLivePlace: 'This contract symbol is not on the contract watchlist, so it has no live updates — add it to the contract watchlist to follow it live.',
     liveUpdateEnded: 'Live updates were cut off and will not reconnect on their own — check that this contract symbol is still on the contract watchlist, then reload the page. The chart shows the data already loaded.',

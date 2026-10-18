@@ -1,8 +1,13 @@
 import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i-applied-chart-indicator-preference-proxy'
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /** 記在瀏覽器儲存裡的鍵。換名字等於忘掉所有人擺過的清單，所以只寫在這裡一次。 */
-const APPLIED_CHART_INDICATORS_STORAGE_KEY = 'go-trading:chart-applied-indicators'
+const APPLIED_CHART_INDICATORS_STORAGE_KEYS: Readonly<Record<MarketDataKind, string>> = {
+  // K 線這把鍵比合約圖表早：改名等於讓每個人現貨圖上擺好的那幾支消失。
+  kCandle: 'go-trading:chart-applied-indicators',
+  contractKCandle: 'go-trading:contract-chart-applied-indicators',
+}
 
 /**
  * 留存下來的 wire 形狀，只存在於本檔內，不外流進 domain。
@@ -31,9 +36,9 @@ type AppliedChartIndicatorWire = {
  */
 export class AppliedChartIndicatorPreferenceProxy
 implements IAppliedChartIndicatorPreferenceProxy {
-  readAppliedChartIndicators(): RememberedAppliedIndicatorVo[] {
+  readAppliedChartIndicators(marketDataKind: MarketDataKind): RememberedAppliedIndicatorVo[] {
     try {
-      const stored = localStorage.getItem(APPLIED_CHART_INDICATORS_STORAGE_KEY)
+      const stored = localStorage.getItem(APPLIED_CHART_INDICATORS_STORAGE_KEYS[marketDataKind])
       if (stored === null) {
         return []
       }
@@ -52,11 +57,12 @@ implements IAppliedChartIndicatorPreferenceProxy {
   }
 
   writeAppliedChartIndicators(
+    marketDataKind: MarketDataKind,
     rememberedAppliedIndicatorVos: readonly RememberedAppliedIndicatorVo[],
   ): void {
     try {
       localStorage.setItem(
-        APPLIED_CHART_INDICATORS_STORAGE_KEY,
+        APPLIED_CHART_INDICATORS_STORAGE_KEYS[marketDataKind],
         JSON.stringify(rememberedAppliedIndicatorVos.map(vo => this.toWire(vo))))
     }
     catch {

@@ -3,6 +3,7 @@ import { seriesOf } from '../../fixtures/k-candle-series'
 import { openIndicatorDialog } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -173,6 +174,16 @@ afterEach(() => {
 })
 
 describe('打開畫面時上次那幾支自己回來', () => {
+  it('讀的是現貨那一份，合約那一份不碰', async () => {
+    const readAppliedChartIndicators = vi.fn<IAppliedChartIndicatorPreferenceProxy['readAppliedChartIndicators']>()
+      .mockReturnValue([])
+
+    await mountPanel({ readAppliedChartIndicators })
+
+    expect(readAppliedChartIndicators).toHaveBeenCalledWith('kCandle')
+    expect(readAppliedChartIndicators).not.toHaveBeenCalledWith('contractKCandle')
+  })
+
   it('一筆回來，帶著它留存的值並算了一次', async () => {
     const { wrapper, calculateIndicator } = await mountPanel({
       remembered: [rememberedOf(7, { 期數: 60 })],
@@ -273,7 +284,7 @@ describe('打開畫面時對不上的那幾筆不回來', () => {
 
   it('取不到策略腳本清單時清單是空的，圖表本身照畫', async () => {
     const { wrapper } = await mountPanel({
-      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new Error('連不上')),
+      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
       remembered: [rememberedOf(7)],
     })
 
@@ -326,7 +337,7 @@ describe('清單一改動就寫下來', () => {
 
     await pickStrategyScript(wrapper, 9)
 
-    expect(writeAppliedChartIndicators).toHaveBeenLastCalledWith([rememberedOf(9)])
+    expect(writeAppliedChartIndicators).toHaveBeenLastCalledWith('kCandle', [rememberedOf(9)])
   })
 
   it('移除一筆之後留存的只有剩下的那一筆', async () => {
@@ -337,7 +348,7 @@ describe('清單一改動就寫下來', () => {
     await removeIndicator(wrapper, 1)
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 60 })])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 60 })])
   })
 
   it('改一筆的值之後留存的是新的值', async () => {
@@ -348,7 +359,7 @@ describe('清單一改動就寫下來', () => {
     await changeAppliedValue(wrapper, 1, '期數', '60')
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 60 })])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 60 })])
   })
 
   it('值填得用不了的時候不寫，但畫面顯示他剛打的東西', async () => {
@@ -382,7 +393,7 @@ describe('清單一改動就寫下來', () => {
     await toggleVisibility(wrapper, 1)
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 20 }, false)])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 20 }, false)])
   })
 
   it('某一格填著用不了的值時，按下的眼睛照樣記得住', async () => {
@@ -397,7 +408,7 @@ describe('清單一改動就寫下來', () => {
 
     // 值仍然是最後一次用得了的那個（20，不是用不了的 0），眼睛是剛按下的那一個。
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 20 }, false)])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 20 }, false)])
   })
 
   it('還在調旋鈕、還沒按加入的那一筆不寫', async () => {
@@ -471,7 +482,7 @@ describe('留存的必須是能用的那一份', () => {
     await removeIndicator(wrapper, 2)
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 45 })])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 45 })])
   })
 
   it('填了用不了的值之後再加一筆，留存的仍是能用的那個值', async () => {
@@ -485,7 +496,7 @@ describe('留存的必須是能用的那一份', () => {
     await pickStrategyScript(wrapper, 9)
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 45 }), rememberedOf(9)])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 45 }), rememberedOf(9)])
   })
 
   it('把用不了的值改回能用的之後，留存的是新的那個值', async () => {
@@ -497,7 +508,7 @@ describe('留存的必須是能用的那一份', () => {
     await changeAppliedValue(wrapper, 1, '期數', '30')
 
     expect(writeAppliedChartIndicators)
-      .toHaveBeenLastCalledWith([rememberedOf(7, { 期數: 30 })])
+      .toHaveBeenLastCalledWith('kCandle', [rememberedOf(7, { 期數: 30 })])
   })
 })
 

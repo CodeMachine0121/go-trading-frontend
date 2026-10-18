@@ -58,6 +58,7 @@ export class PublishedStrategyScriptDto {
       this.parameters,
       this.drawableOnChart,
       true,
+      this.marketDataKind,
     )
   }
 }

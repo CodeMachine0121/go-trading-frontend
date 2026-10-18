@@ -1,5 +1,6 @@
 import { LocalizedError } from '~/domain/errors/localized-error'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
 import { ChartIndicatorRequestDto } from '~/domain/models/dto/chart-indicator-request-dto'
 import type { ChartIndicatorDto } from '~/domain/models/dto/chart-indicator-dto'
 import type { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
@@ -10,6 +11,7 @@ import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -26,7 +28,11 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 不是策略腳本識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
  * 一筆算完會覆蓋掉另一筆的線——而這四件事沒有一件會報錯。
  */
-export function useChartIndicators(chartIndicatorApplication: ChartIndicatorApplication) {
+export function useChartIndicators(
+  chartIndicatorApplication: ChartIndicatorApplication,
+  strategyScriptApplication: StrategyScriptApplication,
+  marketDataKind: MarketDataKind,
+) {
   const { translatedText } = useLocalizedText()
   /** 已套用的那幾筆，依加入的順序。順序決定沒挑過顏色時誰先拿到哪個顏色。 */
   const appliedIndicators = ref<AppliedIndicatorDto[]>([])
@@ -182,48 +188,47 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     () => chartIndicatorApplication.describeAppliedIndicatorParameters(
       pendingAppliedIndicator.value?.parameters ?? []))
 
-  /**
-   * 還可以挑的策略腳本：**全部**——已經在圖上的那幾支仍然挑得到。
-   *
-   * 這裡曾經把已套用的那幾支濾掉，前提是「同一支只畫得出同一條線」。
-   * 旋鈕讓那個前提不成立了：二十期與六十期是兩條不同的線，只是恰好共用同一段算法。
-   * 規則沒有錯，是它的前提消失了。
-   */
-  function selectableStrategyScripts(strategyScripts: readonly ChartApplicableStrategyScriptDto[]): ChartApplicableStrategyScriptDto[] {
-    return [...strategyScripts]
-  }
+  /** 這張圖挑得到的策略腳本：同一種行情的全部，已經在圖上的那幾支仍然挑得到。取不到清單時是空的。 */
+  const selectableStrategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
+  const strategyScriptsUnavailable = ref(false)
+  let unmounted = false
 
   /**
-   * 把上次擺著的那幾支還原回來。**取到策略腳本清單之後才叫得動**——
-   * 那份清單是還原時唯一的真相（策略腳本可能被刪、改了宣告、現在畫不成線）。
-   *
-   * 「哪幾筆回得來」這個判斷不在這裡：這個 composable 持有的是狀態，不是規則。
-   *
-   * 算不算得動要看行情回來了沒有。**兩件事各自進行、誰先回來都可以**（既有設計），
-   * 所以這裡照樣對每一筆算一次：行情還沒回來時 `calculateOne` 會安靜地回頭，
-   * 而第一次擺好位置時它們會被補算——那一段在 `recalculateForRange` 裡。
-   *
-   * **還原不寫回留存**：留存的內容一個字都沒有變，寫它只是把剛讀到的東西寫回去。
+   * 取這張圖挑得到的策略腳本，再把上次擺著的那幾支還原回來——清單是還原時唯一的真相。
+   * 取不到清單時圖表照畫，只是沒有東西可挑、也還原不了。
+   * 行情還沒回來時不算：第一次擺好位置時 `recalculateForRange` 會補算，逐筆 await 會讓同一批被算兩遍。
    */
-  async function restoreAppliedIndicators(strategyScripts: readonly ChartApplicableStrategyScriptDto[]) {
+  async function loadStrategyScripts() {
+    try {
+      const available = await strategyScriptApplication.listAvailableStrategyScripts(marketDataKind)
+      selectableStrategyScripts.value = available.toChartApplicable()
+    }
+    catch (error: unknown) {
+      if (!(error instanceof LocalizedError)) {
+        throw error
+      }
+      selectableStrategyScripts.value = []
+      strategyScriptsUnavailable.value = true
+
+      return
+    }
+
+    if (unmounted) {
+      return
+    }
+
     const restored = chartIndicatorApplication.restoreAppliedIndicators(
-      strategyScripts, lastAppliedIndicatorId)
+      marketDataKind, selectableStrategyScripts.value, lastAppliedIndicatorId)
     if (restored.length === 0) {
       return
     }
 
     lastAppliedIndicatorId += restored.length
     appliedIndicators.value = [...appliedIndicators.value, ...restored]
-    // 回來的那幾筆的值都是能用的（用不了的在還原時就退回了預設值）——
-    // 記著它們，之後清單的任何一次改動才寫得出能用的那一份。
     for (const appliedIndicator of restored) {
       lastUsableAppliedIndicators.set(appliedIndicator.id, appliedIndicator)
     }
 
-    // **在這裡就決定要不要算，而不是邊算邊等。**
-    // 行情還沒回來時算不動（`calculateOne` 會安靜地回頭），而第一次擺好位置時會補算。
-    // 若照樣逐筆 await，每一個 await 都是一個空檔——行情的續段可能正好落在裡面，
-    // 於是補算與這個迴圈同時跑，同一批被算兩遍。兩次都畫得出線，圖上不會有任何異狀。
     if (current.value === null) {
       return
     }
@@ -334,7 +339,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 按下的每一次眼睛都會安靜地寫回舊的樣子——而畫面上那隻眼睛明明是新的。
    */
   function rememberAppliedIndicators() {
-    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
+    chartIndicatorApplication.rememberAppliedIndicators(marketDataKind, appliedIndicators.value.map(
       applied => (lastUsableAppliedIndicators.get(applied.id) ?? applied)
         .withShownOnChart(applied.shownOnChart)))
   }
@@ -480,6 +485,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
 
   /** 元件收掉時把還在等的那次也收掉，免得對一個已經不存在的畫面重算。 */
   function stopSettling() {
+    unmounted = true
     if (settleTimer !== null) {
       clearTimeout(settleTimer)
       settleTimer = null
@@ -603,7 +609,8 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
     pendingParameterFields,
     pendingParametersMessage,
     selectableStrategyScripts,
-    restoreAppliedIndicators,
+    strategyScriptsUnavailable,
+    loadStrategyScripts,
     applyIndicator,
     changePendingParameterValue,
     confirmPendingIndicator,

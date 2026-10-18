@@ -19,6 +19,7 @@ import { ChartLineColorOptionDto } from '~/domain/models/dto/chart-line-color-op
 import { IndicatorCalculationRequestDto } from '~/domain/models/dto/indicator-calculation-request-dto'
 import { CHART_LINE_COLORS } from '~/domain/models/vo/chart-line-color-vo'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * Domain Service：圖表指標的編排。
@@ -45,10 +46,11 @@ export class ChartIndicatorService {
    * （取不到時圖表照畫），為了還原再打一趟等於讓一個附加功能多花一次往返。
    */
   restoreAppliedIndicators(
+    marketDataKind: MarketDataKind,
     strategyScripts: readonly ChartApplicableStrategyScriptDto[], lastAppliedIndicatorId: number,
   ): AppliedIndicatorDto[] {
     return new RememberedAppliedIndicatorsDomain(
-      this.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators(),
+      this.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators(marketDataKind),
       strategyScripts,
     ).toAppliedIndicatorDtos(lastAppliedIndicatorId)
   }
@@ -62,8 +64,11 @@ export class ChartIndicatorService {
    * 整份寫而不是逐筆改：清單的每一次改動（加入、移除、改值）都讓它變成新的一份，
    * 而「第幾筆放在哪裡」這件事一旦讓外面也知道，兩邊算得不一樣時記憶會**安靜地**錯位。
    */
-  rememberAppliedIndicators(appliedIndicatorDtos: readonly AppliedIndicatorDto[]): void {
+  rememberAppliedIndicators(
+    marketDataKind: MarketDataKind, appliedIndicatorDtos: readonly AppliedIndicatorDto[],
+  ): void {
     this.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators(
+      marketDataKind,
       appliedIndicatorDtos.map(appliedIndicatorDto => appliedIndicatorDto.toRememberedVo()))
   }
 
@@ -172,6 +177,7 @@ export class ChartIndicatorService {
         // 可能填著完全不同的數字，而它們必須各自算各自的。
         appliedIndicator.parameters,
         appliedIndicator.strategyScript.id,
+        appliedIndicator.strategyScript.marketDataKind,
       ))
 
     const indicatorCalculation = await calculate(requestDomain)

@@ -1,4 +1,5 @@
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * DTO：一支可以套到 K 線圖上的策略腳本——圖表需要的全部，以及只有這些。
@@ -26,5 +27,6 @@ export class ChartApplicableStrategyScriptDto {
     public readonly drawableOnChart: boolean,
     /** 這一支是不是從市集加入的。畫面據此標明它是誰的東西。 */
     public readonly adopted: boolean,
+    public readonly marketDataKind: MarketDataKind,
   ) {}
 }

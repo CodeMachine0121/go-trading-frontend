@@ -247,6 +247,19 @@ describe('圖表上的指標：挑一支套上去', () => {
     expect(indicators.map(indicator => indicator.appliedIndicatorId)).toEqual([2])
   })
 
+  it('只列吃 K 線的策略腳本，吃合約行情的不在現貨清單上', async () => {
+    const { wrapper } = await mountPanel({
+      strategyScripts: [
+        buildStoredStrategyScript(115, '高斯濾波（現貨）', { marketDataKind: 'kCandle' }),
+        buildStoredStrategyScript(116, '高斯濾波（合約）', { marketDataKind: 'contractKCandle' }),
+      ],
+      adopted: [buildAdoptedStrategyScript(200, '別人的合約通道', { marketDataKind: 'contractKCandle' })],
+    })
+
+    expect(wrapper.findAll('[data-testid="chart-indicator-picker"] option').slice(1).map(option => option.text()))
+      .toEqual(['高斯濾波（現貨）'])
+  })
+
   it('一支策略腳本都還沒存過時明說，而不是留一個空選單', async () => {
     const { wrapper } = await mountPanel({ strategyScripts: [] })
 
@@ -765,7 +778,7 @@ describe('圖表上的指標：邊界', () => {
     await openIndicatorDialog(wrapper)
 
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toBe('暫時取不到策略腳本清單，稍後再打開這張圖試一次。')
   })
 
   it('一支畫出兩條線時兩條都列出來，各有各的顏色', async () => {

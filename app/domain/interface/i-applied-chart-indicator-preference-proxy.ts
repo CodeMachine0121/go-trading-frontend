@@ -1,4 +1,5 @@
 import type { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
 /**
  * 介面以「能力」命名，不以供應商命名：它說的是「記住圖上擺著哪幾支指標」，
@@ -15,7 +16,8 @@ import type { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered
  */
 export interface IAppliedChartIndicatorPreferenceProxy {
   /** 上次圖上擺著哪幾筆，依原來的順序。沒擺過（或讀不出來）時是空的一份。 */
-  readAppliedChartIndicators(): RememberedAppliedIndicatorVo[]
+  readAppliedChartIndicators(marketDataKind: MarketDataKind): RememberedAppliedIndicatorVo[]
   writeAppliedChartIndicators(
+    marketDataKind: MarketDataKind,
     rememberedAppliedIndicatorVos: readonly RememberedAppliedIndicatorVo[]): void
 }

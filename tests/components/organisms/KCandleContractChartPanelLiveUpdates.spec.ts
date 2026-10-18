@@ -20,6 +20,8 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { pickSymbolInSearch } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
+import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
+import { buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
 import { buildLiveKCandleContractApplication } from '../../fixtures/live-k-candle-application'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
@@ -96,6 +98,8 @@ async function mountPanel(
       liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
       timeZone: buildTimeZone('UTC'),
       chartDrawingApplication: buildChartDrawingApplication(),
+      chartIndicatorApplication: buildChartIndicatorApplication(),
+      strategyScriptApplication: buildStrategyScriptApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -274,6 +278,8 @@ describe('不知道在不在名單上時照常跟', () => {
         liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
         timeZone: buildTimeZone('UTC'),
         chartDrawingApplication: buildChartDrawingApplication(),
+        chartIndicatorApplication: buildChartIndicatorApplication(),
+        strategyScriptApplication: buildStrategyScriptApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })
@@ -298,6 +304,8 @@ describe('不知道在不在名單上時照常跟', () => {
         liveKCandleContractApplication: buildLiveKCandleContractApplication({ followKCandles: feed.followKCandles }),
         timeZone: buildTimeZone('UTC'),
         chartDrawingApplication: buildChartDrawingApplication(),
+        chartIndicatorApplication: buildChartIndicatorApplication(),
+        strategyScriptApplication: buildStrategyScriptApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })

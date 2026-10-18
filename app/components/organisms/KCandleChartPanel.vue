@@ -26,7 +26,6 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
-import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import type { ChartDrawingApplication } from '~/application/chart-drawing-application'
 import type { KCandleChartDrawing } from '~/domain/models/vo/k-candle-chart-drawing-vo'
@@ -121,10 +120,7 @@ const unreachableExplanation = ref<LocalizedTextVo | null>(null)
 let latestRequestNumber = 0
 
 // 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
-const chartIndicators = useChartIndicators(chartIndicatorApplication)
-
-/** 可以挑來套用的策略腳本。取不到清單時是空的——那是一份清單，不是一個功能。 */
-const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
+const chartIndicators = useChartIndicators(chartIndicatorApplication, strategyScriptApplication, 'kCandle')
 
 const intervalLabel = computed(() => chart.value === null ? '—' : localize(chart.value.interval.label))
 
@@ -500,32 +496,14 @@ watch(symbol, () => {
 })
 
 // 預設區間在進入畫面時才取，避免伺服器端與瀏覽器端取到不同的「目前時間」。
-onMounted(async () => {
+onMounted(() => {
   presets.value = kCandleChartApplication.listRangePresets()
   aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
 
   // 問「預設是哪一個」，不是拿清單的第一個：那一排由短到長排，第一個是最短的一段。
   void selectPreset(kCandleChartApplication.defaultRangePreset())
 
-  try {
-    // 兩段都能套到圖上：套用不需要算式，而加入來的那些正好沒有。
-    // 在這裡就轉成圖表要的形狀，圖表那一路因此完全不必知道有兩種來源。
-    const available = await strategyScriptApplication.listAvailableStrategyScripts()
-    strategyScripts.value = [
-      ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
-      ...available.adopted.map(published => published.toChartApplicable()),
-    ]
-
-    // 上次擺著的那幾支自己回來。**要等策略腳本清單到手**——那份清單是還原時唯一的真相：
-    // 留存的是「他要哪幾支」，而那幾支可能已經被刪、改了宣告，或者現在畫不成線。
-    // 取不到清單時就還原不了，那與「上次一支都沒擺」對使用者是同一件事：清單是空的。
-    await chartIndicators.restoreAppliedIndicators(strategyScripts.value)
-  }
-  catch {
-    // 取不到策略腳本清單只代表這一次沒有東西可挑，圖表本身照畫——
-    // 為此擋掉整張圖，等於讓一個附加功能決定主功能能不能用。
-    strategyScripts.value = []
-  }
+  void chartIndicators.loadStrategyScripts()
 })
 
 /** 補不回來的原因：具名錯誤各自帶著要說的話，其餘只剩工程師的原文，原樣呈現。 */
@@ -651,7 +629,8 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
 
     <template #indicators>
       <ChartIndicatorPanel
-        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
+        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts.value"
+        :strategy-scripts-unavailable="chartIndicators.strategyScriptsUnavailable.value"
         :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
         :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"

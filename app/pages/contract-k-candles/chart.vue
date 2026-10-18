@@ -31,6 +31,8 @@ const counterpart = computed(() => $marketCounterpartApplication.describeCounter
   <KCandleContractChartPanel
     :k-candle-chart-application="$kCandleChartApplication"
     :trading-symbol-application="$tradingSymbolApplication"
+    :chart-indicator-application="$chartIndicatorApplication"
+    :strategy-script-application="$strategyScriptApplication"
     :live-k-candle-contract-application="$liveKCandleContractApplication"
     :chart-drawing-application="$chartDrawingApplication"
     :time-zone="selectedTimeZone"

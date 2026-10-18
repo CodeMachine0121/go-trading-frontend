@@ -564,4 +564,23 @@ describe('IndicatorCalculationProxy 依行情種類挑計算', () => {
 
     expect(failure).toBeInstanceOf(IndicatorScriptFailedError)
   })
+
+  it('從來沒存過合約 K 線的代號湊不出最少可算根數時，說法與現貨那一句一字不差', async () => {
+    const shortfall = rejectionOf(400, '湊不出來', { availableCandleCount: 0, minimumCandleCount: 300 })
+    const failureOf = (marketDataKind: 'kCandle' | 'contractKCandle') => {
+      vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(shortfall))
+
+      return new IndicatorCalculationProxy(BASE_URL, signedInSessionStorage()).calculateIndicator(
+        new IndicatorCalculationRequestDomain(new IndicatorCalculationRequestDto(
+          'BTCUSDT', '5m', OBSERVATION_WINDOW, SCRIPT_BODY, 'float', [], undefined, marketDataKind)))
+        .catch((error: unknown) => error)
+    }
+
+    const contractFailure = await failureOf('contractKCandle')
+    const spotFailure = await failureOf('kCandle')
+
+    expect(contractFailure).toBeInstanceOf(IndicatorCalculationFieldError)
+    expect((contractFailure as Error).message).toBe((spotFailure as Error).message)
+    expect((contractFailure as Error).message).toContain('300')
+  })
 })
