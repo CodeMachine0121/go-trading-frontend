@@ -92,7 +92,7 @@ flowchart TD
 | :--- | :--- |
 | 合約圖表只列吃合約行情的策略腳本 | `KCandleContractChartPanel` 以 `contractKCandle` 呼叫 `listAvailableStrategyScripts` |
 | 現貨圖表照舊只列吃 K 線的策略腳本 | `KCandleChartPanel` 以 `kCandle` 呼叫（既有過濾） |
-| 從市集加入的合約策略腳本也列出來 | `PublishedStrategyScriptDto.toChartApplicable()`（`adopted = true`）＋ 合約 panel 合併兩段 |
+| 從市集加入的合約策略腳本也列出來 | `PublishedStrategyScriptDto.toChartApplicable()` 帶行情種類 ＋ 合約 panel 合併兩段 |
 | 一支吃合約行情的策略腳本都沒有 | `ChartIndicatorPanel` 的 `empty` slot ＋ 合約 panel 填入合約那一句 |
 | 只回答是或否的合約策略腳本挑不了 | `drawableOnChart`（既有 `holdsNumbers()`）＋ `ChartIndicatorPanel` 既有停用 |
 | 交易服務答不出有哪些策略腳本 | 合約 panel `onMounted` 的 catch：清單清空、圖照畫 |
