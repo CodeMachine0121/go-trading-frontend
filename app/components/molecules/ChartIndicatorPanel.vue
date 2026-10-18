@@ -91,7 +91,9 @@ function applyPicked(value: string) {
         class="chart-indicator-panel__empty"
         data-testid="chart-indicator-empty"
       >
-        {{ t('marketData.chartIndicatorPanel.noStrategyScripts') }}
+        <slot name="empty">
+          {{ t('marketData.chartIndicatorPanel.noStrategyScripts') }}
+        </slot>
       </p>
 
       <AppSelect

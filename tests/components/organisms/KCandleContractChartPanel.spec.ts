@@ -21,6 +21,8 @@ import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { openIndicatorDialog, pickSymbolInSearch } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
+import { buildChartIndicatorApplication } from '../../fixtures/chart-indicator-application'
+import { buildStrategyScriptApplication } from '../../fixtures/strategy-script-application'
 import { buildLiveKCandleContractApplication } from '../../fixtures/live-k-candle-application'
 import {
   buildContractTradingSymbol, buildContractTradingSymbolProxy, buildKCandleContractProxy,
@@ -81,6 +83,8 @@ async function mountPanel(kCandleContractProxy: IKCandleContractProxy, spotProxy
       liveKCandleContractApplication: buildLiveKCandleContractApplication(),
       timeZone: buildTimeZone('UTC'),
       chartDrawingApplication: buildChartDrawingApplication(),
+      chartIndicatorApplication: buildChartIndicatorApplication(),
+      strategyScriptApplication: buildStrategyScriptApplication(),
     },
     global: { stubs: { KCandleChart: true } },
   })
@@ -242,18 +246,20 @@ describe('KCandleContractChartPanel', () => {
     expect(wrapper.findComponent(KCandleChart).props('drawnRange')).not.toBe(draggedRange)
   })
 
-  it('常駐一句話只說還沒有的：合約圖表沒有指標', async () => {
+  it('指標對話框是現貨那一塊，一支合約策略腳本都沒有時指路到合約策略腳本畫面', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(contractSeriesOf([])),
     }))
     await openIndicatorDialog(wrapper)
 
-    expect(wrapper.get('[data-testid="no-indicators-notice"]').text()).toBe('合約圖表目前沒有指標可套用。')
-    // 即時跟盤已經有了，那一句不能再說它沒有。
+    expect(wrapper.findComponent(ChartIndicatorPanel).exists()).toBe(true)
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
+      .toBe('還沒有吃合約行情的策略腳本，到合約策略腳本畫面新增一支。')
+    expect(wrapper.text()).not.toContain('合約圖表目前沒有指標可套用')
     expect(wrapper.text()).not.toContain('沒有即時跟盤')
   })
 
-  it('沒有現貨才有的控制項：套用指標那一塊與立刻更新都不在', async () => {
+  it('沒有現貨才有的控制項：立刻更新不在', async () => {
     const wrapper = await mountPanel(buildKCandleContractProxy({
       findKCandleContractSeries: vi.fn().mockResolvedValue(
         contractSeriesOf([buildKCandleContract('2026-09-23T11:00:00.000Z', '110')])),
@@ -261,7 +267,6 @@ describe('KCandleContractChartPanel', () => {
 
     expect(wrapper.find('[data-testid="catch-up-button"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('立刻更新')
-    expect(wrapper.findComponent(ChartIndicatorPanel).exists()).toBe(false)
     expect(wrapper.findComponent(ContractSymbolField).exists()).toBe(true)
   })
 
@@ -507,6 +512,8 @@ describe('KCandleContractChartPanel', () => {
         liveKCandleContractApplication: buildLiveKCandleContractApplication(),
         timeZone: buildTimeZone('UTC'),
         chartDrawingApplication: buildChartDrawingApplication(),
+        chartIndicatorApplication: buildChartIndicatorApplication(),
+        strategyScriptApplication: buildStrategyScriptApplication(),
       },
       global: { stubs: { KCandleChart: true } },
     })

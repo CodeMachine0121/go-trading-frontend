@@ -2,9 +2,12 @@
 import { useI18n } from 'vue-i18n'
 import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
 import KCandleChartWorkspace from '~/components/organisms/KCandleChartWorkspace.vue'
-import AppAlert from '~/components/atoms/AppAlert.vue'
+import ChartIndicatorPanel from '~/components/molecules/ChartIndicatorPanel.vue'
 import KCandleChartNotices from '~/components/molecules/KCandleChartNotices.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
+import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
+import type { StrategyScriptApplication } from '~/application/strategy-script-application'
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
@@ -31,11 +34,14 @@ const DEFAULT_SYMBOL = 'BTCUSDT'
 //
 // 看多長、每根涵蓋、要不要重新取、取哪一段，與現貨圖表問的是同一個 Application、
 // 同一套判斷——這裡只換「取的是合約那一條」。即時跟盤也是現貨那一套，跟的是合約的通道。
-// **沒有指標與立刻更新**：那兩樣沒有擺出來，而且畫面上明說。
+// 指標也是現貨那一套，只挑吃合約行情的策略腳本。**沒有立刻更新**。
 const {
-  kCandleChartApplication, tradingSymbolApplication, liveKCandleContractApplication, chartDrawingApplication, timeZone,
+  kCandleChartApplication, tradingSymbolApplication, chartIndicatorApplication, liveKCandleContractApplication,
+  strategyScriptApplication, chartDrawingApplication, timeZone,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
+  chartIndicatorApplication: ChartIndicatorApplication
+  strategyScriptApplication: StrategyScriptApplication
   tradingSymbolApplication: TradingSymbolApplication
   /** 合約那一條即時通道；與現貨圖表的那一條各跟各的。 */
   liveKCandleContractApplication: LiveKCandleContractApplication
@@ -52,6 +58,8 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const symbol = ref(DEFAULT_SYMBOL)
+const chartIndicators = useChartIndicators(chartIndicatorApplication, 'contractKCandle')
+const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
 const drawing = ref<KCandleChartDrawing>('candlestick')
 
 /** 挑合約的那個欄位——在圖上直接打字時要它打開商品搜尋。 */
@@ -164,17 +172,25 @@ async function showViewport(kCandleChartViewportDto: KCandleChartViewportDto, re
         drawnRange.value = chartView.drawnRange
       }
 
+      // 接上一段時不重新開始跟：已經收到的即時 K 線留著，併進接好的那一批。
+      const rebasedChart = chartView.reloadedChart !== null && !chartView.replacedChart && following !== null
+        ? following.rebaseOnto(chartView.reloadedChart)
+        : null
+
       // null 代表手上那批就夠了——不換資料，尤其不能把圖清掉。
       if (chartView.reloadedChart !== null) {
         loadedChart = chartView.reloadedChart
-        // 接上一段時不重新開始跟：已經收到的即時 K 線留著，併進接好的那一批。
-        if (!chartView.replacedChart && following !== null) {
-          chart.value = following.rebaseOnto(chartView.reloadedChart)
-        }
-        else {
-          chart.value = chartView.reloadedChart
-          followTheMarket(chartView.reloadedChart)
-        }
+        chart.value = rebasedChart ?? chartView.reloadedChart
+      }
+
+      if (chart.value !== null) {
+        chartIndicators.recalculateForRange(
+          chart.value, chartView.visibleRange, chartView.reloadedChart !== null)
+      }
+
+      // 跟盤放在指標知道他在看哪一段之後：否則走完的第一根會被當成不在畫面上而漏算。
+      if (chartView.reloadedChart !== null && rebasedChart === null) {
+        followTheMarket(chartView.reloadedChart)
       }
       // 手上那批留著、卻沒有在跟：例如先換到一個不在名單上的合約標的（那一條被停掉了），
       // 圖還沒取回就又換回來——領域說不必重取，但跟盤不能就此斷掉。
@@ -223,6 +239,7 @@ function forgetTheChart() {
   chart.value = null
   loadedChart = null
   stopTheFollow()
+  chartIndicators.clearLines()
 }
 
 function stopTheFollow() {
@@ -257,6 +274,10 @@ function followTheMarket(followedChart: KCandleChartDto) {
       // 沒有的是「即時」，不是「圖表」。
       latestLiveReport.value = report
       chart.value = report.chart
+
+      if (report.hasClosedAKCandle) {
+        void chartIndicators.recalculateAfterKCandleClosed(report.chart)
+      }
     })
 }
 
@@ -274,6 +295,7 @@ function selectContractTradingSymbol(contractTradingSymbol: ContractTradingSymbo
 
 onBeforeUnmount(() => {
   stopTheFollow()
+  chartIndicators.stopSettling()
 })
 
 /** 按一個長度：一併換到那個長度看得清楚的粗細（照 TradingView 的日期範圍按鈕）。 */
@@ -337,11 +359,24 @@ function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
 // 換合約等於換一批資料：看的長度不變，擺回看得到最新那一根。
 watch(symbol, () => showLatest())
 
-onMounted(() => {
+onMounted(async () => {
   presets.value = kCandleChartApplication.listRangePresets()
   aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
 
   void selectPreset(kCandleChartApplication.defaultRangePreset())
+
+  try {
+    const available = await strategyScriptApplication.listAvailableStrategyScripts('contractKCandle')
+    strategyScripts.value = [
+      ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
+      ...available.adopted.map(published => published.toChartApplicable()),
+    ]
+    await chartIndicators.restoreAppliedIndicators(strategyScripts.value)
+  }
+  catch {
+    // 取不到清單只代表這一次沒有東西可挑；圖表本身照畫。
+    strategyScripts.value = []
+  }
 })
 </script>
 
@@ -353,9 +388,11 @@ onMounted(() => {
     :chart="chart"
     :drawn-range="drawnRange"
     :time-zone="timeZone"
+    :indicators="chartIndicators.visibleChartIndicators.value"
     :symbol="chart?.symbol ?? symbol"
     :legend-title="chartTitle"
     :interval-label="intervalLabel"
+    :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
     :presets="presets"
     :active-preset="activePreset"
     :aggregation-interval-choices="aggregationIntervalChoices"
@@ -369,6 +406,8 @@ onMounted(() => {
     @jump-to-latest="jumpToLatest"
     @open-menu="emit('openMenu')"
     @type-to-search="symbolField?.openSearch($event)"
+    @toggle-indicator-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
+    @remove-indicator="chartIndicators.removeAppliedIndicator"
   >
     <template #symbol>
       <ContractSymbolField
@@ -448,14 +487,27 @@ onMounted(() => {
       </p>
     </template>
 
-    <!-- 合約圖表目前沒有指標：按鈕照樣在，打開之後明說。 -->
     <template #indicators>
-      <AppAlert
-        tone="info"
-        data-testid="no-indicators-notice"
+      <ChartIndicatorPanel
+        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
+        :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
+        :color-options="chartIndicators.colorOptions"
+        :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"
+        :pending-parameter-fields="chartIndicators.pendingParameterFields.value"
+        :pending-parameters-message="chartIndicators.pendingParametersMessage.value"
+        @apply="chartIndicators.applyIndicator"
+        @change-pending-parameter-value="chartIndicators.changePendingParameterValue"
+        @confirm-pending="chartIndicators.confirmPendingIndicator"
+        @cancel-pending="chartIndicators.cancelPendingIndicator"
+        @change-applied-parameter-value="chartIndicators.changeAppliedParameterValue"
+        @toggle-visibility="chartIndicators.toggleAppliedIndicatorVisibility"
+        @remove="chartIndicators.removeAppliedIndicator"
+        @change-line-color="chartIndicators.changeLineColor"
       >
-        {{ t('marketData.kCandleContractChartPanel.noIndicators') }}
-      </AppAlert>
+        <template #empty>
+          {{ t('marketData.kCandleContractChartPanel.noContractStrategyScripts') }}
+        </template>
+      </ChartIndicatorPanel>
     </template>
   </KCandleChartWorkspace>
 </template>
