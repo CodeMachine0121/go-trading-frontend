@@ -7,7 +7,6 @@ import KCandleChartNotices from '~/components/molecules/KCandleChartNotices.vue'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { ChartIndicatorApplication } from '~/application/chart-indicator-application'
 import type { StrategyScriptApplication } from '~/application/strategy-script-application'
-import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { LiveKCandleContractApplication } from '~/application/live-k-candle-contract-application'
 import type { ContractTradingSymbolDto } from '~/domain/models/dto/contract-trading-symbol-dto'
@@ -58,8 +57,7 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const symbol = ref(DEFAULT_SYMBOL)
-const chartIndicators = useChartIndicators(chartIndicatorApplication, 'contractKCandle')
-const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
+const chartIndicators = useChartIndicators(chartIndicatorApplication, strategyScriptApplication, 'contractKCandle')
 const drawing = ref<KCandleChartDrawing>('candlestick')
 
 /** 挑合約的那個欄位——在圖上直接打字時要它打開商品搜尋。 */
@@ -359,24 +357,13 @@ function selectAggregationIntervalChoice(choice: AggregationIntervalChoiceDto) {
 // 換合約等於換一批資料：看的長度不變，擺回看得到最新那一根。
 watch(symbol, () => showLatest())
 
-onMounted(async () => {
+onMounted(() => {
   presets.value = kCandleChartApplication.listRangePresets()
   aggregationIntervalChoices.value = kCandleChartApplication.listAggregationIntervalChoices()
 
   void selectPreset(kCandleChartApplication.defaultRangePreset())
 
-  try {
-    const available = await strategyScriptApplication.listAvailableStrategyScripts('contractKCandle')
-    strategyScripts.value = [
-      ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
-      ...available.adopted.map(published => published.toChartApplicable()),
-    ]
-    await chartIndicators.restoreAppliedIndicators(strategyScripts.value)
-  }
-  catch {
-    // 取不到清單只代表這一次沒有東西可挑；圖表本身照畫。
-    strategyScripts.value = []
-  }
+  void chartIndicators.loadStrategyScripts()
 })
 </script>
 
@@ -489,7 +476,7 @@ onMounted(async () => {
 
     <template #indicators>
       <ChartIndicatorPanel
-        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts(strategyScripts)"
+        :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts.value"
         :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
         :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"

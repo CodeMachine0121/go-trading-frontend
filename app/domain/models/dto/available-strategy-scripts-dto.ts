@@ -1,3 +1,4 @@
+import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 
@@ -16,4 +17,11 @@ export class AvailableStrategyScriptsDto {
     /** 從市集加入的那些，不帶算式，唯讀。 */
     public readonly adopted: readonly PublishedStrategyScriptDto[],
   ) {}
+
+  toChartApplicable(): ChartApplicableStrategyScriptDto[] {
+    return [
+      ...this.mine.map(strategyScript => strategyScript.toChartApplicable()),
+      ...this.adopted.map(published => published.toChartApplicable()),
+    ]
+  }
 }
