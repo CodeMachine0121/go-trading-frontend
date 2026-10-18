@@ -778,7 +778,7 @@ describe('圖表上的指標：邊界', () => {
     await openIndicatorDialog(wrapper)
 
     expect(wrapper.findComponent(KCandleChart).exists()).toBe(true)
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toBe('暫時取不到策略腳本清單，稍後再打開這張圖試一次。')
   })
 
   it('一支畫出兩條線時兩條都列出來，各有各的顏色', async () => {

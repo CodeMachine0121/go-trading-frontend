@@ -25,6 +25,9 @@ import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-appl
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
 import { BackendServerError } from '~/domain/errors/backend-server-error'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import type { StrategyScript } from '~/domain/models/entities/strategy-script'
+import type { PublishedStrategyScript } from '~/domain/models/entities/published-strategy-script'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { openIndicatorDialog } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
@@ -203,13 +206,31 @@ describe('合約圖表的指標清單', () => {
     expect(option?.text()).toContain('畫不成線')
   })
 
-  it('交易服務答不出有哪些策略腳本時圖照畫，清單是空的', async () => {
+  it('交易服務答不出有哪些策略腳本時圖照畫，清單是空的，而且不叫他去新增一支', async () => {
     const { wrapper } = await mountPanel({
-      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new Error('後端沒有回應')),
+      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
     })
 
     expect(wrapper.findComponent(KCandleChart).props('chart')?.kCandles).toHaveLength(1)
-    expect(wrapper.find('[data-testid="chart-indicator-empty"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="chart-indicator-picker"] option')).toHaveLength(0)
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
+      .toBe('暫時取不到策略腳本清單，稍後再打開這張圖試一次。')
+  })
+
+  it('清單還沒回來就離開畫面時不還原、也不計算', async () => {
+    let resolveList: (available: { mine: StrategyScript[], adopted: PublishedStrategyScript[] }) => void = () => {}
+    const readAppliedChartIndicators = vi.fn().mockReturnValue([new RememberedAppliedIndicatorVo(116, new Map())])
+    const { wrapper, calculateIndicator } = await mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockReturnValue(new Promise((resolve) => { resolveList = resolve })),
+      appliedChartIndicatorPreferenceProxy: { readAppliedChartIndicators },
+    })
+
+    wrapper.unmount()
+    resolveList({ mine: [GAUSSIAN_CONTRACT], adopted: [] })
+    await flushPromises()
+
+    expect(readAppliedChartIndicators).not.toHaveBeenCalled()
+    expect(calculateIndicator).not.toHaveBeenCalled()
   })
 })
 

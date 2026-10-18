@@ -34,6 +34,7 @@ const { selectableStrategyScripts, appliedIndicatorRows, colorOptions } = define
   pendingAppliedIndicator: AppliedIndicatorDto | null
   pendingParameterFields: readonly StrategyScriptParameterFieldDto[]
   pendingParametersMessage: LocalizedTextVo | null
+  strategyScriptsUnavailable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -91,7 +92,13 @@ function applyPicked(value: string) {
         class="chart-indicator-panel__empty"
         data-testid="chart-indicator-empty"
       >
-        <slot name="empty">
+        <template v-if="strategyScriptsUnavailable">
+          {{ t('marketData.chartIndicatorPanel.strategyScriptsUnavailable') }}
+        </template>
+        <slot
+          v-else
+          name="empty"
+        >
           {{ t('marketData.chartIndicatorPanel.noStrategyScripts') }}
         </slot>
       </p>

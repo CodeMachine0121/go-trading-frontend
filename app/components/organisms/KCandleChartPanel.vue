@@ -630,6 +630,7 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
     <template #indicators>
       <ChartIndicatorPanel
         :selectable-strategy-scripts="chartIndicators.selectableStrategyScripts.value"
+        :strategy-scripts-unavailable="chartIndicators.strategyScriptsUnavailable.value"
         :applied-indicator-rows="chartIndicators.appliedIndicatorRows.value"
         :color-options="chartIndicators.colorOptions"
         :pending-applied-indicator="chartIndicators.pendingAppliedIndicator.value"

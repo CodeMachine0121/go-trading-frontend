@@ -190,6 +190,8 @@ export function useChartIndicators(
 
   /** 這張圖挑得到的策略腳本：同一種行情的全部，已經在圖上的那幾支仍然挑得到。取不到清單時是空的。 */
   const selectableStrategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
+  const strategyScriptsUnavailable = ref(false)
+  let unmounted = false
 
   /**
    * 取這張圖挑得到的策略腳本，再把上次擺著的那幾支還原回來——清單是還原時唯一的真相。
@@ -201,9 +203,17 @@ export function useChartIndicators(
       const available = await strategyScriptApplication.listAvailableStrategyScripts(marketDataKind)
       selectableStrategyScripts.value = available.toChartApplicable()
     }
-    catch {
+    catch (error: unknown) {
+      if (!(error instanceof LocalizedError)) {
+        throw error
+      }
       selectableStrategyScripts.value = []
+      strategyScriptsUnavailable.value = true
 
+      return
+    }
+
+    if (unmounted) {
       return
     }
 
@@ -475,6 +485,7 @@ export function useChartIndicators(
 
   /** 元件收掉時把還在等的那次也收掉，免得對一個已經不存在的畫面重算。 */
   function stopSettling() {
+    unmounted = true
     if (settleTimer !== null) {
       clearTimeout(settleTimer)
       settleTimer = null
@@ -598,6 +609,7 @@ export function useChartIndicators(
     pendingParameterFields,
     pendingParametersMessage,
     selectableStrategyScripts,
+    strategyScriptsUnavailable,
     loadStrategyScripts,
     applyIndicator,
     changePendingParameterValue,

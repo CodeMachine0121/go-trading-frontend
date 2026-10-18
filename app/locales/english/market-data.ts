@@ -43,6 +43,7 @@ export const marketDataEnglishMessages: typeof marketDataTraditionalChineseMessa
   chartIndicatorPanel: {
     indicatorLabel: 'Indicators',
     noStrategyScripts: 'No strategy scripts yet. Write and save one on the strategy script page to apply it to the chart.',
+    strategyScriptsUnavailable: 'Strategy scripts could not be loaded right now. Reopen this chart to try again.',
     pickerPlaceholder: 'Apply a strategy script…',
     notDrawable: '{name} (cannot draw lines)',
     addToChart: 'Add',

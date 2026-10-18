@@ -41,6 +41,7 @@ export const marketDataTraditionalChineseMessages = {
   chartIndicatorPanel: {
     indicatorLabel: '指標',
     noStrategyScripts: '還沒有任何策略腳本。到策略腳本畫面寫一支存起來，就能套到圖上。',
+    strategyScriptsUnavailable: '暫時取不到策略腳本清單，稍後再打開這張圖試一次。',
     pickerPlaceholder: '套用一支策略腳本…',
     notDrawable: '{name}（畫不成線）',
     addToChart: '加進來',

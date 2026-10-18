@@ -3,6 +3,7 @@ import { seriesOf } from '../../fixtures/k-candle-series'
 import { openIndicatorDialog } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 import type { KCandleSeriesVo } from '~/domain/models/vo/k-candle-series-vo'
+import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Mock } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -283,7 +284,7 @@ describe('打開畫面時對不上的那幾筆不回來', () => {
 
   it('取不到策略腳本清單時清單是空的，圖表本身照畫', async () => {
     const { wrapper } = await mountPanel({
-      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new Error('連不上')),
+      listAvailableStrategyScripts: vi.fn().mockRejectedValue(new BackendUnreachableError('http://localhost:8080')),
       remembered: [rememberedOf(7)],
     })
 
