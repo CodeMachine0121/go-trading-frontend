@@ -247,6 +247,14 @@ function onSave() {
       {{ localize(form.marketDataKindNotice.value) }}
     </AppAlert>
 
+    <AppAlert
+      v-if="form.replayPaceNotice.value !== null"
+      tone="info"
+      data-testid="trading-strategy-replay-pace-notice"
+    >
+      {{ localize(form.replayPaceNotice.value) }}
+    </AppAlert>
+
     <!-- 擋下來的原因貼著儲存鍵講，而不是在三張卡的最底下。 -->
     <AppAlert
       v-if="form.rejection.value !== null"

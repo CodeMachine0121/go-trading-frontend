@@ -704,30 +704,31 @@ describe('TradingStrategyWorkbench：一份交易策略只看一種粗細', () =
     await flushPromises()
 
     expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="trading-strategy-replay-pace-notice"]').exists()).toBe(false)
   })
 
-  it('粗細不一樣時擋下來，並說出現在有哪幾種，儲存鍵按不下去', async () => {
-    // 只說「不一樣」的話，他得把每一個來源的設定都打開一次才知道差在哪。
+  it('粗細不一樣時不擋，說明重演以最細的那一個為步調，儲存鍵按得下去', async () => {
     const wrapper = mountWorkbench(twoSourcesReading('1h', '5m'))
-    await flushPromises()
-
-    const rejection = wrapper.get('[data-testid="trading-strategy-form-rejection"]').text()
-    expect(rejection).toContain('1h')
-    expect(rejection).toContain('5m')
-    expect(wrapper.get('[data-testid="trading-strategy-form-save"]').attributes('disabled'))
-      .toBeDefined()
-  })
-
-  it('把那一個調回來就送得出去了', async () => {
-    const wrapper = mountWorkbench(twoSourcesReading('1h', '5m'))
-    await flushPromises()
-
-    await wrapper.get('[data-testid="strategy-script-settings-1"]').trigger('click')
-    await wrapper.get('[data-testid="strategy-script-interval-select"]').setValue('1h')
     await flushPromises()
 
     expect(wrapper.find('[data-testid="trading-strategy-form-rejection"]').exists()).toBe(false)
-    expect(await savedIntervalsOf(wrapper)).toEqual(['1h', '1h'])
+    expect(wrapper.get('[data-testid="trading-strategy-replay-pace-notice"]').text())
+      .toBe('重演以五分鐘為步調；一小時那幾路只用已經走完的那一根。')
+    expect(wrapper.get('[data-testid="trading-strategy-form-save"]').attributes('disabled'))
+      .toBeUndefined()
+  })
+
+  it('把第二個改成一天就存得下去，而且存的是兩種粗細', async () => {
+    const wrapper = mountWorkbench(twoSourcesReading('15m', '15m'))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="strategy-script-settings-1"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-interval-select"]').setValue('1d')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="trading-strategy-replay-pace-notice"]').text())
+      .toBe('重演以十五分鐘為步調；一天那幾路只用已經走完的那一根。')
+    expect(await savedIntervalsOf(wrapper)).toEqual(['15m', '1d'])
   })
 
   it('後來才加的來源跟著已經有的那幾個', async () => {

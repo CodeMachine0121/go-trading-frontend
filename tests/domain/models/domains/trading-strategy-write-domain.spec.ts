@@ -127,11 +127,51 @@ describe('TradingStrategyWriteDomain', () => {
     expect(aBotWrite(overrides).rejection?.in('en')).toContain(expectedMessage)
   })
 
-  it('零件看的粗細不一樣時，英文那一句列出它現在有哪幾種', () => {
+  it('零件看的粗細不一樣時照樣送得出去', () => {
     const writeDomain = aBotWrite({
       signalSources: [source('A'), new TradingStrategySignalSourceDto('B', 9, '5m', [])],
     })
 
-    expect(writeDomain.rejection?.in('en')).toContain('(1h, 5m)')
+    expect(writeDomain.isSendable).toBe(true)
+    expect(writeDomain.sendable.signalSources.map(signalSource => signalSource.aggregationInterval))
+      .toEqual(['1h', '5m'])
+  })
+
+  it.each([
+    [
+      '一天、四小時、十五分鐘以十五分鐘為步調',
+      ['1d', '4h', '15m'],
+      'zh-TW',
+      '重演以十五分鐘為步調；四小時、一天那幾路只用已經走完的那一根。',
+    ],
+    [
+      '一小時與一天的英文說法',
+      ['1h', '1d'],
+      'en',
+      'Replays step at 1 hour; the 1 day sources speak only with their last finished candle.',
+    ],
+    [
+      '同一個刻度出現兩次只列一次',
+      ['1h', '1d', '1d'],
+      'zh-TW',
+      '重演以一小時為步調；一天那幾路只用已經走完的那一根。',
+    ],
+  ] as const)('%s', (_situation, intervals, language, expectedNotice) => {
+    const writeDomain = aBotWrite({
+      signalSources: intervals.map((interval, index) =>
+        new TradingStrategySignalSourceDto(String.fromCharCode(65 + index), 9, interval, [])),
+    })
+
+    expect(writeDomain.replayPaceNotice?.in(language)).toBe(expectedNotice)
+  })
+
+  it('刻度只有一種時不說明步調', () => {
+    const writeDomain = aBotWrite({ signalSources: [source('A'), source('B')] })
+
+    expect(writeDomain.replayPaceNotice).toBeNull()
+  })
+
+  it('一個來源都沒有時也不說明步調', () => {
+    expect(aBotWrite({ signalSources: [] }).replayPaceNotice).toBeNull()
   })
 })

@@ -4,6 +4,7 @@ import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strateg
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import { AGGREGATION_INTERVALS } from '~/domain/models/vo/aggregation-interval-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 /**
@@ -49,6 +50,28 @@ export class TradingStrategyWriteDomain {
 
   get isSendable(): boolean {
     return this.rejection === null
+  }
+
+  /**
+   * 來源看的粗細不只一種時，說出重演以哪一種為步調；只有一種時是 null。
+   *
+   * 步調是最細的那一種，較粗的那幾路只用已經走完的那一根——讀回測成績的人要知道它是在哪個粗細上算的。
+   */
+  get replayPaceNotice(): LocalizedTextVo | null {
+    const usedIntervals = AGGREGATION_INTERVALS.filter(aggregationInterval =>
+      this.writeDto.signalSources.some(signalSource => signalSource.aggregationInterval === aggregationInterval.value))
+    const [paceInterval, ...coarserIntervals] = usedIntervals
+
+    if (paceInterval === undefined || coarserIntervals.length === 0) {
+      return null
+    }
+
+    return new LocalizedTextVo(
+      `重演以${paceInterval.label.traditionalChinese}為步調；`
+      + `${coarserIntervals.map(interval => interval.label.traditionalChinese).join('、')}那幾路只用已經走完的那一根。`,
+      `Replays step at ${paceInterval.label.english}; `
+      + `the ${coarserIntervals.map(interval => interval.label.english).join(', ')} sources speak only with their last finished candle.`,
+    )
   }
 
   /**
@@ -135,35 +158,7 @@ export class TradingStrategyWriteDomain {
       takenLabels.push(label)
     }
 
-    return this.mixedCoarsenessRejection()
-  }
-
-  /**
-   * 幾塊零件看的粗細不一樣時擋下來。
-   *
-   * 這是少數幾條**畫面上真的做得出來、而且仍然不對**的規則之一：每一塊零件各自挑
-   * 自己看多粗的 K 線，所以挑出彼此不同的組合是一次點擊的事。
-   *
-   * 而那樣的一份什麼都做不成——「一小時的那一棒」與「五分鐘的那一棒」不是同一根，
-   * 所以重演讀不了它，上線之後條件樹也會把兩個時間軸上的意見當成同一棒的兩句話。
-   *
-   * 那句話**說出它現在有哪幾種**。只說「不一樣」的話，他得把每一塊零件的設定
-   * 都打開一次才知道差在哪，而要做的事就是把它們調成同一個。
-   */
-  private mixedCoarsenessRejection(): LocalizedTextVo | null {
-    const coarsenesses = [...new Set(
-      this.writeDto.signalSources.map(signalSource => signalSource.aggregationInterval))]
-
-    if (coarsenesses.length <= 1) {
-      return null
-    }
-
-    return new LocalizedTextVo(
-      `這幾塊零件看的 K 線粗細不一樣（${coarsenesses.join('、')}）。`
-      + '一份交易策略只看一種——請把每一塊都調成同一個。',
-      `These signal sources read K-candles of different intervals (${coarsenesses.join(', ')}). `
-      + 'A trading strategy reads only one — set them all to the same interval.',
-    )
+    return null
   }
 
   /**
