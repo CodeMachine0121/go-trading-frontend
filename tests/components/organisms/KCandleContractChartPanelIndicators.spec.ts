@@ -24,6 +24,7 @@ import { KCandleContractSeriesVo } from '~/domain/models/vo/k-candle-contract-se
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 import { aggregationIntervalOf } from '~/domain/models/vo/aggregation-interval-vo'
 import { IndicatorScriptFailedError } from '~/domain/errors/indicator-script-failed-error'
+import { BackendServerError } from '~/domain/errors/backend-server-error'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { openIndicatorDialog } from '../../fixtures/symbol-search'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
@@ -180,6 +181,7 @@ describe('合約圖表的指標清單', () => {
     expect(pickerOptionTexts(wrapper)).toEqual(['別人的通道'])
     await applyStrategyScript(wrapper, 200)
     expect(sentRequest(vi.mocked(calculateIndicator)).strategyScriptId).toBe(200)
+    expect(sentRequest(vi.mocked(calculateIndicator)).marketDataKind.value).toBe('contractKCandle')
     expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
   })
 
@@ -304,6 +306,38 @@ describe('合約圖表畫出指標', () => {
     expect(wrapper.get('[data-testid="indicator-error-1"]').text()).toContain('boom')
     expect(wrapper.find('[data-testid="indicator-error-2"]').exists()).toBe(false)
     expect(wrapper.findComponent(KCandleChart).props('indicators')).toHaveLength(1)
+  })
+})
+
+describe('合約圖表換圖與離開時', () => {
+  it('換刻度取圖失敗時圖上的指標線一併收掉，已套用的仍留在清單上', async () => {
+    const { wrapper, findKCandleContractSeries } = await mountPanel()
+    await applyStrategyScript(wrapper, 116)
+    findKCandleContractSeries.mockRejectedValueOnce(new BackendServerError('後端出錯'))
+
+    await wrapper.get('[data-testid="aggregation-interval-choice-button"][data-interval="4h"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="open-indicator-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-testid="indicator-line"]')).toHaveLength(0)
+  })
+
+  it('拖動後還沒停手就離開畫面時不再計算', async () => {
+    const { wrapper, calculateIndicator } = await mountPanel()
+    await applyStrategyScript(wrapper, 116)
+    const callsBefore = vi.mocked(calculateIndicator).mock.calls.length
+
+    wrapper.findComponent(KCandleChart).vm.$emit('rangeChange', {
+      startTime: new Date('2026-09-20T00:00:00.000Z'), endTime: new Date('2026-09-22T00:00:00.000Z'),
+    })
+    await flushPromises()
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(400)
+    await flushPromises()
+
+    expect(vi.mocked(calculateIndicator).mock.calls.length).toBe(callsBefore)
   })
 })
 
