@@ -49,7 +49,7 @@ describe('圖例', () => {
 
 describe('圖例：已套用的指標', () => {
   function indicatorRow(id: number, isVisible: boolean): AppliedIndicatorRowDto {
-    const strategyScript = new ChartApplicableStrategyScriptDto(7, '二十根均線', 'float', [], true, false)
+    const strategyScript = new ChartApplicableStrategyScriptDto(7, '二十根均線', 'float', [], true, false, 'kCandle')
 
     return new AppliedIndicatorRowDto(
       new AppliedIndicatorDto(id, strategyScript, [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], isVisible),

@@ -34,6 +34,7 @@ export class StrategyScriptDto {
       this.content.parameters,
       this.drawableOnChart,
       false,
+      this.content.marketDataKind,
     )
   }
 }

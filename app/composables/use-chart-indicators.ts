@@ -10,6 +10,7 @@ import type { ChartVisibleRangeVo } from '~/domain/models/vo/chart-visible-range
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
 /**
@@ -26,7 +27,9 @@ import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
  * 不是策略腳本識別碼。用後者當鍵，移除一筆會讓兩筆一起消失、一筆失敗會讓另一筆也紅、
  * 一筆算完會覆蓋掉另一筆的線——而這四件事沒有一件會報錯。
  */
-export function useChartIndicators(chartIndicatorApplication: ChartIndicatorApplication) {
+export function useChartIndicators(
+  chartIndicatorApplication: ChartIndicatorApplication, marketDataKind: MarketDataKind,
+) {
   const { translatedText } = useLocalizedText()
   /** 已套用的那幾筆，依加入的順序。順序決定沒挑過顏色時誰先拿到哪個顏色。 */
   const appliedIndicators = ref<AppliedIndicatorDto[]>([])
@@ -207,7 +210,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    */
   async function restoreAppliedIndicators(strategyScripts: readonly ChartApplicableStrategyScriptDto[]) {
     const restored = chartIndicatorApplication.restoreAppliedIndicators(
-      strategyScripts, lastAppliedIndicatorId)
+      marketDataKind, strategyScripts, lastAppliedIndicatorId)
     if (restored.length === 0) {
       return
     }
@@ -334,7 +337,7 @@ export function useChartIndicators(chartIndicatorApplication: ChartIndicatorAppl
    * 按下的每一次眼睛都會安靜地寫回舊的樣子——而畫面上那隻眼睛明明是新的。
    */
   function rememberAppliedIndicators() {
-    chartIndicatorApplication.rememberAppliedIndicators(appliedIndicators.value.map(
+    chartIndicatorApplication.rememberAppliedIndicators(marketDataKind, appliedIndicators.value.map(
       applied => (lastUsableAppliedIndicators.get(applied.id) ?? applied)
         .withShownOnChart(applied.shownOnChart)))
   }

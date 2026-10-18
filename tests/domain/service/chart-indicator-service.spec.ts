@@ -13,13 +13,17 @@ import type { IAppliedChartIndicatorPreferenceProxy } from '~/domain/interface/i
 import { RememberedAppliedIndicatorVo } from '~/domain/models/vo/remembered-applied-indicator-vo'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { ObservationWindowVo } from '~/domain/models/vo/observation-window-vo'
+import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 
 /** 圖上正在看的那一段。少帶它，算出來的就是另一段行情的指標。 */
 const CHART_WINDOW = new ObservationWindowVo(
   new Date('2026-09-02T00:00:00.000Z'), new Date('2026-09-02T12:00:00.000Z'))
 
-function strategyScriptOf(resultType = 'float'): ChartApplicableStrategyScriptDto {
-  return new ChartApplicableStrategyScriptDto(7, '二十根均線', resultType, [], true, false)
+function strategyScriptOf(
+  resultType = 'float', marketDataKind: MarketDataKind = 'kCandle',
+): ChartApplicableStrategyScriptDto {
+  return new ChartApplicableStrategyScriptDto(7, '二十根均線', resultType, [], true, false, marketDataKind)
 }
 
 /** 一次套用：預設沒有旋鈕，與這個切片之前的行為一模一樣。 */
@@ -285,9 +289,9 @@ describe('ChartIndicatorService.restoreAppliedIndicators', () => {
         new RememberedAppliedIndicatorVo(7, new Map([['期數', 60]]))]),
     })
     const strategyScript = new ChartApplicableStrategyScriptDto(
-      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false)
+      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false, 'kCandle')
 
-    const restored = fixture.chartIndicatorService.restoreAppliedIndicators([strategyScript], 0)
+    const restored = fixture.chartIndicatorService.restoreAppliedIndicators('kCandle', [strategyScript], 0)
 
     expect(restored.map(one => [one.id, one.strategyScript.name, one.parameterSummary.in('zh-TW')]))
       .toEqual([[1, '均線', '期數 60']])
@@ -296,7 +300,7 @@ describe('ChartIndicatorService.restoreAppliedIndicators', () => {
   it('一筆都沒留存時交出空的一份', () => {
     const fixture = buildService()
 
-    expect(fixture.chartIndicatorService.restoreAppliedIndicators([strategyScriptOf()], 0)).toEqual([])
+    expect(fixture.chartIndicatorService.restoreAppliedIndicators('kCandle', [strategyScriptOf()], 0)).toEqual([])
   })
 
   it('不為了還原多打一趟後端——策略腳本清單是收進來的', () => {
@@ -305,7 +309,7 @@ describe('ChartIndicatorService.restoreAppliedIndicators', () => {
         new RememberedAppliedIndicatorVo(7, new Map())]),
     })
 
-    fixture.chartIndicatorService.restoreAppliedIndicators([strategyScriptOf()], 0)
+    fixture.chartIndicatorService.restoreAppliedIndicators('kCandle', [strategyScriptOf()], 0)
 
     expect(fixture.indicatorCalculationProxy.calculateIndicator).not.toHaveBeenCalled()
   })
@@ -315,9 +319,9 @@ describe('ChartIndicatorService.rememberAppliedIndicators', () => {
   it('整份寫下來，依清單的順序', () => {
     const fixture = buildService()
     const strategyScript = new ChartApplicableStrategyScriptDto(
-      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false)
+      7, '均線', 'float', [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)], true, false, 'kCandle')
 
-    fixture.chartIndicatorService.rememberAppliedIndicators([
+    fixture.chartIndicatorService.rememberAppliedIndicators('kCandle', [
       new AppliedIndicatorDto(1, strategyScript, [
         new StrategyScriptParameterDto('期數', 'lookbackCount', 20)]),
       new AppliedIndicatorDto(2, strategyScript, [
@@ -325,7 +329,7 @@ describe('ChartIndicatorService.rememberAppliedIndicators', () => {
     ])
 
     expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)
-      .toHaveBeenCalledWith([
+      .toHaveBeenCalledWith('kCandle', [
         new RememberedAppliedIndicatorVo(7, new Map([['期數', 20]])),
         new RememberedAppliedIndicatorVo(7, new Map([['期數', 60]])),
       ])
@@ -334,9 +338,55 @@ describe('ChartIndicatorService.rememberAppliedIndicators', () => {
   it('清空清單時寫下空的一份——不寫的話它明天會回來', () => {
     const fixture = buildService()
 
-    fixture.chartIndicatorService.rememberAppliedIndicators([])
+    fixture.chartIndicatorService.rememberAppliedIndicators('kCandle', [])
 
     expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)
-      .toHaveBeenCalledWith([])
+      .toHaveBeenCalledWith('kCandle', [])
+  })
+})
+
+describe('ChartIndicatorService：吃哪一種行情由策略腳本決定', () => {
+  it.each([
+    { name: '吃合約行情的策略腳本送到合約指標計算', marketDataKind: 'contractKCandle' as const },
+    { name: '吃 K 線的策略腳本送到 K 線指標計算', marketDataKind: 'kCandle' as const },
+  ])('$name', async ({ marketDataKind }) => {
+    const fixture = buildService()
+
+    await fixture.chartIndicatorService.calculateChartIndicator(
+      requestOf(strategyScriptOf('floatList', marketDataKind)))
+
+    const sent = vi.mocked(fixture.indicatorCalculationProxy.calculateIndicator).mock.calls[0]?.[0] as IndicatorCalculationRequestDomain
+    expect(sent.marketDataKind.value).toBe(marketDataKind)
+  })
+
+  it('跟著最新那一根重算時也照策略腳本的行情種類送', async () => {
+    const fixture = buildService()
+
+    await fixture.chartIndicatorService.recalculateChartIndicator(
+      requestOf(strategyScriptOf('floatList', 'contractKCandle')))
+
+    const sent = vi.mocked(fixture.indicatorCalculationProxy.recalculateIndicator).mock.calls[0]?.[0] as IndicatorCalculationRequestDomain
+    expect(sent.marketDataKind.value).toBe('contractKCandle')
+  })
+})
+
+describe('ChartIndicatorService：圖表擺著哪幾支依行情種類分開記', () => {
+  it('還原合約圖時讀的是合約那一份', () => {
+    const fixture = buildService()
+
+    fixture.chartIndicatorService.restoreAppliedIndicators(
+      'contractKCandle', [strategyScriptOf('floatList', 'contractKCandle')], 0)
+
+    expect(fixture.appliedChartIndicatorPreferenceProxy.readAppliedChartIndicators)
+      .toHaveBeenCalledWith('contractKCandle')
+  })
+
+  it('記住合約圖時寫的是合約那一份', () => {
+    const fixture = buildService()
+
+    fixture.chartIndicatorService.rememberAppliedIndicators('contractKCandle', [])
+
+    expect(fixture.appliedChartIndicatorPreferenceProxy.writeAppliedChartIndicators)
+      .toHaveBeenCalledWith('contractKCandle', [])
   })
 })

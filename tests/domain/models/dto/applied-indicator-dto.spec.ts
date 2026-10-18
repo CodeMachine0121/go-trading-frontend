@@ -3,7 +3,7 @@ import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 
-const STRATEGY = new ChartApplicableStrategyScriptDto(7, '二十根均線', 'floatList', [], true, false)
+const STRATEGY = new ChartApplicableStrategyScriptDto(7, '二十根均線', 'floatList', [], true, false, 'kCandle')
 
 function appliedWith(parameters: StrategyScriptParameterDto[], id = 1): AppliedIndicatorDto {
   return new AppliedIndicatorDto(id, STRATEGY, parameters)

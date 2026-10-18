@@ -12,7 +12,7 @@ function strategyScriptOf(
   id: number, name: string, parameters: StrategyScriptParameterDto[] = [], drawableOnChart = true,
 ): ChartApplicableStrategyScriptDto {
   return new ChartApplicableStrategyScriptDto(
-    id, name, 'floatList', parameters, drawableOnChart, false)
+    id, name, 'floatList', parameters, drawableOnChart, false, 'kCandle')
 }
 
 function rememberedOf(

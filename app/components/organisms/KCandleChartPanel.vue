@@ -121,7 +121,7 @@ const unreachableExplanation = ref<LocalizedTextVo | null>(null)
 let latestRequestNumber = 0
 
 // 圖上的指標。狀態住在 composable，這裡只負責在對的時機告訴它「圖上那批換了」。
-const chartIndicators = useChartIndicators(chartIndicatorApplication)
+const chartIndicators = useChartIndicators(chartIndicatorApplication, 'kCandle')
 
 /** 可以挑來套用的策略腳本。取不到清單時是空的——那是一份清單，不是一個功能。 */
 const strategyScripts = ref<ChartApplicableStrategyScriptDto[]>([])
@@ -510,7 +510,7 @@ onMounted(async () => {
   try {
     // 兩段都能套到圖上：套用不需要算式，而加入來的那些正好沒有。
     // 在這裡就轉成圖表要的形狀，圖表那一路因此完全不必知道有兩種來源。
-    const available = await strategyScriptApplication.listAvailableStrategyScripts()
+    const available = await strategyScriptApplication.listAvailableStrategyScripts('kCandle')
     strategyScripts.value = [
       ...available.mine.map(strategyScript => strategyScript.toChartApplicable()),
       ...available.adopted.map(published => published.toChartApplicable()),
