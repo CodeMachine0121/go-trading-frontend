@@ -82,7 +82,7 @@ flowchart TD
 - **How to add it:** 新圖表建 `useChartIndicators(app, '<kind>')`、清單取同一種，其餘不動。
 - **Patterns applied & why:** 資料攜帶自己的路由資訊（策略腳本帶行情種類），取代呼叫端分支。
 - **Do not hardcode:** 不要在 panel 或 composable 裡判斷「合約就走合約計算」——那由策略腳本自己說。
-- **Known debt / deferred:** 兩個圖表 panel 的指標接線幾乎一模一樣（列清單、還原、三個重算掛點）。目前兩處；若出現第三處再抽一個 composable 收掉。
+- **Known debt / deferred:** 列清單與還原已收進 `useChartIndicators.loadStrategyScripts()`；兩個 panel 仍各自接三個重算掛點（顯示區間、一根走完、換圖收線），那是各自取圖與跟盤流程的一部分。
 
 ---
 
