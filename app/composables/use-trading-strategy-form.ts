@@ -149,6 +149,8 @@ export function useTradingStrategyForm(
 
   const rejection = computed(() => new TradingStrategyWriteDomain(buildWriteDto()).rejection)
 
+  const replayPaceNotice = computed(() => new TradingStrategyWriteDomain(buildWriteDto()).replayPaceNotice)
+
   function buildWriteDto(): TradingStrategyWriteDto {
     return new TradingStrategyWriteDto(
       editing()?.id,
@@ -459,6 +461,7 @@ export function useTradingStrategyForm(
     signalSourceParameterInputs,
     conditionSides,
     rejection,
+    replayPaceNotice,
     reset,
     toWriteDto,
     addSignalSource,
