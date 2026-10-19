@@ -18,7 +18,6 @@
 | Area | Action | What / Why |
 | :--- | :--- | :--- |
 | 使用者身分（`UserProxy` wire → `SignedInUser` → `SignedInUserDto`） | **Modify** | 多帶 `isAdmin`，導覽與頁面才知道是不是管理員 |
-| `useUserSession` | **Modify** | 多露出 `isAdministrator` computed |
 | `useConsoleDestinations` / `ConsoleLayout` / `ChartWorkspaceMenu` | **Modify** | 管理員才多一格「標的篩選」，窄螢幕放進「更多」 |
 | 篩選設定與篩選輪次的對外存取 | **Add** | `ISymbolScreeningProxy` + `SymbolScreeningProxy`（一資源群一 proxy） |
 | 篩選的領域模型、service、application、composable、頁面與元件 | **Add** | 見第 3 節 |
@@ -43,7 +42,7 @@
 | `SymbolScreeningProfileWriteDomain` | Domain Model | 把表單 DTO 正規化成要送的內容：留白的數字不送、現有組合拆逗號轉大寫 | — | US-02 S1、S6；US-03 S1 |
 | `SymbolScreeningService` | Domain Service | 列/存/刪設定、挑出可用策略（自己的、合約 K 線、信號、無逐筆成交參數）、送出、列輪次、讀單筆、取消；entity → DTO | `ISymbolScreeningProxy`、`IStrategyScriptProxy` | US-02 S2/S3、全部 |
 | `SymbolScreeningApplication` | Application | 用例入口，只碰 DTO | `SymbolScreeningService` | 全部 |
-| `useSymbolScreeningProfiles` / `useSymbolScreeningRuns` / `useSymbolScreeningRunDetail` | Composable | 畫面狀態：設定清單與表單送出；紀錄清單＋只在有進行中時每 3 秒輪詢；明細以 `waitSeconds` 長輪詢至結束；離開畫面（scope dispose）停止 | Application | US-03、05、06、07 S6 |
+| `useSymbolScreeningProfiles` / `useSymbolScreeningSubmission` / `useSymbolScreeningRuns` / `useSymbolScreeningRunDetail` | Composable | 畫面狀態：設定清單與存檔；送出篩選（失敗保留輸入）；紀錄清單＋只在有進行中時每 3 秒重讀；明細在進行中時每 3 秒重讀至結束（後端的 `waitSeconds` 只在結束時才回，看不到逐檔進度，因此不用）；關閉或離開畫面即停止 | Application | US-03、05、06、07 S6 |
 | `pages/symbol-screening/index.vue` + `SymbolScreeningPage`（template）+ `SymbolScreeningProfilePanel`、`SymbolScreeningProfileForm`、`SymbolScreeningSubmitPanel`、`SymbolScreeningRunList`、`SymbolScreeningRunDetail`（organisms）+ `SymbolScreeningCandidateCard`（molecule） | Controller | 綁 DTO 與事件；非管理員（或後端 403）時只顯示「這是管理員功能」 | Application / composables | US-01~07 |
 
 ---
@@ -53,8 +52,8 @@
 | Component | Current role | Change needed |
 | :--- | :--- | :--- |
 | `user-proxy.ts` / `SignedInUser` / `SignedInUserDto` | 已登入者的身分 | 加 `isAdmin`（wire 缺欄位→`false`） |
-| `use-user-session.ts` | 目前使用者 | 加 `isAdministrator` |
-| `use-console-destinations.ts` | 導覽清單 | 管理員才 push「標的篩選」（icon `filter`/既有可用者） |
+| `use-user-session.ts` | 目前使用者 | 不改：導覽與頁面直接讀 `currentUser.isAdmin`，免得既有對它的 mock 都要多補一個欄位 |
+| `use-console-destinations.ts` | 導覽清單 | 管理員才多一格「標的篩選」（icon `search`）；`ChartWorkspaceMenu` 用同一份清單，因此不必改 |
 | `ConsoleLayout.vue` | 窄螢幕「更多」 | `MORE_DESTINATION_PATHS` 加 `/symbol-screening` |
 | `plugins/dependencies.ts` | 組裝根 | 組 `SymbolScreeningApplication` 並 provide |
 | `locales/*` | 字串 | 新增 `symbolScreening` 區塊 |
@@ -85,7 +84,7 @@ flowchart TD
 - **Where it lands:** 數字 → proxy 的 findings 讀法 + `SymbolScreeningCandidateDomain.toDto()` + `SymbolScreeningCandidateCard`；狀態 → `SymbolScreeningCandidateStatusDomain` 的表；新動作 → `SymbolScreeningApplication` 新增一個方法（呼叫既有合約追蹤 service）。
 - **How to add it:** 在 Domain Model 的說法表加一列；DTO 欄位為「有才有」(`null` 不顯示)，元件只 `v-if` 該欄位。
 - **Patterns applied & why:** 狀態說法表（沿用 `BacktestRunStatusDomain`）讓新增狀態只加一列；具名錯誤讓畫面分流不讀狀態碼。
-- **Do not hardcode:** 輪詢間隔用常數 `SYMBOL_SCREENING_RUN_POLL_INTERVAL_MILLISECONDS`（3000）與明細 `waitSeconds`（20）；預設值由後端回填，前端不寫死 730/3/6 等。
+- **Do not hardcode:** 輪詢間隔用常數 `SYMBOL_SCREENING_POLL_INTERVAL_MILLISECONDS`（3000）；預設值由後端回填，前端不寫死 730/3/6 等。
 - **Known debt / deferred:** 列表一次取最新 50 筆、不分頁（管理員自用、量小）；量大時再加分頁。
 
 ---
@@ -94,7 +93,7 @@ flowchart TD
 
 | PRD Scenario | Fulfilled by |
 | :--- | :--- |
-| US-01 管理員的導覽上有標的篩選 | `SignedInUser.isAdmin` → `useUserSession.isAdministrator` → `useConsoleDestinations` |
+| US-01 管理員的導覽上有標的篩選 | `SignedInUser.isAdmin` → `useUserSession.currentUser` → `useConsoleDestinations` |
 | US-01 一般使用者的導覽上沒有標的篩選 | `useConsoleDestinations`（非管理員不加）、`ConsoleLayout`、`ChartWorkspaceMenu` |
 | US-01 一般使用者直接打開標的篩選頁 | `SymbolScreeningPage`（非管理員只渲染拒絕訊息、不載入資料）+ `AdministratorRequiredError` |
 | US-01 管理員打開標的篩選頁 | `SymbolScreeningPage` → `useSymbolScreeningProfiles` / `useSymbolScreeningRuns` |
@@ -107,7 +106,7 @@ flowchart TD
 | US-03 修改歷史天數 | `SymbolScreeningService.saveProfile`（帶 id → PUT）+ 清單更新 |
 | US-03 有篩選正在使用的設定不能刪 | 409 → `BackendRequestRejectedError` 原樣訊息 + 清單不變 |
 | US-03 刪除沒在用的設定 | `SymbolScreeningService.deleteProfile` + `useSymbolScreeningProfiles` 移除 |
-| US-03 確認時反悔 | `SymbolScreeningProfilePanel`（`window.confirm` 為否 → 不呼叫） |
+| US-03 確認時反悔 | `SymbolScreeningProfilePanel` + 既有 `ConfirmDialog`（取消 → 不刪） |
 | US-04 送出一串標的 | `SymbolScreeningService.submitRun` + `useSymbolScreeningRuns.prepend` + `SymbolScreeningRunDomain`（0／2、排隊中） |
 | US-04 已有一筆在排隊 | 429 → `BackendRequestRejectedError` 原樣 + `SymbolScreeningSubmitPanel` 保留輸入 |
 | US-04 標的含不允許的字元 | 400 → 原樣訊息 + 保留輸入 |
@@ -125,7 +124,7 @@ flowchart TD
 | US-07 通過的標的顯示各段報酬 | `SymbolScreeningCandidateDomain`（帶號百分比）+ `SymbolScreeningCandidateCard` |
 | US-07 通過的標的顯示縮短的空窗 | `SymbolScreeningCandidateDomain`（gapReductionDays）|
 | US-07 現有組合無法比較 | `SymbolScreeningRunDto.contributionFailureReason` + `SymbolScreeningRunDetail` |
-| US-07 進行中的明細依貼上順序並自己更新 | `useSymbolScreeningRunDetail`（`waitSeconds` 長輪詢至結束） |
+| US-07 進行中的明細依貼上順序並自己更新 | `useSymbolScreeningRunDetail`（進行中每 3 秒重讀至結束） |
 | US-07 只顯示有的數字 | `SymbolScreeningCandidateDomain`（缺的欄位為 `null`）+ `v-if` |
 | US-07 顯示送出當下的設定 | `SymbolScreeningSnapshot` → `SymbolScreeningRunDetailDto.snapshot` |
 | US-07 無法完成的標的說出原因 | `SymbolScreeningCandidateStatusDomain` + `reason` |
@@ -134,5 +133,5 @@ flowchart TD
 
 ## 8. Risks & Open Decisions
 
-- **Risks / trade-offs:** 長輪詢最多 20 秒才回；關閉明細或換一筆時以 generation counter 丟棄舊回應，避免蓋掉。刪除確認用 `window.confirm`（沿用既有刪除作法），元件測試以 `vi.spyOn(window, 'confirm')` 驗證。
-- **Open decisions (for implementation):** 導覽圖示沿用 `AppIcon` 既有名稱中最貼近者（實作時查表決定）。
+- **Risks / trade-offs:** 明細與清單各自每 3 秒重讀；關閉明細或換一筆時以 generation counter 丟棄舊回應，避免蓋掉。刪除確認沿用既有 `ConfirmDialog`。
+- **Open decisions (for implementation):** 無（導覽圖示定為既有的 `search`）。
