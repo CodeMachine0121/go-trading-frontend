@@ -16,10 +16,11 @@ export class SignedInUser {
     public readonly email: string,
     public readonly isEnabled: boolean,
     public readonly activationInstruction: AccountActivationInstructionDto | null,
+    public readonly isAdmin: boolean = false,
   ) {}
 
   toDto(): SignedInUserDto {
     return new SignedInUserDto(
-      this.id, this.email, this.isEnabled, this.activationInstruction)
+      this.id, this.email, this.isEnabled, this.activationInstruction, this.isAdmin)
   }
 }

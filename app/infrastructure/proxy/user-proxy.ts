@@ -41,6 +41,7 @@ type SignedInUserWire = {
   id: number
   email: string
   isEnabled: boolean
+  isAdmin?: boolean
   /**
    * 還沒被放行時後端會附上的那一段；放行之後**整個欄位不存在**。
    *
@@ -218,6 +219,7 @@ export class UserProxy extends BackendApiProxy implements IUserProxy {
         ? null
         : new AccountActivationInstructionDto(
             instructionWire.requestMailbox, instructionWire.subject),
+      signedInUserWire.isAdmin ?? false,
     )
   }
 
