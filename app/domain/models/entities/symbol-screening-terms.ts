@@ -1,8 +1,8 @@
 import type Decimal from 'decimal.js'
 import { SymbolScreeningTermsDto } from '~/domain/models/dto/symbol-screening-terms-dto'
 import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
-import { SYMBOL_SCREENING_AGGREGATION_INTERVALS } from '~/domain/models/vo/symbol-screening-aggregation-interval-vo'
-import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { SymbolScreeningAggregationIntervalDomain } from '~/domain/models/domains/symbol-screening-aggregation-interval-domain'
+import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 
 export class SymbolScreeningTerms {
   constructor(
@@ -19,12 +19,9 @@ export class SymbolScreeningTerms {
   ) {}
 
   toDto(): SymbolScreeningTermsDto {
-    const interval = SYMBOL_SCREENING_AGGREGATION_INTERVALS.find(
-      candidate => candidate.value === this.aggregationInterval)
-
     return new SymbolScreeningTermsDto(
       this.aggregationInterval,
-      interval?.label ?? new UntranslatedTextVo(this.aggregationInterval),
+      new SymbolScreeningAggregationIntervalDomain(this.aggregationInterval).label(),
       this.tradingMode,
       new ContractTradingModeDomain(this.tradingMode).label(),
       this.leverage,
@@ -34,6 +31,7 @@ export class SymbolScreeningTerms {
       this.segmentCount,
       this.minimumTradeCount,
       this.minimumAverageDailyQuoteVolume,
+      new JournalNumberDomain(this.minimumAverageDailyQuoteVolume).priceAt(0),
       this.baselineSymbols,
     )
   }

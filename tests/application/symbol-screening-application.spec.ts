@@ -39,7 +39,8 @@ function applicationUnderTest(
 
 describe('SymbolScreeningApplication profiles', () => {
   it('offers only the 4-hour and daily intervals', () => {
-    expect(applicationUnderTest().listAggregationIntervalOptions().map(option => option.value)).toEqual(['4h', '1d'])
+    expect(applicationUnderTest().listAggregationIntervalOptions()
+      .map(option => [option.value, option.label.traditionalChinese])).toEqual([['4h', '每 4 小時'], ['1d', '每天']])
   })
 
   it('offers long only, short only and long & short trading modes', () => {
@@ -81,7 +82,8 @@ describe('SymbolScreeningApplication profiles', () => {
     expect(saved.terms.minimumTradeCount).toBe(6)
     expect(saved.terms.minimumAverageDailyQuoteVolume.equals(new Decimal('20000000'))).toBe(true)
     expect(saved.terms.tradingModeLabel.traditionalChinese).toBe('只做多')
-    expect(saved.terms.aggregationIntervalLabel.traditionalChinese).toBe('四小時')
+    expect(saved.terms.aggregationIntervalLabel.traditionalChinese).toBe('每 4 小時')
+    expect(saved.terms.minimumAverageDailyQuoteVolumeText).toBe('20,000,000')
   })
 
   it('names an interval it does not know as the system wrote it', async () => {

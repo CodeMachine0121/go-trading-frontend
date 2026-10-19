@@ -21,7 +21,9 @@ const { localize } = useLocalizedText()
     </li>
     <li>{{ t('symbolScreening.terms.segmentCount', { count: terms.segmentCount }) }}</li>
     <li>{{ t('symbolScreening.terms.minimumTradeCount', { count: terms.minimumTradeCount }) }}</li>
-    <li>{{ t('symbolScreening.terms.minimumAverageDailyQuoteVolume', { volume: terms.minimumAverageDailyQuoteVolume.toString() }) }}</li>
+    <li data-testid="symbol-screening-terms-minimum-volume">
+      {{ t('symbolScreening.terms.minimumAverageDailyQuoteVolume', { volume: terms.minimumAverageDailyQuoteVolumeText }) }}
+    </li>
     <li>{{ t('symbolScreening.terms.leverage', { leverage: terms.leverage.toString() }) }}</li>
     <li>{{ t('symbolScreening.terms.entryCostPercentage', { percent: terms.entryCostPercentage.toString() }) }}</li>
     <li>{{ t('symbolScreening.terms.slippagePercentage', { percent: terms.slippagePercentage.toString() }) }}</li>

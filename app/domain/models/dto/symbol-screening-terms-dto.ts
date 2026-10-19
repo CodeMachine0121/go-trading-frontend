@@ -14,6 +14,7 @@ export class SymbolScreeningTermsDto {
     public readonly segmentCount: number,
     public readonly minimumTradeCount: number,
     public readonly minimumAverageDailyQuoteVolume: Decimal,
+    public readonly minimumAverageDailyQuoteVolumeText: string,
     public readonly baselineSymbols: readonly string[],
   ) {}
 }

@@ -6,9 +6,9 @@ import type { SymbolScreeningRunDto } from '~/domain/models/dto/symbol-screening
 import type { SymbolScreeningRunDetailDto } from '~/domain/models/dto/symbol-screening-run-detail-dto'
 import type { SymbolScreeningRunSubmissionDto } from '~/domain/models/dto/symbol-screening-run-submission-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
-import type { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
+import { AggregationIntervalOptionDto } from '~/domain/models/dto/aggregation-interval-option-dto'
+import { SymbolScreeningAggregationIntervalDomain } from '~/domain/models/domains/symbol-screening-aggregation-interval-domain'
 import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
-import { AggregationIntervalDomain } from '~/domain/models/domains/aggregation-interval-domain'
 import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 import { SYMBOL_SCREENING_AGGREGATION_INTERVALS } from '~/domain/models/vo/symbol-screening-aggregation-interval-vo'
 import { CONTRACT_TRADING_MODES } from '~/domain/models/vo/contract-trading-mode-vo'
@@ -21,8 +21,8 @@ export class SymbolScreeningService {
   ) {}
 
   listAggregationIntervalOptions(): AggregationIntervalOptionDto[] {
-    return SYMBOL_SCREENING_AGGREGATION_INTERVALS.map(
-      interval => new AggregationIntervalDomain(interval.value).toOptionDto())
+    return SYMBOL_SCREENING_AGGREGATION_INTERVALS.map(interval => new AggregationIntervalOptionDto(
+      interval, new SymbolScreeningAggregationIntervalDomain(interval).label()))
   }
 
   listTradingModeOptions(): ContractTradingModeOptionDto[] {

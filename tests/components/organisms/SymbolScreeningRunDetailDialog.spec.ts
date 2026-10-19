@@ -49,7 +49,8 @@ describe('SymbolScreeningRunDetailDialog', () => {
     expect(wrapper.findAll('[data-testid="symbol-screening-candidate-segment-return"]').map(cell => cell.text()))
       .toEqual(['+20.0%', '+5.0%', '+12.0%'])
     expect(wrapper.get('[data-testid="symbol-screening-candidate-return-without-best"]').text()).toContain('+17.6%')
-    expect(wrapper.get('[data-testid="symbol-screening-candidate-gap-reduction"]').text()).toBe('縮短 35 天')
+    expect(wrapper.get('[data-testid="symbol-screening-candidate-contribution"]').findAll('li').map(item => item.text()))
+      .toEqual(['持倉時間比例 20.0%', '與現有組合重疊 10.0%', '現有組合最長空窗 95 天', '加上後最長空窗 60 天', '縮短 35 天'])
   })
 
   it('shows only the figures a candidate has', () => {

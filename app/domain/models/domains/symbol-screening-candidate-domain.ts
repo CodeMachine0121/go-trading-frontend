@@ -7,6 +7,7 @@ import {
 } from '~/domain/models/vo/symbol-screening-candidate-status-vo'
 import type { SymbolScreeningTone } from '~/domain/models/vo/symbol-screening-tone-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
 import { SymbolScreeningCandidateDto } from '~/domain/models/dto/symbol-screening-candidate-dto'
 import { SymbolScreeningSegmentDto } from '~/domain/models/dto/symbol-screening-segment-dto'
 import { SymbolScreeningContributionDto } from '~/domain/models/dto/symbol-screening-contribution-dto'
@@ -26,8 +27,6 @@ const STAGE_LABELS: Readonly<Record<string, LocalizedTextVo>> = {
 }
 
 const PERCENT_DECIMAL_PLACES = 1
-
-const THOUSANDS_BOUNDARY = /\B(?=(\d{3})+(?!\d))/g
 
 export class SymbolScreeningCandidateDomain {
   private readonly status: SymbolScreeningCandidateStatus
@@ -54,7 +53,7 @@ export class SymbolScreeningCandidateDomain {
       this.candidate.historyDays,
       this.candidate.averageDailyQuoteVolume === null
         ? null
-        : this.candidate.averageDailyQuoteVolume.toFixed(0).replace(THOUSANDS_BOUNDARY, ','),
+        : new JournalNumberDomain(this.candidate.averageDailyQuoteVolume).priceAt(0),
       this.candidate.segments.map(segment => new SymbolScreeningSegmentDto(
         segment.startTime,
         segment.endTime,

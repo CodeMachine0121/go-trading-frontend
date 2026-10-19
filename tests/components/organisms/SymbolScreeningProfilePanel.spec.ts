@@ -41,6 +41,10 @@ describe('SymbolScreeningProfilePanel', () => {
     expect(profile.text()).toContain('趨勢 V3')
     expect(profile.text()).toContain('V3')
     expect(profile.get('[data-testid="symbol-screening-terms-history-days"]').text()).toBe('歷史 730 天')
+    expect(profile.get('[data-testid="symbol-screening-terms"]').findAll('li').map(item => item.text())).toEqual([
+      '每 4 小時', '只做多', '歷史 730 天', '3 段', '最少 6 筆', '最低日均成交額 20,000,000 USDT',
+      '1 倍', '手續費 0.05%', '滑價 0.05%', '沒有現有組合',
+    ])
     expect(profile.get('[data-testid="symbol-screening-terms-baseline"]').text()).toBe('沒有現有組合')
   })
 
@@ -88,7 +92,8 @@ describe('SymbolScreeningProfilePanel', () => {
     await wrapper.get('[data-testid="symbol-screening-profile-create"]').trigger('click')
 
     const intervals = wrapper.get('[data-testid="symbol-screening-profile-aggregation-interval"]').findAll('option')
-    expect(intervals.map(option => option.attributes('value'))).toEqual(['4h', '1d'])
+    expect(intervals.map(option => [option.attributes('value'), option.text()]))
+      .toEqual([['4h', '每 4 小時'], ['1d', '每天']])
   })
 
   it('keeps the form and its contents when the system refuses the name', async () => {
