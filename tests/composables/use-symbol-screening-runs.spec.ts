@@ -42,6 +42,21 @@ describe('useSymbolScreeningRuns', () => {
     expect(list.runs.value[0]?.processedCandidateCount).toBe(2)
   })
 
+  it('asks at most once every 3 seconds while a screening is running', async () => {
+    applicationMock.listRuns.mockResolvedValue([runDto(1, 'running', 1)])
+    applicationMock.refreshRuns.mockResolvedValue([runDto(1, 'running', 2)])
+    const list = runsUnderTest()
+    await list.load()
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS - 1)
+    expect(applicationMock.refreshRuns).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(applicationMock.refreshRuns).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS * 2)
+
+    expect(applicationMock.refreshRuns).toHaveBeenCalledTimes(3)
+  })
+
   it('stops refreshing once every screening has ended', async () => {
     applicationMock.listRuns.mockResolvedValue([runDto(1, 'succeeded', 4)])
     const list = runsUnderTest()
