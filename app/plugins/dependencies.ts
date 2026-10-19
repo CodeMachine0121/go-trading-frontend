@@ -92,6 +92,9 @@ import { SpotTradeRecordProxy } from '~/infrastructure/proxy/spot-trade-record-p
 import { SpotTradeJournalService } from '~/domain/service/spot-trade-journal-service'
 import { SpotTradeJournalApplication } from '~/application/spot-trade-journal-application'
 import { TradeJournalSettingApplication } from '~/application/trade-journal-setting-application'
+import { SymbolScreeningProxy } from '~/infrastructure/proxy/symbol-screening-proxy'
+import { SymbolScreeningService } from '~/domain/service/symbol-screening-service'
+import { SymbolScreeningApplication } from '~/application/symbol-screening-application'
 
 /**
  * 組裝根：唯一知道所有具體型別的地方。
@@ -344,6 +347,12 @@ export default defineNuxtPlugin(() => {
     new DisplayLanguageService(new DisplayLanguagePreferenceProxy()),
   )
 
+  const symbolScreeningApplication = new SymbolScreeningApplication(
+    new SymbolScreeningService(
+      new SymbolScreeningProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new StrategyScriptProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks)),
+  )
+
   return {
     provide: {
       backendHealthApplication,
@@ -356,6 +365,7 @@ export default defineNuxtPlugin(() => {
       strategyBotApplication,
       strategyScriptMarketplaceApplication,
       backtestApplication,
+      symbolScreeningApplication,
       chartIndicatorApplication,
       chartDrawingApplication,
       liveKCandleApplication,
