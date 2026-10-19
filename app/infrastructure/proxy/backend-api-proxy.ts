@@ -57,7 +57,7 @@ const SERVER_ERROR_STATUS_FLOOR = 500
 /** 後端用這個狀態碼說「這一次沒有帶著有效的身分」。 */
 const SIGNED_OUT_STATUS = 401
 
-type BackendRequestOptions = {
+export type BackendRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   query?: Record<string, string>
   /**

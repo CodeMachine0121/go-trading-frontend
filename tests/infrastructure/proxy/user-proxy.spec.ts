@@ -346,6 +346,19 @@ describe('UserProxy.fetchSignedInUser', () => {
     expect(signedInUser.activationInstruction).toBeNull()
   })
 
+  it.each([
+    [{ isAdmin: true }, true],
+    [{ isAdmin: false }, false],
+    [{}, false],
+  ])('reads the administrator flag %j as %s', async (flag, expected) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ id: 7, email: 'james@example.com', isEnabled: true, ...flag }))
+
+    const signedInUser = await new UserProxy(BASE_URL, signedInSessionStorage()).fetchSignedInUser('a-signed-token')
+
+    expect(signedInUser.isAdmin).toBe(expected)
+    expect(signedInUser.toDto().isAdmin).toBe(expected)
+  })
+
   it('憑證不算數時說的是「當作沒登入」，不是一般的拒絕', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildFetchError({ status: 401, message: '請重新登入' })))

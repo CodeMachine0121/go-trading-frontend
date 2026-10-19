@@ -3,7 +3,7 @@
 **Project:** go-trading-frontend
 **Bounded Context:** K 線行情操作介面（K-Line Market Data Console）
 **Maintainer:** James Hsueh
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-19
 
 > 本文件只記錄**現在有效的詞彙**，不記錄變更歷史。詞彙不再使用就直接刪除該列。
 >
@@ -296,6 +296,11 @@
 | 已送出的回測 | `backtest.runs.submitted` | 已送出，輪次 #N | 回測區塊按下開始回測、後端記下輪次後的那一句；表單不鎖、可再送 | Confirmed |
 
 ---
+| 管理員 | `SignedInUserDto.isAdmin` | 管理員 | 沿用後端：使用者的一種身分，只決定能不能用標的篩選。由營運者在系統外開通；畫面只據此決定要不要顯示「標的篩選」這一格 | Archeology |
+| 標的篩選頁 | `/symbol-screening` | 標的篩選 | 只有管理員在導覽上看得到的去處：篩選設定、送出篩選、篩選紀錄與明細都在這一頁。不是管理員打開時只說「這是管理員功能」 | Archeology |
+| 篩選設定 | `SymbolScreeningProfileDto` | 篩選設定 | 沿用後端：一組命名的篩選方式（策略、看盤間隔、歷史天數、區段數、最少交易筆數、最低日均成交額、交易模式、槓桿、手續費、滑價、現有組合標的）。留白的數字由系統補預設值 | Archeology |
+| 篩選輪次 | `SymbolScreeningRunDto` | 篩選 | 沿用後端：一次送出的篩選——編號、用哪份設定、狀態、進度（已處理幾個標的／共幾個）、送出與完成時間、失敗原因 | Archeology |
+| 候選標的 | `SymbolScreeningCandidateDto` | 候選標的 | 沿用後端：一筆篩選裡的一個標的與它的結果：狀態、卡在哪一關、原因、判斷用的數字、推薦順序 | Archeology |
 
 ## 2. Actions & Processes
 *Records business operations, function logic, and their corresponding business actions.*
@@ -383,6 +388,8 @@
 | 看回測成績單 | `BacktestApplication.getRun` | 使用者點一筆完成的輪次 | 取回完整成績單，用既有的成績單畫面呈現 | 失敗或已取消的只顯示原因 |
 
 ---
+| 送出篩選 | `SymbolScreeningApplication.submitRun` | 管理員挑一份設定、貼上標的後送出 | 篩選紀錄最上面多一筆排隊中的篩選 | 系統拒絕時原因原樣顯示、貼上的內容保留 |
+| 取消篩選 | `SymbolScreeningApplication.cancelRun` | 管理員按取消 | 那一筆變已取消 | 其實已經結束時說明並更新成真正的結局 |
 
 ## 3. Ambiguities & Conflicts
 *Records cases where the same technical term means different things in different modules, or multiple terms refer to the same concept.*

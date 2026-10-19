@@ -5,6 +5,7 @@ import { reactive } from 'vue'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ConsoleLayout from '~/components/templates/ConsoleLayout.vue'
+import { SignedInUserDto } from '~/domain/models/dto/signed-in-user-dto'
 
 const { rawRoute } = vi.hoisted(() => ({ rawRoute: { path: '/login', fullPath: '/login' } }))
 mockNuxtImport('useRoute', () => () => reactive(rawRoute))
@@ -60,6 +61,16 @@ describe('ConsoleLayout', () => {
     const labels = wrapper.findAll('[data-testid^="destination-"]').map(link => link.text())
 
     expect(labels).toEqual(['行情圖表', 'K 線資料', '策略腳本', '交易策略', '回測紀錄', '策略機器人', '交易日誌', 'Marketplace', '設定'])
+  })
+
+  it('an administrator also sees symbol screening, just before settings', async () => {
+    useState('user-session').value = new SignedInUserDto(7, 'james@example.com', true, null, true)
+    const wrapper = await mountLayoutAt(DESKTOP)
+
+    const labels = wrapper.findAll('[data-testid^="destination-"]').map(link => link.text())
+
+    expect(labels.slice(-2)).toEqual(['標的篩選', '設定'])
+    expect(wrapper.get('[data-testid="destination-/symbol-screening"]').attributes('href')).toBe('/symbol-screening')
   })
 
   it('回測紀錄用自己的歷史圖示，不借策略腳本庫的清單圖示', async () => {
@@ -168,6 +179,16 @@ describe('ConsoleLayout', () => {
 
       const labels = wrapper.findAll('[data-testid^="more-"]').map(link => link.text())
       expect(labels).toEqual(['K 線資料', '交易策略', '回測紀錄', '交易日誌', 'Marketplace', '設定'])
+    })
+
+    it('an administrator finds symbol screening under more', async () => {
+      useState('user-session').value = new SignedInUserDto(7, 'james@example.com', true, null, true)
+      const wrapper = await mountLayoutAt(PHONE)
+
+      await wrapper.get('[data-testid="tab-more"]').trigger('click')
+
+      const labels = wrapper.findAll('[data-testid^="more-"]').map(link => link.text())
+      expect(labels.slice(-2)).toEqual(['標的篩選', '設定'])
     })
 
     it('現貨／合約開關留在頂部標題列上', async () => {

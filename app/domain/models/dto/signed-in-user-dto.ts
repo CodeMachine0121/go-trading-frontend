@@ -16,5 +16,6 @@ export class SignedInUserDto {
      * 一份已經不適用的指示比沒有更糟：會有人照著做。
      */
     public readonly activationInstruction: AccountActivationInstructionDto | null,
+    public readonly isAdmin: boolean = false,
   ) {}
 }

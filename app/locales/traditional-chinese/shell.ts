@@ -12,6 +12,7 @@ export const shellTraditionalChineseMessages = {
     strategyScripts: '策略腳本',
     tradingStrategies: '交易策略',
     backtestRuns: '回測紀錄',
+    symbolScreening: '標的篩選',
     strategyBots: '策略機器人',
     tradeJournal: '交易日誌',
     settings: '設定',

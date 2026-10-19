@@ -29,7 +29,7 @@ const tabDestinations = computed(() => [
 ] as const)
 
 /** 收在「更多」裡的去處，照它們要去的路挑，不靠在清單上的位置。 */
-const MORE_DESTINATION_PATHS: readonly string[] = ['/k-candles', '/trading-strategies', '/backtest-runs', '/spot-trade-journal', '/marketplace']
+const MORE_DESTINATION_PATHS: readonly string[] = ['/k-candles', '/trading-strategies', '/backtest-runs', '/spot-trade-journal', '/marketplace', '/symbol-screening']
 
 const moreDestinations = computed(() => [
   ...destinations.value.filter(destination => MORE_DESTINATION_PATHS.includes(destination.to)),

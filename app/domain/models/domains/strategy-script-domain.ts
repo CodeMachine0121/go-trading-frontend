@@ -13,6 +13,13 @@ import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 export class StrategyScriptDomain {
   constructor(private readonly strategyScript: StrategyScript) {}
 
+  // Symbol screening replays candles only, so order-flow scripts cannot be screened.
+  get screensSymbols(): boolean {
+    return new MarketDataKindDomain(this.strategyScript.marketDataKind).value === 'contractKCandle'
+      && new IndicatorResultTypeDomain(this.strategyScript.resultType).value === 'signal'
+      && this.strategyScript.parameters.every(parameter => parameter.kind !== 'orderFlowPriceStep')
+  }
+
   toDto(): StrategyScriptDto {
     const resultType = new IndicatorResultTypeDomain(this.strategyScript.resultType)
 

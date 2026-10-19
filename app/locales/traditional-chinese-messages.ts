@@ -9,6 +9,7 @@ import { strategyBotTraditionalChineseMessages } from '~/locales/traditional-chi
 import { tradeJournalTraditionalChineseMessages } from '~/locales/traditional-chinese/trade-journal'
 import { contractTradeJournalTraditionalChineseMessages } from '~/locales/traditional-chinese/contract-trade-journal'
 import { assistantTraditionalChineseMessages } from '~/locales/traditional-chinese/assistant'
+import { symbolScreeningTraditionalChineseMessages } from '~/locales/traditional-chinese/symbol-screening'
 
 /**
  * 繁體中文語言目錄：操作台畫面自己寫的每一句話的原文，也是英文目錄的型別來源——
@@ -26,4 +27,5 @@ export const traditionalChineseMessages = {
   tradeJournal: tradeJournalTraditionalChineseMessages,
   contractTradeJournal: contractTradeJournalTraditionalChineseMessages,
   assistant: assistantTraditionalChineseMessages,
+  symbolScreening: symbolScreeningTraditionalChineseMessages,
 }

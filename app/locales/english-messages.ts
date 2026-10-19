@@ -10,6 +10,7 @@ import { strategyBotEnglishMessages } from '~/locales/english/strategy-bot'
 import { tradeJournalEnglishMessages } from '~/locales/english/trade-journal'
 import { contractTradeJournalEnglishMessages } from '~/locales/english/contract-trade-journal'
 import { assistantEnglishMessages } from '~/locales/english/assistant'
+import { symbolScreeningEnglishMessages } from '~/locales/english/symbol-screening'
 
 /** 英文語言目錄：以繁體中文目錄為型別，兩份的鍵永遠一一對應。 */
 export const englishMessages: typeof traditionalChineseMessages = {
@@ -24,4 +25,5 @@ export const englishMessages: typeof traditionalChineseMessages = {
   tradeJournal: tradeJournalEnglishMessages,
   contractTradeJournal: contractTradeJournalEnglishMessages,
   assistant: assistantEnglishMessages,
+  symbolScreening: symbolScreeningEnglishMessages,
 }
