@@ -13,6 +13,6 @@ export class SymbolScreeningProfile {
 
   toDto(): SymbolScreeningProfileDto {
     return new SymbolScreeningProfileDto(
-      this.id, this.name, this.strategyScriptId, this.parameterValues, this.terms.toDto())
+      this.id, this.name, this.strategyScriptId, this.parameterValues, this.terms.toDomain().toDto())
   }
 }

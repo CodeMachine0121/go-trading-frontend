@@ -8,6 +8,6 @@ export class SymbolScreeningSnapshot {
   ) {}
 
   toDto(): SymbolScreeningSnapshotDto {
-    return new SymbolScreeningSnapshotDto(this.profileName, this.terms.toDto())
+    return new SymbolScreeningSnapshotDto(this.profileName, this.terms.toDomain().toDto())
   }
 }

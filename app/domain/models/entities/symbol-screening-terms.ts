@@ -1,8 +1,5 @@
 import type Decimal from 'decimal.js'
-import { SymbolScreeningTermsDto } from '~/domain/models/dto/symbol-screening-terms-dto'
-import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
-import { SymbolScreeningAggregationIntervalDomain } from '~/domain/models/domains/symbol-screening-aggregation-interval-domain'
-import { JournalNumberDomain } from '~/domain/models/domains/journal-number-domain'
+import { SymbolScreeningTermsDomain } from '~/domain/models/domains/symbol-screening-terms-domain'
 
 export class SymbolScreeningTerms {
   constructor(
@@ -18,21 +15,7 @@ export class SymbolScreeningTerms {
     public readonly baselineSymbols: readonly string[],
   ) {}
 
-  toDto(): SymbolScreeningTermsDto {
-    return new SymbolScreeningTermsDto(
-      this.aggregationInterval,
-      new SymbolScreeningAggregationIntervalDomain(this.aggregationInterval).label(),
-      this.tradingMode,
-      new ContractTradingModeDomain(this.tradingMode).label(),
-      this.leverage,
-      this.entryCostPercentage,
-      this.slippagePercentage,
-      this.historyDays,
-      this.segmentCount,
-      this.minimumTradeCount,
-      this.minimumAverageDailyQuoteVolume,
-      new JournalNumberDomain(this.minimumAverageDailyQuoteVolume).priceAt(0),
-      this.baselineSymbols,
-    )
+  toDomain(): SymbolScreeningTermsDomain {
+    return new SymbolScreeningTermsDomain(this)
   }
 }
