@@ -37,6 +37,12 @@ const { localize } = useLocalizedText()
 const editing = ref<SymbolScreeningProfileDto | null | undefined>(undefined)
 const deleting = ref<SymbolScreeningProfileDto | null>(null)
 
+const strategyScriptNames = computed(() => new Map(profiles.map(profile => [
+  profile.id,
+  screenableStrategyScripts.find(strategyScript => strategyScript.id === profile.strategyScriptId)?.name
+  ?? t('symbolScreening.profiles.strategyScriptNumber', { id: profile.strategyScriptId }),
+])))
+
 function closeForm() {
   editing.value = undefined
   emit('closeForm')
@@ -121,8 +127,7 @@ function confirmDelete() {
           <div class="symbol-screening-profile-panel__headline">
             <strong data-testid="symbol-screening-profile-title">{{ profile.name }}</strong>
             <span class="symbol-screening-profile-panel__script">
-              {{ screenableStrategyScripts.find(strategyScript => strategyScript.id === profile.strategyScriptId)?.name
-                ?? t('symbolScreening.profiles.strategyScriptNumber', { id: profile.strategyScriptId }) }}
+              {{ strategyScriptNames.get(profile.id) }}
             </span>
           </div>
           <SymbolScreeningTermsList :terms="profile.terms" />

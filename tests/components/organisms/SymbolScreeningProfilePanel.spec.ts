@@ -48,6 +48,12 @@ describe('SymbolScreeningProfilePanel', () => {
     expect(profile.get('[data-testid="symbol-screening-terms-baseline"]').text()).toBe('沒有現有組合')
   })
 
+  it('names a strategy it no longer offers by its number', () => {
+    const wrapper = mountPanel({ screenableStrategyScripts: [] })
+
+    expect(wrapper.get('[data-testid="symbol-screening-profile"]').text()).toContain('策略 #9')
+  })
+
   it('creates a profile with only the name, strategy and interval filled in', async () => {
     const saveProfile = vi.fn().mockResolvedValue(true)
     const wrapper = mountPanel({ saveProfile })
