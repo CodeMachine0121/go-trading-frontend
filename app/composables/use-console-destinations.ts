@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 export function useConsoleDestinations() {
   const { t } = useI18n()
   const route = useRoute()
+  const { currentUser } = useUserSession()
 
   const destinations = computed(() => [
     { to: '/k-candles/chart', label: t('shell.navigation.chart'), icon: 'candles', paths: ['/k-candles/chart', '/contract-k-candles/chart'], nested: false },
@@ -21,6 +22,9 @@ export function useConsoleDestinations() {
     { to: '/strategy-bots', label: t('shell.navigation.strategyBots'), icon: 'bot', paths: ['/strategy-bots', '/contract-strategy-bots'], nested: true },
     { to: '/spot-trade-journal', label: t('shell.navigation.tradeJournal'), icon: 'journal', paths: ['/spot-trade-journal', '/contract-trade-journal'], nested: true },
     { to: '/marketplace', label: 'Marketplace', icon: 'store', paths: ['/marketplace'], nested: false },
+    ...(currentUser.value?.isAdmin === true
+      ? [{ to: '/symbol-screening', label: t('shell.navigation.symbolScreening'), icon: 'search', paths: ['/symbol-screening'], nested: false }] as const
+      : []),
   ] as const)
 
   const settingsDestination = computed(() => (

@@ -14,6 +14,7 @@ export const shellEnglishMessages: typeof shellTraditionalChineseMessages = {
     strategyScripts: 'Strategy scripts',
     tradingStrategies: 'Trading strategies',
     backtestRuns: 'Backtest runs',
+    symbolScreening: 'Symbol screening',
     strategyBots: 'Strategy bots',
     tradeJournal: 'Trade journal',
     settings: 'Settings',
