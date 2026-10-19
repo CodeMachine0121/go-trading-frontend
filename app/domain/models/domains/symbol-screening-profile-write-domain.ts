@@ -1,6 +1,7 @@
 import type { SymbolScreeningProfileWriteDto } from '~/domain/models/dto/symbol-screening-profile-write-dto'
 import type { SymbolScreeningParameterValueVo } from '~/domain/models/vo/symbol-screening-parameter-value-vo'
 
+// translation-exempt: a full-width comma is a separator people paste, not a sentence
 const SYMBOL_SEPARATOR = /[,，]/
 
 export class SymbolScreeningProfileWriteDomain {
