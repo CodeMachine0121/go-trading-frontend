@@ -24,17 +24,6 @@ export function useSymbolScreeningRunDetail(symbolScreeningApplication: SymbolSc
     }
   }
 
-  function schedulePoll(generation: number) {
-    if (generation !== viewGeneration || detail.value === null || !detail.value.run.isActive) {
-      return
-    }
-
-    pollHandle = setTimeout(() => {
-      pollHandle = null
-      void read(generation, true)
-    }, SYMBOL_SCREENING_POLL_INTERVAL_MILLISECONDS)
-  }
-
   async function read(generation: number, inBackground: boolean) {
     if (openedId === null) {
       return
@@ -60,7 +49,14 @@ export function useSymbolScreeningRunDetail(symbolScreeningApplication: SymbolSc
       }
     }
 
-    schedulePoll(generation)
+    if (generation !== viewGeneration || detail.value === null || !detail.value.run.isActive) {
+      return
+    }
+
+    pollHandle = setTimeout(() => {
+      pollHandle = null
+      void read(generation, true)
+    }, SYMBOL_SCREENING_POLL_INTERVAL_MILLISECONDS)
   }
 
   async function openRun(id: number) {
