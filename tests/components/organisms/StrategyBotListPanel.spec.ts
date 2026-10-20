@@ -500,8 +500,12 @@ describe('StrategyBotListPanel 的監聽標的', () => {
     expect(wrapper.get('[data-testid="watched-symbol-halt-reason"]').text()).toBe('有一支策略腳本算不出來')
   })
 
-  it('執行紀錄挑一個標的就只撈那一個標的的', async () => {
-    const listRunRecords = vi.fn().mockResolvedValue([])
+  it('執行紀錄挑一個標的就只列那一個標的的那幾輪，由新到舊', async () => {
+    const runOf = (runNumber: number, symbol: string) => new StrategyBotRunRecordDto(
+      runNumber, symbol, new Date('2026-10-20T05:05:00Z'), new LocalizedTextVo('持有', 'Hold'), 'neutral', false, null)
+    const listRunRecords = vi.fn()
+      .mockResolvedValueOnce([runOf(104, 'ETHUSDT'), runOf(103, 'BTCUSDT'), runOf(102, 'ETHUSDT')])
+      .mockResolvedValueOnce([runOf(104, 'ETHUSDT'), runOf(102, 'ETHUSDT')])
     const { wrapper } = mountPanel({ listStrategyBots: vi.fn().mockResolvedValue([botWatchingTwo()]), listRunRecords })
     await flushPromises()
     await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
@@ -511,6 +515,8 @@ describe('StrategyBotListPanel 的監聽標的', () => {
     await flushPromises()
 
     expect(listRunRecords).toHaveBeenLastCalledWith(new StrategyBotRunRecordQueryDto(1, 'ETHUSDT'))
+    expect(wrapper.findAll('[data-testid="run-history-row"]').map(row => row.text())).toEqual([
+      expect.stringMatching(/^Run 104\s*ETHUSDT/), expect.stringMatching(/^Run 102\s*ETHUSDT/)])
   })
 })
 

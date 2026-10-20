@@ -58,7 +58,7 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
     addSymbol: 'Add',
     removeSymbol: 'Remove {symbol}',
     noSymbols: 'No trading symbols added yet',
-    symbolsFull: 'Already watching {maximum} trading symbols',
+    symbolsFull: 'A bot can watch at most {maximum} trading symbols',
     triggerIntervalLabel: 'Interval (minutes)',
     positionPlanToggle: 'Also suggest a position? Messages will add the stake, stop loss and take profit',
     leverageLabel: 'Leverage (leave blank for 1x)',

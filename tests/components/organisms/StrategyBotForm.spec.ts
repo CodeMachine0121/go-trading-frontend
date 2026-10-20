@@ -395,7 +395,7 @@ describe('StrategyBotForm 的監聽標的', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="bot-watched-symbol-add"]').exists()).toBe(canAdd)
-    expect(wrapper.text().includes('已經盯滿 10 個交易標的')).toBe(!canAdd)
+    expect(wrapper.text().includes('一台機器人最多盯 10 個交易標的')).toBe(!canAdd)
   })
 })
 

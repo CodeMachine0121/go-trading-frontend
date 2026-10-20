@@ -56,7 +56,7 @@ export const strategyBotTraditionalChineseMessages = {
     addSymbol: '加入',
     removeSymbol: '移除 {symbol}',
     noSymbols: '還沒加入任何交易標的',
-    symbolsFull: '已經盯滿 {maximum} 個交易標的',
+    symbolsFull: '一台機器人最多盯 {maximum} 個交易標的',
     triggerIntervalLabel: '每隔幾分鐘',
     positionPlanToggle: '要不要順便算部位？訊息會多講押多少、停損與停利',
     leverageLabel: '槓桿倍數（留空就是一倍）',
