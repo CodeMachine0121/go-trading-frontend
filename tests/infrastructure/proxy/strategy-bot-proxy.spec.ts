@@ -14,6 +14,7 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
 
@@ -756,5 +757,49 @@ describe('StrategyBotProxy 的限價進場', () => {
     await expect(deleting).rejects.toMatchObject({
       message: '這台機器人還有一張進場單掛在幣安上，請先關掉自動下單，等它撤單後再刪除',
     })
+  })
+})
+
+describe('StrategyBotProxy 帶著資金分配進出', () => {
+  it('每個監聽標的讀回它的分配比例；舊後端沒回就是 100', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
+      watchedSymbols: [
+        { symbol: 'BTCUSDT', allocationPercentage: '60' },
+        { symbol: 'ETHUSDT', allocationPercentage: 33.33 },
+        { symbol: 'SOLUSDT' },
+      ],
+    })))
+
+    const bot = await proxy().getStrategyBot(3)
+
+    expect(bot.watchedSymbols.map(watchedSymbol => watchedSymbol.allocationPercentage.toString()))
+      .toEqual(['60', '33.33', '100'])
+  })
+
+  it('有分配時放進部位規劃，比例以字串送', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createStrategyBot(new StrategyBotWriteDomain(new StrategyBotWriteDto(
+      undefined, '早盤突破', ['BTCUSDT', 'ETHUSDT'], 9, 5,
+      new PositionPlanDto(new Decimal(1000), 'allIn', new Decimal(0), new Decimal(0), new Decimal(0), null, [
+        new StrategyBotCapitalAllocationDto('BTCUSDT', new Decimal(60)),
+        new StrategyBotCapitalAllocationDto('ETHUSDT', new Decimal(40)),
+      ]))))
+
+    expect(fetchMock.mock.calls[0]![1].body.positionPlan.capitalAllocations).toEqual([
+      { symbol: 'BTCUSDT', allocationPercentage: '60' },
+      { symbol: 'ETHUSDT', allocationPercentage: '40' },
+    ])
+  })
+
+  it('沒有分配時不放那個鍵', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(botWire())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().createStrategyBot(writeDomainOf(undefined, new PositionPlanDto(
+      new Decimal(1000), 'allIn', new Decimal(0), new Decimal(0), new Decimal(0))))
+
+    expect(fetchMock.mock.calls[0]![1].body.positionPlan).not.toHaveProperty('capitalAllocations')
   })
 })

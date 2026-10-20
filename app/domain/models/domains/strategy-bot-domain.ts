@@ -3,6 +3,7 @@ import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
 
 /**
  * Domain Model：一台已存機器人對畫面的樣子。
@@ -21,11 +22,18 @@ export class StrategyBotDomain {
     const marketDataKind = new MarketDataKindDomain(this.strategyBot.marketDataKind)
     const page = marketDataKind.toStrategyBotPageDto()
     const leverage = this.strategyBot.positionPlan?.leverage ?? null
+    const watchedSymbols = this.strategyBot.watchedSymbols
+    const capitalAllocation = new StrategyBotCapitalAllocationDomain(
+      watchedSymbols.map(watchedSymbol => watchedSymbol.symbol),
+      watchedSymbols.map(watchedSymbol => watchedSymbol.toCapitalAllocationDto()))
+    const capital = this.strategyBot.positionPlan?.capital ?? null
 
     return new StrategyBotDto(
       this.strategyBot.id,
       this.strategyBot.name,
-      this.strategyBot.watchedSymbols.map(watchedSymbol => watchedSymbol.toDomain(marketDataKind).toDto()),
+      watchedSymbols.map(watchedSymbol => watchedSymbol
+        .toDomain(marketDataKind, capitalAllocation.allocatedCapitalOf(watchedSymbol.symbol, capital))
+        .toDto()),
       this.strategyBot.triggerIntervalMinutes,
       this.strategyBot.tradingStrategyId,
       this.strategyBot.tradingStrategyName,

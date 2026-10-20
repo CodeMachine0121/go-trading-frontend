@@ -128,6 +128,7 @@ type StrategyBotWatchedSymbolWire = {
   haltReason?: string
   /** 只有合約機器人有。 */
   autoOrderPosition?: AutoOrderPositionWire | null
+  allocationPercentage?: string | number | null
 }
 
 type StrategyBotWire = {
@@ -368,6 +369,14 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
         ...(writeDto.positionPlan.leverage === null
           ? {}
           : { leverage: writeDto.positionPlan.leverage.toString() }),
+        ...(writeDto.positionPlan.capitalAllocations.length === 0
+          ? {}
+          : {
+              capitalAllocations: writeDto.positionPlan.capitalAllocations.map(capitalAllocation => ({
+                symbol: capitalAllocation.symbol,
+                allocationPercentage: capitalAllocation.allocationPercentage.toString(),
+              })),
+            }),
       }
     }
 
@@ -430,6 +439,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
           : new AutoOrderPositionVo(
               watchedSymbolWire.autoOrderPosition.direction ?? '',
               new Decimal(watchedSymbolWire.autoOrderPosition.quantity ?? '0')),
+        new Decimal(watchedSymbolWire.allocationPercentage ?? STRATEGY_BOT_LIMITS.allocationPercentageMaximum),
       )),
       botWire.triggerIntervalMinutes,
       botWire.tradingStrategyId,
