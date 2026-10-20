@@ -10,6 +10,7 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
 import { aWatchedSymbolDto } from '../fixtures/strategy-bot-watched-symbol'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 
 const strategyBotApplication = {
   getStrategyBot: vi.fn(),
@@ -163,6 +164,20 @@ describe('useStrategyBotWorkbench 存回去', () => {
 
     expect(workbench.saved.value).toBe(false)
     expect(workbench.failureMessage.value?.in('zh-TW')).toBe('名稱已經有人用了')
+  })
+})
+
+describe('useStrategyBotWorkbench 交易服務拒絕資金分配', () => {
+  it('留在這一頁，照交易服務說的那一句顯示', async () => {
+    const message = 'strategy bot validation failed: 分配比例加起來是 110%，不得超過 100%'
+    strategyBotApplication.saveStrategyBot.mockRejectedValue(new BackendRequestRejectedError(message, { status: 400 }))
+
+    const workbench = workbenchUnderTest(7)
+    await workbench.load()
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.saved.value).toBe(false)
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe(message)
   })
 })
 

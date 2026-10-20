@@ -702,6 +702,24 @@ describe('StrategyBotForm 的資金分配', () => {
     expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
   })
 
+  it('打開 60%、40% 的機器人，兩格是 60 與 40', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '60'], ['ETHUSDT', '40']]) })
+    await flushPromises()
+
+    expect(allocationValuesOf(wrapper)).toEqual(['60', '40'])
+  })
+
+  it('交易服務拒絕之後填的分配還在', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']]) })
+    await flushPromises()
+    await allocationInputsOf(wrapper)[0]?.setValue('40')
+
+    await wrapper.setProps({ failureMessage: new LocalizedTextVo('交易服務說的那一句', '交易服務說的那一句') })
+
+    expect(allocationValuesOf(wrapper)).toEqual(['40', '50'])
+    expect(wrapper.get('[data-testid="bot-form-failure"]').text()).toBe('交易服務說的那一句')
+  })
+
   it('改過之後拿掉一個標的，那一份變成未動用', async () => {
     const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '70'], ['ETHUSDT', '30']]) })
     await flushPromises()
