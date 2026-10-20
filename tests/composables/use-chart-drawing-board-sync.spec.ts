@@ -13,7 +13,7 @@ import {
   CHART_DRAWING_CONFLICT_RETRY_LIMIT,
   CHART_DRAWING_SAVE_DELAY_MILLISECONDS,
 } from '~/composables/use-chart-drawing-board-sync'
-import { TEN_O_CLOCK, anchorOf, horizontalLineAt, savedBoardOf } from '../fixtures/chart-drawing'
+import { TEN_O_CLOCK, anchorOf, chartDrawingOf, horizontalLineAt, savedBoardOf } from '../fixtures/chart-drawing'
 import {
   FIRST_ISSUED_DRAWING_ID, buildChartDrawingApplication, chartDrawingBoardProxyOf, deviceChartDrawingProxyOf,
 } from '../fixtures/chart-drawing-application'
@@ -225,6 +225,21 @@ describe('useChartDrawingBoardSync：存回', () => {
     expect(vi.mocked(boardProxy.saveBoard).mock.lastCall?.[0].drawings[0]?.locked).toBe(true)
   })
 
+  it('畫了一條、存進去之後上一步：帳號裡也沒有它', async () => {
+    const boardProxy = chartDrawingBoardProxyOf()
+    const { sync, application, drawLineAt } = syncUnderTest(boardProxy)
+    await flushPromises()
+    drawLineAt('60000')
+    await settle()
+
+    sync.replaceBoard(application.undo(sync.board.value))
+    await settle()
+
+    expect(sync.board.value.drawings).toEqual([])
+    expect(vi.mocked(boardProxy.saveBoard).mock.lastCall?.[0].drawings).toEqual([])
+    expect(sync.board.value.hasUnsavedChanges).toBe(false)
+  })
+
   it('什麼都沒改（上一步回到存過的樣子）：不存', async () => {
     const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, [horizontalLineAt(1, '60000')]))
     const { sync, application, toggleLockOf } = syncUnderTest(boardProxy)
@@ -376,6 +391,33 @@ describe('useChartDrawingBoardSync：重讀', () => {
     await flushPromises()
 
     expect(boardProxy.fetchBoard).toHaveBeenCalledTimes(2)
+  })
+
+  it('切回這個視窗、帳號裡多了一條別處加的線：圖上出現它，上一步從頭開始', async () => {
+    const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, [horizontalLineAt(1, '60000')]))
+    const { sync, toggleLockOf } = syncUnderTest(boardProxy)
+    await flushPromises()
+    toggleLockOf(1)
+    await settle()
+    expect(sync.board.value.canUndo).toBe(true)
+    vi.mocked(boardProxy.fetchBoard).mockResolvedValue(savedBoardOf(5, [
+      chartDrawingOf(1, 'horizontalLine', [anchorOf(TEN_O_CLOCK, '60000')], true), horizontalLineAt(8, '55000')]))
+
+    window.dispatchEvent(new Event('focus'))
+    await flushPromises()
+
+    expect(pricesOn(sync.board.value)).toEqual(['60000', '55000'])
+    expect(sync.board.value.canUndo).toBe(false)
+  })
+
+  it('沒有重讀的時機（沒切走、沒問助手）：不會自己去讀', async () => {
+    const boardProxy = chartDrawingBoardProxyOf()
+    syncUnderTest(boardProxy)
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+    expect(boardProxy.fetchBoard).toHaveBeenCalledTimes(1)
   })
 
   it('分頁被切走（看不見）：不重讀', async () => {

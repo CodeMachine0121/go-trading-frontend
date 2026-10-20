@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import { createFetchError, type FetchContext } from 'ofetch'
 import { describe, expect, it, vi } from 'vitest'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
+import { ChartDrawing } from '~/domain/models/entities/chart-drawing'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ChartDrawingBoardChangedError } from '~/domain/errors/chart-drawing-board-changed-error'
 import {
@@ -56,6 +57,20 @@ describe('ChartDrawingApplication：讀帳號那一份', () => {
 
     expect(boardProxy.saveBoard).not.toHaveBeenCalled()
     expect(deviceProxy.forgetChartDrawings).not.toHaveBeenCalled()
+    expect(loaded.migratedDrawingCount).toBe(0)
+  })
+
+  it('這台裝置只有合約那一檔的舊繪圖：打開現貨那一檔不搬任何東西', async () => {
+    const boardProxy = chartDrawingBoardProxyOf()
+    const deviceProxy = deviceChartDrawingProxyOf()
+    vi.mocked(deviceProxy.readChartDrawings).mockImplementation(marketSide =>
+      marketSide === 'contract' ? [horizontalLineAt(1, '1')] : [])
+
+    const loaded = await buildChartDrawingApplication(boardProxy, deviceProxy).loadSavedBoard('spot', 'BTCUSDT')
+
+    expect(deviceProxy.readChartDrawings).toHaveBeenCalledWith('spot', 'BTCUSDT')
+    expect(boardProxy.saveBoard).not.toHaveBeenCalled()
+    expect(loaded.savedBoard.drawings).toEqual([])
     expect(loaded.migratedDrawingCount).toBe(0)
   })
 
@@ -172,6 +187,17 @@ describe('ChartDrawingApplication：放到圖上', () => {
 
     expect(anchor.openTime).toEqual(new Date(TEN_O_CLOCK))
     expect(anchor.price.toString()).toBe('105')
+  })
+
+  it('斐波那契回撤照固定的配色畫：帳號裡記著哪個顏色都一樣', () => {
+    const application = buildChartDrawingApplication()
+    const levelColorsOf = (colorToken: string) => application.placeDrawings(chart, [
+      new ChartDrawing(9, 'fibonacciRetracement', [anchorOf(TEN_O_CLOCK, '100'), anchorOf(ELEVEN_O_CLOCK, '200')],
+        colorToken, 1, 'solid', false, true).toDomain().toDto(),
+    ])[0]?.fibonacciLevels.map(level => level.colorToken)
+
+    expect(levelColorsOf('--color-drawing-red')).toEqual(levelColorsOf('--color-drawing-teal'))
+    expect(new Set(levelColorsOf('--color-drawing-red')).size).toBeGreaterThan(1)
   })
 
   it('一點的繪圖放到圖上：錨點換成第幾根', () => {

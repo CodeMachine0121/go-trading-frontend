@@ -552,4 +552,18 @@ describe('KCandleChartWorkspace：帳號裡的繪圖', () => {
     expect(wrapper.findAll('[data-testid="object-tree-row"]')).toHaveLength(1)
     expect(wrapper.find('[data-testid="remove-assistant-drawings"]').exists()).toBe(false)
   })
+
+  it('物件樹按「移除助手畫的全部」、確認時取消：助手畫的那一條還在，帳號沒被動', async () => {
+    const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, [horizontalLineAt(9, '58000', 'assistant')]))
+    const wrapper = mountWorkspace({ boardProxy })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
+    await wrapper.get('[data-testid="remove-assistant-drawings"]').trigger('click')
+    await wrapper.get('[data-testid="cancel-remove-assistant-drawings"]').trigger('click')
+    await flushPromises()
+
+    expect(boardProxy.removeAssistantDrawings).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="object-tree-drawn-by-assistant"]')).toHaveLength(1)
+  })
 })
