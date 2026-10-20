@@ -313,6 +313,21 @@ describe('useStrategyBots 的執行紀錄依標的看', () => {
     expect(strategyBotApplication.listRunRecords).toHaveBeenLastCalledWith(new StrategyBotRunRecordQueryDto(expectedBotId, null))
   })
 
+  it('換了標的之後才失敗的舊請求不會蓋掉新的', async () => {
+    let failAll: (error: Error) => void = () => {}
+    strategyBotApplication.listRunRecords
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { failAll = reject }))
+      .mockResolvedValueOnce([])
+
+    const bots = botsUnderTest()
+    const opening = bots.toggleRunHistory(3)
+    await bots.selectRunRecordsSymbol('ETHUSDT')
+    failAll(new Error('後端連不上'))
+    await opening
+
+    expect(bots.runRecordsFailureMessage.value).toBeNull()
+  })
+
   it('換了標的之後才回來的舊結果不會蓋掉新的', async () => {
     const ethereumRecords = [{ runNumber: 2, symbol: 'ETHUSDT' }]
     let releaseAll: (records: unknown[]) => void = () => {}

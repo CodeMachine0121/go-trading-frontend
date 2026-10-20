@@ -392,6 +392,16 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     expect(wrapper.get('[data-testid="bot-edit"]').attributes('href')).toBe('/contract-strategy-bots/8')
   })
 
+  it('選中一台合約機器人時，旁邊那一塊說出間隔與倍數', async () => {
+    const { wrapper } = mountPanel(
+      { listStrategyBots: vi.fn().mockResolvedValue([contractBot(new LocalizedTextVo('5 倍', '5x'))]) }, 'contractKCandle')
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-detail"]').text()).toContain('每 5 分鐘 · 5 倍')
+  })
+
   it('切成英文時，那一列、狀態與按鈕都換成英文', async () => {
     const { wrapper } = mountPanel(
       { listStrategyBots: vi.fn().mockResolvedValue([contractBot(new LocalizedTextVo('5 倍', '5x'))]) },
