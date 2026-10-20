@@ -166,3 +166,11 @@ flowchart TD
 
 - **Risks:** composable 的佇列與計時是最容易出錯的地方——以 fake timers 的 composable 測試覆蓋：合併存回、衝突重試上限、換檔、存回中重讀。
 - **Open decisions (for implementation):** 說明在浮動提示區排在面板既有說明之後；三則說明各用 `AppAlert` 的 `warning` 語氣。
+
+---
+
+## 9. Implementation Notes（與原設計的差異）
+
+- **`ChartDrawingBoardNotices` 分子**：三則說明（讀不到、存不進去、舊繪圖沒搬成）收成一個分子放在工作區的浮動提示區，排在面板既有說明之後；工作區只接重試事件。
+- **`/improve-codebase` 之後**：`acknowledgeSave` 換成 `settleSave(board, sentBoard, result)`——存回結果要換編號還是接上別處的改動，由 service 依結果決定；composable 只負責提示、清掉說明與再存。
+- **提示走 `announcement`**：sync composable 交出一個「剛發生的事」的說法，工作區照既有的短暫提示顯示，不另開提示元件。
