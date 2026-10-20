@@ -98,7 +98,11 @@ export class ChartDrawingBoardDomain {
       return new ChartDrawingBoardDomain(saved, savedDrawings, [], [])
     }
 
-    const savedBySentId = new Map(sent.map((drawing, index) => [drawing.id, savedDrawings[index]!]))
+    const savedBySentId = new Map(sent.flatMap((drawing, index) => {
+      const savedDrawing = savedDrawings[index]
+
+      return savedDrawing === undefined ? [] : [[drawing.id, savedDrawing] as const]
+    }))
     const identified = (snapshot: DrawingSnapshot): DrawingSnapshot => snapshot.map((drawing) => {
       const savedDrawing = savedBySentId.get(drawing.id)
 
