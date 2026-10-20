@@ -9,8 +9,9 @@ import { KCandleChartApplication } from '~/application/k-candle-chart-applicatio
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { ChartDrawing } from '~/domain/models/entities/chart-drawing'
-import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
-import { anchorOf, chartDrawingOf } from '../../fixtures/chart-drawing'
+import type { IChartDrawingBoardProxy } from '~/domain/interface/i-chart-drawing-board-proxy'
+import { buildChartDrawingApplication, chartDrawingBoardProxyOf } from '../../fixtures/chart-drawing-application'
+import { anchorOf, chartDrawingOf, horizontalLineAt, savedBoardOf } from '../../fixtures/chart-drawing'
 import { KCandleSpec, kCandleChartOf } from '../../fixtures/k-candle-chart'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { buildKCandleContractProxy } from '../../fixtures/contract-proxies'
@@ -29,8 +30,12 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function mountWorkspace(options: { chart?: KCandleChartDto | null, stored?: ChartDrawing[] } = {}) {
-  const readChartDrawings = vi.fn().mockReturnValue(options.stored ?? [])
+function mountWorkspace(options: {
+  chart?: KCandleChartDto | null
+  stored?: ChartDrawing[]
+  boardProxy?: IChartDrawingBoardProxy
+} = {}) {
+  const boardProxy = options.boardProxy ?? chartDrawingBoardProxyOf(savedBoardOf(1, options.stored ?? []))
   mounted = mount(KCandleChartWorkspace, {
     attachTo: document.body,
     props: {
@@ -47,7 +52,7 @@ function mountWorkspace(options: { chart?: KCandleChartDto | null, stored?: Char
       kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
         { findKCandlesInRange: vi.fn(), findKCandleSeries: vi.fn(), saveKCandle: vi.fn(), updateKCandle: vi.fn(), deleteKCandle: vi.fn(), catchUpSymbol: vi.fn() },
         buildKCandleContractProxy())),
-      chartDrawingApplication: buildChartDrawingApplication({ readChartDrawings, writeChartDrawings: vi.fn() }),
+      chartDrawingApplication: buildChartDrawingApplication(boardProxy),
     },
     slots: {
       symbol: '<button data-testid="symbol-slot">BTCUSDT</button>',
@@ -116,6 +121,7 @@ describe('KCandleChartWorkspace：版面', () => {
 
   it('按物件樹：右側打開那一欄；再按一次收起', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
 
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
     expect(wrapper.findAll('[data-testid="object-tree-row"]')).toHaveLength(1)
@@ -178,6 +184,7 @@ describe('KCandleChartWorkspace：圖回報的那幾件事', () => {
 describe('KCandleChartWorkspace：繪圖', () => {
   it('移除所有：提示移除了幾個、可按上一步；上一步之後回來', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
 
     await wrapper.get('[data-testid="remove-all-drawings"]').trigger('click')
     expect(toast(wrapper).text()).toBe('已移除 1 個繪圖，可按上一步復原')
@@ -209,6 +216,7 @@ describe('KCandleChartWorkspace：繪圖', () => {
 
   it('從物件樹選取一個：浮動工具列出現；按線寬就換一級', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
 
     await wrapper.get('[data-testid="object-tree-select"]').trigger('click')
@@ -219,6 +227,7 @@ describe('KCandleChartWorkspace：繪圖', () => {
 
   it('從物件樹隱藏一個：那一列變成「顯示」；刪除一個：那一列消失', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
 
     await wrapper.get('[data-testid="object-tree-toggle-visible"]').trigger('click')
@@ -230,6 +239,7 @@ describe('KCandleChartWorkspace：繪圖', () => {
 
   it('浮動工具列的刪除：那一個消失', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
     await wrapper.get('[data-testid="object-tree-select"]').trigger('click')
 
@@ -302,6 +312,7 @@ describe('KCandleChartWorkspace：快捷鍵', () => {
 
   it('有繪圖選取著、正在搜尋框裡打字時按 Delete：刪的是字，那個繪圖還在', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
     await wrapper.get('[data-testid="object-tree-select"]').trigger('click')
     const input = document.createElement('input')
@@ -325,6 +336,7 @@ describe('KCandleChartWorkspace：快捷鍵', () => {
 
   it('Delete 刪除選取中的那一個；沒有選取時什麼都不做', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
 
     press('Delete')
@@ -342,6 +354,7 @@ describe('KCandleChartWorkspace：快捷鍵', () => {
     ['Ctrl+Z 上一步、Ctrl+Y 下一步', [{ code: 'KeyZ', ctrlKey: true }, { code: 'KeyY', ctrlKey: true }]],
   ] as const)('%s', async (_, [undoKey, redoKey]) => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
     await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
     await wrapper.get('[data-testid="remove-all-drawings"]').trigger('click')
 
@@ -384,7 +397,7 @@ describe('KCandleChartWorkspace：疊在圖上的繪圖層', () => {
         kCandleChartApplication: new KCandleChartApplication(new KCandleChartService(
           { findKCandlesInRange: vi.fn(), findKCandleSeries: vi.fn(), saveKCandle: vi.fn(), updateKCandle: vi.fn(), deleteKCandle: vi.fn(), catchUpSymbol: vi.fn() },
           buildKCandleContractProxy())),
-        chartDrawingApplication: buildChartDrawingApplication({ readChartDrawings: vi.fn().mockReturnValue(stored), writeChartDrawings: vi.fn() }),
+        chartDrawingApplication: buildChartDrawingApplication(chartDrawingBoardProxyOf(savedBoardOf(1, stored))),
       },
       global: {
         stubs: {
@@ -411,6 +424,7 @@ describe('KCandleChartWorkspace：疊在圖上的繪圖層', () => {
 
   it('繪圖層說選了哪一個、拖完換了錨點：照著選取與修改', async () => {
     const wrapper = mountWithLayer([HORIZONTAL_LINE])
+    await flushPromises()
     const layer = wrapper.findComponent(ChartDrawingLayer)
 
     layer.vm.$emit('select', 1)
@@ -455,6 +469,7 @@ describe('KCandleChartWorkspace：其餘的接線', () => {
 
   it('連著兩次提示：說的是後面那一句', async () => {
     const wrapper = mountWorkspace({ stored: [HORIZONTAL_LINE] })
+    await flushPromises()
 
     await wrapper.get('[data-testid="remove-all-drawings"]').trigger('click')
     await wrapper.get('[data-testid="remove-all-drawings"]').trigger('click')
@@ -490,5 +505,51 @@ describe('KCandleChartWorkspace：成交量疊圖', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="legend-volume-value"]').text()).toBe('1')
+  })
+})
+
+describe('KCandleChartWorkspace：帳號裡的繪圖', () => {
+  it('站內助手答完一則（重讀訊號變了）：重讀，助手畫的線出現在物件樹並標出', async () => {
+    const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, []))
+    const wrapper = mountWorkspace({ boardProxy })
+    await flushPromises()
+    vi.mocked(boardProxy.fetchBoard).mockResolvedValue(savedBoardOf(2, [horizontalLineAt(9, '58000', 'assistant')]))
+
+    await wrapper.setProps({ drawingBoardRefreshSignal: 1 })
+    await flushPromises()
+    await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="object-tree-drawn-by-assistant"]').text()).toBe('助手畫的')
+  })
+
+  it('讀不到帳號裡的繪圖：圖上說明；重試成功後說明消失', async () => {
+    const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, []))
+    vi.mocked(boardProxy.fetchBoard).mockRejectedValueOnce(new Error('連不上'))
+    const wrapper = mountWorkspace({ boardProxy })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="chart-drawing-load-failure"]').text()).toContain('讀不到存在帳號裡的繪圖')
+
+    await wrapper.get('[data-testid="retry-chart-drawing-load"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="chart-drawing-load-failure"]').exists()).toBe(false)
+  })
+
+  it('物件樹按「移除助手畫的全部」並確認：提示移除了幾個，助手畫的不見了', async () => {
+    const boardProxy = chartDrawingBoardProxyOf(savedBoardOf(1, [HORIZONTAL_LINE, horizontalLineAt(9, '58000', 'assistant')]))
+    const wrapper = mountWorkspace({ boardProxy })
+    await flushPromises()
+    vi.mocked(boardProxy.removeAssistantDrawings).mockResolvedValue(1)
+    vi.mocked(boardProxy.fetchBoard).mockResolvedValue(savedBoardOf(2, [HORIZONTAL_LINE]))
+
+    await wrapper.get('[data-testid="toggle-object-tree"]').trigger('click')
+    await wrapper.get('[data-testid="remove-assistant-drawings"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-remove-assistant-drawings"]').trigger('click')
+    await flushPromises()
+
+    expect(toast(wrapper).text()).toBe('已移除 1 個助手畫的繪圖')
+    expect(wrapper.findAll('[data-testid="object-tree-row"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="remove-assistant-drawings"]').exists()).toBe(false)
   })
 })

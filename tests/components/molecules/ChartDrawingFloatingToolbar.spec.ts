@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import ChartDrawingFloatingToolbar from '~/components/molecules/ChartDrawingFloatingToolbar.vue'
-import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf } from '../../fixtures/chart-drawing'
+import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf, horizontalLineAt } from '../../fixtures/chart-drawing'
 
 const trendLine = (locked = false) => chartDrawingOf(1, 'trendLine',
   [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')], locked, 2, 'dashed').toDomain().toDto()
@@ -119,5 +119,16 @@ describe('浮動工具列：拖到一半', () => {
     expect(removed.mock.calls.map(([type]) => type)).toEqual(expect.arrayContaining(['pointermove', 'pointerup', 'pointercancel']))
     host.remove()
     vi.restoreAllMocks()
+  })
+})
+
+describe('浮動工具列：助手畫的', () => {
+  it.each([
+    ['助手畫的', 'assistant' as const, true],
+    ['手畫的', 'manual' as const, false],
+  ])('%s：標籤 %s', (_, source, shown) => {
+    const wrapper = mount(ChartDrawingFloatingToolbar, { props: { drawing: horizontalLineAt(9, '58000', source).toDomain().toDto() } })
+
+    expect(wrapper.find('[data-testid="drawing-drawn-by-assistant"]').exists()).toBe(shown)
   })
 })

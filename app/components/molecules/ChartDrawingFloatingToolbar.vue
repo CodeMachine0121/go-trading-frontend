@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import { CHART_DRAWING_COLORS } from '~/domain/models/vo/chart-drawing-color-vo'
@@ -97,6 +98,14 @@ onBeforeUnmount(() => stopDragging?.())
         size="small"
       />
     </button>
+
+    <AppBadge
+      v-if="drawing.drawnByAssistant"
+      variant="accent"
+      data-testid="drawing-drawn-by-assistant"
+    >
+      {{ t('marketData.chartDrawing.drawnByAssistant') }}
+    </AppBadge>
 
     <template v-if="drawing.styleEditable">
       <div class="chart-drawing-floating-toolbar__palette-anchor">
