@@ -24,6 +24,9 @@ const { selectedTimeZone } = useSelectedTimeZone()
 
 const { openMenu } = useChartWorkspaceMenu()
 
+// 站內助手每答完一則就重讀一次繪圖：它可能剛在這張圖上畫了線。
+const { completedAnswerCount } = useAssistantAnswerCompletions()
+
 const counterpart = computed(() => $marketCounterpartApplication.describeCounterpart(route.path))
 </script>
 
@@ -35,6 +38,7 @@ const counterpart = computed(() => $marketCounterpartApplication.describeCounter
     :strategy-script-application="$strategyScriptApplication"
     :live-k-candle-contract-application="$liveKCandleContractApplication"
     :chart-drawing-application="$chartDrawingApplication"
+    :drawing-board-refresh-signal="completedAnswerCount"
     :time-zone="selectedTimeZone"
     @open-menu="openMenu"
   >

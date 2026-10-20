@@ -43,6 +43,7 @@ const {
   strategyScriptApplication,
   chartDrawingApplication,
   timeZone,
+  drawingBoardRefreshSignal = 0,
 } = defineProps<{
   kCandleChartApplication: KCandleChartApplication
   tradingSymbolApplication: TradingSymbolApplication
@@ -53,6 +54,8 @@ const {
   chartDrawingApplication: ChartDrawingApplication
   /** 時間軸與已取回區間用哪一個時區說。 */
   timeZone: TimeZoneDto
+  /** 每次變動就重讀一次帳號裡的繪圖。 */
+  drawingBoardRefreshSignal?: number
 }>()
 
 /** 按了看盤工作區左上角的主選單——選單在版型裡，交給頁面打開。 */
@@ -539,6 +542,7 @@ function catchUpFailureReason(error: unknown): LocalizedTextVo | null {
     :loading="loading"
     :k-candle-chart-application="kCandleChartApplication"
     :chart-drawing-application="chartDrawingApplication"
+    :drawing-board-refresh-signal="drawingBoardRefreshSignal"
     @select-preset="selectPreset"
     @select-aggregation-interval-choice="selectAggregationIntervalChoice"
     @range-change="showRange"
