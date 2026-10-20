@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js'
-import type { IChartDrawingPreferenceProxy } from '~/domain/interface/i-chart-drawing-preference-proxy'
+import type { IDeviceChartDrawingProxy } from '~/domain/interface/i-device-chart-drawing-proxy'
 import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
 import { ChartDrawing } from '~/domain/models/entities/chart-drawing'
 import { ChartDrawingAnchorVo } from '~/domain/models/vo/chart-drawing-anchor-vo'
@@ -31,38 +31,25 @@ type ChartDrawingAnchorWire = {
 }
 
 /**
- * Proxy：把每一邊每一檔的繪圖記在瀏覽器儲存裡。整份是一個物件，鍵是「市場:交易標的」。
+ * Proxy：繪圖存進帳號之前，記在瀏覽器儲存裡的舊繪圖。整份是一個物件，鍵是「市場:交易標的」。
  *
- * 讀不出來（無痕視窗、封鎖網站資料、內容壞了）就是沒畫過；**壞掉的那一筆跳過**，其餘照樣回來。
- * 寫不進去不出聲：這一次已經畫在圖上了，只是下次打開不在。
+ * 讀不出來（無痕視窗、封鎖網站資料、內容壞了）就是沒有；**壞掉的那一筆跳過**，其餘照樣回來。
  */
-export class ChartDrawingPreferenceProxy implements IChartDrawingPreferenceProxy {
+export class DeviceChartDrawingProxy implements IDeviceChartDrawingProxy {
   readChartDrawings(marketSide: MarketSideVo, symbol: string): ChartDrawing[] {
     const wires = this.readAll()[`${marketSide}:${symbol}`]
 
     return Array.isArray(wires) ? wires.flatMap(wire => this.toChartDrawings(wire)) : []
   }
 
-  writeChartDrawings(marketSide: MarketSideVo, symbol: string, chartDrawings: readonly ChartDrawing[]): void {
+  forgetChartDrawings(marketSide: MarketSideVo, symbol: string): void {
     try {
-      const all = this.readAll()
-      all[`${marketSide}:${symbol}`] = chartDrawings.map(chartDrawing => ({
-        id: chartDrawing.id,
-        kind: chartDrawing.kind,
-        anchors: chartDrawing.anchors.map(anchor => ({
-          openTime: anchor.openTime.toISOString(),
-          price: anchor.price.toString(),
-        })),
-        colorToken: chartDrawing.colorToken,
-        lineWidth: chartDrawing.lineWidth,
-        lineStyle: chartDrawing.lineStyle,
-        locked: chartDrawing.locked,
-        visible: chartDrawing.visible,
-      }))
-      localStorage.setItem(CHART_DRAWINGS_STORAGE_KEY, JSON.stringify(all))
+      const forgottenKey = `${marketSide}:${symbol}`
+      const remaining = Object.fromEntries(Object.entries(this.readAll()).filter(([key]) => key !== forgottenKey))
+      localStorage.setItem(CHART_DRAWINGS_STORAGE_KEY, JSON.stringify(remaining))
     }
     catch {
-      // 記不住不影響這一次：繪圖已經在圖上了。
+      // 忘不掉也無妨：帳號那一份已經不是空的，下次打開不會再搬。
     }
   }
 

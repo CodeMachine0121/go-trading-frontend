@@ -2,6 +2,9 @@ import type Decimal from 'decimal.js'
 import type { ChartDrawingService } from '~/domain/service/chart-drawing-service'
 import type { ChartDrawingAnchorDto } from '~/domain/models/dto/chart-drawing-anchor-dto'
 import type { ChartDrawingBoardDto } from '~/domain/models/dto/chart-drawing-board-dto'
+import type { ChartDrawingBoardLoadDto } from '~/domain/models/dto/chart-drawing-board-load-dto'
+import type { ChartDrawingSaveDto } from '~/domain/models/dto/chart-drawing-save-dto'
+import type { SavedChartDrawingBoardDto } from '~/domain/models/dto/saved-chart-drawing-board-dto'
 import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
 import type { ChartDrawingToolGroupDto } from '~/domain/models/dto/chart-drawing-tool-group-dto'
@@ -15,8 +18,30 @@ import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
 export class ChartDrawingApplication {
   constructor(private readonly chartDrawingService: ChartDrawingService) {}
 
-  loadBoard(marketSide: MarketSideVo, symbol: string): ChartDrawingBoardDto {
-    return this.chartDrawingService.loadBoard(marketSide, symbol)
+  openBoard(marketSide: MarketSideVo, symbol: string): ChartDrawingBoardDto {
+    return this.chartDrawingService.openBoard(marketSide, symbol)
+  }
+
+  loadSavedBoard(marketSide: MarketSideVo, symbol: string): Promise<ChartDrawingBoardLoadDto> {
+    return this.chartDrawingService.loadSavedBoard(marketSide, symbol)
+  }
+
+  saveBoard(board: ChartDrawingBoardDto): Promise<ChartDrawingSaveDto> {
+    return this.chartDrawingService.saveBoard(board)
+  }
+
+  acknowledgeSave(
+    board: ChartDrawingBoardDto, sentBoard: ChartDrawingBoardDto, savedBoard: SavedChartDrawingBoardDto,
+  ): ChartDrawingBoardDto {
+    return this.chartDrawingService.acknowledgeSave(board, sentBoard, savedBoard)
+  }
+
+  incorporateSavedBoard(board: ChartDrawingBoardDto, savedBoard: SavedChartDrawingBoardDto): ChartDrawingBoardDto {
+    return this.chartDrawingService.incorporateSavedBoard(board, savedBoard)
+  }
+
+  removeAssistantDrawings(marketSide: MarketSideVo, symbol: string): Promise<number> {
+    return this.chartDrawingService.removeAssistantDrawings(marketSide, symbol)
   }
 
   draftDrawing(kind: ChartDrawingKindValue, anchors: readonly ChartDrawingAnchorVo[]): ChartDrawingDto {
