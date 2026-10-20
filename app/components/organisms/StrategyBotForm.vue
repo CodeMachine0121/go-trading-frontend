@@ -5,8 +5,7 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
-import SymbolField from '~/components/molecules/SymbolField.vue'
-import ContractSymbolField from '~/components/molecules/ContractSymbolField.vue'
+import StrategyBotWatchedSymbolsField from '~/components/molecules/StrategyBotWatchedSymbolsField.vue'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -19,7 +18,7 @@ import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 // 它**不知道自己是在新增還是在改**——收到一台機器人（或 null），交出一份要存的東西。
 //
 // 只有四格，而那正是這一版做的事：規則搬去交易策略自己的頁面了，
-// 這裡只剩「哪一台機器、照哪一套規則、盯哪裡、多久看一次」。
+// 這裡只剩「哪一台機器、照哪一套規則、盯哪幾個標的、多久看一次」。
 // 開一台機器是填四格就走的事；拼規則是坐下來調半小時的事。
 // 兩件事綁在同一張表單上，代價是同一套規則想盯第二個市場只能從頭再拼一次。
 //
@@ -82,7 +81,7 @@ function onSave() {
       </h3>
 
       <!--
-        由上往下是使用者心裡的順序：這台叫什麼、照哪一套規則、盯哪裡、多久看一次。
+        由上往下是使用者心裡的順序：這台叫什麼、照哪一套規則、盯哪幾個標的、多久看一次。
         寬螢幕上兩兩並排，順序不變。
       -->
       <div class="bot-form__grid">
@@ -132,26 +131,16 @@ function onSave() {
           </AppAlert>
         </FormField>
 
-        <!--
-          合約機器人從合約標的清單挑，而且只列合約追蹤名單上的：同一個名字在兩條線上是兩個商品，
-          而交易服務只讓合約機器人盯正在追蹤的合約。
-        -->
-        <ContractSymbolField
-          v-if="page.picksContractTradingSymbol"
-          v-model="form.symbol.value"
+        <StrategyBotWatchedSymbolsField
+          class="bot-form__watched-symbols"
+          :symbols="form.symbols.value"
+          :can-add="form.canAddSymbol.value"
+          :maximum="form.watchedSymbolMaximum"
+          :page="page"
           :trading-symbol-application="tradingSymbolApplication"
-          watched-only
-          :keeps-selection="editing !== null"
+          @add="form.addSymbol"
+          @remove="form.removeSymbol"
         />
-        <FormField
-          v-else
-          :label="t('strategyBot.form.symbolLabel')"
-        >
-          <SymbolField
-            v-model="form.symbol.value"
-            :trading-symbol-application="tradingSymbolApplication"
-          />
-        </FormField>
 
         <FormField :label="t('strategyBot.form.triggerIntervalLabel')">
           <AppInput
@@ -355,6 +344,10 @@ function onSave() {
     &--dense {
       grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     }
+  }
+
+  &__watched-symbols {
+    grid-column: 1 / -1;
   }
 
   // 收著的時候它只是一句問句，不該長得跟上面那塊必答的一樣重。

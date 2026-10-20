@@ -14,6 +14,8 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
+import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
 
 const BASE_URL = 'http://localhost:8080'
 
@@ -21,7 +23,7 @@ function botWire(overrides: Record<string, unknown> = {}) {
   return {
     id: 3,
     name: '早盤突破',
-    symbol: 'BTCUSDT',
+    watchedSymbols: [{ symbol: 'BTCUSDT', conflicting: false }],
     triggerIntervalMinutes: 5,
     tradingStrategyId: 9,
     tradingStrategyName: '黃金交叉',
@@ -32,7 +34,7 @@ function botWire(overrides: Record<string, unknown> = {}) {
 
 function writeDomainOf(id?: number, positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotWriteDomain(
-    new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5, positionPlan))
+    new StrategyBotWriteDto(id, '早盤突破', ['BTCUSDT'], 9, 5, positionPlan))
 }
 
 /** 用真正的 FetchError 當替身：它連不上時照樣有 response 屬性，只是值為 undefined。 */
@@ -94,9 +96,34 @@ describe('StrategyBotProxy 讀回來的樣子', () => {
 
     const bots = await proxy().listStrategyBots('kCandle')
 
-    expect(bots[0]?.lastSentSignal).toBe('')
     expect(bots[0]?.haltReason).toBeNull()
-    expect(bots[0]?.conflicting).toBe(false)
+    expect(bots[0]?.watchedSymbols[0]?.lastSentSignal).toBe('')
+    expect(bots[0]?.watchedSymbols[0]?.haltReason).toBeNull()
+    expect(bots[0]?.watchedSymbols[0]?.conflicting).toBe(false)
+  })
+
+  it('每個監聽標的依交易服務給的順序讀出它自己的狀態', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
+      haltReason: 'tradingStrategyUnavailable',
+      watchedSymbols: [
+        { symbol: 'BTCUSDT', lastSentSignal: 'buy', conflicting: false },
+        { symbol: 'ETHUSDT', conflicting: true, haltReason: 'scriptFailed' },
+      ],
+    })))
+
+    const bot = await proxy().getStrategyBot(3)
+
+    expect(bot.haltReason).toBe('tradingStrategyUnavailable')
+    expect(bot.watchedSymbols.map(watchedSymbol => watchedSymbol.symbol)).toEqual(['BTCUSDT', 'ETHUSDT'])
+    expect(bot.watchedSymbols[0]?.lastSentSignal).toBe('buy')
+    expect(bot.watchedSymbols[1]?.conflicting).toBe(true)
+    expect(bot.watchedSymbols[1]?.haltReason).toBe('scriptFailed')
+  })
+
+  it.each([undefined, null])('沒說監聽標的（%s）就是一個都沒有', async (watchedSymbols) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ watchedSymbols })))
+
+    expect((await proxy().getStrategyBot(3)).watchedSymbols).toEqual([])
   })
 })
 
@@ -110,6 +137,8 @@ describe('StrategyBotProxy 送出去的樣子', () => {
 
     const sentBody = fetchMock.mock.calls[0]?.[1]?.body
     expect(sentBody.tradingStrategyId).toBe(9)
+    expect(sentBody.symbols).toEqual(['BTCUSDT'])
+    expect(Object.keys(sentBody)).not.toContain('symbol')
     expect(JSON.stringify(sentBody)).not.toContain('buyCondition')
     expect(JSON.stringify(sentBody)).not.toContain('signalSources')
   })
@@ -282,6 +311,29 @@ describe('StrategyBotProxy 帶著部位規劃進出', () => {
 // 那一輪建議過的三個數字也要讀得回來，而「沒有」與「零」是兩回事——
 // 止損價真的可以是零。
 describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
+  it.each([
+    { name: '全部標的', query: new StrategyBotRunRecordQueryDto(3), expectedOptions: { headers: SIGNED_IN_HEADERS } },
+    { name: '只看一個標的', query: new StrategyBotRunRecordQueryDto(3, 'ETHUSDT'), expectedOptions: { headers: SIGNED_IN_HEADERS, query: { symbol: 'ETHUSDT' } } },
+  ])('$name 時請交易服務篩', async ({ query, expectedOptions }) => {
+    const fetchMock = vi.fn().mockResolvedValue([])
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await proxy().listRunRecords(query)
+
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:8080/strategy-bots/3/runs', expectedOptions)
+  })
+
+  it('每一輪讀得出它是哪一個監聽標的', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([
+      { runNumber: 102, symbol: 'ETHUSDT', ranAt: '2026-10-20T05:05:00Z', result: 'sell' },
+      { runNumber: 101, symbol: 'BTCUSDT', ranAt: '2026-10-20T05:05:00Z', result: 'buy' },
+    ]))
+
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
+
+    expect(runRecords.map(runRecord => runRecord.symbol)).toEqual(['ETHUSDT', 'BTCUSDT'])
+  })
+
   it('建議過的那一輪三個都讀得出來', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([{
       runNumber: 1,
@@ -292,7 +344,7 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
       suggestedTakeProfitPrice: '60971.475',
     }]))
 
-    const runRecords = await proxy().listRunRecords(3)
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
 
     expect(runRecords[0]?.suggestedStake?.toString()).toBe('5000')
     expect(runRecords[0]?.suggestedStopLossPrice?.toString()).toBe('66105.915')
@@ -304,7 +356,7 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
       runNumber: 1, ranAt: '2026-09-16T05:05:00Z', result: 'hold',
     }]))
 
-    const runRecords = await proxy().listRunRecords(3)
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
 
     expect(runRecords[0]?.suggestedStake).toBeNull()
     expect(runRecords[0]?.suggestedStopLossPrice).toBeNull()
@@ -322,7 +374,7 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
       suggestedNotional: '5000.123456789012345678',
     }]))
 
-    const runRecords = await proxy().listRunRecords(3)
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
 
     expect(runRecords[0]?.suggestedDirection).toBe('short')
     expect(runRecords[0]?.suggestedLeverage?.toString()).toBe('5')
@@ -334,7 +386,7 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
       runNumber: 1, ranAt: '2026-09-16T05:05:00Z', result: 'buy', suggestedStake: '5000',
     }]))
 
-    const runRecords = await proxy().listRunRecords(3)
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
 
     expect(runRecords[0]?.suggestedDirection).toBeNull()
     expect(runRecords[0]?.suggestedLeverage).toBeNull()
@@ -352,7 +404,7 @@ describe('StrategyBotProxy 讀回執行紀錄那三個數字', () => {
       suggestedStopLossPrice: '0',
     }]))
 
-    const runRecords = await proxy().listRunRecords(3)
+    const runRecords = await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3))
 
     expect(runRecords[0]?.suggestedStopLossPrice?.toString()).toBe('0')
   })
@@ -419,7 +471,7 @@ describe('StrategyBotProxy 分得出現貨與合約機器人', () => {
     vi.stubGlobal('$fetch', fetchMock)
 
     await proxy().createStrategyBot(new StrategyBotWriteDomain(new StrategyBotWriteDto(
-      undefined, '費率反轉', 'BTCUSDT', 9, 5,
+      undefined, '費率反轉', ['BTCUSDT'], 9, 5,
       new PositionPlanDto(new Decimal(1000), 'allIn', new Decimal(0), new Decimal(2), new Decimal(4), leverage),
       marketDataKind)))
 
@@ -478,6 +530,20 @@ describe('StrategyBotProxy 的自動下單', () => {
     await expect(enabling).rejects.toMatchObject({ message, reason })
   })
 
+  it.each([
+    { reason: 'watchedSymbolHoldsPosition', expected: '要移除的交易標的還有機器人持倉，要先讓它空手才能移除；監聽標的沒有改變' },
+    { reason: 'watchedSymbolAutoOrderOutstanding', expected: '要移除的交易標的還有沒做完的自動下單，要等它做完才能移除；監聽標的沒有改變' },
+  ])('修改時拿掉還沒空手的監聽標的（$reason）被拒，說得出是哪一種', async ({ reason, expected }) => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildRefusal(409, {
+      message: 'strategy bot watched symbol holds a position: ETHUSDT 還有機器人持倉，要先讓它空手才能移除', reason,
+    })))
+
+    const updating = proxy().updateStrategyBot(writeDomainOf(3))
+
+    await expect(updating).rejects.toBeInstanceOf(StrategyBotWatchedSymbolNotRemovableError)
+    await expect(updating).rejects.toMatchObject({ reason, message: expected })
+  })
+
   it('沒帶自動下單原因的 409 仍然是原本那幾種', async () => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(
       buildRefusal(409, { message: '已經有一台叫「早盤突破」的機器人' })))
@@ -519,7 +585,7 @@ describe('StrategyBotProxy 讀得出自動下單做了什麼', () => {
       },
     }]))
 
-    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+    const autoOrder = (await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3)))[0]?.autoOrder
 
     expect(autoOrder?.status).toBe('filled')
     expect(autoOrder?.action).toBe('做多')
@@ -538,7 +604,7 @@ describe('StrategyBotProxy 讀得出自動下單做了什麼', () => {
       runNumber: 52, ranAt: '2026-10-04T06:30:00Z', result: 'hold', autoOrder,
     }]))
 
-    expect((await proxy().listRunRecords(3))[0]?.autoOrder).toBeNull()
+    expect((await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3)))[0]?.autoOrder).toBeNull()
   })
 
   it('只說了狀態的下單結果，其他一律讀成沒有', async () => {
@@ -546,27 +612,43 @@ describe('StrategyBotProxy 讀得出自動下單做了什麼', () => {
       runNumber: 52, ranAt: '2026-10-04T06:30:00Z', result: 'buy', autoOrder: { status: 'pending' },
     }]))
 
-    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+    const autoOrder = (await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3)))[0]?.autoOrder
 
     expect(autoOrder?.action).toBe('')
     expect(autoOrder?.protectionMissing).toBe(false)
     expect(autoOrder?.reason).toBe('')
   })
 
-  it('合約機器人讀得出它自己的持倉', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
-      botWire({ marketDataKind: 'contractKCandle', autoOrderPosition: { direction: 'short', quantity: '0.004' } })))
+  it('合約機器人每個監聽標的讀得出它自己的持倉', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({
+      marketDataKind: 'contractKCandle',
+      watchedSymbols: [
+        { symbol: 'BTCUSDT', autoOrderPosition: { direction: 'short', quantity: '0.004' } },
+        { symbol: 'ETHUSDT', autoOrderPosition: { direction: '', quantity: '0' } },
+      ],
+    })))
 
-    const position = (await proxy().getStrategyBot(3)).autoOrderPosition
+    const watchedSymbols = (await proxy().getStrategyBot(3)).watchedSymbols
 
-    expect(position?.direction).toBe('short')
-    expect(position?.quantity.toString()).toBe('0.004')
+    expect(watchedSymbols[0]?.autoOrderPosition?.direction).toBe('short')
+    expect(watchedSymbols[0]?.autoOrderPosition?.quantity.toString()).toBe('0.004')
+    expect(watchedSymbols[1]?.autoOrderPosition?.direction).toBe('')
+    expect(watchedSymbols[1]?.autoOrderPosition?.quantity.toString()).toBe('0')
   })
 
-  it.each([undefined, null])('沒說持倉（%s）就是 null', async (autoOrderPosition) => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(botWire({ autoOrderPosition })))
+  it.each([undefined, null, {}])('沒說持倉（%s）的監聽標的照樣讀得出來', async (autoOrderPosition) => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue(
+      botWire({ watchedSymbols: [{ symbol: 'BTCUSDT', autoOrderPosition }] })))
 
-    expect((await proxy().getStrategyBot(3)).autoOrderPosition).toBeNull()
+    const position = (await proxy().getStrategyBot(3)).watchedSymbols[0]?.autoOrderPosition
+
+    if (autoOrderPosition === undefined || autoOrderPosition === null) {
+      expect(position).toBeNull()
+    }
+    else {
+      expect(position?.direction).toBe('')
+      expect(position?.quantity.toString()).toBe('0')
+    }
   })
 })
 
@@ -577,7 +659,7 @@ describe('StrategyBotProxy 的限價進場', () => {
 
   function writeDomainWithTolerance(tolerance: Decimal | null) {
     return new StrategyBotWriteDomain(new StrategyBotWriteDto(
-      3, '早盤突破', 'BTCUSDT', 9, 5, null, 'contractKCandle', tolerance))
+      3, '早盤突破', ['BTCUSDT'], 9, 5, null, 'contractKCandle', tolerance))
   }
 
   it.each([
@@ -633,7 +715,7 @@ describe('StrategyBotProxy 的限價進場', () => {
       },
     }]))
 
-    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+    const autoOrder = (await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3)))[0]?.autoOrder
 
     expect(autoOrder?.referencePrice?.toString()).toBe('84154')
     expect(autoOrder?.entrySlippageTolerancePercentage?.toString()).toBe('0.1')
@@ -649,7 +731,7 @@ describe('StrategyBotProxy 的限價進場', () => {
       runNumber: 60, ranAt: '2026-10-12T06:30:00Z', result: 'sell', autoOrder: { status: 'filled' },
     }]))
 
-    const autoOrder = (await proxy().listRunRecords(3))[0]?.autoOrder
+    const autoOrder = (await proxy().listRunRecords(new StrategyBotRunRecordQueryDto(3)))[0]?.autoOrder
 
     expect(autoOrder?.referencePrice).toBeNull()
     expect(autoOrder?.entryLimitPrice).toBeNull()

@@ -5,6 +5,7 @@ import type { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-result-dto'
+import type { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 
 /** Application：策略機器人的用例編排，全程只碰 DTO。 */
 export class StrategyBotApplication {
@@ -42,8 +43,8 @@ export class StrategyBotApplication {
     return this.strategyBotService.runRoundNow(id)
   }
 
-  async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
-    return this.strategyBotService.listRunRecords(id)
+  async listRunRecords(query: StrategyBotRunRecordQueryDto): Promise<StrategyBotRunRecordDto[]> {
+    return this.strategyBotService.listRunRecords(query)
   }
 
   async enableAutoOrder(id: number): Promise<AutoOrderSwitchResultDto> {

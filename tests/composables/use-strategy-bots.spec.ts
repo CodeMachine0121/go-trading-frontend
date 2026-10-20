@@ -6,6 +6,8 @@ import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-sta
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import { StrategyBotEntryOrderOutstandingError } from '~/domain/errors/strategy-bot-entry-order-outstanding-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
+import { aWatchedSymbolDto } from '../fixtures/strategy-bot-watched-symbol'
 
 const strategyBotApplication = {
   listStrategyBots: vi.fn(),
@@ -25,12 +27,12 @@ function runStateOf(isRunning: boolean) {
     isRunning, false, false,
     isRunning ? new LocalizedTextVo('執行中', 'Running') : new LocalizedTextVo('已停止', 'Stopped'),
     isRunning ? 'success' : 'neutral',
-    null, new LocalizedTextVo('還沒送出過', 'None sent yet'), !isRunning, isRunning, !isRunning, null)
+    null, null, !isRunning, isRunning, !isRunning, null)
 }
 
 function botDto(id: number, name: string, isRunning = false) {
   return new StrategyBotDto(
-    id, name, 'BTCUSDT', 5, 9, '黃金交叉',
+    id, name, [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉',
     runStateOf(isRunning),
     null,
   )
@@ -225,7 +227,7 @@ describe('useStrategyBots 的執行紀錄', () => {
 
     await bots.toggleRunHistory(3)
     expect(bots.expandedBotId.value).toBe(3)
-    expect(strategyBotApplication.listRunRecords).toHaveBeenCalledWith(3)
+    expect(strategyBotApplication.listRunRecords).toHaveBeenCalledWith(new StrategyBotRunRecordQueryDto(3, null))
 
     await bots.toggleRunHistory(3)
     expect(bots.expandedBotId.value).toBeNull()
@@ -268,6 +270,79 @@ describe('useStrategyBots 的執行紀錄', () => {
 
     expect(bots.expandedBotId.value).toBe(4)
     expect(bots.runRecords.value).toEqual([])
+  })
+})
+
+describe('useStrategyBots 的執行紀錄依標的看', () => {
+  it.each([
+    { name: '只看 ETHUSDT', selections: ['ETHUSDT'], expectedSymbol: 'ETHUSDT' },
+    { name: '改回全部標的', selections: ['ETHUSDT', null], expectedSymbol: null },
+  ])('$name', async ({ selections, expectedSymbol }) => {
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+
+    const bots = botsUnderTest()
+    await bots.toggleRunHistory(3)
+    for (const symbol of selections) {
+      await bots.selectRunRecordsSymbol(symbol)
+    }
+
+    expect(bots.runRecordsSymbol.value).toBe(expectedSymbol)
+    expect(strategyBotApplication.listRunRecords).toHaveBeenLastCalledWith(new StrategyBotRunRecordQueryDto(3, expectedSymbol))
+  })
+
+  it('沒有展開任何一台時挑標的什麼都不撈', async () => {
+    const bots = botsUnderTest()
+    await bots.selectRunRecordsSymbol('ETHUSDT')
+
+    expect(strategyBotApplication.listRunRecords).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { name: '換一台', act: (bots: ReturnType<typeof botsUnderTest>) => bots.toggleRunHistory(4), expectedBotId: 4 },
+    { name: '立即運算之後', act: (bots: ReturnType<typeof botsUnderTest>) => bots.runNow(3), expectedBotId: 3 },
+  ])('$name 回到全部標的', async ({ act, expectedBotId }) => {
+    strategyBotApplication.listRunRecords.mockResolvedValue([])
+    strategyBotApplication.runRoundNow.mockResolvedValue(botDto(3, '早盤突破'))
+
+    const bots = botsUnderTest()
+    await bots.toggleRunHistory(3)
+    await bots.selectRunRecordsSymbol('ETHUSDT')
+    await act(bots)
+
+    expect(bots.runRecordsSymbol.value).toBeNull()
+    expect(strategyBotApplication.listRunRecords).toHaveBeenLastCalledWith(new StrategyBotRunRecordQueryDto(expectedBotId, null))
+  })
+
+  it('換了標的之後才失敗的舊請求不會蓋掉新的', async () => {
+    let failAll: (error: Error) => void = () => {}
+    strategyBotApplication.listRunRecords
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { failAll = reject }))
+      .mockResolvedValueOnce([])
+
+    const bots = botsUnderTest()
+    const opening = bots.toggleRunHistory(3)
+    await bots.selectRunRecordsSymbol('ETHUSDT')
+    failAll(new Error('後端連不上'))
+    await opening
+
+    expect(bots.runRecordsFailureMessage.value).toBeNull()
+  })
+
+  it('換了標的之後才回來的舊結果不會蓋掉新的', async () => {
+    const ethereumRecords = [{ runNumber: 2, symbol: 'ETHUSDT' }]
+    let releaseAll: (records: unknown[]) => void = () => {}
+    strategyBotApplication.listRunRecords
+      .mockImplementationOnce(() => new Promise((resolve) => { releaseAll = resolve }))
+      .mockResolvedValueOnce(ethereumRecords)
+
+    const bots = botsUnderTest()
+    const opening = bots.toggleRunHistory(3)
+    await bots.selectRunRecordsSymbol('ETHUSDT')
+    releaseAll([{ runNumber: 1, symbol: 'BTCUSDT' }])
+    await opening
+
+    expect(bots.runRecords.value).toEqual(ethereumRecords)
+    expect(bots.runRecordsLoading.value).toBe(false)
   })
 })
 

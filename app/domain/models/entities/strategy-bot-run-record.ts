@@ -16,6 +16,8 @@ import type { ContractAutoOrderResult } from '~/domain/models/entities/contract-
 export class StrategyBotRunRecord {
   constructor(
     public readonly runNumber: number,
+    /** 這一輪是哪一個監聽標的跑的。 */
+    public readonly symbol: string,
     public readonly ranAt: Date,
     public readonly result: string,
     /** 那一輪建議的開倉金額。沒有建議過就是 `null`。 */

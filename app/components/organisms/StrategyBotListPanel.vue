@@ -10,6 +10,7 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 import AppToast from '~/components/atoms/AppToast.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import StrategyBotAutoOrderSwitch from '~/components/molecules/StrategyBotAutoOrderSwitch.vue'
+import StrategyBotWatchedSymbolList from '~/components/molecules/StrategyBotWatchedSymbolList.vue'
 import { useStrategyBotAutoOrder } from '~/composables/use-strategy-bot-auto-order'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
@@ -177,8 +178,8 @@ onMounted(() => {
           aria-hidden="true"
         >
           <span>{{ t('strategyBot.listPanel.nameAndStatusColumn') }}</span>
-          <span>{{ t('strategyBot.listPanel.symbolAndTradingStrategyColumn') }}</span>
-          <span>{{ t('strategyBot.listPanel.lastSignalColumn') }}</span>
+          <span>{{ t('strategyBot.listPanel.tradingStrategyColumn') }}</span>
+          <span>{{ t('strategyBot.listPanel.watchedSymbolsColumn') }}</span>
           <span />
         </div>
 
@@ -211,7 +212,7 @@ onMounted(() => {
 
             <div class="strategy-bot-list__identity">
               <span class="strategy-bot-list__meta strategy-bot-list__meta--market">
-                {{ localize(strategyBot.symbolLabel) }} · {{ t('strategyBot.common.everyMinutes', { minutes: strategyBot.triggerIntervalMinutes }) }}<template v-if="strategyBot.leverageLabel !== null"> · {{ localize(strategyBot.leverageLabel) }}</template>
+                {{ t('strategyBot.common.everyMinutes', { minutes: strategyBot.triggerIntervalMinutes }) }}<template v-if="strategyBot.leverageLabel !== null"> · {{ localize(strategyBot.leverageLabel) }}</template>
               </span>
               <!--
                 它照哪一套規則跑。做成連結而不是一行字：一個看得到卻點不進去的名字，
@@ -226,12 +227,22 @@ onMounted(() => {
               </NuxtLink>
             </div>
 
-            <span
-              class="strategy-bot-list__signal"
-              data-testid="bot-last-sent-signal"
+            <!-- 每個監聽標的一個小標籤：停擺與規則打架的那幾個靠語氣一眼挑得出來。 -->
+            <div
+              class="strategy-bot-list__symbols"
+              data-testid="bot-watched-symbols"
             >
-              <span class="strategy-bot-list__signal-label">{{ t('strategyBot.listPanel.lastSignalLabel') }}</span>{{ localize(strategyBot.runState.lastSentSignalLabel) }}
-            </span>
+              <span class="strategy-bot-list__symbols-label">{{ t('strategyBot.listPanel.watchedSymbolsLabel') }}</span>
+              <AppBadge
+                v-for="watchedSymbol in strategyBot.watchedSymbols"
+                :key="watchedSymbol.symbol"
+                :variant="watchedSymbol.stateTone"
+                :title="watchedSymbol.haltReasonLabel === null ? undefined : localize(watchedSymbol.haltReasonLabel)"
+                data-testid="bot-watched-symbol-state"
+              >
+                {{ watchedSymbol.symbol }} · {{ localize(watchedSymbol.stateLabel) }}
+              </AppBadge>
+            </div>
 
             <div class="strategy-bot-list__actions">
               <!--
@@ -348,6 +359,12 @@ onMounted(() => {
               @switch="switchAutoOrder(strategyBot.id, $event)"
             />
 
+            <StrategyBotWatchedSymbolList
+              v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
+              class="strategy-bot-list__inline-history"
+              :watched-symbols="strategyBot.watchedSymbols"
+            />
+
             <StrategyBotRunHistory
               v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
               class="strategy-bot-list__inline-history"
@@ -356,6 +373,9 @@ onMounted(() => {
               :failure-message="bots.runRecordsFailureMessage.value"
               :time-zone-identifier="timeZoneIdentifier"
               :note="page.runHistoryNote"
+              :symbol-options="strategyBot.watchedSymbols.map(watchedSymbol => watchedSymbol.symbol)"
+              :selected-symbol="bots.runRecordsSymbol.value"
+              @select-symbol="bots.selectRunRecordsSymbol"
             />
           </li>
         </ul>
@@ -373,7 +393,7 @@ onMounted(() => {
       >
         <template #meta>
           <span class="strategy-bot-list__meta">
-            {{ localize(selectedBot.symbolLabel) }} · {{ t('strategyBot.common.everyMinutes', { minutes: selectedBot.triggerIntervalMinutes }) }}<template v-if="selectedBot.leverageLabel !== null"> · {{ localize(selectedBot.leverageLabel) }}</template>
+            {{ t('strategyBot.common.everyMinutes', { minutes: selectedBot.triggerIntervalMinutes }) }}<template v-if="selectedBot.leverageLabel !== null"> · {{ localize(selectedBot.leverageLabel) }}</template>
           </span>
         </template>
         <template #actions>
@@ -403,6 +423,14 @@ onMounted(() => {
         />
 
         <h3 class="strategy-bot-list__detail-heading">
+          {{ t('strategyBot.listPanel.watchedSymbols') }}
+        </h3>
+        <StrategyBotWatchedSymbolList
+          class="strategy-bot-list__detail-watched-symbols"
+          :watched-symbols="selectedBot.watchedSymbols"
+        />
+
+        <h3 class="strategy-bot-list__detail-heading">
           {{ t('strategyBot.listPanel.runHistory') }}
         </h3>
         <StrategyBotRunHistory
@@ -411,6 +439,9 @@ onMounted(() => {
           :failure-message="bots.runRecordsFailureMessage.value"
           :time-zone-identifier="timeZoneIdentifier"
           :note="page.runHistoryNote"
+          :symbol-options="selectedBot.watchedSymbols.map(watchedSymbol => watchedSymbol.symbol)"
+          :selected-symbol="bots.runRecordsSymbol.value"
+          @select-symbol="bots.selectRunRecordsSymbol"
         />
       </AppPanel>
     </div>
@@ -435,7 +466,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 // 寬螢幕上一台一列、欄位對齊：這幾樣東西天生是一份清單，對齊才看得出哪一台不一樣。
-// 手機上一台一張卡，由上往下讀：叫什麼／跑著沒有、盯哪裡多久、照哪一套規則、上次說了什麼。
+// 手機上一台一張卡，由上往下讀：叫什麼／跑著沒有、多久看一次、照哪一套規則、每個監聽標的現在怎樣。
 .strategy-bot-list {
   display: flex;
   flex-direction: column;
@@ -528,7 +559,7 @@ onMounted(() => {
 
     @include respond-to('md') {
       display: grid;
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.8fr) 17rem;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 17rem;
       gap: spacing('sm');
     }
   }
@@ -546,7 +577,7 @@ onMounted(() => {
     grid-template-areas:
       'headline'
       'identity'
-      'signal'
+      'symbols'
       'actions';
     gap: spacing('2xs');
     border-bottom: 1px solid color('border');
@@ -557,8 +588,8 @@ onMounted(() => {
     }
 
     @include respond-to('md') {
-      grid-template-areas: 'headline identity signal actions';
-      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.8fr) 17rem;
+      grid-template-areas: 'headline identity symbols actions';
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 17rem;
       gap: spacing('xs') spacing('sm');
       align-items: center;
     }
@@ -617,14 +648,19 @@ onMounted(() => {
     }
   }
 
-  &__signal {
-    grid-area: signal;
+  &__symbols {
+    display: flex;
+    flex-wrap: wrap;
+    grid-area: symbols;
+    gap: spacing('3xs');
+    align-items: center;
+    min-width: 0;
     color: color('text');
     font-size: font-size('xs');
   }
 
   // 寬螢幕上欄名已經說了這一格是什麼；疊成卡片時才要自己說。
-  &__signal-label {
+  &__symbols-label {
     color: color('text-muted');
 
     @include respond-to('md') {
@@ -656,6 +692,10 @@ onMounted(() => {
     margin-bottom: spacing('sm');
     border-bottom: 1px solid color('border');
     padding-bottom: spacing('sm');
+  }
+
+  &__detail-watched-symbols {
+    margin-bottom: spacing('sm');
   }
 
   &__detail-heading {

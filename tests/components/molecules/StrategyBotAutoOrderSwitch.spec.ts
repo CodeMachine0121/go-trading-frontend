@@ -24,24 +24,8 @@ describe('StrategyBotAutoOrderSwitch', () => {
     expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toBe('打開後會真的開倉。')
   })
 
-  it.each([true, false])('有機器人持倉就畫出來，開關關著（%s）也照畫', (enabled) => {
-    const wrapper = mountSwitch({ enabled, positionLabel: new LocalizedTextVo('多 0.002', 'Long 0.002') })
-
-    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('機器人持倉：多 0.002')
-  })
-
-  it('說明與持倉排在開關底下，說明在前', () => {
-    const wrapper = mountSwitch({ positionLabel: new LocalizedTextVo('多 0.002', 'Long 0.002') })
-
-    const order = wrapper.findAll('[data-testid]').map(element => element.attributes('data-testid'))
-      .filter(testId => ['auto-order-switch', 'auto-order-notice', 'auto-order-position'].includes(testId ?? ''))
-    expect(order).toEqual(['auto-order-switch', 'auto-order-notice', 'auto-order-position'])
-  })
-
-  it('沒有機器人持倉（現貨）就不畫那一行', () => {
-    const wrapper = mountSwitch({ positionLabel: null })
-
-    expect(wrapper.find('[data-testid="auto-order-position"]').exists()).toBe(false)
+  it('不再畫單一的機器人持倉：持倉改在每個監聽標的上', () => {
+    expect(mountSwitch({ enabled: true }).find('[data-testid="auto-order-position"]').exists()).toBe(false)
   })
 
   it.each([
@@ -89,9 +73,8 @@ describe('StrategyBotAutoOrderSwitch', () => {
     expect(wrapper.get('[data-testid="auto-order-failure"]').text()).toBe('找不到這台策略機器人')
   })
 
-  it('切成英文時，開關、說明、持倉與操作台自己說的失敗都換成英文', async () => {
+  it('切成英文時，開關、說明與操作台自己說的失敗都換成英文', async () => {
     const wrapper = mountSwitch({
-      positionLabel: new LocalizedTextVo('空 0.5', 'Short 0.5'),
       failureMessage: new LocalizedTextVo('自動下單沒有切換成功。', 'Auto-order could not be switched.'),
     })
 
@@ -100,7 +83,6 @@ describe('StrategyBotAutoOrderSwitch', () => {
 
     expect(wrapper.text()).toContain('Auto-order')
     expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toBe('Once on, it opens real positions.')
-    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('Bot position: Short 0.5')
     expect(wrapper.get('[data-testid="auto-order-failure"]').text()).toBe('Auto-order could not be switched.')
   })
 })

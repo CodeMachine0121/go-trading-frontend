@@ -19,7 +19,8 @@ export class StrategyBotWriteDto {
   constructor(
     public readonly id: number | undefined,
     public readonly name: string,
-    public readonly symbol: string,
+    /** 存下去後的完整監聽標的清單：留著的保留狀態、新加的從空白開始、沒列的就移除。 */
+    public readonly symbols: readonly string[],
     public readonly tradingStrategyId: number,
     public readonly triggerIntervalMinutes: number,
     /**

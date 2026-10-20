@@ -8,7 +8,8 @@ import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
+import { aWatchedSymbolDto } from '../fixtures/strategy-bot-watched-symbol'
 
 const strategyBotApplication = {
   getStrategyBot: vi.fn(),
@@ -21,12 +22,11 @@ const tradingStrategyApplication = { listTradingStrategiesFollowableBy: vi.fn() 
 
 function botDto(id: number, marketDataKind: MarketDataKind = 'kCandle') {
   return new StrategyBotDto(
-    id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
+    id, '早盤突破', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
     null,
     marketDataKind,
-    new UntranslatedTextVo('BTCUSDT'),
     null,
     marketDataKind === 'kCandle' ? `/strategy-bots/${id}` : `/contract-strategy-bots/${id}`,
   )
@@ -42,7 +42,7 @@ function workbenchUnderTest(strategyBotId: number | null, marketDataKind: Market
 }
 
 function aWriteDto(id: number | undefined) {
-  return new StrategyBotWriteDto(id, '早盤突破', 'BTCUSDT', 9, 5, null)
+  return new StrategyBotWriteDto(id, '早盤突破', ['BTCUSDT'], 9, 5, null)
 }
 
 beforeEach(() => {
@@ -163,6 +163,34 @@ describe('useStrategyBotWorkbench 存回去', () => {
 
     expect(workbench.saved.value).toBe(false)
     expect(workbench.failureMessage.value?.in('zh-TW')).toBe('名稱已經有人用了')
+  })
+})
+
+describe('useStrategyBotWorkbench 移除還沒空手的監聽標的', () => {
+  it.each([
+    { reason: 'watchedSymbolHoldsPosition' as const, expected: '要移除的交易標的還有機器人持倉，要先讓它空手才能移除；監聽標的沒有改變' },
+    { reason: 'watchedSymbolAutoOrderOutstanding' as const, expected: '要移除的交易標的還有沒做完的自動下單，要等它做完才能移除；監聽標的沒有改變' },
+  ])('$reason 被拒時留在這一頁並說出怎麼處理', async ({ reason, expected }) => {
+    strategyBotApplication.saveStrategyBot.mockRejectedValue(new StrategyBotWatchedSymbolNotRemovableError(reason))
+
+    const workbench = workbenchUnderTest(7)
+    await workbench.load()
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.saved.value).toBe(false)
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe(expected)
+  })
+
+  it('說明也說得出英文', async () => {
+    strategyBotApplication.saveStrategyBot.mockRejectedValue(
+      new StrategyBotWatchedSymbolNotRemovableError('watchedSymbolHoldsPosition'))
+
+    const workbench = workbenchUnderTest(7)
+    await workbench.load()
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.failureMessage.value?.in('en'))
+      .toBe('A symbol you removed still holds a bot position; let it go flat before removing it. The watched symbols were left unchanged.')
   })
 })
 

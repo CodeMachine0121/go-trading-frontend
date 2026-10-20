@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import AppBadge from '~/components/atoms/AppBadge.vue'
+import AppSelect from '~/components/atoms/AppSelect.vue'
+import FormField from '~/components/molecules/FormField.vue'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
@@ -9,7 +11,9 @@ import { formatDateTimeInTimeZone } from '~/utilities/time-zone-format'
 //
 // 它只在被展開時才有東西可畫，所以取資料是上面的事——一份清單裡十台機器人
 // 各自先把自己的歷史撈回來，等於為了一個多數時候沒人展開的區塊打十次後端。
-const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } = defineProps<{
+const {
+  runRecords, loading, failureMessage, timeZoneIdentifier, note = null, symbolOptions = [], selectedSymbol = null,
+} = defineProps<{
   runRecords: readonly StrategyBotRunRecordDto[]
   loading: boolean
   /** 讀不到時要說的那一句；讀得到時 `null`。 */
@@ -23,7 +27,15 @@ const { runRecords, loading, failureMessage, timeZoneIdentifier, note = null } =
   timeZoneIdentifier: string
   /** 紀錄底下的一句註腳——合約機器人用它說出「一排持有也可能是行情停了」。 */
   note?: LocalizedTextVo | null
+  /** 機器人目前的監聽標的；少於兩個時不給挑。 */
+  symbolOptions?: readonly string[]
+  /** 只看哪一個標的；`null` 是全部標的。 */
+  selectedSymbol?: string | null
 }>()
+
+const emit = defineEmits<{ selectSymbol: [symbol: string | null] }>()
+
+const ALL_SYMBOLS = ''
 
 const { t } = useI18n()
 const { localize } = useLocalizedText()
@@ -31,6 +43,29 @@ const { localize } = useLocalizedText()
 
 <template>
   <div class="strategy-bot-run-history">
+    <FormField
+      v-if="symbolOptions.length > 1"
+      :label="t('strategyBot.runHistory.symbolFilterLabel')"
+      class="strategy-bot-run-history__filter"
+    >
+      <AppSelect
+        :model-value="selectedSymbol ?? ALL_SYMBOLS"
+        data-testid="run-history-symbol-filter"
+        @update:model-value="emit('selectSymbol', $event === ALL_SYMBOLS ? null : $event)"
+      >
+        <option :value="ALL_SYMBOLS">
+          {{ t('strategyBot.runHistory.allSymbols') }}
+        </option>
+        <option
+          v-for="symbol in symbolOptions"
+          :key="symbol"
+          :value="symbol"
+        >
+          {{ symbol }}
+        </option>
+      </AppSelect>
+    </FormField>
+
     <p
       v-if="loading"
       class="strategy-bot-run-history__notice"
@@ -77,6 +112,10 @@ const { localize } = useLocalizedText()
         <div class="strategy-bot-run-history__body">
           <div class="strategy-bot-run-history__headline">
             <span class="strategy-bot-run-history__number">{{ t('strategyBot.runHistory.runNumber', { number: runRecord.runNumber }) }}</span>
+            <span
+              class="strategy-bot-run-history__symbol"
+              data-testid="run-history-symbol"
+            >{{ runRecord.symbol }}</span>
             <AppBadge
               :variant="runRecord.resultTone"
               data-testid="run-history-result"
@@ -251,6 +290,17 @@ const { localize } = useLocalizedText()
     font-size: font-size('sm');
 
     @include numeric;
+  }
+
+  &__symbol {
+    color: color('text-muted');
+    font-size: font-size('xs');
+
+    @include numeric;
+  }
+
+  &__filter {
+    max-width: 14rem;
   }
 
   // 時間推到最右邊：先讀第幾輪、結果是什麼，時間是查的時候才看的。

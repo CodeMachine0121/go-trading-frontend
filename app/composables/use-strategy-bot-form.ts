@@ -8,6 +8,7 @@ import { POSITION_SIZING_MODES } from '~/domain/models/vo/position-sizing-mode-v
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
 
 /** 一台新機器人的預設觸發間隔。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
@@ -15,7 +16,7 @@ const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
 /**
  * 機器人表單的狀態與每一個改得動它的動作。
  *
- * 它只剩四格，因為一台機器人只剩四件事：叫什麼、照哪一份交易策略跑、盯哪一個市場、
+ * 它只剩四格，因為一台機器人只剩四件事：叫什麼、照哪一份交易策略跑、盯哪幾個標的、
  * 多久醒一次。拼規則的那一整塊搬去 useTradingStrategyForm 了——
  * 那是坐下來慢慢調的事，與填三格就走的事分在兩個時刻，也分在兩個畫面。
  *
@@ -27,7 +28,16 @@ export function useStrategyBotForm(
   page: StrategyBotPageDto,
 ) {
   const name = ref('')
-  const symbol = ref('')
+  const symbols = ref<string[]>([])
+  const canAddSymbol = computed(() => !new StrategyBotWatchedSymbolListDomain(symbols.value).isFull)
+
+  function addSymbol(symbol: string) {
+    symbols.value = new StrategyBotWatchedSymbolListDomain(symbols.value).adding(symbol)
+  }
+
+  function removeSymbol(symbol: string) {
+    symbols.value = new StrategyBotWatchedSymbolListDomain(symbols.value).removing(symbol)
+  }
   const tradingStrategyId = ref(0)
   const triggerIntervalText = ref(String(DEFAULT_TRIGGER_INTERVAL_MINUTES))
 
@@ -111,7 +121,7 @@ export function useStrategyBotForm(
     return new StrategyBotWriteDto(
       editing()?.id,
       name.value,
-      symbol.value,
+      symbols.value,
       tradingStrategyId.value,
       triggerIntervalMinutes.value,
       buildPositionPlan(),
@@ -138,7 +148,7 @@ export function useStrategyBotForm(
     const loaded = editing()
 
     name.value = loaded?.name ?? ''
-    symbol.value = loaded?.symbol ?? ''
+    symbols.value = loaded?.watchedSymbols.map(watchedSymbol => watchedSymbol.symbol) ?? []
     tradingStrategyId.value = loaded?.tradingStrategyId ?? 0
     triggerIntervalText.value = String(
       loaded?.triggerIntervalMinutes ?? DEFAULT_TRIGGER_INTERVAL_MINUTES)
@@ -158,7 +168,11 @@ export function useStrategyBotForm(
 
   return {
     name,
-    symbol,
+    symbols,
+    canAddSymbol,
+    watchedSymbolMaximum: STRATEGY_BOT_LIMITS.watchedSymbolCount,
+    addSymbol,
+    removeSymbol,
     tradingStrategyId,
     triggerIntervalText,
     suggestsPosition,

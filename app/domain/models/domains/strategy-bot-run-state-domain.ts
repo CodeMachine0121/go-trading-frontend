@@ -1,11 +1,9 @@
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
-import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
-import {
-  STRATEGY_BOT_HALT_REASONS,
-  STRATEGY_BOT_HALT_REASON_LABELS,
-} from '~/domain/models/vo/strategy-bot-halt-reason-vo'
+import { StrategyBotHaltReasonDomain } from '~/domain/models/domains/strategy-bot-halt-reason-domain'
+import type { StrategyBotWatchedSymbolDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-domain'
+import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 
 /**
  * Domain Model：一台機器人在清單上該長什麼樣。
@@ -31,7 +29,7 @@ export class StrategyBotRunStateDomain {
       this.statusLabel,
       this.statusTone,
       this.haltReasonLabel,
-      this.lastSentSignalLabel,
+      this.haltedWatchedSymbolsLabel,
       this.canStart,
       this.canStop,
       this.canEdit,
@@ -44,30 +42,36 @@ export class StrategyBotRunStateDomain {
     return this.strategyBot.runState === 'running'
   }
 
-  /** 它是被系統自己停下來的嗎——與被擁有者按停止是兩件事。 */
+  /** 它是被系統自己整台停下來的嗎——與被擁有者按停止是兩件事。 */
   get isHalted(): boolean {
-    return !this.isRunning && this.knownHaltReason !== null
+    return !this.isRunning && this.haltReason.isKnown
   }
 
-  /**
-   * 認得出來的停擺原因，認不得的一律當成沒有。
-   *
-   * 原樣傳給畫面的話，一個後端新增的第五種原因會顯示成一格空白——
-   * 而空白在這份清單上的意思是「這台沒事」，那是最糟的一種誤讀。
-   */
-  private get knownHaltReason(): StrategyBotHaltReasonVo | null {
-    return STRATEGY_BOT_HALT_REASONS.find(
-      known => known === this.strategyBot.haltReason) ?? null
+  private get haltReason(): StrategyBotHaltReasonDomain {
+    return new StrategyBotHaltReasonDomain(this.strategyBot.haltReason)
   }
 
-  /**
-   * 上一輪兩個條件同時成立。
-   *
-   * 它**不是停擺**：機器人還在跑。但它代表這台機器人現在什麼都不會說，
-   * 而且會一直不說下去——所以它與執行中一起顯示，不是取代它。
-   */
+  private get watchedSymbols(): StrategyBotWatchedSymbolDomain[] {
+    const marketDataKind = new MarketDataKindDomain(this.strategyBot.marketDataKind)
+
+    return this.strategyBot.watchedSymbols.map(watchedSymbol => watchedSymbol.toDomain(marketDataKind))
+  }
+
+  /** 任一個監聽標的上一輪兩個條件同時成立。**不是停擺**：機器人還在跑。 */
   get isConflicting(): boolean {
-    return this.strategyBot.conflicting
+    return this.watchedSymbols.some(watchedSymbol => watchedSymbol.isConflicting)
+  }
+
+  /** 只停了部分標的時那一句；整台停擺時已經說了停擺，不再多說。 */
+  get haltedWatchedSymbolsLabel(): LocalizedTextVo | null {
+    const haltedCount = this.watchedSymbols.filter(watchedSymbol => watchedSymbol.isHalted).length
+    if (this.isHalted || haltedCount === 0) {
+      return null
+    }
+
+    return new LocalizedTextVo(
+      `${haltedCount} 個標的停擺`,
+      haltedCount === 1 ? '1 symbol halted' : `${haltedCount} symbols halted`)
   }
 
   /** 狀態標籤上的字。停擺時說的是停擺，因為那才是使用者要處理的那件事。 */
@@ -96,30 +100,9 @@ export class StrategyBotRunStateDomain {
     return this.isRunning ? 'success' : 'neutral'
   }
 
-  /** 停擺原因那一句。沒有停擺時是 `null`。 */
+  /** 整台停擺原因那一句。沒有停擺時是 `null`。 */
   get haltReasonLabel(): LocalizedTextVo | null {
-    const haltReason = this.knownHaltReason
-
-    return haltReason === null ? null : STRATEGY_BOT_HALT_REASON_LABELS[haltReason]
-  }
-
-  /**
-   * 上一次送出的信號那一格。
-   *
-   * 沒送過時給的是一句話而不是空白：空白在這份清單上讀起來像「這一欄壞了」，
-   * 而「還沒送出過」是一個明確、而且完全正常的狀態。
-   */
-  get lastSentSignalLabel(): LocalizedTextVo {
-    switch (this.strategyBot.lastSentSignal) {
-      case 'buy':
-        return new LocalizedTextVo('買入', 'Buy')
-      case 'sell':
-        return new LocalizedTextVo('賣出', 'Sell')
-      case 'hold':
-        return new LocalizedTextVo('持有', 'Hold')
-      default:
-        return new LocalizedTextVo('還沒送出過', 'None sent yet')
-    }
+    return this.isHalted ? this.haltReason.label : null
   }
 
   /** 現在該給的是停止鍵還是播放鍵——一台機器人只有兩種狀態，所以只給得出一顆。 */

@@ -6,6 +6,7 @@ import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import type { StrategyBotRunRecordDto } from '~/domain/models/dto/strategy-bot-run-record-dto'
 import { TelegramNotConfiguredError } from '~/domain/errors/telegram-not-configured-error'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 
 /**
  * 機器人清單這一整塊的狀態與動作。
@@ -42,6 +43,8 @@ export function useStrategyBots(
   const runRecords = ref<StrategyBotRunRecordDto[]>([])
   const runRecordsLoading = ref(false)
   const runRecordsFailureMessage = ref<LocalizedTextVo | null>(null)
+  /** 執行紀錄只看哪一個監聽標的；`null` 是全部標的。換一台就回到全部。 */
+  const runRecordsSymbol = ref<string | null>(null)
 
   const deleting = ref<StrategyBotDto | null>(null)
 
@@ -78,26 +81,44 @@ export function useStrategyBots(
     }
 
     expandedBotId.value = strategyBotId
+    runRecordsSymbol.value = null
+    await loadRunRecords(strategyBotId)
+  }
+
+  async function selectRunRecordsSymbol(symbol: string | null) {
+    if (expandedBotId.value === null) {
+      return
+    }
+
+    runRecordsSymbol.value = symbol
+    await loadRunRecords(expandedBotId.value)
+  }
+
+  async function loadRunRecords(strategyBotId: number) {
+    const symbol = runRecordsSymbol.value
+    // 這一趟回來之前，使用者可能已經收起來、改展開了別台或換了標的。把它丟掉，
+    // 否則他會看到一份不屬於眼前這一台、這一個標的的歷史。
+    const isCurrent = () => expandedBotId.value === strategyBotId && runRecordsSymbol.value === symbol
+
     runRecords.value = []
     runRecordsFailureMessage.value = null
     runRecordsLoading.value = true
 
     try {
-      const loaded = await strategyBotApplication.listRunRecords(strategyBotId)
+      const loaded = await strategyBotApplication.listRunRecords(
+        new StrategyBotRunRecordQueryDto(strategyBotId, symbol))
 
-      // 這一趟回來之前，使用者可能已經收起來或改展開了別台。把它丟掉，
-      // 否則他會看到一份屬於別台機器人的歷史掛在這一台底下。
-      if (expandedBotId.value === strategyBotId) {
+      if (isCurrent()) {
         runRecords.value = loaded
       }
     }
     catch (error: unknown) {
-      if (expandedBotId.value === strategyBotId) {
+      if (isCurrent()) {
         runRecordsFailureMessage.value = messageOf(error)
       }
     }
     finally {
-      if (expandedBotId.value === strategyBotId) {
+      if (isCurrent()) {
         runRecordsLoading.value = false
       }
     }
@@ -207,7 +228,9 @@ export function useStrategyBots(
     runRecords,
     runRecordsLoading,
     runRecordsFailureMessage,
+    runRecordsSymbol,
     toggleRunHistory,
+    selectRunRecordsSymbol,
     runNow,
     deleting,
     load,
