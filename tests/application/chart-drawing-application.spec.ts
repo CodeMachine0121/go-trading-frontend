@@ -108,7 +108,7 @@ describe('ChartDrawingApplication：畫、存回', () => {
       application.draftDrawing('horizontalLine', [anchorOf(TEN_O_CLOCK, '60000')]))
 
     const result = await application.saveBoard(board)
-    const acknowledged = application.acknowledgeSave(board, board, result.savedBoard)
+    const acknowledged = application.settleSave(board, board, result)
 
     expect(vi.mocked(boardProxy.saveBoard).mock.lastCall?.[0].revision).toBe(0)
     expect(result.outcome).toBe('saved')
@@ -125,7 +125,7 @@ describe('ChartDrawingApplication：畫、存回', () => {
       application.draftDrawing('horizontalLine', [anchorOf(TEN_O_CLOCK, '60000')]))
 
     const result = await application.saveBoard(board)
-    const incorporated = application.incorporateSavedBoard(board, result.savedBoard)
+    const incorporated = application.settleSave(board, board, result)
 
     expect(result.outcome).toBe('superseded')
     expect(incorporated.drawings.map(drawing => drawing.id)).toEqual([-1, 9])

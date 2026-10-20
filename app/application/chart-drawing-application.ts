@@ -30,10 +30,8 @@ export class ChartDrawingApplication {
     return this.chartDrawingService.saveBoard(board)
   }
 
-  acknowledgeSave(
-    board: ChartDrawingBoardDto, sentBoard: ChartDrawingBoardDto, savedBoard: SavedChartDrawingBoardDto,
-  ): ChartDrawingBoardDto {
-    return this.chartDrawingService.acknowledgeSave(board, sentBoard, savedBoard)
+  settleSave(board: ChartDrawingBoardDto, sentBoard: ChartDrawingBoardDto, result: ChartDrawingSaveDto): ChartDrawingBoardDto {
+    return this.chartDrawingService.settleSave(board, sentBoard, result)
   }
 
   incorporateSavedBoard(board: ChartDrawingBoardDto, savedBoard: SavedChartDrawingBoardDto): ChartDrawingBoardDto {

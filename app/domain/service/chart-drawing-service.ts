@@ -92,13 +92,18 @@ export class ChartDrawingService {
     }
   }
 
-  /** `sentBoard` 那一份存進了帳號：目前的板子換上帳號發的編號與來源。 */
-  acknowledgeSave(
-    board: ChartDrawingBoardDto, sentBoard: ChartDrawingBoardDto, savedBoard: SavedChartDrawingBoardDto,
-  ): ChartDrawingBoardDto {
-    return this.boardOf(board)
-      .acknowledged(this.boardOf(sentBoard).currentDrawings(), savedBoard.toEntity())
-      .toDto()
+  /**
+   * 把存回的結果套到目前的板子上：存進去了就換上帳號發的編號與來源；
+   * 帳號那一份已在別處改過就接上它（之後還有沒存的，由畫面再存一次）。
+   */
+  settleSave(board: ChartDrawingBoardDto, sentBoard: ChartDrawingBoardDto, result: ChartDrawingSaveDto): ChartDrawingBoardDto {
+    const currentBoard = this.boardOf(board)
+    const savedBoard = result.savedBoard.toEntity()
+
+    return (result.outcome === 'saved'
+      ? currentBoard.acknowledged(this.boardOf(sentBoard).currentDrawings(), savedBoard)
+      : currentBoard.incorporated(savedBoard)
+    ).toDto()
   }
 
   /** 接上帳號裡較新的一份。 */

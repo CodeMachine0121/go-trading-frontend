@@ -24,7 +24,7 @@
 | `IChartDrawingBoardProxy` / `ChartDrawingBoardProxy` | **Add** | 帳號的繪圖板：讀、整份存回（帶版本，衝突時拋出帶著現在那一份的哨兵錯誤）、移除助手畫的全部 |
 | `ChartDrawing` entity / `ChartDrawingDto` | **Modify** | 多一個 `source`（`manual`／`assistant`）；DTO 多 `drawnByAssistant` |
 | `ChartDrawingBoardDomain` / `ChartDrawingBoardDto` | **Modify** | 多 `savedBoard`；新繪圖拿暫時負號編號；新增 `acknowledged`（存回後換編號與來源）、`incorporated`（接上帳號較新的一份）、`hasUnsavedChanges` |
-| `ChartDrawingService` / `ChartDrawingApplication` | **Modify** | 各動作不再寫留存（純計算）；新增 `openBoard`、`loadSavedBoard`（含搬舊繪圖）、`saveBoard`、`acknowledgeSave`、`incorporateSavedBoard`、`removeAssistantDrawings` |
+| `ChartDrawingService` / `ChartDrawingApplication` | **Modify** | 各動作不再寫留存（純計算）；新增 `openBoard`、`loadSavedBoard`（含搬舊繪圖）、`saveBoard`、`settleSave`（存回結果套到目前的板子：存進去就換編號、別處改過就接上）、`incorporateSavedBoard`、`removeAssistantDrawings` |
 | `useChartDrawings` | **Modify** | 板子改由 `useChartDrawingBoardSync` 持有；每個動作之後排一次存回；存回換編號時選取跟著換 |
 | `useChartDrawingBoardSync` | **Add** | 讀、延遲合併存回、同時只做一件事、衝突接上與重試上限、重讀時機（焦點、可見、外部訊號）、說明與提示 |
 | `useAssistantAnswerCompletions` + `useAssistantConversation` | **Add / Modify** | 共用計數：一則回答由「在寫」變「寫完」時加一；行情圖表頁把它交給工作區當重讀訊號 |
@@ -107,8 +107,9 @@ flowchart TD
 ```
 動作 → board = application.addDrawing(...) → replaceBoard → 800ms 計時
 計時到 → 佇列：sent = board；result = await saveBoard(sent)
-  saved      → board = acknowledgeSave(board(最新), sent, result.savedBoard)
-  superseded → board = incorporateSavedBoard(board(最新), result.savedBoard)；提示；連續 < 3 次 → 再排存回
+  board = settleSave(board(最新), sent, result)
+  saved      → 清掉說明
+  superseded → 提示；連續 < 3 次 → 再存
   錯誤        → saveFailure = 原因（下一步或重試會再試）
   結果回來時板子已換成別檔 → 丟掉結果
 ```

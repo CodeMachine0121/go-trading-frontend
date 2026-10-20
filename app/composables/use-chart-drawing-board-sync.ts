@@ -88,14 +88,13 @@ export function useChartDrawingBoardSync(
         return
       }
 
+      board.value = chartDrawingApplication.settleSave(board.value, sentBoard, result)
       if (result.outcome === 'saved') {
-        board.value = chartDrawingApplication.acknowledgeSave(board.value, sentBoard, result.savedBoard)
         saveFailure.value = null
         scheduleSaveIfStillUnsaved()
         return
       }
 
-      board.value = chartDrawingApplication.incorporateSavedBoard(board.value, result.savedBoard)
       announcement.value = translatedText('marketData.chartDrawing.boardChangedElsewhere')
       if (conflictCount + 1 >= CHART_DRAWING_CONFLICT_RETRY_LIMIT) {
         saveFailure.value = withReason('marketData.chartDrawing.boardSaveFailed',
