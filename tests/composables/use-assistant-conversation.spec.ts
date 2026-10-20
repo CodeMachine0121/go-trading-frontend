@@ -841,13 +841,15 @@ describe('useAssistantConversation 答完一則時記一筆', () => {
     expect(completedAnswerCount.value).toBe(before + 1)
   })
 
-  it('打開一段早就答完的對話：不記', async () => {
-    const { selectConversation } = conversationUnderTest()
+  it('重讀一段早就答完的對話（例如確認一筆待確認修改之後）：不記', async () => {
+    const conversation = conversationUnderTest()
+    await conversation.selectConversation(7)
     const { completedAnswerCount } = useAssistantAnswerCompletions()
     const before = completedAnswerCount.value
 
-    await selectConversation(7)
+    await conversation.confirmPendingRevision(70)
 
+    expect(applicationMock.getConversation).toHaveBeenCalledTimes(2)
     expect(completedAnswerCount.value).toBe(before)
   })
 })
