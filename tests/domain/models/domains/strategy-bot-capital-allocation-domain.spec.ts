@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
 import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 
 const SEVEN_SYMBOLS = ['A1USDT', 'A2USDT', 'A3USDT', 'A4USDT', 'A5USDT', 'A6USDT', 'A7USDT']
 
@@ -123,7 +124,7 @@ describe('StrategyBotCapitalAllocationDomain 的摘要', () => {
     sizingValue = '0',
   ) {
     return anAllocation(percentages).toSummaryDto(
-      capital === null ? null : new Decimal(capital), sizingMode, new Decimal(sizingValue))
+      capital === null ? null : new Decimal(capital), new PositionSizingDomain(sizingMode, new Decimal(sizingValue)))
   }
 
   it.each([
@@ -143,7 +144,7 @@ describe('StrategyBotCapitalAllocationDomain 的摘要', () => {
     const equalSplit = new StrategyBotCapitalAllocationDomain(SEVEN_SYMBOLS, []).equallySplit()
 
     const summary = new StrategyBotCapitalAllocationDomain(SEVEN_SYMBOLS, equalSplit)
-      .toSummaryDto(null, 'allIn', new Decimal(0))
+      .toSummaryDto(null, new PositionSizingDomain('allIn', new Decimal(0)))
 
     expect(summary.unallocatedPercentage.toString()).toBe('0.04')
   })
@@ -167,7 +168,7 @@ describe('StrategyBotCapitalAllocationDomain 的摘要', () => {
 
   it('沒給分配比例的那一列也列出來，只是不說分到多少', () => {
     const summary = anAllocation({ BTCUSDT: '70' }, ['BTCUSDT', 'ETHUSDT'])
-      .toSummaryDto(new Decimal(1000), 'allIn', new Decimal(0))
+      .toSummaryDto(new Decimal(1000), new PositionSizingDomain('allIn', new Decimal(0)))
 
     expect(summary.rows.map(row => row.symbol)).toEqual(['BTCUSDT', 'ETHUSDT'])
     expect(summary.rows[1]?.allocatedCapital).toBeNull()

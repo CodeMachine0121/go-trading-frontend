@@ -40,9 +40,11 @@ export function useStrategyBotForm(
     return text === '' ? [] : [new StrategyBotCapitalAllocationDto(symbol, decimalOfText(text))]
   }))
 
+  const capitalAllocation = computed(() =>
+    new StrategyBotCapitalAllocationDomain(symbols.value, capitalAllocations.value))
+
   function changeSymbols(changed: string[]) {
-    allocationPercentageTexts.value = textsOf(
-      new StrategyBotCapitalAllocationDomain(symbols.value, capitalAllocations.value).reallocatedTo(changed))
+    allocationPercentageTexts.value = textsOf(capitalAllocation.value.reallocatedTo(changed))
     symbols.value = changed
   }
 
@@ -97,8 +99,8 @@ export function useStrategyBotForm(
   const sizingModeOptions = POSITION_SIZING_MODES.map(
     mode => new PositionSizingDomain(mode, new Decimal(0)).toOptionDto())
 
-  const allocationSummary = computed(() => new StrategyBotCapitalAllocationDomain(symbols.value, capitalAllocations.value)
-    .toSummaryDto(decimalOfText(capitalText.value), sizingMode.value, decimalOfText(sizingValueText.value)))
+  const allocationSummary = computed(() => capitalAllocation.value.toSummaryDto(
+    decimalOfText(capitalText.value), new PositionSizingDomain(sizingMode.value, decimalOfText(sizingValueText.value))))
 
   /**
    * 這一台要送出去的那一組部位規劃，或 `null`。

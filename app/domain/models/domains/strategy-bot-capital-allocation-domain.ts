@@ -3,7 +3,7 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 import { StrategyBotCapitalAllocationRowDto } from '~/domain/models/dto/strategy-bot-capital-allocation-row-dto'
 import { StrategyBotCapitalAllocationSummaryDto } from '~/domain/models/dto/strategy-bot-capital-allocation-summary-dto'
-import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { PositionSizingDomain } from '~/domain/models/domains/position-sizing-domain'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 
 export class StrategyBotCapitalAllocationDomain {
@@ -85,11 +85,7 @@ export class StrategyBotCapitalAllocationDomain {
     return capital.times(percentage).dividedBy(STRATEGY_BOT_LIMITS.allocationPercentageMaximum)
   }
 
-  toSummaryDto(
-    capital: Decimal | null,
-    sizingMode: PositionSizingMode,
-    sizingValue: Decimal,
-  ): StrategyBotCapitalAllocationSummaryDto {
+  toSummaryDto(capital: Decimal | null, positionSizing: PositionSizingDomain): StrategyBotCapitalAllocationSummaryDto {
     const total = this.totalPercentage
     const maximum = new Decimal(STRATEGY_BOT_LIMITS.allocationPercentageMaximum)
 
@@ -99,17 +95,11 @@ export class StrategyBotCapitalAllocationDomain {
       total.greaterThan(maximum),
       this.symbols.map((symbol) => {
         const allocatedCapital = this.allocatedCapitalOf(symbol, capital)
-        const cannotAfford = allocatedCapital !== null && sizingMode === 'fixedAmount'
-          && sizingValue.greaterThan(allocatedCapital)
 
         return new StrategyBotCapitalAllocationRowDto(
           symbol,
           allocatedCapital,
-          cannotAfford
-            ? new LocalizedTextVo(
-                `分到的資金不足，押不下 ${sizingValue.toString()}`,
-                `The allocated capital cannot cover ${sizingValue.toString()}`)
-            : null)
+          allocatedCapital === null ? null : positionSizing.shortfallLabelWithin(allocatedCapital))
       }),
     )
   }
