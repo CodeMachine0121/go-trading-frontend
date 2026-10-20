@@ -3,6 +3,7 @@ import { PositionPlanDomain } from '~/domain/models/domains/position-plan-domain
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
+import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
 
 /**
  * Domain Model：一台要存進去的機器人，連同它送出前必須成立的每一條規則。
@@ -80,6 +81,9 @@ export class StrategyBotWriteDomain {
     }
 
     return new PositionPlanDomain(this.writeDto.positionPlan).rejection
+      ?? new StrategyBotCapitalAllocationDomain(
+        new StrategyBotWatchedSymbolListDomain(this.writeDto.symbols).normalized,
+        this.writeDto.positionPlan.capitalAllocations).rejection
   }
 
   get isSendable(): boolean {

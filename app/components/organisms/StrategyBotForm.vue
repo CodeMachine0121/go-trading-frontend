@@ -6,6 +6,7 @@ import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import StrategyBotWatchedSymbolsField from '~/components/molecules/StrategyBotWatchedSymbolsField.vue'
+import StrategyBotCapitalAllocationField from '~/components/molecules/StrategyBotCapitalAllocationField.vue'
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import type { TradingSymbolApplication } from '~/application/trading-symbol-application'
 import type { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
@@ -191,7 +192,10 @@ function onSave() {
           />
         </FormField>
 
-        <FormField :label="t('strategyBot.form.capitalLabel')">
+        <FormField
+          :label="localize(page.capitalLabel)"
+          :hint="localize(page.capitalHint)"
+        >
           <AppInput
             v-model="form.capitalText.value"
             type="number"
@@ -248,6 +252,15 @@ function onSave() {
             data-testid="bot-position-take-profit-input"
           />
         </FormField>
+
+        <StrategyBotCapitalAllocationField
+          v-if="form.symbols.value.length > 0"
+          class="bot-form__capital-allocation"
+          :summary="form.allocationSummary.value"
+          :percentage-texts="form.allocationPercentageTexts.value"
+          @change-percentage="form.changeAllocationPercentage"
+          @split-equally="form.splitEqually"
+        />
       </div>
     </section>
 
@@ -346,7 +359,8 @@ function onSave() {
     }
   }
 
-  &__watched-symbols {
+  &__watched-symbols,
+  &__capital-allocation {
     grid-column: 1 / -1;
   }
 

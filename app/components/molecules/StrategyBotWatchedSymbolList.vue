@@ -51,6 +51,18 @@ const { localize } = useLocalizedText()
       </p>
 
       <p
+        class="watched-symbol-list__fact"
+        data-testid="watched-symbol-allocation"
+      >
+        {{ localize(watchedSymbol.allocationLabel) }}
+        <span
+          v-if="watchedSymbol.allocatedCapitalLabel !== null"
+          class="watched-symbol-list__allocated-capital"
+          data-testid="watched-symbol-allocated-capital"
+        >· {{ localize(watchedSymbol.allocatedCapitalLabel) }}</span>
+      </p>
+
+      <p
         v-if="watchedSymbol.autoOrderPositionLabel !== null"
         class="watched-symbol-list__fact"
         data-testid="watched-symbol-position"
@@ -108,7 +120,8 @@ const { localize } = useLocalizedText()
     font-size: font-size('xs');
   }
 
-  &__position {
+  &__position,
+  &__allocated-capital {
     color: color('text');
 
     @include numeric;

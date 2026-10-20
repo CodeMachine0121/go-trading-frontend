@@ -9,6 +9,8 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 import type { StrategyBotPageDto } from '~/domain/models/dto/strategy-bot-page-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
+import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
+import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 
 /** 一台新機器人的預設觸發間隔。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
@@ -30,13 +32,36 @@ export function useStrategyBotForm(
   const name = ref('')
   const symbols = ref<string[]>([])
   const canAddSymbol = computed(() => !new StrategyBotWatchedSymbolListDomain(symbols.value).isFull)
+  const allocationPercentageTexts = ref<ReadonlyMap<string, string>>(new Map())
+
+  const capitalAllocations = computed(() => symbols.value.flatMap((symbol) => {
+    const text = String(allocationPercentageTexts.value.get(symbol) ?? '').trim()
+
+    return text === '' ? [] : [new StrategyBotCapitalAllocationDto(symbol, decimalOfText(text))]
+  }))
+
+  const capitalAllocation = computed(() =>
+    new StrategyBotCapitalAllocationDomain(symbols.value, capitalAllocations.value))
+
+  function changeSymbols(changed: string[]) {
+    allocationPercentageTexts.value = textsOf(capitalAllocation.value.reallocatedTo(changed))
+    symbols.value = changed
+  }
 
   function addSymbol(symbol: string) {
-    symbols.value = new StrategyBotWatchedSymbolListDomain(symbols.value).adding(symbol)
+    changeSymbols(new StrategyBotWatchedSymbolListDomain(symbols.value).adding(symbol))
   }
 
   function removeSymbol(symbol: string) {
-    symbols.value = new StrategyBotWatchedSymbolListDomain(symbols.value).removing(symbol)
+    changeSymbols(new StrategyBotWatchedSymbolListDomain(symbols.value).removing(symbol))
+  }
+
+  function changeAllocationPercentage(symbol: string, text: string) {
+    allocationPercentageTexts.value = new Map([...allocationPercentageTexts.value, [symbol, text]])
+  }
+
+  function splitEqually() {
+    allocationPercentageTexts.value = textsOf(new StrategyBotCapitalAllocationDomain(symbols.value, []).equallySplit())
   }
   const tradingStrategyId = ref(0)
   const triggerIntervalText = ref(String(DEFAULT_TRIGGER_INTERVAL_MINUTES))
@@ -74,6 +99,9 @@ export function useStrategyBotForm(
   const sizingModeOptions = POSITION_SIZING_MODES.map(
     mode => new PositionSizingDomain(mode, new Decimal(0)).toOptionDto())
 
+  const allocationSummary = computed(() => capitalAllocation.value.toSummaryDto(
+    decimalOfText(capitalText.value), new PositionSizingDomain(sizingMode.value, decimalOfText(sizingValueText.value))))
+
   /**
    * 這一台要送出去的那一組部位規劃，或 `null`。
    *
@@ -106,6 +134,7 @@ export function useStrategyBotForm(
       page.takesLeverage
         ? (String(leverageText.value).trim() === '' ? new Decimal(1) : decimalOfText(leverageText.value))
         : null,
+      capitalAllocations.value,
     )
   }
 
@@ -149,6 +178,8 @@ export function useStrategyBotForm(
 
     name.value = loaded?.name ?? ''
     symbols.value = loaded?.watchedSymbols.map(watchedSymbol => watchedSymbol.symbol) ?? []
+    allocationPercentageTexts.value = new Map(loaded?.watchedSymbols.map(watchedSymbol =>
+      [watchedSymbol.symbol, watchedSymbol.allocationPercentage.toString()]) ?? [])
     tradingStrategyId.value = loaded?.tradingStrategyId ?? 0
     triggerIntervalText.value = String(
       loaded?.triggerIntervalMinutes ?? DEFAULT_TRIGGER_INTERVAL_MINUTES)
@@ -173,6 +204,10 @@ export function useStrategyBotForm(
     watchedSymbolMaximum: STRATEGY_BOT_LIMITS.watchedSymbolCount,
     addSymbol,
     removeSymbol,
+    allocationPercentageTexts,
+    allocationSummary,
+    changeAllocationPercentage,
+    splitEqually,
     tradingStrategyId,
     triggerIntervalText,
     suggestsPosition,
@@ -203,6 +238,11 @@ export function useStrategyBotForm(
  * 空白讀作零而不是「不是數字」：那四格裡的空白都有意思（不設止損、不設止盈），
  * 而 `new Decimal('')` 會丟例外。真正打錯的字仍然是 NaN，由那幾條驗證擋下來。
  */
+function textsOf(capitalAllocations: readonly StrategyBotCapitalAllocationDto[]): ReadonlyMap<string, string> {
+  return new Map(capitalAllocations.map(capitalAllocation =>
+    [capitalAllocation.symbol, capitalAllocation.allocationPercentage.toString()]))
+}
+
 function decimalOfText(text: string | number): Decimal {
   const trimmed = String(text).trim()
 

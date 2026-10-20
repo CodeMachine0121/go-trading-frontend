@@ -18,7 +18,7 @@ function aWatchedSymbol(overrides: Partial<{
     overrides.conflicting ?? false,
     overrides.haltReason ?? null,
     overrides.autoOrderPosition ?? null,
-  ).toDomain(new MarketDataKindDomain(overrides.marketDataKind ?? 'kCandle')).toDto()
+  ).toDomain(new MarketDataKindDomain(overrides.marketDataKind ?? 'kCandle'), null).toDto()
 }
 
 describe('StrategyBotWatchedSymbolDomain', () => {

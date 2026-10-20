@@ -37,5 +37,7 @@ export class StrategyBotPageDto {
     public readonly autoOrderNotice: LocalizedTextVo,
     /** 表單多一格開倉容許滑價：只有會自動下單開倉的那一種。 */
     public readonly takesAutoOrderEntrySlippageTolerance: boolean,
+    public readonly capitalLabel: LocalizedTextVo,
+    public readonly capitalHint: LocalizedTextVo,
   ) {}
 }

@@ -11,6 +11,8 @@ export const STRATEGY_BOT_LIMITS = {
   /** 一台機器人最多幾個信號來源。 */
   signalSourceCount: 10,
   watchedSymbolCount: 10,
+  allocationPercentageMaximum: 100,
+  allocationPercentageDecimalPlaces: 2,
   /** 一棵條件樹最多幾層巢狀，最外層算第一層。 */
   conditionDepth: 5,
   /** 一棵條件樹最多幾個節點。 */

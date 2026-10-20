@@ -1,5 +1,6 @@
 import type Decimal from 'decimal.js'
 import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode-vo'
+import type { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 
 /**
  * DTO：一台機器人每一輪要建議押多少、停在哪裡的那五個數字。
@@ -17,7 +18,7 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
  */
 export class PositionPlanDto {
   constructor(
-    /** 這台機器人算建議部位時拿來算的那一筆錢。 */
+    /** 整台機器人的總金額：每個監聽標的只用它分到的那一份。 */
     public readonly capital: Decimal,
     /** 每次開倉押多少，沿用回測那三種，不另立第四種。 */
     public readonly sizingMode: PositionSizingMode,
@@ -32,5 +33,6 @@ export class PositionPlanDto {
      * 而一個永遠是 1 的數字會讓讀的人以為現貨也能開槓桿。
      */
     public readonly leverage: Decimal | null = null,
+    public readonly capitalAllocations: readonly StrategyBotCapitalAllocationDto[] = [],
   ) {}
 }

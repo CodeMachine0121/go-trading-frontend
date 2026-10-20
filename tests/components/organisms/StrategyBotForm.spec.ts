@@ -609,3 +609,197 @@ describe('StrategyBotForm 的開倉容許滑價', () => {
     expect(wrapper.find('[data-testid="bot-entry-slippage-tolerance-input"]').exists()).toBe(true)
   })
 })
+
+describe('StrategyBotForm 的資金分配', () => {
+  function aBotAllocating(
+    percentages: [string, string][],
+    positionPlan: PositionPlanDto | null = aStoredPositionPlan(),
+  ) {
+    return new StrategyBotDto(
+      7, '早盤突破',
+      percentages.map(([symbol, allocationPercentage]) => aWatchedSymbolDto({ symbol, allocationPercentage })),
+      5, 9, '黃金交叉',
+      new StrategyBotRunStateDto(
+        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
+      positionPlan,
+    )
+  }
+
+  function allocationInputsOf(wrapper: ReturnType<typeof mountForm>) {
+    return wrapper.findAll<HTMLInputElement>('[data-testid="bot-capital-allocation-input"]')
+  }
+
+  function allocationValuesOf(wrapper: ReturnType<typeof mountForm>) {
+    return allocationInputsOf(wrapper).map(input => input.element.value)
+  }
+
+  async function addSymbol(wrapper: ReturnType<typeof mountForm>, symbol: string) {
+    await wrapper.get('[data-testid="symbol-select"]').setValue(symbol)
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
+  }
+
+  function sentAllocationsOf(wrapper: ReturnType<typeof mountForm>) {
+    return (wrapper.emitted('save')?.at(-1)?.[0] as StrategyBotWriteDto).positionPlan?.capitalAllocations
+      .map(allocation => [allocation.symbol, allocation.allocationPercentage.toString()])
+  }
+
+  it.each([
+    { name: '現貨機器人', marketDataKind: 'kCandle' as const, label: '總金額', hint: '每個監聽標的只用它分到的那一份' },
+    { name: '合約機器人', marketDataKind: 'contractKCandle' as const, label: '總金額（保證金）', hint: '名目＝保證金 × 槓桿' },
+  ])('$name 的那一格叫「$label」', async ({ marketDataKind, label, hint }) => {
+    const wrapper = mountForm({
+      editing: null,
+      marketDataKind,
+      tradingSymbolApplication: marketDataKind === 'kCandle' ? undefined : contractSymbolApplication(),
+    })
+
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+
+    const fieldsText = wrapper.get('[data-testid="bot-position-plan-fields"]').text()
+    expect(fieldsText).toContain(label)
+    expect(fieldsText).toContain(hint)
+    expect(fieldsText).not.toContain('部位資金')
+  })
+
+  it('新的一台加入第一個標的就是 100，再加一個自動變成各 50', async () => {
+    const wrapper = mountForm({ editing: null })
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(true)
+
+    await addSymbol(wrapper, 'BTCUSDT')
+    expect(allocationValuesOf(wrapper)).toEqual(['100'])
+
+    await addSymbol(wrapper, 'ETHUSDT')
+    expect(allocationValuesOf(wrapper)).toEqual(['50', '50'])
+  })
+
+  it('沒改過的平均分配加入第三個時變成各 33.33，未動用 0.01%', async () => {
+    const wrapper = mountForm({
+      editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']]),
+      tradingSymbolApplication: buildTradingSymbolApplication(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+    })
+    await flushPromises()
+
+    await addSymbol(wrapper, 'SOLUSDT')
+
+    expect(allocationValuesOf(wrapper)).toEqual(['33.33', '33.33', '33.33'])
+    expect(wrapper.get('[data-testid="bot-capital-allocation-total"]').text()).toBe('合計 99.99% · 未動用 0.01%')
+  })
+
+  it('打開既有機器人看到它的分配，改過的不會因為加入標的被重算', async () => {
+    const wrapper = mountForm({
+      editing: aBotAllocating([['BTCUSDT', '70'], ['ETHUSDT', '30']]),
+      tradingSymbolApplication: buildTradingSymbolApplication(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']),
+    })
+    await flushPromises()
+    expect(allocationValuesOf(wrapper)).toEqual(['70', '30'])
+
+    await addSymbol(wrapper, 'SOLUSDT')
+
+    expect(allocationValuesOf(wrapper)).toEqual(['70', '30', ''])
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text())
+      .toBe('SOLUSDT 沒有分配比例——要嘛每個監聽標的都給，要嘛都不給')
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('打開 60%、40% 的機器人，兩格是 60 與 40', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '60'], ['ETHUSDT', '40']]) })
+    await flushPromises()
+
+    expect(allocationValuesOf(wrapper)).toEqual(['60', '40'])
+  })
+
+  it('交易服務拒絕之後填的分配還在', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']]) })
+    await flushPromises()
+    await allocationInputsOf(wrapper)[0]?.setValue('40')
+
+    await wrapper.setProps({ failureMessage: new LocalizedTextVo('交易服務說的那一句', '交易服務說的那一句') })
+
+    expect(allocationValuesOf(wrapper)).toEqual(['40', '50'])
+    expect(wrapper.get('[data-testid="bot-form-failure"]').text()).toBe('交易服務說的那一句')
+  })
+
+  it('改過之後拿掉一個標的，那一份變成未動用', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '70'], ['ETHUSDT', '30']]) })
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="bot-watched-symbol-remove"]')[1]?.trigger('click')
+
+    expect(allocationValuesOf(wrapper)).toEqual(['70'])
+    expect(wrapper.get('[data-testid="bot-capital-allocation-total"]').text()).toBe('合計 70% · 未動用 30%')
+  })
+
+  it('按平均分配就換回各 50', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '70'], ['ETHUSDT', '30']]) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-capital-allocation-split-equally"]').trigger('click')
+
+    expect(allocationValuesOf(wrapper)).toEqual(['50', '50'])
+  })
+
+  it.each([
+    { name: '合計正好 100', typed: ['60', '40'], total: '合計 100% · 未動用 0%', rejection: null },
+    { name: '合計少於 100', typed: ['30', '30'], total: '合計 60% · 未動用 40%', rejection: null },
+    { name: '合計超過 100', typed: ['70', '40'], total: '合計 110%', rejection: '分配比例加起來是 110%，不得超過 100%' },
+    { name: '分配比例為零', typed: ['0', '40'], total: '合計 40% · 未動用 60%', rejection: 'BTCUSDT 的分配比例必須大於 0、不超過 100（單位：%）' },
+    { name: '超過兩位小數', typed: ['33.333', '40'], total: '合計 73.333% · 未動用 26.667%', rejection: 'BTCUSDT 的分配比例最多到小數點後兩位' },
+  ])('$name', async ({ typed, total, rejection }) => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']]) })
+    await flushPromises()
+
+    for (const [index, text] of typed.entries()) {
+      await allocationInputsOf(wrapper)[index]?.setValue(text)
+    }
+
+    expect(wrapper.get('[data-testid="bot-capital-allocation-total"]').text()).toBe(total)
+    expect(wrapper.find('[data-testid="bot-form-rejection"]').exists() ? wrapper.get('[data-testid="bot-form-rejection"]').text() : null)
+      .toBe(rejection)
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled') !== undefined).toBe(rejection !== null)
+  })
+
+  it('部位規劃打開時送出每個標的的分配', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']]) })
+    await flushPromises()
+
+    await allocationInputsOf(wrapper)[0]?.setValue('60')
+    await allocationInputsOf(wrapper)[1]?.setValue('40')
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    expect(sentAllocationsOf(wrapper)).toEqual([['BTCUSDT', '60'], ['ETHUSDT', '40']])
+  })
+
+  it('部位規劃收著時不送分配', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '60'], ['ETHUSDT', '40']]) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-position-plan-toggle"]').setValue(false)
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    expect((wrapper.emitted('save')?.at(-1)?.[0] as StrategyBotWriteDto).positionPlan).toBeNull()
+  })
+
+  it('每個標的旁邊說出分到多少，押不下固定金額時提醒但仍可送出', async () => {
+    const wrapper = mountForm({
+      editing: aBotAllocating([['BTCUSDT', '50'], ['ETHUSDT', '50']],
+        new PositionPlanDto(new Decimal(50), 'fixedAmount', new Decimal(50), new Decimal(0), new Decimal(0))),
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="bot-capital-allocation-allocated"]').map(allocated => allocated.text()))
+      .toEqual(['分到 25', '分到 25'])
+    expect(wrapper.findAll('[data-testid="bot-capital-allocation-shortfall"]').map(shortfall => shortfall.text()))
+      .toEqual(['分到的資金不足，押不下 50', '分到的資金不足，押不下 50'])
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('總金額空白時不說分到多少', async () => {
+    const wrapper = mountForm({ editing: aBotAllocating([['BTCUSDT', '100']]) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('')
+
+    expect(wrapper.find('[data-testid="bot-capital-allocation-allocated"]').exists()).toBe(false)
+  })
+})

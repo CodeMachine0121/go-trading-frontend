@@ -33,6 +33,14 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
   statusBadge: {
     conflicting: 'Rules conflict',
   },
+  capitalAllocation: {
+    label: 'Capital allocation (each watched symbol\'s share of the total, in %)',
+    percentageOf: 'Allocation percentage of {symbol} (%)',
+    allocated: 'Gets {amount}',
+    total: 'Total {percentage}%',
+    unallocated: 'Unallocated {percentage}%',
+    splitEqually: 'Split equally',
+  },
   watchedSymbolList: {
     lastSignal: 'Last signal: ',
     conflicting: 'Rules conflict',
@@ -62,7 +70,6 @@ export const strategyBotEnglishMessages: typeof strategyBotTraditionalChineseMes
     triggerIntervalLabel: 'Interval (minutes)',
     positionPlanToggle: 'Also suggest a position? Messages will add the stake, stop loss and take profit',
     leverageLabel: 'Leverage (leave blank for 1x)',
-    capitalLabel: 'Position capital',
     sizingModeLabel: 'Position sizing',
     sizingValueLabel: 'Stake amount',
     stopLossLabel: 'Stop-loss distance (percentage points, leave blank for none)',

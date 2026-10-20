@@ -170,3 +170,15 @@ describe('MarketDataKindDomain：可宣告的參數種類與全部種類對得�
     expect(new Set(offered)).toEqual(new Set(STRATEGY_PARAMETER_KINDS))
   })
 })
+
+describe('MarketDataKindDomain 的總金額', () => {
+  it.each([
+    { kind: 'kCandle', label: '總金額', hint: '整台機器人的錢，每個監聽標的只用它分到的那一份' },
+    { kind: 'contractKCandle', label: '總金額（保證金）', hint: '整台機器人的保證金，每個監聽標的只用它分到的那一份；名目＝保證金 × 槓桿' },
+  ])('$kind 機器人那一格叫「$label」', ({ kind, label, hint }) => {
+    const page = new MarketDataKindDomain(kind).toStrategyBotPageDto()
+
+    expect(page.capitalLabel.in('zh-TW')).toBe(label)
+    expect(page.capitalHint.in('zh-TW')).toBe(hint)
+  })
+})

@@ -1,6 +1,7 @@
 import { StrategyBotWatchedSymbolDto } from '~/domain/models/dto/strategy-bot-watched-symbol-dto'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import Decimal from 'decimal.js'
 
 export function aWatchedSymbolDto(overrides: Partial<{
   symbol: string
@@ -10,6 +11,8 @@ export function aWatchedSymbolDto(overrides: Partial<{
   isHalted: boolean
   haltReasonLabel: LocalizedTextVo | null
   autoOrderPositionLabel: LocalizedTextVo | null
+  allocationPercentage: string
+  allocatedCapitalLabel: LocalizedTextVo | null
 }> = {}): StrategyBotWatchedSymbolDto {
   const symbol = overrides.symbol ?? 'BTCUSDT'
 
@@ -23,5 +26,8 @@ export function aWatchedSymbolDto(overrides: Partial<{
     overrides.isHalted ?? false,
     overrides.haltReasonLabel ?? null,
     overrides.autoOrderPositionLabel ?? null,
+    new Decimal(overrides.allocationPercentage ?? '100'),
+    new LocalizedTextVo(`分配 ${overrides.allocationPercentage ?? '100'}%`, `Allocation ${overrides.allocationPercentage ?? '100'}%`),
+    overrides.allocatedCapitalLabel ?? null,
   )
 }

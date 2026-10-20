@@ -40,6 +40,16 @@ export class PositionSizingDomain {
     return this.mode !== 'allIn'
   }
 
+  shortfallLabelWithin(allocatedCapital: Decimal): LocalizedTextVo | null {
+    if (this.mode !== 'fixedAmount' || !this.value.greaterThan(allocatedCapital)) {
+      return null
+    }
+
+    return new LocalizedTextVo(
+      `分到的資金不足，押不下 ${this.value.toString()}`,
+      `The allocated capital cannot cover ${this.value.toString()}`)
+  }
+
   /** 這個模式在選單上長什麼樣。 */
   toOptionDto(): PositionSizingModeOptionDto {
     const description = POSITION_SIZING_DESCRIPTIONS[this.mode]

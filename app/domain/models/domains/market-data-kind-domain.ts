@@ -44,6 +44,8 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         runHistoryNote: LocalizedTextVo | null
         autoOrderNotice: LocalizedTextVo
         takesAutoOrderEntrySlippageTolerance: boolean
+        capitalLabel: LocalizedTextVo
+        capitalHint: LocalizedTextVo
       }
     }
   >
@@ -82,6 +84,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         '現貨機器人目前還不會自動下單，仍只送 Telegram 通知。',
         'Spot bots do not place orders yet; they still only send Telegram notifications.'),
       takesAutoOrderEntrySlippageTolerance: false,
+      capitalLabel: new LocalizedTextVo('總金額', 'Total capital'),
+      capitalHint: new LocalizedTextVo(
+        '整台機器人的錢，每個監聽標的只用它分到的那一份',
+        'The whole bot\'s money; each watched symbol only uses its allocated share'),
     },
   },
   contractKCandle: {
@@ -156,6 +162,10 @@ const MARKET_DATA_KIND_DESCRIPTIONS: Readonly<
         '打開後，機器人說出新結論時會用你的幣安帳戶真的開倉、平倉，並掛上止損止盈。關掉只會停止下新的單，已經開的倉位不會被平掉。',
         'Once on, the bot opens and closes real positions with your Binance account whenever it reaches a new conclusion, and places stop-loss and take-profit orders. Turning it off only stops new orders; positions already open are not closed.'),
       takesAutoOrderEntrySlippageTolerance: true,
+      capitalLabel: new LocalizedTextVo('總金額（保證金）', 'Total capital (margin)'),
+      capitalHint: new LocalizedTextVo(
+        '整台機器人的保證金，每個監聽標的只用它分到的那一份；名目＝保證金 × 槓桿',
+        'The whole bot\'s margin; each watched symbol only uses its allocated share. Notional = margin × leverage'),
     },
   },
 }
@@ -227,6 +237,8 @@ export class MarketDataKindDomain {
       page.runHistoryNote,
       page.autoOrderNotice,
       page.takesAutoOrderEntrySlippageTolerance,
+      page.capitalLabel,
+      page.capitalHint,
     )
   }
 

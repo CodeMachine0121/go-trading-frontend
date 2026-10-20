@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
+import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
 
 /** 一台每一條規則都過得了的機器人，好讓每個案例只改它要講的那一格。 */
 function aBotWrite(overrides: Partial<{
@@ -151,5 +152,40 @@ describe('StrategyBotWriteDomain 的開倉容許滑價', () => {
       undefined, '', ['BTCUSDT'], 9, 5, null, 'contractKCandle', new Decimal(9)))
 
     expect(writeDomain.rejection?.in('zh-TW')).toBe('必須給機器人取一個名稱')
+  })
+})
+
+describe('StrategyBotWriteDomain 的資金分配', () => {
+  function aPlanWith(percentages: [string, string][]) {
+    return new PositionPlanDto(new Decimal(1000), 'allIn', new Decimal(0), new Decimal(0), new Decimal(0), null,
+      percentages.map(([symbol, percentage]) => new StrategyBotCapitalAllocationDto(symbol, new Decimal(percentage))))
+  }
+
+  it('合計超過 100 就送不出去', () => {
+    const writeDomain = aBotWrite({
+      symbols: ['BTCUSDT', 'ETHUSDT'],
+      positionPlan: aPlanWith([['BTCUSDT', '70'], ['ETHUSDT', '40']]),
+    })
+
+    expect(writeDomain.rejection?.in('zh-TW')).toBe('分配比例加起來是 110%，不得超過 100%')
+  })
+
+  it('合法的分配送得出去', () => {
+    const writeDomain = aBotWrite({
+      symbols: ['btcusdt', 'ETHUSDT'],
+      positionPlan: aPlanWith([['BTCUSDT', '60'], ['ETHUSDT', '40']]),
+    })
+
+    expect(writeDomain.rejection).toBeNull()
+  })
+
+  it('部位規劃本身填錯時先說那一件事', () => {
+    const writeDomain = aBotWrite({
+      symbols: ['BTCUSDT'],
+      positionPlan: new PositionPlanDto(new Decimal(1000), 'allIn', new Decimal(0), new Decimal(-1), new Decimal(0), null,
+        [new StrategyBotCapitalAllocationDto('BTCUSDT', new Decimal(0))]),
+    })
+
+    expect(writeDomain.rejection?.in('zh-TW')).toContain('停損距離')
   })
 })

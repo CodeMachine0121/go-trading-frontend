@@ -1,3 +1,4 @@
+import type Decimal from 'decimal.js'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
 import type { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
@@ -11,6 +12,7 @@ export class StrategyBotWatchedSymbolDomain {
   constructor(
     private readonly watchedSymbol: StrategyBotWatchedSymbol,
     private readonly marketDataKind: MarketDataKindDomain,
+    private readonly allocatedCapital: Decimal | null,
   ) {
     this.haltReason = new StrategyBotHaltReasonDomain(watchedSymbol.haltReason)
   }
@@ -36,6 +38,13 @@ export class StrategyBotWatchedSymbolDomain {
       this.watchedSymbol.autoOrderPosition === null
         ? null
         : new AutoOrderPositionDomain(this.watchedSymbol.autoOrderPosition).toLabel(),
+      this.watchedSymbol.allocationPercentage,
+      new LocalizedTextVo(
+        `分配 ${this.watchedSymbol.allocationPercentage.toString()}%`,
+        `Allocation ${this.watchedSymbol.allocationPercentage.toString()}%`),
+      this.allocatedCapital === null
+        ? null
+        : new LocalizedTextVo(`分到 ${this.allocatedCapital.toString()}`, `Gets ${this.allocatedCapital.toString()}`),
     )
   }
 

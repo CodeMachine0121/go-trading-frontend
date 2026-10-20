@@ -31,6 +31,14 @@ export const strategyBotTraditionalChineseMessages = {
   statusBadge: {
     conflicting: '規則打架了',
   },
+  capitalAllocation: {
+    label: '資金分配（每個監聽標的分到總金額的百分之幾）',
+    percentageOf: '{symbol} 的分配比例（%）',
+    allocated: '分到 {amount}',
+    total: '合計 {percentage}%',
+    unallocated: '未動用 {percentage}%',
+    splitEqually: '平均分配',
+  },
   watchedSymbolList: {
     lastSignal: '上次訊號：',
     conflicting: '規則打架了',
@@ -60,7 +68,6 @@ export const strategyBotTraditionalChineseMessages = {
     triggerIntervalLabel: '每隔幾分鐘',
     positionPlanToggle: '要不要順便算部位？訊息會多講押多少、停損與停利',
     leverageLabel: '槓桿倍數（留空就是一倍）',
-    capitalLabel: '部位資金',
     sizingModeLabel: '每次開倉押多少',
     sizingValueLabel: '押多少的數字',
     stopLossLabel: '停損距離（百分點，留空就不設）',

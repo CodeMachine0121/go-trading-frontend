@@ -1,3 +1,4 @@
+import type Decimal from 'decimal.js'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 export class StrategyBotWatchedSymbolDto {
@@ -11,5 +12,8 @@ export class StrategyBotWatchedSymbolDto {
     public readonly isHalted: boolean,
     public readonly haltReasonLabel: LocalizedTextVo | null,
     public readonly autoOrderPositionLabel: LocalizedTextVo | null,
+    public readonly allocationPercentage: Decimal,
+    public readonly allocationLabel: LocalizedTextVo,
+    public readonly allocatedCapitalLabel: LocalizedTextVo | null,
   ) {}
 }

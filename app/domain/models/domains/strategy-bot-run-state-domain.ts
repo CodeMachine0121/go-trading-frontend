@@ -54,7 +54,7 @@ export class StrategyBotRunStateDomain {
   private get watchedSymbols(): StrategyBotWatchedSymbolDomain[] {
     const marketDataKind = new MarketDataKindDomain(this.strategyBot.marketDataKind)
 
-    return this.strategyBot.watchedSymbols.map(watchedSymbol => watchedSymbol.toDomain(marketDataKind))
+    return this.strategyBot.watchedSymbols.map(watchedSymbol => watchedSymbol.toDomain(marketDataKind, null))
   }
 
   /** 任一個監聽標的上一輪兩個條件同時成立。**不是停擺**：機器人還在跑。 */

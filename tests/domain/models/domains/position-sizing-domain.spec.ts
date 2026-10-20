@@ -68,3 +68,16 @@ describe('PositionSizingDomain', () => {
     })
   })
 })
+
+describe('PositionSizingDomain 在分到的資金裡押不押得下', () => {
+  it.each([
+    { name: '固定金額大於分到的資金', mode: 'fixedAmount' as const, value: '50', allocated: '25', expected: '分到的資金不足，押不下 50' },
+    { name: '固定金額正好等於分到的資金', mode: 'fixedAmount' as const, value: '50', allocated: '50', expected: null },
+    { name: '全押', mode: 'allIn' as const, value: '50', allocated: '25', expected: null },
+    { name: '百分比', mode: 'percentage' as const, value: '80', allocated: '25', expected: null },
+  ])('$name：$expected', ({ mode, value, allocated, expected }) => {
+    const shortfall = new PositionSizingDomain(mode, new Decimal(value)).shortfallLabelWithin(new Decimal(allocated))
+
+    expect(shortfall?.in('zh-TW') ?? null).toBe(expected)
+  })
+})
