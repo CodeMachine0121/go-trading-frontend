@@ -12,6 +12,7 @@ import ChartDrawingLayer from '~/components/molecules/ChartDrawingLayer.vue'
 import ChartDrawingToolbar from '~/components/molecules/ChartDrawingToolbar.vue'
 import ChartDrawingFloatingToolbar from '~/components/molecules/ChartDrawingFloatingToolbar.vue'
 import ChartDrawingObjectTree from '~/components/molecules/ChartDrawingObjectTree.vue'
+import ChartDrawingBoardNotices from '~/components/molecules/ChartDrawingBoardNotices.vue'
 import type { ChartDrawingApplication } from '~/application/chart-drawing-application'
 import type { KCandleChartApplication } from '~/application/k-candle-chart-application'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
@@ -52,6 +53,7 @@ const {
   loading = false,
   kCandleChartApplication,
   chartDrawingApplication,
+  drawingBoardRefreshSignal = 0,
 } = defineProps<{
   chart: KCandleChartDto | null
   drawnRange?: DrawnKCandleRangeVo | null
@@ -70,6 +72,8 @@ const {
   loading?: boolean
   kCandleChartApplication: KCandleChartApplication
   chartDrawingApplication: ChartDrawingApplication
+  /** 每次變動就重讀一次帳號裡的繪圖（例如站內助手剛答完一則）。 */
+  drawingBoardRefreshSignal?: number
 }>()
 
 const drawing = defineModel<KCandleChartDrawing>('drawing', { required: true })
@@ -92,7 +96,8 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 /* ── 繪圖 ── */
-const drawings = useChartDrawings(chartDrawingApplication, marketSide, toRef(() => symbol))
+const drawings = useChartDrawings(
+  chartDrawingApplication, marketSide, toRef(() => symbol), toRef(() => drawingBoardRefreshSignal))
 
 /* ── 圖 ── */
 const priceScaleMode = ref<PriceScaleMode>('normal')
@@ -148,6 +153,12 @@ function showToast(message: string) {
     toastMessage.value = ''
   }, 3000)
 }
+
+watch(drawings.announcement, (announcement) => {
+  if (announcement !== null) {
+    showToast(localize(announcement))
+  }
+})
 
 function removeAllDrawings() {
   const removedCount = drawings.removeAllDrawings()
@@ -397,6 +408,13 @@ onMounted(() => {
         aria-live="polite"
       >
         <slot name="notices" />
+        <ChartDrawingBoardNotices
+          :load-failure="drawings.loadFailure.value"
+          :save-failure="drawings.saveFailure.value"
+          :migration-failure="drawings.migrationFailure.value"
+          @retry-load="drawings.reloadBoard"
+          @retry-save="drawings.retrySave"
+        />
       </div>
 
       <ChartDrawingFloatingToolbar
@@ -440,10 +458,12 @@ onMounted(() => {
       v-if="objectTreeOpen"
       class="k-candle-chart-workspace__panel"
       :drawings="drawings.board.value.drawings"
+      :assistant-drawing-count="drawings.board.value.assistantDrawingCount"
       :selected-drawing-id="drawings.selectedDrawing.value?.id ?? null"
       @select="drawings.selectDrawing"
       @toggle-visible="drawings.changeDrawing($event, new ChartDrawingCommandDto('toggleVisible'))"
       @remove="drawings.removeDrawing"
+      @remove-assistant-drawings="drawings.removeAssistantDrawings"
       @close="objectTreeOpen = false"
     />
 

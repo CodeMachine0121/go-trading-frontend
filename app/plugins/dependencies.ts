@@ -16,7 +16,8 @@ import { AppearancePreferenceProxy } from '~/infrastructure/proxy/appearance-pre
 import { ChartLineColorPreferenceProxy } from '~/infrastructure/proxy/chart-line-color-preference-proxy'
 import { StrategyScriptParameterValuePreferenceProxy } from '~/infrastructure/proxy/strategy-script-parameter-value-preference-proxy'
 import { AppliedChartIndicatorPreferenceProxy } from '~/infrastructure/proxy/applied-chart-indicator-preference-proxy'
-import { ChartDrawingPreferenceProxy } from '~/infrastructure/proxy/chart-drawing-preference-proxy'
+import { ChartDrawingBoardProxy } from '~/infrastructure/proxy/chart-drawing-board-proxy'
+import { DeviceChartDrawingProxy } from '~/infrastructure/proxy/device-chart-drawing-proxy'
 import { BackendHealthService } from '~/domain/service/backend-health-service'
 import { KCandleService } from '~/domain/service/k-candle-service'
 import { KCandleChartService } from '~/domain/service/k-candle-chart-service'
@@ -221,9 +222,12 @@ export default defineNuxtPlugin(() => {
     ),
   )
 
-  // 圖上的繪圖只記在這台瀏覽器裡：畫了什麼是看盤的人自己的草稿，不是行情。
+  // 圖上的繪圖存在帳號裡；這台瀏覽器只剩以前記著、還沒搬進帳號的舊繪圖。
   const chartDrawingApplication = new ChartDrawingApplication(
-    new ChartDrawingService(new ChartDrawingPreferenceProxy()),
+    new ChartDrawingService(
+      new ChartDrawingBoardProxy(backendBaseUrl, sessionStorageProxy, backendRequestHooks),
+      new DeviceChartDrawingProxy(),
+    ),
   )
 
   // 跟盤是一條持續連著的通道，與其他那些一次問一次答的完全不同——

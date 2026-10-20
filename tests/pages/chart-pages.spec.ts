@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -23,6 +24,7 @@ mockNuxtImport('useNuxtApp', () => () => ({
   },
 }))
 mockNuxtImport('useSelectedTimeZone', () => () => ({ selectedTimeZone: buildTimeZone('UTC') }))
+mockNuxtImport('useAssistantAnswerCompletions', () => () => ({ completedAnswerCount: ref(3) }))
 mockNuxtImport('useChartWorkspaceMenu', () => () => ({
   openMenu: () => {
     openedMenu.count += 1
@@ -31,6 +33,7 @@ mockNuxtImport('useChartWorkspaceMenu', () => () => ({
 
 /** 面板的替身：照樣把頁面給的那一格現貨／合約開關畫出來，並能像使用者按了主選單那樣發出要求。 */
 const PANEL_STUB = {
+  props: ['drawingBoardRefreshSignal'],
   emits: ['openMenu'],
   template: '<section><slot name="market" /><button data-testid="panel-open-menu" @click="$emit(\'openMenu\')" /></section>',
 }
@@ -55,5 +58,11 @@ describe.each([
     await wrapper.get('[data-testid="panel-open-menu"]').trigger('click')
 
     expect(openedMenu.count).toBe(1)
+  })
+
+  it('站內助手答完幾則交給面板當重讀繪圖的時機', () => {
+    const wrapper = mount(page, { global: { stubs: { [panelName]: PANEL_STUB } } })
+
+    expect(wrapper.findComponent(PANEL_STUB).props('drawingBoardRefreshSignal')).toBe(3)
   })
 })

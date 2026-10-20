@@ -812,3 +812,44 @@ describe('useAssistantConversation 的英文說法', () => {
     expect(rejectionMessage.value?.in('en')).toBe(expectedMessage)
   })
 })
+
+describe('useAssistantConversation 答完一則時記一筆', () => {
+  it('還在寫時不記；寫完那一刻記一筆，之後不再多記', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask } = conversationUnderTest()
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+    await ask('問一句')
+    expect(completedAnswerCount.value).toBe(before)
+
+    applicationMock.getConversation.mockResolvedValue(answeredConversation())
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS * 3)
+
+    expect(completedAnswerCount.value).toBe(before + 1)
+  })
+
+  it('寫壞了也算答完（助手可能已經畫了一部分）', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask } = conversationUnderTest()
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+    await ask('問一句')
+
+    applicationMock.getConversation.mockResolvedValue(failedConversation())
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(completedAnswerCount.value).toBe(before + 1)
+  })
+
+  it('重讀一段早就答完的對話（例如確認一筆待確認修改之後）：不記', async () => {
+    const conversation = conversationUnderTest()
+    await conversation.selectConversation(7)
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+
+    await conversation.confirmPendingRevision(70)
+
+    expect(applicationMock.getConversation).toHaveBeenCalledTimes(2)
+    expect(completedAnswerCount.value).toBe(before)
+  })
+})

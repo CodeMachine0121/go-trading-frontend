@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ChartDrawingPreferenceProxy } from '~/infrastructure/proxy/chart-drawing-preference-proxy'
-import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf } from '../../fixtures/chart-drawing'
+import { DeviceChartDrawingProxy } from '~/infrastructure/proxy/device-chart-drawing-proxy'
+import { ELEVEN_O_CLOCK, TEN_O_CLOCK } from '../../fixtures/chart-drawing'
 
 const STORAGE_KEY = 'go-trading:chart-drawings'
 
@@ -9,14 +9,17 @@ afterEach(() => {
   localStorage.clear()
 })
 
-const TREND_LINE = chartDrawingOf(1, 'trendLine', [anchorOf(TEN_O_CLOCK, '60000.5'), anchorOf(ELEVEN_O_CLOCK, '61000')])
+const storedTrendLine = { id: 1, kind: 'trendLine', anchors: [{ openTime: TEN_O_CLOCK, price: '60000.5' }, { openTime: ELEVEN_O_CLOCK, price: '61000' }], colorToken: '--color-drawing-blue', lineWidth: 2, lineStyle: 'solid', locked: false, visible: true }
 
-describe('ChartDrawingPreferenceProxy：每一邊每一檔的繪圖記得住', () => {
-  it('寫進現貨 BTCUSDT 的讀得回來：時間與精確的價格都在', () => {
-    const proxy = new ChartDrawingPreferenceProxy()
+function storeOldDrawings(byBoard: Record<string, unknown[]>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(byBoard))
+}
 
-    proxy.writeChartDrawings('spot', 'BTCUSDT', [TREND_LINE])
-    const [read] = proxy.readChartDrawings('spot', 'BTCUSDT')
+describe('DeviceChartDrawingProxy：這台裝置上的舊繪圖', () => {
+  it('讀得出現貨 BTCUSDT 的舊繪圖：時間與精確的價格都在', () => {
+    storeOldDrawings({ 'spot:BTCUSDT': [storedTrendLine] })
+
+    const [read] = new DeviceChartDrawingProxy().readChartDrawings('spot', 'BTCUSDT')
 
     expect(read?.kind).toBe('trendLine')
     expect(read?.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()])).toEqual([
@@ -25,31 +28,31 @@ describe('ChartDrawingPreferenceProxy：每一邊每一檔的繪圖記得住', (
   })
 
   it('合約 BTCUSDT 與現貨分開；別檔也分開', () => {
-    const proxy = new ChartDrawingPreferenceProxy()
-
-    proxy.writeChartDrawings('spot', 'BTCUSDT', [TREND_LINE])
+    storeOldDrawings({ 'spot:BTCUSDT': [storedTrendLine] })
+    const proxy = new DeviceChartDrawingProxy()
 
     expect(proxy.readChartDrawings('contract', 'BTCUSDT')).toEqual([])
     expect(proxy.readChartDrawings('spot', 'ETHUSDT')).toEqual([])
   })
 
-  it('寫一檔不會蓋掉另一檔', () => {
-    const proxy = new ChartDrawingPreferenceProxy()
+  it('忘掉一檔：只忘那一邊那一檔，其他照樣記著', () => {
+    storeOldDrawings({ 'spot:BTCUSDT': [storedTrendLine], 'contract:BTCUSDT': [storedTrendLine] })
+    const proxy = new DeviceChartDrawingProxy()
 
-    proxy.writeChartDrawings('spot', 'BTCUSDT', [TREND_LINE])
-    proxy.writeChartDrawings('spot', 'ETHUSDT', [TREND_LINE])
+    proxy.forgetChartDrawings('spot', 'BTCUSDT')
 
-    expect(proxy.readChartDrawings('spot', 'BTCUSDT')).toHaveLength(1)
+    expect(proxy.readChartDrawings('spot', 'BTCUSDT')).toEqual([])
+    expect(proxy.readChartDrawings('contract', 'BTCUSDT')).toHaveLength(1)
   })
 
-  it('瀏覽器擋掉儲存：讀回空的、寫不出聲', () => {
+  it('瀏覽器擋掉儲存：讀回空的、忘不掉不出聲', () => {
     vi.stubGlobal('localStorage', {
       getItem: () => { throw new Error('blocked') },
       setItem: () => { throw new Error('blocked') },
     })
-    const proxy = new ChartDrawingPreferenceProxy()
+    const proxy = new DeviceChartDrawingProxy()
 
-    expect(() => proxy.writeChartDrawings('spot', 'BTCUSDT', [TREND_LINE])).not.toThrow()
+    expect(() => proxy.forgetChartDrawings('spot', 'BTCUSDT')).not.toThrow()
     expect(proxy.readChartDrawings('spot', 'BTCUSDT')).toEqual([])
   })
 
@@ -60,7 +63,7 @@ describe('ChartDrawingPreferenceProxy：每一邊每一檔的繪圖記得住', (
   ])('留存%s：當成沒畫過', (_, stored) => {
     localStorage.setItem(STORAGE_KEY, stored)
 
-    expect(new ChartDrawingPreferenceProxy().readChartDrawings('spot', 'BTCUSDT')).toEqual([])
+    expect(new DeviceChartDrawingProxy().readChartDrawings('spot', 'BTCUSDT')).toEqual([])
   })
 
   it('壞掉的那幾筆跳過，其餘照樣回來', () => {
@@ -81,6 +84,6 @@ describe('ChartDrawingPreferenceProxy：每一邊每一檔的繪圖記得住', (
       ],
     }))
 
-    expect(new ChartDrawingPreferenceProxy().readChartDrawings('spot', 'BTCUSDT').map(drawing => drawing.id)).toEqual([1])
+    expect(new DeviceChartDrawingProxy().readChartDrawings('spot', 'BTCUSDT').map(drawing => drawing.id)).toEqual([1])
   })
 })

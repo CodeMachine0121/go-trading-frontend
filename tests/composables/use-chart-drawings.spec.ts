@@ -1,38 +1,50 @@
 // @vitest-environment nuxt
-import { nextTick, ref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
-import { ChartDrawingApplication } from '~/application/chart-drawing-application'
-import { ChartDrawingService } from '~/domain/service/chart-drawing-service'
-import type { IChartDrawingPreferenceProxy } from '~/domain/interface/i-chart-drawing-preference-proxy'
+import { effectScope, nextTick, ref } from 'vue'
+import { flushPromises } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
-import type { ChartDrawing } from '~/domain/models/entities/chart-drawing'
+import type { ChartDrawingBoard } from '~/domain/models/entities/chart-drawing-board'
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
 import type { ChartDrawingToolGroupDto } from '~/domain/models/dto/chart-drawing-tool-group-dto'
-import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf } from '../fixtures/chart-drawing'
+import { CHART_DRAWING_SAVE_DELAY_MILLISECONDS } from '~/composables/use-chart-drawing-board-sync'
+import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, horizontalLineAt, savedBoardOf } from '../fixtures/chart-drawing'
+import {
+  FIRST_ISSUED_DRAWING_ID, buildChartDrawingApplication, chartDrawingBoardProxyOf,
+} from '../fixtures/chart-drawing-application'
 
-const HORIZONTAL_LINE = chartDrawingOf(1, 'horizontalLine', [anchorOf(TEN_O_CLOCK, '60000')])
+const scopes: ReturnType<typeof effectScope>[] = []
 
-function drawingsUnderTest(storedBySymbol: Record<string, ChartDrawing[]> = { BTCUSDT: [HORIZONTAL_LINE] }) {
-  const proxy: IChartDrawingPreferenceProxy = {
-    readChartDrawings: vi.fn((_, symbol: string) => storedBySymbol[symbol] ?? []),
-    writeChartDrawings: vi.fn(),
-  }
-  const application = new ChartDrawingApplication(new ChartDrawingService(proxy))
+afterEach(() => {
+  scopes.splice(0).forEach(scope => scope.stop())
+  vi.useRealTimers()
+})
+
+async function drawingsUnderTest(
+  storedBySymbol: Record<string, ChartDrawingBoard> = { BTCUSDT: savedBoardOf(1, [horizontalLineAt(1, '60000')]) },
+) {
+  const proxy = chartDrawingBoardProxyOf()
+  vi.mocked(proxy.fetchBoard).mockImplementation(async (marketSide, symbol) =>
+    storedBySymbol[symbol] ?? savedBoardOf(0, [], marketSide, symbol))
+  const application = buildChartDrawingApplication(proxy)
   const symbol = ref('BTCUSDT')
+  const scope = effectScope()
+  scopes.push(scope)
+  const drawings = scope.run(() => useChartDrawings(application, 'spot', symbol))!
+  await flushPromises()
 
-  return { drawings: useChartDrawings(application, 'spot', symbol), application, symbol, proxy }
+  return { drawings, application, symbol, proxy }
 }
 
 describe('useChartDrawings：選工具', () => {
-  it('一開始是十字線游標，沒有繪圖工具', () => {
-    const { drawings } = drawingsUnderTest()
+  it('一開始是十字線游標，沒有繪圖工具', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     expect(drawings.activeDrawingKind.value).toBeNull()
     expect(drawings.cursorStyle.value).toBe('cross')
   })
 
-  it('展開「線」那一格選垂直線：開始畫垂直線，那一格記住它', () => {
-    const { drawings } = drawingsUnderTest()
+  it('展開「線」那一格選垂直線：開始畫垂直線，那一格記住它', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     drawings.pickTool('verticalLine')
 
@@ -40,8 +52,8 @@ describe('useChartDrawings：選工具', () => {
     expect(drawings.rememberedTools.value.lines).toBe('verticalLine')
   })
 
-  it('按那一格的主按鈕用的是它記得的工具；正在用時再按一次回到游標', () => {
-    const { drawings } = drawingsUnderTest()
+  it('按那一格的主按鈕用的是它記得的工具；正在用時再按一次回到游標', async () => {
+    const { drawings } = await drawingsUnderTest()
     drawings.pickTool('verticalLine')
     drawings.returnToCursor()
 
@@ -52,8 +64,8 @@ describe('useChartDrawings：選工具', () => {
     expect(drawings.activeDrawingKind.value).toBeNull()
   })
 
-  it('選箭頭游標：回到游標、游標樣式換成箭頭', () => {
-    const { drawings } = drawingsUnderTest()
+  it('選箭頭游標：回到游標、游標樣式換成箭頭', async () => {
+    const { drawings } = await drawingsUnderTest()
     drawings.pickTool('rectangle')
 
     drawings.pickTool('arrow')
@@ -62,8 +74,8 @@ describe('useChartDrawings：選工具', () => {
     expect(drawings.cursorStyle.value).toBe('arrow')
   })
 
-  it('⌥H 換成水平線；對不到的鍵什麼都不換', () => {
-    const { drawings } = drawingsUnderTest()
+  it('⌥H 換成水平線；對不到的鍵什麼都不換', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     expect(drawings.pickToolByShortcut('KeyH', false)).toBe(true)
     expect(drawings.activeDrawingKind.value).toBe('horizontalLine')
@@ -73,8 +85,8 @@ describe('useChartDrawings：選工具', () => {
 })
 
 describe('useChartDrawings：畫完、選取、隱藏', () => {
-  it('畫完一個：它被選取、工具回到游標', () => {
-    const { drawings, application } = drawingsUnderTest()
+  it('畫完一個：它被選取、工具回到游標', async () => {
+    const { drawings, application } = await drawingsUnderTest()
     drawings.pickTool('trendLine')
 
     drawings.finishDrawing(application.draftDrawing('trendLine', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
@@ -83,8 +95,8 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
     expect(drawings.activeDrawingKind.value).toBeNull()
   })
 
-  it('開著連續繪圖：畫完一個工具不變', () => {
-    const { drawings, application } = drawingsUnderTest()
+  it('開著連續繪圖：畫完一個工具不變', async () => {
+    const { drawings, application } = await drawingsUnderTest()
     drawings.stayInDrawingMode.value = true
     drawings.pickTool('rectangle')
 
@@ -93,8 +105,8 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
     expect(drawings.activeDrawingKind.value).toBe('rectangle')
   })
 
-  it('隱藏所有：一個都不畫、選取中的也不算選取；關掉之後回來', () => {
-    const { drawings } = drawingsUnderTest()
+  it('隱藏所有：一個都不畫、選取中的也不算選取；關掉之後回來', async () => {
+    const { drawings } = await drawingsUnderTest()
     drawings.selectDrawing(1)
 
     drawings.hideAllDrawings.value = true
@@ -105,8 +117,8 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
     expect(drawings.shownDrawings.value).toHaveLength(1)
   })
 
-  it('自己收起來的那一個不畫', () => {
-    const { drawings } = drawingsUnderTest()
+  it('自己收起來的那一個不畫', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     drawings.changeDrawing(1, new ChartDrawingCommandDto('toggleVisible'))
 
@@ -114,8 +126,8 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
     expect(drawings.board.value.drawings).toHaveLength(1)
   })
 
-  it('選了繪圖工具就取消選取', () => {
-    const { drawings } = drawingsUnderTest()
+  it('選了繪圖工具就取消選取', async () => {
+    const { drawings } = await drawingsUnderTest()
     drawings.selectDrawing(1)
 
     drawings.pickTool('ray')
@@ -125,8 +137,8 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
 })
 
 describe('useChartDrawings：刪除、移除所有、上一步', () => {
-  it('刪除一個之後上一步它回來、下一步又消失', () => {
-    const { drawings } = drawingsUnderTest()
+  it('刪除一個之後上一步它回來、下一步又消失', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     drawings.removeDrawing(1)
     expect(drawings.board.value.drawings).toHaveLength(0)
@@ -138,8 +150,8 @@ describe('useChartDrawings：刪除、移除所有、上一步', () => {
     expect(drawings.board.value.drawings).toHaveLength(0)
   })
 
-  it('移除所有交回移除了幾個；沒有可移除的時是零', () => {
-    const { drawings } = drawingsUnderTest()
+  it('移除所有交回移除了幾個；沒有可移除的時是零', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     expect(drawings.removeAllDrawings()).toBe(1)
     expect(drawings.removeAllDrawings()).toBe(0)
@@ -148,15 +160,16 @@ describe('useChartDrawings：刪除、移除所有、上一步', () => {
 
 describe('useChartDrawings：換一檔', () => {
   it('換到 ETHUSDT：帶出那一檔的繪圖、上一步按不了、什麼都沒選取', async () => {
-    const { drawings, symbol, proxy } = drawingsUnderTest({ BTCUSDT: [HORIZONTAL_LINE], ETHUSDT: [] })
+    const { drawings, symbol, proxy } = await drawingsUnderTest()
     drawings.removeDrawing(1)
     drawings.undo()
     drawings.selectDrawing(1)
 
     symbol.value = 'ETHUSDT'
     await nextTick()
+    await flushPromises()
 
-    expect(proxy.readChartDrawings).toHaveBeenLastCalledWith('spot', 'ETHUSDT')
+    expect(proxy.fetchBoard).toHaveBeenLastCalledWith('spot', 'ETHUSDT')
     expect(drawings.board.value.drawings).toEqual([])
     expect(drawings.board.value.canUndo).toBe(false)
     expect(drawings.selectedDrawing.value).toBeNull()
@@ -164,12 +177,28 @@ describe('useChartDrawings：換一檔', () => {
 })
 
 describe('useChartDrawings：認不得的工具', () => {
-  it('選一個不存在的工具或按一格不存在的主按鈕：什麼都不換', () => {
-    const { drawings } = drawingsUnderTest()
+  it('選一個不存在的工具或按一格不存在的主按鈕：什麼都不換', async () => {
+    const { drawings } = await drawingsUnderTest()
 
     drawings.pickTool('spiral' as ChartDrawingKindValue)
     drawings.pressToolGroup('spirals' as ChartDrawingToolGroupDto['value'])
 
     expect(drawings.activeDrawingKind.value).toBeNull()
+  })
+})
+
+describe('useChartDrawings：存回帳號', () => {
+  it('畫完一個、存回之後：選取跟著換成帳號發的編號', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { drawings, application } = await drawingsUnderTest()
+
+    drawings.finishDrawing(application.draftDrawing('horizontalLine', [anchorOf(ELEVEN_O_CLOCK, '61000')]))
+    expect(drawings.selectedDrawing.value?.id).toBe(-1)
+
+    await vi.advanceTimersByTimeAsync(CHART_DRAWING_SAVE_DELAY_MILLISECONDS)
+    await flushPromises()
+
+    expect(drawings.board.value.drawings.map(drawing => drawing.id)).toEqual([1, FIRST_ISSUED_DRAWING_ID])
+    expect(drawings.selectedDrawing.value?.id).toBe(FIRST_ISSUED_DRAWING_ID)
   })
 })

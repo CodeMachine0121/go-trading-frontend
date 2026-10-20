@@ -24,6 +24,7 @@ mockNuxtImport('useSelectedTimeZone', () => () => ({
 mockNuxtImport('useLayoutDensity', () => () => ({ layoutDensity: onADesktop() }))
 mockNuxtImport('useRoute', () => () => ({ path: '/k-candles/chart' }))
 mockNuxtImport('useChartWorkspaceMenu', () => () => ({ openMenu: () => {} }))
+mockNuxtImport('useAssistantAnswerCompletions', () => () => ({ completedAnswerCount: { value: 0 } }))
 
 const PANEL_STUBS = {
   KCandleSearchPanel: true,

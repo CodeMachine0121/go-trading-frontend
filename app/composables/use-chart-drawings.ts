@@ -1,6 +1,5 @@
 import type { Ref } from 'vue'
 import type { ChartDrawingApplication } from '~/application/chart-drawing-application'
-import type { ChartDrawingBoardDto } from '~/domain/models/dto/chart-drawing-board-dto'
 import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
 import type { ChartDrawingToolGroupDto } from '~/domain/models/dto/chart-drawing-tool-group-dto'
@@ -17,13 +16,16 @@ type ToolValue = ChartCursorStyleValue | ChartDrawingKindValue
  * 它持有的是「現在畫面上是什麼樣子」，不是規則。
  *
  * 換交易標的時整塊重來：帶出那一檔的繪圖、上一步的紀錄從頭開始、什麼都不選取。
+ * 板子與帳號那一份的同步交給 `useChartDrawingBoardSync`：每一步換上新的板子，它稍後存回。
  */
 export function useChartDrawings(
   chartDrawingApplication: ChartDrawingApplication,
   marketSide: MarketSideVo,
   symbol: Ref<string>,
+  boardRefreshSignal: Ref<number> = ref(0),
 ) {
-  const board = shallowRef<ChartDrawingBoardDto>(chartDrawingApplication.loadBoard(marketSide, symbol.value))
+  const boardSync = useChartDrawingBoardSync(chartDrawingApplication, marketSide, symbol, boardRefreshSignal)
+  const { board, replaceBoard } = boardSync
   const toolGroups: readonly ChartDrawingToolGroupDto[] = chartDrawingApplication.listToolGroups()
 
   /** 每一格記得上次用的是哪一個；一開始是那一格的第一個。 */
@@ -39,9 +41,18 @@ export function useChartDrawings(
   const hideAllDrawings = ref(false)
   const selectedDrawingId = ref<number | null>(null)
 
-  watch(symbol, (nextSymbol) => {
-    board.value = chartDrawingApplication.loadBoard(marketSide, nextSymbol)
+  watch(symbol, () => {
     selectedDrawingId.value = null
+  })
+
+  /** 存回之後新繪圖換成帳號發的編號，選取跟著換。 */
+  watch(board, (nextBoard) => {
+    const renumberedId = selectedDrawingId.value === null
+      ? undefined
+      : nextBoard.renumberedDrawingIds.get(selectedDrawingId.value)
+    if (renumberedId !== undefined) {
+      selectedDrawingId.value = renumberedId
+    }
   })
 
   /** 要畫在圖上的那幾個：隱藏所有時一個都沒有，自己收起來的也不在。 */
@@ -106,7 +117,7 @@ export function useChartDrawings(
 
   /** 畫完一個：收進板子、選取它；沒開連續繪圖時回到游標。 */
   function finishDrawing(drawing: ChartDrawingDto) {
-    board.value = chartDrawingApplication.addDrawing(board.value, drawing)
+    replaceBoard(chartDrawingApplication.addDrawing(board.value, drawing))
     selectedDrawingId.value = board.value.drawings.at(-1)?.id ?? null
     if (!stayInDrawingMode.value) {
       activeDrawingKind.value = null
@@ -118,32 +129,39 @@ export function useChartDrawings(
   }
 
   function changeDrawing(id: number, command: ChartDrawingCommandDto) {
-    board.value = chartDrawingApplication.changeDrawing(board.value, id, command)
+    replaceBoard(chartDrawingApplication.changeDrawing(board.value, id, command))
   }
 
   function removeDrawing(id: number) {
-    board.value = chartDrawingApplication.removeDrawing(board.value, id)
+    replaceBoard(chartDrawingApplication.removeDrawing(board.value, id))
   }
 
   /** 移除所有；交回移除了幾個——零個時什麼都沒變，畫面據此說不同的話。 */
   function removeAllDrawings(): number {
     const removedCount = board.value.drawings.length
-    board.value = chartDrawingApplication.removeAllDrawings(board.value)
+    replaceBoard(chartDrawingApplication.removeAllDrawings(board.value))
     selectedDrawingId.value = null
 
     return removedCount
   }
 
   function undo() {
-    board.value = chartDrawingApplication.undo(board.value)
+    replaceBoard(chartDrawingApplication.undo(board.value))
   }
 
   function redo() {
-    board.value = chartDrawingApplication.redo(board.value)
+    replaceBoard(chartDrawingApplication.redo(board.value))
   }
 
   return {
     board,
+    loadFailure: boardSync.loadFailure,
+    saveFailure: boardSync.saveFailure,
+    migrationFailure: boardSync.migrationFailure,
+    announcement: boardSync.announcement,
+    reloadBoard: boardSync.refresh,
+    retrySave: boardSync.retrySave,
+    removeAssistantDrawings: boardSync.removeAssistantDrawings,
     toolGroups,
     rememberedTools,
     activeDrawingKind,

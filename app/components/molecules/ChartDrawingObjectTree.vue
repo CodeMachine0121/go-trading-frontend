@@ -2,14 +2,16 @@
 import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
+import AppBadge from '~/components/atoms/AppBadge.vue'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
 
 /**
  * 分子：物件樹——目前這一檔的每一個繪圖，新畫的在上。
  * 每一列可以選取、顯示或隱藏、刪除。
  */
-const { drawings, selectedDrawingId = null } = defineProps<{
+const { drawings, assistantDrawingCount = 0, selectedDrawingId = null } = defineProps<{
   drawings: readonly ChartDrawingDto[]
+  assistantDrawingCount?: number
   selectedDrawingId?: number | null
 }>()
 
@@ -17,6 +19,7 @@ const emit = defineEmits<{
   select: [id: number]
   toggleVisible: [id: number]
   remove: [id: number]
+  removeAssistantDrawings: []
   close: []
 }>()
 
@@ -24,6 +27,14 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 const newestFirst = computed(() => [...drawings].reverse())
+
+/** 「移除助手畫的全部」不能上一步，所以按下去先就地問一次。 */
+const confirmingAssistantRemoval = ref(false)
+
+function confirmAssistantRemoval() {
+  confirmingAssistantRemoval.value = false
+  emit('removeAssistantDrawings')
+}
 </script>
 
 <template>
@@ -49,6 +60,42 @@ const newestFirst = computed(() => [...drawings].reverse())
         />
       </AppButton>
     </header>
+
+    <div
+      v-if="assistantDrawingCount > 0"
+      class="chart-drawing-object-tree__assistant"
+    >
+      <template v-if="confirmingAssistantRemoval">
+        <span class="chart-drawing-object-tree__assistant-question">
+          {{ t('marketData.chartDrawing.confirmRemoveAssistantDrawings', { count: assistantDrawingCount }) }}
+        </span>
+        <AppButton
+          variant="danger"
+          size="small"
+          data-testid="confirm-remove-assistant-drawings"
+          @click="confirmAssistantRemoval"
+        >
+          {{ t('marketData.chartDrawing.confirmRemove') }}
+        </AppButton>
+        <AppButton
+          variant="secondary"
+          size="small"
+          data-testid="cancel-remove-assistant-drawings"
+          @click="confirmingAssistantRemoval = false"
+        >
+          {{ t('marketData.common.cancel') }}
+        </AppButton>
+      </template>
+      <AppButton
+        v-else
+        variant="secondary"
+        size="small"
+        data-testid="remove-assistant-drawings"
+        @click="confirmingAssistantRemoval = true"
+      >
+        {{ t('marketData.chartDrawing.removeAssistantDrawings', { count: assistantDrawingCount }) }}
+      </AppButton>
+    </div>
 
     <p
       v-if="drawings.length === 0"
@@ -81,6 +128,13 @@ const newestFirst = computed(() => [...drawings].reverse())
             :style="{ backgroundColor: `var(${drawing.colorToken})` }"
           />
           {{ localize(drawing.kindLabel) }}
+          <AppBadge
+            v-if="drawing.drawnByAssistant"
+            variant="accent"
+            data-testid="object-tree-drawn-by-assistant"
+          >
+            {{ t('marketData.chartDrawing.drawnByAssistant') }}
+          </AppBadge>
           <AppIcon
             v-if="drawing.locked"
             name="lock"
@@ -137,6 +191,21 @@ const newestFirst = computed(() => [...drawings].reverse())
     margin: 0;
     font-size: font-size('sm');
     font-weight: font-weight('semibold');
+  }
+
+  &__assistant {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: spacing('2xs');
+    align-items: center;
+    border-bottom: 1px solid color('chart-workspace-seam');
+    padding: spacing('xs') spacing('sm');
+  }
+
+  &__assistant-question {
+    flex-basis: 100%;
+    font-size: font-size('sm');
   }
 
   &__empty {

@@ -42,7 +42,7 @@ export class ChartDrawingDomain {
 
     this.drawing = new ChartDrawing(
       drawing.id, this.kind.value, drawing.anchors.slice(0, this.kind.anchorCount), colorToken,
-      lineWidth, drawing.lineStyle, drawing.locked, drawing.visible)
+      lineWidth, drawing.lineStyle, drawing.locked, drawing.visible, drawing.source)
   }
 
   get id(): number {
@@ -52,6 +52,32 @@ export class ChartDrawingDomain {
   /** 換一個識別碼——繪圖板收下一個新繪圖時由它發號碼。 */
   numbered(id: number): ChartDrawingDomain {
     return this.rebuilt({ id })
+  }
+
+  get drawnByAssistant(): boolean {
+    return this.drawing.source === 'assistant'
+  }
+
+  /** 編號、種類、錨點、樣式、鎖定、顯示都一樣。來源由帳號記，不算在內。 */
+  sameAs(other: ChartDrawingDomain): boolean {
+    const mine = this.drawing
+    const theirs = other.drawing
+
+    return mine.id === theirs.id && mine.kind === theirs.kind && mine.colorToken === theirs.colorToken
+      && mine.lineWidth === theirs.lineWidth && mine.lineStyle === theirs.lineStyle
+      && mine.locked === theirs.locked && mine.visible === theirs.visible
+      && mine.anchors.length === theirs.anchors.length
+      && mine.anchors.every((anchor, index) => {
+        const theirAnchor = theirs.anchors[index]
+
+        return theirAnchor !== undefined && anchor.openTime.getTime() === theirAnchor.openTime.getTime()
+          && anchor.price.equals(theirAnchor.price)
+      })
+  }
+
+  /** 存進帳號之後，換成帳號發的編號與帳號記的來源；形狀與樣式維持這裡的。 */
+  withSavedIdentityOf(saved: ChartDrawingDomain): ChartDrawingDomain {
+    return this.rebuilt({ id: saved.drawing.id, source: saved.drawing.source })
   }
 
   applied(command: ChartDrawingCommandDto): ChartDrawingDomain {
@@ -118,7 +144,8 @@ export class ChartDrawingDomain {
 
     return new ChartDrawingDto(
       drawing.id, drawing.kind, this.kind.label, drawing.anchors, drawing.colorToken, drawing.lineWidth,
-      drawing.lineStyle, drawing.locked, drawing.visible, this.kind.styleEditable)
+      drawing.lineStyle, drawing.locked, drawing.visible, this.kind.styleEditable, drawing.source,
+      this.drawnByAssistant)
   }
 
   /** 照自己的樣子換掉其中幾項，交回一個新的繪圖。 */
@@ -134,6 +161,7 @@ export class ChartDrawingDomain {
       changes.lineStyle ?? drawing.lineStyle,
       changes.locked ?? drawing.locked,
       changes.visible ?? drawing.visible,
+      changes.source ?? drawing.source,
     ).toDomain()
   }
 }
