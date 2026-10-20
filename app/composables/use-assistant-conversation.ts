@@ -46,6 +46,7 @@ export function useAssistantConversation(
   currentConversationPreferenceProxy = useNuxtApp().$currentConversationPreferenceProxy,
 ) {
   const { translatedText } = useLocalizedText()
+  const { recordAnswerCompleted } = useAssistantAnswerCompletions()
   /**
    * 空的對話上那幾句建議提問。
    *
@@ -353,7 +354,11 @@ export function useAssistantConversation(
         return
       }
 
+      const wasAnswering = pending.value
       messages.value = [...conversation.messages]
+      if (wasAnswering && !pending.value) {
+        recordAnswerCompleted()
+      }
       // 回頭詢問每兩秒一次，清掉的話被擋下的那一句還沒讀完就不見了。
       if (!polling) {
         pendingRevisionErrors.value = {}

@@ -812,3 +812,42 @@ describe('useAssistantConversation 的英文說法', () => {
     expect(rejectionMessage.value?.in('en')).toBe(expectedMessage)
   })
 })
+
+describe('useAssistantConversation 答完一則時記一筆', () => {
+  it('還在寫時不記；寫完那一刻記一筆，之後不再多記', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask } = conversationUnderTest()
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+    await ask('問一句')
+    expect(completedAnswerCount.value).toBe(before)
+
+    applicationMock.getConversation.mockResolvedValue(answeredConversation())
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS * 3)
+
+    expect(completedAnswerCount.value).toBe(before + 1)
+  })
+
+  it('寫壞了也算答完（助手可能已經畫了一部分）', async () => {
+    applicationMock.getConversation.mockResolvedValue(runningConversation())
+    const { ask } = conversationUnderTest()
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+    await ask('問一句')
+
+    applicationMock.getConversation.mockResolvedValue(failedConversation())
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MILLISECONDS)
+
+    expect(completedAnswerCount.value).toBe(before + 1)
+  })
+
+  it('打開一段早就答完的對話：不記', async () => {
+    const { selectConversation } = conversationUnderTest()
+    const { completedAnswerCount } = useAssistantAnswerCompletions()
+    const before = completedAnswerCount.value
+
+    await selectConversation(7)
+
+    expect(completedAnswerCount.value).toBe(before)
+  })
+})
