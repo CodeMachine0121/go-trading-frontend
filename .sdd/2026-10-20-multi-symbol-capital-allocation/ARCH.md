@@ -21,6 +21,7 @@
 | `StrategyBotWatchedSymbolDomain` / `StrategyBotWatchedSymbolDto` | **Modify** | 收機器人的總金額（或 `null`），多 `allocationLabel`（分配 60%）與 `allocatedCapitalLabel`（分到 600，沒有部位規劃時 `null`） |
 | `StrategyBotDomain` | **Modify** | 把 `positionPlan?.capital` 交給每個監聽標的 |
 | `PositionPlanDto` | **Modify** | 多 `capitalAllocations: readonly StrategyBotCapitalAllocationDto[]`（預設 `[]`＝不給） |
+| `PositionSizingDomain` | **Modify** | 多 `shortfallLabelWithin(allocatedCapital)`：固定金額押不下分到的資金時說「分到的資金不足，押不下 X」——押多少的語意住在它身上 |
 | `StrategyBotWriteDomain` | **Modify** | 部位規劃本身合法後，再問 `StrategyBotCapitalAllocationDomain.rejection` |
 | `StrategyBotPageDto` / `MarketDataKindDomain` 描述 | **Modify** | 多 `capitalLabel` 與 `capitalHint`（現貨：總金額；合約：總金額（保證金）＋名目說明） |
 | `StrategyBotProxy` | **Modify** | wire 讀 `allocationPercentage`（缺即 100）；`toBody` 送 `capitalAllocations`（空陣列不送） |
@@ -38,7 +39,7 @@
 | Name | Kind | Responsibility (purpose) | Collaborators | Satisfies (PRD scenario) |
 | :--- | :--- | :--- | :--- | :--- |
 | `StrategyBotCapitalAllocationDto` | DTO | 一個監聽標的的分配比例（標的＋`Decimal`）；寫入時的形狀 | — | US-02, US-03 |
-| `StrategyBotCapitalAllocationDomain` | Domain Model | 以「監聽標的清單＋已給的分配」建立：`equallySplit()`（平均分配）、`isEqualSplit`、`reallocatedTo(symbols)`（自動重算或保留）、`rejection`（缺 → 範圍 → 小數 → 合計，措辭同交易服務）、`toSummaryDto(capital, sizingMode, sizingValue)` | `PositionSizingMode` | US-02, US-03, US-04 |
+| `StrategyBotCapitalAllocationDomain` | Domain Model | 以「監聽標的清單＋已給的分配」建立：`equallySplit()`（平均分配）、`isEqualSplit`、`reallocatedTo(symbols)`（自動重算或保留）、`rejection`（缺 → 範圍 → 小數 → 合計，措辭同交易服務）、`toSummaryDto(capital, positionSizing)` | `PositionSizingDomain` | US-02, US-03, US-04 |
 | `StrategyBotCapitalAllocationSummaryDto` | DTO | 合計、未動用、是否超過 100、每一列 | — | US-03, US-04 |
 | `StrategyBotCapitalAllocationRowDto` | DTO | 一列：標的、分到的資金（或 `null`）、押不下的提醒（或 `null`） | — | US-04 |
 | `StrategyBotCapitalAllocationField.vue` | Molecule | 每個監聽標的一列分配比例輸入、分到多少、提醒；合計／未動用；「平均分配」鍵 | `AppInput`、`AppButton`、`AppAlert`/文字 | US-02, US-03, US-04 |
@@ -99,7 +100,7 @@ flowchart TD
 | 分配比例為零 / 超過 100 / 超過兩位小數 | `StrategyBotCapitalAllocationDomain.rejection` |
 | 送出每個標的的分配 / 部位規劃收著不送分配 | `useStrategyBotForm.buildPositionPlan` + `StrategyBotProxy.toBody` |
 | 交易服務仍拒絕 | 既有 `useStrategyBotWorkbench.save` 失敗訊息（`BackendRequestRejectedError` 原句） |
-| 分到的資金不取整 / 總金額空白 / 押不下 / 正好押得下 / 全押永遠押得下 | `StrategyBotCapitalAllocationDomain.toSummaryDto`（`StrategyBotCapitalAllocationRowDto`） + `StrategyBotCapitalAllocationField` |
+| 分到的資金不取整 / 總金額空白 / 押不下 / 正好押得下 / 全押永遠押得下 | `StrategyBotCapitalAllocationDomain.toSummaryDto`（`StrategyBotCapitalAllocationRowDto`）+ `PositionSizingDomain.shortfallLabelWithin` + `StrategyBotCapitalAllocationField` |
 | 有部位規劃的機器人 / 沒有部位規劃的機器人（詳細區） | `StrategyBotWatchedSymbolDomain.toDto`（`allocationLabel`、`allocatedCapitalLabel`） + `StrategyBotWatchedSymbolList` |
 
 ---
