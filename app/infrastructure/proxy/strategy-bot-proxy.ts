@@ -23,6 +23,10 @@ import type { PositionSizingMode } from '~/domain/models/vo/position-sizing-mode
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
+import type { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
+import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
+import { STRATEGY_BOT_WATCHED_SYMBOL_REMOVAL_REFUSAL_REASONS } from '~/domain/models/vo/strategy-bot-watched-symbol-removal-refusal-reason-vo'
 
 const STRATEGY_BOTS_ENDPOINT = '/strategy-bots'
 
@@ -49,6 +53,7 @@ const BOT_RUNNING_HINT = '執行中'
 /** 後端回來的一輪。時間是字串，在這裡就收成一個瞬間，不讓 wire 格式進 domain。 */
 type StrategyBotRunRecordWire = {
   runNumber: number
+  symbol: string
   ranAt: string
   result: string
   /**
@@ -116,22 +121,28 @@ type PositionPlanWire = {
   TakeProfitPercentage?: string | null
 }
 
+type StrategyBotWatchedSymbolWire = {
+  symbol: string
+  lastSentSignal?: string
+  conflicting?: boolean
+  haltReason?: string
+  /** 只有合約機器人有。 */
+  autoOrderPosition?: AutoOrderPositionWire | null
+}
+
 type StrategyBotWire = {
   id: number
   name: string
-  symbol: string
+  watchedSymbols?: StrategyBotWatchedSymbolWire[] | null
   triggerIntervalMinutes: number
   tradingStrategyId: number
   tradingStrategyName?: string
   runState: string
-  lastSentSignal?: string
   haltReason?: string
-  conflicting?: boolean
   positionPlan?: PositionPlanWire | null
   /** 舊版後端不回，那一台就是現貨機器人。 */
   marketDataKind?: string
   autoOrderEnabled?: boolean
-  autoOrderPosition?: AutoOrderPositionWire | null
   /** 舊版後端不回，讀作交易服務對既有機器人的預設。 */
   autoOrderEntrySlippageTolerancePercentage?: string | null
 }
@@ -200,13 +211,15 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     return this.requestStrategyBot(`${STRATEGY_BOTS_ENDPOINT}/${id}/runs`, 'POST')
   }
 
-  async listRunRecords(id: number): Promise<StrategyBotRunRecord[]> {
+  async listRunRecords(query: StrategyBotRunRecordQueryDto): Promise<StrategyBotRunRecord[]> {
     try {
       const runRecordsWire = await this.requestBackend<StrategyBotRunRecordWire[]>(
-        `${STRATEGY_BOTS_ENDPOINT}/${id}/runs`)
+        `${STRATEGY_BOTS_ENDPOINT}/${query.strategyBotId}/runs`,
+        query.symbol === null ? {} : { query: { symbol: query.symbol } })
 
       return (runRecordsWire ?? []).map(runRecordWire => new StrategyBotRunRecord(
         runRecordWire.runNumber,
+        runRecordWire.symbol,
         new Date(runRecordWire.ranAt),
         runRecordWire.result,
         this.toSuggestedFigure(runRecordWire.suggestedStake),
@@ -299,6 +312,12 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       return new AutoOrderRefusedError(error.message, autoOrderRefusalReason, { cause: error })
     }
 
+    const watchedSymbolRemovalRefusalReason = STRATEGY_BOT_WATCHED_SYMBOL_REMOVAL_REFUSAL_REASONS
+      .find(reason => reason === error.reason)
+    if (error.status === CONFLICT_STATUS && watchedSymbolRemovalRefusalReason !== undefined) {
+      return new StrategyBotWatchedSymbolNotRemovableError(watchedSymbolRemovalRefusalReason, { cause: error })
+    }
+
     if (error.status === CONFLICT_STATUS && error.reason === ENTRY_ORDER_OUTSTANDING_REASON) {
       return new StrategyBotEntryOrderOutstandingError({ cause: error })
     }
@@ -325,7 +344,7 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     // 在這裡補一格，就是讓「哪幾格正規化過」有兩個答案。
     const body: Record<string, BackendRequestValue> = {
       name: writeDto.name,
-      symbol: writeDto.symbol,
+      symbols: writeDto.symbols,
       tradingStrategyId: writeDto.tradingStrategyId,
       triggerIntervalMinutes: writeDto.triggerIntervalMinutes,
       marketDataKind: writeDto.marketDataKind,
@@ -391,29 +410,35 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
     return figure === undefined || figure === null ? null : new Decimal(figure)
   }
 
+  private toHaltReason(haltReason?: string): StrategyBotHaltReasonVo | null {
+    return (haltReason ?? '') === '' ? null : haltReason as StrategyBotHaltReasonVo
+  }
+
   private toStrategyBot(botWire: StrategyBotWire): StrategyBot {
     const marketDataKind = new MarketDataKindDomain(botWire.marketDataKind ?? '')
 
     return new StrategyBot(
       botWire.id,
       botWire.name,
-      botWire.symbol,
+      (botWire.watchedSymbols ?? []).map(watchedSymbolWire => new StrategyBotWatchedSymbol(
+        watchedSymbolWire.symbol,
+        watchedSymbolWire.lastSentSignal ?? '',
+        watchedSymbolWire.conflicting ?? false,
+        this.toHaltReason(watchedSymbolWire.haltReason),
+        watchedSymbolWire.autoOrderPosition === undefined || watchedSymbolWire.autoOrderPosition === null
+          ? null
+          : new AutoOrderPositionVo(
+              watchedSymbolWire.autoOrderPosition.direction ?? '',
+              new Decimal(watchedSymbolWire.autoOrderPosition.quantity ?? '0')),
+      )),
       botWire.triggerIntervalMinutes,
       botWire.tradingStrategyId,
       botWire.tradingStrategyName ?? '',
       botWire.runState as StrategyBotRunStateVo,
-      botWire.lastSentSignal ?? '',
-      (botWire.haltReason ?? '') === ''
-        ? null
-        : botWire.haltReason as StrategyBotHaltReasonVo,
-      botWire.conflicting ?? false,
+      this.toHaltReason(botWire.haltReason),
       this.toPositionPlan(marketDataKind, botWire.positionPlan),
       marketDataKind.value,
       botWire.autoOrderEnabled ?? false,
-      botWire.autoOrderPosition === undefined || botWire.autoOrderPosition === null
-        ? null
-        : new AutoOrderPositionVo(
-            botWire.autoOrderPosition.direction ?? '', new Decimal(botWire.autoOrderPosition.quantity ?? '0')),
       this.toSuggestedFigure(botWire.autoOrderEntrySlippageTolerancePercentage)
       ?? new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
     )

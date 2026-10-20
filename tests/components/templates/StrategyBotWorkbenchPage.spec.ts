@@ -11,6 +11,7 @@ import Decimal from 'decimal.js'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
+import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
 
 // 模板只做接線；這裡只看它把「這一種」接對了：標題、讀到另一種時送去哪、存好回到哪。
 const { navigateToSpy, getStrategyBot, createStrategyBot, enableAutoOrder, disableAutoOrder, leaveGuards } = vi.hoisted(() => ({
@@ -43,12 +44,13 @@ const FORM_STUB = {
     + '<button data-testid="form-save" @click="$emit(\'save\', writeDto)" />'
     + '<button data-testid="form-edit" @click="$emit(\'dirty-change\', true)" /></div>',
   data: () => ({
-    writeDto: new StrategyBotWriteDto(undefined, '費率反轉', 'BTCUSDT', 9, 5, null, 'contractKCandle'),
+    writeDto: new StrategyBotWriteDto(undefined, '費率反轉', ['BTCUSDT'], 9, 5, null, 'contractKCandle'),
   }),
 }
 
 function storedBot(marketDataKind: MarketDataKind) {
-  return new StrategyBot(7, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'stopped', '', null, false, null, marketDataKind)
+  return new StrategyBot(
+    7, '費率反轉', [new StrategyBotWatchedSymbol('BTCUSDT', '', false, null, null)], 5, 9, '費率反轉', 'stopped', null, null, marketDataKind)
 }
 
 function mountPage(strategyBotId: number | null, marketDataKind: MarketDataKind) {
@@ -157,7 +159,8 @@ describe('StrategyBotWorkbenchPage 有沒存的改動時離開先問過', () => 
 describe('StrategyBotWorkbenchPage 的自動下單開關', () => {
   function botWith(marketDataKind: MarketDataKind, autoOrderEnabled: boolean) {
     return new StrategyBot(
-      7, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'running', '', null, false, null, marketDataKind, autoOrderEnabled)
+      7, '費率反轉', [new StrategyBotWatchedSymbol('BTCUSDT', '', false, null, null)], 5, 9, '費率反轉', 'running', null, null,
+      marketDataKind, autoOrderEnabled)
   }
 
   it('新建機器人的畫面沒有開關', async () => {
@@ -179,15 +182,38 @@ describe('StrategyBotWorkbenchPage 的自動下單開關', () => {
     expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toContain(notice)
   })
 
-  it('合約機器人的頁面畫出它自己開的持倉', async () => {
+  it('合約機器人的頁面在每個監聽標的上畫出它自己開的持倉，開關旁不畫', async () => {
     const contractBot = new StrategyBot(
-      7, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'running', '', null, false, null, 'contractKCandle', true,
-      new AutoOrderPositionVo('long', new Decimal('0.002')))
+      7, '費率反轉', [
+        new StrategyBotWatchedSymbol('BTCUSDT', 'buy', false, null, new AutoOrderPositionVo('long', new Decimal('0.01'))),
+        new StrategyBotWatchedSymbol('ETHUSDT', '', false, null, new AutoOrderPositionVo('', new Decimal('0'))),
+      ], 5, 9, '費率反轉', 'stopped', null, null, 'contractKCandle', true)
     getStrategyBot.mockResolvedValue(contractBot)
     const wrapper = mountPage(7, 'contractKCandle')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="auto-order-position"]').text()).toBe('機器人持倉：多 0.002')
+    expect(wrapper.find('[data-testid="auto-order-position"]').exists()).toBe(false)
+    const rows = wrapper.findAll('[data-testid="watched-symbol-row"]')
+    expect(rows.map(row => row.text())).toEqual([
+      expect.stringContaining('BTCUSDT 永續合約'), expect.stringContaining('ETHUSDT 永續合約')])
+    expect(wrapper.findAll('[data-testid="watched-symbol-position"]').map(position => position.text()))
+      .toEqual(['機器人持倉：多 0.01', '機器人持倉：空手'])
+  })
+
+  it('現貨機器人的監聽標的不畫機器人持倉', async () => {
+    getStrategyBot.mockResolvedValue(storedBot('kCandle'))
+    const wrapper = mountPage(7, 'kCandle')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="watched-symbol-row"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="watched-symbol-position"]').exists()).toBe(false)
+  })
+
+  it('新建機器人的畫面沒有監聽標的清單', async () => {
+    const wrapper = mountPage(null, 'kCandle')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="workbench-watched-symbols"]').exists()).toBe(false)
   })
 
   it('執行中的機器人打得開，開關變成開著', async () => {

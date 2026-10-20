@@ -5,6 +5,7 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppPanel from '~/components/atoms/AppPanel.vue'
 import StrategyBotForm from '~/components/organisms/StrategyBotForm.vue'
 import StrategyBotAutoOrderSwitch from '~/components/molecules/StrategyBotAutoOrderSwitch.vue'
+import StrategyBotWatchedSymbolList from '~/components/molecules/StrategyBotWatchedSymbolList.vue'
 import { useStrategyBotWorkbench } from '~/composables/use-strategy-bot-workbench'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 
@@ -102,12 +103,20 @@ onBeforeRouteLeave(() => workbench.dirty.value
         <StrategyBotAutoOrderSwitch
           :enabled="workbench.autoOrderEnabled.value"
           :notice="page.autoOrderNotice"
-          :position-label="workbench.editing.value.autoOrderPositionLabel"
           :switching="workbench.autoOrderSwitching.value"
           :refusal="workbench.autoOrderRefusal.value"
           :failure-message="workbench.autoOrderFailureMessage.value"
           @switch="workbench.switchAutoOrder"
         />
+      </AppPanel>
+
+      <!-- 拿掉一個標的前先看得到它還有沒有機器人持倉：有的話交易服務會拒絕整次修改。 -->
+      <AppPanel
+        v-if="strategyBotId !== null && workbench.editing.value !== null"
+        :title="t('strategyBot.listPanel.watchedSymbols')"
+        data-testid="workbench-watched-symbols"
+      >
+        <StrategyBotWatchedSymbolList :watched-symbols="workbench.editing.value.watchedSymbols" />
       </AppPanel>
 
       <StrategyBotForm

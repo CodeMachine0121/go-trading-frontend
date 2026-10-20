@@ -12,15 +12,15 @@ export class StrategyBotRunStateDto {
     public readonly isRunning: boolean,
     /** 被系統自己停下來的——與被擁有者按停止是兩件事。 */
     public readonly isHalted: boolean,
-    /** 上一輪兩個條件同時成立。**不是停擺**，機器人還在跑。 */
+    /** 任一個監聽標的上一輪兩個條件同時成立。**不是停擺**，機器人還在跑。 */
     public readonly isConflicting: boolean,
     public readonly statusLabel: LocalizedTextVo,
     /** 標籤的語氣。**它是規則不是樣式**：停擺要比已停止更醒目。 */
     public readonly statusTone: 'success' | 'danger' | 'neutral',
-    /** 停擺原因那一句。沒有停擺時是 `null`。 */
+    /** 整台停擺原因那一句。沒有停擺時是 `null`。 */
     public readonly haltReasonLabel: LocalizedTextVo | null,
-    /** 上次訊號那一格。沒送過時是「還沒送出過」，不是空白。 */
-    public readonly lastSentSignalLabel: LocalizedTextVo,
+    /** 只有部分監聽標的停擺時的「N 個標的停擺」；整台停擺或沒有標的停擺時是 `null`。 */
+    public readonly haltedWatchedSymbolsLabel: LocalizedTextVo | null,
     public readonly canStart: boolean,
     public readonly canStop: boolean,
     public readonly canEdit: boolean,

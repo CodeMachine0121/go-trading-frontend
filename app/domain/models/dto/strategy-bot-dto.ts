@@ -1,5 +1,5 @@
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
-import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import type { StrategyBotWatchedSymbolDto } from '~/domain/models/dto/strategy-bot-watched-symbol-dto'
 import type { StrategyBotRunStateDto } from '~/domain/models/dto/strategy-bot-run-state-dto'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
@@ -19,7 +19,7 @@ export class StrategyBotDto {
   constructor(
     public readonly id: number,
     public readonly name: string,
-    public readonly symbol: string,
+    public readonly watchedSymbols: readonly StrategyBotWatchedSymbolDto[],
     public readonly triggerIntervalMinutes: number,
     public readonly tradingStrategyId: number,
     public readonly tradingStrategyName: string,
@@ -37,15 +37,11 @@ export class StrategyBotDto {
     public readonly positionPlan: PositionPlanDto | null,
     /** 現貨機器人或合約機器人。 */
     public readonly marketDataKind: MarketDataKind = 'kCandle',
-    /** 標的在清單上怎麼說：合約機器人的後面標出「永續合約」。 */
-    public readonly symbolLabel: LocalizedTextVo = new UntranslatedTextVo(symbol),
     /** 合約機器人有建議部位時的「N 倍」；其餘一律 `null`，那一列就不提槓桿。 */
     public readonly leverageLabel: LocalizedTextVo | null = null,
     /** 這一台的編輯頁——在它自己那一種的畫面底下。 */
     public readonly editPath: string = `/strategy-bots/${id}`,
     public readonly autoOrderEnabled: boolean = false,
-    /** 機器人持倉：「多 0.002」「空 0.002」「空手」。現貨機器人與舊版後端是 `null`，那一格就不畫。 */
-    public readonly autoOrderPositionLabel: LocalizedTextVo | null = null,
     /** 開倉容許滑價（百分比），表單要填回去的值。 */
     public readonly autoOrderEntrySlippageTolerancePercentage: Decimal
       = new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),

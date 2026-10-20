@@ -9,6 +9,10 @@ import { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import Decimal from 'decimal.js'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
+import { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
+import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
+import { AutoOrderPositionVo } from '~/domain/models/vo/auto-order-position-vo'
 
 // 只 mock 最外層的 proxy 介面；application、domain service 與每一個 domain model 都是真的。
 function buildApplication(strategyBotProxy: Partial<IStrategyBotProxy>): StrategyBotApplication {
@@ -28,27 +32,28 @@ function buildApplication(strategyBotProxy: Partial<IStrategyBotProxy>): Strateg
   }))
 }
 
+function aWatchedSymbol(symbol = 'BTCUSDT') {
+  return new StrategyBotWatchedSymbol(symbol, '', false, null, null)
+}
+
 function storedBot(overrides: Partial<{
   runState: 'running' | 'stopped'
-  lastSentSignal: string
   haltReason: string | null
-  conflicting: boolean
+  watchedSymbols: StrategyBotWatchedSymbol[]
 }> = {}): StrategyBot {
   return new StrategyBot(
-    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
+    3, '早盤突破', overrides.watchedSymbols ?? [aWatchedSymbol()], 5, 9, '黃金交叉',
     overrides.runState ?? 'stopped',
-    overrides.lastSentSignal ?? '',
     (overrides.haltReason ?? null) as never,
-    overrides.conflicting ?? false,
     null,
   )
 }
 
-function aWriteDto(overrides: Partial<{ id: number, name: string }> = {}) {
+function aWriteDto(overrides: Partial<{ id: number, name: string, symbols: string[] }> = {}) {
   return new StrategyBotWriteDto(
     overrides.id,
     overrides.name ?? '早盤突破',
-    'BTCUSDT',
+    overrides.symbols ?? ['BTCUSDT'],
     9,
     5,
     null,
@@ -89,6 +94,66 @@ describe('StrategyBotApplication 讀回來的樣子', () => {
     })
 
     expect(await application.listStrategyBots('kCandle')).toEqual([])
+  })
+})
+
+describe('StrategyBotApplication 的監聽標的', () => {
+  it('合約機器人每個監聽標的交出它自己的狀態，部分停擺時機器人仍是執行中', async () => {
+    const application = buildApplication({
+      getStrategyBot: vi.fn().mockResolvedValue(new StrategyBot(
+        3, '費率反轉', [
+          new StrategyBotWatchedSymbol('BTCUSDT', 'buy', false, null, new AutoOrderPositionVo('long', new Decimal('0.01'))),
+          new StrategyBotWatchedSymbol('ETHUSDT', '', true, 'scriptFailed', new AutoOrderPositionVo('', new Decimal(0))),
+        ], 5, 9, '費率反轉', 'running', null, null, 'contractKCandle')),
+    })
+
+    const botDto = await application.getStrategyBot(3)
+
+    expect(botDto.runState.statusLabel.in('zh-TW')).toBe('執行中')
+    expect(botDto.runState.isConflicting).toBe(true)
+    expect(botDto.runState.haltedWatchedSymbolsLabel?.in('zh-TW')).toBe('1 個標的停擺')
+    expect(botDto.watchedSymbols.map(watchedSymbol => [
+      watchedSymbol.symbol,
+      watchedSymbol.stateLabel.in('zh-TW'),
+      watchedSymbol.haltReasonLabel?.in('zh-TW') ?? null,
+      watchedSymbol.autoOrderPositionLabel?.in('zh-TW') ?? null,
+    ])).toEqual([
+      ['BTCUSDT', '買入', null, '多 0.01'],
+      ['ETHUSDT', '停擺', '有一支策略腳本算不出來', '空手'],
+    ])
+  })
+
+  it.each([
+    { name: '一個都沒挑', symbols: [], expected: '必須指定這台機器人要盯哪些交易標的' },
+    { name: '同一個標的重複', symbols: ['BTCUSDT', 'btcusdt'], expected: '交易標的 BTCUSDT 重複了' },
+  ])('$name 時送出前就擋下', async ({ symbols, expected }) => {
+    const createStrategyBot = vi.fn()
+    const application = buildApplication({ createStrategyBot })
+
+    await expect(application.saveStrategyBot(aWriteDto({ symbols }))).rejects.toThrow(expected)
+    expect(createStrategyBot).not.toHaveBeenCalled()
+  })
+
+  it('送出去的是整串正規化過的監聽標的', async () => {
+    const updateStrategyBot = vi.fn().mockResolvedValue(storedBot())
+    const application = buildApplication({ updateStrategyBot })
+
+    await application.saveStrategyBot(aWriteDto({ id: 3, symbols: ['btcusdt', ' ETHUSDT '] }))
+
+    expect(updateStrategyBot.mock.calls[0]?.[0].sendable.symbols).toEqual(['BTCUSDT', 'ETHUSDT'])
+  })
+
+  it('執行紀錄帶著標的，並照查詢只看那一個標的', async () => {
+    const listRunRecords = vi.fn().mockResolvedValue([
+      new StrategyBotRunRecord(102, 'ETHUSDT', new Date('2026-10-20T05:05:00Z'), 'sell', null, null, null),
+    ])
+    const application = buildApplication({ listRunRecords })
+    const query = new StrategyBotRunRecordQueryDto(3, 'ETHUSDT')
+
+    const runRecords = await application.listRunRecords(query)
+
+    expect(listRunRecords).toHaveBeenCalledWith(query)
+    expect(runRecords.map(runRecord => [runRecord.runNumber, runRecord.symbol])).toEqual([[102, 'ETHUSDT']])
   })
 })
 
@@ -156,7 +221,7 @@ function storedBotOf(
   positionPlan: PositionPlanDto | null,
 ): StrategyBot {
   return new StrategyBot(
-    3, '費率反轉', 'BTCUSDT', 5, 9, '費率反轉', 'stopped', '', null, false, positionPlan, marketDataKind)
+    3, '費率反轉', [aWatchedSymbol()], 5, 9, '費率反轉', 'stopped', null, positionPlan, marketDataKind)
 }
 
 function aPlan(leverage: Decimal | null) {
@@ -193,7 +258,7 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
     const botDto = await application.getStrategyBot(3)
 
     expect(botDto.marketDataKind).toBe(bot.marketDataKind)
-    expect(botDto.symbolLabel.in('zh-TW')).toBe(symbolLabel)
+    expect(botDto.watchedSymbols[0]?.symbolLabel.in('zh-TW')).toBe(symbolLabel)
     expect(botDto.leverageLabel?.in('zh-TW') ?? null).toBe(leverageLabel)
     expect(botDto.editPath).toBe(editPath)
   })
@@ -222,14 +287,14 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
 
     const botDto = await application.getStrategyBot(3)
 
-    expect(botDto.symbolLabel.in('en')).toBe('BTCUSDT perpetual contract')
+    expect(botDto.watchedSymbols[0]?.symbolLabel.in('en')).toBe('BTCUSDT perpetual contract')
     expect(botDto.leverageLabel?.in('en')).toBe('5x')
   })
 
   it('這一側擋下來的那一句帶著英文的說法', async () => {
     const application = buildApplication({})
     const writeDto = new StrategyBotWriteDto(
-      undefined, '費率反轉', 'BTCUSDT', 9, 5, aPlan(new Decimal(0.5)), 'contractKCandle')
+      undefined, '費率反轉', ['BTCUSDT'], 9, 5, aPlan(new Decimal(0.5)), 'contractKCandle')
 
     const rejection = await application.saveStrategyBot(writeDto).catch((error: unknown) => error)
 
@@ -255,7 +320,7 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
     const createStrategyBot = vi.fn().mockResolvedValue(storedBotOf('contractKCandle', null))
     const application = buildApplication({ createStrategyBot })
     const writeDto = new StrategyBotWriteDto(
-      undefined, '費率反轉', 'BTCUSDT', 9, 5, aPlan(leverage), 'contractKCandle')
+      undefined, '費率反轉', ['BTCUSDT'], 9, 5, aPlan(leverage), 'contractKCandle')
 
     if (rejected) {
       await expect(application.saveStrategyBot(writeDto)).rejects.toThrow('槓桿倍數不得小於 1 倍')
@@ -271,7 +336,7 @@ describe('StrategyBotApplication 分得出現貨與合約機器人', () => {
 
 function botWithAutoOrder(autoOrderEnabled: boolean, runState: 'running' | 'stopped' = 'running'): StrategyBot {
   return new StrategyBot(
-    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉', runState, '', null, false, null, 'kCandle', autoOrderEnabled)
+    3, '早盤突破', [aWatchedSymbol()], 5, 9, '黃金交叉', runState, null, null, 'kCandle', autoOrderEnabled)
 }
 
 describe('StrategyBotApplication.enableAutoOrder', () => {

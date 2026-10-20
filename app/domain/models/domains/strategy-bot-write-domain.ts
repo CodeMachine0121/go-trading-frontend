@@ -2,12 +2,13 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { PositionPlanDomain } from '~/domain/models/domains/position-plan-domain'
 import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
 
 /**
  * Domain Model：一台要存進去的機器人，連同它送出前必須成立的每一條規則。
  *
  * 它只問四件事，因為一台機器人現在只有四格：叫什麼、照哪一份交易策略跑、
- * 盯哪一個市場、多久醒一次。規則本身的每一條驗證都搬去
+ * 盯哪幾個標的、多久醒一次。規則本身的每一條驗證都搬去
  * TradingStrategyWriteDomain 了——它們是規則的事，不是機器的事。
  *
  * 撞名與「指名一份已經不在的交易策略」不在這裡：那兩件事光看這份表單看不出來，
@@ -45,8 +46,9 @@ export class StrategyBotWriteDomain {
         'Pick a trading strategy so the bot knows what to judge by')
     }
 
-    if (this.writeDto.symbol.trim() === '') {
-      return new LocalizedTextVo('必須指定這台機器人要盯哪一個交易標的', 'Choose which trading symbol the bot watches')
+    const watchedSymbolsRejection = new StrategyBotWatchedSymbolListDomain(this.writeDto.symbols).rejection
+    if (watchedSymbolsRejection !== null) {
+      return watchedSymbolsRejection
     }
 
     if (this.writeDto.triggerIntervalMinutes < STRATEGY_BOT_LIMITS.triggerIntervalMinimumMinutes) {
@@ -84,12 +86,12 @@ export class StrategyBotWriteDomain {
     return this.rejection === null
   }
 
-  /** 送出去的那一份，名稱與標的前後空白都去掉了。 */
+  /** 送出去的那一份：名稱去前後空白，監聽標的去前後空白並轉大寫。 */
   get sendable(): StrategyBotWriteDto {
     return new StrategyBotWriteDto(
       this.writeDto.id,
       this.writeDto.name.trim(),
-      this.writeDto.symbol.trim(),
+      new StrategyBotWatchedSymbolListDomain(this.writeDto.symbols).normalized,
       this.writeDto.tradingStrategyId,
       this.writeDto.triggerIntervalMinutes,
       // 沒有要正規化的東西：那五格是數字，沒有前後空白可以去。

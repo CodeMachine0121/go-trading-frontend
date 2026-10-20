@@ -22,6 +22,7 @@ export class StrategyBotRunRecordDomain {
   toDto(): StrategyBotRunRecordDto {
     return new StrategyBotRunRecordDto(
       this.runRecord.runNumber,
+      this.runRecord.symbol,
       this.runRecord.ranAt,
       this.resultLabel,
       this.resultTone,

@@ -15,7 +15,7 @@ function mountBadge(runState: Partial<StrategyBotRunStateDto> = {}) {
         runState.statusLabel ?? new LocalizedTextVo('已停止', 'Stopped'),
         runState.statusTone ?? 'neutral',
         runState.haltReasonLabel ?? null,
-        runState.lastSentSignalLabel ?? new LocalizedTextVo('還沒送出過', 'None sent yet'),
+        runState.haltedWatchedSymbolsLabel ?? null,
         runState.canStart ?? true,
         runState.canStop ?? false,
         runState.canEdit ?? true,
@@ -61,6 +61,21 @@ describe('StrategyBotStatusBadge', () => {
 
   it('沒打架時不畫那個標籤', () => {
     expect(mountBadge().find('[data-testid="bot-conflicting-badge"]').exists()).toBe(false)
+  })
+
+  it.each([
+    { name: '部分標的停擺', label: new LocalizedTextVo('1 個標的停擺', '1 symbol halted'), shown: '1 個標的停擺' },
+    { name: '沒有標的停擺', label: null, shown: undefined },
+  ])('$name 時與執行中並列標出', ({ label, shown }) => {
+    const wrapper = mountBadge({
+      isRunning: true, statusLabel: new LocalizedTextVo('執行中', 'Running'), statusTone: 'success', haltedWatchedSymbolsLabel: label,
+    })
+
+    expect(wrapper.get('[data-testid="bot-status-badge"]').text()).toBe('執行中')
+    expect(wrapper.find('[data-testid="bot-halted-watched-symbols-badge"]').exists()).toBe(shown !== undefined)
+    if (shown !== undefined) {
+      expect(wrapper.get('[data-testid="bot-halted-watched-symbols-badge"]').text()).toBe(shown)
+    }
   })
 
   it('切成英文時，狀態、停擺原因與打架的標籤都換成英文', async () => {

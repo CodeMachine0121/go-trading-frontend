@@ -1,21 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import { StrategyBot } from '~/domain/models/entities/strategy-bot'
+import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
 import type { StrategyBotHaltReasonVo } from '~/domain/models/vo/strategy-bot-halt-reason-vo'
 import type { StrategyBotRunStateVo } from '~/domain/models/vo/strategy-bot-run-state-vo'
 
+function aWatchedSymbol(overrides: Partial<{
+  symbol: string
+  conflicting: boolean
+  haltReason: StrategyBotHaltReasonVo | null
+}> = {}) {
+  return new StrategyBotWatchedSymbol(
+    overrides.symbol ?? 'BTCUSDT', '', overrides.conflicting ?? false, overrides.haltReason ?? null, null)
+}
+
 function aBot(overrides: Partial<{
   runState: StrategyBotRunStateVo
-  lastSentSignal: string
   haltReason: StrategyBotHaltReasonVo | null
-  conflicting: boolean
+  watchedSymbols: StrategyBotWatchedSymbol[]
 }> = {}) {
   return new StrategyBotRunStateDomain(new StrategyBot(
-    3, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
+    3, '早盤突破', overrides.watchedSymbols ?? [aWatchedSymbol()], 5, 9, '黃金交叉',
     overrides.runState ?? 'stopped',
-    overrides.lastSentSignal ?? '',
     'haltReason' in overrides ? overrides.haltReason! : null,
-    overrides.conflicting ?? false,
     null,
   ))
 }
@@ -70,26 +77,49 @@ describe('StrategyBotRunStateDomain', () => {
     expect(unknown.haltReasonLabel).toBeNull()
   })
 
-  it('規則打架與執行中並列，不是取代它', () => {
-    // 機器人還在跑，但它現在什麼都不會說，而且會一直不說下去。
-    const conflicting = aBot({ runState: 'running', conflicting: true }).toDto()
+  it.each([
+    { name: '一個標的規則打架', watchedSymbols: [aWatchedSymbol(), aWatchedSymbol({ symbol: 'ETHUSDT', conflicting: true })], expected: true },
+    { name: '沒有標的規則打架', watchedSymbols: [aWatchedSymbol(), aWatchedSymbol({ symbol: 'ETHUSDT' })], expected: false },
+  ])('$name：規則打架與執行中並列，不是取代它', ({ watchedSymbols, expected }) => {
+    const runState = aBot({ runState: 'running', watchedSymbols }).toDto()
 
-    expect(conflicting.isRunning).toBe(true)
-    expect(conflicting.isConflicting).toBe(true)
-    expect(conflicting.statusLabel.in('zh-TW')).toBe('執行中')
+    expect(runState.isRunning).toBe(true)
+    expect(runState.isConflicting).toBe(expected)
+    expect(runState.statusLabel.in('zh-TW')).toBe('執行中')
   })
 
   it.each([
-    ['buy', '買入'],
-    ['sell', '賣出'],
-    ['hold', '持有'],
-  ])('上次訊號 %s 講成人話', (lastSentSignal, expectedLabel) => {
-    expect(aBot({ lastSentSignal }).toDto().lastSentSignalLabel.in('zh-TW')).toBe(expectedLabel)
-  })
+    {
+      name: '執行中、一個標的停擺',
+      bot: () => aBot({ runState: 'running', watchedSymbols: [aWatchedSymbol(), aWatchedSymbol({ symbol: 'ETHUSDT', haltReason: 'scriptFailed' })] }),
+      status: '執行中', haltedWatchedSymbols: '1 個標的停擺', english: '1 symbol halted',
+    },
+    {
+      name: '執行中、兩個標的停擺',
+      bot: () => aBot({ runState: 'running', watchedSymbols: [aWatchedSymbol({ haltReason: 'orderFlowRefused' }), aWatchedSymbol({ symbol: 'ETHUSDT', haltReason: 'scriptFailed' }), aWatchedSymbol({ symbol: 'SOLUSDT' })] }),
+      status: '執行中', haltedWatchedSymbols: '2 個標的停擺', english: '2 symbols halted',
+    },
+    {
+      name: '整台停擺時不另說幾個標的停擺',
+      bot: () => aBot({ haltReason: 'scriptFailed', watchedSymbols: [aWatchedSymbol({ haltReason: 'scriptFailed' })] }),
+      status: '停擺', haltedWatchedSymbols: undefined, english: undefined,
+    },
+    {
+      name: '沒有標的停擺',
+      bot: () => aBot({ runState: 'running' }),
+      status: '執行中', haltedWatchedSymbols: undefined, english: undefined,
+    },
+    {
+      name: '認不得的標的停擺原因當成沒有',
+      bot: () => aBot({ runState: 'running', watchedSymbols: [aWatchedSymbol({ haltReason: 'somethingNew' as StrategyBotHaltReasonVo })] }),
+      status: '執行中', haltedWatchedSymbols: undefined, english: undefined,
+    },
+  ])('$name', ({ bot, status, haltedWatchedSymbols, english }) => {
+    const runState = bot().toDto()
 
-  it('沒送過任何訊號是一種狀態，不是空白', () => {
-    // 空白讀起來像「這一欄壞了」，而「還沒送出過」是一個完全正常的狀態。
-    expect(aBot().toDto().lastSentSignalLabel.in('zh-TW')).toBe('還沒送出過')
+    expect(runState.statusLabel.in('zh-TW')).toBe(status)
+    expect(runState.haltedWatchedSymbolsLabel?.in('zh-TW')).toBe(haltedWatchedSymbols)
+    expect(runState.haltedWatchedSymbolsLabel?.in('en')).toBe(english)
   })
 
   it('執行中時編輯不給按，並說得出為什麼', () => {
@@ -120,9 +150,7 @@ describe('StrategyBotRunStateDomain 的英文那一份', () => {
     expect(runState.haltReasonLabel?.in('en')).toBe(reason)
   })
 
-  it('上次訊號與編輯不給按的理由也說得出英文', () => {
-    expect(aBot().toDto().lastSentSignalLabel.in('en')).toBe('None sent yet')
-    expect(aBot({ runState: 'running', lastSentSignal: 'sell' }).toDto().lastSentSignalLabel.in('en')).toBe('Sell')
+  it('編輯不給按的理由也說得出英文', () => {
     expect(aBot({ runState: 'running' }).toDto().editBlockedReason?.in('en'))
       .toBe('This bot is running; stop it before editing')
   })

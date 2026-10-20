@@ -10,6 +10,7 @@ import type { ContractAutoOrderResultDto } from '~/domain/models/dto/contract-au
 export class StrategyBotRunRecordDto {
   constructor(
     public readonly runNumber: number,
+    public readonly symbol: string,
     public readonly ranAt: Date,
     /** 買入／賣出／持有／衝突。 */
     public readonly resultLabel: LocalizedTextVo,

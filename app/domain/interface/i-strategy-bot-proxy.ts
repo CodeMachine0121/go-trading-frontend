@@ -2,6 +2,7 @@ import type { StrategyBot } from '~/domain/models/entities/strategy-bot'
 import type { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-record'
 import type { StrategyBotWriteDomain } from '~/domain/models/domains/strategy-bot-write-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 
 /**
  * 介面：取得與操作策略機器人的能力。
@@ -23,7 +24,10 @@ export interface IStrategyBotProxy {
    */
   createStrategyBot(strategyBotWriteDomain: StrategyBotWriteDomain): Promise<StrategyBot>
 
-  /** 改寫一台。執行中時拋 StrategyBotRunningError。 */
+  /**
+   * 改寫一台。執行中時拋 StrategyBotRunningError；
+   * 拿掉還沒空手的監聽標的時拋 StrategyBotWatchedSymbolNotRemovableError。
+   */
   updateStrategyBot(strategyBotWriteDomain: StrategyBotWriteDomain): Promise<StrategyBot>
 
   /** 刪掉一台。執行中的也刪得掉。 */
@@ -45,12 +49,12 @@ export interface IStrategyBotProxy {
   runRoundNow(id: number): Promise<StrategyBot>
 
   /**
-   * 這台機器人跑過哪幾輪，最新的排前面。
+   * 這台機器人跑過哪幾輪，最新的排前面；查詢指名標的時只列那一個標的的。
    *
    * 它自己一條路而不是跟著機器人一起回來，因為兩者是在不同時刻、以不同的量讀的：
    * 機器人清單是打開來看「哪一台該管」，歷史是打開來看「其中那一台」。
    */
-  listRunRecords(id: number): Promise<StrategyBotRunRecord[]>
+  listRunRecords(query: StrategyBotRunRecordQueryDto): Promise<StrategyBotRunRecord[]>
 
   /** 交易服務拒絕時拋 AutoOrderRefusedError。 */
   enableAutoOrder(id: number): Promise<StrategyBot>

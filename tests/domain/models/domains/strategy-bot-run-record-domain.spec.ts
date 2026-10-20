@@ -4,7 +4,7 @@ import { StrategyBotRunRecord } from '~/domain/models/entities/strategy-bot-run-
 
 function recordOf(result: string) {
   return new StrategyBotRunRecord(
-    1, new Date('2026-09-16T05:05:00Z'), result, null, null, null).toDomain().toDto()
+    1, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), result, null, null, null).toDomain().toDto()
 }
 
 describe('StrategyBotRunRecordDomain', () => {
@@ -60,7 +60,7 @@ describe('StrategyBotRunRecordDomain', () => {
 
   it('第幾輪與什麼時候原樣帶過來', () => {
     const runRecord = new StrategyBotRunRecord(
-      42, new Date('2026-09-16T05:05:00Z'), 'buy', null, null, null).toDomain().toDto()
+      42, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), 'buy', null, null, null).toDomain().toDto()
 
     expect(runRecord.runNumber).toBe(42)
     expect(runRecord.ranAt.toISOString()).toBe('2026-09-16T05:05:00.000Z')
@@ -71,7 +71,7 @@ describe('StrategyBotRunRecordDomain', () => {
 describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () => {
   it('建議過的開倉金額、停損與停利寫成一句', () => {
     const runRecord = new StrategyBotRunRecord(
-      1, new Date('2026-09-16T05:05:00Z'), 'sell',
+      1, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), 'sell',
       new Decimal(5000), new Decimal('66105.915'), new Decimal('60971.475'),
     ).toDomain().toDto()
 
@@ -80,7 +80,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
 
   it('只建議過停損的那一輪就只寫金額與停損——與今天一字不差', () => {
     const runRecord = new StrategyBotRunRecord(
-      1, new Date('2026-09-16T05:05:00Z'), 'buy',
+      1, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), 'buy',
       new Decimal(5000), new Decimal('62255.085'), null,
     ).toDomain().toDto()
 
@@ -95,7 +95,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
     // 距離整個價格那麼遠的止損價正好是零——荒謬但合法，
     // 而把它當成沒有會讓那一輪少講一件它真的講過的事。
     const runRecord = new StrategyBotRunRecord(
-      1, new Date('2026-09-16T05:05:00Z'), 'buy',
+      1, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), 'buy',
       new Decimal(5000), new Decimal(0), null,
     ).toDomain().toDto()
 
@@ -106,7 +106,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（現貨）', () =
     // 這兩組詞在後端是兩件不同的事：這裡的距離從**最新價**量起，
     // 而回測那邊的從**進場價**量起。混用等於把兩件事說成一件。
     const text = new StrategyBotRunRecord(
-      1, new Date('2026-09-16T05:05:00Z'), 'sell',
+      1, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), 'sell',
       new Decimal(5000), new Decimal(1), new Decimal(2),
     ).toDomain().toDto().suggestionText?.in('zh-TW')
 
@@ -125,7 +125,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（合約）', () =
     takeProfit: string | null,
   ) {
     return new StrategyBotRunRecord(
-      1, new Date('2026-09-24T05:05:00Z'), 'sell',
+      1, 'BTCUSDT', new Date('2026-09-24T05:05:00Z'), 'sell',
       new Decimal(1000),
       stopLoss === null ? null : new Decimal(stopLoss),
       takeProfit === null ? null : new Decimal(takeProfit),
@@ -167,7 +167,7 @@ describe('StrategyBotRunRecordDomain 那一輪建議過什麼（合約）', () =
 
   it('交易所不收的那一輪沒有任何數字，整段不寫', () => {
     const runRecord = new StrategyBotRunRecord(
-      1, new Date('2026-09-24T05:05:00Z'), 'buy', null, null, null, null, null, null,
+      1, 'BTCUSDT', new Date('2026-09-24T05:05:00Z'), 'buy', null, null, null, null, null, null,
     ).toDomain().toDto()
 
     expect(runRecord.suggestionText).toBeNull()
@@ -183,5 +183,14 @@ describe('StrategyBotRunRecordDomain 的英文那一份', () => {
     ['somethingNew', 'Hold'],
   ])('%s 講成「%s」', (result, expected) => {
     expect(recordOf(result).resultLabel.in('en')).toBe(expected)
+  })
+})
+
+describe('StrategyBotRunRecordDomain 的監聽標的', () => {
+  it.each(['BTCUSDT', 'ETHUSDT'])('每一輪帶著它是哪一個標的跑的（%s）', (symbol) => {
+    const runRecord = new StrategyBotRunRecord(
+      102, symbol, new Date('2026-10-20T05:05:00Z'), 'sell', null, null, null).toDomain().toDto()
+
+    expect(runRecord.symbol).toBe(symbol)
   })
 })

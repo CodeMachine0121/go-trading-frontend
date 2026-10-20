@@ -13,27 +13,29 @@ import { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { aWatchedSymbolDto } from '../../fixtures/strategy-bot-watched-symbol'
+import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 
 function runningState() {
   return new StrategyBotRunStateDto(
-    true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, new LocalizedTextVo('買入', 'Buy'), false, true, false,
+    true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, null, false, true, false,
     new LocalizedTextVo('這台機器人正在執行中，要先停止它才改得動', 'This bot is running; stop it before editing'))
 }
 
 function stoppedState() {
   return new StrategyBotRunStateDto(
-    false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null)
+    false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null)
 }
 
 function haltedState() {
   return new StrategyBotRunStateDto(
     false, true, false, new LocalizedTextVo('停擺', 'Halted'), 'danger',
-    new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'), new LocalizedTextVo('買入', 'Buy'), true, false, true, null)
+    new LocalizedTextVo('機器人金鑰不被接受', 'The bot token was not accepted'), null, true, false, true, null)
 }
 
 function botDto(id: number, name: string, runState: StrategyBotRunStateDto) {
   return new StrategyBotDto(
-    id, name, 'BTCUSDT', 5, 9, '黃金交叉',
+    id, name, [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉',
     runState,
     null,
   )
@@ -110,7 +112,7 @@ describe('StrategyBotListPanel 的清單', () => {
     })
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="bot-last-sent-signal"]').text()).toContain('還沒送出過')
+    expect(wrapper.get('[data-testid="bot-watched-symbol-state"]').text()).toBe('BTCUSDT · 還沒送出過')
   })
 
   it('停擺的那一台把原因說出來', async () => {
@@ -219,7 +221,7 @@ describe('StrategyBotListPanel 的執行紀錄', () => {
     await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
     await flushPromises()
 
-    expect(listRunRecords).toHaveBeenCalledWith(1)
+    expect(listRunRecords).toHaveBeenCalledWith(new StrategyBotRunRecordQueryDto(1, null))
     expect(wrapper.find('[data-testid="run-history-empty"]').exists()).toBe(true)
   })
 
@@ -367,8 +369,8 @@ describe('StrategyBotListPanel 上那一句「存好了」', () => {
 describe('StrategyBotListPanel 在合約那一頁', () => {
   function contractBot(leverageLabel: LocalizedTextVo | null) {
     return new StrategyBotDto(
-      8, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉', stoppedState(), null,
-      'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), leverageLabel, '/contract-strategy-bots/8')
+      8, '費率反轉', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 11, '費率反轉', stoppedState(), null,
+      'contractKCandle', leverageLabel, '/contract-strategy-bots/8')
   }
 
   it('只向後端要合約機器人', async () => {
@@ -379,8 +381,8 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
   })
 
   it.each([
-    { leverageLabel: new LocalizedTextVo('5 倍', '5x'), expected: 'BTCUSDT 永續合約 · 每 5 分鐘 · 5 倍' },
-    { leverageLabel: null, expected: 'BTCUSDT 永續合約 · 每 5 分鐘' },
+    { leverageLabel: new LocalizedTextVo('5 倍', '5x'), expected: '每 5 分鐘 · 5 倍' },
+    { leverageLabel: null, expected: '每 5 分鐘' },
   ])('一列寫著「$expected」', async ({ leverageLabel, expected }) => {
     const { wrapper } = mountPanel(
       { listStrategyBots: vi.fn().mockResolvedValue([contractBot(leverageLabel)]) }, 'contractKCandle')
@@ -400,9 +402,9 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     await flushPromises()
 
     const row = wrapper.get('[data-testid="bot-row"]')
-    expect(row.text()).toContain('BTCUSDT perpetual contract · every 5 min · 5x')
+    expect(row.text()).toContain('every 5 min · 5x')
     expect(row.get('[data-testid="bot-status-badge"]').text()).toBe('Stopped')
-    expect(row.get('[data-testid="bot-last-sent-signal"]').text()).toBe('Last signal: None sent yet')
+    expect(row.get('[data-testid="bot-watched-symbols"]').text()).toBe('Watched symbols: BTCUSDT · None sent yet')
     expect(row.get('[data-testid="bot-start"]').text()).toBe('Start')
     expect(row.get('[data-testid="bot-run-now"]').text()).toBe('Run now')
   })
@@ -423,7 +425,7 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
       listStrategyBots: vi.fn().mockResolvedValue([contractBot(null)]),
       listRunRecords: vi.fn().mockResolvedValue([
         new StrategyBotRunRecordDto(
-          1, new Date('2026-09-24T05:00:00Z'), new LocalizedTextVo('持有', 'Hold'), 'neutral', false, null)]),
+          1, 'BTCUSDT', new Date('2026-09-24T05:00:00Z'), new LocalizedTextVo('持有', 'Hold'), 'neutral', false, null)]),
     }, marketDataKind)
     await flushPromises()
 
@@ -431,6 +433,74 @@ describe('StrategyBotListPanel 在合約那一頁', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="run-history-note"]').exists()).toBe(shown)
+  })
+})
+
+describe('StrategyBotListPanel 的監聽標的', () => {
+  function partlyHaltedState() {
+    return new StrategyBotRunStateDto(
+      true, false, true, new LocalizedTextVo('執行中', 'Running'), 'success', null,
+      new LocalizedTextVo('1 個標的停擺', '1 symbol halted'), false, true, false, null)
+  }
+
+  function botWatchingTwo() {
+    return new StrategyBotDto(
+      1, '早盤突破', [
+        aWatchedSymbolDto({ symbol: 'BTCUSDT', stateLabel: new LocalizedTextVo('買入', 'Buy') }),
+        aWatchedSymbolDto({
+          symbol: 'ETHUSDT',
+          stateLabel: new LocalizedTextVo('停擺', 'Halted'),
+          stateTone: 'danger',
+          isHalted: true,
+          isConflicting: true,
+          haltReasonLabel: new LocalizedTextVo('有一支策略腳本算不出來', 'One of its strategy scripts failed to calculate'),
+        }),
+      ], 5, 9, '黃金交叉', partlyHaltedState(), null)
+  }
+
+  it('每一列每個監聽標的一個小標籤，停擺的那一個滑過看得到原因', async () => {
+    const { wrapper } = mountPanel({ listStrategyBots: vi.fn().mockResolvedValue([botWatchingTwo()]) })
+    await flushPromises()
+
+    const chips = wrapper.findAll('[data-testid="bot-watched-symbol-state"]')
+    expect(chips.map(chip => chip.text())).toEqual(['BTCUSDT · 買入', 'ETHUSDT · 停擺'])
+    expect(chips[1]?.attributes('title')).toBe('有一支策略腳本算不出來')
+    expect(chips[0]?.attributes('title')).toBeUndefined()
+  })
+
+  it('部分標的停擺時機器人仍是執行中，另標幾個標的停擺，也標規則打架', async () => {
+    const { wrapper } = mountPanel({ listStrategyBots: vi.fn().mockResolvedValue([botWatchingTwo()]) })
+    await flushPromises()
+
+    const row = wrapper.get('[data-testid="bot-row"]')
+    expect(row.get('[data-testid="bot-status-badge"]').text()).toBe('執行中')
+    expect(row.get('[data-testid="bot-halted-watched-symbols-badge"]').text()).toBe('1 個標的停擺')
+    expect(row.get('[data-testid="bot-conflicting-badge"]').text()).toBe('規則打架了')
+    expect(row.find('[data-testid="bot-halt-reason"]').exists()).toBe(false)
+  })
+
+  it.each([false, true])('選中那一台時列出每個監聽標的與停擺原因（內嵌：%s）', async (showsDetailInline) => {
+    const { wrapper } = mountPanel(
+      { listStrategyBots: vi.fn().mockResolvedValue([botWatchingTwo()]) }, 'kCandle', showsDetailInline)
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="watched-symbol-row"]')).toHaveLength(2)
+    expect(wrapper.get('[data-testid="watched-symbol-halt-reason"]').text()).toBe('有一支策略腳本算不出來')
+  })
+
+  it('執行紀錄挑一個標的就只撈那一個標的的', async () => {
+    const listRunRecords = vi.fn().mockResolvedValue([])
+    const { wrapper } = mountPanel({ listStrategyBots: vi.fn().mockResolvedValue([botWatchingTwo()]), listRunRecords })
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="run-history-symbol-filter"]').setValue('ETHUSDT')
+    await flushPromises()
+
+    expect(listRunRecords).toHaveBeenLastCalledWith(new StrategyBotRunRecordQueryDto(1, 'ETHUSDT'))
   })
 })
 
@@ -501,8 +571,8 @@ describe('StrategyBotListPanel 選中一台之後', () => {
 describe('StrategyBotListPanel 的自動下單', () => {
   function botWithAutoOrder(id: number, name: string, autoOrderEnabled: boolean, runState = runningState()) {
     return new StrategyBotDto(
-      id, name, 'BTCUSDT', 5, 9, '黃金交叉', runState, null,
-      'kCandle', new UntranslatedTextVo('BTCUSDT'), null, `/strategy-bots/${id}`, autoOrderEnabled)
+      id, name, [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉', runState, null,
+      'kCandle', null, `/strategy-bots/${id}`, autoOrderEnabled)
   }
 
   async function mountWithSelected(
@@ -544,14 +614,17 @@ describe('StrategyBotListPanel 的自動下單', () => {
     expect(wrapper.get('[data-testid="auto-order-notice"]').text()).toContain('現貨機器人目前還不會自動下單')
   })
 
-  it('清單頁不畫機器人持倉，那是詳細頁的事', async () => {
+  it('機器人持倉畫在每個監聽標的上，不在開關旁', async () => {
     const withPosition = new StrategyBotDto(
-      1, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉', runningState(), null,
-      'kCandle', new UntranslatedTextVo('BTCUSDT'), null, '/strategy-bots/1', true,
-      new LocalizedTextVo('多 0.002', 'Long 0.002'))
+      1, '早盤突破', [
+        aWatchedSymbolDto({ symbol: 'BTCUSDT', autoOrderPositionLabel: new LocalizedTextVo('多 0.01', 'Long 0.01') }),
+        aWatchedSymbolDto({ symbol: 'ETHUSDT', autoOrderPositionLabel: new LocalizedTextVo('空手', 'Flat') }),
+      ], 5, 9, '黃金交叉', runningState(), null, 'kCandle', null, '/strategy-bots/1', true)
     const { wrapper } = await mountWithSelected([withPosition])
 
     expect(wrapper.find('[data-testid="auto-order-position"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="watched-symbol-position"]').map(position => position.text()))
+      .toEqual(['機器人持倉：多 0.01', '機器人持倉：空手'])
   })
 
   it('執行中的機器人也打得開，打開之後那一列標出自動下單', async () => {

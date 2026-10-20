@@ -11,6 +11,8 @@ function mountHistory(options: {
   runRecords?: StrategyBotRunRecordDto[]
   loading?: boolean
   failureMessage?: LocalizedTextVo
+  symbolOptions?: string[]
+  selectedSymbol?: string | null
 } = {}) {
   return mount(StrategyBotRunHistory, {
     props: {
@@ -18,6 +20,8 @@ function mountHistory(options: {
       loading: options.loading ?? false,
       failureMessage: options.failureMessage ?? null,
       timeZoneIdentifier: 'Asia/Taipei',
+      symbolOptions: options.symbolOptions,
+      selectedSymbol: options.selectedSymbol,
     },
   })
 }
@@ -31,14 +35,14 @@ function runRecord(
 ) {
   // 這裡測的是元件怎麼畫，不是那幾個詞怎麼翻：照一種說法傳進去就夠了。
   return new StrategyBotRunRecordDto(
-    runNumber, new Date('2026-09-16T05:05:00Z'), new UntranslatedTextVo(resultLabel), resultTone, needsAttention,
+    runNumber, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), new UntranslatedTextVo(resultLabel), resultTone, needsAttention,
     suggestionText === null ? null : new UntranslatedTextVo(suggestionText))
 }
 
 describe('StrategyBotRunHistory', () => {
   function runWithAutoOrder(autoOrder: ContractAutoOrderResultDto | null) {
     return new StrategyBotRunRecordDto(
-      52, new Date('2026-10-04T06:30:00Z'), new UntranslatedTextVo('買入'), 'success', false,
+      52, 'BTCUSDT', new Date('2026-10-04T06:30:00Z'), new UntranslatedTextVo('買入'), 'success', false,
       new UntranslatedTextVo('做多 3 倍 · 保證金 50'), autoOrder)
   }
 
@@ -214,11 +218,51 @@ describe('StrategyBotRunHistory 的註腳', () => {
   })
 })
 
+describe('StrategyBotRunHistory 的監聽標的', () => {
+  it('每一列寫著它是哪一個標的', () => {
+    const wrapper = mountHistory({ runRecords: [
+      new StrategyBotRunRecordDto(102, 'ETHUSDT', new Date('2026-10-20T05:05:00Z'), new UntranslatedTextVo('賣出'), 'danger', false, null),
+      new StrategyBotRunRecordDto(101, 'BTCUSDT', new Date('2026-10-20T05:05:00Z'), new UntranslatedTextVo('買入'), 'success', false, null),
+    ] })
+
+    expect(wrapper.findAll('[data-testid="run-history-symbol"]').map(symbol => symbol.text())).toEqual(['ETHUSDT', 'BTCUSDT'])
+  })
+
+  it.each([
+    { name: '盯兩個標的', symbolOptions: ['BTCUSDT', 'ETHUSDT'], shown: true },
+    { name: '只盯一個標的', symbolOptions: ['BTCUSDT'], shown: false },
+    { name: '沒給標的', symbolOptions: undefined, shown: false },
+  ])('$name 時標的選單出現：$shown', ({ symbolOptions, shown }) => {
+    const wrapper = mountHistory({ symbolOptions })
+
+    expect(wrapper.find('[data-testid="run-history-symbol-filter"]').exists()).toBe(shown)
+  })
+
+  it('選單列出全部標的與每一個監聽標的，並停在目前挑的那一個', () => {
+    const wrapper = mountHistory({ symbolOptions: ['BTCUSDT', 'ETHUSDT'], selectedSymbol: 'ETHUSDT' })
+
+    const filter = wrapper.get('[data-testid="run-history-symbol-filter"]')
+    expect(filter.findAll('option').map(option => option.text())).toEqual(['全部標的', 'BTCUSDT', 'ETHUSDT'])
+    expect((filter.element as HTMLSelectElement).value).toBe('ETHUSDT')
+  })
+
+  it.each([
+    { picked: 'ETHUSDT', expected: 'ETHUSDT' },
+    { picked: '', expected: null },
+  ])('挑「$picked」時說要看 $expected', async ({ picked, expected }) => {
+    const wrapper = mountHistory({ symbolOptions: ['BTCUSDT', 'ETHUSDT'], selectedSymbol: 'BTCUSDT' })
+
+    await wrapper.get('[data-testid="run-history-symbol-filter"]').setValue(picked)
+
+    expect(wrapper.emitted('selectSymbol')).toEqual([[expected]])
+  })
+})
+
 describe('StrategyBotRunHistory 切成英文', () => {
   it('結果、建議與操作台自己說的那幾句都換成英文', async () => {
     const wrapper = mountHistory({
       runRecords: [new StrategyBotRunRecordDto(
-        3, new Date('2026-09-16T05:05:00Z'), new LocalizedTextVo('衝突', 'Conflict'), 'warning', true,
+        3, 'BTCUSDT', new Date('2026-09-16T05:05:00Z'), new LocalizedTextVo('衝突', 'Conflict'), 'warning', true,
         new LocalizedTextVo('押 5000', 'Stake 5000'))],
     })
 

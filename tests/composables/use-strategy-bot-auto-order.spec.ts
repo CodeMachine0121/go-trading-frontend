@@ -10,13 +10,14 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { aWatchedSymbolDto } from '../fixtures/strategy-bot-watched-symbol'
 
 function botDto(id: number, autoOrderEnabled: boolean) {
   return new StrategyBotDto(
-    id, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
+    id, '早盤突破', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, new LocalizedTextVo('買入', 'Buy'), false, true, false, null),
-    null, 'kCandle', new UntranslatedTextVo('BTCUSDT'), null, `/strategy-bots/${id}`, autoOrderEnabled)
+      true, false, false, new LocalizedTextVo('執行中', 'Running'), 'success', null, null, false, true, false, null),
+    null, 'kCandle', null, `/strategy-bots/${id}`, autoOrderEnabled)
 }
 
 const NOT_CONFIGURED = new AutoOrderRefusalDto(3, new UntranslatedTextVo('請先完成幣安交易金鑰設定，才能打開自動下單'), true)

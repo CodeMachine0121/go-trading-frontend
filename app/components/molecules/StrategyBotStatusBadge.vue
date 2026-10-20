@@ -34,6 +34,15 @@ const { localize } = useLocalizedText()
       {{ t('strategyBot.statusBadge.conflicting') }}
     </AppBadge>
 
+    <!-- 只停了部分標的：機器人還在跑，用警示而不是危險，與整台停擺分得開。 -->
+    <AppBadge
+      v-if="runState.haltedWatchedSymbolsLabel !== null"
+      variant="warning"
+      data-testid="bot-halted-watched-symbols-badge"
+    >
+      {{ localize(runState.haltedWatchedSymbolsLabel) }}
+    </AppBadge>
+
     <!-- 停擺原因是使用者要去處理的那一句，所以它跟著標籤走、不必點開才看得到。 -->
     <p
       v-if="runState.isHalted && runState.haltReasonLabel !== null"

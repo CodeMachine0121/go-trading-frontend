@@ -15,12 +15,13 @@ import { TradingSymbolApplication } from '~/application/trading-symbol-applicati
 import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { aWatchedSymbolDto } from '../../fixtures/strategy-bot-watched-symbol'
 
 function aStoredBot(positionPlan: PositionPlanDto | null = null) {
   return new StrategyBotDto(
-    7, '早盤突破', 'BTCUSDT', 5, 9, '黃金交叉',
+    7, '早盤突破', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 9, '黃金交叉',
     new StrategyBotRunStateDto(
-      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
     positionPlan,
   )
 }
@@ -124,12 +125,12 @@ describe('StrategyBotForm 存得下去嗎', () => {
     const saved = wrapper.emitted('save')?.[0]?.[0] as {
       id: number
       name: string
-      symbol: string
+      symbols: string[]
       tradingStrategyId: number
     }
     expect(saved.id).toBe(7)
     expect(saved.name).toBe('早盤突破')
-    expect(saved.symbol).toBe('BTCUSDT')
+    expect(saved.symbols).toEqual(['BTCUSDT'])
     expect(saved.tradingStrategyId).toBe(9)
   })
 
@@ -314,11 +315,89 @@ function contractSymbolApplication() {
 
 function aContractBot(positionPlan: PositionPlanDto | null) {
   return new StrategyBotDto(
-    7, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉',
+    7, '費率反轉', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 11, '費率反轉',
     new StrategyBotRunStateDto(
-      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
-    positionPlan, 'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), null, '/contract-strategy-bots/7')
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
+    positionPlan, 'contractKCandle', null, '/contract-strategy-bots/7')
 }
+
+function watchedSymbolsOf(wrapper: ReturnType<typeof mountForm>) {
+  return wrapper.findAll('[data-testid="bot-watched-symbol"]').map(chip => chip.text())
+}
+
+function aBotWatching(symbols: string[]) {
+  return new StrategyBotDto(
+    7, '早盤突破', symbols.map(symbol => aWatchedSymbolDto({ symbol })), 5, 9, '黃金交叉',
+    new StrategyBotRunStateDto(
+      false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
+    null,
+  )
+}
+
+describe('StrategyBotForm 的監聽標的', () => {
+  it('打開既有機器人看到它的監聽標的', async () => {
+    const wrapper = mountForm({ editing: aBotWatching(['BTCUSDT', 'ETHUSDT']) })
+    await flushPromises()
+
+    expect(watchedSymbolsOf(wrapper)).toEqual(['BTCUSDT', 'ETHUSDT'])
+  })
+
+  it('挑一個再加入，送出的是整串', async () => {
+    const wrapper = mountForm({ editing: aBotWatching(['BTCUSDT']) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('ETHUSDT')
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    expect(watchedSymbolsOf(wrapper)).toEqual(['BTCUSDT', 'ETHUSDT'])
+    expect((wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto).symbols).toEqual(['BTCUSDT', 'ETHUSDT'])
+  })
+
+  it('同一個標的不重複加入', async () => {
+    const wrapper = mountForm({ editing: aBotWatching(['BTCUSDT']) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="symbol-select"]').setValue('BTCUSDT')
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
+
+    expect(watchedSymbolsOf(wrapper)).toEqual(['BTCUSDT'])
+  })
+
+  it('拿掉一個標的後送出的只剩其他的', async () => {
+    const wrapper = mountForm({ editing: aBotWatching(['BTCUSDT', 'ETHUSDT']) })
+    await flushPromises()
+
+    await wrapper.findAll('[data-testid="bot-watched-symbol-remove"]')[1]?.trigger('click')
+    await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
+
+    expect(watchedSymbolsOf(wrapper)).toEqual(['BTCUSDT'])
+    expect((wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto).symbols).toEqual(['BTCUSDT'])
+  })
+
+  it('一個都沒挑時送不出去，並說出是哪一件事', async () => {
+    const wrapper = mountForm({ editing: aBotWatching(['BTCUSDT']) })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-watched-symbol-remove"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="bot-watched-symbols-empty"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toBe('必須指定這台機器人要盯哪些交易標的')
+    expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it.each([
+    { name: '已滿 10 個', count: 10, canAdd: false },
+    { name: '還有 9 個', count: 9, canAdd: true },
+  ])('$name 時加入的地方出現：$canAdd', async ({ count, canAdd }) => {
+    const symbols = Array.from({ length: count }, (_unused, index) => `SYMBOL${index}`)
+    const wrapper = mountForm({ editing: aBotWatching(symbols) })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-watched-symbol-add"]').exists()).toBe(canAdd)
+    expect(wrapper.text().includes('已經盯滿 10 個交易標的')).toBe(!canAdd)
+  })
+})
 
 describe('StrategyBotForm 在合約那一頁', () => {
   it('標的從合約清單挑，而且只列合約追蹤名單上的', async () => {
@@ -353,12 +432,13 @@ describe('StrategyBotForm 在合約那一頁', () => {
     await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('1000')
     await wrapper.get('[data-testid="bot-position-sizing-mode-select"]').setValue('allIn')
     await wrapper.get('[data-testid="bot-position-leverage-input"]').setValue(typed)
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
 
     await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
 
     const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
     expect(saved.marketDataKind).toBe('contractKCandle')
-    expect(saved.symbol).toBe('BTCUSDT')
+    expect(saved.symbols).toEqual(['BTCUSDT'])
     expect(saved.positionPlan?.leverage?.toString()).toBe(sent)
   })
 
@@ -372,6 +452,7 @@ describe('StrategyBotForm 在合約那一頁', () => {
     await wrapper.get('[data-testid="bot-position-capital-input"]').setValue('1000')
     await wrapper.get('[data-testid="bot-position-sizing-mode-select"]').setValue('allIn')
     await wrapper.get('[data-testid="bot-position-leverage-input"]').setValue('0.5')
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
 
     expect(wrapper.get('[data-testid="bot-form-rejection"]').text()).toBe('槓桿倍數不得小於 1 倍')
     expect(wrapper.get('[data-testid="bot-form-save"]').attributes('disabled')).toBeDefined()
@@ -405,10 +486,10 @@ describe('StrategyBotForm 在合約那一頁', () => {
   })
   it('改一台盯著已移出追蹤名單的合約的機器人，只改間隔，送出去的標的不變', async () => {
     const bot = new StrategyBotDto(
-      7, '費率反轉', 'DOGEUSDT', 5, 11, '費率反轉',
+      7, '費率反轉', [aWatchedSymbolDto({ symbol: 'DOGEUSDT' })], 5, 11, '費率反轉',
       new StrategyBotRunStateDto(
-        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
-      null, 'contractKCandle', new LocalizedTextVo('DOGEUSDT 永續合約', 'DOGEUSDT perpetual contract'), null, '/contract-strategy-bots/7')
+        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
+      null, 'contractKCandle', null, '/contract-strategy-bots/7')
     const wrapper = mountForm({
       editing: bot,
       marketDataKind: 'contractKCandle',
@@ -421,7 +502,7 @@ describe('StrategyBotForm 在合約那一頁', () => {
     await wrapper.get('[data-testid="bot-form-save"]').trigger('click')
 
     const saved = wrapper.emitted('save')?.[0]?.[0] as StrategyBotWriteDto
-    expect(saved.symbol).toBe('DOGEUSDT')
+    expect(saved.symbols).toEqual(['DOGEUSDT'])
     expect(saved.triggerIntervalMinutes).toBe(15)
   })
 })
@@ -455,11 +536,11 @@ describe('StrategyBotForm 一份交易策略都沒有時，說的是這一種', 
 describe('StrategyBotForm 的開倉容許滑價', () => {
   function aContractBotWithTolerance(tolerance: string) {
     return new StrategyBotDto(
-      7, '費率反轉', 'BTCUSDT', 5, 11, '費率反轉',
+      7, '費率反轉', [aWatchedSymbolDto({ symbol: 'BTCUSDT' })], 5, 11, '費率反轉',
       new StrategyBotRunStateDto(
-        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, new LocalizedTextVo('還沒送出過', 'None sent yet'), true, false, true, null),
-      null, 'contractKCandle', new LocalizedTextVo('BTCUSDT 永續合約', 'BTCUSDT perpetual contract'), null,
-      '/contract-strategy-bots/7', false, null, new Decimal(tolerance))
+        false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
+      null, 'contractKCandle', null,
+      '/contract-strategy-bots/7', false, new Decimal(tolerance))
   }
 
   async function mountNewContractBot() {
@@ -468,6 +549,7 @@ describe('StrategyBotForm 的開倉容許滑價', () => {
     await flushPromises()
     await wrapper.get('[data-testid="bot-name-input"]').setValue('費率反轉')
     await wrapper.get('[data-testid="bot-trading-strategy-select"]').setValue('9')
+    await wrapper.get('[data-testid="bot-watched-symbol-add"]').trigger('click')
 
     return wrapper
   }

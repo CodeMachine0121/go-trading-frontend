@@ -10,6 +10,7 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { AutoOrderRefusedError } from '~/domain/errors/auto-order-refused-error'
 import { AutoOrderRefusalDomain } from '~/domain/models/domains/auto-order-refusal-domain'
 import { AutoOrderSwitchResultDto } from '~/domain/models/dto/auto-order-switch-result-dto'
+import type { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 
 /**
  * Domain Service：策略機器人的編排。
@@ -82,8 +83,8 @@ export class StrategyBotService {
   }
 
   /** 這台機器人跑過哪幾輪。一輪都沒跑過是答案，不是錯誤。 */
-  async listRunRecords(id: number): Promise<StrategyBotRunRecordDto[]> {
-    const runRecords = await this.strategyBotProxy.listRunRecords(id)
+  async listRunRecords(query: StrategyBotRunRecordQueryDto): Promise<StrategyBotRunRecordDto[]> {
+    const runRecords = await this.strategyBotProxy.listRunRecords(query)
 
     return runRecords.map(runRecord => runRecord.toDomain().toDto())
   }
