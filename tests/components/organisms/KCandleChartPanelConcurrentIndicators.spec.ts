@@ -387,4 +387,20 @@ describe('跟盤重算照舊不打擾', () => {
     expect(sentStrategyScriptIds(recalculations.pending)).toEqual([7, 8, 9])
     expect(calculations.pending).toHaveLength(3)
   })
+
+  it('使用者換標的時三支走使用者在等的那一條，頂端進度條照舊會亮', async () => {
+    const { wrapper, calculations, recalculations } = await mountPanel([7, 8, 9])
+
+    for (const one of calculations.pending) {
+      one.succeed('比特幣的值')
+    }
+    await flushPromises()
+
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
+    await settle()
+
+    expect(calculations.pending.slice(3).map(one => one.request.symbol))
+      .toEqual(['ETHUSDT', 'ETHUSDT', 'ETHUSDT'])
+    expect(recalculations.pending).toHaveLength(0)
+  })
 })
