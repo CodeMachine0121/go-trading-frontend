@@ -212,6 +212,16 @@ describe('好幾支同時算，但同時最多三支', () => {
     expect(sentStrategyScriptIds(calculations.pending)).toEqual([7, 8, 9])
   })
 
+  it('畫面收掉之後，排隊中的那一支不再送出', async () => {
+    const { wrapper, calculations } = await mountPanel([7, 8, 9, 10])
+
+    wrapper.unmount()
+    calculations.pending[0]?.succeed('均線')
+    await flushPromises()
+
+    expect(sentStrategyScriptIds(calculations.pending)).toEqual([7, 8, 9])
+  })
+
   it('只掛一支時就送那一支一次', async () => {
     const { calculations } = await mountPanel([7])
 
