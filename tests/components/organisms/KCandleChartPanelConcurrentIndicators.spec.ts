@@ -100,7 +100,14 @@ const STRATEGY_SCRIPTS = [
 /** 上次擺著的那幾支：打開畫面、行情回來時一起算。 */
 async function mountPanel(rememberedStrategyScriptIds: number[], overrides: {
   colorPreference?: Partial<IChartLineColorPreferenceProxy>
+  /** 策略腳本清單比行情晚回來：還原回來的那幾支在已經擺好位置的圖上直接算。 */
+  strategyScriptsArriveLate?: boolean
 } = {}) {
+  const strategyScriptList = { mine: STRATEGY_SCRIPTS, adopted: [] }
+  const strategyScriptsArrival = Promise.withResolvers<typeof strategyScriptList>()
+  if (!overrides.strategyScriptsArriveLate) {
+    strategyScriptsArrival.resolve(strategyScriptList)
+  }
   const calculations = deferredCalculations()
   const recalculations = deferredCalculations()
   const feed = controllableFeed()
@@ -121,7 +128,7 @@ async function mountPanel(rememberedStrategyScriptIds: number[], overrides: {
         },
       ),
       strategyScriptApplication: buildStrategyScriptApplication({
-        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: STRATEGY_SCRIPTS, adopted: [] }),
+        listAvailableStrategyScripts: vi.fn().mockReturnValue(strategyScriptsArrival.promise),
       }),
       timeZone: buildTimeZone(),
       chartDrawingApplication: buildChartDrawingApplication(),
@@ -131,6 +138,8 @@ async function mountPanel(rememberedStrategyScriptIds: number[], overrides: {
   await flushPromises()
   await openIndicatorDialog(wrapper)
   await settle()
+  strategyScriptsArrival.resolve(strategyScriptList)
+  await flushPromises()
 
   return { wrapper, calculations, recalculations, feed }
 }
@@ -195,6 +204,12 @@ describe('好幾支同時算，但同時最多三支', () => {
     await flushPromises()
 
     expect(sentStrategyScriptIds(calculations.pending)).toEqual([7, 8, 9, 10])
+  })
+
+  it('策略腳本清單晚回來時，還原的那幾支也同時送出、同樣受上限管', async () => {
+    const { calculations } = await mountPanel([7, 8, 9, 10], { strategyScriptsArriveLate: true })
+
+    expect(sentStrategyScriptIds(calculations.pending)).toEqual([7, 8, 9])
   })
 
   it('只掛一支時就送那一支一次', async () => {
@@ -278,6 +293,17 @@ describe('舊的結果不蓋掉新的', () => {
 
     const sentForTheFourth = calculations.pending.filter(one => one.request.strategyScriptId === 10)
     expect(sentForTheFourth.map(one => one.request.symbol)).toEqual(['ETHUSDT'])
+  })
+
+  it('舊的那一次先結束時，仍在算新的那一次的那一支照樣顯示正在算', async () => {
+    const { wrapper, calculations } = await mountPanel([7])
+
+    await pickSymbolInSearch(wrapper, 'ETHUSDT')
+    await settle()
+    calculations.pending[0]?.succeed('比特幣的值')
+    await flushPromises()
+
+    expect(calculatingBadgeCount(wrapper)).toBe(1)
   })
 
   it('移除之後才回來的那一支不畫回去', async () => {
