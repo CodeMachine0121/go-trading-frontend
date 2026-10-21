@@ -13,6 +13,9 @@ import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-err
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { ConcurrencyLimiter } from '~/utilities/concurrency-limiter'
+
+const CONCURRENT_INDICATOR_CALCULATION_LIMIT = 3
 
 /**
  * 圖表上「已套用的指標」這一塊的**狀態**：誰在清單上、誰正在算、誰失敗了、算出哪幾條線。
@@ -101,6 +104,9 @@ export function useChartIndicators(
    */
   const SETTLE_MILLISECONDS = 300
   let settleTimer: ReturnType<typeof setTimeout> | null = null
+
+  // 系統那一側算式全體同時最多六支，一張圖只佔一半。
+  const calculationLimiter = new ConcurrencyLimiter(CONCURRENT_INDICATOR_CALCULATION_LIMIT)
 
   /**
    * 每一支各自的「這是第幾次要求」。回來的結果只有在它仍是那一支最新的一次時才採用。
@@ -196,7 +202,7 @@ export function useChartIndicators(
   /**
    * 取這張圖挑得到的策略腳本，再把上次擺著的那幾支還原回來——清單是還原時唯一的真相。
    * 取不到清單時圖表照畫，只是沒有東西可挑、也還原不了。
-   * 行情還沒回來時不算：第一次擺好位置時 `recalculateForRange` 會補算，逐筆 await 會讓同一批被算兩遍。
+   * 行情還沒回來時不算：第一次擺好位置時 `recalculateForRange` 會補算，這裡再算會讓同一批被算兩遍。
    */
   async function loadStrategyScripts() {
     try {
@@ -233,9 +239,7 @@ export function useChartIndicators(
       return
     }
 
-    for (const appliedIndicator of restored) {
-      await calculateOne(appliedIndicator)
-    }
+    await Promise.all(restored.map(appliedIndicator => calculateOne(appliedIndicator)))
   }
 
   /**
@@ -467,9 +471,8 @@ export function useChartIndicators(
    * 所以它不讓頂端那條「正在等」的進度條亮起來。拖動圖表之後的重算不算：那是使用者的手。
    */
   async function recalculateEveryApplied(followingLiveEdge = false) {
-    for (const appliedIndicator of appliedIndicators.value) {
-      await calculateOne(appliedIndicator, followingLiveEdge)
-    }
+    await Promise.all(appliedIndicators.value.map(
+      appliedIndicator => calculateOne(appliedIndicator, followingLiveEdge)))
   }
 
   /**
@@ -511,35 +514,47 @@ export function useChartIndicators(
     forgetFailure(appliedIndicator.id)
 
     try {
-      const calculate = followingLiveEdge
-        ? chartIndicatorApplication.recalculateChartIndicator.bind(chartIndicatorApplication)
-        : chartIndicatorApplication.calculateChartIndicator.bind(chartIndicatorApplication)
-      const calculated = await calculate(
-        new ChartIndicatorRequestDto(
-          appliedIndicator,
-          chart.symbol,
-          chart.interval.value,
-          // 算的是使用者正在看的那一段，不是手上那一整批（後者兩側各多取了半段）。
-          // 顯示區間是狀態不是參數，所以剛套用的那一支與早就套上的那幾支
-          // 算的必然是同一段——沒有哪個呼叫點可以忘記帶它。
-          //
-          // 交出去的是那一段本身，不是它有幾格：一段裡有幾格取決於那個市場在這段時間
-          // 裡實際開了多久，會收盤的市場照時間除下去會多出好幾倍。
-          range.toObservationWindow(chart.latestKCandleOpenTime),
-          drawnLinesExcept(appliedIndicator.id),
-        ))
+      const calculated = await calculationLimiter.run(async () => {
+        // 排隊期間已被更新的要求取代、或畫面已收掉：不送，名額讓給下一個。
+        if (unmounted || !isLatestRequest(appliedIndicator.id, requestNumber)) {
+          return null
+        }
+
+        const calculate = followingLiveEdge
+          ? chartIndicatorApplication.recalculateChartIndicator.bind(chartIndicatorApplication)
+          : chartIndicatorApplication.calculateChartIndicator.bind(chartIndicatorApplication)
+
+        return calculate(
+          new ChartIndicatorRequestDto(
+            appliedIndicator,
+            chart.symbol,
+            chart.interval.value,
+            // 算的是使用者正在看的那一段，不是手上那一整批（後者兩側各多取了半段）。
+            // 顯示區間是狀態不是參數，所以剛套用的那一支與早就套上的那幾支
+            // 算的必然是同一段——沒有哪個呼叫點可以忘記帶它。
+            //
+            // 交出去的是那一段本身，不是它有幾格：一段裡有幾格取決於那個市場在這段時間
+            // 裡實際開了多久，會收盤的市場照時間除下去會多出好幾倍。
+            range.toObservationWindow(chart.latestKCandleOpenTime),
+            drawnLinesExcept(appliedIndicator.id),
+          ))
+      })
 
       // 這一次已經不是那一支最新的要求了（使用者又換了一次標的，或已經把它移除）：
       // 這份結果講的是另一段行情，採用它就是在圖上畫一條沒有人要求過的線。
-      if (!isLatestRequest(appliedIndicator.id, requestNumber)) {
+      if (calculated === null || !isLatestRequest(appliedIndicator.id, requestNumber)) {
         return
       }
 
-      chartIndicators.value = [
+      const replaced = [
         ...chartIndicators.value.filter(
           indicator => indicator.appliedIndicatorId !== appliedIndicator.id),
         calculated,
       ]
+      // 依清單順序排好再配色：誰先算好不影響誰拿到哪個顏色。
+      chartIndicators.value = chartIndicatorApplication.arrangeChartLineColors(
+        appliedIndicators.value.flatMap(applied => replaced.filter(
+          indicator => indicator.appliedIndicatorId === applied.id)))
     }
     catch (error: unknown) {
       if (!isLatestRequest(appliedIndicator.id, requestNumber)) {
@@ -554,7 +569,9 @@ export function useChartIndicators(
         .set(appliedIndicator.id, messageOf(error))
     }
     finally {
-      calculatingIds.value = calculatingIds.value.filter(id => id !== appliedIndicator.id)
+      // 只拿掉這一次自己那一份：同一支較新的那一次可能還在排隊或在算。
+      const ownPosition = calculatingIds.value.indexOf(appliedIndicator.id)
+      calculatingIds.value = calculatingIds.value.filter((_, position) => position !== ownPosition)
     }
   }
 

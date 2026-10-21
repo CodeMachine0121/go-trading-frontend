@@ -67,6 +67,12 @@ export class ChartIndicatorApplication {
       chartIndicatorDtos, lineKey, colorToken)
   }
 
+  arrangeChartLineColors(
+    chartIndicatorDtosInListOrder: readonly ChartIndicatorDto[],
+  ): ChartIndicatorDto[] {
+    return this.chartIndicatorService.arrangeChartLineColors(chartIndicatorDtosInListOrder)
+  }
+
   listChartLineColorOptions(): ChartLineColorOptionDto[] {
     return this.chartIndicatorService.listChartLineColorOptions()
   }

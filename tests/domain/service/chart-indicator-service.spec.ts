@@ -390,3 +390,21 @@ describe('ChartIndicatorService：圖表擺著哪幾支依行情種類分開記'
       .toHaveBeenCalledWith('contractKCandle', [])
   })
 })
+
+describe('ChartIndicatorService.arrangeChartLineColors', () => {
+  it('依清單順序替每一支重新配色，挑過的顏色照舊，不寫入任何偏好', async () => {
+    const fixture = buildService(undefined, {
+      readColorToken: vi.fn((lineKey: string) => (lineKey === '7:均價' ? '--color-chart-line-4' : null)),
+    })
+    const drawnFirst = await fixture.chartIndicatorService.calculateChartIndicator(requestOf())
+    const drawnSecond = await fixture.chartIndicatorService.calculateChartIndicator(
+      new ChartIndicatorRequestDto(
+        appliedIndicatorOf(strategyScriptOf(), 2), 'BTCUSDT', '1h', CHART_WINDOW))
+
+    const arranged = fixture.chartIndicatorService.arrangeChartLineColors([drawnFirst, drawnSecond])
+
+    expect(arranged.map(one => one.usedColorTokens))
+      .toEqual([['--color-chart-line-4'], ['--color-chart-line-1']])
+    expect(fixture.chartLineColorPreferenceProxy.writeColorToken).not.toHaveBeenCalled()
+  })
+})

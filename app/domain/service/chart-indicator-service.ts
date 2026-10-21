@@ -8,6 +8,7 @@ import { AppliedIndicatorDto } from '~/domain/models/dto/applied-indicator-dto'
 import type { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import { ChartIndicatorDomain } from '~/domain/models/domains/chart-indicator-domain'
+import { ChartLineColorArrangementDomain } from '~/domain/models/domains/chart-line-color-arrangement-domain'
 import { IndicatorCalculationRequestDomain } from '~/domain/models/domains/indicator-calculation-request-domain'
 import { RememberedAppliedIndicatorsDomain } from '~/domain/models/domains/remembered-applied-indicators-domain'
 import { StrategyScriptParametersDomain } from '~/domain/models/domains/strategy-script-parameters-domain'
@@ -213,6 +214,14 @@ export class ChartIndicatorService {
 
     return chartIndicatorDtos.map(
       chartIndicatorDto => chartIndicatorDto.withLineColor(lineKey, colorToken))
+  }
+
+  /** 依清單順序替所有已算好的指標重新配色：誰先算好不影響誰拿到哪個顏色。 */
+  arrangeChartLineColors(
+    chartIndicatorDtosInListOrder: readonly ChartIndicatorDto[],
+  ): ChartIndicatorDto[] {
+    return new ChartLineColorArrangementDomain(
+      chartIndicatorDtosInListOrder, this.chartLineColorPreferenceProxy).toChartIndicatorDtos()
   }
 
   /** 使用者可以挑的線色，含給人看的名字。清單沿用既有的那一份，不另列。 */
