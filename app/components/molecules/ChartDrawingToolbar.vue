@@ -66,6 +66,54 @@ const toggleButtons = computed<readonly { name: ToggleName, icon: 'magnet' | 'st
 /** 展開中的那一格；同時只展開一格。 */
 const expandedGroup = ref<ChartDrawingToolGroupDto['value'] | null>(null)
 
+/**
+ * 展開的那一列浮在格子右邊、以視窗為準定位：細邊本身會捲動，
+ * 留在它裡面的話整列會被它裁掉，一個都看不到。
+ */
+const flyoutPosition = ref<{ top: number, left: number } | null>(null)
+
+function toggleExpanded(group: ChartDrawingToolGroupDto['value'], event: MouseEvent) {
+  if (expandedGroup.value === group) {
+    collapse()
+    return
+  }
+
+  const cell = (event.currentTarget as HTMLElement).parentElement
+  const bounds = cell?.getBoundingClientRect()
+  flyoutPosition.value = bounds === undefined ? null : { top: bounds.top, left: bounds.right }
+  expandedGroup.value = group
+}
+
+function collapse() {
+  expandedGroup.value = null
+}
+
+let stopListening: AbortController | null = null
+
+watch(expandedGroup, (group) => {
+  stopListening?.abort()
+  stopListening = group === null ? null : new AbortController()
+  if (stopListening === null) {
+    return
+  }
+
+  const { signal } = stopListening
+  window.addEventListener('pointerdown', (event) => {
+    if (!(event.target instanceof Element) || event.target.closest('.chart-drawing-toolbar__flyout, .chart-drawing-toolbar__expand') === null) {
+      collapse()
+    }
+  }, { capture: true, signal })
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      collapse()
+    }
+  }, { signal })
+  window.addEventListener('resize', collapse, { signal })
+  window.addEventListener('scroll', collapse, { capture: true, signal })
+})
+
+onBeforeUnmount(() => stopListening?.abort())
+
 function currentToolOf(group: ChartDrawingToolGroupDto): ChartDrawingToolDto | undefined {
   const remembered = rememberedTools[group.value]
   return group.tools.find(tool => tool.value === remembered) ?? group.tools[0]
@@ -83,7 +131,7 @@ function isToolActive(tool: ChartDrawingToolDto): boolean {
 }
 
 function pick(tool: ChartDrawingToolDto) {
-  expandedGroup.value = null
+  collapse()
   emit('pickTool', tool.value)
 }
 
@@ -126,7 +174,7 @@ function titleOf(tool: ChartDrawingToolDto | undefined): string {
           :aria-label="t('marketData.chartDrawing.moreTools', { group: localize(group.label) })"
           :aria-expanded="expandedGroup === group.value"
           :data-testid="`expand-drawing-tools-${group.value}`"
-          @click="expandedGroup = expandedGroup === group.value ? null : group.value"
+          @click="toggleExpanded(group.value, $event)"
         >
           <AppIcon
             name="chevron"
@@ -138,6 +186,7 @@ function titleOf(tool: ChartDrawingToolDto | undefined): string {
           v-if="expandedGroup === group.value"
           class="chart-drawing-toolbar__flyout"
           role="menu"
+          :style="flyoutPosition === null ? undefined : { top: `${flyoutPosition.top}px`, left: `${flyoutPosition.left}px` }"
         >
           <button
             v-for="tool in group.tools"
@@ -246,10 +295,8 @@ function titleOf(tool: ChartDrawingToolDto | undefined): string {
   }
 
   &__flyout {
-    position: absolute;
+    position: fixed;
     z-index: z-index('chrome');
-    top: 0;
-    left: 100%;
     box-shadow: shadow('md');
     border-radius: radius('sm');
     background-color: color('chart-workspace-popover');

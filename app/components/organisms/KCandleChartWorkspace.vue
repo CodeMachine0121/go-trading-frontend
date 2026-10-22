@@ -167,8 +167,32 @@ function removeAllDrawings() {
     : t('marketData.chartDrawing.removedAll', { count: removedCount }, removedCount))
 }
 
-function toggleDrawingSwitch(name: 'magnet' | 'stayInDrawingMode' | 'lockAllDrawings' | 'hideAllDrawings') {
+type DrawingSwitch = 'magnet' | 'stayInDrawingMode' | 'lockAllDrawings' | 'hideAllDrawings'
+
+/** 開關按下去畫面上不一定馬上看得出差別，所以每次都說一句它現在會怎樣。 */
+const DRAWING_SWITCH_ANNOUNCEMENTS: Record<DrawingSwitch, { turnedOn: () => string, turnedOff: () => string }> = {
+  magnet: {
+    turnedOn: () => t('marketData.chartDrawing.magnetTurnedOn'),
+    turnedOff: () => t('marketData.chartDrawing.magnetTurnedOff'),
+  },
+  stayInDrawingMode: {
+    turnedOn: () => t('marketData.chartDrawing.stayInDrawingModeTurnedOn'),
+    turnedOff: () => t('marketData.chartDrawing.stayInDrawingModeTurnedOff'),
+  },
+  lockAllDrawings: {
+    turnedOn: () => t('marketData.chartDrawing.lockAllDrawingsTurnedOn'),
+    turnedOff: () => t('marketData.chartDrawing.lockAllDrawingsTurnedOff'),
+  },
+  hideAllDrawings: {
+    turnedOn: () => t('marketData.chartDrawing.hideAllDrawingsTurnedOn'),
+    turnedOff: () => t('marketData.chartDrawing.hideAllDrawingsTurnedOff'),
+  },
+}
+
+function toggleDrawingSwitch(name: DrawingSwitch) {
   drawings[name].value = !drawings[name].value
+  const announcement = DRAWING_SWITCH_ANNOUNCEMENTS[name]
+  showToast(drawings[name].value ? announcement.turnedOn() : announcement.turnedOff())
 }
 
 function pickTool(value: Parameters<typeof drawings.pickTool>[0]) {

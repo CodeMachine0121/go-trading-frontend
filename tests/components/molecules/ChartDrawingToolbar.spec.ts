@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import ChartDrawingToolbar from '~/components/molecules/ChartDrawingToolbar.vue'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
 
@@ -7,8 +8,11 @@ const TOOL_GROUPS = buildChartDrawingApplication().listToolGroups()
 const REMEMBERED = { cursor: 'cross', lines: 'trendLine', fibonacci: 'fibonacciRetracement', shapes: 'rectangle', measure: 'dateAndPriceRange' } as const
 const TOGGLES = { magnet: false, stayInDrawingMode: true, lockAllDrawings: false, hideAllDrawings: false }
 
-function mountToolbar(overrides: { activeDrawingKind?: 'trendLine' | 'verticalLine' | null, rememberedLines?: 'trendLine' | 'verticalLine' } = {}) {
+const isExpanded = (wrapper: ReturnType<typeof mountToolbar>) => wrapper.find('[role="menu"]').exists()
+
+function mountToolbar(overrides: { activeDrawingKind?: 'trendLine' | 'verticalLine' | null, rememberedLines?: 'trendLine' | 'verticalLine', attachTo?: HTMLElement } = {}) {
   return mount(ChartDrawingToolbar, {
+    attachTo: overrides.attachTo,
     props: {
       toolGroups: TOOL_GROUPS,
       rememberedTools: { ...REMEMBERED, lines: overrides.rememberedLines ?? 'trendLine' },
@@ -68,6 +72,43 @@ describe('左邊細邊：工具格', () => {
 
     expect(wrapper.emitted('pickTool')).toEqual([['verticalLine']])
     expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+  })
+})
+
+describe('左邊細邊：展開的那一列怎麼收起來', () => {
+  it.each([
+    ['按圖上別的地方', () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))],
+    ['按 Esc', () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))],
+    ['視窗改了大小', () => window.dispatchEvent(new Event('resize'))],
+  ])('%s就收起來', async (_, collapseBy) => {
+    const wrapper = mountToolbar()
+    await wrapper.get('[data-testid="expand-drawing-tools-lines"]').trigger('click')
+
+    collapseBy()
+    await nextTick()
+
+    expect(isExpanded(wrapper)).toBe(false)
+  })
+
+  it('按同一格的箭頭第二次就收起來', async () => {
+    const wrapper = mountToolbar()
+    const expand = wrapper.get('[data-testid="expand-drawing-tools-lines"]')
+
+    await expand.trigger('click')
+    await expand.trigger('click')
+
+    expect(isExpanded(wrapper)).toBe(false)
+  })
+
+  it('在展開的那一列裡按下去不會收起來', async () => {
+    const wrapper = mountToolbar({ attachTo: document.body })
+    await wrapper.get('[data-testid="expand-drawing-tools-lines"]').trigger('click')
+
+    wrapper.get('[data-testid="drawing-tool-ray"]').element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await nextTick()
+
+    expect(isExpanded(wrapper)).toBe(true)
+    wrapper.unmount()
   })
 })
 
