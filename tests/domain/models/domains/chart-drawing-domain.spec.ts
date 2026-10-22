@@ -146,9 +146,12 @@ describe('ChartDrawingDomain：奇異筆', () => {
     [200, true],
     [201, false],
   ])('整筆換成 %s 個點：收不收（%s）', (count, accepted) => {
-    const replaced = brushOf(5).toDomain().applied(new ChartDrawingCommandDto('replaceAnchors', brushAnchors(count)))
+    const original = brushOf(5).toDomain()
 
-    expect(replaced.toDto().anchors.length === count).toBe(accepted)
+    const replaced = original.applied(new ChartDrawingCommandDto('replaceAnchors', brushAnchors(count)))
+
+    expect(replaced !== original).toBe(accepted)
+    expect(replaced.toDto().anchors).toHaveLength(accepted ? count : 5)
   })
 
   it('沒有逐點把手的自由筆跡、預設可改樣式', () => {

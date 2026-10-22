@@ -81,6 +81,8 @@ describe('DeviceChartDrawingProxy：這台裝置上的舊繪圖', () => {
         { ...good, anchors: [{ openTime: 5, price: '1' }] },
         // 趨勢線要兩個點，只有一個畫不出來
         { ...good, kind: 'trendLine' },
+        // 趨勢線最多兩個點，三個也畫不出來
+        { ...good, kind: 'trendLine', anchors: [good.anchors[0], good.anchors[0], good.anchors[0]] },
       ],
     }))
 

@@ -719,10 +719,15 @@ describe('ChartDrawingLayer：奇異筆', () => {
   })
 
   it.each([
-    ['筆跡旁邊 4 像素', [200, 204], [1]],
-    ['離筆跡 20 像素', [200, 220], undefined],
+    ['第一段旁邊 4 像素', [150, 204], [1]],
+    ['第二段旁邊 3 像素', [252, 152], [1]],
+    ['離筆跡 20 像素', [150, 220], undefined],
   ] as const)('游標點在%s：選取（%s）', async (_, at, selected) => {
-    const wrapper = mountLayer({ drawings: [straightBrush()] })
+    // 先往右平、再往右上：第 10 根到第 20 根在 800，第 20 根到第 30 根升到 900。
+    const bent = chartDrawingOf(1, 'brush', [
+      anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(20), '800'), anchorOf(openTimeOf(30), '900'),
+    ]).toDomain().toDto()
+    const wrapper = mountLayer({ drawings: [bent] })
 
     await press(wrapper, [at[0], at[1]])
 
