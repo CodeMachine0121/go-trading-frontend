@@ -748,6 +748,40 @@ describe('ChartDrawingLayer：奇異筆', () => {
     expect(wrapper.emitted('select')).toBeUndefined()
   })
 
+  it.each([
+    ['選取中', 1, [8, 2]],
+    ['沒選取', null, [2]],
+  ] as const)('%s的奇異筆：選取時底下多一道較寬的淡色光暈（每一筆畫的線寬 %s → %s）', async (_, selectedDrawingId, lineWidths) => {
+    const strokedWidths: unknown[] = []
+    const state: Record<string, unknown> = {}
+    const context = new Proxy(state, {
+      get: (target, property: string) => {
+        if (property === 'stroke') {
+          return () => strokedWidths.push(target.lineWidth)
+        }
+        if (property === 'measureText') {
+          return () => ({ width: 10 })
+        }
+        return property in target ? target[property] : () => {}
+      },
+      set: (target, property: string, value: unknown) => {
+        target[property] = value
+        return true
+      },
+    })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D)
+    const frames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback))
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+
+    mountLayer({ drawings: [chartDrawingOf(1, 'brush', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '800')], false, 2).toDomain().toDto()], selectedDrawingId })
+    frames.shift()?.(0)
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+
+    expect(strokedWidths).toEqual(lineWidths)
+  })
+
   it('選取中的奇異筆從端點拖：整筆一起移，不是只動那一點', async () => {
     const wrapper = mountLayer({ drawings: [straightBrush()], selectedDrawingId: 1 })
 

@@ -190,7 +190,7 @@ export class ChartDrawingService {
     return drawings.map(drawing => drawing.toEntity().toDomain().placedOn(timeline, chart.kCandles))
   }
 
-  /** 左邊細邊的五格：游標一格，其餘依繪圖目錄分好。 */
+  /** 左邊細邊的工具格：游標一格，其餘依繪圖目錄分好。 */
   listToolGroups(): ChartDrawingToolGroupDto[] {
     return [
       new ChartDrawingToolGroupDto('cursor', CURSOR_TOOL_GROUP_LABEL,

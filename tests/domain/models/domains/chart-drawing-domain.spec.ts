@@ -162,6 +162,17 @@ describe('ChartDrawingDomain：奇異筆', () => {
     expect(drawing.kindLabel.traditionalChinese).toBe('奇異筆')
   })
 
+  it('改成藍色、線寬 4、虛線', () => {
+    const changed = [
+      new ChartDrawingCommandDto('changeColor', [], '--color-drawing-blue'),
+      new ChartDrawingCommandDto('cycleLineWidth'),
+      new ChartDrawingCommandDto('cycleLineWidth'),
+      new ChartDrawingCommandDto('cycleLineStyle'),
+    ].reduce((drawing, command) => drawing.applied(command), chartDrawingOf(1, 'brush', brushAnchors(3), false, 2).toDomain()).toDto()
+
+    expect([changed.colorToken, changed.lineWidth, changed.lineStyle]).toEqual(['--color-drawing-blue', 4, 'dashed'])
+  })
+
   it('放到一小時圖上：點落在那一根裡的位置，不對齊到整根', () => {
     const chart = kCandleChartOf('1h', [new KCandleSpec(TEN_O_CLOCK), new KCandleSpec(ELEVEN_O_CLOCK)])
     const brush = chartDrawingOf(1, 'brush', [anchorOf('2026-10-16T10:15:00.000Z', '100'), anchorOf('2026-10-16T11:45:00.000Z', '101')])
