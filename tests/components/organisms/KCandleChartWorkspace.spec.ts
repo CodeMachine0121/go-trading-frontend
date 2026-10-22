@@ -256,6 +256,22 @@ describe('KCandleChartWorkspace：繪圖', () => {
     expect(wrapper.get('[data-testid="drawing-toggle-hideAllDrawings"]').attributes('aria-pressed')).toBe('true')
   })
 
+  it.each([
+    ['magnet', '磁鐵模式已開啟：放點與拖動端點時，會吸到最近那根 K 線的開高低收', '磁鐵模式已關閉：點放在哪就是哪個價格'],
+    ['stayInDrawingMode', '連續繪圖已開啟：畫完一個仍留在同一個工具，按 Esc 回到游標', '連續繪圖已關閉：畫完一個就回到游標'],
+    ['lockAllDrawings', '已鎖定所有繪圖：仍可選取與刪除，但不會被拖動', '已解除鎖定：繪圖可以拖動與調整端點'],
+    ['hideAllDrawings', '已隱藏所有繪圖', '已顯示所有繪圖'],
+  ])('按 %s 開關：每次都說它現在會怎樣', async (name, turnedOn, turnedOff) => {
+    const wrapper = mountWorkspace()
+    const toggle = wrapper.get(`[data-testid="drawing-toggle-${name}"]`)
+
+    await toggle.trigger('click')
+    expect(toast(wrapper).text()).toBe(turnedOn)
+
+    await toggle.trigger('click')
+    expect(toast(wrapper).text()).toBe(turnedOff)
+  })
+
   it('在手機上按鉛筆：叫出繪圖工具；選了一個工具就收起', async () => {
     const wrapper = mountWorkspace()
 
