@@ -85,35 +85,27 @@ describe('useChartDrawings：選工具', () => {
 })
 
 describe('useChartDrawings：畫完、選取、隱藏', () => {
-  it('畫完一個：它被選取、工具回到游標', async () => {
+  it.each(['trendLine', 'horizontalLine', 'rectangle', 'brush'] as const)('畫完一個%s：它被選取、工具仍是原本選的那一個', async (kind) => {
+    const { drawings, application } = await drawingsUnderTest()
+    drawings.pickTool(kind)
+    const anchors = kind === 'horizontalLine'
+      ? [anchorOf(TEN_O_CLOCK, '1')]
+      : [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]
+
+    drawings.finishDrawing(application.draftDrawing(kind, anchors))
+
+    expect(drawings.selectedDrawing.value?.kind).toBe(kind)
+    expect(drawings.activeDrawingKind.value).toBe(kind)
+  })
+
+  it('畫完之後按 Esc：回到游標', async () => {
     const { drawings, application } = await drawingsUnderTest()
     drawings.pickTool('trendLine')
-
     drawings.finishDrawing(application.draftDrawing('trendLine', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
 
-    expect(drawings.selectedDrawing.value?.kind).toBe('trendLine')
+    drawings.returnToCursor()
+
     expect(drawings.activeDrawingKind.value).toBeNull()
-  })
-
-  it('開著連續繪圖：畫完一個工具不變', async () => {
-    const { drawings, application } = await drawingsUnderTest()
-    drawings.stayInDrawingMode.value = true
-    drawings.pickTool('rectangle')
-
-    drawings.finishDrawing(application.draftDrawing('rectangle', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
-
-    expect(drawings.activeDrawingKind.value).toBe('rectangle')
-  })
-
-  it('開著連續繪圖畫完一筆奇異筆：仍是奇異筆', async () => {
-    const { drawings, application } = await drawingsUnderTest()
-    drawings.stayInDrawingMode.value = true
-    drawings.pickTool('brush')
-
-    drawings.finishDrawing(application.draftDrawing('brush', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
-
-    expect(drawings.selectedDrawing.value?.kind).toBe('brush')
-    expect(drawings.activeDrawingKind.value).toBe('brush')
   })
 
   it('板上已經 4000 個點時再畫一條：不收、不算一步、提示已達上限，工具不變', async () => {

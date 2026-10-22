@@ -11,7 +11,7 @@ import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
 type ToolValue = ChartCursorStyleValue | ChartDrawingKindValue
 
 /**
- * 圖上繪圖這一塊的**畫面狀態**：這一檔的繪圖板、選了哪個工具、選取了哪一個、四個開關。
+ * 圖上繪圖這一塊的**畫面狀態**：這一檔的繪圖板、選了哪個工具、選取了哪一個、三個開關。
  *
  * 它不做任何業務判斷——一個繪圖能不能改、上一步回到哪、落點對到哪一根，一律問 Application。
  * 它持有的是「現在畫面上是什麼樣子」，不是規則。
@@ -37,7 +37,6 @@ export function useChartDrawings(
   const activeDrawingKind = ref<ChartDrawingKindValue | null>(null)
   const cursorStyle = ref<ChartCursorStyleValue>('cross')
   const magnet = ref(false)
-  const stayInDrawingMode = ref(false)
   const lockAllDrawings = ref(false)
   const hideAllDrawings = ref(false)
   const selectedDrawingId = ref<number | null>(null)
@@ -132,9 +131,6 @@ export function useChartDrawings(
       return
     }
     selectedDrawingId.value = board.value.drawings.at(-1)?.id ?? null
-    if (!stayInDrawingMode.value) {
-      activeDrawingKind.value = null
-    }
   }
 
   function selectDrawing(id: number | null) {
@@ -180,7 +176,6 @@ export function useChartDrawings(
     activeDrawingKind,
     cursorStyle,
     magnet,
-    stayInDrawingMode,
     lockAllDrawings,
     hideAllDrawings,
     shownDrawings,
