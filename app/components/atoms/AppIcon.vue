@@ -71,7 +71,6 @@ type IconName
     | 'brush'
     | 'magnet'
     | 'pencil'
-    | 'stay-in-drawing-mode'
     | 'lock'
     | 'unlock'
     | 'undo'
@@ -400,11 +399,6 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   // 一支筆——叫出繪圖工具。
   'pencil': [
     'M15 4l5 5L9 20H4v-5Z',
-  ],
-  // 一支筆加一個加號——連續繪圖。
-  'stay-in-drawing-mode': [
-    'M13 4l5 5-9 9H4v-5Z',
-    'M18 15v6M15 18h6',
   ],
   // 一把鎖上的鎖。
   'lock': [

@@ -6,7 +6,7 @@ import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-appli
 
 const TOOL_GROUPS = buildChartDrawingApplication().listToolGroups()
 const REMEMBERED = { cursor: 'cross', lines: 'trendLine', fibonacci: 'fibonacciRetracement', shapes: 'rectangle', measure: 'dateAndPriceRange' } as const
-const TOGGLES = { magnet: false, stayInDrawingMode: true, lockAllDrawings: false, hideAllDrawings: false }
+const TOGGLES = { magnet: false, lockAllDrawings: true, hideAllDrawings: false }
 
 const isExpanded = (wrapper: ReturnType<typeof mountToolbar>) => wrapper.find('[role="menu"]').exists()
 
@@ -116,11 +116,11 @@ describe('左邊細邊：開關與移除所有', () => {
   it('開關的亮與不亮照它現在的狀態', () => {
     const wrapper = mountToolbar()
 
-    expect(wrapper.get('[data-testid="drawing-toggle-stayInDrawingMode"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="drawing-toggle-lockAllDrawings"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.get('[data-testid="drawing-toggle-magnet"]').attributes('aria-pressed')).toBe('false')
   })
 
-  it.each(['magnet', 'stayInDrawingMode', 'lockAllDrawings', 'hideAllDrawings'])('按 %s 就交出它', async (toggle) => {
+  it.each(['magnet', 'lockAllDrawings', 'hideAllDrawings'])('按 %s 就交出它', async (toggle) => {
     const wrapper = mountToolbar()
 
     await wrapper.get(`[data-testid="drawing-toggle-${toggle}"]`).trigger('click')

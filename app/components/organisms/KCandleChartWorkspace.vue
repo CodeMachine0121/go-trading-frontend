@@ -167,17 +167,13 @@ function removeAllDrawings() {
     : t('marketData.chartDrawing.removedAll', { count: removedCount }, removedCount))
 }
 
-type DrawingSwitch = 'magnet' | 'stayInDrawingMode' | 'lockAllDrawings' | 'hideAllDrawings'
+type DrawingSwitch = 'magnet' | 'lockAllDrawings' | 'hideAllDrawings'
 
 /** 開關按下去畫面上不一定馬上看得出差別，所以每次都說一句它現在會怎樣。 */
 const DRAWING_SWITCH_ANNOUNCEMENTS: Record<DrawingSwitch, { turnedOn: () => string, turnedOff: () => string }> = {
   magnet: {
     turnedOn: () => t('marketData.chartDrawing.magnetTurnedOn'),
     turnedOff: () => t('marketData.chartDrawing.magnetTurnedOff'),
-  },
-  stayInDrawingMode: {
-    turnedOn: () => t('marketData.chartDrawing.stayInDrawingModeTurnedOn'),
-    turnedOff: () => t('marketData.chartDrawing.stayInDrawingModeTurnedOff'),
   },
   lockAllDrawings: {
     turnedOn: () => t('marketData.chartDrawing.lockAllDrawingsTurnedOn'),
@@ -351,7 +347,6 @@ onMounted(() => {
       :cursor-style="drawings.cursorStyle.value"
       :toggles="{
         magnet: drawings.magnet.value,
-        stayInDrawingMode: drawings.stayInDrawingMode.value,
         lockAllDrawings: drawings.lockAllDrawings.value,
         hideAllDrawings: drawings.hideAllDrawings.value,
       }"

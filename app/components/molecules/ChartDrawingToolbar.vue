@@ -8,13 +8,13 @@ import type { ChartCursorStyleValue } from '~/domain/models/vo/chart-cursor-styl
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
 
 type ToolValue = ChartCursorStyleValue | ChartDrawingKindValue
-type ToggleName = 'magnet' | 'stayInDrawingMode' | 'lockAllDrawings' | 'hideAllDrawings'
+type ToggleName = 'magnet' | 'lockAllDrawings' | 'hideAllDrawings'
 
 /**
  * 分子：左邊細邊上的繪圖工具，照 TradingView 的樣子。
  *
  * 同類的工具收在同一格，格子右側的小箭頭展開那一類的其他工具；
- * 每一格顯示的是它**記得的那一個**。下面是四個開關與「移除所有繪圖」。
+ * 每一格顯示的是它**記得的那一個**。下面是三個開關與「移除所有繪圖」。
  */
 const {
   toolGroups,
@@ -57,9 +57,8 @@ const TOOL_ICONS: Record<ToolValue, 'cursor-cross' | 'cursor-dot' | 'cursor-arro
   brush: 'brush',
 }
 
-const toggleButtons = computed<readonly { name: ToggleName, icon: 'magnet' | 'stay-in-drawing-mode' | 'lock' | 'hidden', label: string }[]>(() => [
+const toggleButtons = computed<readonly { name: ToggleName, icon: 'magnet' | 'lock' | 'hidden', label: string }[]>(() => [
   { name: 'magnet', icon: 'magnet', label: t('marketData.chartDrawing.magnet') },
-  { name: 'stayInDrawingMode', icon: 'stay-in-drawing-mode', label: t('marketData.chartDrawing.stayInDrawingMode') },
   { name: 'lockAllDrawings', icon: 'lock', label: t('marketData.chartDrawing.lockAllDrawings') },
   { name: 'hideAllDrawings', icon: 'hidden', label: t('marketData.chartDrawing.hideAllDrawings') },
 ])
