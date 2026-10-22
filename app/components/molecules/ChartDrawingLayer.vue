@@ -209,13 +209,13 @@ function topmostDrawingAt(x: number, y: number): PlacedChartDrawingDto | null {
  * 矩形另有另外兩個角與四邊的中點——拖一邊的中點只動那一邊。
  */
 function handlesOf(placed: PlacedChartDrawingDto): { x: number, y: number, reshape: (moved: ChartDrawingAnchorVo) => ChartDrawingAnchorVo[] }[] {
+  if (placed.drawing.freehand) {
+    return []
+  }
   const anchors = placed.anchors.map(anchor => anchor.toVo())
   const [first, second] = anchors
   const points = placed.anchors.map(pointOf)
   const [firstPoint, secondPoint] = points
-  if (placed.drawing.freehand) {
-    return []
-  }
   const endpoints = points.map((point, index) => ({
     ...point,
     reshape: (moved: ChartDrawingAnchorVo) => anchors.map((anchor, anchorIndex) => anchorIndex === index ? moved : anchor),

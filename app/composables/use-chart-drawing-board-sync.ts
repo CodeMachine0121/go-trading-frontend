@@ -149,6 +149,11 @@ export function useChartDrawingBoardSync(
     return enqueue(load)
   }
 
+  /** 一閃而過地說一句話（例如這一步做不了的原因）。 */
+  function announce(text: LocalizedTextVo): void {
+    announcement.value = text
+  }
+
   /** 換上一份新的板子（使用者做了一步），稍後存回。 */
   function replaceBoard(nextBoard: ChartDrawingBoardDto): void {
     board.value = nextBoard
@@ -235,6 +240,7 @@ export function useChartDrawingBoardSync(
     saveFailure,
     migrationFailure,
     announcement,
+    announce,
     replaceBoard,
     refresh,
     retrySave,

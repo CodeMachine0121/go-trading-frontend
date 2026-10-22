@@ -26,7 +26,7 @@ export function useChartDrawings(
   boardRefreshSignal: Ref<number> = ref(0),
 ) {
   const boardSync = useChartDrawingBoardSync(chartDrawingApplication, marketSide, symbol, boardRefreshSignal)
-  const { board, replaceBoard } = boardSync
+  const { board, replaceBoard, announce } = boardSync
   const toolGroups: readonly ChartDrawingToolGroupDto[] = chartDrawingApplication.listToolGroups()
 
   /** 每一格記得上次用的是哪一個；一開始是那一格的第一個。 */
@@ -128,7 +128,7 @@ export function useChartDrawings(
       if (!(error instanceof ChartDrawingBoardAnchorCapacityError)) {
         throw error
       }
-      boardSync.announcement.value = error.localizedMessage
+      announce(error.localizedMessage)
       return
     }
     selectedDrawingId.value = board.value.drawings.at(-1)?.id ?? null
