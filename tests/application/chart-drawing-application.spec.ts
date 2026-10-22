@@ -287,3 +287,20 @@ describe('ChartDrawingApplication：奇異筆的草稿', () => {
       .toEqual(['2026-10-16T10:15:00.000Z', '2026-10-16T11:30:00.000Z'])
   })
 })
+
+describe('ChartDrawingApplication：整個繪圖平移', () => {
+  it('一筆奇異筆往右平移兩根：每一點保留它在那一根裡的那一刻，價格照給的', () => {
+    const chart = kCandleChartOf('1h', [
+      new KCandleSpec('2026-10-16T10:00:00.000Z'),
+      new KCandleSpec('2026-10-16T11:00:00.000Z'),
+    ])
+
+    const shifted = buildChartDrawingApplication().shiftAnchors(chart, [
+      anchorOf('2026-10-16T10:15:00.000Z', '100'),
+      anchorOf('2026-10-16T11:40:00.000Z', '105.5'),
+    ], 2)
+
+    expect(shifted.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
+      .toEqual([['2026-10-16T12:15:00.000Z', '100'], ['2026-10-16T13:40:00.000Z', '105.5']])
+  })
+})

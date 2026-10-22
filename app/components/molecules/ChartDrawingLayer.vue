@@ -343,13 +343,14 @@ function onPointerDown(event: PointerEvent) {
       const startLogical = coordinateSpace.xToLogical(x) ?? 0
       const shift = Math.round((coordinateSpace.xToLogical(movedX) ?? startLogical) - startLogical)
 
-      return hit.anchors.map((anchor) => {
+      const repriced = hit.anchors.map((anchor) => {
         const shiftedY = (coordinateSpace.priceToY(anchor.price.toNumber()) ?? 0) + movedY - y
         const shiftedPrice = coordinateSpace.yToPrice(shiftedY) ?? anchor.price.toNumber()
 
-        // 平移的是根數：錨點原本在那一根裡的哪個時刻（例如細刻度畫的點）一起保留。
-        return chartDrawingApplication.shiftAnchor(chart, anchor.openTime, shift, new Decimal(shiftedPrice)).toVo()
+        return new ChartDrawingAnchorVo(anchor.openTime, new Decimal(shiftedPrice))
       })
+
+      return chartDrawingApplication.shiftAnchors(chart, repriced, shift)
     },
   }
 }

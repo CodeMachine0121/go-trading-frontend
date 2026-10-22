@@ -25,7 +25,7 @@
 | `KCandleTimelineDomain` | **Modify** | 加「小數序位 ↔ 任意時刻」：`freehandAnchor`、`fractionalLogicalIndexOf`；找「涵蓋它的那一根」改用二分搜尋（4000 點 × 數千根時線性搜尋太慢） |
 | `ChartDrawingDomain` | **Modify** | 錨點數檢查改看下限／上限；自由筆跡放到圖上用小數序位；`replaceAnchors` 不收零以下的價格；DTO 帶出 `freehand` |
 | `ChartDrawingBoardDomain` | **Modify** | `added` 檢查點數總和，超過丟 `ChartDrawingBoardAnchorCapacityError` |
-| `ChartDrawingService` / `ChartDrawingApplication` | **Modify** | 新用例 `draftFreehandDrawing(chart, kind, points)` |
+| `ChartDrawingService` / `ChartDrawingApplication` | **Modify** | 新用例 `draftFreehandDrawing(chart, kind, points)`；`shiftAnchor`（一次一點）換成 `shiftAnchors`（一次整組錨點，只建一次時間軸） |
 | `use-chart-drawings.ts` | **Modify** | `finishDrawing` 接住點數上限錯誤，改成一閃而過的提示，不算一步 |
 | `ChartDrawingLayer.vue` | **Modify** | 自由筆跡手勢（取樣、即時預覽、放開才交出）、畫法（平滑曲線）、點到判斷、沒有把手、選取光暈 |
 | `ChartDrawingToolbar.vue` / `AppIcon.vue` | **Modify** | `brush` 圖示 |
@@ -101,8 +101,8 @@ flowchart TD
 - **How to add it:** 在 `chart-drawing-kind-vo.ts` 加一列 → `ChartDrawingKindValue` 加一個值（TypeScript 會指出 `painters`、`hitTesters`、`TOOL_ICONS` 缺哪幾列）→ 補畫法與圖示。
 - **Patterns applied & why:** 表驅動目錄（既有）＋以目錄屬性取代種類判斷；精簡演算法收在單一 Domain Model 裡，換演算法（例如改用 Visvalingam）只改它。
 - **Do not hardcode:** 2／200 點數上下限從目錄讀；4000 是 `CHART_DRAWING_BOARD_ANCHOR_CAPACITY`；1 像素是 `FreehandStrokeDomain` 的常數。
-- **Known debt / deferred:** 整筆拖動仍逐點呼叫 `shiftAnchor`（每點建一次時間軸）。200 點、數千根下每次移動約數毫秒，可接受；
-  若之後出現更長的筆跡或卡頓，改成一次平移一整組錨點的用例。
+- **Known debt / deferred:** 無。（原本整筆拖動逐點呼叫 `shiftAnchor`、每點重建一次時間軸；
+  improve-codebase 階段已改成一次平移一整組錨點的 `shiftAnchors`，一次移動只建一次時間軸。）
 
 ---
 
@@ -123,7 +123,7 @@ flowchart TD
 | US-02 幾乎是直線的筆跡只留很少的點 | `FreehandStrokeDomain.simplified`（RDP 1 像素） |
 | US-02 拖到零以下的點略過 | `FreehandStrokeDomain`（略過）+ `ChartDrawingDomain.applied`（拖動也不收零以下） |
 | US-03 點在筆跡旁邊選取它／點在圈的中間選不到 | `ChartDrawingLayer.hitTesters.brush` |
-| US-03 整筆拖動 | `ChartDrawingLayer` 既有整筆移動 + `KCandleTimelineDomain.shiftedAnchor` + `fractionalLogicalIndexOf` |
+| US-03 整筆拖動 | `ChartDrawingLayer` 既有整筆移動 + `ChartDrawingService.shiftAnchors` + `fractionalLogicalIndexOf` |
 | US-03 改線色、線寬、線型 | 目錄 `styleEditable: true` + `ChartDrawingDomain.applied`（既有） |
 | US-03 沒有逐點的把手 | `ChartDrawingLayer.handlesOf`（`freehand` 時沒有）+ 選取光暈 |
 | US-03 鎖定的奇異筆拖不動 | `ChartDrawingDomain.applied`（既有鎖定規則） |
