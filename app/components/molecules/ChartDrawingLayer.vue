@@ -8,6 +8,7 @@ import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { PlacedChartDrawingDto } from '~/domain/models/dto/placed-chart-drawing-dto'
 import type { TimeZoneDto } from '~/domain/models/dto/time-zone-dto'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
+import { ChartDrawingStrokePointDto } from '~/domain/models/dto/chart-drawing-stroke-point-dto'
 import { ChartDrawingAnchorVo } from '~/domain/models/vo/chart-drawing-anchor-vo'
 import type { ChartCursorStyleValue } from '~/domain/models/vo/chart-cursor-style-vo'
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
@@ -76,6 +77,8 @@ const canvas = ref<HTMLCanvasElement | null>(null)
 
 /** 正在畫的那一個：還在拖，或點了第一下、等第二下。 */
 const draft = shallowRef<{ drawing: ChartDrawingDto, awaitingSecondPoint: boolean, startX: number, startY: number } | null>(null)
+/** 正在按住拖曳的那一筆自由筆跡：取到的點，與它們現在收成的樣子。 */
+const stroke = shallowRef<{ kind: ChartDrawingKindValue, points: ChartDrawingStrokePointDto[], drawing: ChartDrawingDto } | null>(null)
 /** 正在拖的那一個：拖到哪就先畫在哪，放手才算一步。 */
 const drag = shallowRef<{ original: ChartDrawingDto, preview: ChartDrawingDto, startX: number, startY: number, moved: boolean, reshape: (x: number, y: number) => ChartDrawingAnchorVo[] } | null>(null)
 const hoveredDrawingId = ref<number | null>(null)
@@ -84,6 +87,7 @@ const pointer = ref<{ x: number, y: number } | null>(null)
 /** 畫到一半或拖到一半的那一個丟掉，圖恢復可以拖動與縮放。 */
 function abandonGesture() {
   draft.value = null
+  stroke.value = null
   drag.value = null
   coordinateSpace.setPanAndZoomEnabled(true)
 }
@@ -100,8 +104,9 @@ const placedDrawings = computed<PlacedChartDrawingDto[]>(() => {
   const dragging = drag.value
   const shown = drawings.map(drawing => dragging !== null && drawing.id === dragging.original.id ? dragging.preview : drawing)
 
-  return chartDrawingApplication.placeDrawings(
-    chart, draft.value === null ? shown : [...shown, draft.value.drawing])
+  const drafting = [draft.value?.drawing, stroke.value?.drawing].filter(drawing => drawing !== undefined)
+
+  return chartDrawingApplication.placeDrawings(chart, [...shown, ...drafting])
 })
 
 function alignedAnchorAt(x: number, y: number): ChartDrawingAnchorDto | null {
@@ -112,6 +117,14 @@ function alignedAnchorAt(x: number, y: number): ChartDrawingAnchorDto | null {
   }
 
   return chartDrawingApplication.alignAnchor(chart, logicalIndex, new Decimal(price), magnet)
+}
+
+/** 自由筆跡取到的一個點；指標在圖外也照取，時間與價格由圖往外推。 */
+function strokePointAt(x: number, y: number): ChartDrawingStrokePointDto | null {
+  const logicalIndex = coordinateSpace.xToLogical(x)
+  const price = coordinateSpace.yToPrice(y)
+
+  return logicalIndex === null || price === null ? null : new ChartDrawingStrokePointDto(x, y, logicalIndex, new Decimal(price))
 }
 
 /** 錨點在畫面上的位置。 */
@@ -164,6 +177,15 @@ const hitTesters: Record<ChartDrawingKindValue, (placed: PlacedChartDrawingDto, 
   fibonacciRetracement: (placed, x, y) => withinBounds(placed, x, y),
   rectangle: (placed, x, y) => withinBounds(placed, x, y),
   dateAndPriceRange: (placed, x, y) => withinBounds(placed, x, y),
+  brush: (placed, x, y) => {
+    const points = placed.anchors.map(pointOf)
+    const reach = HIT_TOLERANCE_PIXELS + placed.drawing.lineWidth / 2
+
+    return points.slice(1).some((point, index) => {
+      const previous = points[index]
+      return previous !== undefined && distanceToSegment(x, y, previous, point) < reach
+    })
+  },
 }
 
 function pointOfFirst(placed: PlacedChartDrawingDto): { x: number, y: number } {
@@ -191,6 +213,9 @@ function handlesOf(placed: PlacedChartDrawingDto): { x: number, y: number, resha
   const [first, second] = anchors
   const points = placed.anchors.map(pointOf)
   const [firstPoint, secondPoint] = points
+  if (placed.drawing.freehand) {
+    return []
+  }
   const endpoints = points.map((point, index) => ({
     ...point,
     reshape: (moved: ChartDrawingAnchorVo) => anchors.map((anchor, anchorIndex) => anchorIndex === index ? moved : anchor),
@@ -252,6 +277,11 @@ function onPointerDown(event: PointerEvent) {
     // 一個點就畫得完的那幾種（水平線、水平射線、垂直線）點一下就好——
     // 要幾個點由繪圖目錄說，這裡只看它收下了幾個。
     const drafted = chartDrawingApplication.draftDrawing(kind, [anchor.toVo(), anchor.toVo()])
+    const firstPoint = strokePointAt(x, y)
+    if (drafted.freehand && firstPoint !== null) {
+      stroke.value = { kind, points: [firstPoint], drawing: chartDrawingApplication.draftFreehandDrawing(chart, kind, [firstPoint]) }
+      return
+    }
     if (drafted.anchors.length === 1) {
       emit('finish', drafted)
       coordinateSpace.setPanAndZoomEnabled(true)
@@ -338,6 +368,16 @@ function onPointerMove(event: PointerEvent) {
   const { x, y } = localPoint(event)
   pointer.value = insidePlot(x, y) ? { x, y } : null
 
+  const drawing = stroke.value
+  if (drawing !== null) {
+    const point = strokePointAt(x, y)
+    if (point !== null) {
+      const points = [...drawing.points, point]
+      stroke.value = { ...drawing, points, drawing: chartDrawingApplication.draftFreehandDrawing(chart, drawing.kind, points) }
+    }
+    return
+  }
+
   const pending = draft.value
   if (pending !== null) {
     const [firstAnchor] = pending.drawing.anchors
@@ -361,6 +401,16 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function onPointerUp(event: PointerEvent) {
+  const drawn = stroke.value
+  if (drawn !== null) {
+    stroke.value = null
+    coordinateSpace.setPanAndZoomEnabled(true)
+    if (drawn.drawing.anchors.length >= 2) {
+      emit('finish', drawn.drawing)
+    }
+    return
+  }
+
   const pending = draft.value
   if (pending !== null && !pending.awaitingSecondPoint) {
     const { x, y } = localPoint(event)
@@ -395,6 +445,7 @@ function onPointerUp(event: PointerEvent) {
  */
 function onPointerCancel() {
   drag.value = null
+  stroke.value = null
   if (draft.value !== null && !draft.value.awaitingSecondPoint) {
     draft.value = null
   }
@@ -566,6 +617,28 @@ const painters: Record<ChartDrawingKindValue, (context: CanvasRenderingContext2D
     context.textAlign = 'center'
     lines.forEach((line, index) => context.fillText(line, middleX, boxTop + 13 + index * lineHeight))
   },
+  // 以相鄰兩點的中點為端點、點本身為控制點連成二次曲線：筆跡平順，不是一段一段的折線。
+  brush: (context, placed) => {
+    const points = placed.anchors.map(pointOf)
+    const [first, ...rest] = points
+    const last = points.at(-1)
+    if (first === undefined || last === undefined) {
+      return
+    }
+
+    context.save()
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+    context.beginPath()
+    context.moveTo(first.x, first.y)
+    rest.slice(0, -1).forEach((point, index) => {
+      const next = rest[index + 1] ?? point
+      context.quadraticCurveTo(point.x, point.y, (point.x + next.x) / 2, (point.y + next.y) / 2)
+    })
+    context.lineTo(last.x, last.y)
+    context.stroke()
+    context.restore()
+  },
 }
 
 function strokeLine(context: CanvasRenderingContext2D, from: { x: number, y: number }, to: { x: number, y: number }) {
@@ -630,12 +703,20 @@ function paint() {
   context.rect(0, 0, plotWidth, plotHeight)
   context.clip()
   for (const placed of placedDrawings.value) {
+    const emphasized = placed === selected || placed.drawing.id === hoveredDrawingId.value
+    // 自由筆跡沒有把手：選取或滑過時在底下多畫一道寬一點的淡色光暈，看得出點到它了。
+    if (emphasized && placed.drawing.freehand && placed.drawing.id !== 0) {
+      context.strokeStyle = withAlpha(colorOf(placed.drawing.colorToken), 0.3)
+      context.lineWidth = placed.drawing.lineWidth + 6
+      context.setLineDash([])
+      painters[placed.drawing.kind](context, placed)
+    }
     context.strokeStyle = colorOf(placed.drawing.colorToken)
     setLineStyle(context, placed.drawing)
     painters[placed.drawing.kind](context, placed)
     context.setLineDash([])
 
-    if (placed === selected || placed.drawing.id === hoveredDrawingId.value) {
+    if (emphasized) {
       for (const handle of handlesOf(placed)) {
         context.beginPath()
         context.arc(handle.x, handle.y, placed === selected ? HANDLE_RADIUS_PIXELS : HANDLE_RADIUS_PIXELS - 1, 0, Math.PI * 2)
@@ -679,7 +760,7 @@ function paint() {
   }
 
   // 選取中的那一個：兩條軸上用色帶標出它涵蓋的範圍，並寫出每個錨點的價與時間。
-  if (selected !== null && selected.anchors.length === 2) {
+  if (selected !== null && selected.anchors.length === 2 && !selected.drawing.freehand) {
     const accent = colorOf('--color-chart-workspace-accent')
     const color = colorOf(selected.drawing.styleEditable ? selected.drawing.colorToken : '--color-chart-workspace-accent')
     const points = selected.anchors.map(pointOf)

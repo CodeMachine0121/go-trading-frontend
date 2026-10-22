@@ -100,7 +100,9 @@ export class DeviceChartDrawingProxy implements IDeviceChartDrawingProxy {
     })
     // 錨點數對不上這種繪圖（少一個、或其中一個讀不出來）就畫不出來：整筆跳過，
     // 而不是畫成一個少一角的東西。
-    if (anchorVos.length !== anchors.length || anchorVos.length !== chartDrawingKindOf(kind).anchorCount) {
+    const kindVo = chartDrawingKindOf(kind)
+    if (anchorVos.length !== anchors.length
+      || anchorVos.length < kindVo.minimumAnchorCount || anchorVos.length > kindVo.maximumAnchorCount) {
       return []
     }
 

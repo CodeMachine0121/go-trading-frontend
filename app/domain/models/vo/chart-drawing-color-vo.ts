@@ -31,6 +31,7 @@ export const CHART_DRAWING_COLORS: readonly ChartDrawingColorVo[] = [
 ]
 
 export const DRAWING_BLUE_TOKEN = '--color-drawing-blue'
+export const DRAWING_ORANGE_TOKEN = '--color-drawing-orange'
 export const DRAWING_RED_TOKEN = '--color-drawing-red'
 export const DRAWING_PURPLE_TOKEN = '--color-drawing-purple'
 export const DRAWING_GRAY_TOKEN = '--color-drawing-gray'

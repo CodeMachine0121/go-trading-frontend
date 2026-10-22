@@ -5,6 +5,7 @@ import type { ChartDrawingAnchorDto } from '~/domain/models/dto/chart-drawing-an
 import type { ChartDrawingBoardDto } from '~/domain/models/dto/chart-drawing-board-dto'
 import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
+import type { ChartDrawingStrokePointDto } from '~/domain/models/dto/chart-drawing-stroke-point-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { PlacedChartDrawingDto } from '~/domain/models/dto/placed-chart-drawing-dto'
 import type { SavedChartDrawingBoardDto } from '~/domain/models/dto/saved-chart-drawing-board-dto'
@@ -14,6 +15,7 @@ import { ChartDrawing } from '~/domain/models/entities/chart-drawing'
 import { ChartDrawingBoard } from '~/domain/models/entities/chart-drawing-board'
 import { ChartDrawingBoardDomain } from '~/domain/models/domains/chart-drawing-board-domain'
 import { KCandleTimelineDomain } from '~/domain/models/domains/k-candle-timeline-domain'
+import { FreehandStrokeDomain } from '~/domain/models/domains/freehand-stroke-domain'
 import { ChartDrawingBoardLoadDto } from '~/domain/models/dto/chart-drawing-board-load-dto'
 import { ChartDrawingSaveDto } from '~/domain/models/dto/chart-drawing-save-dto'
 import { ChartDrawingToolDto } from '~/domain/models/dto/chart-drawing-tool-dto'
@@ -121,6 +123,21 @@ export class ChartDrawingService {
 
     return new ChartDrawing(
       0, kindVo.value, [...anchors], kindVo.defaultColorToken, kindVo.defaultLineWidth, 'solid', false, true,
+    ).toDomain().toDto()
+  }
+
+  /**
+   * 按住拖曳到目前為止的一筆自由筆跡：取到的點精簡過、換成那一刻與那個價格，照這種繪圖的預設樣式。
+   * 這就是放開時會留下的樣子；不到兩個點時它還不算一個繪圖。
+   */
+  draftFreehandDrawing(chart: KCandleChartDto, kind: ChartDrawingKindValue, points: readonly ChartDrawingStrokePointDto[]): ChartDrawingDto {
+    const kindVo = chartDrawingKindOf(kind)
+    const timeline = new KCandleTimelineDomain(chart)
+    const anchors = new FreehandStrokeDomain(points, kindVo.maximumAnchorCount).simplified()
+      .map(point => timeline.freehandAnchor(point.logicalIndex, point.price).toVo())
+
+    return new ChartDrawing(
+      0, kindVo.value, anchors, kindVo.defaultColorToken, kindVo.defaultLineWidth, 'solid', false, true,
     ).toDomain().toDto()
   }
 

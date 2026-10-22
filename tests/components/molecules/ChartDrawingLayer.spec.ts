@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import ChartDrawingLayer from '~/components/molecules/ChartDrawingLayer.vue'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
+import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
 import { ChartCoordinateSpace } from '~/utilities/chart-coordinate-space'
 import { buildChartDrawingApplication } from '../../fixtures/chart-drawing-application'
@@ -549,6 +550,16 @@ describe('ChartDrawingLayer：顏色與選取時的軸上色帶', () => {
     expect(fills).toContainEqual(expect.objectContaining({ x: 100, y: 400 }))
   })
 
+  it('選取中的奇異筆：沒有把手、兩軸也不標色帶', async () => {
+    const { fills, arcs } = await paintRecording({
+      drawings: [chartDrawingOf(1, 'brush', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '850')]).toDomain().toDto()],
+      selectedDrawingId: 1,
+    })
+
+    expect(arcs()).toBe(0)
+    expect(fills.filter(fill => fill.x === 500 || fill.y === 400)).toEqual([])
+  })
+
   it('沒有選取時不畫把手、也沒有色帶', async () => {
     const { fills, arcs } = await paintRecording({
       drawings: [chartDrawingOf(1, 'trendLine', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '850')]).toDomain().toDto()],
@@ -639,5 +650,105 @@ describe('ChartDrawingLayer：整個移動時保留錨點在那一根裡的時�
     const command = wrapper.emitted<[number, { anchors: ChartDrawingDto['anchors'] }]>('change')?.[0]?.[1]
     expect(command?.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
       .toEqual([[offset(10), '850'], [offset(30), '850']])
+  })
+})
+
+describe('ChartDrawingLayer：奇異筆', () => {
+  /** 按下、依序移過幾個點、在最後一點放開。 */
+  async function stroke(wrapper: VueWrapper, points: [number, number][]) {
+    const [first, ...rest] = points
+    const target = root(wrapper)
+    target.dispatchEvent(new PointerEvent('pointerdown', { clientX: first?.[0], clientY: first?.[1], button: 0, bubbles: true, cancelable: true }))
+    rest.forEach(([x, y]) => window.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y })))
+    const last = points.at(-1)
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: last?.[0], clientY: last?.[1] }))
+    await nextTick()
+  }
+
+  /** 一筆從第 10 根到第 30 根、價格 800 的橫向筆跡（畫面上 y = 200，x 從 100 到 300）。 */
+  const straightBrush = () => chartDrawingOf(1, 'brush', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '800')]).toDomain().toDto()
+
+  it('按住拖曳：畫出一筆奇異筆，點落在那一根裡的那一刻，不對齊到整根', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'brush' })
+
+    await stroke(wrapper, [[105, 200], [205, 150], [305, 100]])
+
+    expect(finished(wrapper)?.kind).toBe('brush')
+    expect(anchorsOf(finished(wrapper))).toEqual([['2026-10-16T10:10:30.000Z', '800'], ['2026-10-16T10:30:30.000Z', '900']])
+  })
+
+  it('按一下沒有移動：什麼都不留，圖恢復可以拖動', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'brush' })
+
+    await stroke(wrapper, [[100, 200], [100, 200]])
+
+    expect(wrapper.emitted('finish')).toBeUndefined()
+    expect(chartApi.applyOptions.mock.lastCall?.[0]).toEqual(expect.objectContaining({ handleScroll: true }))
+  })
+
+  it('開著磁鐵：奇異筆的點不吸到最高價', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'brush', magnet: true })
+
+    await stroke(wrapper, [[100, 96], [200, 200]])
+
+    expect(anchorsOf(finished(wrapper))?.[0]).toEqual([openTimeOf(10), '904'])
+  })
+
+  it('畫到一半換了工具：這一筆丟掉', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'brush' })
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 200, button: 0, bubbles: true, cancelable: true }))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200, clientY: 150 }))
+
+    await wrapper.setProps({ activeDrawingKind: null })
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 200, clientY: 150 }))
+    await nextTick()
+
+    expect(wrapper.emitted('finish')).toBeUndefined()
+  })
+
+  it('畫到一半被瀏覽器取消：這一筆丟掉', async () => {
+    const wrapper = mountLayer({ activeDrawingKind: 'brush' })
+    root(wrapper).dispatchEvent(new PointerEvent('pointerdown', { clientX: 100, clientY: 200, button: 0, bubbles: true, cancelable: true }))
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200, clientY: 150 }))
+
+    window.dispatchEvent(new PointerEvent('pointercancel'))
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 200, clientY: 150 }))
+    await nextTick()
+
+    expect(wrapper.emitted('finish')).toBeUndefined()
+  })
+
+  it.each([
+    ['筆跡旁邊 4 像素', [200, 204], [1]],
+    ['離筆跡 20 像素', [200, 220], undefined],
+  ] as const)('游標點在%s：選取（%s）', async (_, at, selected) => {
+    const wrapper = mountLayer({ drawings: [straightBrush()] })
+
+    await press(wrapper, [at[0], at[1]])
+
+    expect(wrapper.emitted<[number | null]>('select')?.[0]).toEqual(selected)
+  })
+
+  it('點在圈起來的那一塊正中央：選不到', async () => {
+    const square = chartDrawingOf(1, 'brush', [
+      anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '800'), anchorOf(openTimeOf(30), '700'),
+      anchorOf(openTimeOf(10), '700'), anchorOf(openTimeOf(10), '800'),
+    ]).toDomain().toDto()
+    const wrapper = mountLayer({ drawings: [square] })
+
+    await press(wrapper, [200, 250])
+
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
+
+  it('選取中的奇異筆從端點拖：整筆一起移，不是只動那一點', async () => {
+    const wrapper = mountLayer({ drawings: [straightBrush()], selectedDrawingId: 1 })
+
+    await press(wrapper, [100, 200], [120, 150])
+
+    const [id, command] = wrapper.emitted<[number, ChartDrawingCommandDto]>('change')?.[0] ?? []
+    expect(id).toBe(1)
+    expect(command?.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
+      .toEqual([[openTimeOf(12), '850'], [openTimeOf(32), '850']])
   })
 })

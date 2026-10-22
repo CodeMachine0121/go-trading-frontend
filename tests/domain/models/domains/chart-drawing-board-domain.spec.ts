@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CHART_DRAWING_HISTORY_LIMIT, ChartDrawingBoardDomain } from '~/domain/models/domains/chart-drawing-board-domain'
+import { ChartDrawingBoardAnchorCapacityError } from '~/domain/errors/chart-drawing-board-anchor-capacity-error'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf, horizontalLineAt, savedBoardOf } from '../../../fixtures/chart-drawing'
 
@@ -266,5 +267,34 @@ describe('ChartDrawingBoardDomain：接上帳號裡較新的一份', () => {
       horizontalLineAt(1, '60000'), horizontalLineAt(2, '50000'), horizontalLineAt(3, '40000', 'assistant')]))
 
     expect(pricesOf(incorporated)).toEqual(['2@50000', '3@40000'])
+  })
+})
+
+describe('ChartDrawingBoardDomain：繪圖點數上限 4000', () => {
+  const brushOf = (count: number) => chartDrawingOf(0, 'brush', Array.from({ length: count }, (_, index) =>
+    anchorOf(new Date(Date.UTC(2026, 9, 16, 10, index)).toISOString(), '100')))
+  /** 一張板子上放 count 個點：200 點一筆的奇異筆，再補上剩下的。 */
+  const boardWith = (count: number) => {
+    const fullBrushes = Array.from({ length: Math.floor(count / 200) }, () => brushOf(200).toDomain())
+    const rest = count % 200 === 0 ? [] : [brushOf(count % 200).toDomain()]
+
+    return new ChartDrawingBoardDomain(savedBoardOf(1, []), [...fullBrushes, ...rest], [], [])
+  }
+  const pointTotalOf = (board: ChartDrawingBoardDomain) =>
+    board.toDto().drawings.reduce((total, drawing) => total + drawing.anchors.length, 0)
+
+  it.each([
+    [3800, 150, 3950],
+    [3800, 200, 4000],
+  ])('板上 %s 點、畫一筆 %s 點：收下，共 %s 點', (existing, added, total) => {
+    expect(pointTotalOf(boardWith(existing).added(brushOf(added).toDomain()))).toBe(total)
+  })
+
+  it.each([
+    ['一筆 150 點的奇異筆', 3900, () => brushOf(150)],
+    ['一條趨勢線', 4000, () => chartDrawingOf(0, 'trendLine', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')])],
+  ])('畫%s（板上已有 %s 點）：不收，說明已達上限', (_, existing, drawing) => {
+    expect(() => boardWith(existing).added(drawing().toDomain())).toThrow(ChartDrawingBoardAnchorCapacityError)
+    expect(() => boardWith(existing).added(drawing().toDomain())).toThrow('這張圖上的繪圖點數已達上限，請先移除一些繪圖')
   })
 })

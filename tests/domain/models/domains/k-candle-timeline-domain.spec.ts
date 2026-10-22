@@ -50,6 +50,45 @@ describe('KCandleTimelineDomain：第幾根與哪一刻互換', () => {
   })
 })
 
+describe('KCandleTimelineDomain：奇異筆的點不對齊到整根', () => {
+  it.each([
+    [1.25, '2026-10-16T11:15:00.000Z'],
+    [0, '2026-10-16T10:00:00.000Z'],
+    [3.5, '2026-10-16T13:30:00.000Z'],
+    [-0.5, '2026-10-16T09:30:00.000Z'],
+  ])('落在第 %s 根的位置是 %s；價格原樣', (logicalIndex, time) => {
+    const anchor = new KCandleTimelineDomain(THREE_HOURS).freehandAnchor(logicalIndex, new Decimal('104.8'))
+
+    expect(anchor.openTime).toEqual(new Date(time))
+    expect(anchor.price.toString()).toBe('104.8')
+  })
+
+  it.each([
+    ['2026-10-16T11:15:00.000Z', 1.25],
+    ['2026-10-16T13:30:00.000Z', 3.5],
+    ['2026-10-16T09:30:00.000Z', -0.5],
+  ])('%s 落在第 %s 根的位置', (time, logicalIndex) => {
+    expect(new KCandleTimelineDomain(THREE_HOURS).fractionalLogicalIndexOf(new Date(time))).toBe(logicalIndex)
+  })
+
+  it('一小時圖上 10:20 的點，在五分鐘圖上剛好落在 10:20 那一根', () => {
+    const fiveMinutes = kCandleChartOf('5m', Array.from({ length: 12 }, (_, index) =>
+      new KCandleSpec(new Date(Date.UTC(2026, 9, 16, 10, index * 5)).toISOString())))
+    const drawnOnOneHour = new KCandleTimelineDomain(THREE_HOURS).freehandAnchor(1 / 3, new Decimal('100'))
+
+    expect(new KCandleTimelineDomain(fiveMinutes).fractionalLogicalIndexOf(drawnOnOneHour.openTime)).toBe(4)
+  })
+
+  it('落在兩根之間沒有交易的空檔時，對到之後那一根', () => {
+    const withGap = kCandleChartOf('1h', [
+      new KCandleSpec('2026-10-16T10:00:00.000Z'),
+      new KCandleSpec('2026-10-16T13:00:00.000Z'),
+    ])
+
+    expect(new KCandleTimelineDomain(withGap).fractionalLogicalIndexOf(new Date('2026-10-16T11:30:00.000Z'))).toBe(1)
+  })
+})
+
 describe('KCandleTimelineDomain：磁鐵模式', () => {
   it('開著磁鐵、落在一根 K 線上：吸到開高低收裡最接近的那一個', () => {
     const anchor = new KCandleTimelineDomain(THREE_HOURS).alignAnchor(1, new Decimal('104.8'), true)

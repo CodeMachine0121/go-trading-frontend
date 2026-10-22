@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 import { createFetchError, type FetchContext } from 'ofetch'
 import { describe, expect, it, vi } from 'vitest'
 import { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
+import { ChartDrawingStrokePointDto } from '~/domain/models/dto/chart-drawing-stroke-point-dto'
 import { ChartDrawing } from '~/domain/models/entities/chart-drawing'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
 import { ChartDrawingBoardChangedError } from '~/domain/errors/chart-drawing-board-changed-error'
@@ -210,14 +211,21 @@ describe('ChartDrawingApplication：放到圖上', () => {
 })
 
 describe('ChartDrawingApplication：工具格與快捷鍵', () => {
-  it('五格依序是游標、線、斐波那契、形狀、測量；線那一格有五種', () => {
+  it('六格依序是游標、線、斐波那契、形狀、奇異筆、測量；線那一格有五種', () => {
     const groups = buildChartDrawingApplication().listToolGroups()
 
-    expect(groups.map(group => group.value)).toEqual(['cursor', 'lines', 'fibonacci', 'shapes', 'measure'])
+    expect(groups.map(group => group.value)).toEqual(['cursor', 'lines', 'fibonacci', 'shapes', 'brush', 'measure'])
     expect(groups[0]?.tools.map(tool => tool.value)).toEqual(['cross', 'dot', 'arrow'])
     expect(groups[1]?.tools.map(tool => tool.value))
       .toEqual(['trendLine', 'ray', 'horizontalLine', 'horizontalRay', 'verticalLine'])
     expect(groups[1]?.tools[2]?.shortcutLabel).toBe('⌥H')
+  })
+
+  it('奇異筆自己一格，沒有快捷鍵', () => {
+    const brushGroup = buildChartDrawingApplication().listToolGroups().find(group => group.value === 'brush')
+
+    expect(brushGroup?.tools.map(tool => [tool.value, tool.label.traditionalChinese, tool.shortcutLabel]))
+      .toEqual([['brush', '奇異筆', null]])
   })
 
   it.each([
@@ -231,5 +239,51 @@ describe('ChartDrawingApplication：工具格與快捷鍵', () => {
     ['KeyQ', false, null],
   ])('⌥ + %s（shift %s）對到 %s', (keyCode, withShift, kind) => {
     expect(buildChartDrawingApplication().drawingKindForShortcut(keyCode, withShift)).toBe(kind)
+  })
+})
+
+describe('ChartDrawingApplication：奇異筆的草稿', () => {
+  /** 三根一小時 K 線：10:00、11:00、12:00。 */
+  const chart = kCandleChartOf('1h', [
+    new KCandleSpec('2026-10-16T10:00:00.000Z'),
+    new KCandleSpec('2026-10-16T11:00:00.000Z'),
+    new KCandleSpec('2026-10-16T12:00:00.000Z'),
+  ])
+  const pointAt = (x: number, y: number, logicalIndex: number, price: string) =>
+    new ChartDrawingStrokePointDto(x, y, logicalIndex, new Decimal(price))
+
+  it('一筆從第 0.25 根拉到第 1.5 根：橘色、線寬 2、實線，點落在那一刻與那個價格', () => {
+    const drawing = buildChartDrawingApplication().draftFreehandDrawing(chart, 'brush', [
+      pointAt(0, 0, 0.25, '100.5'),
+      pointAt(50, 40, 1.5, '96.25'),
+    ])
+
+    expect(drawing.kind).toBe('brush')
+    expect(drawing.colorToken).toBe('--color-drawing-orange')
+    expect(drawing.lineWidth).toBe(2)
+    expect(drawing.lineStyle).toBe('solid')
+    expect(drawing.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
+      .toEqual([['2026-10-16T10:15:00.000Z', '100.5'], ['2026-10-16T11:30:00.000Z', '96.25']])
+  })
+
+  it('按下沒有移動：只有一個點，還不算一個繪圖', () => {
+    const drawing = buildChartDrawingApplication().draftFreehandDrawing(chart, 'brush', [
+      pointAt(20, 20, 0.5, '100'), pointAt(20, 20, 0.5, '100'),
+    ])
+
+    expect(drawing.anchors).toHaveLength(1)
+  })
+
+  it('畫好的奇異筆收進板子、存回時照原樣送出', async () => {
+    const boardProxy = chartDrawingBoardProxyOf()
+    const application = buildChartDrawingApplication(boardProxy)
+    const drawing = application.draftFreehandDrawing(chart, 'brush', [pointAt(0, 0, 0.25, '100'), pointAt(50, 40, 1.5, '96')])
+
+    await application.saveBoard(application.addDrawing(application.openBoard('spot', 'BTCUSDT'), drawing))
+
+    const sent = vi.mocked(boardProxy.saveBoard).mock.lastCall?.[0].drawings[0]
+    expect(sent?.kind).toBe('brush')
+    expect(sent?.anchors.map(anchor => anchor.openTime.toISOString()))
+      .toEqual(['2026-10-16T10:15:00.000Z', '2026-10-16T11:30:00.000Z'])
   })
 })

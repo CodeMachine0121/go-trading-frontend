@@ -21,6 +21,8 @@ export class ChartDrawingDto {
     public readonly styleEditable: boolean,
     public readonly source: ChartDrawingSourceValue = 'manual',
     public readonly drawnByAssistant: boolean = false,
+    /** 按住拖曳畫的自由筆跡：沒有逐點把手。 */
+    public readonly freehand: boolean = false,
   ) {}
 
   toEntity(): ChartDrawing {

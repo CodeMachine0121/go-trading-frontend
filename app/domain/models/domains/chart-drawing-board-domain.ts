@@ -2,9 +2,13 @@ import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-c
 import type { ChartDrawingDomain } from '~/domain/models/domains/chart-drawing-domain'
 import { ChartDrawingBoard } from '~/domain/models/entities/chart-drawing-board'
 import { ChartDrawingBoardDto } from '~/domain/models/dto/chart-drawing-board-dto'
+import { ChartDrawingBoardAnchorCapacityError } from '~/domain/errors/chart-drawing-board-anchor-capacity-error'
 
 /** 上一步最多記這麼多步，再多就丟掉最舊的那一步。 */
 export const CHART_DRAWING_HISTORY_LIMIT = 100
+
+/** 一張繪圖板所有繪圖的點數加起來最多這麼多；與交易服務的上限相同。 */
+export const CHART_DRAWING_BOARD_ANCHOR_CAPACITY = 4000
 
 type DrawingSnapshot = readonly ChartDrawingDomain[]
 
@@ -25,7 +29,13 @@ export class ChartDrawingBoardDomain {
     private readonly renumberedDrawingIds: ReadonlyMap<number, number> = new Map(),
   ) {}
 
+  /** 收下一個新繪圖；加上它會超過點數上限時不收，丟 `ChartDrawingBoardAnchorCapacityError`。 */
   added(drawing: ChartDrawingDomain): ChartDrawingBoardDomain {
+    const anchorTotal = [...this.drawings, drawing].reduce((total, existing) => total + existing.anchorCount, 0)
+    if (anchorTotal > CHART_DRAWING_BOARD_ANCHOR_CAPACITY) {
+      throw new ChartDrawingBoardAnchorCapacityError()
+    }
+
     const temporaryId = Math.min(0, ...this.drawings.map(existing => existing.id)) - 1
 
     return this.steppedTo([...this.drawings, drawing.numbered(temporaryId)])

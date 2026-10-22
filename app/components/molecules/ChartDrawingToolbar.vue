@@ -42,7 +42,7 @@ const { t } = useI18n()
 const { localize } = useLocalizedText()
 
 /** 工具的值對到哪一個圖示。圖示是畫面的事，不放進領域。 */
-const TOOL_ICONS: Record<ToolValue, 'cursor-cross' | 'cursor-dot' | 'cursor-arrow' | 'trend-line' | 'ray' | 'horizontal-line' | 'horizontal-ray' | 'vertical-line' | 'fibonacci' | 'rectangle' | 'date-price-range'> = {
+const TOOL_ICONS: Record<ToolValue, 'cursor-cross' | 'cursor-dot' | 'cursor-arrow' | 'trend-line' | 'ray' | 'horizontal-line' | 'horizontal-ray' | 'vertical-line' | 'fibonacci' | 'rectangle' | 'date-price-range' | 'brush'> = {
   cross: 'cursor-cross',
   dot: 'cursor-dot',
   arrow: 'cursor-arrow',
@@ -54,6 +54,7 @@ const TOOL_ICONS: Record<ToolValue, 'cursor-cross' | 'cursor-dot' | 'cursor-arro
   fibonacciRetracement: 'fibonacci',
   rectangle: 'rectangle',
   dateAndPriceRange: 'date-price-range',
+  brush: 'brush',
 }
 
 const toggleButtons = computed<readonly { name: ToggleName, icon: 'magnet' | 'stay-in-drawing-mode' | 'lock' | 'hidden', label: string }[]>(() => [
