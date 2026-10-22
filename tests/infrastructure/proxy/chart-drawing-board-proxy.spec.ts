@@ -122,6 +122,26 @@ describe('ChartDrawingBoardProxy：存回', () => {
     expect(sentDrawings[0]).not.toHaveProperty('source')
   })
 
+  it('奇異筆：每一點的時刻原樣送出（不必是 K 線起始時間），讀回來還是同一刻', async () => {
+    const brush = new ChartDrawing(-1, 'brush', [
+      anchorOf('2026-10-16T10:10:30.000Z', '60000.25'), anchorOf('2026-10-16T10:47:12.500Z', '60120'),
+    ], '--color-drawing-orange', 2, 'solid', false, true)
+    const brushWire = {
+      id: 9, kind: 'brush', color: 'orange', lineWidth: 2, lineStyle: 'solid', locked: false, visible: true, source: 'manual',
+      anchors: [{ openTime: '2026-10-16T10:10:30.000Z', price: '60000.25' }, { openTime: '2026-10-16T10:47:12.500Z', price: '60120' }],
+    }
+    const fetchMock = vi.fn().mockResolvedValue(boardWire(4, [brushWire]))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const saved = await proxy().saveBoard(savedBoardOf(3, [brush]))
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ body: { drawings: [{ kind: 'brush', color: 'orange', anchors: brushWire.anchors }] } })
+    expect(saved.drawings[0]?.kind).toBe('brush')
+    expect(saved.drawings[0]?.colorToken).toBe('--color-drawing-orange')
+    expect(saved.drawings[0]?.anchors.map(anchor => [anchor.openTime.toISOString(), anchor.price.toString()]))
+      .toEqual([['2026-10-16T10:10:30.000Z', '60000.25'], ['2026-10-16T10:47:12.500Z', '60120']])
+  })
+
   it('調色盤上沒有的顏色原樣送出（交給交易服務拒絕並說明）', async () => {
     const fetchMock = vi.fn().mockResolvedValue(boardWire(4, []))
     vi.stubGlobal('$fetch', fetchMock)

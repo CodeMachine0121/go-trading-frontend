@@ -7,7 +7,7 @@ import type { ChartDrawingBoard } from '~/domain/models/entities/chart-drawing-b
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
 import type { ChartDrawingToolGroupDto } from '~/domain/models/dto/chart-drawing-tool-group-dto'
 import { CHART_DRAWING_SAVE_DELAY_MILLISECONDS } from '~/composables/use-chart-drawing-board-sync'
-import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, horizontalLineAt, savedBoardOf } from '../fixtures/chart-drawing'
+import { ELEVEN_O_CLOCK, TEN_O_CLOCK, anchorOf, chartDrawingOf, horizontalLineAt, savedBoardOf } from '../fixtures/chart-drawing'
 import {
   FIRST_ISSUED_DRAWING_ID, buildChartDrawingApplication, chartDrawingBoardProxyOf,
 } from '../fixtures/chart-drawing-application'
@@ -103,6 +103,33 @@ describe('useChartDrawings：畫完、選取、隱藏', () => {
     drawings.finishDrawing(application.draftDrawing('rectangle', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
 
     expect(drawings.activeDrawingKind.value).toBe('rectangle')
+  })
+
+  it('開著連續繪圖畫完一筆奇異筆：仍是奇異筆', async () => {
+    const { drawings, application } = await drawingsUnderTest()
+    drawings.stayInDrawingMode.value = true
+    drawings.pickTool('brush')
+
+    drawings.finishDrawing(application.draftDrawing('brush', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
+
+    expect(drawings.selectedDrawing.value?.kind).toBe('brush')
+    expect(drawings.activeDrawingKind.value).toBe('brush')
+  })
+
+  it('板上已經 4000 個點時再畫一條：不收、不算一步、提示已達上限，工具不變', async () => {
+    const fullBrush = (id: number) => chartDrawingOf(id, 'brush', Array.from({ length: 200 }, (_, index) =>
+      anchorOf(new Date(Date.UTC(2026, 9, 16, 10, index)).toISOString(), '100')))
+    const { drawings, application } = await drawingsUnderTest({
+      BTCUSDT: savedBoardOf(1, Array.from({ length: 20 }, (_, index) => fullBrush(index + 1))),
+    })
+    drawings.pickTool('trendLine')
+
+    drawings.finishDrawing(application.draftDrawing('trendLine', [anchorOf(TEN_O_CLOCK, '1'), anchorOf(ELEVEN_O_CLOCK, '2')]))
+
+    expect(drawings.board.value.drawings).toHaveLength(20)
+    expect(drawings.board.value.canUndo).toBe(false)
+    expect(drawings.announcement.value?.traditionalChinese).toBe('這張圖上的繪圖點數已達上限，請先移除一些繪圖')
+    expect(drawings.activeDrawingKind.value).toBe('trendLine')
   })
 
   it('隱藏所有：一個都不畫、選取中的也不算選取；關掉之後回來', async () => {

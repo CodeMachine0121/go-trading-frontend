@@ -130,3 +130,77 @@ describe('ChartDrawingDomain：認不得的種類', () => {
     expect(unknown.toDomain().toDto().kind).toBe('trendLine')
   })
 })
+
+describe('ChartDrawingDomain：奇異筆', () => {
+  const brushAnchors = (count: number) => Array.from({ length: count }, (_, index) =>
+    anchorOf(new Date(Date.UTC(2026, 9, 16, 10, index)).toISOString(), '100'))
+  const brushOf = (count: number) => chartDrawingOf(1, 'brush', brushAnchors(count))
+
+  it('讀進來超過 200 個點：多的丟掉', () => {
+    expect(brushOf(230).toDomain().toDto().anchors).toHaveLength(200)
+  })
+
+  it.each([
+    [1, false],
+    [2, true],
+    [200, true],
+    [201, false],
+  ])('整筆換成 %s 個點：收不收（%s）', (count, accepted) => {
+    const original = brushOf(5).toDomain()
+
+    const replaced = original.applied(new ChartDrawingCommandDto('replaceAnchors', brushAnchors(count)))
+
+    expect(replaced !== original).toBe(accepted)
+    expect(replaced.toDto().anchors).toHaveLength(accepted ? count : 5)
+  })
+
+  it('沒有逐點把手的自由筆跡、預設可改樣式', () => {
+    const drawing = brushOf(3).toDomain().toDto()
+
+    expect(drawing.freehand).toBe(true)
+    expect(drawing.styleEditable).toBe(true)
+    expect(drawing.kindLabel.traditionalChinese).toBe('奇異筆')
+  })
+
+  it('改成藍色、線寬 4、虛線', () => {
+    const changed = [
+      new ChartDrawingCommandDto('changeColor', [], '--color-drawing-blue'),
+      new ChartDrawingCommandDto('cycleLineWidth'),
+      new ChartDrawingCommandDto('cycleLineWidth'),
+      new ChartDrawingCommandDto('cycleLineStyle'),
+    ].reduce((drawing, command) => drawing.applied(command), chartDrawingOf(1, 'brush', brushAnchors(3), false, 2).toDomain()).toDto()
+
+    expect([changed.colorToken, changed.lineWidth, changed.lineStyle]).toEqual(['--color-drawing-blue', 4, 'dashed'])
+  })
+
+  it('放到一小時圖上：點落在那一根裡的位置，不對齊到整根', () => {
+    const chart = kCandleChartOf('1h', [new KCandleSpec(TEN_O_CLOCK), new KCandleSpec(ELEVEN_O_CLOCK)])
+    const brush = chartDrawingOf(1, 'brush', [anchorOf('2026-10-16T10:15:00.000Z', '100'), anchorOf('2026-10-16T11:45:00.000Z', '101')])
+
+    const placed = brush.toDomain().placedOn(new KCandleTimelineDomain(chart), chart.kCandles)
+
+    expect(placed.anchors.map(anchor => anchor.logicalIndex)).toEqual([0.25, 1.75])
+  })
+
+  it('其他繪圖放到圖上仍對到涵蓋它的那一根', () => {
+    const chart = kCandleChartOf('1h', [new KCandleSpec(TEN_O_CLOCK), new KCandleSpec(ELEVEN_O_CLOCK)])
+    const trendLine = chartDrawingOf(1, 'trendLine', [anchorOf('2026-10-16T10:15:00.000Z', '100'), anchorOf(ELEVEN_O_CLOCK, '101')])
+
+    expect(trendLine.toDomain().placedOn(new KCandleTimelineDomain(chart), chart.kCandles).anchors.map(anchor => anchor.logicalIndex))
+      .toEqual([0, 1])
+  })
+})
+
+describe('ChartDrawingDomain：價格一定大於零', () => {
+  it.each([
+    ['brush', '0'],
+    ['brush', '-5'],
+    ['trendLine', '-1'],
+  ] as const)('%s 拖到價格 %s：不動', (kind, price) => {
+    const drawing = chartDrawingOf(1, kind, [anchorOf(TEN_O_CLOCK, '100'), anchorOf(ELEVEN_O_CLOCK, '110')]).toDomain()
+
+    const moved = drawing.applied(new ChartDrawingCommandDto('replaceAnchors', [anchorOf(TEN_O_CLOCK, '100'), anchorOf(ELEVEN_O_CLOCK, price)]))
+
+    expect(moved).toBe(drawing)
+  })
+})

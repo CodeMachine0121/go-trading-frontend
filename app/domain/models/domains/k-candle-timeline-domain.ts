@@ -64,10 +64,45 @@ export class KCandleTimelineDomain {
       return lastIndex + Math.floor((time - lastOpenTime) / this.intervalMilliseconds)
     }
 
-    const containingIndex = this.openTimes.findLastIndex(candidate => candidate <= time)
+    const containingIndex = this.containingIndexOf(time)
     const containingOpenTime = this.openTimes[containingIndex] ?? firstOpenTime
 
     return time < containingOpenTime + this.intervalMilliseconds ? containingIndex : containingIndex + 1
+  }
+
+  /**
+   * 某一刻落在第幾根的**哪個位置**：涵蓋它的那一根，加上它在那一根裡走了幾成。
+   * 奇異筆的點不對齊到整根，換刻度、縮放之後才仍畫在原本那一刻。
+   * 落在休市空檔時與 `logicalIndexOf` 一樣對到之後那一根。
+   */
+  fractionalLogicalIndexOf(time: Date): number {
+    const milliseconds = time.getTime()
+    const lastIndex = this.openTimes.length - 1
+    const firstOpenTime = this.openTimes[0] ?? 0
+    const lastOpenTime = this.openTimes[lastIndex] ?? 0
+
+    if (lastIndex < 0 || milliseconds < firstOpenTime) {
+      return (milliseconds - firstOpenTime) / this.intervalMilliseconds
+    }
+    if (milliseconds >= lastOpenTime) {
+      return lastIndex + (milliseconds - lastOpenTime) / this.intervalMilliseconds
+    }
+
+    const containingIndex = this.containingIndexOf(milliseconds)
+    const offsetWithinKCandle = milliseconds - (this.openTimes[containingIndex] ?? firstOpenTime)
+
+    return offsetWithinKCandle < this.intervalMilliseconds
+      ? containingIndex + offsetWithinKCandle / this.intervalMilliseconds
+      : containingIndex + 1
+  }
+
+  /** 奇異筆的一個點：第幾根的哪個位置換成那一刻，價格原樣——不對齊、不吸磁鐵。 */
+  freehandAnchor(logicalIndex: number, price: Decimal): ChartDrawingAnchorDto {
+    const kCandleIndex = Math.floor(logicalIndex)
+    const offsetWithinKCandle = Math.round((logicalIndex - kCandleIndex) * this.intervalMilliseconds)
+
+    return new ChartDrawingAnchorDto(
+      new Date(this.openTimeAt(kCandleIndex).getTime() + offsetWithinKCandle), price, logicalIndex)
   }
 
   /**
@@ -101,5 +136,22 @@ export class KCandleTimelineDomain {
 
     return new ChartDrawingAnchorDto(
       new Date(this.openTimeAt(shiftedIndex).getTime() + offsetWithinKCandle), price, shiftedIndex)
+  }
+
+  /** 起始時間不晚於這一刻的最後一根；呼叫端保證它落在第一根與最後一根之間。 */
+  private containingIndexOf(time: number): number {
+    let low = 0
+    let high = this.openTimes.length - 1
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2)
+      if ((this.openTimes[middle] ?? 0) <= time) {
+        low = middle
+      }
+      else {
+        high = middle - 1
+      }
+    }
+
+    return low
   }
 }

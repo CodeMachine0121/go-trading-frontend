@@ -41,7 +41,7 @@ export class ChartDrawingDomain {
       : this.kind.defaultColorToken
 
     this.drawing = new ChartDrawing(
-      drawing.id, this.kind.value, drawing.anchors.slice(0, this.kind.anchorCount), colorToken,
+      drawing.id, this.kind.value, drawing.anchors.slice(0, this.kind.maximumAnchorCount), colorToken,
       lineWidth, drawing.lineStyle, drawing.locked, drawing.visible, drawing.source)
   }
 
@@ -52,6 +52,10 @@ export class ChartDrawingDomain {
   /** 換一個識別碼——繪圖板收下一個新繪圖時由它發號碼。 */
   numbered(id: number): ChartDrawingDomain {
     return this.rebuilt({ id })
+  }
+
+  get anchorCount(): number {
+    return this.drawing.anchors.length
   }
 
   get drawnByAssistant(): boolean {
@@ -86,14 +90,17 @@ export class ChartDrawingDomain {
     switch (command.kind) {
       case 'replaceAnchors': {
         // 換成一模一樣的錨點也是沒有變：點一下沒拖，不該多一步。
-        const unchanged = command.anchors.every((anchor, index) => {
+        const unchanged = command.anchors.length === drawing.anchors.length && command.anchors.every((anchor, index) => {
           const current = drawing.anchors[index]
 
           return current !== undefined && current.openTime.getTime() === anchor.openTime.getTime()
             && current.price.equals(anchor.price)
         })
+        const acceptable = command.anchors.length >= this.kind.minimumAnchorCount
+          && command.anchors.length <= this.kind.maximumAnchorCount
+          && command.anchors.every(anchor => anchor.price.greaterThan(0))
 
-        return drawing.locked || command.anchors.length !== this.kind.anchorCount || unchanged
+        return drawing.locked || !acceptable || unchanged
           ? this
           : this.rebuilt({ anchors: [...command.anchors] })
       }
@@ -119,10 +126,15 @@ export class ChartDrawingDomain {
     }
   }
 
-  /** 放到一張圖上：錨點在這張圖上是第幾根，以及這種繪圖要畫的衍生值。 */
+  /**
+   * 放到一張圖上：錨點在這張圖上是第幾根，以及這種繪圖要畫的衍生值。
+   * 自由筆跡的點落在那一根裡的哪個位置就畫在哪；其餘對到涵蓋它的那一根。
+   */
   placedOn(timeline: KCandleTimelineDomain, kCandles: readonly KCandleDto[]): PlacedChartDrawingDto {
     const anchors = this.drawing.anchors.map(anchor => new ChartDrawingAnchorDto(
-      anchor.openTime, anchor.price, timeline.logicalIndexOf(anchor.openTime)))
+      anchor.openTime, anchor.price, this.kind.freehand
+        ? timeline.fractionalLogicalIndexOf(anchor.openTime)
+        : timeline.logicalIndexOf(anchor.openTime)))
     const [firstAnchor, secondAnchor] = anchors
 
     const fibonacciLevels = this.kind.value === 'fibonacciRetracement' && firstAnchor && secondAnchor
@@ -145,7 +157,7 @@ export class ChartDrawingDomain {
     return new ChartDrawingDto(
       drawing.id, drawing.kind, this.kind.label, drawing.anchors, drawing.colorToken, drawing.lineWidth,
       drawing.lineStyle, drawing.locked, drawing.visible, this.kind.styleEditable, drawing.source,
-      this.drawnByAssistant)
+      this.drawnByAssistant, this.kind.freehand)
   }
 
   /** 照自己的樣子換掉其中幾項，交回一個新的繪圖。 */

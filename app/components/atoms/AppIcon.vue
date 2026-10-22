@@ -68,6 +68,7 @@ type IconName
     | 'fibonacci'
     | 'rectangle'
     | 'date-price-range'
+    | 'brush'
     | 'magnet'
     | 'pencil'
     | 'stay-in-drawing-mode'
@@ -385,6 +386,12 @@ const ICON_PATHS: Readonly<Record<IconName, string[]>> = {
   'date-price-range': [
     'M4 6h16v12H4Z',
     'M12 9v6M10 11l2-2 2 2M10 13l2 2 2-2',
+  ],
+  // 一支斜放的筆，筆尖拖出一道彎曲的墨跡——奇異筆。
+  'brush': [
+    'M14 3l7 7-8 8-7-7Z',
+    'M6 11l-1 6 2 2 6-1',
+    'M3 21c1-1.5 2-2 3.5-2',
   ],
   // 一塊馬蹄形磁鐵——磁鐵模式。
   'magnet': [

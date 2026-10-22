@@ -3,6 +3,7 @@ import type { ChartDrawingApplication } from '~/application/chart-drawing-applic
 import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
 import type { ChartDrawingToolGroupDto } from '~/domain/models/dto/chart-drawing-tool-group-dto'
+import { ChartDrawingBoardAnchorCapacityError } from '~/domain/errors/chart-drawing-board-anchor-capacity-error'
 import { CHART_CURSOR_STYLES, type ChartCursorStyleValue } from '~/domain/models/vo/chart-cursor-style-vo'
 import type { ChartDrawingKindValue } from '~/domain/models/vo/chart-drawing-kind-vo'
 import type { MarketSideVo } from '~/domain/models/vo/market-side-vo'
@@ -25,7 +26,7 @@ export function useChartDrawings(
   boardRefreshSignal: Ref<number> = ref(0),
 ) {
   const boardSync = useChartDrawingBoardSync(chartDrawingApplication, marketSide, symbol, boardRefreshSignal)
-  const { board, replaceBoard } = boardSync
+  const { board, replaceBoard, announce } = boardSync
   const toolGroups: readonly ChartDrawingToolGroupDto[] = chartDrawingApplication.listToolGroups()
 
   /** 每一格記得上次用的是哪一個；一開始是那一格的第一個。 */
@@ -115,9 +116,21 @@ export function useChartDrawings(
     selectedDrawingId.value = null
   }
 
-  /** 畫完一個：收進板子、選取它；沒開連續繪圖時回到游標。 */
+  /**
+   * 畫完一個：收進板子、選取它；沒開連續繪圖時回到游標。
+   * 加上它會超過繪圖點數上限時不收，說明原因，板子與工具都不動。
+   */
   function finishDrawing(drawing: ChartDrawingDto) {
-    replaceBoard(chartDrawingApplication.addDrawing(board.value, drawing))
+    try {
+      replaceBoard(chartDrawingApplication.addDrawing(board.value, drawing))
+    }
+    catch (error: unknown) {
+      if (!(error instanceof ChartDrawingBoardAnchorCapacityError)) {
+        throw error
+      }
+      announce(error.localizedMessage)
+      return
+    }
     selectedDrawingId.value = board.value.drawings.at(-1)?.id ?? null
     if (!stayInDrawingMode.value) {
       activeDrawingKind.value = null

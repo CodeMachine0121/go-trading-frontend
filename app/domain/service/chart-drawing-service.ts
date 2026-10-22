@@ -5,6 +5,7 @@ import type { ChartDrawingAnchorDto } from '~/domain/models/dto/chart-drawing-an
 import type { ChartDrawingBoardDto } from '~/domain/models/dto/chart-drawing-board-dto'
 import type { ChartDrawingCommandDto } from '~/domain/models/dto/chart-drawing-command-dto'
 import type { ChartDrawingDto } from '~/domain/models/dto/chart-drawing-dto'
+import type { ChartDrawingStrokePointDto } from '~/domain/models/dto/chart-drawing-stroke-point-dto'
 import type { KCandleChartDto } from '~/domain/models/dto/k-candle-chart-dto'
 import type { PlacedChartDrawingDto } from '~/domain/models/dto/placed-chart-drawing-dto'
 import type { SavedChartDrawingBoardDto } from '~/domain/models/dto/saved-chart-drawing-board-dto'
@@ -14,6 +15,7 @@ import { ChartDrawing } from '~/domain/models/entities/chart-drawing'
 import { ChartDrawingBoard } from '~/domain/models/entities/chart-drawing-board'
 import { ChartDrawingBoardDomain } from '~/domain/models/domains/chart-drawing-board-domain'
 import { KCandleTimelineDomain } from '~/domain/models/domains/k-candle-timeline-domain'
+import { FreehandStrokeDomain } from '~/domain/models/domains/freehand-stroke-domain'
 import { ChartDrawingBoardLoadDto } from '~/domain/models/dto/chart-drawing-board-load-dto'
 import { ChartDrawingSaveDto } from '~/domain/models/dto/chart-drawing-save-dto'
 import { ChartDrawingToolDto } from '~/domain/models/dto/chart-drawing-tool-dto'
@@ -124,6 +126,21 @@ export class ChartDrawingService {
     ).toDomain().toDto()
   }
 
+  /**
+   * 按住拖曳到目前為止的一筆自由筆跡：取到的點精簡過、換成那一刻與那個價格，照這種繪圖的預設樣式。
+   * 這就是放開時會留下的樣子；不到兩個點時它還不算一個繪圖。
+   */
+  draftFreehandDrawing(chart: KCandleChartDto, kind: ChartDrawingKindValue, points: readonly ChartDrawingStrokePointDto[]): ChartDrawingDto {
+    const kindVo = chartDrawingKindOf(kind)
+    const timeline = new KCandleTimelineDomain(chart)
+    const anchors = new FreehandStrokeDomain(points, kindVo.maximumAnchorCount).simplified()
+      .map(point => timeline.freehandAnchor(point.logicalIndex, point.price).toVo())
+
+    return new ChartDrawing(
+      0, kindVo.value, anchors, kindVo.defaultColorToken, kindVo.defaultLineWidth, 'solid', false, true,
+    ).toDomain().toDto()
+  }
+
   /** 這個動作套上去會變成什麼樣子，但還不算一步——拖動途中畫給人看的那一份。 */
   previewChange(drawing: ChartDrawingDto, command: ChartDrawingCommandDto): ChartDrawingDto {
     return drawing.toEntity().toDomain().applied(command).toDto()
@@ -157,8 +174,14 @@ export class ChartDrawingService {
     return new KCandleTimelineDomain(chart).alignAnchor(logicalIndex, price, magnet)
   }
 
-  shiftAnchor(chart: KCandleChartDto, openTime: Date, kCandleShift: number, price: Decimal): ChartDrawingAnchorDto {
-    return new KCandleTimelineDomain(chart).shiftedAnchor(openTime, kCandleShift, price)
+  /**
+   * 整個繪圖平移幾根：每一個錨點落到平移後的那一根上，保留它在原本那一根裡的那一刻，價格照給的。
+   * 一次對整組錨點做——奇異筆一筆兩百個點，不必各自重建一次時間軸。
+   */
+  shiftAnchors(chart: KCandleChartDto, anchors: readonly ChartDrawingAnchorVo[], kCandleShift: number): ChartDrawingAnchorVo[] {
+    const timeline = new KCandleTimelineDomain(chart)
+
+    return anchors.map(anchor => timeline.shiftedAnchor(anchor.openTime, kCandleShift, anchor.price).toVo())
   }
 
   placeDrawings(chart: KCandleChartDto, drawings: readonly ChartDrawingDto[]): PlacedChartDrawingDto[] {
@@ -167,7 +190,7 @@ export class ChartDrawingService {
     return drawings.map(drawing => drawing.toEntity().toDomain().placedOn(timeline, chart.kCandles))
   }
 
-  /** 左邊細邊的五格：游標一格，其餘依繪圖目錄分好。 */
+  /** 左邊細邊的工具格：游標一格，其餘依繪圖目錄分好。 */
   listToolGroups(): ChartDrawingToolGroupDto[] {
     return [
       new ChartDrawingToolGroupDto('cursor', CURSOR_TOOL_GROUP_LABEL,
