@@ -22,6 +22,12 @@ describe('FreehandStrokeDomain：收成要留下的點', () => {
     expect(positionsOf(new FreehandStrokeDomain(corner, 200).simplified())).toEqual([[0, 0], [100, 0], [100, 100]])
   })
 
+  it('畫一個圈回到起點：圈的轉折都留著，頭尾是同一點', () => {
+    const loop = [pointAt(0, 0), pointAt(50, 0), pointAt(50, 50), pointAt(0, 50), pointAt(0, 0)]
+
+    expect(positionsOf(new FreehandStrokeDomain(loop, 200).simplified())).toEqual([[0, 0], [50, 0], [50, 50], [0, 50], [0, 0]])
+  })
+
   it.each([
     [150, 150],
     [200, 200],

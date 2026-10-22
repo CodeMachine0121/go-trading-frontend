@@ -28,8 +28,8 @@ export class FreehandStrokeDomain {
     keep[this.points.length - 1] = true
     const pending: [number, number][] = this.points.length > 2 ? [[0, this.points.length - 1]] : []
 
-    while (pending.length > 0) {
-      const [startIndex, endIndex] = pending.pop() ?? [0, 0]
+    for (let range = pending.pop(); range !== undefined; range = pending.pop()) {
+      const [startIndex, endIndex] = range
       const start = this.points[startIndex]
       const end = this.points[endIndex]
       if (start === undefined || end === undefined) {
@@ -41,18 +41,15 @@ export class FreehandStrokeDomain {
       const length = Math.hypot(deltaX, deltaY)
       let farthestIndex = startIndex
       let farthestDistance = 0
-      for (let index = startIndex + 1; index < endIndex; index++) {
-        const point = this.points[index]
-        const distance = point === undefined
-          ? 0
-          : length === 0
-            ? Math.hypot(point.x - start.x, point.y - start.y)
-            : Math.abs(deltaY * point.x - deltaX * point.y + end.x * start.y - end.y * start.x) / length
+      this.points.slice(startIndex + 1, endIndex).forEach((point, offset) => {
+        const distance = length === 0
+          ? Math.hypot(point.x - start.x, point.y - start.y)
+          : Math.abs(deltaY * point.x - deltaX * point.y + end.x * start.y - end.y * start.x) / length
         if (distance > farthestDistance) {
           farthestDistance = distance
-          farthestIndex = index
+          farthestIndex = startIndex + 1 + offset
         }
-      }
+      })
 
       if (farthestDistance > FREEHAND_STROKE_SIMPLIFICATION_TOLERANCE_PIXELS) {
         keep[farthestIndex] = true

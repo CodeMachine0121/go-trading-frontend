@@ -79,6 +79,12 @@ describe('KCandleTimelineDomain：奇異筆的點不對齊到整根', () => {
     expect(new KCandleTimelineDomain(fiveMinutes).fractionalLogicalIndexOf(drawnOnOneHour.openTime)).toBe(4)
   })
 
+  it('一根都沒有的圖：以時間原點當第 0 根，畫出去再讀回來是同一個位置', () => {
+    const empty = new KCandleTimelineDomain(kCandleChartOf('1h', []))
+
+    expect(empty.fractionalLogicalIndexOf(empty.freehandAnchor(2.5, new Decimal('1')).openTime)).toBe(2.5)
+  })
+
   it('落在兩根之間沒有交易的空檔時，對到之後那一根', () => {
     const withGap = kCandleChartOf('1h', [
       new KCandleSpec('2026-10-16T10:00:00.000Z'),

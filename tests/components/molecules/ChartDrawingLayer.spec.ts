@@ -552,7 +552,9 @@ describe('ChartDrawingLayer：顏色與選取時的軸上色帶', () => {
 
   it('選取中的奇異筆：沒有把手、兩軸也不標色帶', async () => {
     const { fills, arcs } = await paintRecording({
-      drawings: [chartDrawingOf(1, 'brush', [anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(30), '850')]).toDomain().toDto()],
+      drawings: [chartDrawingOf(1, 'brush', [
+        anchorOf(openTimeOf(10), '800'), anchorOf(openTimeOf(20), '820'), anchorOf(openTimeOf(30), '850'),
+      ]).toDomain().toDto()],
       selectedDrawingId: 1,
     })
 
