@@ -134,25 +134,24 @@ describe('TradingStrategyListPanel 刪一份', () => {
   })
 })
 
-describe('TradingStrategyListPanel 標出每一份吃的行情', () => {
+describe('TradingStrategyListPanel 標出每一份吃的行情，不標交易模式', () => {
   it.each([
-    { marketDataKind: 'kCandle' as const, label: 'K 線', tradingModeLabel: null, expected: 'K 線' },
-    { marketDataKind: 'contractKCandle' as const, label: '合約行情', tradingModeLabel: '只做多', expected: '合約行情' },
-  ])('$label 的那一份寫著「$expected」', async ({ marketDataKind, label, tradingModeLabel, expected }) => {
+    { marketDataKind: 'kCandle' as const, label: 'K 線', expected: 'K 線' },
+    { marketDataKind: 'contractKCandle' as const, label: '合約行情', expected: '合約行情' },
+  ])('$label 的那一份寫著「$expected」，沒有任何交易模式的標記', async ({ marketDataKind, label, expected }) => {
     const { wrapper } = mountPanel({
       listTradingStrategies: vi.fn().mockResolvedValue([
         new TradingStrategyDto(
           1, '黃金交叉', [], null, null, marketDataKind, new LocalizedTextVo(label, label),
-          tradingModeLabel === null ? null : 'longOnly',
-          tradingModeLabel === null ? null : new LocalizedTextVo(tradingModeLabel, 'Long only'),
           marketDataKind === 'contractKCandle'),
       ]),
     })
     await flushPromises()
 
     expect(wrapper.get('[data-testid="trading-strategy-market-data-kind"]').text()).toBe(expected)
-    if (tradingModeLabel !== null) {
-      expect(wrapper.get('[data-testid="trading-strategy-row"]').text()).toContain(tradingModeLabel)
+    const rowText = wrapper.get('[data-testid="trading-strategy-row"]').text()
+    for (const tradingModeLabel of ['多空反手', '只做多', '只做空']) {
+      expect(rowText).not.toContain(tradingModeLabel)
     }
   })
 })

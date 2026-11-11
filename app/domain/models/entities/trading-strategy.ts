@@ -4,6 +4,7 @@ import { TradingStrategyDomain } from '~/domain/models/domains/trading-strategy-
  * Entity：後端那一份交易策略的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
  *
  * 它記的是**規則**：幾個信號來源，加上把它們合成一個結論的兩棵條件樹。
+ * 交易模式也不在這裡：買入、賣出代表什麼，由用它的機器人（交易方向）或那一次回測決定。
  * 交易標的、觸發間隔、執行狀態一律不在這裡——那三樣是機器的事，
  * 分開之後同一份規則才能被好幾台機器人同時用。
  */
@@ -17,8 +18,6 @@ export class TradingStrategy {
     public readonly sellCondition: TradingStrategyCondition | null,
     /** 它的訊號來源吃哪一種行情。舊版後端不說時是 K 線。 */
     public readonly marketDataKind: string = 'kCandle',
-    /** 合約交易策略的交易模式；K 線交易策略沒有，是空字串。 */
-    public readonly tradingMode: string = '',
   ) {}
 
   toDomain(): TradingStrategyDomain {

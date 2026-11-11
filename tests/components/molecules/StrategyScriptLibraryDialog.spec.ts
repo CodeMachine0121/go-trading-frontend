@@ -6,6 +6,7 @@ import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 function strategyScriptOf(id: number, name: string): StrategyScriptDto {
   return new StrategyScriptDto(
@@ -198,3 +199,33 @@ function publishedStrategyScriptOf(id: number, name: string): StrategyScriptDto 
   return new StrategyScriptDto(
     id, name, '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, true)
 }
+
+describe('StrategyScriptLibraryDialog 的用途', () => {
+  it('自己的每一列標出用途，按切換鍵要把它切成另一種', async () => {
+    const wrapper = mountLibrary({
+      strategyScripts: [new StrategyScriptDto(
+        7, '均線', '', new StrategyScriptContentDto('sum := 0.0', 'floatList'), true, false,
+        new StrategyScriptUsageDomain('calculation').toDto())],
+    })
+
+    expect(wrapper.get('[data-testid="strategy-script-library-usage-7"]').text()).toBe('計算用')
+    const switchButton = wrapper.get('[data-testid="strategy-script-library-switch-usage-7"]')
+    expect(switchButton.text()).toBe('改成圖表用')
+    await switchButton.trigger('click')
+
+    expect(wrapper.emitted('switchUsage')).toEqual([[7, 'chart']])
+  })
+
+  it('市集副本也標出用途、也能切換', async () => {
+    const wrapper = mountLibrary({
+      adoptedStrategyScripts: [new PublishedStrategyScriptDto(
+        9, '別人的通道', '', 'floatList', null, null, [], true, new LocalizedTextVo('一串數字', 'Numbers'),
+        'kCandle', new LocalizedTextVo('K 線', 'K-candle'), new StrategyScriptUsageDomain('chart').toDto())],
+    })
+
+    expect(wrapper.get('[data-testid="strategy-script-library-usage-9"]').text()).toBe('圖表用')
+    await wrapper.get('[data-testid="strategy-script-library-switch-usage-9"]').trigger('click')
+
+    expect(wrapper.emitted('switchUsage')).toEqual([[9, 'calculation']])
+  })
+})

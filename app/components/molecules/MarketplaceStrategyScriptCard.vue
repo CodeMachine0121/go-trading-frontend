@@ -69,6 +69,13 @@ const { localize } = useLocalizedText()
           {{ localize(strategyScript.marketDataKindLabel) }}
         </dd>
       </div>
+      <!-- 用途決定加入之後它出現在哪裡：圖表的指標選單，或交易策略的訊號來源。 -->
+      <div class="marketplace-strategy-script-card__fact">
+        <dt>{{ t('strategyScript.marketplaceStrategyScriptCard.usageHeading') }}</dt>
+        <dd :data-testid="`marketplace-usage-${strategyScript.id}`">
+          {{ localize(strategyScript.usage.label) }}
+        </dd>
+      </div>
       <div class="marketplace-strategy-script-card__fact marketplace-strategy-script-card__fact--wide">
         <dt>{{ t('strategyScript.marketplaceStrategyScriptCard.parametersHeading') }}</dt>
         <dd>

@@ -7,6 +7,12 @@ import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
+import { STRATEGY_SCRIPT_USAGES } from '~/domain/models/vo/strategy-script-usage-vo'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
+import type { StrategyScriptUsageOptionDto } from '~/domain/models/dto/strategy-script-usage-option-dto'
+import { SignalSourceChoicesDomain } from '~/domain/models/domains/signal-source-choices-domain'
+import type { SignalSourceChoicesDto } from '~/domain/models/dto/signal-source-choices-dto'
 /**
  * Domain Service：策略腳本的編排。
  * 公開用例方法之間互不呼叫。
@@ -42,6 +48,16 @@ export class StrategyScriptService {
     return this.readAvailable(() => true)
   }
 
+  /**
+   * 一種行情的策略腳本裡，哪幾支當得了交易策略的訊號來源、哪幾支當不了（連同原因），
+   * 以及一支都挑不到時是哪一種挑不到。
+   */
+  async listSignalSourceChoices(marketDataKind: MarketDataKind): Promise<SignalSourceChoicesDto> {
+    const wantedKind = new MarketDataKindDomain(marketDataKind)
+
+    return new SignalSourceChoicesDomain(await this.readAvailable(kind => wantedKind.isSameAs(kind))).toDto()
+  }
+
   /** 兩種清單只差在留下哪幾種行情；讀法與轉成 DTO 的方式完全相同。 */
   private async readAvailable(
     keeps: (marketDataKind: MarketDataKindDomain) => boolean,
@@ -71,6 +87,16 @@ export class StrategyScriptService {
       : await this.strategyScriptProxy.updateStrategyScript(strategyScriptWriteDomain)
 
     return saved.toDomain().toDto()
+  }
+
+  /** 切換一支的用途（自己的或市集副本）。被引用時由交易服務擋下並點名。 */
+  async switchStrategyScriptUsage(id: number, usage: StrategyScriptUsage): Promise<void> {
+    return this.strategyScriptProxy.switchStrategyScriptUsage(id, usage)
+  }
+
+  /** 新增對話框上的用途選項；第一個是預設（計算用）。 */
+  listUsageOptions(): StrategyScriptUsageOptionDto[] {
+    return STRATEGY_SCRIPT_USAGES.map(usage => new StrategyScriptUsageDomain(usage).toOptionDto())
   }
 
   async deleteStrategyScript(id: number): Promise<void> {

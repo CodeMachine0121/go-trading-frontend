@@ -4,6 +4,8 @@ import { StrategyBotDto } from '~/domain/models/dto/strategy-bot-dto'
 import { StrategyBotRunStateDomain } from '~/domain/models/domains/strategy-bot-run-state-domain'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
+import { StrategyBotTradingDirectionsDomain } from '~/domain/models/domains/strategy-bot-trading-directions-domain'
+import { StrategyBotNotificationsDomain } from '~/domain/models/domains/strategy-bot-notifications-domain'
 
 /**
  * Domain Model：一台已存機器人對畫面的樣子。
@@ -27,6 +29,10 @@ export class StrategyBotDomain {
       watchedSymbols.map(watchedSymbol => watchedSymbol.symbol),
       watchedSymbols.map(watchedSymbol => watchedSymbol.toCapitalAllocationDto()))
     const capital = this.strategyBot.positionPlan?.capital ?? null
+    // 只有選得了方向的那一種有這一行：現貨機器人沒有交易方向，畫一行空的就是在講一件不存在的事。
+    const tradingDirections = page.takesTradingDirections
+      ? new StrategyBotTradingDirectionsDomain(this.strategyBot.tradingDirections)
+      : null
 
     return new StrategyBotDto(
       this.strategyBot.id,
@@ -48,6 +54,11 @@ export class StrategyBotDomain {
       `${page.listPath}/${this.strategyBot.id}`,
       this.strategyBot.autoOrderEnabled,
       this.strategyBot.autoOrderEntrySlippageTolerancePercentage,
+      tradingDirections?.directions ?? [],
+      tradingDirections?.label() ?? null,
+      tradingDirections?.shortLabel() ?? null,
+      this.strategyBot.notifications,
+      new StrategyBotNotificationsDomain(this.strategyBot.notifications).label(),
     )
   }
 }

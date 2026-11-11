@@ -32,7 +32,6 @@ const {
   transactionCostsError = null,
   replaysOnContractAccount = false,
   contractTradingModeOptions = [],
-  contractTradingModeNote = null,
   leverageError = null,
   tradingModeError = null,
   slippageError = null,
@@ -77,13 +76,8 @@ const {
    * 「只做現貨」那一句換成合約重演怎麼算。
    */
   replaysOnContractAccount?: boolean
-  /** 交易模式選單的選項。重演一份合約交易策略時不給選單，改給下面那一句。 */
+  /** 交易模式選單的選項：重演一支合約腳本與一份合約交易策略都由這一次挑。 */
   contractTradingModeOptions?: readonly ContractTradingModeOptionDto[]
-  /**
-   * 交易模式不由填表的人挑時，要在那一格說的話——與彙總刻度那一句同一個理由：
-   * 交易模式是那份交易策略自己說的，畫一個挑得動的選單等於放第二個答案。
-   */
-  contractTradingModeNote?: string | null
   leverageError?: string | null
   tradingModeError?: string | null
   slippageError?: string | null
@@ -312,7 +306,6 @@ const { localize } = useLocalizedText()
         :error-message="tradingModeError"
       >
         <AppSelect
-          v-if="!contractTradingModeNote"
           v-model="tradingMode"
           data-testid="backtest-contract-trading-mode-select"
         >
@@ -324,13 +317,6 @@ const { localize } = useLocalizedText()
             {{ localize(modeOption.label) }}
           </option>
         </AppSelect>
-        <p
-          v-else
-          class="backtest-condition-fields__note"
-          data-testid="backtest-contract-trading-mode-note"
-        >
-          {{ contractTradingModeNote }}
-        </p>
       </FormField>
 
       <FormField

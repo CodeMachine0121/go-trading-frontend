@@ -10,7 +10,6 @@ import { TradingSymbolService } from '~/domain/service/trading-symbol-service'
 import { buildContractTradingSymbol, buildContractTradingSymbolProxy } from '../../fixtures/contract-proxies'
 import { buildTimeZone } from '../../fixtures/time-zone'
 import { buildBacktestRun, buildBacktestRunProxy } from '../../fixtures/backtest-run'
-import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 
 vi.mock('lightweight-charts', () => ({
   createChart: vi.fn(() => ({
@@ -44,13 +43,12 @@ function mountPane(proxy: IBacktestProxy, replaysOnContractAccount: boolean) {
       savedGeneration: 0,
       marketDataKind: replaysOnContractAccount ? 'contractKCandle' : 'kCandle',
       replaysOnContractAccount,
-      tradingModeLabel: replaysOnContractAccount ? new LocalizedTextVo('只做多', 'Long only') : null,
     },
   })
 }
 
 describe('TradingStrategyBacktestPane 重演一份合約交易策略', () => {
-  it('標的從合約標的清單挑，有槓桿與滑點，交易模式寫成由交易策略決定', async () => {
+  it('標的從合約標的清單挑，有槓桿、滑點與交易模式選單，交易模式預設多空反手', async () => {
     const wrapper = mountPane(buildProxy(), true)
     await flushPromises()
 
@@ -58,12 +56,26 @@ describe('TradingStrategyBacktestPane 重演一份合約交易策略', () => {
     expect(wrapper.find('[data-testid="symbol-select"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="backtest-leverage-input"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="backtest-slippage-input"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="backtest-contract-trading-mode-select"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="backtest-contract-trading-mode-note"]').text())
-      .toBe('只做多（由這份交易策略決定，要換請改交易策略）')
+    const modeSelect = wrapper.get('[data-testid="backtest-contract-trading-mode-select"]')
+    expect((modeSelect.element as HTMLSelectElement).value).toBe('longShort')
   })
 
-  it('送出的是合約交易策略重演，槓桿 3，不帶交易模式', async () => {
+  it('挑只做空時那一格說明只做空的買賣，送出的這一次帶著只做空', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy, true)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="contract-symbol-select"]').setValue('BTCUSDT')
+    await wrapper.get('[data-testid="backtest-contract-trading-mode-select"]').setValue('shortOnly')
+    expect(wrapper.text()).toContain('賣出：空手開空。買入：持空倉就平掉，空手時什麼都不做。')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    const [, termsDomain] = vi.mocked(proxy.submitContractTradingStrategyBacktest).mock.calls[0]!
+    expect(termsDomain.tradingMode).toBe('shortOnly')
+  })
+
+  it('送出的是合約交易策略重演，槓桿 3，交易模式沒動就是多空反手', async () => {
     const proxy = buildProxy()
     const wrapper = mountPane(proxy, true)
     await flushPromises()
@@ -79,29 +91,35 @@ describe('TradingStrategyBacktestPane 重演一份合約交易策略', () => {
     expect(requestDomain.tradingStrategyId).toBe(7)
     expect(termsDomain.leverage.toString()).toBe('3')
     expect(termsDomain.slippagePercentage.toString()).toBe('0.05')
-    expect(termsDomain.tradingMode).toBeNull()
+    expect(termsDomain.tradingMode).toBe('longShort')
   })
 
-  it('一份 K 線交易策略的回測條件與這一刀之前一模一樣', async () => {
-    const wrapper = mountPane(buildProxy(), false)
+  it('一份 K 線交易策略沒有交易模式那一格，送出走現貨重演、不帶交易模式', async () => {
+    const proxy = buildProxy()
+    const wrapper = mountPane(proxy, false)
     await flushPromises()
 
     expect(wrapper.find('[data-testid="symbol-select"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="backtest-leverage-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="backtest-contract-trading-mode-select"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="backtest-trading-mode-note"]').exists()).toBe(true)
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(proxy.submitContractTradingStrategyBacktest).not.toHaveBeenCalled()
   })
 })
 
 describe('TradingStrategyBacktestPane 切成英文', () => {
-  it('交易模式那一句、彙總刻度那一句與規則說明的標題都說英文', async () => {
+  it('交易模式選項、彙總刻度那一句與規則說明的標題都說英文', async () => {
     const wrapper = mountPane(buildProxy(), true)
     await flushPromises()
 
     wrapper.vm.$i18n.locale = 'en'
     await nextTick()
 
-    expect(wrapper.get('[data-testid="backtest-contract-trading-mode-note"]').text())
-      .toBe('Long only (set by this trading strategy; to change it, edit the trading strategy)')
+    expect(wrapper.get('[data-testid="backtest-contract-trading-mode-select"]').text()).toContain('Short only')
     expect(wrapper.get('[data-testid="backtest-aggregation-interval-note"]').text())
       .toBe('Set by this trading strategy\'s signal sources — this version requires them to agree')
     expect(wrapper.get('[data-testid="backtest-contract-account-note"]').text())

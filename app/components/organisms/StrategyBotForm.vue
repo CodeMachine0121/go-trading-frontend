@@ -4,6 +4,7 @@ import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppSelect from '~/components/atoms/AppSelect.vue'
+import AppCheckbox from '~/components/atoms/AppCheckbox.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import StrategyBotWatchedSymbolsField from '~/components/molecules/StrategyBotWatchedSymbolsField.vue'
 import StrategyBotCapitalAllocationField from '~/components/molecules/StrategyBotCapitalAllocationField.vue'
@@ -153,6 +154,72 @@ function onSave() {
           />
         </FormField>
       </div>
+    </section>
+
+    <!--
+      交易方向：只有合約機器人有（現貨只能做多）。兩個都勾就是多空反手；
+      底下那一句說出這一組勾選讓買入、賣出各代表什麼——那正是勾它的理由。
+    -->
+    <section
+      v-if="form.takesTradingDirections"
+      class="bot-form__section"
+      data-testid="bot-trading-directions"
+    >
+      <h3 class="bot-form__section-title">
+        {{ t('strategyBot.form.tradingDirectionsTitle') }}
+      </h3>
+      <div class="bot-form__choices">
+        <AppCheckbox
+          v-model="form.tradesLong.value"
+          :label="t('strategyBot.form.tradesLong')"
+          data-testid="bot-trades-long"
+        />
+        <AppCheckbox
+          v-model="form.tradesShort.value"
+          :label="t('strategyBot.form.tradesShort')"
+          data-testid="bot-trades-short"
+        />
+      </div>
+      <p
+        v-if="form.tradingDirectionsDescription.value !== null"
+        class="bot-form__hint"
+        data-testid="bot-trading-directions-description"
+      >
+        {{ localize(form.tradingDirectionsDescription.value) }}
+      </p>
+      <p class="bot-form__hint">
+        {{ t('strategyBot.form.tradingDirectionsHelp') }}
+      </p>
+    </section>
+
+    <section
+      class="bot-form__section"
+      data-testid="bot-notifications"
+    >
+      <h3 class="bot-form__section-title">
+        {{ t('strategyBot.form.notificationsTitle') }}
+      </h3>
+      <div class="bot-form__choices">
+        <AppCheckbox
+          v-model="form.notifiesBuy.value"
+          :label="t('strategyBot.form.notifiesBuy')"
+          data-testid="bot-notifies-buy"
+        />
+        <AppCheckbox
+          v-model="form.notifiesSell.value"
+          :label="t('strategyBot.form.notifiesSell')"
+          data-testid="bot-notifies-sell"
+        />
+        <AppCheckbox
+          v-model="form.notifiesHold.value"
+          :label="t('strategyBot.form.notifiesHold')"
+          :description="t('strategyBot.form.notifiesHoldHelp')"
+          data-testid="bot-notifies-hold"
+        />
+      </div>
+      <p class="bot-form__hint">
+        {{ t('strategyBot.form.notificationsHelp') }}
+      </p>
     </section>
 
     <!--
@@ -357,6 +424,20 @@ function onSave() {
     &--dense {
       grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     }
+  }
+
+  // 並排的幾個勾選：寬螢幕上一排，窄的時候自己折行。
+  &__choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: spacing('xs');
+  }
+
+  &__hint {
+    margin: 0;
+    color: color('text-muted');
+    font-size: font-size('sm');
+    line-height: line-height('normal');
   }
 
   &__watched-symbols,

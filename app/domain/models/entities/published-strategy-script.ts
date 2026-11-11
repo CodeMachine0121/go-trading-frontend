@@ -25,6 +25,11 @@ export class PublishedStrategyScript {
     public readonly parameters: readonly StrategyScriptParameterDto[] = [],
     /** 它吃哪一種行情，原樣照後端說的；舊版後端不說時是 `kCandle`。 */
     public readonly marketDataKind: string = 'kCandle',
+    /**
+     * 圖表用或計算用，原樣照後端說的；不說時是空字串（讀作計算用）。
+     * 市集上是那一支目前的用途；副本是它自己的——加入當下帶走、之後各自切換。
+     */
+    public readonly usage: string = '',
   ) {}
 
   toDomain(): PublishedStrategyScriptDomain {

@@ -1,5 +1,7 @@
 import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-applicable-strategy-script-dto'
 import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
+import type { StrategyScriptUsageDto } from '~/domain/models/dto/strategy-script-usage-dto'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 /** DTO：一支策略腳本離開 domain 的唯一形狀。 */
 export class StrategyScriptDto {
@@ -20,6 +22,8 @@ export class StrategyScriptDto {
      * 並標示它已經分享出去了。
      */
     public readonly published: boolean,
+    /** 圖表用或計算用：決定它出現在圖表選單，還是挑得到當訊號來源與篩選。 */
+    public readonly usage: StrategyScriptUsageDto = new StrategyScriptUsageDomain('').toDto(),
   ) {}
 
   /**

@@ -11,6 +11,7 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
 import { aWatchedSymbolDto } from '../fixtures/strategy-bot-watched-symbol'
 import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
+import { StrategyBotTradingDirectionLockedError } from '~/domain/errors/strategy-bot-trading-direction-locked-error'
 
 const strategyBotApplication = {
   getStrategyBot: vi.fn(),
@@ -183,8 +184,8 @@ describe('useStrategyBotWorkbench 交易服務拒絕資金分配', () => {
 
 describe('useStrategyBotWorkbench 移除還沒空手的監聽標的', () => {
   it.each([
-    { reason: 'watchedSymbolHoldsPosition' as const, expected: '要移除的交易標的還有機器人持倉，要先讓它空手才能移除；監聽標的沒有改變' },
-    { reason: 'watchedSymbolAutoOrderOutstanding' as const, expected: '要移除的交易標的還有沒做完的自動下單，要等它做完才能移除；監聽標的沒有改變' },
+    { reason: 'watchedSymbolHoldsPosition' as const, expected: '監聽標的還有機器人持倉，要先讓它空手才能改交易方向或移除它；這次的修改沒有存下' },
+    { reason: 'watchedSymbolAutoOrderOutstanding' as const, expected: '監聽標的還有沒做完的自動下單，要等它做完才能改交易方向或移除它；這次的修改沒有存下' },
   ])('$reason 被拒時留在這一頁並說出怎麼處理', async ({ reason, expected }) => {
     strategyBotApplication.saveStrategyBot.mockRejectedValue(new StrategyBotWatchedSymbolNotRemovableError(reason))
 
@@ -205,7 +206,7 @@ describe('useStrategyBotWorkbench 移除還沒空手的監聽標的', () => {
     await workbench.save(aWriteDto(7))
 
     expect(workbench.failureMessage.value?.in('en'))
-      .toBe('A symbol you removed still holds a bot position; let it go flat before removing it. The watched symbols were left unchanged.')
+      .toBe('A watched symbol still holds a bot position; let it go flat before changing the trading direction or removing it. Nothing was saved.')
   })
 })
 
@@ -262,5 +263,20 @@ describe('useStrategyBotWorkbench 的自動下單', () => {
     expect(workbench.autoOrderEnabled.value).toBe(false)
     expect(workbench.autoOrderRefusal.value).toBeNull()
     expect(workbench.autoOrderFailureMessage.value).toBeNull()
+  })
+})
+
+describe('useStrategyBotWorkbench 自動下單開著時改交易方向', () => {
+  it('被擋下時留在這一頁，說要先到詳細頁關掉自動下單', async () => {
+    strategyBotApplication.saveStrategyBot.mockRejectedValue(new StrategyBotTradingDirectionLockedError())
+
+    const workbench = workbenchUnderTest(7, 'contractKCandle')
+    strategyBotApplication.getStrategyBot.mockResolvedValue(botDto(7, 'contractKCandle'))
+    await workbench.load()
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.saved.value).toBe(false)
+    expect(workbench.failureMessage.value?.in('zh-TW'))
+      .toBe('自動下單開著時不能改交易方向：請先在這台機器人的詳細頁關掉自動下單，再改交易方向')
   })
 })

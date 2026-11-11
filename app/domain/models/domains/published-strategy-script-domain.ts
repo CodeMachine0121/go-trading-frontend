@@ -2,6 +2,7 @@ import type { PublishedStrategyScript } from '~/domain/models/entities/published
 import { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-result-type-domain'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 /**
  * Domain Model：市集上那一支策略腳本的行為。
@@ -29,6 +30,7 @@ export class PublishedStrategyScriptDomain {
       resultType.label(),
       marketDataKind.value,
       marketDataKind.label(),
+      new StrategyScriptUsageDomain(this.publishedStrategyScript.usage).toDto(),
     )
   }
 }

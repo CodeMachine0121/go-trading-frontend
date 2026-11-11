@@ -51,7 +51,7 @@ function aCalculation(indicatorName = '均價') {
 
 /** 一支帶著一個旋鈕的策略腳本：期數，預設 20。 */
 function strategyScriptWithLookback(id = 7, name = '均線') {
-  return buildStoredStrategyScript(id, name, {
+  return buildStoredStrategyScript(id, name, { usage: 'chart',
     resultType: 'float',
     parameters: [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
   })
@@ -200,7 +200,7 @@ describe('圖表上的旋鈕：套上去之前就先調', () => {
 
   it('一個旋鈕都沒有的策略腳本挑了就直接上圖，中間不多一步', async () => {
     const { wrapper, calculateIndicator } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
     })
 
     await pickStrategyScript(wrapper, 9)
@@ -314,7 +314,7 @@ describe('圖表上的旋鈕：同一支可以擺好幾次', () => {
 
   it('沒有旋鈕的策略腳本也可以擺兩次，只是沒有值可標', async () => {
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
     })
 
     await pickStrategyScript(wrapper, 9)
@@ -517,7 +517,7 @@ describe('圖表上的旋鈕：改到一半與改不動的值', () => {
   it('畫成曲線的策略腳本擺兩次，兩條曲線也是不同顏色', async () => {
     // 一串數字走的是另一條路：它畫成跟著 K 線走的曲線，不是水平線。
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(7, '均線', {
+      strategyScripts: [buildStoredStrategyScript(7, '均線', { usage: 'chart',
         resultType: 'floatList',
         parameters: [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
       })],

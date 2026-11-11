@@ -160,7 +160,7 @@ describe('ContractTradeForm：記一筆', () => {
     recordProxy.recordTrade.mockResolvedValue(buildRecord({ status: 'open' }))
     const { TradingStrategy } = await import('~/domain/models/entities/trading-strategy')
     tradingStrategyProxy.listTradingStrategies.mockResolvedValue([
-      new TradingStrategy(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle', 'longShort'),
+      new TradingStrategy(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle'),
       new TradingStrategy(7, 'ETH 均線', [], null, null, 'kCandle'),
     ])
     const wrapper = mountForm()

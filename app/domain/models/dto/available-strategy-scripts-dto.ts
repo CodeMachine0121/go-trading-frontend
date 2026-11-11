@@ -18,10 +18,18 @@ export class AvailableStrategyScriptsDto {
     public readonly adopted: readonly PublishedStrategyScriptDto[],
   ) {}
 
+  /**
+   * K 線圖表的指標選單挑得到的那幾支：**只有圖表用的**。
+   * 計算用的不列——它們是拿來算買賣的，不是畫在圖上看的。
+   */
   toChartApplicable(): ChartApplicableStrategyScriptDto[] {
     return [
-      ...this.mine.map(strategyScript => strategyScript.toChartApplicable()),
-      ...this.adopted.map(published => published.toChartApplicable()),
+      ...this.mine
+        .filter(strategyScript => strategyScript.usage.appliesToChart)
+        .map(strategyScript => strategyScript.toChartApplicable()),
+      ...this.adopted
+        .filter(published => published.usage.appliesToChart)
+        .map(published => published.toChartApplicable()),
     ]
   }
 }

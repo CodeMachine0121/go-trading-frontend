@@ -1,3 +1,4 @@
+import { SignalSourceChoicesDto } from '~/domain/models/dto/signal-source-choices-dto'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
@@ -30,6 +31,7 @@ mockNuxtImport('useNuxtApp', () => () => ({
   },
   $strategyScriptApplication: {
     listAvailableStrategyScripts: vi.fn().mockResolvedValue(new AvailableStrategyScriptsDto([], [])),
+    listSignalSourceChoices: vi.fn().mockResolvedValue(new SignalSourceChoicesDto([], {}, 'noStrategyScripts')),
   },
   $backtestApplication: {},
   $tradingSymbolApplication: {},

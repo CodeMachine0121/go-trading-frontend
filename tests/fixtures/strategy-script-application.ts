@@ -23,6 +23,7 @@ export function buildStrategyScriptApplication(
     deleteStrategyScript: vi.fn().mockResolvedValue(undefined),
     publishStrategyScript: vi.fn().mockResolvedValue(undefined),
     withdrawStrategyScript: vi.fn().mockResolvedValue(undefined),
+    switchStrategyScriptUsage: vi.fn().mockResolvedValue(undefined),
     ...strategyScriptProxy,
   }))
 }
@@ -39,6 +40,8 @@ export function buildStoredStrategyScript(
     resultType?: string
     parameters?: readonly StrategyScriptParameterDto[]
     marketDataKind?: string
+    /** 不說就是升級後每一支既有腳本的樣子：計算用。 */
+    usage?: string
   } = {},
 ): StrategyScript {
   return new StrategyScript(
@@ -51,6 +54,7 @@ export function buildStoredStrategyScript(
     overrides.parameters ?? [],
     false,
     overrides.marketDataKind ?? 'kCandle',
+    overrides.usage ?? '',
   )
 }
 
@@ -64,6 +68,7 @@ export function buildAdoptedStrategyScript(
     parameters?: readonly StrategyScriptParameterDto[]
     publisherEmail?: string
     marketDataKind?: string
+    usage?: string
   } = {},
 ): PublishedStrategyScript {
   return new PublishedStrategyScript(
@@ -75,6 +80,7 @@ export function buildAdoptedStrategyScript(
     new Date('2026-09-10T08:00:00.000Z'),
     overrides.parameters ?? [],
     overrides.marketDataKind ?? 'kCandle',
+    overrides.usage ?? '',
   )
 }
 
@@ -100,6 +106,7 @@ export function buildStrategyScriptMarketplaceApplication(
       deleteStrategyScript: vi.fn(),
       publishStrategyScript: vi.fn(),
       withdrawStrategyScript: vi.fn(),
+      switchStrategyScriptUsage: vi.fn(),
       ...strategyScriptProxy,
     }),
   )

@@ -72,8 +72,6 @@ type TradingStrategyWire = {
   sellCondition?: TradingStrategyConditionWire | null
   /** 舊版後端不說；沒有就是 K 線。 */
   marketDataKind?: string
-  /** 只有合約交易策略有。 */
-  tradingMode?: string
 }
 
 /**
@@ -280,8 +278,7 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
     return {
       name: writeDto.name,
       marketDataKind: writeDto.marketDataKind,
-      // K 線交易策略沒有交易模式，送了會被拒絕——它根本不上線。
-      ...(writeDto.tradingMode === null ? {} : { tradingMode: writeDto.tradingMode }),
+      // 交易模式不上線：買入、賣出代表什麼由機器人的交易方向或那一次回測決定，交易服務送了就拒絕。
       signalSources: writeDto.signalSources.map(signalSource => ({
         label: signalSource.label,
         strategyScriptId: signalSource.strategyScriptId,
@@ -335,7 +332,6 @@ export class TradingStrategyProxy extends BackendApiProxy implements ITradingStr
       this.toCondition(wire.buyCondition),
       this.toCondition(wire.sellCondition),
       wire.marketDataKind ?? 'kCandle',
-      wire.tradingMode ?? '',
     )
   }
 

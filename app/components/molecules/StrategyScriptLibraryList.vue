@@ -6,6 +6,7 @@ import AppIcon from '~/components/atoms/AppIcon.vue'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 // 分子：留著的每一支策略腳本，一支一列。
 //
@@ -21,6 +22,7 @@ const {
   errorMessage = null,
   activeStrategyScriptId = null,
   activeAdoptedStrategyScriptId = null,
+  busy = false,
 } = defineProps<{
   /** 自己寫的那些。它們帶著算式，所以載得進來、也刪得掉。 */
   strategyScripts: StrategyScriptDto[]
@@ -33,6 +35,8 @@ const {
   activeStrategyScriptId?: number | null
   /** 工作區裡正在用（唯讀）的那一支加入的。 */
   activeAdoptedStrategyScriptId?: number | null
+  /** 有一件事正在進行：切換用途先停用，不送出第二次。 */
+  busy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +44,8 @@ const emit = defineEmits<{
   load: [id: number]
   remove: [id: number]
   deleteAdopted: [id: number]
+  /** 把這一支切成另一種用途。自己的與市集副本都能切——用途是擁有者自己的分類。 */
+  switchUsage: [id: number, usage: StrategyScriptUsage]
 }>()
 
 const { t } = useI18n()
@@ -106,12 +112,30 @@ const { localize } = useLocalizedText()
               >
                 {{ t('strategyScript.strategyScriptLibraryList.sharedBadge') }}
               </AppBadge>
+              <AppBadge
+                variant="neutral"
+                :data-testid="`strategy-script-library-usage-${strategyScript.id}`"
+              >
+                {{ localize(strategyScript.usage.label) }}
+              </AppBadge>
             </span>
             <span
               v-if="strategyScript.description"
               class="strategy-script-library-list__detail"
             >{{ strategyScript.description }}</span>
           </button>
+
+          <AppButton
+            variant="ghost"
+            size="small"
+            class="strategy-script-library-list__action"
+            :title="t('strategyScript.strategyScriptLibraryList.switchUsageLabel', { name: strategyScript.name, action: localize(strategyScript.usage.switchLabel) })"
+            :disabled="busy"
+            :data-testid="`strategy-script-library-switch-usage-${strategyScript.id}`"
+            @click="emit('switchUsage', strategyScript.id, strategyScript.usage.switchTarget)"
+          >
+            {{ localize(strategyScript.usage.switchLabel) }}
+          </AppButton>
 
           <AppButton
             variant="danger-ghost"
@@ -163,14 +187,32 @@ const { localize } = useLocalizedText()
               <AppBadge variant="info">
                 {{ t('strategyScript.strategyScriptLibraryList.marketplaceBadge') }}
               </AppBadge>
+              <AppBadge
+                variant="neutral"
+                :data-testid="`strategy-script-library-usage-${adopted.id}`"
+              >
+                {{ localize(adopted.usage.label) }}
+              </AppBadge>
             </span>
             <span class="strategy-script-library-list__detail">{{ t('strategyScript.strategyScriptLibraryList.adoptedDetail') }}</span>
           </button>
 
           <!--
-            這一列**只有**「刪掉副本」。改名、分享一顆都不給——
-            算式是作者寫的，副本看不到也改不動。
+            這一列只有「切換用途」與「刪掉副本」。改名、分享一顆都不給——
+            算式是作者寫的，副本看不到也改不動；用途卻是擁有者自己的分類。
           -->
+          <AppButton
+            variant="ghost"
+            size="small"
+            class="strategy-script-library-list__action"
+            :title="t('strategyScript.strategyScriptLibraryList.switchUsageLabel', { name: adopted.name, action: localize(adopted.usage.switchLabel) })"
+            :disabled="busy"
+            :data-testid="`strategy-script-library-switch-usage-${adopted.id}`"
+            @click="emit('switchUsage', adopted.id, adopted.usage.switchTarget)"
+          >
+            {{ localize(adopted.usage.switchLabel) }}
+          </AppButton>
+
           <AppButton
             variant="danger-ghost"
             size="small"

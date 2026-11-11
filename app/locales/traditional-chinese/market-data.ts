@@ -40,7 +40,7 @@ export const marketDataTraditionalChineseMessages = {
   },
   chartIndicatorPanel: {
     indicatorLabel: '指標',
-    noStrategyScripts: '還沒有任何策略腳本。到策略腳本畫面寫一支存起來，就能套到圖上。',
+    noStrategyScripts: '沒有圖表用的策略腳本。到策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。',
     strategyScriptsUnavailable: '暫時取不到策略腳本清單，稍後再打開這張圖試一次。',
     pickerPlaceholder: '套用一支策略腳本…',
     notDrawable: '{name}（畫不成線）',
@@ -230,7 +230,7 @@ export const marketDataTraditionalChineseMessages = {
     premiumIndex: '溢價指數',
     recordedAt: '記錄於 {time}',
     emptyChart: '查無 K 線。這段區間內可能還沒有資料，或這個合約還沒開始同步。',
-    noContractStrategyScripts: '還沒有吃合約行情的策略腳本，到合約策略腳本畫面新增一支。',
+    noContractStrategyScripts: '沒有圖表用的合約策略腳本。到合約策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。',
     liveUpdateMarketClosed: '這個市場目前收盤中。',
     liveUpdateNoLivePlace: '這個合約標的不在合約追蹤名單上，沒有即時更新——把它加進合約追蹤名單就會即時跟盤。',
     liveUpdateEnded: '即時更新已中斷，不會自己重新連上——確認這個合約標的還在合約追蹤名單上，再重新整理頁面。圖表顯示的是目前手上的資料。',

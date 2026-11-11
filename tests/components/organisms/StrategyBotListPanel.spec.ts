@@ -15,6 +15,11 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 import { aWatchedSymbolDto } from '../../fixtures/strategy-bot-watched-symbol'
 import { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
+import Decimal from 'decimal.js'
+import { StrategyBot } from '~/domain/models/entities/strategy-bot'
+import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
+import type { TradingDirection } from '~/domain/models/vo/trading-direction-vo'
 
 function runningState() {
   return new StrategyBotRunStateDto(
@@ -704,5 +709,54 @@ describe('StrategyBotListPanel 的自動下單', () => {
 
     expect(listStrategyBots).toHaveBeenCalledOnce()
     expect(wrapper.find('[data-testid="bot-auto-order-badge"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyBotListPanel 看得到交易方向與通知', () => {
+  function botWithSettings(
+    marketDataKind: MarketDataKind, tradingDirections: TradingDirection[], notifications: StrategyBotNotificationsDto,
+  ) {
+    return new StrategyBot(
+      8, '費率反轉', [new StrategyBotWatchedSymbol('BTCUSDT', '', false, null, null, new Decimal(100))],
+      5, 11, '費率反轉', 'stopped', null, null, marketDataKind, false, new Decimal('0.1'),
+      tradingDirections, notifications).toDomain().toDto()
+  }
+
+  it('合約機器人的詳細區寫出交易方向「做多＋做空（多空反手）」與通知「買入、賣出」', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botWithSettings('contractKCandle', ['long', 'short'], new StrategyBotNotificationsDto(true, true, false))]),
+    }, 'contractKCandle')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-settings-trading-directions"]').text()).toBe('做多＋做空（多空反手）')
+    expect(wrapper.get('[data-testid="bot-settings-notifications"]').text()).toBe('買入、賣出')
+  })
+
+  it('現貨機器人通知全關：詳細區沒有交易方向，通知寫「全部關閉」', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botWithSettings('kCandle', [], new StrategyBotNotificationsDto(false, false, false))]),
+    }, 'kCandle', true)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="bot-history-toggle"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="bot-settings-trading-directions"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="bot-settings-notifications"]').text()).toBe('全部關閉')
+  })
+
+  it('清單那一列標出合約機器人的交易方向「只做空」', async () => {
+    const { wrapper } = mountPanel({
+      listStrategyBots: vi.fn().mockResolvedValue([
+        botWithSettings('contractKCandle', ['short'], new StrategyBotNotificationsDto())]),
+    }, 'contractKCandle')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="bot-row"] [data-testid="bot-trading-directions"]').text()).toBe('只做空')
   })
 })

@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import StrategyScriptNameDialog from '~/components/molecules/StrategyScriptNameDialog.vue'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
+
+const USAGE_OPTIONS = ['calculation', 'chart'].map(usage => new StrategyScriptUsageDomain(usage).toOptionDto())
 
 function mountNameDialog(props: Record<string, unknown> = {}) {
   return mount(StrategyScriptNameDialog, {
@@ -32,7 +35,7 @@ describe('StrategyScriptNameDialog', () => {
 
     await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
 
-    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '']])
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '', null]])
   })
 
   it.each([
@@ -131,7 +134,7 @@ describe('StrategyScriptNameDialog：說明', () => {
 
     await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
 
-    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '抓短線轉折']])
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '抓短線轉折', null]])
   })
 
   it('說明留空也送得出去——沒有說明是一個合法的答案', async () => {
@@ -140,7 +143,7 @@ describe('StrategyScriptNameDialog：說明', () => {
 
     await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
 
-    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '']])
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '', null]])
   })
 
   it('每次打開都從這一次該有的起點開始，不留上一次打的說明', async () => {
@@ -152,5 +155,36 @@ describe('StrategyScriptNameDialog：說明', () => {
 
     expect((wrapper.get('[data-testid="strategy-script-description-input"]')
       .element as HTMLTextAreaElement).value).toBe('原本的說明')
+  })
+})
+
+describe('StrategyScriptNameDialog：另存新腳本時的用途', () => {
+  it('預選計算用，送出時帶著計算用', async () => {
+    const wrapper = mountNameDialog({ usageOptions: USAGE_OPTIONS })
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('二十根均線')
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="strategy-script-usage-calculation"] input').element.checked).toBe(true)
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '', 'calculation']])
+  })
+
+  it('選圖表用送出時帶著圖表用', async () => {
+    const wrapper = mountNameDialog({ usageOptions: USAGE_OPTIONS })
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('二十根均線')
+    await wrapper.get('[data-testid="strategy-script-usage-chart"] input').setValue(true)
+
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '', 'chart']])
+  })
+
+  it('改名時沒給用途選項：那一格不出現，送出的用途是空的', async () => {
+    const wrapper = mountNameDialog({ initialName: '二十根均線' })
+
+    expect(wrapper.find('[data-testid="strategy-script-usage-field"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toEqual([['二十根均線', '', null]])
   })
 })

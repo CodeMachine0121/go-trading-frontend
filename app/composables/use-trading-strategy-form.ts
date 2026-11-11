@@ -14,14 +14,11 @@ import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
 import { SIGNAL_VALUES } from '~/domain/models/vo/signal-vo'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
-import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
-import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
 
-/** 新拼一份時的行情種類與（合約的）交易模式：與交易服務對留白的讀法一字不差。 */
+/** 新拼一份時的行情種類：與交易服務對留白的讀法一字不差。 */
 const DEFAULT_MARKET_DATA_KIND: MarketDataKind = 'kCandle'
-const DEFAULT_CONTRACT_TRADING_MODE: ContractTradingMode = 'longShort'
 
 /** 一條條件挑得到的三個值。信號只有三個，所以它是選的；怎麼稱呼它們由 SignalDomain 說。 */
 const SIGNAL_OPTIONS = SIGNAL_VALUES.map(signal => ({
@@ -53,17 +50,14 @@ export function useTradingStrategyForm(
   const { currentLanguage, translatedText } = useLocalizedText()
   const name = ref('')
   /**
-   * 這一份吃哪一種行情，以及合約那一種的交易模式。
+   * 這一份吃哪一種行情。
    *
    * 行情種類只在**還沒存過**時換得動：交易服務不讓一份已存的交易策略換行情種類，
    * 因為它的每一個信號來源都是照那一種挑的。
    */
   const marketDataKind = ref<MarketDataKind>(DEFAULT_MARKET_DATA_KIND)
-  const tradingMode = ref<ContractTradingMode>(DEFAULT_CONTRACT_TRADING_MODE)
   const marketDataKindNotice = ref<LocalizedTextVo | null>(null)
   const marketDataKindLocked = computed(() => editing() !== null)
-  const replaysOnContractAccount = computed(
-    () => new MarketDataKindDomain(marketDataKind.value).toWorkbenchDto().replaysOnContractAccount)
   const signalSources = ref<TradingStrategySignalSourceDto[]>([])
   /**
    * 條件目前真正指著的那幾個代號——也就是每個來源**最後一個沒有撞名的**代號。
@@ -159,7 +153,6 @@ export function useTradingStrategyForm(
       conditionSides[0].condition.value,
       conditionSides[1].condition.value,
       marketDataKind.value,
-      replaysOnContractAccount.value ? tradingMode.value : null,
     )
   }
 
@@ -176,7 +169,6 @@ export function useTradingStrategyForm(
 
     name.value = loaded?.name ?? ''
     marketDataKind.value = loaded?.marketDataKind ?? DEFAULT_MARKET_DATA_KIND
-    tradingMode.value = loaded?.tradingMode ?? DEFAULT_CONTRACT_TRADING_MODE
     marketDataKindNotice.value = null
     // 打開既有的那一份就是它存著的那一個；新的一份用預設值——
     // 與後端對一份沒填的交易策略的讀法一字不差。
@@ -268,10 +260,6 @@ export function useTradingStrategyForm(
       // 換了行情種類而原本有信號來源時要說的那一句。
       marketDataKindNotice.value = translatedText('tradingStrategy.form.marketDataKindChanged')
     }
-  }
-
-  function changeTradingMode(nextTradingMode: ContractTradingMode) {
-    tradingMode.value = nextTradingMode
   }
 
   function removeSignalSource(index: number) {
@@ -442,12 +430,9 @@ export function useTradingStrategyForm(
   return {
     name,
     marketDataKind,
-    tradingMode,
     marketDataKindNotice,
     marketDataKindLocked,
-    replaysOnContractAccount,
     changeMarketDataKind,
-    changeTradingMode,
     signalSources,
     sourceLabels,
     intervalOptions,

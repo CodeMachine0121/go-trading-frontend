@@ -15,7 +15,6 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 // 兩份選單是系統的規則，不是這一份的資料：直接向真的 domain service 要，不在測試裡另抄一份。
 const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
 const MARKET_DATA_KIND_OPTIONS = optionsService.listMarketDataKindOptions()
-const CONTRACT_TRADING_MODE_OPTIONS = optionsService.listContractTradingModeOptions()
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
   return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
@@ -58,7 +57,6 @@ function mountWorkbench(
       unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
       shortageByKind: { kCandle: null, contractKCandle: null },
       marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-      contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
       saving: false,
       failureMessage: null,
       savedGeneration: 0,
@@ -823,7 +821,6 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
         unusableStrategyScriptsByKind: { kCandle: unusableStrategyScripts, contractKCandle: {} },
         shortageByKind: { kCandle: null, contractKCandle: null },
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: null,
         savedGeneration: 0,
@@ -870,7 +867,7 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
 })
 
 describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得出是哪一種', () => {
-  function withShortage(shortage: 'noStrategyScripts' | 'noSignalStrategyScripts') {
+  function withShortage(shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | 'noCalculationStrategyScripts') {
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: null,
@@ -879,7 +876,6 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
         unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
         shortageByKind: { kCandle: shortage, contractKCandle: null },
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: null,
         savedGeneration: 0,
@@ -903,6 +899,15 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
     const note = wrapper.get('[data-testid="no-signal-strategy-scripts"]')
     expect(note.text()).toContain('一個信號')
     expect(wrapper.find('[data-testid="no-strategy-scripts"]').exists()).toBe(false)
+  })
+
+  it('吐訊號的全是圖表用——下一步是把它們切成計算用', async () => {
+    const wrapper = withShortage('noCalculationStrategyScripts')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="no-calculation-strategy-scripts"]').text())
+      .toContain('去策略腳本庫把要當訊號來源的那幾支改成「計算用」')
+    expect(wrapper.find('[data-testid="no-signal-strategy-scripts"]').exists()).toBe(false)
   })
 
   it('挑不到的時候加不了來源——按了只會得到一個空的下拉選單', async () => {

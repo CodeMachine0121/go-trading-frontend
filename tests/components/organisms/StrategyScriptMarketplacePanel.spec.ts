@@ -14,7 +14,7 @@ import { buildStrategyScriptMarketplaceApplication, buildStoredStrategyScript, b
 function publishedStrategyScriptOf(
   id: number,
   name: string,
-  overrides: { description?: string, resultType?: string, publisherEmail?: string } = {},
+  overrides: { description?: string, resultType?: string, publisherEmail?: string, usage?: string } = {},
 ): PublishedStrategyScript {
   return new PublishedStrategyScript(
     id,
@@ -24,6 +24,8 @@ function publishedStrategyScriptOf(
     overrides.publisherEmail ?? 'someone@example.com',
     new Date('2026-09-10T08:00:00.000Z'),
     [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
+    'kCandle',
+    overrides.usage ?? '',
   )
 }
 
@@ -363,5 +365,19 @@ describe('StrategyScriptMarketplacePanel 認得每一種行情的「我的」與
 
     expect(wrapper.get('[data-testid="marketplace-strategy-script-mine-9"]').text()).toContain('我分享的')
     expect(wrapper.find('[data-testid="marketplace-adopt-9"]').exists()).toBe(false)
+  })
+})
+
+describe('StrategyScriptMarketplacePanel 每張卡標出用途', () => {
+  it.each([
+    { usage: 'chart', expected: '圖表用' },
+    { usage: 'calculation', expected: '計算用' },
+    { usage: '', expected: '計算用' },
+  ])('市集上一支「$usage」的腳本，卡上寫「$expected」', async ({ usage, expected }) => {
+    const wrapper = await mountPanel({
+      browseMarketplace: vi.fn().mockResolvedValue([publishedStrategyScriptOf(9, '別人的', { usage })]),
+    })
+
+    expect(wrapper.get('[data-testid="marketplace-usage-9"]').text()).toBe(expected)
   })
 })

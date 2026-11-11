@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import AppModal from '~/components/atoms/AppModal.vue'
+import AppAlert from '~/components/atoms/AppAlert.vue'
 import StrategyScriptLibraryList from '~/components/molecules/StrategyScriptLibraryList.vue'
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 // 分子：窄螢幕上的策略腳本清單——同一份清單，收在一張蓋上來的紙裡。
 //
@@ -18,6 +20,9 @@ const {
   errorMessage = null,
   activeStrategyScriptId = null,
   activeAdoptedStrategyScriptId = null,
+  actionNotice = null,
+  actionError = null,
+  busy = false,
 } = defineProps<{
   open: boolean
   strategyScripts: StrategyScriptDto[]
@@ -25,16 +30,26 @@ const {
   errorMessage?: LocalizedTextVo | null
   activeStrategyScriptId?: number | null
   activeAdoptedStrategyScriptId?: number | null
+  /**
+   * 在這張清單上做的事（例如切換用途）說了什麼。對話框蓋在畫面上，
+   * 畫面上那一句看不到——被拒絕的原因要在按下去的地方說。
+   */
+  actionNotice?: LocalizedTextVo | null
+  actionError?: LocalizedTextVo | null
+  /** 有一件事正在進行：清單上的動作先停用，不送出第二次。 */
+  busy?: boolean
 }>()
 
 const emit = defineEmits<{
   load: [id: number]
   remove: [id: number]
   deleteAdopted: [id: number]
+  switchUsage: [id: number, usage: StrategyScriptUsage]
   close: []
 }>()
 
 const { t } = useI18n()
+const { localize } = useLocalizedText()
 </script>
 
 <template>
@@ -43,8 +58,24 @@ const { t } = useI18n()
     :title="t('strategyScript.strategyScriptLibraryDialog.title')"
     @close="emit('close')"
   >
+    <AppAlert
+      v-if="actionError"
+      tone="danger"
+      data-testid="strategy-script-library-dialog-error"
+    >
+      {{ localize(actionError) }}
+    </AppAlert>
+    <AppAlert
+      v-else-if="actionNotice"
+      tone="success"
+      data-testid="strategy-script-library-dialog-notice"
+    >
+      {{ localize(actionNotice) }}
+    </AppAlert>
+
     <StrategyScriptLibraryList
       class="strategy-script-library-dialog"
+      :busy="busy"
       :strategy-scripts="strategyScripts"
       :adopted-strategy-scripts="adoptedStrategyScripts"
       :error-message="errorMessage"
@@ -53,6 +84,7 @@ const { t } = useI18n()
       @load="id => emit('load', id)"
       @remove="id => emit('remove', id)"
       @delete-adopted="id => emit('deleteAdopted', id)"
+      @switch-usage="(id, usage) => emit('switchUsage', id, usage)"
     />
   </AppModal>
 </template>

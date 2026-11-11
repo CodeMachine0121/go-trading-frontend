@@ -78,8 +78,8 @@ function transactionCostsBody(
  * 合約重演多問的那幾格裡真的填了的那幾格。
  *
  * 規則與出場價位、交易成本同一條——**留白的不上線**：槓桿留白後端讀成一倍、滑點留白讀成不計，
- * 不送它，那個讀法在線上就是字面的意思。交易模式只有重演一支腳本時才有；
- * 重演一份交易策略時它是那份交易策略自己的，送了會被拒絕。
+ * 不送它，那個讀法在線上就是字面的意思。交易模式是每一次重演自己說的——
+ * 重演一支腳本與重演一份交易策略都一樣（交易策略不帶交易模式）。
  */
 function contractTermsBody(termsDomain: ContractBacktestTermsDomain): Record<string, string> {
   return {
@@ -238,10 +238,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
     }
   }
 
-  /**
-   * 在合約帳戶上重演一份合約交易策略：現貨那一份 body，加上槓桿與滑點。
-   * 交易模式不送——它是那份交易策略自己的。
-   */
+  /** 在合約帳戶上重演一份合約交易策略：現貨那一份 body，加上槓桿、滑點與這一次的交易模式。 */
   async submitContractTradingStrategyBacktest(
     requestDomain: TradingStrategyBacktestRequestDomain, termsDomain: ContractBacktestTermsDomain,
   ): Promise<BacktestRun> {
@@ -277,7 +274,7 @@ export class BacktestProxy extends BackendApiProxy implements IBacktestProxy {
         requestDomain.entryCostPercentage, requestDomain.exitCostPercentage),
       ...replayTimingBody(requestDomain.fillTiming, requestDomain.validationStartTime),
       // 借錢、滑點與交易模式不在這一份裡：現貨重演不收它們，
-      // 合約重演的那兩格由 contractTermsBody 另外補上。
+      // 合約重演的那三格由 contractTermsBody 另外補上。
     }
   }
 

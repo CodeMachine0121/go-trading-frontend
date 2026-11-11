@@ -17,6 +17,7 @@ function buildApplication(strategyScriptProxy: Partial<IStrategyScriptProxy>): S
     createStrategyScript: vi.fn(),
     updateStrategyScript: vi.fn(),
     deleteStrategyScript: vi.fn(),
+    switchStrategyScriptUsage: vi.fn(),
     publishStrategyScript: vi.fn(),
     withdrawStrategyScript: vi.fn(),
     ...strategyScriptProxy,
@@ -323,5 +324,15 @@ describe('StrategyScriptApplication 只列一種行情的策略腳本', () => {
 
     expect(createStrategyScript.mock.calls[0]?.[0].marketDataKind).toBe('contractKCandle')
     expect(saved.content.marketDataKind).toBe('contractKCandle')
+  })
+})
+
+describe('StrategyScriptApplication 的用途選項', () => {
+  it('計算用在前（預設），圖表用在後，各帶一句會出現在哪裡', () => {
+    const options = buildApplication({}).listUsageOptions()
+
+    expect(options.map(option => [option.value, option.label.in('zh-TW')]))
+      .toEqual([['calculation', '計算用'], ['chart', '圖表用']])
+    expect(options[1]?.description.in('zh-TW')).toContain('只出現在 K 線圖表的指標選單')
   })
 })

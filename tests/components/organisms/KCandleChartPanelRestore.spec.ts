@@ -56,7 +56,7 @@ function aCalculation(indicatorName = '均價') {
 
 /** 一支帶著一個旋鈕的策略腳本：期數，預設 20。 */
 function strategyScriptWithLookback(id = 7, name = '均線') {
-  return buildStoredStrategyScript(id, name, {
+  return buildStoredStrategyScript(id, name, { usage: 'chart',
     resultType: 'float',
     parameters: [new StrategyScriptParameterDto('期數', 'lookbackCount', 20)],
   })
@@ -236,7 +236,7 @@ describe('打開畫面時上次那幾支自己回來', () => {
 
   it('回來的那幾筆之後再挑一支，序號不撞號——移除新的那一筆不會連帶移除舊的', async () => {
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
       remembered: [rememberedOf(9), rememberedOf(9)],
     })
 
@@ -250,7 +250,7 @@ describe('打開畫面時上次那幾支自己回來', () => {
     // 跳過的那一筆若佔掉一個號，回來的那一筆會拿到序號 2，而下一次手動加入的也是 2。
     // 撞號之後移除任何一筆，**兩筆會一起消失**，而且不會有任何地方報錯。
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
       remembered: [rememberedOf(404), rememberedOf(9)],
     })
 
@@ -275,7 +275,16 @@ describe('打開畫面時對不上的那幾筆不回來', () => {
   it('現在畫不成線的那一筆不回來', async () => {
     // 它在可挑清單裡本來就挑不到，讓它自己回到圖上等於繞過那道擋。
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(7, '是非策略腳本', { resultType: 'bool' })],
+      strategyScripts: [buildStoredStrategyScript(7, '是非策略腳本', { usage: 'chart', resultType: 'bool' })],
+      remembered: [rememberedOf(7)],
+    })
+
+    expect(wrapper.findAll('[data-testid="applied-indicator"]')).toHaveLength(0)
+  })
+
+  it('現在是計算用的那一筆不回來', async () => {
+    const { wrapper } = await mountPanel({
+      strategyScripts: [buildStoredStrategyScript(7, '均線', { usage: 'calculation', resultType: 'float' })],
       remembered: [rememberedOf(7)],
     })
 
@@ -332,7 +341,7 @@ describe('收起來的那幾筆下次仍然收著', () => {
 describe('清單一改動就寫下來', () => {
   it('加入一筆之後留存的是那一筆', async () => {
     const { wrapper, writeAppliedChartIndicators } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+      strategyScripts: [buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
     })
 
     await pickStrategyScript(wrapper, 9)
@@ -488,7 +497,7 @@ describe('留存的必須是能用的那一份', () => {
   it('填了用不了的值之後再加一筆，留存的仍是能用的那個值', async () => {
     const { wrapper, writeAppliedChartIndicators } = await mountPanel({
       strategyScripts: [strategyScriptWithLookback(7, '均線'),
-        buildStoredStrategyScript(9, '無旋鈕', { resultType: 'float' })],
+        buildStoredStrategyScript(9, '無旋鈕', { usage: 'chart', resultType: 'float' })],
       remembered: [rememberedOf(7, { 期數: 45 })],
     })
 

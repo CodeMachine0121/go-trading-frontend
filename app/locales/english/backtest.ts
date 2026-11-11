@@ -140,7 +140,6 @@ export const backtestEnglishMessages: typeof backtestTraditionalChineseMessages 
     placeholder: 'Press "Run backtest": it is computed in the background, and you can view it in the list below or on the backtest runs page.',
     unsaved: 'This one has not been saved yet, so there is nothing to backtest. Save it first, then come back here.',
     aggregationIntervalNote: 'Set by this trading strategy\'s signal sources — this version requires them to agree',
-    tradingModeNote: '{tradingMode} (set by this trading strategy; to change it, edit the trading strategy)',
     parameterNotDeclared: 'Parameter problem (fix the value that signal source fills in, or the line in the script that reads it): {message}',
     scriptFailed: 'Script problem (fix the strategy script that signal source names): {message}',
     unexpectedError: 'An unexpected error occurred while running the backtest.',

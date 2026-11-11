@@ -134,10 +134,6 @@ onMounted(() => {
               variant="neutral"
               data-testid="trading-strategy-market-data-kind"
             >{{ localize(tradingStrategy.marketDataKindLabel) }}</AppBadge>
-            <AppBadge
-              v-if="tradingStrategy.tradingModeLabel !== null"
-              variant="accent"
-            >{{ localize(tradingStrategy.tradingModeLabel) }}</AppBadge>
             <span class="trading-strategy-list__count">{{ t('tradingStrategy.listPanel.strategyScriptCount', { count: tradingStrategy.signalSources.length }, tradingStrategy.signalSources.length) }}</span>
           </span>
 

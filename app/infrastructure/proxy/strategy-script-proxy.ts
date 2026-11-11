@@ -7,12 +7,19 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { StrategyScriptNameConflictError } from '~/domain/errors/strategy-script-name-conflict-error'
 import { StrategyScriptNotFoundError } from '~/domain/errors/strategy-script-not-found-error'
 import { BackendApiProxy } from '~/infrastructure/proxy/backend-api-proxy'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 const STRATEGIES_ENDPOINT = '/strategy-scripts'
 
 /** 後端用這兩個狀態碼分別表示「名稱被佔用」與「沒有這一支」。只有這裡需要知道。 */
 const NAME_CONFLICT_STATUS = 409
 const NOT_FOUND_STATUS = 404
+
+/**
+ * 切成圖表用時，有交易策略或篩選設定正在用它。與撞名同一個狀態碼，靠原因分開：
+ * 後端那一句點名了是哪幾份在用，照它說的講，不當成撞名。
+ */
+const USAGE_IN_USE_REASON = 'strategyScriptUsageInUse'
 
 /**
  * 後端回傳的原始 wire 形狀，只存在於本檔內。
@@ -37,18 +44,8 @@ type StrategyScriptWire = {
   published?: boolean
   /** 舊版後端不給這一項；讀不到就是 K 線——那時候只有這一種。 */
   marketDataKind?: string
-}
-
-/** 市集那一段送來的一張卡。**它沒有 script**——那不是漏了，是那一欄不存在。 */
-type PublishedStrategyScriptWire = {
-  id: number
-  name: string
-  description?: string
-  resultType: string
-  publisherEmail: string
-  publishedAt: string
-  parameters?: StrategyScriptParameterWire[] | null
-  marketDataKind?: string
+  /** 圖表用或計算用；舊版後端不給，讀作計算用。 */
+  usage?: string
 }
 
 /** 日常那一份送來的兩段。 */
@@ -75,6 +72,7 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
         null,
         this.toParameterDtos(adoptedWire.parameters),
         adoptedWire.marketDataKind ?? 'kCandle',
+        adoptedWire.usage ?? '',
       )),
     }
   }
@@ -87,6 +85,20 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
   async updateStrategyScript(strategyScriptWriteDomain: StrategyScriptWriteDomain): Promise<StrategyScript> {
     return this.writeStrategyScript(
       `${STRATEGIES_ENDPOINT}/${strategyScriptWriteDomain.id}`, 'PUT', strategyScriptWriteDomain)
+  }
+
+  /**
+   * 切換一支（自己的或市集副本）的用途。切成圖表用而有交易策略或篩選設定在用時，
+   * 交易服務拒絕並點名，那一句原樣往上。
+   */
+  async switchStrategyScriptUsage(id: number, usage: StrategyScriptUsage): Promise<void> {
+    try {
+      await this.requestBackend<StrategyScriptWire>(
+        `${STRATEGIES_ENDPOINT}/${id}/usage`, { method: 'PUT', body: { usage } })
+    }
+    catch (error: unknown) {
+      throw this.strategyScriptFailureOf(error)
+    }
   }
 
   async publishStrategyScript(id: number): Promise<void> {
@@ -138,6 +150,8 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
           script: strategyScriptWriteDomain.script,
           resultType: strategyScriptWriteDomain.resultType,
           marketDataKind: strategyScriptWriteDomain.marketDataKind,
+          // 只有新增時說用途；改寫送了會被拒絕（那是切換用途的事）。
+          ...(strategyScriptWriteDomain.usage === null ? {} : { usage: strategyScriptWriteDomain.usage }),
           parameters: strategyScriptWriteDomain.parameters.map(parameter => ({
             name: parameter.name,
             kind: parameter.kind,
@@ -164,6 +178,9 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
       return error
     }
 
+    if (error.status === NAME_CONFLICT_STATUS && error.reason === USAGE_IN_USE_REASON) {
+      return error
+    }
     if (error.status === NAME_CONFLICT_STATUS) {
       return new StrategyScriptNameConflictError(error.message, { cause: error })
     }
@@ -172,23 +189,6 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
     }
 
     return error
-  }
-
-  /**
-   * 市集那一段收乾淨。它與自己的那一段共用旋鈕的收法，卻**沒有算式可以收**——
-   * 那正是它與自己的策略腳本唯一的差別，也是唯一重要的差別。
-   */
-  private toPublishedStrategyScript(publishedWire: PublishedStrategyScriptWire): PublishedStrategyScript {
-    return new PublishedStrategyScript(
-      publishedWire.id,
-      publishedWire.name,
-      publishedWire.description ?? '',
-      publishedWire.resultType,
-      publishedWire.publisherEmail,
-      new Date(publishedWire.publishedAt),
-      this.toParameterDtos(publishedWire.parameters),
-      publishedWire.marketDataKind ?? 'kCandle',
-    )
   }
 
   private toStrategyScript(strategyScriptWire: StrategyScriptWire): StrategyScript {
@@ -206,6 +206,7 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
       this.toParameterDtos(strategyScriptWire.parameters),
       strategyScriptWire.published ?? false,
       strategyScriptWire.marketDataKind ?? 'kCandle',
+      strategyScriptWire.usage ?? '',
     )
   }
 

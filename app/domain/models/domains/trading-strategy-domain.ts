@@ -13,7 +13,6 @@ import {
 import type { ConditionOperatorVo } from '~/domain/models/vo/condition-operator-vo'
 import { CONDITION_OPERATORS } from '~/domain/models/vo/condition-operator-vo'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
-import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 
 /**
  * Domain Model：一份已存交易策略對畫面的樣子。
@@ -30,10 +29,6 @@ export class TradingStrategyDomain {
   toDto(): TradingStrategyDto {
     const marketDataKind = new MarketDataKindDomain(this.tradingStrategy.marketDataKind)
     const replaysOnContractAccount = marketDataKind.toWorkbenchDto().replaysOnContractAccount
-    // 只有合約交易策略有交易模式；K 線那一種即使後端多給了一個字，也不把它讀成有。
-    const tradingMode = replaysOnContractAccount
-      ? new ContractTradingModeDomain(this.tradingStrategy.tradingMode)
-      : null
 
     return new TradingStrategyDto(
       this.tradingStrategy.id,
@@ -43,8 +38,6 @@ export class TradingStrategyDomain {
       this.toConditionDto(this.tradingStrategy.sellCondition),
       marketDataKind.value,
       marketDataKind.label(),
-      tradingMode?.value ?? null,
-      tradingMode?.label() ?? null,
       replaysOnContractAccount,
     )
   }

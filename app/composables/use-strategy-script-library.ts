@@ -12,6 +12,8 @@ import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rej
 import { BackendServerError } from '~/domain/errors/backend-server-error'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 import { UntranslatedTextVo } from '~/domain/models/vo/untranslated-text-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 /** 目前哪一個對話框疊在畫面上。一次只有一個——好幾個同時開沒有任何意義。 */
 type OpenDialog = 'none' | 'library' | 'name' | 'rename' | 'discard' | 'delete' | 'withdraw'
@@ -100,7 +102,7 @@ export function useStrategyScriptLibrary(
   }
 
   /**
-   * 讓「使用中的那一支」跟上剛讀回來的那一份。
+   * 讓「使用中的那一支」（自己的，或唯讀工作區裡那一份副本）跟上剛讀回來的那一份。
    *
    * 沒有這一步，關於那一支的每一件事都會停在載入當下的樣子——最明顯的是分享狀態：
    * 剛按過收回，眼前那顆按鈕還寫著「收回」，而看的人只會再按一次。
@@ -112,16 +114,17 @@ export function useStrategyScriptLibrary(
    * 只解除關聯、內容留著」是刪除那條路自己的規則，不該由一次重讀順手執行。
    */
   function refreshActiveStrategyScript() {
-    if (activeStrategyScript.value === null) {
-      return
-    }
-
     const refreshed = strategyScripts.value.find(candidate => candidate.id === activeStrategyScript.value?.id)
-    if (refreshed === undefined) {
-      return
+    if (refreshed !== undefined) {
+      activeStrategyScript.value = refreshed
     }
 
-    activeStrategyScript.value = refreshed
+    // 唯讀工作區裡那一份副本也跟上：切換它的用途之後，它的紀錄不該停在切換前。
+    const refreshedAdopted = adoptedStrategyScripts.value
+      .find(candidate => candidate.id === activeAdoptedStrategyScript.value?.id)
+    if (refreshedAdopted !== undefined) {
+      activeAdoptedStrategyScript.value = refreshedAdopted
+    }
   }
 
   function openLibrary() {
@@ -265,8 +268,9 @@ export function useStrategyScriptLibrary(
     nameErrorMessage.value = null
   }
 
-  async function createStrategyScript(name: string, description: string) {
-    await writeStrategyScript(name, undefined, description)
+  /** 另存一支新的。用途只在這裡說——改寫與改名都不帶它，那是切換用途的事。 */
+  async function createStrategyScript(name: string, description: string, usage: StrategyScriptUsage | null = null) {
+    await writeStrategyScript(name, undefined, description, usage)
   }
 
   /**
@@ -281,13 +285,15 @@ export function useStrategyScriptLibrary(
     await writeStrategyScript(name, activeStrategyScript.value.id, description)
   }
 
-  async function writeStrategyScript(name: string, id: number | undefined, description: string) {
+  async function writeStrategyScript(
+    name: string, id: number | undefined, description: string, usage: StrategyScriptUsage | null = null,
+  ) {
     saving.value = true
     clearMessages()
 
     try {
       const saved = await strategyScriptApplication.saveStrategyScript(
-        new StrategyScriptWriteDto(name, readCurrentContent(), id, description))
+        new StrategyScriptWriteDto(name, readCurrentContent(), id, description, usage))
 
       activeStrategyScript.value = saved
       loadedContent.value = saved.content
@@ -364,6 +370,38 @@ export function useStrategyScriptLibrary(
     catch (error: unknown) {
       errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.publicationChangeFailed'))
       openDialog.value = 'none'
+    }
+    finally {
+      saving.value = false
+    }
+  }
+
+  /**
+   * 切換一支（自己的或市集副本）的用途。**不先問**：切錯了再切回來就好，沒有人失去任何東西。
+   * 被交易策略或篩選設定用著時，交易服務擋下並點名，照它那一句說；用途不變。
+   */
+  async function switchStrategyScriptUsage(id: number, usage: StrategyScriptUsage) {
+    // 清單上已經沒有它（在別處被刪掉了）：沒有東西可以切，也不替它打一次後端。
+    const target = [...strategyScripts.value, ...adoptedStrategyScripts.value]
+      .find(candidate => candidate.id === id)
+    if (target === undefined) {
+      return
+    }
+
+    saving.value = true
+    clearMessages()
+
+    try {
+      await strategyScriptApplication.switchStrategyScriptUsage(id, usage)
+      const switchedTo = new StrategyScriptUsageDomain(usage).toDto().label
+      noticeMessage.value = translatedText('strategyScript.strategyScriptLibrary.usageSwitched', language => ({
+        name: target.name,
+        usage: switchedTo.in(language),
+      }))
+      await refreshStrategyScripts()
+    }
+    catch (error: unknown) {
+      errorMessage.value = messageOf(error, translatedText('strategyScript.strategyScriptLibrary.usageSwitchFailed'))
     }
     finally {
       saving.value = false
@@ -490,5 +528,6 @@ export function useStrategyScriptLibrary(
     askToWithdraw,
     confirmWithdraw,
     deleteAdoptedStrategyScript,
+    switchStrategyScriptUsage,
   }
 }

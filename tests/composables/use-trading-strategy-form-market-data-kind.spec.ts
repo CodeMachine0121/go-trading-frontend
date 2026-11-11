@@ -17,18 +17,16 @@ function aStoredContractStrategy() {
     [new TradingStrategySignalSourceDto('費率', 21, '1h', [])],
     new TradingStrategyConditionDto('b', null, [], '費率', 'buy'),
     new TradingStrategyConditionDto('s', null, [], '費率', 'sell'),
-    'contractKCandle', new LocalizedTextVo('合約行情', 'Contract market data'), 'shortOnly',
-    new LocalizedTextVo('只做空', 'Short only'), true)
+    'contractKCandle', new LocalizedTextVo('合約行情', 'Contract market data'), true)
 }
 
-describe('useTradingStrategyForm 的行情種類與交易模式', () => {
-  it('新拼一份時是 K 線，送出去的也是 K 線、沒有交易模式', () => {
+describe('useTradingStrategyForm 的行情種類', () => {
+  it('新拼一份時是 K 線，送出去的也是 K 線', () => {
     const form = formUnderTest()
     form.reset()
 
     expect(form.marketDataKind.value).toBe('kCandle')
     expect(form.marketDataKindLocked.value).toBe(false)
-    expect(form.replaysOnContractAccount.value).toBe(false)
     form.name.value = '均線交叉'
     form.addSignalSource()
     form.conditionSides[0]!.placeAt('均線', 0)
@@ -38,7 +36,6 @@ describe('useTradingStrategyForm 的行情種類與交易模式', () => {
 
     const writeDto = form.toWriteDto()
     expect(writeDto?.marketDataKind).toBe('kCandle')
-    expect(writeDto?.tradingMode).toBeNull()
   })
 
   it('換成合約行情時，已加的信號來源全部拿掉並說明為什麼', () => {
@@ -62,17 +59,14 @@ describe('useTradingStrategyForm 的行情種類與交易模式', () => {
     form.changeMarketDataKind('contractKCandle')
 
     expect(form.marketDataKindNotice.value).toBeNull()
-    expect(form.replaysOnContractAccount.value).toBe(true)
   })
 
-  it('合約交易策略帶著它的交易模式送出去，預設是多空反手', () => {
+  it('合約交易策略送出去的只有行情種類，沒有交易模式', () => {
     const form = formUnderTest()
     form.reset()
     form.changeMarketDataKind('contractKCandle')
 
-    expect(form.tradingMode.value).toBe('longShort')
-    form.changeTradingMode('shortOnly')
-    form.name.value = '只做空'
+    form.name.value = '費率反轉'
     form.addSignalSource()
     form.conditionSides[0]!.placeAt('均線', 0)
     form.conditionSides[1]!.placeAt('均線', 0)
@@ -81,15 +75,14 @@ describe('useTradingStrategyForm 的行情種類與交易模式', () => {
 
     const writeDto = form.toWriteDto()
     expect(writeDto?.marketDataKind).toBe('contractKCandle')
-    expect(writeDto?.tradingMode).toBe('shortOnly')
+    expect(writeDto).not.toHaveProperty('tradingMode')
   })
 
-  it('已存的那一份換不了行情種類，但交易模式照它存的讀進來', () => {
+  it('已存的那一份換不了行情種類', () => {
     const form = formUnderTest(aStoredContractStrategy())
     form.reset()
 
     expect(form.marketDataKindLocked.value).toBe(true)
-    expect(form.tradingMode.value).toBe('shortOnly')
 
     form.changeMarketDataKind('kCandle')
 

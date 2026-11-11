@@ -532,8 +532,8 @@ describe('StrategyBotProxy 的自動下單', () => {
   })
 
   it.each([
-    { reason: 'watchedSymbolHoldsPosition', expected: '要移除的交易標的還有機器人持倉，要先讓它空手才能移除；監聽標的沒有改變' },
-    { reason: 'watchedSymbolAutoOrderOutstanding', expected: '要移除的交易標的還有沒做完的自動下單，要等它做完才能移除；監聽標的沒有改變' },
+    { reason: 'watchedSymbolHoldsPosition', expected: '監聽標的還有機器人持倉，要先讓它空手才能改交易方向或移除它；這次的修改沒有存下' },
+    { reason: 'watchedSymbolAutoOrderOutstanding', expected: '監聽標的還有沒做完的自動下單，要等它做完才能改交易方向或移除它；這次的修改沒有存下' },
   ])('修改時拿掉還沒空手的監聽標的（$reason）被拒，說得出是哪一種', async ({ reason, expected }) => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(buildRefusal(409, {
       message: 'strategy bot watched symbol holds a position: ETHUSDT 還有機器人持倉，要先讓它空手才能移除', reason,

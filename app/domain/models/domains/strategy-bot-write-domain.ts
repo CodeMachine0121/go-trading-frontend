@@ -4,6 +4,7 @@ import { StrategyBotWriteDto } from '~/domain/models/dto/strategy-bot-write-dto'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
 import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
+import { StrategyBotTradingDirectionsDomain } from '~/domain/models/domains/strategy-bot-trading-directions-domain'
 
 /**
  * Domain Model：一台要存進去的機器人，連同它送出前必須成立的每一條規則。
@@ -62,6 +63,14 @@ export class StrategyBotWriteDomain {
         `The trigger interval can be at most ${STRATEGY_BOT_LIMITS.triggerIntervalMaximumMinutes} minutes`)
     }
 
+    // 合約機器人至少要面對一個方向；現貨機器人沒有這一項（null），一句都不問。
+    const tradingDirectionsRejection = this.writeDto.tradingDirections === null
+      ? null
+      : new StrategyBotTradingDirectionsDomain(this.writeDto.tradingDirections).rejection
+    if (tradingDirectionsRejection !== null) {
+      return tradingDirectionsRejection
+    }
+
     const entrySlippageTolerance = this.writeDto.autoOrderEntrySlippageTolerancePercentage
     if (entrySlippageTolerance !== null && (entrySlippageTolerance.isNaN()
       || entrySlippageTolerance.lessThan(STRATEGY_BOT_LIMITS.entrySlippageToleranceMinimumPercentage)
@@ -102,6 +111,10 @@ export class StrategyBotWriteDomain {
       this.writeDto.positionPlan,
       this.writeDto.marketDataKind,
       this.writeDto.autoOrderEntrySlippageTolerancePercentage,
+      this.writeDto.tradingDirections === null
+        ? null
+        : new StrategyBotTradingDirectionsDomain(this.writeDto.tradingDirections).directions,
+      this.writeDto.notifications,
     )
   }
 }

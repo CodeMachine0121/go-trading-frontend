@@ -11,6 +11,12 @@ import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
 import { StrategyBotWatchedSymbolListDomain } from '~/domain/models/domains/strategy-bot-watched-symbol-list-domain'
 import { StrategyBotCapitalAllocationDomain } from '~/domain/models/domains/strategy-bot-capital-allocation-domain'
 import { StrategyBotCapitalAllocationDto } from '~/domain/models/dto/strategy-bot-capital-allocation-dto'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
+import {
+  STRATEGY_BOT_DEFAULT_TRADING_DIRECTIONS,
+  StrategyBotTradingDirectionsDomain,
+} from '~/domain/models/domains/strategy-bot-trading-directions-domain'
+import type { TradingDirection } from '~/domain/models/vo/trading-direction-vo'
 
 /** 一台新機器人的預設觸發間隔。五分鐘：夠密、又不會密到每一輪都讀到同一根。 */
 const DEFAULT_TRIGGER_INTERVAL_MINUTES = 5
@@ -84,6 +90,23 @@ export function useStrategyBotForm(
   /** 合約機器人的槓桿倍數。留空即一倍；現貨機器人的表單上沒有這一格。 */
   const leverageText = ref('')
   const entrySlippageToleranceText = ref<string>(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage)
+
+  /** 合約機器人勾著的兩個交易方向。現貨機器人的表單上沒有這一組，也不送。 */
+  const tradesLong = ref(true)
+  const tradesShort = ref(true)
+  const tradingDirections = computed<TradingDirection[]>(() => [
+    ...(tradesLong.value ? ['long' as const] : []),
+    ...(tradesShort.value ? ['short' as const] : []),
+  ])
+  /** 勾著的那一組買入、賣出各代表什麼；一個都沒勾時是 `null`（那時說的是擋下來的那一句）。 */
+  const tradingDirectionsDescription = computed(
+    () => new StrategyBotTradingDirectionsDomain(tradingDirections.value).description())
+
+  /** 三種結論各自要不要通知。預設是交易服務對沒說的讀法。 */
+  const defaultNotifications = new StrategyBotNotificationsDto()
+  const notifiesBuy = ref(defaultNotifications.buy)
+  const notifiesSell = ref(defaultNotifications.sell)
+  const notifiesHold = ref(defaultNotifications.hold)
 
   /**
    * 押多少那一格旁邊要不要出現一格數字。問的是既有那個模型，不自己記——
@@ -162,6 +185,8 @@ export function useStrategyBotForm(
             ? new Decimal(Number.NaN)
             : decimalOfText(entrySlippageToleranceText.value))
         : null,
+      page.takesTradingDirections ? tradingDirections.value : null,
+      new StrategyBotNotificationsDto(notifiesBuy.value, notifiesSell.value, notifiesHold.value),
     )
   }
 
@@ -195,6 +220,15 @@ export function useStrategyBotForm(
     leverageText.value = positionPlan?.leverage?.toString() ?? ''
     entrySlippageToleranceText.value = loaded?.autoOrderEntrySlippageTolerancePercentage.toString()
       ?? STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage
+
+    const loadedDirections = loaded?.tradingDirections ?? STRATEGY_BOT_DEFAULT_TRADING_DIRECTIONS
+    tradesLong.value = loadedDirections.includes('long')
+    tradesShort.value = loadedDirections.includes('short')
+
+    const notifications = loaded?.notifications ?? defaultNotifications
+    notifiesBuy.value = notifications.buy
+    notifiesSell.value = notifications.sell
+    notifiesHold.value = notifications.hold
   }
 
   return {
@@ -222,6 +256,13 @@ export function useStrategyBotForm(
     takesLeverage: page.takesLeverage,
     entrySlippageToleranceText,
     takesAutoOrderEntrySlippageTolerance: page.takesAutoOrderEntrySlippageTolerance,
+    takesTradingDirections: page.takesTradingDirections,
+    tradesLong,
+    tradesShort,
+    tradingDirectionsDescription,
+    notifiesBuy,
+    notifiesSell,
+    notifiesHold,
     rejection,
     reset,
     toWriteDto,

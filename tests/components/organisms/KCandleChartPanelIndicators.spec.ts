@@ -75,7 +75,7 @@ async function mountPanel(overrides: {
   calculateIndicator?: IIndicatorCalculationProxy['calculateIndicator']
 } = {}) {
   const strategyScripts = overrides.strategyScripts
-    ?? [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })]
+    ?? [buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' })]
   const calculateIndicator = overrides.calculateIndicator
     ?? vi.fn().mockResolvedValue(aCalculation())
 
@@ -184,8 +184,8 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('可以同時疊兩支', async () => {
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '第一支', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator: vi.fn()
         .mockResolvedValueOnce(aCalculation('甲'))
@@ -218,7 +218,7 @@ describe('圖表上的指標：挑一支套上去', () => {
   ])('$kind 類型的策略腳本列得出來但挑不到', async ({ kind, name }) => {
     // 直接讓它消失會讓使用者以為策略腳本不見了；挑了才失敗又太晚。
     const { wrapper } = await mountPanel({
-      strategyScripts: [buildStoredStrategyScript(9, name, { resultType: kind })],
+      strategyScripts: [buildStoredStrategyScript(9, name, { usage: 'chart', resultType: kind })],
     })
 
     const option = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
@@ -227,11 +227,28 @@ describe('圖表上的指標：挑一支套上去', () => {
     expect(option?.text()).toContain('畫不成線')
   })
 
+  it('只列圖表用的腳本：計算用的就算畫得成線也不列', async () => {
+    const { wrapper } = await mountPanel({
+      strategyScripts: [
+        buildStoredStrategyScript(7, '圖表均線', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '計算均線', { usage: 'calculation', resultType: 'float' }),
+      ],
+      adopted: [
+        buildAdoptedStrategyScript(20, '別人的圖表通道', { usage: 'chart', resultType: 'float' }),
+        buildAdoptedStrategyScript(21, '別人的計算通道', { resultType: 'float' }),
+      ],
+    })
+
+    const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option').slice(1)
+    expect(options.map(option => option.text())).toEqual(['圖表均線', '別人的圖表通道'])
+    expect(options.every(option => option.attributes('disabled') === undefined)).toBe(true)
+  })
+
   it('移除一支時只移除它，另一支照樣留在圖上', async () => {
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '要移除的', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '要留著的', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '要移除的', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '要留著的', { usage: 'chart', resultType: 'float' }),
       ],
     })
     await applyStrategyScript(wrapper, 7)
@@ -250,10 +267,10 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('只列吃 K 線的策略腳本，吃合約行情的不在現貨清單上', async () => {
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(115, '高斯濾波（現貨）', { marketDataKind: 'kCandle' }),
-        buildStoredStrategyScript(116, '高斯濾波（合約）', { marketDataKind: 'contractKCandle' }),
+        buildStoredStrategyScript(115, '高斯濾波（現貨）', { usage: 'chart', marketDataKind: 'kCandle' }),
+        buildStoredStrategyScript(116, '高斯濾波（合約）', { usage: 'chart', marketDataKind: 'contractKCandle' }),
       ],
-      adopted: [buildAdoptedStrategyScript(200, '別人的合約通道', { marketDataKind: 'contractKCandle' })],
+      adopted: [buildAdoptedStrategyScript(200, '別人的合約通道', { usage: 'chart', marketDataKind: 'contractKCandle' })],
     })
 
     expect(wrapper.findAll('[data-testid="chart-indicator-picker"] option').slice(1).map(option => option.text()))
@@ -263,7 +280,8 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('一支策略腳本都還沒存過時明說，而不是留一個空選單', async () => {
     const { wrapper } = await mountPanel({ strategyScripts: [] })
 
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('還沒有任何策略腳本')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
+      .toBe('沒有圖表用的策略腳本。到策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。')
     expect(wrapper.find('[data-testid="chart-indicator-picker"]').exists()).toBe(false)
   })
 
@@ -312,8 +330,8 @@ describe('圖表上的指標：把一支先收起來', () => {
   it('收起來的只有它自己，另一支照樣畫著', async () => {
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '要收起來的', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '要留著的', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '要收起來的', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '要留著的', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator: vi.fn()
         .mockResolvedValueOnce(aCalculation('甲'))
@@ -547,8 +565,8 @@ describe('圖表上的指標：算不出來的時候', () => {
       .mockResolvedValue(aCalculation())
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '會失敗的', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '算得出來的', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '會失敗的', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '算得出來的', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator,
     })
@@ -629,7 +647,7 @@ describe('圖表上的指標：線的顏色', () => {
           // 上一次打開這個畫面時，使用者替這條線挑過粉色。
           { readColorToken: vi.fn().mockReturnValue('--color-chart-line-5') }),
         strategyScriptApplication: buildStrategyScriptApplication({
-          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
         chartDrawingApplication: buildChartDrawingApplication(),
@@ -653,8 +671,8 @@ describe('圖表上的指標：線的顏色', () => {
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '第一支', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator,
     })
@@ -696,7 +714,7 @@ describe('圖表上的指標：邊界', () => {
         liveKCandleApplication: buildLiveKCandleApplication(),
         chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator }),
         strategyScriptApplication: buildStrategyScriptApplication({
-          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
         chartDrawingApplication: buildChartDrawingApplication(),
@@ -890,8 +908,8 @@ describe('圖表上的指標：慢回來的那一次不能亂講話', () => {
       .mockResolvedValueOnce(aCalculation('乙'))
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '第一支', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '第二支', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '第一支', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '第二支', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator,
     })
@@ -926,7 +944,7 @@ describe('圖表上的指標：圖沒了的時候', () => {
           calculateIndicator: vi.fn().mockResolvedValue(aCalculation()),
         }),
         strategyScriptApplication: buildStrategyScriptApplication({
-          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+          listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' })], adopted: [] }),
         }),
         timeZone: buildTimeZone(),
         chartDrawingApplication: buildChartDrawingApplication(),
@@ -1001,8 +1019,8 @@ describe('畫不滿的時候，圖表上一個字都不說', () => {
       .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '畫得滿的', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '畫不滿的', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '畫得滿的', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '畫不滿的', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator,
     })
@@ -1057,8 +1075,8 @@ describe('連一個值都算不出來的時候，那一列要說話', () => {
       .mockResolvedValueOnce(aShortCalculation(50, '畫不滿的'))
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '算不出來的', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '畫不滿的', { resultType: 'float' }),
+        buildStoredStrategyScript(7, '算不出來的', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '畫不滿的', { usage: 'chart', resultType: 'float' }),
       ],
       calculateIndicator,
     })
@@ -1110,7 +1128,7 @@ describe('K 線圖表：加入來的策略腳本', () => {
     // 這是這個切片在圖表上唯一看得出來的差別：一支讀不到算式的策略腳本，照樣畫得出線。
     const { wrapper, calculateIndicator } = await mountPanel({
       strategyScripts: [],
-      adopted: [buildAdoptedStrategyScript(9, '別人的', { resultType: 'float' })],
+      adopted: [buildAdoptedStrategyScript(9, '別人的', { usage: 'chart', resultType: 'float' })],
     })
 
     const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
@@ -1129,10 +1147,10 @@ describe('K 線圖表只列得出吃 K 線的策略腳本', () => {
   it('吃合約行情的那幾支——自己的與加入的——挑不到，連列都不列', async () => {
     const { wrapper } = await mountPanel({
       strategyScripts: [
-        buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' }),
-        buildStoredStrategyScript(8, '費率反轉', { resultType: 'float', marketDataKind: 'contractKCandle' }),
+        buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' }),
+        buildStoredStrategyScript(8, '費率反轉', { usage: 'chart', resultType: 'float', marketDataKind: 'contractKCandle' }),
       ],
-      adopted: [buildAdoptedStrategyScript(9, '別人的 OI 背離', { resultType: 'float', marketDataKind: 'contractKCandle' })],
+      adopted: [buildAdoptedStrategyScript(9, '別人的 OI 背離', { usage: 'chart', resultType: 'float', marketDataKind: 'contractKCandle' })],
     })
 
     const options = wrapper.findAll('[data-testid="chart-indicator-picker"] option').map(option => option.text())

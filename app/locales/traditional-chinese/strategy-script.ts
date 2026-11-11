@@ -60,6 +60,7 @@ export const strategyScriptTraditionalChineseMessages = {
     noDescription: '分享的人沒有寫說明。',
     resultTypeHeading: '算出來的是',
     marketDataKindHeading: '吃的行情',
+    usageHeading: '用途',
     parametersHeading: '可調的旋鈕',
     noParameters: '沒有旋鈕',
     parameterNameSeparator: '、',
@@ -71,6 +72,7 @@ export const strategyScriptTraditionalChineseMessages = {
     title: '策略腳本清單',
   },
   strategyScriptLibraryList: {
+    switchUsageLabel: '把「{name}」{action}',
     empty: '還沒有任何策略腳本。到 Marketplace 看看別人分享了什麼，或自己存一支。',
     mineSection: '我的策略腳本',
     loadLabel: '載入「{name}」',
@@ -85,6 +87,7 @@ export const strategyScriptTraditionalChineseMessages = {
     removeAdopted: '移除',
   },
   strategyScriptNameDialog: {
+    usageLabel: '用途',
     missingName: '請填寫策略腳本名稱',
     nameLabel: '策略腳本名稱',
     namePlaceholder: '例如：二十根均線',
@@ -217,6 +220,8 @@ export const strategyScriptTraditionalChineseMessages = {
     unexpectedCalculationError: '執行計算時發生未預期的錯誤。',
   },
   strategyScriptLibrary: {
+    usageSwitched: '已把「{name}」改成{usage}',
+    usageSwitchFailed: '切換用途失敗，請稍後再試',
     listFailed: '取得策略腳本清單時發生未預期的錯誤。',
     blankStarted: '已經開了一份新的空白策略腳本。',
     saved: '已儲存「{name}」。',
