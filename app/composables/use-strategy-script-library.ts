@@ -102,7 +102,7 @@ export function useStrategyScriptLibrary(
   }
 
   /**
-   * 讓「使用中的那一支」跟上剛讀回來的那一份。
+   * 讓「使用中的那一支」（自己的，或唯讀工作區裡那一份副本）跟上剛讀回來的那一份。
    *
    * 沒有這一步，關於那一支的每一件事都會停在載入當下的樣子——最明顯的是分享狀態：
    * 剛按過收回，眼前那顆按鈕還寫著「收回」，而看的人只會再按一次。
@@ -114,16 +114,17 @@ export function useStrategyScriptLibrary(
    * 只解除關聯、內容留著」是刪除那條路自己的規則，不該由一次重讀順手執行。
    */
   function refreshActiveStrategyScript() {
-    if (activeStrategyScript.value === null) {
-      return
-    }
-
     const refreshed = strategyScripts.value.find(candidate => candidate.id === activeStrategyScript.value?.id)
-    if (refreshed === undefined) {
-      return
+    if (refreshed !== undefined) {
+      activeStrategyScript.value = refreshed
     }
 
-    activeStrategyScript.value = refreshed
+    // 唯讀工作區裡那一份副本也跟上：切換它的用途之後，它的紀錄不該停在切換前。
+    const refreshedAdopted = adoptedStrategyScripts.value
+      .find(candidate => candidate.id === activeAdoptedStrategyScript.value?.id)
+    if (refreshedAdopted !== undefined) {
+      activeAdoptedStrategyScript.value = refreshedAdopted
+    }
   }
 
   function openLibrary() {

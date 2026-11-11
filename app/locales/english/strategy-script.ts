@@ -222,7 +222,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     unexpectedCalculationError: 'An unexpected error occurred while running the calculation.',
   },
   strategyScriptLibrary: {
-    usageSwitched: '"{name}" is now {usage}',
+    usageSwitched: 'Usage of "{name}" set to {usage}',
     usageSwitchFailed: 'Could not switch the usage. Try again later.',
     listFailed: 'An unexpected error occurred while loading the strategy script list.',
     blankStarted: 'Started a new blank strategy script.',

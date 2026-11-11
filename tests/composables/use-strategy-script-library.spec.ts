@@ -262,4 +262,31 @@ describe('useStrategyScriptLibrary 的用途', () => {
     expect(switchStrategyScriptUsage).not.toHaveBeenCalled()
     expect(library.noticeMessage.value).toBeNull()
   })
+
+  it('切換的正是唯讀工作區裡那一份副本時，工作區那一份也跟上新的用途', async () => {
+    const listOf = (usage: string) => ({ mine: [], adopted: [buildAdoptedStrategyScript(9, '別人的通道', { usage })] })
+    const listAvailableStrategyScripts = vi.fn().mockResolvedValue(listOf('calculation'))
+    const library = await libraryWith({
+      listAvailableStrategyScripts,
+      switchStrategyScriptUsage: vi.fn().mockImplementation(async () => {
+        listAvailableStrategyScripts.mockResolvedValue(listOf('chart'))
+      }),
+    })
+    library.selectStrategyScript(9)
+    library.confirmDiscard()
+
+    await library.switchStrategyScriptUsage(9, 'chart')
+
+    expect(library.activeAdoptedStrategyScript.value?.usage.label.in('zh-TW')).toBe('圖表用')
+  })
+
+  it('英文的通知說出切成哪一種', async () => {
+    const library = await libraryWith({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(1, 'MA')], adopted: [] }),
+    })
+
+    await library.switchStrategyScriptUsage(1, 'chart')
+
+    expect(library.noticeMessage.value?.in('en')).toBe('Usage of "MA" set to Chart')
+  })
 })
