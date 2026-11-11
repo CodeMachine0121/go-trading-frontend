@@ -1521,4 +1521,36 @@ describe('策略腳本畫面上的策略腳本：用途', () => {
     expect(switchStrategyScriptUsage).toHaveBeenCalledWith(9, 'chart')
     expect(standingLibrary(wrapper).get('[data-testid="strategy-script-library-usage-9"]').text()).toBe('圖表用')
   })
+
+  it('在窄螢幕的清單上切換被拒絕：拒絕的那一句就說在對話框裡', async () => {
+    const { BackendRequestRejectedError } = await import('~/domain/errors/backend-request-rejected-error')
+    const message = '交易策略「4H 趨勢」正在用這支腳本'
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '均線')], adopted: [] }),
+      switchStrategyScriptUsage: vi.fn().mockRejectedValue(
+        new BackendRequestRejectedError(message, { status: 409, reason: 'strategyScriptUsageInUse' })),
+    })
+    await settle()
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await libraryDialog(wrapper).get('[data-testid="strategy-script-library-switch-usage-7"]').trigger('click')
+    await settle()
+
+    expect(libraryDialog(wrapper).get('[data-testid="strategy-script-library-dialog-error"]').text()).toBe(message)
+    expect(libraryDialog(wrapper).get('[data-testid="strategy-script-library-usage-7"]').text()).toBe('計算用')
+  })
+
+  it('切換還在進行時，清單上的切換鍵停用——不送出第二次', async () => {
+    const wrapper = mountPanel({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '均線')], adopted: [] }),
+      switchStrategyScriptUsage: vi.fn().mockReturnValue(new Promise(() => {})),
+    })
+    await settle()
+
+    await standingLibrary(wrapper).get('[data-testid="strategy-script-library-switch-usage-7"]').trigger('click')
+    await flushPromises()
+
+    expect(standingLibrary(wrapper).get('[data-testid="strategy-script-library-switch-usage-7"]').attributes('disabled')).toBeDefined()
+  })
 })

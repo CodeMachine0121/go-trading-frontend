@@ -22,6 +22,7 @@ const {
   errorMessage = null,
   activeStrategyScriptId = null,
   activeAdoptedStrategyScriptId = null,
+  busy = false,
 } = defineProps<{
   /** 自己寫的那些。它們帶著算式，所以載得進來、也刪得掉。 */
   strategyScripts: StrategyScriptDto[]
@@ -34,6 +35,8 @@ const {
   activeStrategyScriptId?: number | null
   /** 工作區裡正在用（唯讀）的那一支加入的。 */
   activeAdoptedStrategyScriptId?: number | null
+  /** 有一件事正在進行：切換用途先停用，不送出第二次。 */
+  busy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -127,6 +130,7 @@ const { localize } = useLocalizedText()
             size="small"
             class="strategy-script-library-list__action"
             :title="t('strategyScript.strategyScriptLibraryList.switchUsageLabel', { name: strategyScript.name, action: localize(strategyScript.usage.switchLabel) })"
+            :disabled="busy"
             :data-testid="`strategy-script-library-switch-usage-${strategyScript.id}`"
             @click="emit('switchUsage', strategyScript.id, strategyScript.usage.switchTarget)"
           >
@@ -202,6 +206,7 @@ const { localize } = useLocalizedText()
             size="small"
             class="strategy-script-library-list__action"
             :title="t('strategyScript.strategyScriptLibraryList.switchUsageLabel', { name: adopted.name, action: localize(adopted.usage.switchLabel) })"
+            :disabled="busy"
             :data-testid="`strategy-script-library-switch-usage-${adopted.id}`"
             @click="emit('switchUsage', adopted.id, adopted.usage.switchTarget)"
           >
