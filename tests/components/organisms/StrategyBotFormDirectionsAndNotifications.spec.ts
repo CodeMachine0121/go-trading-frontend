@@ -121,6 +121,25 @@ describe('StrategyBotForm 合約機器人的交易方向', () => {
   })
 })
 
+describe('StrategyBotForm 改方向被交易服務擋下', () => {
+  it('擋下的那一句出現時頁面留著、勾選不變', async () => {
+    const wrapper = mountForm('contractKCandle', aStoredBot('contractKCandle', ['long'], new StrategyBotNotificationsDto()))
+    await flushPromises()
+    await wrapper.get('[data-testid="bot-trades-long"] input').setValue(false)
+    await wrapper.get('[data-testid="bot-trades-short"] input').setValue(true)
+    await save(wrapper)
+
+    await wrapper.setProps({ failureMessage: new LocalizedTextVo(
+      '自動下單開著時不能改交易方向：請先在這台機器人的詳細頁關掉自動下單，再改交易方向',
+      'Auto order is on') })
+
+    expect(wrapper.get('[data-testid="bot-form-failure"]').text())
+      .toBe('自動下單開著時不能改交易方向：請先在這台機器人的詳細頁關掉自動下單，再改交易方向')
+    expect(checked(wrapper, 'bot-trades-long')).toBe(false)
+    expect(checked(wrapper, 'bot-trades-short')).toBe(true)
+  })
+})
+
 describe('StrategyBotForm 每種結論的通知', () => {
   it('新拼一台：買入與賣出通知勾著、持有沒勾，並說明持有只在回到持有時通知一次', async () => {
     const wrapper = mountForm('kCandle', null)

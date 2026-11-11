@@ -1442,3 +1442,83 @@ async function mountPanelWithPublished(strategyScriptProxy: Partial<IStrategyScr
 
   return wrapper
 }
+
+describe('策略腳本畫面上的策略腳本：用途', () => {
+  async function saveAs(wrapper: ReturnType<typeof mountPanel>, usage: 'chart' | null) {
+    await typeScript(wrapper, 'sum := 0.0')
+    await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('新的一支')
+    if (usage !== null) {
+      await wrapper.get(`[data-testid="strategy-script-usage-${usage}"] input`).setValue(true)
+    }
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+    await settle()
+  }
+
+  it('另存時選圖表用：送給交易服務的新腳本用途是圖表用', async () => {
+    const createStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(9, '新的一支', { usage: 'chart' }))
+    const wrapper = mountPanel({ createStrategyScript })
+    await settle()
+
+    await saveAs(wrapper, 'chart')
+
+    expect(createStrategyScript.mock.calls[0]![0].usage).toBe('chart')
+  })
+
+  it('另存時沒動用途：預選計算用，送給交易服務的新腳本用途是計算用', async () => {
+    const createStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(9, '新的一支'))
+    const wrapper = mountPanel({ createStrategyScript })
+    await settle()
+    await typeScript(wrapper, 'sum := 0.0')
+    await wrapper.get('[data-testid="save-as-strategy-script-button"]').trigger('click')
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="strategy-script-usage-calculation"] input').element.checked).toBe(true)
+
+    await wrapper.get('[data-testid="strategy-script-name-input"]').setValue('新的一支')
+    await wrapper.get('[data-testid="strategy-script-name-submit"]').trigger('click')
+    await settle()
+
+    expect(createStrategyScript.mock.calls[0]![0].usage).toBe('calculation')
+  })
+
+  it('在清單上把自己的「均線」改成圖表用：交易服務收到、那一列標圖表用，並說一聲', async () => {
+    const listAvailableStrategyScripts = vi.fn().mockResolvedValue({
+      mine: [buildStoredStrategyScript(7, '均線')], adopted: [],
+    })
+    const switchStrategyScriptUsage = vi.fn().mockImplementation(async () => {
+      listAvailableStrategyScripts.mockResolvedValue({
+        mine: [buildStoredStrategyScript(7, '均線', { usage: 'chart' })], adopted: [],
+      })
+    })
+    const wrapper = mountPanel({ listAvailableStrategyScripts, switchStrategyScriptUsage })
+    await settle()
+
+    await standingLibrary(wrapper).get('[data-testid="strategy-script-library-switch-usage-7"]').trigger('click')
+    await settle()
+
+    expect(switchStrategyScriptUsage).toHaveBeenCalledWith(7, 'chart')
+    expect(standingLibrary(wrapper).get('[data-testid="strategy-script-library-usage-7"]').text()).toBe('圖表用')
+    expect(wrapper.text()).toContain('已把「均線」改成圖表用')
+  })
+
+  it('在窄螢幕的清單上把市集副本改成圖表用：交易服務收到、那一列標圖表用', async () => {
+    const listAvailableStrategyScripts = vi.fn().mockResolvedValue({
+      mine: [], adopted: [buildAdoptedStrategyScript(9, '別人的通道')],
+    })
+    const switchStrategyScriptUsage = vi.fn().mockImplementation(async () => {
+      listAvailableStrategyScripts.mockResolvedValue({
+        mine: [], adopted: [buildAdoptedStrategyScript(9, '別人的通道', { usage: 'chart' })],
+      })
+    })
+    const wrapper = mountPanel({ listAvailableStrategyScripts, switchStrategyScriptUsage })
+    await settle()
+    await wrapper.get('[data-testid="open-library-button"]').trigger('click')
+    await settle()
+
+    await libraryDialog(wrapper).get('[data-testid="strategy-script-library-switch-usage-9"]').trigger('click')
+    await settle()
+
+    expect(switchStrategyScriptUsage).toHaveBeenCalledWith(9, 'chart')
+    expect(standingLibrary(wrapper).get('[data-testid="strategy-script-library-usage-9"]').text()).toBe('圖表用')
+  })
+})

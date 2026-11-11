@@ -280,7 +280,8 @@ describe('圖表上的指標：挑一支套上去', () => {
   it('一支策略腳本都還沒存過時明說，而不是留一個空選單', async () => {
     const { wrapper } = await mountPanel({ strategyScripts: [] })
 
-    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text()).toContain('沒有圖表用的策略腳本')
+    expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
+      .toBe('沒有圖表用的策略腳本。到策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。')
     expect(wrapper.find('[data-testid="chart-indicator-picker"]').exists()).toBe(false)
   })
 

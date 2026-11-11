@@ -1,6 +1,7 @@
 // @vitest-environment nuxt
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackendUnreachableError } from '~/domain/errors/backend-unreachable-error'
+import { BackendRequestRejectedError } from '~/domain/errors/backend-request-rejected-error'
 import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strategy-condition-dto'
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
@@ -338,5 +339,17 @@ describe('useTradingStrategyWorkbench 兩種行情的策略腳本各讀一份', 
 
     expect(workbench.strategyScriptOptionsByKind.value.kCandle).toEqual([{ value: 9, label: '均線' }])
     expect(workbench.strategyScriptOptionsByKind.value.contractKCandle).toEqual([{ value: 21, label: '費率反轉' }])
+  })
+
+  it('交易服務以用途拒絕（指名一支圖表用的腳本）時，照它那一句說', async () => {
+    const message = '這支腳本是圖表用，不能當信號來源'
+    tradingStrategyApplication.saveTradingStrategy.mockRejectedValue(
+      new BackendRequestRejectedError(message, { status: 400 }))
+
+    const workbench = workbenchUnderTest(7)
+    await workbench.save(aWriteDto(7))
+
+    expect(workbench.savedGeneration.value).toBe(0)
+    expect(workbench.failureMessage.value?.in('zh-TW')).toBe(message)
   })
 })
