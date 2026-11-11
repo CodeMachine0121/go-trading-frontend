@@ -11,6 +11,8 @@ import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usa
 import { STRATEGY_SCRIPT_USAGES } from '~/domain/models/vo/strategy-script-usage-vo'
 import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 import type { StrategyScriptUsageOptionDto } from '~/domain/models/dto/strategy-script-usage-option-dto'
+import { SignalSourceChoicesDomain } from '~/domain/models/domains/signal-source-choices-domain'
+import type { SignalSourceChoicesDto } from '~/domain/models/dto/signal-source-choices-dto'
 /**
  * Domain Service：策略腳本的編排。
  * 公開用例方法之間互不呼叫。
@@ -44,6 +46,16 @@ export class StrategyScriptService {
    */
   async listAllAvailableStrategyScripts(): Promise<AvailableStrategyScriptsDto> {
     return this.readAvailable(() => true)
+  }
+
+  /**
+   * 一種行情的策略腳本裡，哪幾支當得了交易策略的訊號來源、哪幾支當不了（連同原因），
+   * 以及一支都挑不到時是哪一種挑不到。
+   */
+  async listSignalSourceChoices(marketDataKind: MarketDataKind): Promise<SignalSourceChoicesDto> {
+    const wantedKind = new MarketDataKindDomain(marketDataKind)
+
+    return new SignalSourceChoicesDomain(await this.readAvailable(kind => wantedKind.isSameAs(kind))).toDto()
   }
 
   /** 兩種清單只差在留下哪幾種行情；讀法與轉成 DTO 的方式完全相同。 */

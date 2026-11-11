@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SignalSourceShortageVo } from '~/domain/models/vo/signal-source-shortage-vo'
 import { useI18n } from 'vue-i18n'
 import AppButton from '~/components/atoms/AppButton.vue'
 import AppIcon from '~/components/atoms/AppIcon.vue'
@@ -49,7 +50,7 @@ const {
    * 原因有兩種，下一步完全不同：一支都沒建過的人要去建一支；
    * 建了好幾支卻沒有一支吐訊號的人要去改它們的指標值種類。
    */
-  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | 'noCalculationStrategyScripts' | null
+  shortage: SignalSourceShortageVo | null
   /** 哪幾個來源被條件用著（以它在清單上的位置記），刪之前先說一聲。 */
   usageWarnings: Readonly<Record<number, LocalizedTextVo>>
   /** 這張卡現在被選著——它的設定正開著。 */

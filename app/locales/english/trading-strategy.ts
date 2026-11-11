@@ -47,8 +47,6 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     save: 'Save',
     createdNotice: 'Trading strategy created',
     savedNotice: 'Changes saved',
-    notSignalStrategyScript: '{name} (does not output a signal, so it cannot be a signal source)',
-    chartUsageStrategyScript: '{name} (a chart script, so it cannot be a signal source)',
     unknownError: 'An unknown error occurred',
   },
   signalSourceCard: {

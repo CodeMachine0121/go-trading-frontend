@@ -6,6 +6,8 @@ import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
+import { SignalSourceChoicesDomain } from '~/domain/models/domains/signal-source-choices-domain'
+import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-strategy-scripts-dto'
 
 const CALCULATION = new StrategyScriptUsageDomain('calculation').toDto()
 const CHART = new StrategyScriptUsageDomain('chart').toDto()
@@ -15,7 +17,11 @@ const tradingStrategyApplication = {
   saveTradingStrategy: vi.fn(),
 }
 
-const strategyScriptApplication = { listAvailableStrategyScripts: vi.fn() }
+// 清單來自 proxy 那一層；「哪幾支當得了訊號來源」由真的 domain 判斷，與 application 走的是同一條。
+const strategyScriptApplication = {
+  listAvailableStrategyScripts: vi.fn(),
+  listSignalSourceChoices: vi.fn(),
+}
 
 function tradingStrategyDto(id: number) {
   return new TradingStrategyDto(
@@ -40,6 +46,8 @@ function aWriteDto(id: number | undefined) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  strategyScriptApplication.listSignalSourceChoices.mockImplementation(async (kind: string) => new SignalSourceChoicesDomain(
+    await strategyScriptApplication.listAvailableStrategyScripts(kind) as AvailableStrategyScriptsDto).toDto())
   tradingStrategyApplication.getTradingStrategy.mockResolvedValue(tradingStrategyDto(7))
   tradingStrategyApplication.saveTradingStrategy.mockResolvedValue(tradingStrategyDto(7))
   strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({

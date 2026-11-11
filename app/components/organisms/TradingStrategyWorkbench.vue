@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SignalSourceShortageVo } from '~/domain/models/vo/signal-source-shortage-vo'
 import { useI18n } from 'vue-i18n'
 import AppAlert from '~/components/atoms/AppAlert.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
@@ -54,7 +55,7 @@ const {
     /** 存在、但當不了訊號來源的那幾支，以及原因。一個指著它們的來源要說得出來。 */
     unusableStrategyScriptsByKind: Readonly<Record<MarketDataKind, Readonly<Record<number, LocalizedTextVo>>>>
     /** 一支都挑不到時，是哪一種挑不到。挑得到就是 `null`。 */
-    shortageByKind: Readonly<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | 'noCalculationStrategyScripts' | null>>
+    shortageByKind: Readonly<Record<MarketDataKind, SignalSourceShortageVo | null>>
     /** 行情種類選單的選項。 */
     marketDataKindOptions: readonly MarketDataKindOptionDto[]
     saving: boolean

@@ -6,6 +6,7 @@ import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 import type { StrategyScriptUsageOptionDto } from '~/domain/models/dto/strategy-script-usage-option-dto'
+import type { SignalSourceChoicesDto } from '~/domain/models/dto/signal-source-choices-dto'
 
 /** Application：策略腳本庫的用例編排，全程只碰 DTO。 */
 export class StrategyScriptApplication {
@@ -15,6 +16,10 @@ export class StrategyScriptApplication {
     marketDataKind: MarketDataKind = 'kCandle',
   ): Promise<AvailableStrategyScriptsDto> {
     return this.strategyScriptService.listAvailableStrategyScripts(marketDataKind)
+  }
+
+  async listSignalSourceChoices(marketDataKind: MarketDataKind): Promise<SignalSourceChoicesDto> {
+    return this.strategyScriptService.listSignalSourceChoices(marketDataKind)
   }
 
   async saveStrategyScript(strategyScriptWriteDto: StrategyScriptWriteDto): Promise<StrategyScriptDto> {

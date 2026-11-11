@@ -45,8 +45,6 @@ export const tradingStrategyTraditionalChineseMessages = {
     save: '儲存',
     createdNotice: '交易策略拼好了',
     savedNotice: '更改成功',
-    notSignalStrategyScript: '{name}（這支不吐訊號，當不了訊號來源）',
-    chartUsageStrategyScript: '{name}（這支是圖表用，當不了訊號來源）',
     unknownError: '發生未知的錯誤',
   },
   signalSourceCard: {

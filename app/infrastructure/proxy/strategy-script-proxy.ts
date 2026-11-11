@@ -48,18 +48,6 @@ type StrategyScriptWire = {
   usage?: string
 }
 
-/** 市集那一段送來的一張卡。**它沒有 script**——那不是漏了，是那一欄不存在。 */
-type PublishedStrategyScriptWire = {
-  id: number
-  name: string
-  description?: string
-  resultType: string
-  publisherEmail: string
-  publishedAt: string
-  parameters?: StrategyScriptParameterWire[] | null
-  marketDataKind?: string
-}
-
 /** 日常那一份送來的兩段。 */
 type AvailableStrategyScriptsWire = {
   mine?: StrategyScriptWire[] | null
@@ -201,23 +189,6 @@ export class StrategyScriptProxy extends BackendApiProxy implements IStrategyScr
     }
 
     return error
-  }
-
-  /**
-   * 市集那一段收乾淨。它與自己的那一段共用旋鈕的收法，卻**沒有算式可以收**——
-   * 那正是它與自己的策略腳本唯一的差別，也是唯一重要的差別。
-   */
-  private toPublishedStrategyScript(publishedWire: PublishedStrategyScriptWire): PublishedStrategyScript {
-    return new PublishedStrategyScript(
-      publishedWire.id,
-      publishedWire.name,
-      publishedWire.description ?? '',
-      publishedWire.resultType,
-      publishedWire.publisherEmail,
-      new Date(publishedWire.publishedAt),
-      this.toParameterDtos(publishedWire.parameters),
-      publishedWire.marketDataKind ?? 'kCandle',
-    )
   }
 
   private toStrategyScript(strategyScriptWire: StrategyScriptWire): StrategyScript {
