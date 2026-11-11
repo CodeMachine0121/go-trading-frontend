@@ -11,6 +11,7 @@ import AppToast from '~/components/atoms/AppToast.vue'
 import AppBadge from '~/components/atoms/AppBadge.vue'
 import StrategyBotAutoOrderSwitch from '~/components/molecules/StrategyBotAutoOrderSwitch.vue'
 import StrategyBotWatchedSymbolList from '~/components/molecules/StrategyBotWatchedSymbolList.vue'
+import StrategyBotSettingsSummary from '~/components/molecules/StrategyBotSettingsSummary.vue'
 import { useStrategyBotAutoOrder } from '~/composables/use-strategy-bot-auto-order'
 import type { StrategyBotApplication } from '~/application/strategy-bot-application'
 import { useStrategyBots } from '~/composables/use-strategy-bots'
@@ -212,7 +213,7 @@ onMounted(() => {
 
             <div class="strategy-bot-list__identity">
               <span class="strategy-bot-list__meta strategy-bot-list__meta--market">
-                {{ t('strategyBot.common.everyMinutes', { minutes: strategyBot.triggerIntervalMinutes }) }}<template v-if="strategyBot.leverageLabel !== null"> · {{ localize(strategyBot.leverageLabel) }}</template>
+                {{ t('strategyBot.common.everyMinutes', { minutes: strategyBot.triggerIntervalMinutes }) }}<template v-if="strategyBot.leverageLabel !== null"> · {{ localize(strategyBot.leverageLabel) }}</template><template v-if="strategyBot.tradingDirectionsShortLabel !== null"> · <span data-testid="bot-trading-directions">{{ localize(strategyBot.tradingDirectionsShortLabel) }}</span></template>
               </span>
               <!--
                 它照哪一套規則跑。做成連結而不是一行字：一個看得到卻點不進去的名字，
@@ -359,6 +360,12 @@ onMounted(() => {
               @switch="switchAutoOrder(strategyBot.id, $event)"
             />
 
+            <StrategyBotSettingsSummary
+              v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
+              class="strategy-bot-list__inline-history"
+              :strategy-bot="strategyBot"
+            />
+
             <StrategyBotWatchedSymbolList
               v-if="showsDetailInline && strategyBot.id === bots.expandedBotId.value"
               class="strategy-bot-list__inline-history"
@@ -420,6 +427,11 @@ onMounted(() => {
           :refusal="autoOrder.refusalFor(selectedBot.id)"
           :failure-message="autoOrder.failureMessageFor(selectedBot.id)"
           @switch="switchAutoOrder(selectedBot.id, $event)"
+        />
+
+        <StrategyBotSettingsSummary
+          class="strategy-bot-list__detail-settings"
+          :strategy-bot="selectedBot"
         />
 
         <h3 class="strategy-bot-list__detail-heading">
@@ -695,6 +707,10 @@ onMounted(() => {
   }
 
   &__detail-watched-symbols {
+    margin-bottom: spacing('sm');
+  }
+
+  &__detail-settings {
     margin-bottom: spacing('sm');
   }
 

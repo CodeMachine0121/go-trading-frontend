@@ -5,6 +5,8 @@ import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import Decimal from 'decimal.js'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import type { TradingDirection } from '~/domain/models/vo/trading-direction-vo'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
 
 /**
  * DTO：一台機器人交給畫面的樣子。
@@ -45,5 +47,15 @@ export class StrategyBotDto {
     /** 開倉容許滑價（百分比），表單要填回去的值。 */
     public readonly autoOrderEntrySlippageTolerancePercentage: Decimal
       = new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
+    /** 合約機器人的交易方向，表單要勾回去的值；現貨機器人是空清單。 */
+    public readonly tradingDirections: readonly TradingDirection[] = [],
+    /** 詳細區那一句，例如「做多＋做空（多空反手）」；現貨機器人是 `null`，那一行不畫。 */
+    public readonly tradingDirectionsLabel: LocalizedTextVo | null = null,
+    /** 清單那一列的簡稱，例如「只做空」；現貨機器人是 `null`。 */
+    public readonly tradingDirectionsShortLabel: LocalizedTextVo | null = null,
+    /** 三種通知，表單要勾回去的值。 */
+    public readonly notifications: StrategyBotNotificationsDto = new StrategyBotNotificationsDto(),
+    /** 詳細區那一句，例如「買入、賣出」或「全部關閉」。 */
+    public readonly notificationsLabel: LocalizedTextVo | null = null,
   ) {}
 }

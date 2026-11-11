@@ -27,6 +27,12 @@ import { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-
 import type { StrategyBotRunRecordQueryDto } from '~/domain/models/dto/strategy-bot-run-record-query-dto'
 import { StrategyBotWatchedSymbolNotRemovableError } from '~/domain/errors/strategy-bot-watched-symbol-not-removable-error'
 import { STRATEGY_BOT_WATCHED_SYMBOL_REMOVAL_REFUSAL_REASONS } from '~/domain/models/vo/strategy-bot-watched-symbol-removal-refusal-reason-vo'
+import { StrategyBotTradingDirectionLockedError } from '~/domain/errors/strategy-bot-trading-direction-locked-error'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
+import {
+  STRATEGY_BOT_DEFAULT_TRADING_DIRECTIONS,
+  StrategyBotTradingDirectionsDomain,
+} from '~/domain/models/domains/strategy-bot-trading-directions-domain'
 
 const STRATEGY_BOTS_ENDPOINT = '/strategy-bots'
 
@@ -35,6 +41,9 @@ const NOT_FOUND_STATUS = 404
 const CONFLICT_STATUS = 409
 
 const ENTRY_ORDER_OUTSTANDING_REASON = 'autoOrderEntryOutstanding'
+
+/** 自動下單開著時改交易方向：下一步是去詳細頁關掉自動下單，不是改表單。 */
+const TRADING_DIRECTION_AUTO_ORDER_ON_REASON = 'tradingDirectionAutoOrderOn'
 
 /**
  * 後端說「還沒完成 Telegram 設定」時，訊息裡一定有的那幾個字。
@@ -146,6 +155,10 @@ type StrategyBotWire = {
   autoOrderEnabled?: boolean
   /** 舊版後端不回，讀作交易服務對既有機器人的預設。 */
   autoOrderEntrySlippageTolerancePercentage?: string | null
+  /** 只有合約機器人有；舊版後端不回，讀作兩個都選（多空反手）。 */
+  tradingDirections?: string[] | null
+  /** 舊版後端不回；每一格缺了就是那一格的預設（買入開、賣出開、持有關）。 */
+  notifications?: { buy?: boolean, sell?: boolean, hold?: boolean } | null
 }
 
 /**
@@ -319,6 +332,10 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       return new StrategyBotWatchedSymbolNotRemovableError(watchedSymbolRemovalRefusalReason, { cause: error })
     }
 
+    if (error.status === CONFLICT_STATUS && error.reason === TRADING_DIRECTION_AUTO_ORDER_ON_REASON) {
+      return new StrategyBotTradingDirectionLockedError({ cause: error })
+    }
+
     if (error.status === CONFLICT_STATUS && error.reason === ENTRY_ORDER_OUTSTANDING_REASON) {
       return new StrategyBotEntryOrderOutstandingError({ cause: error })
     }
@@ -352,6 +369,13 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       ...(writeDto.autoOrderEntrySlippageTolerancePercentage === null
         ? {}
         : { autoOrderEntrySlippageTolerancePercentage: writeDto.autoOrderEntrySlippageTolerancePercentage.toString() }),
+      // 現貨機器人沒有交易方向，整個鍵都不放：交易服務對現貨送來的方向一律拒絕。
+      ...(writeDto.tradingDirections === null ? {} : { tradingDirections: [...writeDto.tradingDirections] }),
+      notifications: {
+        buy: writeDto.notifications.buy,
+        sell: writeDto.notifications.sell,
+        hold: writeDto.notifications.hold,
+      },
     }
 
     // 沒有部位規劃就**整個鍵都不放**，而不是放一組零。
@@ -451,6 +475,38 @@ export class StrategyBotProxy extends BackendApiProxy implements IStrategyBotPro
       botWire.autoOrderEnabled ?? false,
       this.toSuggestedFigure(botWire.autoOrderEntrySlippageTolerancePercentage)
       ?? new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
+      this.toTradingDirections(marketDataKind, botWire.tradingDirections),
+      this.toNotifications(botWire.notifications),
+    )
+  }
+
+  /**
+   * 合約機器人的交易方向。沒回或回了空的（舊版後端）讀作兩個都選，那是交易服務對沒說的讀法；
+   * 現貨機器人一律沒有——就算後端多給了，也不把它讀成有。
+   */
+  private toTradingDirections(
+    marketDataKind: MarketDataKindDomain,
+    tradingDirectionsWire?: string[] | null,
+  ) {
+    if (!marketDataKind.toStrategyBotPageDto().takesTradingDirections) {
+      return []
+    }
+
+    const directions = new StrategyBotTradingDirectionsDomain(tradingDirectionsWire ?? []).directions
+
+    return directions.length === 0 ? STRATEGY_BOT_DEFAULT_TRADING_DIRECTIONS : directions
+  }
+
+  /** 三個通知開關；缺了哪一格就是那一格的預設。 */
+  private toNotifications(
+    notificationsWire?: { buy?: boolean, sell?: boolean, hold?: boolean } | null,
+  ): StrategyBotNotificationsDto {
+    const defaults = new StrategyBotNotificationsDto()
+
+    return new StrategyBotNotificationsDto(
+      notificationsWire?.buy ?? defaults.buy,
+      notificationsWire?.sell ?? defaults.sell,
+      notificationsWire?.hold ?? defaults.hold,
     )
   }
 }

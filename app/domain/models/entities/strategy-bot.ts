@@ -6,6 +6,8 @@ import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
 import type { StrategyBotWatchedSymbol } from '~/domain/models/entities/strategy-bot-watched-symbol'
 import Decimal from 'decimal.js'
 import { STRATEGY_BOT_LIMITS } from '~/domain/models/vo/strategy-bot-limits-vo'
+import type { TradingDirection } from '~/domain/models/vo/trading-direction-vo'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
 
 /**
  * Entity：後端那一台機器人的原樣。乾淨的資料模型——只有欄位與往 Domain Model 的轉換。
@@ -43,6 +45,10 @@ export class StrategyBot {
     public readonly autoOrderEnabled: boolean = false,
     public readonly autoOrderEntrySlippageTolerancePercentage: Decimal
       = new Decimal(STRATEGY_BOT_LIMITS.entrySlippageToleranceDefaultPercentage),
+    /** 合約機器人面對的交易方向；現貨機器人是空清單——它沒有這一項。 */
+    public readonly tradingDirections: readonly TradingDirection[] = [],
+    /** 三種結論各自要不要通知擁有者。 */
+    public readonly notifications: StrategyBotNotificationsDto = new StrategyBotNotificationsDto(),
   ) {}
 
   toDomain(): StrategyBotDomain {

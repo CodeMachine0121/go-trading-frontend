@@ -39,5 +39,7 @@ export class StrategyBotPageDto {
     public readonly takesAutoOrderEntrySlippageTolerance: boolean,
     public readonly capitalLabel: LocalizedTextVo,
     public readonly capitalHint: LocalizedTextVo,
+    /** 表單多一組交易方向（做多／做空）：只有合約機器人——現貨只能做多。 */
+    public readonly takesTradingDirections: boolean = false,
   ) {}
 }

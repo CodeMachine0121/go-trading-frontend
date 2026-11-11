@@ -1,6 +1,8 @@
 import type Decimal from 'decimal.js'
 import type { PositionPlanDto } from '~/domain/models/dto/position-plan-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { TradingDirection } from '~/domain/models/vo/trading-direction-vo'
+import { StrategyBotNotificationsDto } from '~/domain/models/dto/strategy-bot-notifications-dto'
 
 /**
  * DTO：表單交出來要存的那一台，還沒有被任何規則看過。
@@ -37,5 +39,12 @@ export class StrategyBotWriteDto {
     public readonly marketDataKind: MarketDataKind = 'kCandle',
     /** 開倉容許滑價（百分比）；`null` 是這一種機器人不收這一格，送出時整個鍵不放，交易服務保留原值。 */
     public readonly autoOrderEntrySlippageTolerancePercentage: Decimal | null = null,
+    /**
+     * 合約機器人勾著的交易方向；`null` 是這一種機器人沒有交易方向（現貨），送出時整個鍵不放。
+     * 空清單不是 `null`：那是「一個都沒勾」，送不出去。
+     */
+    public readonly tradingDirections: readonly TradingDirection[] | null = null,
+    /** 三種通知。每次都送畫面上的勾選——使用者看得到的就是他要送的。 */
+    public readonly notifications: StrategyBotNotificationsDto = new StrategyBotNotificationsDto(),
   ) {}
 }

@@ -489,7 +489,7 @@ describe('StrategyBotForm 在合約那一頁', () => {
       7, '費率反轉', [aWatchedSymbolDto({ symbol: 'DOGEUSDT' })], 5, 11, '費率反轉',
       new StrategyBotRunStateDto(
         false, false, false, new LocalizedTextVo('已停止', 'Stopped'), 'neutral', null, null, true, false, true, null),
-      null, 'contractKCandle', null, '/contract-strategy-bots/7')
+      null, 'contractKCandle', null, '/contract-strategy-bots/7', false, new Decimal('0.1'), ['long', 'short'])
     const wrapper = mountForm({
       editing: bot,
       marketDataKind: 'contractKCandle',
