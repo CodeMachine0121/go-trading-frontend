@@ -30,7 +30,7 @@
 | `StrategyScriptNameDialog.vue` | **Modify** | `asksUsage` 時多一組單選（選項由 Application 給） |
 | `StrategyScriptLibraryList.vue` / `StrategyScriptLibraryDialog.vue` / `IndicatorCalculationPanel.vue` | **Modify** | 每列用途標記＋切換鍵；事件往上接到 library composable |
 | `MarketplaceStrategyScriptCard.vue` | **Modify** | 多一格用途 |
-| `useTradingStrategyWorkbench.choicesOf` + `TradingStrategySignalSourceCard` | **Modify** | 選項只收 `feedsCalculation`；圖表用另給一句挑不得的原因；新 shortage `noCalculationStrategyScripts` |
+| `SignalSourceChoicesDomain`（原 `useTradingStrategyWorkbench.choicesOf`） + `TradingStrategySignalSourceCard` | **Modify** | 選項只收 `feedsCalculation`；圖表用另給一句挑不得的原因；新 shortage `noCalculationStrategyScripts` |
 | `ChartIndicatorPanel.vue` 空清單文字 | **Modify** | 改說「沒有圖表用的策略腳本」與下一步（現貨與合約兩份） |
 | `RememberedAppliedIndicatorsDomain` | **Not touched** | 它只從可挑清單還原；清單已濾掉計算用 |
 | 策略腳本頁的挑選清單（`StrategyScriptPicker`）、試算 | **Not touched** | 作者試算兩種用途都行 |
@@ -57,7 +57,7 @@
 | :--- | :--- | :--- |
 | `StrategyScriptProxy.writeStrategyScript` | 建立與改寫共用 body | `usage` 只在 `writeDomain.usage !== null` 時放進 body；建立呼叫端給值、改寫給 null |
 | `StrategyScriptProxy.strategyScriptFailureOf` | 409 當撞名 | 409 帶 `reason === 'strategyScriptUsageInUse'` 時原樣交出 `BackendRequestRejectedError`（它的 `localizedMessage` 就是後端點名那一句），不當成撞名 |
-| `useTradingStrategyWorkbench.choicesOf` | 挑訊號來源 | 可挑：`signal` 且 `feedsCalculation`；挑不得：非信號 → 舊說法，圖表用 → 新說法；shortage 依挑不得的原因分三種 |
+| `SignalSourceChoicesDomain`（原 `useTradingStrategyWorkbench.choicesOf`） | 挑訊號來源 | 可挑：`signal` 且 `feedsCalculation`；挑不得：非信號 → 舊說法，圖表用 → 新說法；shortage 依挑不得的原因分三種 |
 
 ---
 
@@ -81,7 +81,7 @@ flowchart TD
 - **Most likely next requirement:** 第三種用途（例如篩選用），或某處只收圖表用。
 - **Where it lands:** VO 加一個值、`StrategyScriptUsageDomain` 的描述表加一列（標籤、說明、`appliesToChart`／`feedsCalculation`）；切換目標若不再是二選一，`switchTarget` 改成選單——消費端不動。
 - **Do not hardcode:** 預設用途只在 `StrategyScriptUsageDomain`。
-- **Known debt / deferred:** 訊號來源的可挑判斷仍在 composable（`choicesOf`），交給 improve-codebase 評估是否搬進 Domain。
+- **Known debt / deferred:** 無。實作後 improve-codebase 已把訊號來源的可挑判斷從 composable（`SignalSourceChoicesDomain`）搬進 `SignalSourceChoicesDomain` / `SignalSourceCandidateDomain`，經 `StrategyScriptApplication.listSignalSourceChoices` 交給工作台。
 
 ---
 
@@ -101,10 +101,10 @@ flowchart TD
 | US-03 圖表用、畫不成線 | `ChartIndicatorPanel` 既有 `drawableOnChart` 停用 |
 | US-03 一支圖表用的都沒有 | `ChartIndicatorPanel` 空清單文字（現貨與合約） |
 | US-03 上次擺著的指標現在是計算用 | 可挑清單已濾掉 → `RememberedAppliedIndicatorsDomain` 找不到它 |
-| US-04 計算用、吐訊號 | `choicesOf`（`feedsCalculation` 且 signal） |
-| US-04 圖表用、吐訊號 | `choicesOf` 挑不得原因 `chartUsageStrategyScript` |
-| US-04 吐訊號的全是圖表用 | `choicesOf` shortage `noCalculationStrategyScripts` → `TradingStrategySignalSourceCard` |
-| US-04 計算用但吐數字 | `choicesOf` 既有規則 |
+| US-04 計算用、吐訊號 | `SignalSourceChoicesDomain`（`feedsCalculation` 且 signal） |
+| US-04 圖表用、吐訊號 | `SignalSourceChoicesDomain` 挑不得原因 `chartUsageStrategyScript` |
+| US-04 吐訊號的全是圖表用 | `SignalSourceChoicesDomain` shortage `noCalculationStrategyScripts` → `TradingStrategySignalSourceCard` |
+| US-04 計算用但吐數字 | `SignalSourceChoicesDomain` 既有規則 |
 | US-04 篩選不列圖表用 | `StrategyScriptDomain.screensSymbols` |
 | US-05 市集卡標圖表用 | `PublishedStrategyScriptDomain` → `MarketplaceStrategyScriptCard` |
 | US-05 市集卡標計算用 | 同上 |
