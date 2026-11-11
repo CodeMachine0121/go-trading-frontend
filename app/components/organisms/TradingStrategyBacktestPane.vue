@@ -20,7 +20,7 @@ import { BacktestRunListQueryDto } from '~/domain/models/dto/backtest-run-list-q
 import { useTradingStrategyBacktestRun } from '~/composables/use-trading-strategy-backtest-run'
 import { useI18n } from 'vue-i18n'
 import type { BacktestField } from '~/domain/errors/backtest-field-error'
-import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 
 // 有機體：重演這一份交易策略。
 //
@@ -36,7 +36,6 @@ const {
   backendUnreachable = false,
   marketDataKind = 'kCandle',
   replaysOnContractAccount = false,
-  tradingModeLabel = null,
 } = defineProps<{
   backtestApplication: BacktestApplication
   tradingSymbolApplication: TradingSymbolApplication
@@ -54,10 +53,8 @@ const {
   backendUnreachable?: boolean
   /** 這一份吃哪一種行情——決定「回測照什麼規則走」讀哪一份。 */
   marketDataKind?: MarketDataKind
-  /** 這一份是合約交易策略：在合約帳戶上重演，多問槓桿與滑點。 */
+  /** 這一份是合約交易策略：在合約帳戶上重演，多問槓桿、滑點與這一次的交易模式。 */
   replaysOnContractAccount?: boolean
-  /** 合約交易策略自己的交易模式，例如「只做多」。重演時不能另外挑。 */
-  tradingModeLabel?: LocalizedTextVo | null
 }>()
 
 const symbol = ref('')
@@ -86,6 +83,8 @@ const positionSizingModeOptions = backtestApplication.listPositionSizingModeOpti
 const signalReadings = backtestApplication.listSignalReadings()
 // 合約交易策略讀的是合約那一份規則。
 const backtestRules = computed(() => backtestApplication.listBacktestRules(marketDataKind))
+// 交易模式是這一次回測自己的：同一份交易策略可以分別看做多與做空的成績。
+const contractTradingModeOptions = backtestApplication.listContractTradingModeOptions()
 const ruleGuideOpen = ref(false)
 
 const defaultTimeRange = backtestApplication.defaultTimeRange(new Date())
@@ -106,18 +105,15 @@ const takeProfitPercentage = ref('')
 // 改掉使用者手上每一張成績單。
 const entryCostPercentage = ref('')
 const exitCostPercentage = ref('')
-// 合約重演多問的那兩格；交易模式是那份交易策略自己的，這裡只寫出來。
+// 合約重演多問的那三格。槓桿與滑點留白就是「沒說」；交易模式從第一個選項（多空反手）開始。
 const leverage = ref('')
+const tradingMode = ref<string>(contractTradingModeOptions[0]?.value ?? 'longShort')
 const slippagePercentage = ref('')
 // 短線回測多問的兩格。成交時點從收盤成交開始（與這兩格出現以前一樣）；
 // 驗證起點留白就是不切分。
 const fillTimingOptions = backtestApplication.listFillTimingOptions()
 const fillTiming = ref<string>(fillTimingOptions[0]?.value ?? 'close')
 const validationStartTime = ref('')
-const contractTradingModeNote = computed(
-  () => (tradingModeLabel === null
-    ? null
-    : t('backtest.tradingStrategyBacktestPane.tradingModeNote', { tradingMode: localize(tradingModeLabel) })))
 
 // 規則被改存過之後，上一次那次重演說的就是上一版了。
 watch(() => savedGeneration, () => backtestRun.clear())
@@ -127,8 +123,7 @@ async function runBacktest() {
     await backtestRun.runContract(buildRequest, () => new ContractBacktestTermsDto(
       new Decimal(leverage.value === '' ? 0 : leverage.value),
       new Decimal(slippagePercentage.value === '' ? 0 : slippagePercentage.value),
-      // 交易模式不送：它是那份交易策略自己的。
-      null,
+      tradingMode.value as ContractTradingMode,
     ))
 
     return
@@ -209,13 +204,14 @@ function buildRequest(): TradingStrategyBacktestRequestDto {
         v-model:exit-cost-percentage="exitCostPercentage"
         v-model:leverage="leverage"
         v-model:slippage-percentage="slippagePercentage"
+        v-model:trading-mode="tradingMode"
         v-model:fill-timing="fillTiming"
         v-model:validation-start-time="validationStartTime"
         :fill-timing-options="fillTimingOptions"
         :fill-timing-error="fieldMessage('fillTiming')"
         :validation-start-time-error="fieldMessage('validationStartTime')"
         :replays-on-contract-account="replaysOnContractAccount"
-        :contract-trading-mode-note="contractTradingModeNote"
+        :contract-trading-mode-options="contractTradingModeOptions"
         :leverage-error="fieldMessage('leverage')"
         :trading-mode-error="fieldMessage('tradingMode')"
         :slippage-error="fieldMessage('slippage')"

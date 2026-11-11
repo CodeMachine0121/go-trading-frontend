@@ -12,9 +12,7 @@ import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dt
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { LayoutDensityDto } from '~/domain/models/dto/layout-density-dto'
 import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
-import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
-import type { ContractTradingMode } from '~/domain/models/vo/contract-trading-mode-vo'
 import type { ConditionSideVo } from '~/domain/models/vo/condition-side-vo'
 import { useTradingStrategyForm } from '~/composables/use-trading-strategy-form'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
@@ -41,7 +39,6 @@ const {
   unusableStrategyScriptsByKind,
   shortageByKind,
   marketDataKindOptions,
-  contractTradingModeOptions,
   saving,
   failureMessage,
   savedGeneration,
@@ -60,8 +57,6 @@ const {
     shortageByKind: Readonly<Record<MarketDataKind, 'noStrategyScripts' | 'noSignalStrategyScripts' | null>>
     /** 行情種類選單的選項。 */
     marketDataKindOptions: readonly MarketDataKindOptionDto[]
-    /** 合約交易策略的交易模式選單。 */
-    contractTradingModeOptions: readonly ContractTradingModeOptionDto[]
     saving: boolean
     /** 後端說的那一句。這一側擋下來的那幾種走 form.rejection。 */
     failureMessage: LocalizedTextVo | null
@@ -102,8 +97,6 @@ const lockedMarketDataKindLabel = computed(() => {
 
   return locked === undefined ? '' : localize(locked.label)
 })
-const selectedContractTradingMode = computed(
-  () => contractTradingModeOptions.find(option => option.value === form.tradingMode.value))
 
 form.reset()
 
@@ -191,25 +184,6 @@ function onSave() {
         {{ t('tradingStrategy.workbench.lockedMarketDataKind', { kind: lockedMarketDataKindLabel }) }}
       </AppBadge>
 
-      <FormField
-        v-if="form.replaysOnContractAccount.value"
-        :label="t('tradingStrategy.workbench.tradingModeLabel')"
-      >
-        <AppSelect
-          :model-value="form.tradingMode.value"
-          data-testid="trading-strategy-trading-mode-select"
-          @update:model-value="mode => form.changeTradingMode(mode as ContractTradingMode)"
-        >
-          <option
-            v-for="modeOption in contractTradingModeOptions"
-            :key="modeOption.value"
-            :value="modeOption.value"
-          >
-            {{ localize(modeOption.label) }}
-          </option>
-        </AppSelect>
-      </FormField>
-
       <!--
         只有一顆鍵。儲存不離開這一頁，所以一顆叫「取消」的按鈕放在旁邊讀起來像在問取消什麼——
         而回清單那顆按鈕就在這一頁頂端，說得出自己要去哪。
@@ -230,14 +204,6 @@ function onSave() {
         {{ saving ? t('tradingStrategy.workbench.saving') : t('tradingStrategy.workbench.save') }}
       </AppButton>
     </header>
-
-    <p
-      v-if="form.replaysOnContractAccount.value && selectedContractTradingMode"
-      class="workbench__hint"
-      data-testid="trading-strategy-trading-mode-description"
-    >
-      {{ localize(selectedContractTradingMode.description) }}
-    </p>
 
     <AppAlert
       v-if="form.marketDataKindNotice.value !== null"

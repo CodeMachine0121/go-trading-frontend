@@ -138,7 +138,6 @@ export const backtestTraditionalChineseMessages = {
     placeholder: '按「執行回測」：送出後會在背後計算，可在下方列表或回測紀錄頁查看。',
     unsaved: '這一份還沒存過，所以還沒有東西可以拿去回測。先存起來，再回來這裡。',
     aggregationIntervalNote: '由這份交易策略的訊號來源決定——這一版要求它們一致',
-    tradingModeNote: '{tradingMode}（由這份交易策略決定，要換請改交易策略）',
     parameterNotDeclared: '參數的問題（要改的是那個訊號來源填的值，或算式裡取用它的那一行）：{message}',
     scriptFailed: '算式的問題（要改的是那個訊號來源指名的策略腳本）：{message}',
     unexpectedError: '執行回測時發生未預期的錯誤。',

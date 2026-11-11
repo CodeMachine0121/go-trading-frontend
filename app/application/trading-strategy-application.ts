@@ -3,7 +3,6 @@ import type { TradingStrategyService } from '~/domain/service/trading-strategy-s
 import type { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import type { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
 import type { MarketDataKindOptionDto } from '~/domain/models/dto/market-data-kind-option-dto'
-import type { ContractTradingModeOptionDto } from '~/domain/models/dto/contract-trading-mode-option-dto'
 
 /** Application：交易策略的用例編排，全程只碰 DTO。 */
 export class TradingStrategyApplication {
@@ -34,9 +33,5 @@ export class TradingStrategyApplication {
 
   listMarketDataKindOptions(): MarketDataKindOptionDto[] {
     return this.tradingStrategyService.listMarketDataKindOptions()
-  }
-
-  listContractTradingModeOptions(): ContractTradingModeOptionDto[] {
-    return this.tradingStrategyService.listContractTradingModeOptions()
   }
 }

@@ -15,7 +15,6 @@ import { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
 // 兩份選單是系統的規則，不是這一份的資料：直接向真的 domain service 要，不在測試裡另抄一份。
 const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
 const MARKET_DATA_KIND_OPTIONS = optionsService.listMarketDataKindOptions()
-const CONTRACT_TRADING_MODE_OPTIONS = optionsService.listContractTradingModeOptions()
 
 function comparison(nodeId: string, sourceLabel: string, signal: string) {
   return new TradingStrategyConditionDto(nodeId, null, [], sourceLabel, signal)
@@ -58,7 +57,6 @@ function mountWorkbench(
       unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
       shortageByKind: { kCandle: null, contractKCandle: null },
       marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-      contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
       saving: false,
       failureMessage: null,
       savedGeneration: 0,
@@ -823,7 +821,6 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
         unusableStrategyScriptsByKind: { kCandle: unusableStrategyScripts, contractKCandle: {} },
         shortageByKind: { kCandle: null, contractKCandle: null },
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: null,
         savedGeneration: 0,
@@ -879,7 +876,6 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
         unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
         shortageByKind: { kCandle: shortage, contractKCandle: null },
         marketDataKindOptions: MARKET_DATA_KIND_OPTIONS,
-        contractTradingModeOptions: CONTRACT_TRADING_MODE_OPTIONS,
         saving: false,
         failureMessage: null,
         savedGeneration: 0,

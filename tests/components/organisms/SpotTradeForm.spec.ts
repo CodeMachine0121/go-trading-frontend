@@ -173,7 +173,7 @@ describe('SpotTradeForm：計畫與關聯', () => {
   it('填計畫、挑策略、寫理由、就地新增型態標籤，一起送出', async () => {
     const { TradingStrategy } = await import('~/domain/models/entities/trading-strategy')
     tradingStrategyProxy.listTradingStrategies.mockResolvedValue([
-      new TradingStrategy(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle', 'longShort'),
+      new TradingStrategy(5, 'BTC 趨勢跟隨', [], null, null, 'contractKCandle'),
       new TradingStrategy(7, '台股均線', [], null, null, 'kCandle'),
     ])
     tagProxy.createTag.mockResolvedValue(new TradeTag(9, 'setup', '回踩'))

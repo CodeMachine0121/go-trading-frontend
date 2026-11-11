@@ -9,7 +9,6 @@ import { TradingStrategyService } from '~/domain/service/trading-strategy-servic
 import type { ITradingStrategyProxy } from '~/domain/interface/i-trading-strategy-proxy'
 import { onADesktop } from '../../fixtures/layout-density'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
-import { ContractTradingModeDomain } from '~/domain/models/domains/contract-trading-mode-domain'
 
 const optionsService = new TradingStrategyService({} as ITradingStrategyProxy)
 
@@ -21,8 +20,7 @@ function storedStrategy(marketDataKind: 'kCandle' | 'contractKCandle') {
     [new TradingStrategySignalSourceDto('A', contract ? 21 : 9, '1h', [])],
     new TradingStrategyConditionDto('b', null, [], 'A', 'buy'),
     new TradingStrategyConditionDto('s', null, [], 'A', 'sell'),
-    marketDataKind, new MarketDataKindDomain(marketDataKind).label(),
-    contract ? 'shortOnly' : null, contract ? new ContractTradingModeDomain('shortOnly').label() : null, contract)
+    marketDataKind, new MarketDataKindDomain(marketDataKind).label(), contract)
 }
 
 function mountWorkbench(editing: TradingStrategyDto | null) {
@@ -37,7 +35,6 @@ function mountWorkbench(editing: TradingStrategyDto | null) {
       unusableStrategyScriptsByKind: { kCandle: {}, contractKCandle: {} },
       shortageByKind: { kCandle: null, contractKCandle: null },
       marketDataKindOptions: optionsService.listMarketDataKindOptions(),
-      contractTradingModeOptions: optionsService.listContractTradingModeOptions(),
       saving: false,
       failureMessage: null,
       savedGeneration: 0,
@@ -47,7 +44,7 @@ function mountWorkbench(editing: TradingStrategyDto | null) {
   })
 }
 
-describe('TradingStrategyWorkbench 的行情種類與交易模式', () => {
+describe('TradingStrategyWorkbench 的行情種類（交易模式不在交易策略上）', () => {
   it('新拼一份時選得動行情種類，預設是 K 線，沒有交易模式那一格', () => {
     const wrapper = mountWorkbench(null)
 
@@ -56,14 +53,14 @@ describe('TradingStrategyWorkbench 的行情種類與交易模式', () => {
     expect(wrapper.find('[data-testid="trading-strategy-trading-mode-select"]').exists()).toBe(false)
   })
 
-  it('選了合約行情就多出交易模式，預設多空反手，並說出買入賣出各是什麼', async () => {
+  it('拼一份合約交易策略時沒有交易模式那一格，也沒有它的說明', async () => {
     const wrapper = mountWorkbench(null)
 
     await wrapper.get('[data-testid="trading-strategy-market-data-kind-select"]').setValue('contractKCandle')
 
-    const modeSelect = wrapper.get('[data-testid="trading-strategy-trading-mode-select"]')
-    expect((modeSelect.element as HTMLSelectElement).value).toBe('longShort')
-    expect(wrapper.get('[data-testid="trading-strategy-trading-mode-description"]').text()).toContain('反手')
+    expect(wrapper.find('[data-testid="trading-strategy-trading-mode-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="trading-strategy-trading-mode-description"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('交易模式')
   })
 
   it('已存的 K 線交易策略寫出它是 K 線且換不了，沒有交易模式那一格', () => {
@@ -74,18 +71,15 @@ describe('TradingStrategyWorkbench 的行情種類與交易模式', () => {
     expect(wrapper.find('[data-testid="trading-strategy-trading-mode-select"]').exists()).toBe(false)
   })
 
-  it('已存的合約交易策略照它存的交易模式打開，存的時候帶著它改過的模式', async () => {
+  it('存已存的合約交易策略時只帶行情種類，沒有交易模式', async () => {
     const wrapper = mountWorkbench(storedStrategy('contractKCandle'))
 
-    const modeSelect = wrapper.get('[data-testid="trading-strategy-trading-mode-select"]')
-    expect((modeSelect.element as HTMLSelectElement).value).toBe('shortOnly')
-
-    await modeSelect.setValue('longOnly')
+    expect(wrapper.find('[data-testid="trading-strategy-trading-mode-select"]').exists()).toBe(false)
     await wrapper.get('[data-testid="trading-strategy-form-save"]').trigger('click')
 
-    const saved = wrapper.emitted('save')?.at(-1)?.[0] as { marketDataKind: string, tradingMode: string | null }
-    expect(saved.marketDataKind).toBe('contractKCandle')
-    expect(saved.tradingMode).toBe('longOnly')
+    const saved = wrapper.emitted('save')?.at(-1)?.[0] as object
+    expect(saved).toHaveProperty('marketDataKind', 'contractKCandle')
+    expect(saved).not.toHaveProperty('tradingMode')
   })
 
   it('新拼的那一份加過來源之後換了行情種類，來源被拿掉並說明為什麼', async () => {

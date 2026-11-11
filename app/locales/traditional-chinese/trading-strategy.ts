@@ -40,7 +40,6 @@ export const tradingStrategyTraditionalChineseMessages = {
     namePlaceholder: '例如：突破＋動能確認',
     marketDataKindLabel: '行情種類',
     lockedMarketDataKind: '{kind}（存過之後不能換）',
-    tradingModeLabel: '交易模式',
     unsaved: '還沒存的改動',
     saving: '儲存中…',
     save: '儲存',

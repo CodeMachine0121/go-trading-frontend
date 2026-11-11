@@ -137,17 +137,17 @@ describe('BacktestProxy 的合約重演', () => {
     expect(body.tradingMode).toBe('longShort')
   })
 
-  it('一份合約交易策略送到它自己底下的合約重演入口，不帶交易模式', async () => {
+  it('一份合約交易策略送到它自己底下的合約重演入口，帶著這一次挑的交易模式', async () => {
     const fetchMock = vi.fn().mockResolvedValue(queuedRunWire())
     vi.stubGlobal('$fetch', fetchMock)
 
     await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
+      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', 'shortOnly'))
 
     expect(fetchMock.mock.calls[0]![0]).toBe(`${BASE_URL}/trading-strategies/7/contract-backtests`)
     const body = fetchMock.mock.calls[0]![1].body
     expect(body.leverage).toBe('3')
-    expect(body).not.toHaveProperty('tradingMode')
+    expect(body.tradingMode).toBe('shortOnly')
     expect(body).not.toHaveProperty('aggregationInterval')
   })
 
@@ -171,7 +171,7 @@ describe('BacktestProxy 的合約重演', () => {
 
   it.each([
     { field: 'leverage', message: '這個合約標的最高只能開 125 倍槓桿' },
-    { field: 'tradingMode', message: '交易模式由交易策略自己決定' },
+    { field: 'tradingMode', message: '交易模式只有多空反手、只做多、只做空三種' },
     { field: 'slippage', message: '滑點不得為負' },
   ])('交易服務指名 $field 那一格時，那句話落在那一格', async ({ field, message }) => {
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(Object.assign(new Error(message), {
@@ -189,13 +189,13 @@ describe('BacktestProxy 的合約重演', () => {
   })
 
   it('合約交易策略重演被拒絕時，同一套分流照樣把話落在那一格', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(Object.assign(new Error('交易模式由交易策略自己決定'), {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(Object.assign(new Error('交易模式只有多空反手、只做多、只做空三種'), {
       response: { status: 400 },
-      data: { message: '交易模式由交易策略自己決定', field: 'tradingMode' },
+      data: { message: '交易模式只有多空反手、只做多、只做空三種', field: 'tradingMode' },
     })))
 
     const failure = await new BacktestProxy(BASE_URL, signedInSessionStorage())
-      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', null))
+      .submitContractTradingStrategyBacktest(tradingStrategyRequest(), termsOf('3', '0', 'longOnly'))
       .catch((error: unknown) => error)
 
     expect(failure).toBeInstanceOf(BacktestFieldError)

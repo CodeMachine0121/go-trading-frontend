@@ -42,7 +42,6 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     namePlaceholder: 'e.g. Breakout + momentum confirmation',
     marketDataKindLabel: 'Market data kind',
     lockedMarketDataKind: '{kind} (cannot be changed once saved)',
-    tradingModeLabel: 'Trading mode',
     unsaved: 'Unsaved changes',
     saving: 'Saving…',
     save: 'Save',

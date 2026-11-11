@@ -66,9 +66,8 @@ const destination = ref<string>('workbench')
 const workbench = useTradingStrategyWorkbench(
   $tradingStrategyApplication, $strategyScriptApplication, tradingStrategyId.value)
 
-// 兩份選單描述的是系統的規則，不是這一份的資料，取一次就好。
+// 選單描述的是系統的規則，不是這一份的資料，取一次就好。
 const marketDataKindOptions = $tradingStrategyApplication.listMarketDataKindOptions()
-const contractTradingModeOptions = $tradingStrategyApplication.listContractTradingModeOptions()
 
 onMounted(() => {
   void workbench.load()
@@ -188,7 +187,6 @@ const { localize } = useLocalizedText()
         :unusable-strategy-scripts-by-kind="workbench.unusableStrategyScriptsByKind.value"
         :shortage-by-kind="workbench.shortageByKind.value"
         :market-data-kind-options="marketDataKindOptions"
-        :contract-trading-mode-options="contractTradingModeOptions"
         :saving="workbench.saving.value"
         :failure-message="workbench.failureMessage.value"
         :saved-generation="workbench.savedGeneration.value"
@@ -205,7 +203,6 @@ const { localize } = useLocalizedText()
         :saved-generation="workbench.savedGeneration.value"
         :market-data-kind="workbench.editing.value?.marketDataKind ?? 'kCandle'"
         :replays-on-contract-account="workbench.editing.value?.replaysOnContractAccount ?? false"
-        :trading-mode-label="workbench.editing.value?.tradingModeLabel ?? null"
       />
     </template>
   </div>
