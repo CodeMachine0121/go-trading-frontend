@@ -190,6 +190,9 @@ const calculationRun = useIndicatorCalculationRun(indicatorCalculationApplicatio
 // 多一樣東西要跟著策略腳本走，就只有這裡要改，「有沒有還沒存」自動跟著涵蓋它。
 // 彙總刻度與要看多長刻意不在其中：它們不屬於任何一支策略腳本，
 // 所以載入不會覆蓋它們，改動它們也不算「有東西還沒存」。
+// 另存新腳本時問的用途。描述的是系統的規則，取一次就好。
+const strategyScriptUsageOptions = strategyScriptApplication.listUsageOptions()
+
 const strategyScriptLibrary = useStrategyScriptLibrary(
   strategyScriptApplication,
   () => new StrategyScriptContentDto(
@@ -369,6 +372,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
         @load="strategyScriptLibrary.selectStrategyScript"
         @remove="strategyScriptLibrary.askToDelete"
         @delete-adopted="strategyScriptLibrary.deleteAdoptedStrategyScript"
+        @switch-usage="strategyScriptLibrary.switchStrategyScriptUsage"
       />
     </AppPanel>
 
@@ -1044,6 +1048,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       @load="strategyScriptLibrary.selectStrategyScript"
       @remove="strategyScriptLibrary.askToDelete"
       @delete-adopted="strategyScriptLibrary.deleteAdoptedStrategyScript"
+      @switch-usage="strategyScriptLibrary.switchStrategyScriptUsage"
       @close="strategyScriptLibrary.closeDialog"
     />
 
@@ -1053,6 +1058,7 @@ defineExpose({ hasUnsavedDraft: () => strategyScriptLibrary.hasUnsavedDraft() })
       :hint="t('strategyScript.indicatorCalculationPanel.saveAsDialog.hint')"
       :error-message="strategyScriptLibrary.nameErrorMessage.value"
       :submitting="strategyScriptLibrary.saving.value"
+      :usage-options="strategyScriptUsageOptions"
       @submit="strategyScriptLibrary.createStrategyScript"
       @cancel="strategyScriptLibrary.closeDialog"
     />

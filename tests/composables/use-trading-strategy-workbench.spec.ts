@@ -5,6 +5,10 @@ import { TradingStrategyConditionDto } from '~/domain/models/dto/trading-strateg
 import { TradingStrategyDto } from '~/domain/models/dto/trading-strategy-dto'
 import { TradingStrategySignalSourceDto } from '~/domain/models/dto/trading-strategy-signal-source-dto'
 import { TradingStrategyWriteDto } from '~/domain/models/dto/trading-strategy-write-dto'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
+
+const CALCULATION = new StrategyScriptUsageDomain('calculation').toDto()
+const CHART = new StrategyScriptUsageDomain('chart').toDto()
 
 const tradingStrategyApplication = {
   getTradingStrategy: vi.fn(),
@@ -42,9 +46,10 @@ beforeEach(() => {
     mine: [{
       id: 9,
       name: '均線',
+      usage: CALCULATION,
       content: { resultType: 'signal', parameters: [{ name: '回看根數' }] },
     }],
-    adopted: [{ id: 10, name: '別人的動能', resultType: 'signal', parameters: [{ name: '週期' }] }],
+    adopted: [{ id: 10, name: '別人的動能', usage: CALCULATION, resultType: 'signal', parameters: [{ name: '週期' }] }],
   })
 })
 
@@ -71,8 +76,8 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
   it('建了幾支、但沒有一支吐訊號——下一步是去改它們，不是再建一支', async () => {
     // 這兩種說同一句話的話，後者只會去建第五支同樣用不了的腳本。
     strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
-      mine: [{ id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } }],
-      adopted: [{ id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] }],
+      mine: [{ id: 11, name: '吐一個數字的', usage: CALCULATION, content: { resultType: 'float', parameters: [] } }],
+      adopted: [{ id: 13, name: '採用來、吐是非的', usage: CALCULATION, resultType: 'bool', parameters: [] }],
     })
 
     const workbench = workbenchUnderTest(null)
@@ -84,10 +89,10 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
   it('挑不得的那幾支連同原因一起記著——一塊指著它們的零件要說得出自己指著誰', async () => {
     strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
       mine: [
-        { id: 9, name: '會吐訊號的', content: { resultType: 'signal', parameters: [] } },
-        { id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } },
+        { id: 9, name: '會吐訊號的', usage: CALCULATION, content: { resultType: 'signal', parameters: [] } },
+        { id: 11, name: '吐一個數字的', usage: CALCULATION, content: { resultType: 'float', parameters: [] } },
       ],
-      adopted: [{ id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] }],
+      adopted: [{ id: 13, name: '採用來、吐是非的', usage: CALCULATION, resultType: 'bool', parameters: [] }],
     })
 
     const workbench = workbenchUnderTest(null)
@@ -98,6 +103,55 @@ describe('useTradingStrategyWorkbench 挑不到策略腳本時說得出是哪一
       .toContain('does not output a signal, so it cannot be a signal source')
     expect(workbench.unusableStrategyScriptsByKind.value.kCandle[13]?.in('zh-TW')).toContain('採用來、吐是非的')
     expect(workbench.unusableStrategyScriptsByKind.value.kCandle[9]).toBeUndefined()
+  })
+})
+
+describe('useTradingStrategyWorkbench 訊號來源只列計算用的腳本', () => {
+  it('計算用、吐訊號的挑得到；圖表用、吐訊號的不列，指著它的來源說它是圖表用', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [
+        { id: 9, name: '均線訊號', usage: CALCULATION, content: { resultType: 'signal', parameters: [] } },
+        { id: 12, name: '突破線', usage: CHART, content: { resultType: 'signal', parameters: [] } },
+      ],
+      adopted: [{ id: 14, name: '別人的突破', usage: CHART, resultType: 'signal', parameters: [] }],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.strategyScriptOptionsByKind.value.kCandle).toEqual([{ value: 9, label: '均線訊號' }])
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[12]?.in('zh-TW'))
+      .toBe('突破線（這支是圖表用，當不了訊號來源）')
+    expect(workbench.unusableStrategyScriptsByKind.value.kCandle[14]?.in('zh-TW'))
+      .toBe('別人的突破（這支是圖表用，當不了訊號來源）')
+  })
+
+  it('吐訊號的全是圖表用時，說明要先切成計算用', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [
+        { id: 12, name: '突破線', usage: CHART, content: { resultType: 'signal', parameters: [] } },
+        { id: 11, name: '吐一個數字的', usage: CALCULATION, content: { resultType: 'float', parameters: [] } },
+      ],
+      adopted: [],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.shortageByKind.value.kCandle).toBe('noCalculationStrategyScripts')
+  })
+
+  it('計算用但吐數字的照舊不列', async () => {
+    strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
+      mine: [{ id: 11, name: '吐一個數字的', usage: CALCULATION, content: { resultType: 'float', parameters: [] } }],
+      adopted: [],
+    })
+
+    const workbench = workbenchUnderTest(null)
+    await workbench.load()
+
+    expect(workbench.strategyScriptOptionsByKind.value.kCandle).toEqual([])
+    expect(workbench.shortageByKind.value.kCandle).toBe('noSignalStrategyScripts')
   })
 })
 
@@ -133,10 +187,10 @@ describe('useTradingStrategyWorkbench 讀一份進來', () => {
     // 而算式失敗是會**停擺**的那一類。使用者會得到一台按下播放、隔天發現早就停了的機器人。
     strategyScriptApplication.listAvailableStrategyScripts.mockResolvedValue({
       mine: [
-        { id: 9, name: '會吐訊號的', content: { resultType: 'signal', parameters: [] } },
-        { id: 11, name: '吐一個數字的', content: { resultType: 'float', parameters: [] } },
+        { id: 9, name: '會吐訊號的', usage: CALCULATION, content: { resultType: 'signal', parameters: [] } },
+        { id: 11, name: '吐一個數字的', usage: CALCULATION, content: { resultType: 'float', parameters: [] } },
       ],
-      adopted: [{ id: 13, name: '採用來、吐是非的', resultType: 'bool', parameters: [] }],
+      adopted: [{ id: 13, name: '採用來、吐是非的', usage: CALCULATION, resultType: 'bool', parameters: [] }],
     })
 
     const workbench = workbenchUnderTest(null)
@@ -265,6 +319,7 @@ describe('useTradingStrategyWorkbench 兩種行情的策略腳本各讀一份', 
       mine: [{
         id: kind === 'kCandle' ? 9 : 21,
         name: kind === 'kCandle' ? '均線' : '費率反轉',
+        usage: CALCULATION,
         content: { resultType: 'signal', parameters: [] },
       }],
       adopted: [],

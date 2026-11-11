@@ -4,6 +4,8 @@ import type { AvailableStrategyScriptsDto } from '~/domain/models/dto/available-
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script-write-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
+import type { StrategyScriptUsageOptionDto } from '~/domain/models/dto/strategy-script-usage-option-dto'
 
 /** Application：策略腳本庫的用例編排，全程只碰 DTO。 */
 export class StrategyScriptApplication {
@@ -17,6 +19,14 @@ export class StrategyScriptApplication {
 
   async saveStrategyScript(strategyScriptWriteDto: StrategyScriptWriteDto): Promise<StrategyScriptDto> {
     return this.strategyScriptService.saveStrategyScript(strategyScriptWriteDto)
+  }
+
+  async switchStrategyScriptUsage(id: number, usage: StrategyScriptUsage): Promise<void> {
+    return this.strategyScriptService.switchStrategyScriptUsage(id, usage)
+  }
+
+  listUsageOptions(): StrategyScriptUsageOptionDto[] {
+    return this.strategyScriptService.listUsageOptions()
   }
 
   async deleteStrategyScript(id: number): Promise<void> {

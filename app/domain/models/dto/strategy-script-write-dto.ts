@@ -1,4 +1,5 @@
 import type { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 /**
  * DTO：存一支策略腳本要給的東西。
@@ -16,5 +17,10 @@ export class StrategyScriptWriteDto {
      * 沒有說明與寫了一句空白，對讀的人是同一件事。
      */
     public readonly description: string = '',
+    /**
+     * 新增時選的用途；`null` 是「不說」——改寫與改名一律不說，因為交易服務不讓改寫順便改用途
+     * （那是切換用途這個獨立的動作）。
+     */
+    public readonly usage: StrategyScriptUsage | null = null,
   ) {}
 }

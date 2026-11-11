@@ -49,7 +49,7 @@ const {
    * 原因有兩種，下一步完全不同：一支都沒建過的人要去建一支；
    * 建了好幾支卻沒有一支吐訊號的人要去改它們的指標值種類。
    */
-  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | null
+  shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | 'noCalculationStrategyScripts' | null
   /** 哪幾個來源被條件用著（以它在清單上的位置記），刪之前先說一聲。 */
   usageWarnings: Readonly<Record<number, LocalizedTextVo>>
   /** 這張卡現在被選著——它的設定正開著。 */
@@ -183,6 +183,13 @@ function onParameterInput(name: string, raw: string | number) {
       data-testid="no-signal-strategy-scripts"
     >
       {{ t('tradingStrategy.signalSourceCard.noSignalStrategyScripts') }}
+    </p>
+    <p
+      v-else-if="shortage === 'noCalculationStrategyScripts'"
+      class="signal-source-card__note"
+      data-testid="no-calculation-strategy-scripts"
+    >
+      {{ t('tradingStrategy.signalSourceCard.noCalculationStrategyScripts') }}
     </p>
     <p
       v-else-if="sources.length === 0"

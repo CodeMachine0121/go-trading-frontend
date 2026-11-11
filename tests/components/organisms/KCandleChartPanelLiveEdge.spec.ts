@@ -103,7 +103,7 @@ async function mountPanel() {
       liveKCandleApplication: buildLiveKCandleApplication({ followKCandles: feed.followKCandles }),
       chartIndicatorApplication: buildChartIndicatorApplication({ calculateIndicator, recalculateIndicator }),
       strategyScriptApplication: buildStrategyScriptApplication({
-        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { resultType: 'float' })], adopted: [] }),
+        listAvailableStrategyScripts: vi.fn().mockResolvedValue({ mine: [buildStoredStrategyScript(7, '二十根均線', { usage: 'chart', resultType: 'float' })], adopted: [] }),
       }),
       timeZone: buildTimeZone(),
       chartDrawingApplication: buildChartDrawingApplication(),

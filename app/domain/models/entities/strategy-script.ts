@@ -24,6 +24,8 @@ export class StrategyScript {
     public readonly published: boolean = false,
     /** 這支算式吃哪一種行情，原樣照後端說的；舊版後端不說時是 `kCandle`。 */
     public readonly marketDataKind: string = 'kCandle',
+    /** 圖表用或計算用，原樣照後端說的；舊版後端不說時是空字串（讀作計算用）。 */
+    public readonly usage: string = '',
   ) {}
 
   toDomain(): StrategyScriptDomain {

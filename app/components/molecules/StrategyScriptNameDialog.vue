@@ -4,8 +4,11 @@ import AppButton from '~/components/atoms/AppButton.vue'
 import AppInput from '~/components/atoms/AppInput.vue'
 import AppModal from '~/components/atoms/AppModal.vue'
 import AppTextarea from '~/components/atoms/AppTextarea.vue'
+import AppRadio from '~/components/atoms/AppRadio.vue'
 import FormField from '~/components/molecules/FormField.vue'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { StrategyScriptUsageOptionDto } from '~/domain/models/dto/strategy-script-usage-option-dto'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 // 分子：問一個策略腳本的名稱與說明。
 //
@@ -23,6 +26,7 @@ const {
   initialDescription = '',
   errorMessage = null,
   submitting = false,
+  usageOptions = [],
 } = defineProps<{
   open: boolean
   title: string
@@ -33,12 +37,22 @@ const {
   initialDescription?: string
   errorMessage?: LocalizedTextVo | null
   submitting?: boolean
+  /**
+   * 另存新腳本時問用途的選項；第一個是預設。**改名時不給**——用途只能用切換改，
+   * 改名順便送用途會被交易服務拒絕，所以那一格根本不出現。
+   */
+  usageOptions?: readonly StrategyScriptUsageOptionDto[]
 }>()
 
-const emit = defineEmits<{ submit: [name: string, description: string], cancel: [] }>()
+const emit = defineEmits<{
+  /** 用途在沒問的時候（改名）是 `null`：不送。 */
+  submit: [name: string, description: string, usage: StrategyScriptUsage | null]
+  cancel: []
+}>()
 
 const name = ref(initialName)
 const description = ref(initialDescription)
+const usage = ref<string>(usageOptions[0]?.value ?? '')
 const { t } = useI18n()
 const { localize } = useLocalizedText()
 
@@ -56,6 +70,7 @@ watch(() => open, (isOpen) => {
   if (isOpen) {
     name.value = initialName
     description.value = initialDescription
+    usage.value = usageOptions[0]?.value ?? ''
     missingName.value = false
   }
 })
@@ -70,7 +85,8 @@ function submitName() {
   missingName.value = false
   // 說明不在這裡驗長度：那是後端的規則，抄一份下來，等那邊改了這邊沒跟著改，
   // 畫面就會擋掉其實存得下的東西。
-  emit('submit', trimmedName, description.value)
+  emit('submit', trimmedName, description.value,
+    usageOptions.find(option => option.value === usage.value)?.value ?? null)
 }
 </script>
 
@@ -111,6 +127,27 @@ function submitName() {
           :placeholder="t('strategyScript.strategyScriptNameDialog.descriptionPlaceholder')"
         />
       </FormField>
+
+      <!-- 用途與名稱一起被想到：它決定這一支出現在圖表選單，還是挑得到當訊號來源。 -->
+      <FormField
+        v-if="usageOptions.length > 0"
+        :label="t('strategyScript.strategyScriptNameDialog.usageLabel')"
+        grouped
+        data-testid="strategy-script-usage-field"
+      >
+        <div class="strategy-script-name-dialog__usages">
+          <AppRadio
+            v-for="option in usageOptions"
+            :key="option.value"
+            v-model="usage"
+            name="strategy-script-usage"
+            :value="option.value"
+            :label="localize(option.label)"
+            :description="localize(option.description)"
+            :data-testid="`strategy-script-usage-${option.value}`"
+          />
+        </div>
+      </FormField>
     </form>
 
     <template #actions>
@@ -136,5 +173,11 @@ function submitName() {
   display: flex;
   flex-direction: column;
   gap: spacing('sm');
+
+  &__usages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: spacing('xs');
+  }
 }
 </style>

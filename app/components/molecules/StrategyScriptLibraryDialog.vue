@@ -5,6 +5,7 @@ import StrategyScriptLibraryList from '~/components/molecules/StrategyScriptLibr
 import type { PublishedStrategyScriptDto } from '~/domain/models/dto/published-strategy-script-dto'
 import type { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 import type { LocalizedTextVo } from '~/domain/models/vo/localized-text-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 // 分子：窄螢幕上的策略腳本清單——同一份清單，收在一張蓋上來的紙裡。
 //
@@ -31,6 +32,7 @@ const emit = defineEmits<{
   load: [id: number]
   remove: [id: number]
   deleteAdopted: [id: number]
+  switchUsage: [id: number, usage: StrategyScriptUsage]
   close: []
 }>()
 
@@ -53,6 +55,7 @@ const { t } = useI18n()
       @load="id => emit('load', id)"
       @remove="id => emit('remove', id)"
       @delete-adopted="id => emit('deleteAdopted', id)"
+      @switch-usage="(id, usage) => emit('switchUsage', id, usage)"
     />
   </AppModal>
 </template>

@@ -48,6 +48,7 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     createdNotice: 'Trading strategy created',
     savedNotice: 'Changes saved',
     notSignalStrategyScript: '{name} (does not output a signal, so it cannot be a signal source)',
+    chartUsageStrategyScript: '{name} (a chart script, so it cannot be a signal source)',
     unknownError: 'An unknown error occurred',
   },
   signalSourceCard: {
@@ -55,6 +56,7 @@ export const tradingStrategyEnglishMessages: typeof tradingStrategyTraditionalCh
     title: 'Which strategy scripts read the market',
     noStrategyScripts: 'No strategy scripts yet. Create one in the strategy script library first.',
     noSignalStrategyScripts: 'You have strategy scripts, but none of them outputs a signal, so none can be picked. Conditions compare Buy / Sell / Hold, and only scripts whose indicator value type is "A signal" can say those three values — go to the strategy script library and switch the ones you want to "A signal" (the script must return indicator.Signal).',
+    noCalculationStrategyScripts: 'You have scripts that output a signal, but they are all chart scripts, so none can be picked. Go to the strategy script library and switch the ones you want as signal sources to "Calculation".',
     noSources: 'No signal sources yet. Add one and the two cards below can use it to decide buys and sells.',
     removeSource: 'Remove "{label}"',
     addSource: 'Add a signal source',

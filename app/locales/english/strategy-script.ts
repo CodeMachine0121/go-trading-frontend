@@ -62,6 +62,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     noDescription: 'The publisher did not write a description.',
     resultTypeHeading: 'Calculates',
     marketDataKindHeading: 'Market data',
+    usageHeading: 'Usage',
     parametersHeading: 'Adjustable parameters',
     noParameters: 'No parameters',
     parameterNameSeparator: ', ',
@@ -73,6 +74,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     title: 'Strategy scripts',
   },
   strategyScriptLibraryList: {
+    switchUsageLabel: '{action}: "{name}"',
     empty: 'No strategy scripts yet. Check the Marketplace for what others have shared, or save one of your own.',
     mineSection: 'My strategy scripts',
     loadLabel: 'Load "{name}"',
@@ -87,6 +89,7 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     removeAdopted: 'Remove',
   },
   strategyScriptNameDialog: {
+    usageLabel: 'Usage',
     missingName: 'Enter a strategy script name',
     nameLabel: 'Strategy script name',
     namePlaceholder: 'e.g. 20-candle moving average',
@@ -219,6 +222,8 @@ export const strategyScriptEnglishMessages: typeof strategyScriptTraditionalChin
     unexpectedCalculationError: 'An unexpected error occurred while running the calculation.',
   },
   strategyScriptLibrary: {
+    usageSwitched: '"{name}" is now {usage}',
+    usageSwitchFailed: 'Could not switch the usage. Try again later.',
     listFailed: 'An unexpected error occurred while loading the strategy script list.',
     blankStarted: 'Started a new blank strategy script.',
     saved: 'Saved "{name}".',

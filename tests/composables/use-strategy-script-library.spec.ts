@@ -173,3 +173,93 @@ describe('useStrategyScriptLibrary 離開這一頁之前要不要先問', () => 
     expect(library.hasUnsavedDraft()).toBe(expected)
   })
 })
+
+describe('useStrategyScriptLibrary 的用途', () => {
+  async function libraryWith(proxy: Parameters<typeof buildStrategyScriptApplication>[0]) {
+    const library = useStrategyScriptLibrary(
+      buildStrategyScriptApplication(proxy),
+      () => new StrategyScriptContentDto('sum := 1.0', 'float', []),
+      vi.fn(),
+      BLANK)
+    await library.refreshStrategyScripts()
+
+    return library
+  }
+
+  it('另存新腳本時帶著選的用途', async () => {
+    const createStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(3, '新的', { usage: 'chart' }))
+    const library = await libraryWith({ createStrategyScript })
+
+    await library.createStrategyScript('新的', '', 'chart')
+
+    expect(createStrategyScript.mock.calls[0]![0].usage).toBe('chart')
+  })
+
+  it('改名時不帶用途', async () => {
+    const updateStrategyScript = vi.fn().mockResolvedValue(buildStoredStrategyScript(1, '改過的'))
+    const library = await libraryWith({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(1, 'RSI 背離', { script: 'sum := 1.0', resultType: 'float' })], adopted: [],
+      }),
+      updateStrategyScript,
+    })
+    library.selectStrategyScript(1)
+    library.confirmDiscard()
+
+    await library.renameStrategyScript('改過的', '')
+
+    expect(updateStrategyScript.mock.calls[0]![0].usage).toBeNull()
+  })
+
+  it.each([
+    { id: 1, from: 'calculation', to: 'chart' as const, label: '圖表用', name: '均線' },
+    { id: 9, from: 'calculation', to: 'chart' as const, label: '圖表用', name: '別人的通道' },
+    { id: 1, from: 'chart', to: 'calculation' as const, label: '計算用', name: '均線' },
+  ])('把 $name 從 $from 切成 $to：重讀後標「$label」並說一聲', async ({ id, from, to, label, name }) => {
+    const listOf = (usage: string) => ({
+      mine: [buildStoredStrategyScript(1, '均線', { usage })],
+      adopted: [buildAdoptedStrategyScript(9, '別人的通道', { usage })],
+    })
+    const listAvailableStrategyScripts = vi.fn().mockResolvedValue(listOf(from))
+    const switchStrategyScriptUsage = vi.fn().mockImplementation(async () => {
+      listAvailableStrategyScripts.mockResolvedValue(listOf(to))
+    })
+    const library = await libraryWith({ listAvailableStrategyScripts, switchStrategyScriptUsage })
+
+    await library.switchStrategyScriptUsage(id, to)
+
+    expect(switchStrategyScriptUsage).toHaveBeenCalledWith(id, to)
+    const switched = [...library.strategyScripts.value, ...library.adoptedStrategyScripts.value]
+      .find(script => script.id === id)
+    expect(switched?.usage.label.in('zh-TW')).toBe(label)
+    expect(library.noticeMessage.value?.in('zh-TW')).toBe(`已把「${name}」改成${label}`)
+  })
+
+  it('被交易策略用著時照交易服務那一句說，用途不變', async () => {
+    const { BackendRequestRejectedError } = await import('~/domain/errors/backend-request-rejected-error')
+    const message = '交易策略「4H 趨勢」正在用這支腳本'
+    const library = await libraryWith({
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [buildStoredStrategyScript(1, '均線', { usage: 'calculation' })], adopted: [],
+      }),
+      switchStrategyScriptUsage: vi.fn().mockRejectedValue(
+        new BackendRequestRejectedError(message, { status: 409, reason: 'strategyScriptUsageInUse' })),
+    })
+
+    await library.switchStrategyScriptUsage(1, 'chart')
+
+    expect(library.errorMessage.value?.in('zh-TW')).toBe(message)
+    expect(library.noticeMessage.value).toBeNull()
+    expect(library.strategyScripts.value[0]?.usage.label.in('zh-TW')).toBe('計算用')
+  })
+
+  it('清單上已經沒有那一支時什麼都不做，也不打交易服務', async () => {
+    const switchStrategyScriptUsage = vi.fn()
+    const library = await libraryWith({ switchStrategyScriptUsage })
+
+    await library.switchStrategyScriptUsage(404, 'chart')
+
+    expect(switchStrategyScriptUsage).not.toHaveBeenCalled()
+    expect(library.noticeMessage.value).toBeNull()
+  })
+})

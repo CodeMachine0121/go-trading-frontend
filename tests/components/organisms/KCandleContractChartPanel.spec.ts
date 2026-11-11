@@ -254,7 +254,7 @@ describe('KCandleContractChartPanel', () => {
 
     expect(wrapper.findComponent(ChartIndicatorPanel).exists()).toBe(true)
     expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
-      .toBe('還沒有吃合約行情的策略腳本，到合約策略腳本畫面新增一支。')
+      .toBe('沒有圖表用的合約策略腳本。到合約策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。')
     expect(wrapper.text()).not.toContain('合約圖表目前沒有指標可套用')
     expect(wrapper.text()).not.toContain('沒有即時跟盤')
   })

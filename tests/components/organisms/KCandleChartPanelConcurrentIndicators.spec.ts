@@ -91,10 +91,10 @@ function controllableFeed() {
 }
 
 const STRATEGY_SCRIPTS = [
-  buildStoredStrategyScript(7, '均線', { resultType: 'float' }),
-  buildStoredStrategyScript(8, '布林', { resultType: 'float' }),
-  buildStoredStrategyScript(9, '通道', { resultType: 'float' }),
-  buildStoredStrategyScript(10, '動能', { resultType: 'float' }),
+  buildStoredStrategyScript(7, '均線', { usage: 'chart', resultType: 'float' }),
+  buildStoredStrategyScript(8, '布林', { usage: 'chart', resultType: 'float' }),
+  buildStoredStrategyScript(9, '通道', { usage: 'chart', resultType: 'float' }),
+  buildStoredStrategyScript(10, '動能', { usage: 'chart', resultType: 'float' }),
 ]
 
 /** 上次擺著的那幾支：打開畫面、行情回來時一起算。 */

@@ -3,6 +3,7 @@ import { IndicatorResultTypeDomain } from '~/domain/models/domains/indicator-res
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 /**
  * Domain Model：一支已存策略腳本對畫面的樣子。
@@ -13,9 +14,11 @@ import { StrategyScriptDto } from '~/domain/models/dto/strategy-script-dto'
 export class StrategyScriptDomain {
   constructor(private readonly strategyScript: StrategyScript) {}
 
-  // Symbol screening replays candles only, so order-flow scripts cannot be screened.
+  // Symbol screening replays candles only, so order-flow scripts cannot be screened;
+  // a chart-usage script is refused by the trading service, so it is not offered either.
   get screensSymbols(): boolean {
-    return new MarketDataKindDomain(this.strategyScript.marketDataKind).value === 'contractKCandle'
+    return new StrategyScriptUsageDomain(this.strategyScript.usage).toDto().feedsCalculation
+      && new MarketDataKindDomain(this.strategyScript.marketDataKind).value === 'contractKCandle'
       && new IndicatorResultTypeDomain(this.strategyScript.resultType).value === 'signal'
       && this.strategyScript.parameters.every(parameter => parameter.kind !== 'orderFlowPriceStep')
   }
@@ -34,6 +37,7 @@ export class StrategyScriptDomain {
       // 這裡借用它而不是再比對一次種類——多一套判斷就多一個會漂移的地方。
       resultType.holdsNumbers(),
       this.strategyScript.published,
+      new StrategyScriptUsageDomain(this.strategyScript.usage).toDto(),
     )
   }
 }

@@ -3,6 +3,8 @@ import { ChartApplicableStrategyScriptDto } from '~/domain/models/dto/chart-appl
 import { StrategyScriptContentDto } from '~/domain/models/dto/strategy-script-content-dto'
 import type { StrategyScriptParameterDto } from '~/domain/models/dto/strategy-script-parameter-dto'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyScriptUsageDto } from '~/domain/models/dto/strategy-script-usage-dto'
+import { StrategyScriptUsageDomain } from '~/domain/models/domains/strategy-script-usage-domain'
 
 /**
  * DTO：市集上的一張卡，也是「我加入的」那一段每一列的形狀。
@@ -36,6 +38,8 @@ export class PublishedStrategyScriptDto {
     public readonly marketDataKind: MarketDataKind = 'kCandle',
     /** 給人看的行情種類：「K 線」或「合約行情」。市集上每一張卡都標著它。 */
     public readonly marketDataKindLabel: LocalizedTextVo = new LocalizedTextVo('K 線', 'K-candle'),
+    /** 圖表用或計算用。市集卡上標著它；副本那一列也能切換它。 */
+    public readonly usage: StrategyScriptUsageDto = new StrategyScriptUsageDomain('').toDto(),
   ) {}
 
   /**

@@ -94,8 +94,8 @@ function levelCalculation() {
   return new IndicatorCalculation('BTCUSDT', '15m', 1, 'float', [new IndicatorValueVo('水位', [115])])
 }
 
-const GAUSSIAN_CONTRACT = buildStoredStrategyScript(116, '高斯濾波（合約）', { marketDataKind: 'contractKCandle' })
-const GAUSSIAN_SPOT = buildStoredStrategyScript(115, '高斯濾波（現貨）', { marketDataKind: 'kCandle' })
+const GAUSSIAN_CONTRACT = buildStoredStrategyScript(116, '高斯濾波（合約）', { usage: 'chart', marketDataKind: 'contractKCandle' })
+const GAUSSIAN_SPOT = buildStoredStrategyScript(115, '高斯濾波（現貨）', { usage: 'chart', marketDataKind: 'kCandle' })
 
 async function mountPanel(overrides: {
   mine?: ReturnType<typeof buildStoredStrategyScript>[]
@@ -176,8 +176,8 @@ describe('合約圖表的指標清單', () => {
     const { wrapper, calculateIndicator } = await mountPanel({
       mine: [],
       adopted: [
-        buildAdoptedStrategyScript(200, '別人的通道', { marketDataKind: 'contractKCandle' }),
-        buildAdoptedStrategyScript(201, '別人的現貨均線', { marketDataKind: 'kCandle' }),
+        buildAdoptedStrategyScript(200, '別人的通道', { usage: 'chart', marketDataKind: 'contractKCandle' }),
+        buildAdoptedStrategyScript(201, '別人的現貨均線', { usage: 'chart', marketDataKind: 'kCandle' }),
       ],
     })
 
@@ -192,12 +192,12 @@ describe('合約圖表的指標清單', () => {
     const { wrapper } = await mountPanel({ mine: [GAUSSIAN_SPOT] })
 
     expect(wrapper.get('[data-testid="chart-indicator-empty"]').text())
-      .toBe('還沒有吃合約行情的策略腳本，到合約策略腳本畫面新增一支。')
+      .toBe('沒有圖表用的合約策略腳本。到合約策略腳本畫面新增一支，或把既有的改成「圖表用」，就能套到圖上。')
   })
 
   it('只回答是或否的合約策略腳本列著但挑不了', async () => {
     const { wrapper } = await mountPanel({
-      mine: [buildStoredStrategyScript(117, '是否突破', { marketDataKind: 'contractKCandle', resultType: 'boolList' })],
+      mine: [buildStoredStrategyScript(117, '是否突破', { usage: 'chart', marketDataKind: 'contractKCandle', resultType: 'boolList' })],
     })
 
     const option = wrapper.findAll('[data-testid="chart-indicator-picker"] option')
@@ -259,7 +259,7 @@ describe('合約圖表畫出指標', () => {
 
   it('只得出單一個值的畫成一條水平線', async () => {
     const { wrapper } = await mountPanel({
-      mine: [buildStoredStrategyScript(118, '水位', { marketDataKind: 'contractKCandle', resultType: 'float' })],
+      mine: [buildStoredStrategyScript(118, '水位', { usage: 'chart', marketDataKind: 'contractKCandle', resultType: 'float' })],
       calculateIndicator: vi.fn().mockResolvedValue(levelCalculation()),
     })
 
@@ -313,8 +313,8 @@ describe('合約圖表畫出指標', () => {
   it('一支本身有錯時只有那一行說明，另一支照常畫', async () => {
     const { wrapper } = await mountPanel({
       mine: [
-        buildStoredStrategyScript(116, '會失敗的', { marketDataKind: 'contractKCandle' }),
-        buildStoredStrategyScript(119, '算得出來的', { marketDataKind: 'contractKCandle' }),
+        buildStoredStrategyScript(116, '會失敗的', { usage: 'chart', marketDataKind: 'contractKCandle' }),
+        buildStoredStrategyScript(119, '算得出來的', { usage: 'chart', marketDataKind: 'contractKCandle' }),
       ],
       calculateIndicator: vi.fn()
         .mockRejectedValueOnce(new IndicatorScriptFailedError('算式執行失敗：boom'))

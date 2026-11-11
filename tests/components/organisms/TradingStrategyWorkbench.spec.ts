@@ -867,7 +867,7 @@ describe('TradingStrategyWorkbench：來源指著一支挑不得的策略腳本'
 })
 
 describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得出是哪一種', () => {
-  function withShortage(shortage: 'noStrategyScripts' | 'noSignalStrategyScripts') {
+  function withShortage(shortage: 'noStrategyScripts' | 'noSignalStrategyScripts' | 'noCalculationStrategyScripts') {
     return mount(TradingStrategyWorkbench, {
       props: {
         editing: null,
@@ -899,6 +899,15 @@ describe('TradingStrategyWorkbench：一支策略腳本都挑不到時，說得�
     const note = wrapper.get('[data-testid="no-signal-strategy-scripts"]')
     expect(note.text()).toContain('一個信號')
     expect(wrapper.find('[data-testid="no-strategy-scripts"]').exists()).toBe(false)
+  })
+
+  it('吐訊號的全是圖表用——下一步是把它們切成計算用', async () => {
+    const wrapper = withShortage('noCalculationStrategyScripts')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="no-calculation-strategy-scripts"]').text())
+      .toContain('去策略腳本庫把要當訊號來源的那幾支改成「計算用」')
+    expect(wrapper.find('[data-testid="no-signal-strategy-scripts"]').exists()).toBe(false)
   })
 
   it('挑不到的時候加不了來源——按了只會得到一個空的下拉選單', async () => {

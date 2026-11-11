@@ -67,6 +67,22 @@ describe('SymbolScreeningApplication profiles', () => {
     expect(strategyScripts.map(strategyScript => strategyScript.name)).toEqual(['V3'])
   })
 
+  it('does not list chart-usage scripts for screening', async () => {
+    const application = applicationUnderTest(screeningProxyMock(), {
+      listAvailableStrategyScripts: vi.fn().mockResolvedValue({
+        mine: [
+          new StrategyScript(2, '計算 V3', '', 'script', 'signal', [], false, 'contractKCandle', 'calculation'),
+          new StrategyScript(5, '圖表 V3', '', 'script', 'signal', [], false, 'contractKCandle', 'chart'),
+        ],
+        adopted: [],
+      }),
+    })
+
+    const strategyScripts = await application.listScreenableStrategyScripts()
+
+    expect(strategyScripts.map(strategyScript => strategyScript.name)).toEqual(['計算 V3'])
+  })
+
   it('leaves blank figures unsent and shows the figures the system filled in', async () => {
     const screeningProxy = screeningProxyMock()
     screeningProxy.saveProfile.mockResolvedValue(buildScreeningProfile())

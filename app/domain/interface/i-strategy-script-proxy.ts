@@ -1,6 +1,7 @@
 import type { PublishedStrategyScript } from '~/domain/models/entities/published-strategy-script'
 import type { StrategyScript } from '~/domain/models/entities/strategy-script'
 import type { StrategyScriptWriteDomain } from '~/domain/models/domains/strategy-script-write-domain'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 /**
  * 介面以「能力」命名，不以供應商命名。同一個外部資源一個 Proxy——
@@ -30,6 +31,13 @@ export interface IStrategyScriptProxy {
    * 名稱撞到別的策略腳本以 StrategyScriptNameConflictError 拒絕——兩者是不同的事。
    */
   updateStrategyScript(strategyScriptWriteDomain: StrategyScriptWriteDomain): Promise<StrategyScript>
+
+  /**
+   * 切換自己的一支或一份市集副本的用途。別人的以 StrategyScriptNotFoundError 拒絕；
+   * 切成圖表用而有交易策略或篩選設定在用時，以點名它們的 BackendRequestRejectedError 拒絕。
+   * 切成原本的用途不算失敗。
+   */
+  switchStrategyScriptUsage(id: number, usage: StrategyScriptUsage): Promise<void>
 
   /** 刪掉指名的那一支。找不到那一支以 StrategyScriptNotFoundError 拒絕。 */
   deleteStrategyScript(id: number): Promise<void>

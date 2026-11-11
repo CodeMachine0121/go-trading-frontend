@@ -6,6 +6,7 @@ import type { StrategyScriptWriteDto } from '~/domain/models/dto/strategy-script
 import { StrategyScriptFieldError } from '~/domain/errors/strategy-script-field-error'
 import { MarketDataKindDomain } from '~/domain/models/domains/market-data-kind-domain'
 import type { MarketDataKind } from '~/domain/models/vo/market-data-kind-vo'
+import type { StrategyScriptUsage } from '~/domain/models/vo/strategy-script-usage-vo'
 
 /**
  * Domain Model：要存下去的一支策略腳本，建構當下即驗證。
@@ -27,6 +28,8 @@ export class StrategyScriptWriteDomain {
   readonly resultType: string
   readonly parameters: readonly StrategyScriptParameterDto[]
   readonly marketDataKind: MarketDataKind
+  /** 新增時選的用途；`null` 就是不送。 */
+  readonly usage: StrategyScriptUsage | null
 
   constructor(strategyScriptWriteDto: StrategyScriptWriteDto) {
     const normalizedName = strategyScriptWriteDto.name.trim()
@@ -45,6 +48,8 @@ export class StrategyScriptWriteDomain {
     const resultType = new IndicatorResultTypeDomain(strategyScriptWriteDto.content.resultType)
 
     this.id = strategyScriptWriteDto.id
+    // 改寫一支既有的時不帶用途：交易服務拒絕改寫順便改用途，那是切換用途的事。
+    this.usage = strategyScriptWriteDto.id === undefined ? strategyScriptWriteDto.usage : null
     this.name = normalizedName
     // 說明的長度上限與名稱同理，是後端的規則：抄一份下來，等那邊改了這邊沒跟著改，
     // 畫面就會擋掉其實存得下的東西。這裡只做一件前端確定知道的事：去掉前後空白，
